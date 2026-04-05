@@ -2,8 +2,8 @@ import { describe, it, expect } from 'vitest';
 import { berechneUnterhalt } from '../../public/scripts/unterhalt.js';
 
 describe('berechneUnterhalt', () => {
-  it('Kind 5 Jahre, Einkommen 2000 netto → Tabellenwert Gruppe 1', () => {
-    const r = berechneUnterhalt({ alterKind: 5, nettoEinkommen: 2000 });
+  it('Kind 5 Jahre, Einkommen 1800 netto → Tabellenwert Gruppe 1', () => {
+    const r = berechneUnterhalt({ alterKind: 5, nettoEinkommen: 1800 });
     expect(r.unterhalt).toBeGreaterThan(0);
     expect(r.einkommensgruppe).toBe(1);
   });
