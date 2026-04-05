@@ -85,7 +85,7 @@ const year = new Date().getFullYear();
 </style>
 
 <script type="module">
-const { berechneSpritkosten } = await import(import.meta.env.BASE_URL + 'scripts/spritkosten.js');
+const { berechneSpritkosten } = await import(window.__base + 'scripts/spritkosten.js');
 function fmt(n) { return n.toLocaleString('de-DE', {minimumFractionDigits:2, maximumFractionDigits:2}) + ' €'; }
 function berechne() {
   const strecke = parseFloat(document.getElementById('strecke').value)||0;

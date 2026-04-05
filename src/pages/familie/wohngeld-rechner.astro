@@ -65,7 +65,7 @@ const year = new Date().getFullYear();
 </Layout>
 
 <script type="module">
-const { berechneWohngeld } = await import(import.meta.env.BASE_URL + 'scripts/wohngeld.js');
+const { berechneWohngeld } = await import(window.__base + 'scripts/wohngeld.js');
 function fmt(n) { return n.toLocaleString('de-DE', {minimumFractionDigits:2, maximumFractionDigits:2}) + ' €'; }
 function berechne() {
   const haushaltGroesse = parseInt(document.getElementById('haushalt').value)||3;
