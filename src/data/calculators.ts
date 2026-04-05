@@ -37,12 +37,13 @@ export const CALCULATORS: Calculator[] = [
   { slug: 'mindestlohn-rechner',       title: 'Mindestlohn-Rechner',       description: 'Stunden in Mindestlohn-Gehalt umrechnen.',                                   category: 'geld',      featured: false, live: true },
   { slug: 'kuendigungsfrist-rechner',  title: 'Kündigungsfrist-Rechner',   description: 'Gesetzliche Kündigungsfrist nach Betriebszugehörigkeit.',                   category: 'geld',      featured: false, live: true },
   { slug: 'ueberstunden-rechner',      title: 'Überstunden-Rechner',       description: 'Überstundenvergütung berechnen.',                                           category: 'geld',      featured: false, live: true },
-  { slug: 'steuerklassen-vergleich',   title: 'Steuerklassen-Vergleich',   description: 'Steuerklassen I–VI vergleichen.',                                           category: 'geld',      featured: false, live: false },
-  { slug: 'pfaendungsfreigrenze-rechner', title: 'Pfändungsfreigrenze',    description: 'Pfändbares Einkommen berechnen.',                                           category: 'geld',      featured: false, live: false },
+  { slug: 'steuerklassen-vergleich',   title: 'Steuerklassen-Vergleich',   description: 'Steuerklassen I–VI vergleichen.',                                           category: 'geld',      featured: false, live: true },
+  { slug: 'pfaendungsfreigrenze-rechner', title: 'Pfändungsfreigrenze',    description: 'Pfändbares Einkommen berechnen.',                                           category: 'geld',      featured: false, live: true },
+  { slug: 'kirchensteuer-rechner',     title: 'Kirchensteuer-Rechner',     description: 'Kirchensteuer nach Bundesland und Konfession berechnen.',                   category: 'geld',      featured: false, live: true },
   // WOHNEN
   { slug: 'tilgungs-kreditrechner',    title: 'Kreditrechner',             description: 'Monatliche Rate, Zinsen und Tilgung für Darlehen berechnen.',               category: 'wohnen',    featured: true,  live: true },
   { slug: 'grunderwerbsteuer-rechner', title: 'Grunderwerbsteuer-Rechner', description: 'Grunderwerbsteuer nach Bundesland berechnen.',                              category: 'wohnen',    featured: true,  live: true },
-  { slug: 'mietpreisbremse-rechner',   title: 'Mietpreisbremse-Rechner',   description: 'Zulässige Miethöhe nach Mietpreisbremse prüfen.',                           category: 'wohnen',    featured: false, live: false },
+  { slug: 'mietpreisbremse-rechner',   title: 'Mietpreisbremse-Rechner',   description: 'Zulässige Miethöhe nach Mietpreisbremse prüfen.',                           category: 'wohnen',    featured: false, live: true },
   { slug: 'nebenkosten-rechner',       title: 'Nebenkosten-Rechner',       description: 'Monatliche Nebenkosten für Wohnungen berechnen.',                           category: 'wohnen',    featured: false, live: true },
   { slug: 'immobilienkauf-nebenkosten',title: 'Immobilienkauf-Nebenkosten', description: 'Notar, Makler und Grunderwerbsteuer beim Immobilienkauf.',                 category: 'wohnen',    featured: false, live: true },
   // ENERGIE
@@ -55,7 +56,8 @@ export const CALCULATORS: Calculator[] = [
   { slug: 'fahrtkosten-rechner',       title: 'Fahrtkosten-Rechner',       description: 'Steuerliche Kilometerpauschale berechnen.',                                category: 'auto',      featured: false, live: true },
   // FAMILIE
   { slug: 'kindergeld-rechner',        title: 'Kindergeld-Rechner',        description: 'Kindergeld nach Anzahl der Kinder berechnen.',                             category: 'familie',   featured: false, live: true },
-  { slug: 'wohngeld-rechner',          title: 'Wohngeld-Rechner',          description: 'Anspruch auf Wohngeld prüfen.',                                            category: 'familie',   featured: false, live: false },
+  { slug: 'wohngeld-rechner',          title: 'Wohngeld-Rechner',          description: 'Anspruch auf Wohngeld prüfen.',                                            category: 'familie',   featured: false, live: true },
+  { slug: 'renten-rechner',            title: 'Renten-Rechner',            description: 'Gesetzliche Rente und Rentenlücke berechnen.',                              category: 'familie',   featured: false, live: true },
   { slug: 'rentenpunkte-rechner',      title: 'Rentenpunkte-Rechner',      description: 'Entgeltpunkte und Rentenanspruch berechnen.',                              category: 'familie',   featured: false, live: true },
   { slug: 'mutterschutz-rechner',      title: 'Mutterschutz-Rechner',      description: 'Mutterschutz-Beginn und -Ende aus Geburtstermin berechnen.',              category: 'familie',   featured: false, live: true },
   // GESUNDHEIT
