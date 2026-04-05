@@ -8,7 +8,7 @@ const year = new Date().getFullYear();
 ---
 <Layout
   title={`Stromkosten-Rechner ${year}`}
-  description="Stromkosten aus Verbrauch (kWh) und Strompreis berechnen – kostenlos. Jahres- und Monatskosten auf einen Blick."
+  description="Stromkosten aus Verbrauch (kWh) und Strompreis berechnen – kostenlos. Richtwerte für 1-4-Personen-Haushalte inklusive."
   canonicalPath="/energie/stromkosten-rechner/"
   categoryColor={cat.color}
   categoryLight={cat.colorLight}
@@ -17,10 +17,20 @@ const year = new Date().getFullYear();
   <h1>Stromkosten-Rechner {year} – kWh in Euro umrechnen</h1>
   <CalculatorShell
     calculator={calc}
-    intro="Berechnen Sie Ihre jährlichen und monatlichen Stromkosten kostenlos. Geben Sie Ihren Jahresverbrauch in kWh und den aktuellen Strompreis pro kWh ein. Der bundesdeutsche Durchschnittshaushalt verbraucht ca. 3.500 kWh pro Jahr."
-    sourceNote="Berechnung: Verbrauch (kWh) × Preis (ct/kWh). Durchschnittsstrompreis 2025 laut BDEW ca. 31 ct/kWh. Ohne Grundgebühr."
+    intro="Berechnen Sie Ihre Stromkosten kostenlos. Wählen Sie Ihre Haushaltsgröße als Richtwert oder geben Sie Ihren eigenen Jahresverbrauch ein. Durchschnittsstrompreis 2025: ca. 31 ct/kWh (BDEW)."
+    sourceNote="Richtwerte nach BDEW-Haushaltskundenstudie 2024. Strompreis ca. 31 ct/kWh (Bundesdurchschnitt 2025). Ohne Grundgebühr."
   >
     <div class="calc-form">
+      <div class="calc-group">
+        <label>Haushaltsgröße (Richtwert)</label>
+        <div class="presets">
+          <button type="button" class="preset-btn" data-kwh="1500">1 Person<span>1.500 kWh</span></button>
+          <button type="button" class="preset-btn" data-kwh="2500">2 Personen<span>2.500 kWh</span></button>
+          <button type="button" class="preset-btn active" data-kwh="3500">3 Personen<span>3.500 kWh</span></button>
+          <button type="button" class="preset-btn" data-kwh="4500">4 Personen<span>4.500 kWh</span></button>
+          <button type="button" class="preset-btn" data-kwh="5500">5+ Personen<span>5.500 kWh</span></button>
+        </div>
+      </div>
       <div class="calc-grid">
         <div class="calc-group">
           <label for="kwh">Jahresverbrauch (kWh)</label>
@@ -40,14 +50,64 @@ const year = new Date().getFullYear();
   </CalculatorShell>
 </Layout>
 
+<style>
+.presets {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.5rem;
+}
+.preset-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.15rem;
+  padding: 0.45rem 0.75rem;
+  background: var(--bg);
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-family: var(--font-ui);
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text);
+  transition: border-color 0.15s, background 0.15s, color 0.15s;
+  line-height: 1.2;
+}
+.preset-btn span {
+  font-size: 0.68rem;
+  font-weight: 400;
+  color: var(--muted);
+}
+.preset-btn:hover { border-color: var(--cat-color, var(--red)); }
+.preset-btn.active {
+  border-color: var(--cat-color, var(--red));
+  background: color-mix(in srgb, var(--cat-color, var(--red)) 8%, white);
+  color: var(--cat-color, var(--red));
+}
+.preset-btn.active span { color: var(--cat-color, var(--red)); opacity: 0.75; }
+</style>
+
 <script>
+function fmt(n: number) { return n.toLocaleString('de-DE', {minimumFractionDigits:2, maximumFractionDigits:2}) + ' €'; }
 function berechne() {
   const kwh = parseFloat((document.getElementById('kwh') as HTMLInputElement).value)||0;
   const preis = parseFloat((document.getElementById('preis') as HTMLInputElement).value)||0;
   const jahr = Math.round(kwh * preis) / 100;
-  document.getElementById('jahr')!.textContent = jahr.toLocaleString('de-DE', {minimumFractionDigits:2, maximumFractionDigits:2}) + ' €';
-  document.getElementById('monat')!.textContent = 'Pro Monat: ' + (jahr/12).toLocaleString('de-DE', {minimumFractionDigits:2, maximumFractionDigits:2}) + ' €';
+  document.getElementById('jahr')!.textContent = fmt(jahr);
+  document.getElementById('monat')!.textContent = 'Pro Monat: ' + fmt(jahr/12);
 }
-['kwh','preis'].forEach(id => document.getElementById(id)!.addEventListener('input', berechne));
+document.querySelectorAll<HTMLButtonElement>('.preset-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    (document.getElementById('kwh') as HTMLInputElement).value = btn.dataset.kwh!;
+    berechne();
+  });
+});
+['kwh','preis'].forEach(id => document.getElementById(id)!.addEventListener('input', () => {
+  document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
+  berechne();
+}));
 berechne();
 </script>

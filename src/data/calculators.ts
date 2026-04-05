@@ -47,21 +47,21 @@ export const CALCULATORS: Calculator[] = [
   { slug: 'immobilienkauf-nebenkosten',title: 'Immobilienkauf-Nebenkosten', description: 'Notar, Makler und Grunderwerbsteuer beim Immobilienkauf.',                 category: 'wohnen',    featured: false, live: false },
   // ENERGIE
   { slug: 'stromkosten-rechner',       title: 'Stromkosten-Rechner',       description: 'Stromkosten aus kWh-Verbrauch und Preis berechnen.',                        category: 'energie',   featured: true,  live: true },
-  { slug: 'heizkosten-rechner',        title: 'Heizkosten-Rechner',        description: 'Jährliche Heizkosten berechnen.',                                           category: 'energie',   featured: false, live: false },
+  { slug: 'heizkosten-rechner',        title: 'Heizkosten-Rechner',        description: 'Jährliche Heizkosten berechnen.',                                           category: 'energie',   featured: false, live: true },
   { slug: 'photovoltaik-rechner',      title: 'Photovoltaik-Rechner',      description: 'Amortisationszeit einer PV-Anlage berechnen.',                             category: 'energie',   featured: false, live: false },
   // AUTO
   { slug: 'kfz-steuer-rechner',        title: 'Kfz-Steuer-Rechner',        description: 'Kfz-Steuer für Benziner, Diesel und Elektro berechnen.',                  category: 'auto',      featured: true,  live: true },
-  { slug: 'spritkosten-rechner',       title: 'Spritkosten-Rechner',       description: 'Kraftstoffkosten für eine Fahrt berechnen.',                               category: 'auto',      featured: false, live: false },
+  { slug: 'spritkosten-rechner',       title: 'Spritkosten-Rechner',       description: 'Kraftstoffkosten für eine Fahrt berechnen.',                               category: 'auto',      featured: false, live: true },
   { slug: 'fahrtkosten-rechner',       title: 'Fahrtkosten-Rechner',       description: 'Steuerliche Kilometerpauschale berechnen.',                                category: 'auto',      featured: false, live: false },
   // FAMILIE
-  { slug: 'kindergeld-rechner',        title: 'Kindergeld-Rechner',        description: 'Kindergeld nach Anzahl der Kinder berechnen.',                             category: 'familie',   featured: false, live: false },
+  { slug: 'kindergeld-rechner',        title: 'Kindergeld-Rechner',        description: 'Kindergeld nach Anzahl der Kinder berechnen.',                             category: 'familie',   featured: false, live: true },
   { slug: 'wohngeld-rechner',          title: 'Wohngeld-Rechner',          description: 'Anspruch auf Wohngeld prüfen.',                                            category: 'familie',   featured: false, live: false },
   { slug: 'rentenpunkte-rechner',      title: 'Rentenpunkte-Rechner',      description: 'Entgeltpunkte und Rentenanspruch berechnen.',                              category: 'familie',   featured: false, live: false },
   { slug: 'mutterschutz-rechner',      title: 'Mutterschutz-Rechner',      description: 'Mutterschutz-Beginn und -Ende aus Geburtstermin berechnen.',              category: 'familie',   featured: false, live: false },
   // GESUNDHEIT
   { slug: 'bmi-rechner',               title: 'BMI-Rechner',               description: 'Body-Mass-Index nach WHO-Formel berechnen.',                               category: 'gesundheit',featured: true,  live: true },
   { slug: 'kalorien-rechner',          title: 'Kalorien-Rechner',          description: 'Täglichen Kalorienbedarf nach Mifflin-St-Jeor berechnen.',                category: 'gesundheit',featured: false, live: true },
-  { slug: 'promille-rechner',          title: 'Promille-Rechner',          description: 'Blutalkohol nach Widmark-Formel berechnen.',                              category: 'gesundheit',featured: false, live: false },
+  { slug: 'promille-rechner',          title: 'Promille-Rechner',          description: 'Blutalkohol nach Widmark-Formel berechnen.',                              category: 'gesundheit',featured: false, live: true },
   // EINHEITEN
   { slug: 'einheitenrechner',          title: 'Einheitenrechner',          description: 'Länge, Gewicht, Temperatur, Volumen umrechnen.',                          category: 'einheiten', featured: true,  live: true },
   { slug: 'inflationsrechner',         title: 'Inflationsrechner',         description: 'Kaufkraftverlust durch Inflation berechnen.',                             category: 'einheiten', featured: false, live: false },

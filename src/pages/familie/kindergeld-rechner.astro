@@ -1,0 +1,57 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import CalculatorShell from '../../components/CalculatorShell.astro';
+import { CALCULATORS, CATEGORIES } from '../../data/calculators';
+const calc = CALCULATORS.find(c => c.slug === 'kindergeld-rechner')!;
+const cat = CATEGORIES[calc.category];
+const year = new Date().getFullYear();
+---
+<Layout
+  title={`Kindergeld-Rechner ${year}`}
+  description="Kindergeld 2025 kostenlos berechnen – 255 € pro Kind nach §66 EStG. Monats- und Jahresbetrag auf einen Blick."
+  canonicalPath="/familie/kindergeld-rechner/"
+  categoryColor={cat.color}
+  categoryLight={cat.colorLight}
+>
+  <a href={`${import.meta.env.BASE_URL}familie/`}>← Familie & Soziales</a>
+  <h1>Kindergeld-Rechner {year} – monatlicher Anspruch</h1>
+  <CalculatorShell
+    calculator={calc}
+    intro="Berechnen Sie Ihren Kindergeldanspruch für {year}. Seit Januar 2025 beträgt das Kindergeld einheitlich 255 € pro Kind und Monat – unabhängig von der Kinderzahl. Das Kindergeld wird von der Familienkasse der Bundesagentur für Arbeit ausgezahlt."
+    sourceNote="Kindergeld 2025 gemäß §66 EStG i.V.m. Jahressteuergesetz 2024: 255 € pro Kind monatlich. Kein Anspruchsabbau ab dem 4. Kind mehr."
+  >
+    <div class="calc-form">
+      <div class="calc-group">
+        <label for="kinder">Anzahl Kinder (mit Anspruch)</label>
+        <select id="kinder">
+          <option value="1">1 Kind</option>
+          <option value="2">2 Kinder</option>
+          <option value="3" selected>3 Kinder</option>
+          <option value="4">4 Kinder</option>
+          <option value="5">5 Kinder</option>
+          <option value="6">6 Kinder</option>
+        </select>
+      </div>
+      <div class="calc-result">
+        <div class="label">Kindergeld pro Monat</div>
+        <div id="monat">— €</div>
+      </div>
+      <p id="jahr" style="margin-top:0.5rem;font-size:0.95rem;color:#666;"></p>
+      <p id="proKind" style="margin-top:0.25rem;font-size:0.82rem;color:#999;"></p>
+    </div>
+  </CalculatorShell>
+</Layout>
+
+<script type="module">
+const { berechneKindergeld } = await import(import.meta.env.BASE_URL + 'scripts/kindergeld.js');
+function fmt(n) { return n.toLocaleString('de-DE', {minimumFractionDigits:2, maximumFractionDigits:2}) + ' €'; }
+function berechne() {
+  const kinder = parseInt(document.getElementById('kinder').value)||1;
+  const r = berechneKindergeld({ anzahlKinder: kinder });
+  document.getElementById('monat').textContent = fmt(r.monat);
+  document.getElementById('jahr').textContent = 'Pro Jahr: ' + fmt(r.jahr);
+  document.getElementById('proKind').textContent = `${fmt(r.betragProKind)} je Kind × ${kinder} = ${fmt(r.monat)} / Monat`;
+}
+document.getElementById('kinder').addEventListener('change', berechne);
+berechne();
+</script>
