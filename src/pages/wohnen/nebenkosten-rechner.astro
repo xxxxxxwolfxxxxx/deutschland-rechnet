@@ -1,0 +1,113 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import CalculatorShell from '../../components/CalculatorShell.astro';
+import { CALCULATORS, CATEGORIES } from '../../data/calculators';
+const calc = CALCULATORS.find(c => c.slug === 'nebenkosten-rechner')!;
+const cat = CATEGORIES[calc.category];
+const year = new Date().getFullYear();
+---
+<Layout
+  title={`Nebenkosten-Rechner ${year}`}
+  description="Monatliche Nebenkosten für Mietwohnungen berechnen – nach Betriebskostenspiegel des Deutschen Mieterbundes."
+  canonicalPath="/wohnen/nebenkosten-rechner/"
+  categoryColor={cat.color}
+  categoryLight={cat.colorLight}
+  categoryImage={cat.image}
+>
+  <div class="page-header">
+    <a href={`${import.meta.env.BASE_URL}wohnen/`} class="back-link">← Wohnen</a>
+    <h1>Nebenkosten-Rechner {year}</h1>
+  </div>
+  <CalculatorShell
+    calculator={calc}
+    intro="Schätzen Sie Ihre monatlichen Nebenkosten nach § 2 BetrKV auf Basis des Betriebskostenspiegels des Deutschen Mieterbundes. Die tatsächlichen Kosten hängen von Gebäude, Vermieter und Region ab."
+    sourceNote="Richtwerte nach Betriebskostenspiegel des Deutschen Mieterbundes 2024. Angaben sind Schätzwerte – tatsächliche Abrechnung kann abweichen."
+  >
+    <div class="calc-form">
+      <div class="calc-grid">
+        <div class="calc-group">
+          <label for="flaeche">Wohnfläche (m²)</label>
+          <input type="number" id="flaeche" min="10" max="500" value="70" step="5" />
+        </div>
+        <div class="calc-group" style="display:flex;align-items:center;gap:1.5rem;padding-top:1.5rem;">
+          <label style="display:flex;align-items:center;gap:0.5rem;font-weight:400;cursor:pointer;">
+            <input type="checkbox" id="aufzug" style="width:auto;" />
+            Aufzug vorhanden
+          </label>
+          <label style="display:flex;align-items:center;gap:0.5rem;font-weight:400;cursor:pointer;">
+            <input type="checkbox" id="garten" style="width:auto;" />
+            Gartenpflege
+          </label>
+        </div>
+      </div>
+
+      <div class="presets" style="display:flex;gap:0.5rem;flex-wrap:wrap;margin-bottom:0.75rem;">
+        <span style="font-size:0.82rem;color:var(--muted);align-self:center;">Typische Größen:</span>
+        <button class="preset-btn" data-v="35">1-Zi. (35 m²)</button>
+        <button class="preset-btn" data-v="60">2-Zi. (60 m²)</button>
+        <button class="preset-btn" data-v="80">3-Zi. (80 m²)</button>
+        <button class="preset-btn" data-v="110">4-Zi. (110 m²)</button>
+      </div>
+
+      <div class="calc-result">
+        <div class="label">Geschätzte Nebenkosten pro Monat</div>
+        <div id="gesamt">— €</div>
+      </div>
+      <div id="details" style="margin-top:1rem;"></div>
+    </div>
+  </CalculatorShell>
+</Layout>
+
+<style>
+.preset-btn {
+  background: var(--surface);
+  border: 1.5px solid var(--border);
+  border-radius: 20px;
+  padding: 0.25rem 0.75rem;
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+  font-family: var(--font-ui);
+  color: var(--text);
+}
+.preset-btn:hover, .preset-btn.active {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 8%, white);
+  color: var(--accent);
+}
+.nk-table { width:100%; border-collapse:collapse; font-size:0.85rem; }
+.nk-table td { padding:0.3rem 0.5rem; border-bottom:1px solid var(--border); }
+.nk-table tr:last-child td { border-bottom:none; }
+.nk-table td:last-child { text-align:right; color:var(--muted); }
+</style>
+
+<script type="module">
+const { berechneNebenkosten } = await import(import.meta.env.BASE_URL + 'scripts/nebenkosten.js');
+function fmt(n) { return n.toLocaleString('de-DE', {minimumFractionDigits:2, maximumFractionDigits:2}) + ' €'; }
+function berechne() {
+  const flaeche = parseFloat(document.getElementById('flaeche').value)||70;
+  const hatAufzug = document.getElementById('aufzug').checked;
+  const hatGarten = document.getElementById('garten').checked;
+  const r = berechneNebenkosten({ flaeche, hatAufzug, hatGarten });
+  document.getElementById('gesamt').textContent = `${fmt(r.gesamtMin)} – ${fmt(r.gesamtMax)}`;
+  document.getElementById('details').innerHTML =
+    `<table class="nk-table">` +
+    r.positionen.map(p =>
+      `<tr><td>${p.label}</td><td>${fmt(p.monatMin)} – ${fmt(p.monatMax)}</td></tr>`
+    ).join('') +
+    `</table>`;
+  document.querySelectorAll('.preset-btn').forEach(b => {
+    b.classList.toggle('active', parseFloat(b.dataset.v) === flaeche);
+  });
+}
+document.getElementById('flaeche').addEventListener('input', berechne);
+document.getElementById('aufzug').addEventListener('change', berechne);
+document.getElementById('garten').addEventListener('change', berechne);
+document.querySelectorAll('.preset-btn').forEach(b => {
+  b.addEventListener('click', () => {
+    document.getElementById('flaeche').value = b.dataset.v;
+    berechne();
+  });
+});
+berechne();
+</script>
