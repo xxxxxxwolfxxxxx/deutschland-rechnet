@@ -1,0 +1,76 @@
+---
+import '../styles/global.css';
+
+interface Props {
+  title: string;
+  description: string;
+  canonicalPath: string;
+  categoryColor?: string;
+  categoryLight?: string;
+}
+
+const { title, description, canonicalPath, categoryColor, categoryLight } = Astro.props;
+const siteUrl = import.meta.env.SITE ?? 'https://deutschland-rechnet.de';
+const base = import.meta.env.BASE_URL.replace(/\/$/, '');
+const canonical = `${siteUrl}${base}${canonicalPath}`;
+const year = new Date().getFullYear();
+---
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{title} – kostenlos | Deutschland rechnet</title>
+  <meta name="description" content={description} />
+  <link rel="canonical" href={canonical} />
+  <link rel="icon" type="image/svg+xml" href={`${base}/favicon.svg`} />
+  <link rel="sitemap" href={`${base}/sitemap-index.xml`} />
+  <meta property="og:title" content={`${title} – kostenlos | Deutschland rechnet`} />
+  <meta property="og:description" content={description} />
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content={canonical} />
+  {categoryColor && (
+    <style set:html={`:root { --cat-color: ${categoryColor}; --cat-light: ${categoryLight ?? '#f8f8f8'}; }`} />
+  )}
+</head>
+<body>
+  <header style={categoryColor ? `background: ${categoryColor}` : ''}>
+    <div class="container">
+      <nav>
+        <a href={`${base}/`} class="logo">🇩🇪 Deutschland rechnet</a>
+        <span class="tagline">Kostenlose Rechner für Deutschland</span>
+      </nav>
+    </div>
+  </header>
+  <main class="container">
+    <slot />
+  </main>
+  <footer>
+    <div class="container">
+      <p>© {year} Deutschland rechnet · Kostenlos · Keine Werbung · Kein Login</p>
+      <p><a href={`${base}/`}>Alle Rechner</a></p>
+    </div>
+  </footer>
+  <noscript>
+    <style>.calc-form { display: none; }</style>
+    <p style="background:#fff3cd;padding:1rem;border-radius:8px;margin:1rem 0;">
+      Bitte JavaScript aktivieren, um den Rechner zu nutzen.
+    </p>
+  </noscript>
+</body>
+</html>
+
+<style>
+header {
+  background: var(--color-black);
+  color: white;
+  padding: 0.75rem 0;
+  margin-bottom: 2rem;
+}
+header nav { display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; }
+.logo { color: white; text-decoration: none; font-weight: 700; font-size: 1.1rem; }
+.tagline { color: #aaa; font-size: 0.85rem; }
+footer { margin-top: 3rem; padding: 1.5rem 0; border-top: 2px solid var(--color-gold); background: var(--color-black); color: #aaa; font-size: 0.85rem; }
+footer a { color: var(--color-gold); }
+footer p { margin-bottom: 0.25rem; }
+</style>

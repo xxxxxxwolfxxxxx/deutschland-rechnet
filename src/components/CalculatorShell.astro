@@ -1,0 +1,76 @@
+---
+import RelatedLinks from './RelatedLinks.astro';
+import { CATEGORIES, type Calculator } from '../data/calculators';
+
+interface Props {
+  calculator: Calculator;
+  intro: string;
+  sourceNote: string;
+}
+const { calculator, intro, sourceNote } = Astro.props;
+const cat = CATEGORIES[calculator.category];
+const base = import.meta.env.BASE_URL.replace(/\/$/, '');
+---
+<article>
+  <div class="cat-hero" style={`background-color: ${cat.colorLight}; border-left: 4px solid ${cat.color};`}>
+    <div class="cat-hero-text">
+      <span class="cat-badge" style={`background: ${cat.color}; color: white;`}>{cat.emoji} {cat.label}</span>
+      <p class="intro">{intro}</p>
+    </div>
+    <img
+      src={`${base}${cat.image}`}
+      alt={cat.label}
+      class="cat-hero-img"
+      loading="lazy"
+      width="140"
+      height="140"
+    />
+  </div>
+
+  <div class="calc-box" style={`border-top: 3px solid ${cat.color};`}>
+    <slot />
+  </div>
+
+  <p class="source-note">{sourceNote}</p>
+
+  <RelatedLinks current={calculator} />
+</article>
+
+<style>
+.cat-hero {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  border-radius: var(--radius);
+  padding: 1.25rem 1.5rem;
+  margin-bottom: 1.5rem;
+  overflow: hidden;
+}
+.cat-hero-text { flex: 1; }
+.cat-badge {
+  display: inline-block;
+  font-size: 0.8rem;
+  font-weight: 600;
+  padding: 0.2rem 0.6rem;
+  border-radius: 20px;
+  margin-bottom: 0.5rem;
+}
+.intro { color: var(--color-text-muted); margin: 0; }
+.cat-hero-img {
+  width: 120px;
+  height: 120px;
+  object-fit: contain;
+  flex-shrink: 0;
+  display: none;
+}
+@media (min-width: 600px) { .cat-hero-img { display: block; } }
+.calc-box {
+  background: white;
+  border: 1.5px solid var(--color-border);
+  border-radius: var(--radius);
+  padding: 1.5rem;
+  box-shadow: var(--shadow);
+  margin-bottom: 1rem;
+}
+.source-note { font-size: 0.8rem; color: var(--color-text-muted); margin-top: 0.5rem; }
+</style>
