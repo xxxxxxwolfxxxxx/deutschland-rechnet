@@ -1,0 +1,83 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import CalculatorShell from '../../components/CalculatorShell.astro';
+import { CALCULATORS, CATEGORIES } from '../../data/calculators';
+const calc = CALCULATORS.find(c => c.slug === 'renten-rechner')!;
+const cat = CATEGORIES[calc.category];
+const year = new Date().getFullYear();
+---
+<Layout
+  title={`Renten-Rechner ${year}`}
+  description="Gesetzliche Rente berechnen – Monatliche Brutto- und Nettorente aus Entgeltpunkten, Rentenwert 39,32 € (2025)."
+  canonicalPath="/familie/renten-rechner/"
+  categoryColor={cat.color}
+  categoryLight={cat.colorLight}
+  categoryImage={cat.image}
+>
+  <div class="page-header">
+    <a href={`${import.meta.env.BASE_URL}familie/`} class="back-link">← Familie</a>
+    <h1>Renten-Rechner {year}</h1>
+  </div>
+  <CalculatorShell
+    calculator={calc}
+    intro="Schätzen Sie Ihre gesetzliche Monatsrente auf Basis Ihrer gesammelten Entgeltpunkte (aus dem Rentenbescheid der DRV). Rentenwert 2025: 39,32 € pro Entgeltpunkt. Frührentner erhalten Abzüge von 0,3% pro Monat."
+    sourceNote="Rentenwert West/Ost 2025: 39,32 € (§ 68 SGB VI). Zugangsfaktor nach § 77 SGB VI. KV- und PV-Abzüge auf Bruttorentenebene vereinfacht. Keine offizielle Rentenauskunft – diese erhalten Sie kostenlos bei der Deutschen Rentenversicherung."
+  >
+    <div class="calc-form">
+      <div class="calc-grid">
+        <div class="calc-group">
+          <label for="ep">Bisher gesammelte Entgeltpunkte</label>
+          <input type="number" id="ep" min="0" max="80" value="28.5" step="0.1" />
+        </div>
+        <div class="calc-group">
+          <label for="brutto">Aktuelles Bruttogehalt (€/Monat)</label>
+          <input type="number" id="brutto" min="0" max="20000" value="3800" step="100" />
+        </div>
+        <div class="calc-group">
+          <label for="geburtsjahr">Geburtsjahr</label>
+          <input type="number" id="geburtsjahr" min="1950" max="2000" value="1980" step="1" />
+        </div>
+        <div class="calc-group">
+          <label for="rentenjahr">Geplanter Rentenbeginn (Jahr)</label>
+          <input type="number" id="rentenjahr" min="2025" max="2060" value="2047" step="1" />
+        </div>
+      </div>
+      <div class="calc-result">
+        <div class="label">Gesetzliche Rente (netto, ca.)</div>
+        <div id="rente">— €/Monat</div>
+      </div>
+      <div id="details" style="margin-top:0.75rem;font-size:0.88rem;color:#666;display:flex;gap:1.5rem;flex-wrap:wrap;"></div>
+      <div id="luecke-box" style="display:none;margin-top:0.75rem;padding:0.75rem 1rem;border-radius:8px;background:#fff3cd;font-size:0.88rem;"></div>
+    </div>
+  </CalculatorShell>
+</Layout>
+
+<script type="module">
+const { berechneRente } = await import(import.meta.env.BASE_URL + 'scripts/rentenrechner.js');
+function fmt(n) { return n.toLocaleString('de-DE', {minimumFractionDigits:2, maximumFractionDigits:2}) + ' €'; }
+function berechne() {
+  const entgeltpunkte = parseFloat(document.getElementById('ep').value)||0;
+  const bruttoMonat = parseFloat(document.getElementById('brutto').value)||3800;
+  const geburtsjahrgang = parseInt(document.getElementById('geburtsjahr').value)||1980;
+  const rentenbeginn = parseInt(document.getElementById('rentenjahr').value)||2047;
+  const r = berechneRente({ geburtsjahrgang, rentenbeginn, entgeltpunkte, bruttoMonat, versicherungsjahre: 0 });
+  document.getElementById('rente').textContent = fmt(r.renteNetto);
+  document.getElementById('details').innerHTML =
+    `<span>Bruttorente: <strong>${fmt(r.renteMonat)}</strong></span>` +
+    `<span>Gesamte EP: <strong>${r.gesamtEP.toLocaleString('de-DE')}</strong></span>` +
+    `<span>Renteneintrittsalter: <strong>${r.alter} Jahre</strong></span>` +
+    (r.monateVorzeitig > 0
+      ? `<span style="color:#c8102e">Abzug: <strong>${(r.monateVorzeitig * 0.3).toFixed(1)} %</strong> (Frührentner)</span>`
+      : '') +
+    `<span>Zugangsfaktor: <strong>${r.zugangsfaktor.toLocaleString('de-DE', {minimumFractionDigits:4})}</strong></span>`;
+  const lueckeBox = document.getElementById('luecke-box');
+  if (r.rentenluecke > 0) {
+    lueckeBox.style.display = 'block';
+    lueckeBox.innerHTML = `<strong>Rentenlücke: ${fmt(r.rentenluecke)}/Monat</strong><br>Ihr letztes Netto (ca.): ${fmt(r.letzterNettoMonat)} – Rente: ${fmt(r.renteNetto)}. Zusätzliche Altersvorsorge empfohlen.`;
+  } else {
+    lueckeBox.style.display = 'none';
+  }
+}
+['ep','brutto','geburtsjahr','rentenjahr'].forEach(id => document.getElementById(id).addEventListener('input', berechne));
+berechne();
+</script>
