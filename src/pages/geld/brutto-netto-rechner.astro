@@ -1,0 +1,122 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import CalculatorShell from '../../components/CalculatorShell.astro';
+import { CALCULATORS, CATEGORIES } from '../../data/calculators';
+const calc = CALCULATORS.find(c => c.slug === 'brutto-netto-rechner')!;
+const cat = CATEGORIES[calc.category];
+const year = new Date().getFullYear();
+---
+<Layout
+  title={`Brutto-Netto-Rechner ${year}`}
+  description="Nettolohn aus Bruttogehalt berechnen – kostenlos, mit Steuerklasse, Bundesland und Kirchensteuer. Sofortiges Ergebnis."
+  canonicalPath="/geld/brutto-netto-rechner/"
+  categoryColor={cat.color}
+  categoryLight={cat.colorLight}
+>
+  <a href={`${import.meta.env.BASE_URL}geld/`}>← Geld & Gehalt</a>
+  <h1>Brutto-Netto-Rechner {year} – kostenlos & aktuell</h1>
+  <CalculatorShell
+    calculator={calc}
+    intro="Mit dem Brutto-Netto-Rechner berechnen Sie schnell und kostenlos Ihr monatliches Nettoeinkommen. Geben Sie Ihr Bruttogehalt, Ihre Steuerklasse und Ihr Bundesland ein – alle Abzüge wie Lohnsteuer, Solidaritätszuschlag und Sozialversicherungsbeiträge werden automatisch berücksichtigt."
+    sourceNote="Berechnung nach § 32a EStG 2025, aktuellen SV-Beitragssätzen (BMAS) und länderspezifischen Kirchensteuersätzen. Ohne Gewähr – für verbindliche Auskünfte wenden Sie sich an das Finanzamt."
+  >
+    <div class="calc-form">
+      <div class="calc-grid">
+        <div class="calc-group">
+          <label for="brutto">Bruttogehalt (monatlich, €)</label>
+          <input type="number" id="brutto" min="0" max="100000" value="3000" step="50" />
+        </div>
+        <div class="calc-group">
+          <label for="steuerklasse">Steuerklasse</label>
+          <select id="steuerklasse">
+            <option value="1" selected>I – Ledig, getrennt lebend</option>
+            <option value="2">II – Alleinerziehend</option>
+            <option value="3">III – Verheiratet, höheres Einkommen</option>
+            <option value="4">IV – Verheiratet, ähnliches Einkommen</option>
+            <option value="5">V – Verheiratet, geringeres Einkommen</option>
+            <option value="6">VI – Zweites Arbeitsverhältnis</option>
+          </select>
+        </div>
+        <div class="calc-group">
+          <label for="bundesland">Bundesland</label>
+          <select id="bundesland">
+            <option value="bw">Baden-Württemberg</option>
+            <option value="by">Bayern</option>
+            <option value="be">Berlin</option>
+            <option value="bb">Brandenburg</option>
+            <option value="hb">Bremen</option>
+            <option value="hh">Hamburg</option>
+            <option value="he">Hessen</option>
+            <option value="mv">Mecklenburg-Vorpommern</option>
+            <option value="ni">Niedersachsen</option>
+            <option value="nw" selected>Nordrhein-Westfalen</option>
+            <option value="rp">Rheinland-Pfalz</option>
+            <option value="sl">Saarland</option>
+            <option value="sn">Sachsen</option>
+            <option value="st">Sachsen-Anhalt</option>
+            <option value="sh">Schleswig-Holstein</option>
+            <option value="th">Thüringen</option>
+          </select>
+        </div>
+        <div class="calc-group">
+          <label for="kirche">Kirchensteuer</label>
+          <select id="kirche">
+            <option value="nein" selected>Nein</option>
+            <option value="ja">Ja</option>
+          </select>
+        </div>
+      </div>
+      <div class="calc-result" id="ergebnis">
+        <div class="label">Nettolohn monatlich</div>
+        <div id="netto-wert">— €</div>
+      </div>
+      <details class="details">
+        <summary>Aufschlüsselung</summary>
+        <table id="aufschluss">
+          <tr><td>Bruttogehalt</td><td id="r-brutto">—</td></tr>
+          <tr><td>Lohnsteuer</td><td id="r-lst">—</td></tr>
+          <tr><td>Solidaritätszuschlag</td><td id="r-soli">—</td></tr>
+          <tr><td>Kirchensteuer</td><td id="r-ki">—</td></tr>
+          <tr><td>Krankenversicherung</td><td id="r-kv">—</td></tr>
+          <tr><td>Rentenversicherung</td><td id="r-rv">—</td></tr>
+          <tr><td>Arbeitslosenversicherung</td><td id="r-av">—</td></tr>
+          <tr><td>Pflegeversicherung</td><td id="r-pv">—</td></tr>
+          <tr class="total"><td><strong>Nettolohn</strong></td><td id="r-netto"><strong>—</strong></td></tr>
+        </table>
+      </details>
+    </div>
+  </CalculatorShell>
+</Layout>
+
+<script type="module">
+const { berechneNettoGehalt } = await import(import.meta.env.BASE_URL + 'scripts/brutto-netto.js');
+function fmt(n) { return n.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €'; }
+function berechne() {
+  const brutto = parseFloat(document.getElementById('brutto').value) || 0;
+  const sk = parseInt(document.getElementById('steuerklasse').value);
+  const bl = document.getElementById('bundesland').value;
+  const ki = document.getElementById('kirche').value === 'ja';
+  const r = berechneNettoGehalt({ bruttoMonat: brutto, steuerklasse: sk, bundesland: bl, kirchensteuer: ki });
+  document.getElementById('netto-wert').textContent = fmt(r.netto);
+  document.getElementById('r-brutto').textContent = fmt(brutto);
+  document.getElementById('r-lst').textContent = '− ' + fmt(r.lohnsteuer);
+  document.getElementById('r-soli').textContent = '− ' + fmt(r.soli);
+  document.getElementById('r-ki').textContent = '− ' + fmt(r.kirchensteuer);
+  document.getElementById('r-kv').textContent = '− ' + fmt(r.krankenversicherung);
+  document.getElementById('r-rv').textContent = '− ' + fmt(r.rentenversicherung);
+  document.getElementById('r-av').textContent = '− ' + fmt(r.arbeitslosenversicherung);
+  document.getElementById('r-pv').textContent = '− ' + fmt(r.pflegeversicherung);
+  document.getElementById('r-netto').innerHTML = '<strong>' + fmt(r.netto) + '</strong>';
+}
+document.querySelectorAll('#brutto, #steuerklasse, #bundesland, #kirche').forEach(el => el.addEventListener('input', berechne));
+berechne();
+</script>
+
+<style>
+.details { margin-top: 1rem; }
+.details summary { cursor: pointer; color: var(--color-text-muted); font-size: 0.9rem; }
+table { width: 100%; border-collapse: collapse; margin-top: 0.75rem; font-size: 0.9rem; }
+td { padding: 0.3rem 0.5rem; border-bottom: 1px solid var(--color-border); }
+td:last-child { text-align: right; }
+tr.total td { border-top: 2px solid var(--color-black); border-bottom: none; }
+</style>
