@@ -45,8 +45,8 @@ function berechne() {
   const kwh = parseFloat((document.getElementById('kwh') as HTMLInputElement).value)||0;
   const preis = parseFloat((document.getElementById('preis') as HTMLInputElement).value)||0;
   const jahr = Math.round(kwh * preis) / 100;
-  document.getElementById('jahr')!.textContent = jahr.toLocaleString('de-DE', {minimumFractionDigits:2}) + ' €';
-  document.getElementById('monat')!.textContent = 'Pro Monat: ' + (jahr/12).toLocaleString('de-DE', {minimumFractionDigits:2}) + ' €';
+  document.getElementById('jahr')!.textContent = jahr.toLocaleString('de-DE', {minimumFractionDigits:2, maximumFractionDigits:2}) + ' €';
+  document.getElementById('monat')!.textContent = 'Pro Monat: ' + (jahr/12).toLocaleString('de-DE', {minimumFractionDigits:2, maximumFractionDigits:2}) + ' €';
 }
 ['kwh','preis'].forEach(id => document.getElementById(id)!.addEventListener('input', berechne));
 berechne();
