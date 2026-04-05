@@ -9,11 +9,18 @@ interface Props {
 }
 const { calculator, intro, sourceNote } = Astro.props;
 const cat = CATEGORIES[calculator.category];
+const base = import.meta.env.BASE_URL.replace(/\/$/, '');
 ---
 <article>
-  <div class="cat-hero" style={`--hero-color: ${cat.color}; --hero-light: ${cat.colorLight};`}>
-    <span class="cat-badge">{cat.label}</span>
-    <p class="intro">{intro}</p>
+  <div
+    class="cat-hero"
+    style={`--hero-color: ${cat.color}; background-image: url('${base}${cat.image}');`}
+  >
+    <div class="cat-hero-overlay"></div>
+    <div class="cat-hero-content">
+      <span class="cat-badge">{cat.label}</span>
+      <p class="intro">{intro}</p>
+    </div>
   </div>
 
   <div class="calc-wrapper" style={`--accent: ${cat.color};`}>
@@ -26,11 +33,32 @@ const cat = CATEGORIES[calculator.category];
 
 <style>
 .cat-hero {
-  background: var(--hero-light);
+  position: relative;
   border-radius: var(--radius);
-  padding: 1.25rem 1.5rem;
+  overflow: hidden;
+  min-height: 190px;
   margin-bottom: 1.5rem;
-  border-left: 4px solid var(--hero-color);
+  background-size: cover;
+  background-position: center top;
+  display: flex;
+  align-items: flex-end;
+}
+@media (min-width: 640px) { .cat-hero { min-height: 240px; } }
+.cat-hero-overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    160deg,
+    rgba(0,0,0,0.72) 0%,
+    rgba(0,0,0,0.3) 50%,
+    color-mix(in srgb, var(--hero-color) 60%, rgba(0,0,0,0.35)) 100%
+  );
+}
+.cat-hero-content {
+  position: relative;
+  z-index: 2;
+  padding: 1.5rem;
+  width: 100%;
 }
 .cat-badge {
   display: inline-block;
@@ -40,15 +68,17 @@ const cat = CATEGORIES[calculator.category];
   font-weight: 700;
   padding: 0.2rem 0.65rem;
   border-radius: 20px;
-  margin-bottom: 0.5rem;
+  margin-bottom: 0.6rem;
   letter-spacing: 0.05em;
   text-transform: uppercase;
 }
 .intro {
-  color: var(--muted);
+  color: rgba(255,255,255,0.9);
   font-size: 0.88rem;
   line-height: 1.65;
   margin: 0;
+  max-width: 60ch;
+  text-shadow: 0 1px 3px rgba(0,0,0,0.5);
 }
 .calc-wrapper {
   background: var(--surface);
@@ -57,7 +87,7 @@ const cat = CATEGORIES[calculator.category];
   border-radius: var(--radius);
   padding: 1.75rem;
   box-shadow: var(--shadow-sm);
-  margin-bottom: 0.75rem;
+  margin-bottom: 1.5rem;
 }
 .source-note {
   font-size: 0.78rem;
