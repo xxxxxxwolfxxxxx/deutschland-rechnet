@@ -1,0 +1,61 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import CalculatorShell from '../../components/CalculatorShell.astro';
+import { CALCULATORS, CATEGORIES } from '../../data/calculators';
+const calc = CALCULATORS.find(c => c.slug === 'mindestlohn-rechner')!;
+const cat = CATEGORIES[calc.category];
+const year = new Date().getFullYear();
+---
+<Layout
+  title={`Mindestlohn-Rechner ${year}`}
+  description="Mindestlohn 2025 berechnen: 12,82 €/h nach MiLoG. Monats- und Jahresgehalt aus Wochenstunden berechnen."
+  canonicalPath="/geld/mindestlohn-rechner/"
+  categoryColor={cat.color}
+  categoryLight={cat.colorLight}
+  categoryImage={cat.image}
+>
+  <div class="page-header">
+    <a href={`${import.meta.env.BASE_URL}geld/`} class="back-link">← Geld & Gehalt</a>
+    <h1>Mindestlohn-Rechner {year} – Gehalt berechnen</h1>
+  </div>
+  <CalculatorShell
+    calculator={calc}
+    intro="Berechnen Sie Ihr Gehalt auf Basis des gesetzlichen Mindestlohns. Seit 1. Januar 2025 beträgt der Mindestlohn 12,82 € pro Stunde (§ 1 MiLoG). Geben Sie Ihre Wochenstunden ein."
+    sourceNote="Gesetzlicher Mindestlohn 2025: 12,82 €/h (§ 1 MiLoG, Mindestlohnkommission). Bruttoangaben ohne Abzüge."
+  >
+    <div class="calc-form">
+      <div class="calc-grid">
+        <div class="calc-group">
+          <label for="stunden">Wochenstunden</label>
+          <input type="number" id="stunden" min="1" max="80" value="40" step="0.5" />
+        </div>
+        <div class="calc-group">
+          <label for="urlaubstage">Urlaubstage/Jahr</label>
+          <input type="number" id="urlaubstage" min="0" max="40" value="24" step="1" />
+        </div>
+      </div>
+      <div class="calc-result">
+        <div class="label">Mindestlohn pro Monat (brutto)</div>
+        <div id="monat">— €</div>
+      </div>
+      <div id="details" style="margin-top:0.75rem;font-size:0.88rem;color:#666;display:flex;gap:1.5rem;flex-wrap:wrap;"></div>
+    </div>
+  </CalculatorShell>
+</Layout>
+
+<script type="module">
+const { berechneMindestlohn } = await import(import.meta.env.BASE_URL + 'scripts/mindestlohn.js');
+function fmt(n) { return n.toLocaleString('de-DE', {minimumFractionDigits:2, maximumFractionDigits:2}) + ' €'; }
+function berechne() {
+  const stunden = parseFloat(document.getElementById('stunden').value)||0;
+  const urlaubstage = parseInt(document.getElementById('urlaubstage').value)||24;
+  const r = berechneMindestlohn({ stundenProWoche: stunden, urlaubstage });
+  document.getElementById('monat').textContent = fmt(r.monat);
+  document.getElementById('details').innerHTML =
+    `<span>Pro Jahr: ${fmt(r.jahr)}</span>` +
+    `<span>Stunden/Monat: ${r.stundenProMonat.toLocaleString('de-DE')}</span>` +
+    `<span>Stundenlohn: ${fmt(r.mindestlohn)}</span>`;
+}
+['stunden','urlaubstage'].forEach(id => document.getElementById(id).addEventListener('input', berechne));
+berechne();
+</script>
