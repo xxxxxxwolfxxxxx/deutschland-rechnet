@@ -1,0 +1,54 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import CalculatorShell from '../../components/CalculatorShell.astro';
+import { CALCULATORS, CATEGORIES } from '../../data/calculators';
+const calc = CALCULATORS.find(c => c.slug === 'bmi-rechner')!;
+const cat = CATEGORIES[calc.category];
+const year = new Date().getFullYear();
+---
+<Layout
+  title={`BMI-Rechner ${year}`}
+  description="Body-Mass-Index nach WHO-Formel kostenlos berechnen. Sofortige Einordnung in Unter-, Normal- oder Übergewicht."
+  canonicalPath="/gesundheit/bmi-rechner/"
+  categoryColor={cat.color}
+  categoryLight={cat.colorLight}
+>
+  <a href={`${import.meta.env.BASE_URL}gesundheit/`}>← Gesundheit & Fitness</a>
+  <h1>BMI-Rechner {year} – Body-Mass-Index berechnen</h1>
+  <CalculatorShell
+    calculator={calc}
+    intro="Berechnen Sie Ihren Body-Mass-Index (BMI) kostenlos nach der WHO-Formel. Geben Sie Ihr Gewicht und Ihre Körpergröße ein – der BMI und die Einordnung nach WHO-Kategorien erscheint sofort. Der BMI ist ein Richtwert und ersetzt keine ärztliche Beratung."
+    sourceNote="Berechnung: BMI = Gewicht (kg) ÷ Körpergröße² (m). Kategorien nach WHO-Standard."
+  >
+    <div class="calc-form">
+      <div class="calc-grid">
+        <div class="calc-group">
+          <label for="gewicht">Gewicht (kg)</label>
+          <input type="number" id="gewicht" min="1" max="500" value="75" step="0.5" />
+        </div>
+        <div class="calc-group">
+          <label for="groesse">Körpergröße (cm)</label>
+          <input type="number" id="groesse" min="50" max="250" value="175" />
+        </div>
+      </div>
+      <div class="calc-result">
+        <div class="label">BMI</div>
+        <div id="bmi-wert">—</div>
+      </div>
+      <p id="kategorie" style="margin-top:0.75rem;font-size:1rem;font-weight:600;"></p>
+    </div>
+  </CalculatorShell>
+</Layout>
+
+<script type="module">
+const { berechneBMI } = await import(import.meta.env.BASE_URL + 'scripts/bmi.js');
+function berechne() {
+  const g = parseFloat(document.getElementById('gewicht').value)||0;
+  const gr = parseFloat(document.getElementById('groesse').value)||1;
+  const r = berechneBMI({ gewichtKg: g, groesseCm: gr });
+  document.getElementById('bmi-wert').textContent = r.bmi.toLocaleString('de-DE', {minimumFractionDigits:1, maximumFractionDigits:1});
+  document.getElementById('kategorie').textContent = r.kategorie;
+}
+['gewicht','groesse'].forEach(id => document.getElementById(id).addEventListener('input', berechne));
+berechne();
+</script>
