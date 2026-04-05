@@ -43,18 +43,6 @@ const navLinks = [
   {categoryColor && (
     <style set:html={`:root { --cat-color: ${categoryColor}; --cat-light: ${categoryLight ?? '#f8f8f8'}; }`} />
   )}
-  {categoryImage && (
-    <style set:html={`
-    body::after {
-      content: '';
-      position: fixed;
-      inset: 0;
-      background: url('${base}${categoryImage}') center 30% / cover no-repeat;
-      z-index: -1;
-      pointer-events: none;
-    }
-  `} />
-  )}
 </head>
 <body>
   <header>
