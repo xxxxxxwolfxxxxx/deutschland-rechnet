@@ -1,0 +1,90 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import CalculatorShell from '../../components/CalculatorShell.astro';
+import { CALCULATORS, CATEGORIES } from '../../data/calculators';
+const calc = CALCULATORS.find(c => c.slug === 'mietpreisbremse-rechner')!;
+const cat = CATEGORIES[calc.category];
+const year = new Date().getFullYear();
+---
+<Layout
+  title={`Mietpreisbremse-Rechner ${year}`}
+  description="Zulässige Miethöhe nach Mietpreisbremse (§ 556d BGB) prüfen – ortsübliche Vergleichsmiete + 10% Grenze."
+  canonicalPath="/wohnen/mietpreisbremse-rechner/"
+  categoryColor={cat.color}
+  categoryLight={cat.colorLight}
+  categoryImage={cat.image}
+>
+  <div class="page-header">
+    <a href={`${import.meta.env.BASE_URL}wohnen/`} class="back-link">← Wohnen</a>
+    <h1>Mietpreisbremse-Rechner {year}</h1>
+  </div>
+  <CalculatorShell
+    calculator={calc}
+    intro="Prüfen Sie, ob Ihre Miete gegen die Mietpreisbremse verstößt (§§ 556d–556g BGB). In Gebieten mit angespanntem Wohnungsmarkt darf die Miete die ortsübliche Vergleichsmiete um maximal 10% übersteigen."
+    sourceNote="Mietpreisbremse nach §§ 556d–556g BGB. Gilt nur in per Landesverordnung ausgewiesenen Gebieten. Ausnahmen: Erstbezug, umfassende Modernisierung, höhere Vormiete. Keine Rechtsberatung."
+  >
+    <div class="calc-form">
+      <div class="calc-grid">
+        <div class="calc-group">
+          <label for="vergleich">Ortsübliche Vergleichsmiete (€/m²)</label>
+          <input type="number" id="vergleich" min="3" max="50" value="12.00" step="0.10" />
+        </div>
+        <div class="calc-group">
+          <label for="aktmiete">Verlangte Kaltmiete (€/m²)</label>
+          <input type="number" id="aktmiete" min="3" max="80" value="14.50" step="0.10" />
+        </div>
+        <div class="calc-group">
+          <label for="flaeche">Wohnfläche (m²)</label>
+          <input type="number" id="flaeche" min="10" max="500" value="70" step="5" />
+        </div>
+        <div class="calc-group">
+          <label for="modernisierung">Modernisierungsumlage (€/m²/Monat)</label>
+          <input type="number" id="modernisierung" min="0" max="10" value="0" step="0.10" />
+        </div>
+      </div>
+      <div class="calc-group" style="margin-top:0.25rem;">
+        <label style="display:flex;align-items:center;gap:0.5rem;font-weight:400;cursor:pointer;">
+          <input type="checkbox" id="vormiete" style="width:auto;" />
+          Vormiete war bereits höher (Bestandsschutz nach § 556e BGB)
+        </label>
+      </div>
+      <div class="calc-result" id="result-box">
+        <div class="label">Zulässige Kaltmiete gesamt</div>
+        <div id="erlaubt">— €</div>
+      </div>
+      <div id="details" style="margin-top:0.75rem;font-size:0.88rem;color:#666;display:flex;gap:1.5rem;flex-wrap:wrap;"></div>
+    </div>
+  </CalculatorShell>
+</Layout>
+
+<script type="module">
+const { berechneMietpreisbremse } = await import(import.meta.env.BASE_URL + 'scripts/mietpreisbremse.js');
+function fmt(n) { return n.toLocaleString('de-DE', {minimumFractionDigits:2, maximumFractionDigits:2}) + ' €'; }
+function fmtQm(n) { return n.toLocaleString('de-DE', {minimumFractionDigits:2, maximumFractionDigits:2}) + ' €/m²'; }
+function berechne() {
+  const vergleichsmiete = parseFloat(document.getElementById('vergleich').value)||12;
+  const aktuelleKaltmiete = parseFloat(document.getElementById('aktmiete').value)||14.50;
+  const flaeche = parseFloat(document.getElementById('flaeche').value)||70;
+  const modernisierung = parseFloat(document.getElementById('modernisierung').value)||0;
+  const vormieteHoeher = document.getElementById('vormiete').checked;
+  const r = berechneMietpreisbremse({ vergleichsmiete, aktuelleKaltmiete, flaeche, vormieteHoeher, modernisierung });
+  document.getElementById('erlaubt').textContent = fmt(r.erlaubtGesamt);
+  const box = document.getElementById('result-box');
+  if (r.istZuHoch) {
+    box.style.background = '#c8102e';
+  } else {
+    box.style.background = '';
+  }
+  document.getElementById('details').innerHTML =
+    `<span>Zulässig: <strong>${fmtQm(r.effektivErlaubtProQm)}</strong></span>` +
+    `<span>Verlangt: <strong>${fmtQm(aktuelleKaltmiete)}</strong></span>` +
+    (r.istZuHoch
+      ? `<span style="color:#c8102e">Zu viel: <strong>${fmtQm(r.zuvielProQm)} (${fmt(r.zuvielGesamt)}/Monat)</strong></span>` +
+        `<span style="color:#c8102e">Ersparnis/Jahr: <strong>${fmt(r.jahresErsparnis)}</strong></span>`
+      : `<span style="color:#1e7e34"><strong>Miete ist zulässig</strong></span>`
+    );
+}
+['vergleich','aktmiete','flaeche','modernisierung'].forEach(id => document.getElementById(id).addEventListener('input', berechne));
+document.getElementById('vormiete').addEventListener('change', berechne);
+berechne();
+</script>
