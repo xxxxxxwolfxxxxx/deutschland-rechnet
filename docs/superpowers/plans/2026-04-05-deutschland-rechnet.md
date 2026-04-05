@@ -147,12 +147,33 @@ git commit -m "feat: initialize Astro project with sitemap and Vitest"
 
 ---
 
-## Task 2: GitHub Repo + Deployment
+## Task 2: GitHub Repo + Deployment + Kategorie-Bilder
 
 **Files:**
 - Create: `.github/workflows/deploy.yml`
 - Create: `public/robots.txt`
 - Create: `public/favicon.svg`
+- Create: `public/images/categories/` (Verzeichnis mit 8 Bildern)
+
+- [ ] **Schritt 0: Kategorie-Bilder einfügen**
+
+Die folgenden 8 Bild-Dateien müssen manuell in `public/images/categories/` abgelegt werden (vom User bereitgestellt):
+
+| Dateiname | Kategorie | Leitfarbe |
+|---|---|---|
+| `geld.png` | Geld & Gehalt | Grün |
+| `wohnen.png` | Wohnen & Immobilien | Blau |
+| `energie.png` | Energie | Gelb |
+| `auto.png` | Auto & Mobilität | Rot |
+| `familie.png` | Familie & Soziales | Orange |
+| `gesundheit.png` | Gesundheit & Fitness | Türkis |
+| `einheiten.png` | Einheiten & Mathe | Lila |
+| `hero.png` | Startseite (Index) | Weiß |
+
+```bash
+mkdir -p public/images/categories
+# → Bilder hier manuell reinkopieren
+```
 
 - [ ] **Schritt 1: GitHub-Repo erstellen und `[USERNAME]` ersetzen**
 
@@ -292,14 +313,14 @@ export interface Calculator {
   live?: boolean;       // Nur live=true werden in Navigation gezeigt
 }
 
-export const CATEGORIES: Record<Category, { label: string; emoji: string; description: string }> = {
-  geld:      { label: 'Geld & Gehalt',        emoji: '💰', description: 'Gehalt, Steuern, Sozialleistungen' },
-  wohnen:    { label: 'Wohnen & Immobilien',  emoji: '🏠', description: 'Miete, Kauf, Kredit, Nebenkosten' },
-  energie:   { label: 'Energie',              emoji: '⚡', description: 'Strom, Heizung, Photovoltaik' },
-  auto:      { label: 'Auto & Mobilität',     emoji: '🚗', description: 'Kfz-Steuer, Sprit, Fahrtkosten' },
-  familie:   { label: 'Familie & Soziales',   emoji: '👨‍👩‍👧', description: 'Elterngeld, Kindergeld, Rente' },
-  gesundheit:{ label: 'Gesundheit & Fitness', emoji: '🏃', description: 'BMI, Kalorien, Promille' },
-  einheiten: { label: 'Einheiten & Mathe',    emoji: '📐', description: 'Länge, Gewicht, Temperatur, Inflation' },
+export const CATEGORIES: Record<Category, { label: string; emoji: string; description: string; color: string; colorLight: string; image: string }> = {
+  geld:      { label: 'Geld & Gehalt',        emoji: '💰', description: 'Gehalt, Steuern, Sozialleistungen',       color: '#1e7e34', colorLight: '#e8f5e9', image: '/images/categories/geld.png' },
+  wohnen:    { label: 'Wohnen & Immobilien',  emoji: '🏠', description: 'Miete, Kauf, Kredit, Nebenkosten',        color: '#1565c0', colorLight: '#e3f2fd', image: '/images/categories/wohnen.png' },
+  energie:   { label: 'Energie',              emoji: '⚡', description: 'Strom, Heizung, Photovoltaik',            color: '#b8860b', colorLight: '#fff8e1', image: '/images/categories/energie.png' },
+  auto:      { label: 'Auto & Mobilität',     emoji: '🚗', description: 'Kfz-Steuer, Sprit, Fahrtkosten',          color: '#b71c1c', colorLight: '#ffebee', image: '/images/categories/auto.png' },
+  familie:   { label: 'Familie & Soziales',   emoji: '👨‍👩‍👧', description: 'Elterngeld, Kindergeld, Rente',      color: '#e65100', colorLight: '#fff3e0', image: '/images/categories/familie.png' },
+  gesundheit:{ label: 'Gesundheit & Fitness', emoji: '🏃', description: 'BMI, Kalorien, Promille',                  color: '#00796b', colorLight: '#e0f2f1', image: '/images/categories/gesundheit.png' },
+  einheiten: { label: 'Einheiten & Mathe',    emoji: '📐', description: 'Länge, Gewicht, Temperatur, Inflation',  color: '#6a1b9a', colorLight: '#f3e5f5', image: '/images/categories/einheiten.png' },
 };
 
 export const CALCULATORS: Calculator[] = [
@@ -372,6 +393,26 @@ export function getRelated(current: Calculator, limit = 6): Calculator[] {
   --max-width: 900px;
   --radius: 8px;
   --shadow: 0 1px 4px rgba(0,0,0,0.1);
+
+  /* Kategorie-Farben */
+  --cat-geld:       #1e7e34;
+  --cat-geld-light: #e8f5e9;
+  --cat-wohnen:       #1565c0;
+  --cat-wohnen-light: #e3f2fd;
+  --cat-energie:       #b8860b;
+  --cat-energie-light: #fff8e1;
+  --cat-auto:       #b71c1c;
+  --cat-auto-light: #ffebee;
+  --cat-familie:       #e65100;
+  --cat-familie-light: #fff3e0;
+  --cat-gesundheit:       #00796b;
+  --cat-gesundheit-light: #e0f2f1;
+  --cat-einheiten:       #6a1b9a;
+  --cat-einheiten-light: #f3e5f5;
+
+  /* Aktive Kategorie (wird per inline style gesetzt) */
+  --cat-color: #1a1a1a;
+  --cat-light: #f8f8f8;
 }
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -456,9 +497,11 @@ interface Props {
   title: string;
   description: string;
   canonicalPath: string;  // z.B. '/geld/brutto-netto-rechner/'
+  categoryColor?: string; // z.B. '#1e7e34' für Geld
+  categoryLight?: string; // z.B. '#e8f5e9'
 }
 
-const { title, description, canonicalPath } = Astro.props;
+const { title, description, canonicalPath, categoryColor, categoryLight } = Astro.props;
 const siteUrl = import.meta.env.SITE ?? 'https://deutschland-rechnet.de';
 const base = import.meta.env.BASE_URL.replace(/\/$/, '');
 const canonical = `${siteUrl}${base}${canonicalPath}`;
@@ -478,9 +521,17 @@ const year = new Date().getFullYear();
   <meta property="og:description" content={description} />
   <meta property="og:type" content="website" />
   <meta property="og:url" content={canonical} />
+  {categoryColor && (
+    <style>
+      :root {{
+        --cat-color: {categoryColor};
+        --cat-light: {categoryLight ?? '#f8f8f8'};
+      }}
+    </style>
+  )}
 </head>
 <body>
-  <header>
+  <header style={categoryColor ? `background: ${categoryColor}` : ''}>
     <div class="container">
       <nav>
         <a href={`${base}/`} class="logo">🇩🇪 Deutschland rechnet</a>
@@ -532,10 +583,11 @@ interface Props {
   description: string;
   href: string;
   emoji?: string;
+  accentColor?: string;
 }
-const { title, description, href, emoji = '🔢' } = Astro.props;
+const { title, description, href, emoji = '🔢', accentColor } = Astro.props;
 ---
-<a href={href} class="card">
+<a href={href} class="card" style={accentColor ? `--hover-color: ${accentColor}` : ''}>
   <span class="card-emoji">{emoji}</span>
   <div>
     <strong>{title}</strong>
@@ -548,19 +600,19 @@ const { title, description, href, emoji = '🔢' } = Astro.props;
   display: flex;
   gap: 0.75rem;
   align-items: flex-start;
-  padding: 1rem;
+  padding: 0.85rem 1rem;
   background: white;
   border: 1.5px solid var(--color-border);
   border-radius: var(--radius);
   text-decoration: none;
   color: var(--color-text);
-  box-shadow: var(--shadow);
   transition: border-color 0.15s, box-shadow 0.15s;
+  --hover-color: var(--color-red);
 }
-.card:hover { border-color: var(--color-red); box-shadow: 0 2px 8px rgba(0,0,0,0.15); }
-.card-emoji { font-size: 1.5rem; flex-shrink: 0; }
-.card strong { display: block; margin-bottom: 0.2rem; }
-.card p { font-size: 0.85rem; color: var(--color-text-muted); margin: 0; }
+.card:hover { border-color: var(--hover-color); box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+.card-emoji { font-size: 1.4rem; flex-shrink: 0; }
+.card strong { display: block; margin-bottom: 0.2rem; font-size: 0.95rem; }
+.card p { font-size: 0.82rem; color: var(--color-text-muted); margin: 0; }
 </style>
 ```
 
@@ -579,15 +631,21 @@ const categories = Object.entries(CATEGORIES) as [Category, typeof CATEGORIES[Ca
   {categories.map(([key, cat]) => {
     const calcs = getByCategory(key);
     return (
-      <div class="cat-section">
-        <h2><a href={`${base}/${key}/`}>{cat.emoji} {cat.label}</a></h2>
-        <p class="cat-desc">{cat.description}</p>
+      <div class="cat-section" style={`border-left: 4px solid ${cat.color};`}>
+        <div class="cat-header" style={`background: ${cat.colorLight};`}>
+          <div class="cat-header-text">
+            <h2><a href={`${base}/${key}/`} style={`color: ${cat.color};`}>{cat.emoji} {cat.label}</a></h2>
+            <p class="cat-desc">{cat.description}</p>
+          </div>
+          <img src={`${base}${cat.image}`} alt={cat.label} class="cat-thumb" loading="lazy" width="80" height="80" />
+        </div>
         <div class="calc-list">
           {calcs.map(c => (
             <CalculatorCard
               title={c.title}
               description={c.description}
               href={`${base}/${c.category}/${c.slug}/`}
+              accentColor={cat.color}
             />
           ))}
         </div>
@@ -598,12 +656,27 @@ const categories = Object.entries(CATEGORIES) as [Category, typeof CATEGORIES[Ca
 </div>
 
 <style>
-.cat-grid { display: flex; flex-direction: column; gap: 2.5rem; }
-.cat-section h2 a { color: var(--color-text); text-decoration: none; }
-.cat-section h2 a:hover { color: var(--color-red); }
-.cat-desc { color: var(--color-text-muted); font-size: 0.9rem; margin-bottom: 0.75rem; }
-.calc-list { display: grid; gap: 0.75rem; }
-.coming-soon { color: var(--color-text-muted); font-style: italic; font-size: 0.9rem; }
+.cat-grid { display: flex; flex-direction: column; gap: 2rem; }
+.cat-section {
+  border-radius: var(--radius);
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  background: white;
+}
+.cat-header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem 1.25rem;
+}
+.cat-header-text { flex: 1; }
+.cat-section h2 { margin: 0 0 0.2rem 0; font-size: 1.1rem; }
+.cat-section h2 a { text-decoration: none; font-weight: 700; }
+.cat-section h2 a:hover { text-decoration: underline; }
+.cat-desc { color: var(--color-text-muted); font-size: 0.85rem; margin: 0; }
+.cat-thumb { width: 72px; height: 72px; object-fit: contain; flex-shrink: 0; }
+.calc-list { display: grid; gap: 0.5rem; padding: 1rem 1.25rem; }
+.coming-soon { padding: 1rem 1.25rem; color: var(--color-text-muted); font-style: italic; font-size: 0.9rem; }
 @media (min-width: 768px) { .calc-list { grid-template-columns: 1fr 1fr; } }
 </style>
 ```
@@ -651,7 +724,7 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
 ---
 // src/components/CalculatorShell.astro
 import RelatedLinks from './RelatedLinks.astro';
-import { type Calculator } from '../data/calculators';
+import { CATEGORIES, type Calculator } from '../data/calculators';
 
 interface Props {
   calculator: Calculator;
@@ -659,11 +732,27 @@ interface Props {
   sourceNote: string;   // Quellen-Hinweis für Footer
 }
 const { calculator, intro, sourceNote } = Astro.props;
+const cat = CATEGORIES[calculator.category];
+const base = import.meta.env.BASE_URL.replace(/\/$/, '');
 ---
 <article>
-  <p class="intro">{intro}</p>
+  <!-- Kategorie-Hero mit Bild -->
+  <div class="cat-hero" style={`background-color: ${cat.colorLight}; border-left: 4px solid ${cat.color};`}>
+    <div class="cat-hero-text">
+      <span class="cat-badge" style={`background: ${cat.color}; color: white;`}>{cat.emoji} {cat.label}</span>
+      <p class="intro">{intro}</p>
+    </div>
+    <img
+      src={`${base}${cat.image}`}
+      alt={cat.label}
+      class="cat-hero-img"
+      loading="lazy"
+      width="140"
+      height="140"
+    />
+  </div>
 
-  <div class="calc-box">
+  <div class="calc-box" style={`border-top: 3px solid ${cat.color};`}>
     <slot />
   </div>
 
@@ -673,7 +762,33 @@ const { calculator, intro, sourceNote } = Astro.props;
 </article>
 
 <style>
-.intro { color: var(--color-text-muted); margin-bottom: 1.5rem; }
+.cat-hero {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  border-radius: var(--radius);
+  padding: 1.25rem 1.5rem;
+  margin-bottom: 1.5rem;
+  overflow: hidden;
+}
+.cat-hero-text { flex: 1; }
+.cat-badge {
+  display: inline-block;
+  font-size: 0.8rem;
+  font-weight: 600;
+  padding: 0.2rem 0.6rem;
+  border-radius: 20px;
+  margin-bottom: 0.5rem;
+}
+.intro { color: var(--color-text-muted); margin: 0; }
+.cat-hero-img {
+  width: 120px;
+  height: 120px;
+  object-fit: contain;
+  flex-shrink: 0;
+  display: none;
+}
+@media (min-width: 600px) { .cat-hero-img { display: block; } }
 .calc-box {
   background: white;
   border: 1.5px solid var(--color-border);
@@ -722,19 +837,51 @@ git commit -m "feat: add Layout, CalculatorCard, CategoryGrid, RelatedLinks, Cal
 // src/pages/index.astro
 import Layout from '../layouts/Layout.astro';
 import CategoryGrid from '../components/CategoryGrid.astro';
+
+const base = import.meta.env.BASE_URL.replace(/\/$/, '');
 ---
 <Layout
   title="Kostenlose Rechner für Deutschland"
   description="Brutto-Netto, Unterhalt, Elterngeld, Stromkosten und viele weitere kostenlose Rechner mit Deutschland-Bezug. Kein Login, sofortiges Ergebnis."
   canonicalPath="/"
 >
-  <h1>Kostenlose Rechner für Deutschland</h1>
-  <p class="subtitle">Kein Login · Keine Werbung · Sofortiges Ergebnis</p>
+  <!-- Hero-Bereich Startseite -->
+  <div class="hero">
+    <div class="hero-text">
+      <h1>Deutschland rechnet</h1>
+      <p class="hero-sub">Kostenlose Rechner für alle Lebenslagen – einfach eingeben und Ergebnis erhalten.</p>
+      <ul class="promises">
+        <li>✅ Kein Abo, kein Login, keine Registrierung</li>
+        <li>✅ Keine Werbung, keine 30-Sekunden-Videos</li>
+        <li>✅ Sofortiges Ergebnis direkt im Browser</li>
+        <li>✅ Alle Daten bleiben bei dir – nichts wird gespeichert</li>
+      </ul>
+    </div>
+    <img src={`${base}/images/categories/hero.png`} alt="Deutschland rechnet" class="hero-img" loading="eager" width="220" height="220" />
+  </div>
+
   <CategoryGrid />
 </Layout>
 
 <style>
-.subtitle { color: var(--color-text-muted); margin-bottom: 2rem; font-size: 1rem; }
+.hero {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  background: white;
+  border: 1.5px solid var(--color-border);
+  border-radius: var(--radius);
+  padding: 1.5rem;
+  margin-bottom: 2rem;
+  box-shadow: var(--shadow);
+}
+.hero-text { flex: 1; }
+h1 { font-size: 1.75rem; margin-bottom: 0.5rem; }
+.hero-sub { color: var(--color-text-muted); margin-bottom: 1rem; }
+.promises { list-style: none; display: flex; flex-direction: column; gap: 0.35rem; font-size: 0.9rem; }
+.hero-img { width: 160px; height: 160px; object-fit: contain; flex-shrink: 0; display: none; }
+@media (min-width: 600px) { .hero-img { display: block; } }
+@media (min-width: 768px) { h1 { font-size: 2rem; } }
 </style>
 ```
 
@@ -979,15 +1126,18 @@ Erwartetes Ergebnis: 4/4 Tests PASS.
 // src/pages/geld/brutto-netto-rechner.astro
 import Layout from '../../layouts/Layout.astro';
 import CalculatorShell from '../../components/CalculatorShell.astro';
-import { CALCULATORS } from '../../data/calculators';
+import { CALCULATORS, CATEGORIES } from '../../data/calculators';
 
 const calc = CALCULATORS.find(c => c.slug === 'brutto-netto-rechner')!;
+const cat = CATEGORIES[calc.category];
 const year = new Date().getFullYear();
 ---
 <Layout
   title={`Brutto-Netto-Rechner ${year}`}
   description="Nettolohn aus Bruttogehalt berechnen – kostenlos, mit Steuerklasse, Bundesland und Kirchensteuer. Sofortiges Ergebnis."
   canonicalPath="/geld/brutto-netto-rechner/"
+  categoryColor={cat.color}
+  categoryLight={cat.colorLight}
 >
   <a href={`${import.meta.env.BASE_URL}geld/`}>← Geld & Gehalt</a>
   <h1>Brutto-Netto-Rechner {year} – kostenlos & aktuell</h1>
