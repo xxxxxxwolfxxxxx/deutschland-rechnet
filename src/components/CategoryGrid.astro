@@ -12,7 +12,6 @@ const categories = Object.entries(CATEGORIES) as [Category, typeof CATEGORIES[Ca
         <div class="cat-bg" style={`background-image: url('${base}${cat.image}')`}></div>
         <div class="cat-overlay" style={`--cat-accent: ${cat.color};`}></div>
         <div class="cat-content">
-          <span class="cat-emoji">{cat.emoji}</span>
           <h2>{cat.label}</h2>
           <p>{cat.description}</p>
           <span class="cat-count">{count} Rechner</span>
@@ -71,7 +70,6 @@ const categories = Object.entries(CATEGORIES) as [Category, typeof CATEGORIES[Ca
   width: 100%;
   color: white;
 }
-.cat-emoji { font-size: 1.8rem; margin-bottom: 0.4rem; display: block; }
 .cat-content h2 {
   font-family: var(--font-display);
   font-size: 1.45rem;
