@@ -8,30 +8,44 @@ interface Props {
 }
 const { title, description, href, emoji = '🔢', accentColor } = Astro.props;
 ---
-<a href={href} class="card" style={accentColor ? `--hover-color: ${accentColor}` : ''}>
-  <span class="card-emoji">{emoji}</span>
-  <div>
+<a href={href} class="card" style={accentColor ? `--accent: ${accentColor}` : ''}>
+  <span class="card-icon">{emoji}</span>
+  <div class="card-body">
     <strong>{title}</strong>
-    <p>{description}</p>
+    <span>{description}</span>
   </div>
+  <span class="card-arrow">→</span>
 </a>
 
 <style>
 .card {
   display: flex;
-  gap: 0.75rem;
-  align-items: flex-start;
-  padding: 0.85rem 1rem;
-  background: white;
-  border: 1.5px solid var(--color-border);
-  border-radius: var(--radius);
+  gap: 0.875rem;
+  align-items: center;
+  padding: 0.875rem 1rem;
+  background: var(--surface);
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm);
   text-decoration: none;
-  color: var(--color-text);
-  transition: border-color 0.15s, box-shadow 0.15s;
-  --hover-color: var(--color-red);
+  color: var(--text);
+  transition: border-color 0.15s, box-shadow 0.15s, transform 0.15s;
+  --accent: var(--red);
 }
-.card:hover { border-color: var(--hover-color); box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
-.card-emoji { font-size: 1.4rem; flex-shrink: 0; }
-.card strong { display: block; margin-bottom: 0.2rem; font-size: 0.95rem; }
-.card p { font-size: 0.82rem; color: var(--color-text-muted); margin: 0; }
+.card:hover {
+  border-color: var(--accent);
+  box-shadow: 0 4px 16px rgba(0,0,0,0.08);
+  transform: translateY(-1px);
+  text-decoration: none;
+}
+.card-icon { font-size: 1.35rem; flex-shrink: 0; }
+.card-body { flex: 1; min-width: 0; }
+.card-body strong { display: block; font-size: 0.92rem; font-weight: 600; margin-bottom: 0.15rem; }
+.card-body span { font-size: 0.78rem; color: var(--muted); line-height: 1.35; display: block; }
+.card-arrow {
+  color: var(--muted);
+  font-size: 0.9rem;
+  flex-shrink: 0;
+  transition: transform 0.15s, color 0.15s;
+}
+.card:hover .card-arrow { transform: translateX(4px); color: var(--accent); }
 </style>
