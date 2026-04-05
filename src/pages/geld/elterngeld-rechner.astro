@@ -1,0 +1,47 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import CalculatorShell from '../../components/CalculatorShell.astro';
+import { CALCULATORS, CATEGORIES } from '../../data/calculators';
+const calc = CALCULATORS.find(c => c.slug === 'elterngeld-rechner')!;
+const cat = CATEGORIES[calc.category];
+const year = new Date().getFullYear();
+---
+<Layout
+  title={`Elterngeld-Rechner ${year}`}
+  description="Elterngeld und ElterngeldPlus kostenlos berechnen. Sofortiges Ergebnis nach BEEG – ohne Anmeldung."
+  canonicalPath="/geld/elterngeld-rechner/"
+  categoryColor={cat.color}
+  categoryLight={cat.colorLight}
+>
+  <a href={`${import.meta.env.BASE_URL}geld/`}>← Geld & Gehalt</a>
+  <h1>Elterngeld-Rechner {year} – kostenlos berechnen</h1>
+  <CalculatorShell
+    calculator={calc}
+    intro="Berechnen Sie Ihr monatliches Elterngeld schnell und kostenlos. Grundlage ist das Nettoeinkommen der letzten 12 Monate vor der Geburt. Das Elterngeld beträgt 67 % des Nettoeinkommens, mindestens 300 € und maximal 1.800 € pro Monat."
+    sourceNote="Berechnung nach BEEG § 2. Vereinfachte Berechnung – tatsächliches Elterngeld hängt vom Durchschnitt der letzten 12 Monate vor Geburt ab. Zuständig: Elterngeldstelle des Wohnorts."
+  >
+    <div class="calc-form">
+      <div class="calc-group">
+        <label for="netto">Monatliches Nettoeinkommen vor Geburt (€)</label>
+        <input type="number" id="netto" min="0" max="20000" value="2500" step="50" />
+      </div>
+      <div class="calc-result">
+        <div class="label">Elterngeld monatlich</div>
+        <div id="ergebnis">— €</div>
+      </div>
+      <p id="plus" style="margin-top:0.75rem;font-size:0.95rem;"></p>
+    </div>
+  </CalculatorShell>
+</Layout>
+
+<script>
+function berechne() {
+  const netto = parseFloat(document.getElementById('netto').value)||0;
+  const eg = Math.min(1800, Math.max(300, Math.round(netto * 0.67)));
+  const egPlus = Math.round(eg / 2);
+  document.getElementById('ergebnis').textContent = eg.toLocaleString('de-DE') + ' €';
+  document.getElementById('plus').textContent = `ElterngeldPlus: ${egPlus.toLocaleString('de-DE')} € / Monat (doppelte Bezugsdauer)`;
+}
+document.getElementById('netto').addEventListener('input', berechne);
+berechne();
+</script>
