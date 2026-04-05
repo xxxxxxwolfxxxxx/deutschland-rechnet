@@ -1,0 +1,111 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import CalculatorShell from '../../components/CalculatorShell.astro';
+import { CALCULATORS, CATEGORIES } from '../../data/calculators';
+const calc = CALCULATORS.find(c => c.slug === 'spritkosten-rechner')!;
+const cat = CATEGORIES[calc.category];
+const year = new Date().getFullYear();
+---
+<Layout
+  title={`Spritkosten-Rechner ${year}`}
+  description="Kraftstoffkosten für eine Fahrt kostenlos berechnen – mit Verbrauch, Strecke und aktuellem Spritpreis."
+  canonicalPath="/auto/spritkosten-rechner/"
+  categoryColor={cat.color}
+  categoryLight={cat.colorLight}
+>
+  <a href={`${import.meta.env.BASE_URL}auto/`}>← Auto & Mobilität</a>
+  <h1>Spritkosten-Rechner {year} – Kraftstoffkosten berechnen</h1>
+  <CalculatorShell
+    calculator={calc}
+    intro="Berechnen Sie Ihre Spritkosten für eine Fahrt oder eine bestimmte Jahresfahrleistung. Geben Sie Strecke, Fahrzeugverbrauch und aktuellen Kraftstoffpreis ein."
+    sourceNote="Kraftstoffpreise können je nach Region, Tageszeit und Tankstelle stark variieren. Aktuelle Preise: ADAC-Kraftstoffpreisübersicht."
+  >
+    <div class="calc-form">
+      <div class="calc-group">
+        <label>Strecke – Schnellauswahl</label>
+        <div class="presets">
+          <button type="button" class="preset-btn" data-km="50">50 km</button>
+          <button type="button" class="preset-btn" data-km="100">100 km</button>
+          <button type="button" class="preset-btn active" data-km="500">500 km</button>
+          <button type="button" class="preset-btn" data-km="10000">10.000 km/Jahr</button>
+          <button type="button" class="preset-btn" data-km="15000">15.000 km/Jahr</button>
+        </div>
+      </div>
+      <div class="calc-grid">
+        <div class="calc-group">
+          <label for="strecke">Strecke (km)</label>
+          <input type="number" id="strecke" min="0" max="1000000" value="500" step="10" />
+        </div>
+        <div class="calc-group">
+          <label for="verbrauch">Verbrauch (L/100 km)</label>
+          <input type="number" id="verbrauch" min="0" max="50" value="7.5" step="0.1" />
+        </div>
+        <div class="calc-group">
+          <label for="preis">Kraftstoffpreis (€/L)</label>
+          <input type="number" id="preis" min="0" max="5" value="1.75" step="0.01" />
+        </div>
+      </div>
+      <div class="calc-result">
+        <div class="label">Kraftstoffkosten gesamt</div>
+        <div id="gesamt">— €</div>
+      </div>
+      <div id="details" style="margin-top:0.75rem;font-size:0.88rem;color:#666;display:flex;gap:1.5rem;flex-wrap:wrap;"></div>
+    </div>
+  </CalculatorShell>
+</Layout>
+
+<style>
+.presets {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.5rem;
+}
+.preset-btn {
+  padding: 0.4rem 0.85rem;
+  background: var(--bg);
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-family: var(--font-ui);
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text);
+  transition: border-color 0.15s, background 0.15s, color 0.15s;
+}
+.preset-btn:hover { border-color: var(--cat-color, var(--red)); }
+.preset-btn.active {
+  border-color: var(--cat-color, var(--red));
+  background: color-mix(in srgb, var(--cat-color, var(--red)) 8%, white);
+  color: var(--cat-color, var(--red));
+}
+</style>
+
+<script type="module">
+const { berechneSpritkosten } = await import(import.meta.env.BASE_URL + 'scripts/spritkosten.js');
+function fmt(n) { return n.toLocaleString('de-DE', {minimumFractionDigits:2, maximumFractionDigits:2}) + ' €'; }
+function berechne() {
+  const strecke = parseFloat(document.getElementById('strecke').value)||0;
+  const verbrauch = parseFloat(document.getElementById('verbrauch').value)||0;
+  const preis = parseFloat(document.getElementById('preis').value)||0;
+  const r = berechneSpritkosten({ streckeKm: strecke, verbrauchL100: verbrauch, preisEuroL: preis });
+  document.getElementById('gesamt').textContent = fmt(r.kosten);
+  document.getElementById('details').innerHTML =
+    `<span>Verbrauch: ${r.liter.toLocaleString('de-DE', {maximumFractionDigits:1})} L</span>` +
+    `<span>pro 100 km: ${fmt(r.kostenPro100km)}</span>` +
+    `<span>pro km: ${r.kostenProKm.toLocaleString('de-DE', {minimumFractionDigits:3, maximumFractionDigits:3})} €</span>`;
+}
+document.querySelectorAll('.preset-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('strecke').value = btn.dataset.km;
+    berechne();
+  });
+});
+['strecke','verbrauch','preis'].forEach(id => document.getElementById(id).addEventListener('input', () => {
+  document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
+  berechne();
+}));
+berechne();
+</script>
