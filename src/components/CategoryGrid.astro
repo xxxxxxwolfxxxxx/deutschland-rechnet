@@ -1,59 +1,110 @@
 ---
 import { CATEGORIES, getByCategory, type Category } from '../data/calculators';
-import CalculatorCard from './CalculatorCard.astro';
 
 const base = import.meta.env.BASE_URL.replace(/\/$/, '');
 const categories = Object.entries(CATEGORIES) as [Category, typeof CATEGORIES[Category]][];
 ---
 <div class="cat-grid">
   {categories.map(([key, cat]) => {
-    const calcs = getByCategory(key);
+    const count = getByCategory(key).length;
     return (
-      <div class="cat-section" style={`border-left: 4px solid ${cat.color};`}>
-        <div class="cat-header" style={`background: ${cat.colorLight};`}>
-          <div class="cat-header-text">
-            <h2><a href={`${base}/${key}/`} style={`color: ${cat.color};`}>{cat.emoji} {cat.label}</a></h2>
-            <p class="cat-desc">{cat.description}</p>
-          </div>
-          <img src={`${base}${cat.image}`} alt={cat.label} class="cat-thumb" loading="lazy" width="80" height="80" />
+      <a href={`${base}/${key}/`} class="cat-tile">
+        <div class="cat-bg" style={`background-image: url('${base}${cat.image}')`}></div>
+        <div class="cat-overlay" style={`--cat-accent: ${cat.color};`}></div>
+        <div class="cat-content">
+          <span class="cat-emoji">{cat.emoji}</span>
+          <h2>{cat.label}</h2>
+          <p>{cat.description}</p>
+          <span class="cat-count">{count} Rechner</span>
         </div>
-        <div class="calc-list">
-          {calcs.map(c => (
-            <CalculatorCard
-              title={c.title}
-              description={c.description}
-              href={`${base}/${c.category}/${c.slug}/`}
-              accentColor={cat.color}
-            />
-          ))}
-        </div>
-        {calcs.length === 0 && <p class="coming-soon">Demnächst verfügbar</p>}
-      </div>
+      </a>
     );
   })}
 </div>
 
 <style>
-.cat-grid { display: flex; flex-direction: column; gap: 2rem; }
-.cat-section {
-  border-radius: var(--radius);
-  overflow: hidden;
-  border: 1px solid var(--color-border);
-  background: white;
-}
-.cat-header {
-  display: flex;
-  align-items: center;
+.cat-grid {
+  display: grid;
+  grid-template-columns: 1fr;
   gap: 1rem;
-  padding: 1rem 1.25rem;
 }
-.cat-header-text { flex: 1; }
-.cat-section h2 { margin: 0 0 0.2rem 0; font-size: 1.1rem; }
-.cat-section h2 a { text-decoration: none; font-weight: 700; }
-.cat-section h2 a:hover { text-decoration: underline; }
-.cat-desc { color: var(--color-text-muted); font-size: 0.85rem; margin: 0; }
-.cat-thumb { width: 72px; height: 72px; object-fit: contain; flex-shrink: 0; }
-.calc-list { display: grid; gap: 0.5rem; padding: 1rem 1.25rem; }
-.coming-soon { padding: 1rem 1.25rem; color: var(--color-text-muted); font-style: italic; font-size: 0.9rem; }
-@media (min-width: 768px) { .calc-list { grid-template-columns: 1fr 1fr; } }
+.cat-tile {
+  position: relative;
+  border-radius: 16px;
+  overflow: hidden;
+  min-height: 210px;
+  display: flex;
+  text-decoration: none;
+  transition: transform 0.22s ease, box-shadow 0.22s ease;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.1);
+}
+.cat-tile:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 16px 40px rgba(0,0,0,0.18);
+  text-decoration: none;
+}
+.cat-bg {
+  position: absolute;
+  inset: 0;
+  background-size: cover;
+  background-position: center top;
+  transition: transform 0.4s ease;
+}
+.cat-tile:hover .cat-bg { transform: scale(1.05); }
+.cat-overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    155deg,
+    rgba(0,0,0,0.75) 0%,
+    rgba(0,0,0,0.4) 55%,
+    color-mix(in srgb, var(--cat-accent, #333) 55%, rgba(0,0,0,0.3)) 100%
+  );
+}
+.cat-content {
+  position: relative;
+  z-index: 2;
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  width: 100%;
+  color: white;
+}
+.cat-emoji { font-size: 1.8rem; margin-bottom: 0.4rem; display: block; }
+.cat-content h2 {
+  font-family: var(--font-display);
+  font-size: 1.45rem;
+  font-weight: 600;
+  color: white;
+  margin-bottom: 0.25rem;
+  text-shadow: 0 1px 4px rgba(0,0,0,0.4);
+}
+.cat-content p {
+  font-size: 0.82rem;
+  color: rgba(255,255,255,0.82);
+  margin-bottom: 0.8rem;
+  line-height: 1.45;
+}
+.cat-count {
+  display: inline-block;
+  background: rgba(255,255,255,0.18);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  border: 1px solid rgba(255,255,255,0.28);
+  color: white;
+  font-size: 0.74rem;
+  font-weight: 600;
+  padding: 0.22rem 0.7rem;
+  border-radius: 20px;
+  letter-spacing: 0.04em;
+  align-self: flex-start;
+}
+@media (min-width: 580px) {
+  .cat-grid { grid-template-columns: 1fr 1fr; }
+}
+@media (min-width: 900px) {
+  .cat-grid { grid-template-columns: repeat(3, 1fr); }
+  .cat-tile { min-height: 250px; }
+}
 </style>

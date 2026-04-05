@@ -12,65 +12,84 @@ const cat = CATEGORIES[calculator.category];
 const base = import.meta.env.BASE_URL.replace(/\/$/, '');
 ---
 <article>
-  <div class="cat-hero" style={`background-color: ${cat.colorLight}; border-left: 4px solid ${cat.color};`}>
-    <div class="cat-hero-text">
-      <span class="cat-badge" style={`background: ${cat.color}; color: white;`}>{cat.emoji} {cat.label}</span>
-      <p class="intro">{intro}</p>
+  <div class="cat-hero" style={`--hero-color: ${cat.color}; --hero-light: ${cat.colorLight};`}>
+    <div class="cat-hero-inner">
+      <img
+        src={`${base}${cat.image}`}
+        alt={cat.label}
+        class="cat-hero-img"
+        loading="lazy"
+        width="110"
+        height="110"
+      />
+      <div>
+        <span class="cat-badge" style={`background: ${cat.color};`}>{cat.emoji} {cat.label}</span>
+        <p class="intro">{intro}</p>
+      </div>
     </div>
-    <img
-      src={`${base}${cat.image}`}
-      alt={cat.label}
-      class="cat-hero-img"
-      loading="lazy"
-      width="140"
-      height="140"
-    />
   </div>
 
-  <div class="calc-box" style={`border-top: 3px solid ${cat.color};`}>
+  <div class="calc-wrapper" style={`--accent: ${cat.color};`}>
     <slot />
   </div>
 
   <p class="source-note">{sourceNote}</p>
-
   <RelatedLinks current={calculator} />
 </article>
 
 <style>
 .cat-hero {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
+  background: var(--hero-light);
   border-radius: var(--radius);
-  padding: 1.25rem 1.5rem;
+  padding: 1.5rem;
   margin-bottom: 1.5rem;
-  overflow: hidden;
+  border-left: 4px solid var(--hero-color);
 }
-.cat-hero-text { flex: 1; }
-.cat-badge {
-  display: inline-block;
-  font-size: 0.8rem;
-  font-weight: 600;
-  padding: 0.2rem 0.6rem;
-  border-radius: 20px;
-  margin-bottom: 0.5rem;
+.cat-hero-inner {
+  display: flex;
+  gap: 1.25rem;
+  align-items: center;
 }
-.intro { color: var(--color-text-muted); margin: 0; }
 .cat-hero-img {
-  width: 120px;
-  height: 120px;
+  width: 85px;
+  height: 85px;
   object-fit: contain;
   flex-shrink: 0;
   display: none;
+  border-radius: 8px;
 }
-@media (min-width: 600px) { .cat-hero-img { display: block; } }
-.calc-box {
-  background: white;
-  border: 1.5px solid var(--color-border);
+@media (min-width: 480px) { .cat-hero-img { display: block; } }
+.cat-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  color: white;
+  font-size: 0.74rem;
+  font-weight: 600;
+  padding: 0.22rem 0.65rem;
+  border-radius: 20px;
+  margin-bottom: 0.5rem;
+  letter-spacing: 0.03em;
+}
+.intro {
+  color: var(--muted);
+  font-size: 0.88rem;
+  line-height: 1.65;
+  margin: 0;
+}
+.calc-wrapper {
+  background: var(--surface);
+  border: 1.5px solid var(--border);
+  border-top: 3px solid var(--accent);
   border-radius: var(--radius);
-  padding: 1.5rem;
-  box-shadow: var(--shadow);
-  margin-bottom: 1rem;
+  padding: 1.75rem;
+  box-shadow: var(--shadow-sm);
+  margin-bottom: 0.75rem;
 }
-.source-note { font-size: 0.8rem; color: var(--color-text-muted); margin-top: 0.5rem; }
+.source-note {
+  font-size: 0.78rem;
+  color: var(--muted);
+  line-height: 1.6;
+  margin-bottom: 0;
+}
 </style>
