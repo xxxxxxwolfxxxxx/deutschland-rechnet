@@ -15,11 +15,11 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
   categoryLight={cat.colorLight}
 >
   <a href={`${base}/`} class="back-link">← Alle Kategorien</a>
-  <h1>{cat.emoji} {cat.label}</h1>
+  <h1>{cat.label}</h1>
   <p class="cat-desc">{cat.description}</p>
   <div class="grid">
     {calcs.map(c => (
-      <CalculatorCard title={c.title} description={c.description} href={`${base}/${c.category}/${c.slug}/`} accentColor={cat.color} emoji={cat.emoji} />
+      <CalculatorCard title={c.title} description={c.description} href={`${base}/${c.category}/${c.slug}/`} accentColor={cat.color} />
     ))}
   </div>
 </Layout>
