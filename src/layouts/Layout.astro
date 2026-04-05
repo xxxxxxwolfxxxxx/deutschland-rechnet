@@ -14,6 +14,16 @@ const siteUrl = import.meta.env.SITE ?? 'https://deutschland-rechnet.de';
 const base = import.meta.env.BASE_URL.replace(/\/$/, '');
 const canonical = `${siteUrl}${base}${canonicalPath}`;
 const year = new Date().getFullYear();
+
+const navLinks = [
+  { href: `${base}/geld/`, label: 'Geld' },
+  { href: `${base}/wohnen/`, label: 'Wohnen' },
+  { href: `${base}/energie/`, label: 'Energie' },
+  { href: `${base}/auto/`, label: 'Auto' },
+  { href: `${base}/familie/`, label: 'Familie' },
+  { href: `${base}/gesundheit/`, label: 'Gesundheit' },
+  { href: `${base}/einheiten/`, label: 'Einheiten' },
+];
 ---
 <!DOCTYPE html>
 <html lang="de">
@@ -34,43 +44,265 @@ const year = new Date().getFullYear();
   )}
 </head>
 <body>
-  <header style={categoryColor ? `background: ${categoryColor}` : ''}>
-    <div class="container">
-      <nav>
-        <a href={`${base}/`} class="logo">🇩🇪 Deutschland rechnet</a>
-        <span class="tagline">Kostenlose Rechner für Deutschland</span>
+  <header>
+    <div class="container header-inner">
+      <a href={`${base}/`} class="logo">
+        <span class="logo-flag"><span></span><span></span><span></span></span>
+        <span class="logo-text">Deutschland rechnet</span>
+      </a>
+      <nav class="desktop-nav" aria-label="Hauptnavigation">
+        {navLinks.map(l => <a href={l.href}>{l.label}</a>)}
       </nav>
+      <button class="hamburger" aria-label="Menü öffnen" aria-expanded="false" aria-controls="mobile-menu">
+        <span></span><span></span><span></span>
+      </button>
     </div>
   </header>
-  <main class="container">
+
+  <div id="mobile-menu" class="mobile-overlay" aria-hidden="true">
+    <button class="close-btn" aria-label="Menü schließen">✕</button>
+    <nav>
+      {navLinks.map(l => <a href={l.href}>{l.label}</a>)}
+      <a href={`${base}/`} class="home-link">← Startseite</a>
+    </nav>
+  </div>
+
+  <main class="container main-content">
     <slot />
   </main>
+
   <footer>
-    <div class="container">
-      <p>© {year} Deutschland rechnet · Kostenlos · Kein Login</p>
-      <p><a href={`${base}/`}>Alle Rechner</a> · <a href={`${base}/impressum/`}>Impressum</a> · <a href={`${base}/agb/`}>AGB</a></p>
+    <div class="container footer-inner">
+      <div class="footer-brand">
+        <a href={`${base}/`} class="footer-logo">Deutschland rechnet</a>
+        <p>Kostenlose Rechner für alle Lebenslagen</p>
+      </div>
+      <div class="footer-nav">
+        {navLinks.map(l => <a href={l.href}>{l.label}</a>)}
+      </div>
+      <div class="footer-legal">
+        <p>© {year} Deutschland rechnet</p>
+        <p><a href={`${base}/impressum/`}>Impressum</a> · <a href={`${base}/agb/`}>AGB</a></p>
+      </div>
     </div>
   </footer>
+
   <noscript>
     <style>.calc-form { display: none; }</style>
     <p style="background:#fff3cd;padding:1rem;border-radius:8px;margin:1rem 0;">
       Bitte JavaScript aktivieren, um den Rechner zu nutzen.
     </p>
   </noscript>
+
+  <script is:inline>
+    const btn = document.querySelector('.hamburger');
+    const overlay = document.getElementById('mobile-menu');
+    const closeBtn = document.querySelector('.close-btn');
+    function openMenu() {
+      overlay.classList.add('open');
+      overlay.setAttribute('aria-hidden', 'false');
+      btn.setAttribute('aria-expanded', 'true');
+      document.body.style.overflow = 'hidden';
+    }
+    function closeMenu() {
+      overlay.classList.remove('open');
+      overlay.setAttribute('aria-hidden', 'true');
+      btn.setAttribute('aria-expanded', 'false');
+      document.body.style.overflow = '';
+    }
+    btn.addEventListener('click', openMenu);
+    closeBtn.addEventListener('click', closeMenu);
+    overlay.addEventListener('click', e => { if (e.target === overlay) closeMenu(); });
+  </script>
 </body>
 </html>
 
 <style>
 header {
-  background: var(--color-black);
-  color: white;
-  padding: 0.75rem 0;
-  margin-bottom: 2rem;
+  background: var(--dark);
+  position: sticky;
+  top: 0;
+  z-index: 100;
 }
-header nav { display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; }
-.logo { color: white; text-decoration: none; font-weight: 700; font-size: 1.1rem; }
-.tagline { color: #aaa; font-size: 0.85rem; }
-footer { margin-top: 3rem; padding: 1.5rem 0; border-top: 2px solid var(--color-gold); background: var(--color-black); color: #aaa; font-size: 0.85rem; }
-footer a { color: var(--color-gold); }
-footer p { margin-bottom: 0.25rem; }
+header::after {
+  content: '';
+  display: block;
+  height: 3px;
+  background: linear-gradient(90deg, #1a1a1a 33.33%, var(--red) 33.33% 66.66%, var(--gold) 66.66%);
+}
+.header-inner {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  height: 60px;
+}
+.logo {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  text-decoration: none;
+  flex-shrink: 0;
+}
+.logo-flag {
+  display: flex;
+  flex-direction: column;
+  width: 20px;
+  gap: 2px;
+}
+.logo-flag span { height: 5px; border-radius: 1px; }
+.logo-flag span:nth-child(1) { background: #333; }
+.logo-flag span:nth-child(2) { background: var(--red); }
+.logo-flag span:nth-child(3) { background: var(--gold); }
+.logo-text {
+  font-family: var(--font-display);
+  font-size: 1.15rem;
+  font-weight: 600;
+  color: white;
+}
+.logo:hover { text-decoration: none; }
+
+.desktop-nav {
+  display: none;
+  align-items: center;
+  gap: 0.15rem;
+  margin-left: auto;
+}
+.desktop-nav a {
+  color: rgba(255,255,255,0.7);
+  text-decoration: none;
+  font-size: 0.82rem;
+  font-weight: 500;
+  padding: 0.4rem 0.7rem;
+  border-radius: 6px;
+  transition: background 0.15s, color 0.15s;
+  white-space: nowrap;
+}
+.desktop-nav a:hover { background: rgba(255,255,255,0.1); color: white; text-decoration: none; }
+
+.hamburger {
+  margin-left: auto;
+  background: none;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 6px;
+  border-radius: 6px;
+  transition: background 0.15s;
+}
+.hamburger:hover { background: rgba(255,255,255,0.1); }
+.hamburger span {
+  display: block;
+  width: 22px;
+  height: 2px;
+  background: white;
+  border-radius: 1px;
+}
+
+.mobile-overlay {
+  position: fixed;
+  inset: 0;
+  background: var(--dark);
+  z-index: 200;
+  display: flex;
+  flex-direction: column;
+  padding: 1.5rem;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s;
+}
+.mobile-overlay.open { opacity: 1; pointer-events: all; }
+.mobile-overlay nav {
+  display: flex;
+  flex-direction: column;
+  margin-top: 4rem;
+}
+.mobile-overlay nav a {
+  color: white;
+  font-size: 1.5rem;
+  font-family: var(--font-display);
+  font-weight: 600;
+  padding: 0.9rem 0;
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+  text-decoration: none;
+  transition: color 0.15s, padding-left 0.15s;
+}
+.mobile-overlay nav a:hover { color: var(--gold); padding-left: 0.5rem; text-decoration: none; }
+.mobile-overlay nav .home-link {
+  font-size: 0.9rem;
+  font-family: var(--font-ui);
+  color: rgba(255,255,255,0.45);
+  margin-top: 1.25rem;
+  border-bottom: none;
+}
+.close-btn {
+  position: absolute;
+  top: 1.25rem;
+  right: 1.25rem;
+  background: rgba(255,255,255,0.1);
+  border: none;
+  color: white;
+  font-size: 1rem;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s;
+}
+.close-btn:hover { background: rgba(255,255,255,0.2); }
+
+@media (min-width: 900px) {
+  .desktop-nav { display: flex; }
+  .hamburger { display: none; }
+}
+
+.main-content { padding-top: 2rem; padding-bottom: 3rem; }
+
+footer {
+  background: var(--dark);
+  color: rgba(255,255,255,0.6);
+  font-size: 0.875rem;
+  padding: 2.5rem 0;
+  margin-top: 4rem;
+}
+footer::before {
+  content: '';
+  display: block;
+  height: 3px;
+  background: linear-gradient(90deg, #1a1a1a 33.33%, var(--red) 33.33% 66.66%, var(--gold) 66.66%);
+  margin-bottom: 2.5rem;
+}
+.footer-inner {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 2rem;
+}
+.footer-logo {
+  font-family: var(--font-display);
+  font-size: 1.15rem;
+  font-weight: 600;
+  color: white;
+  text-decoration: none;
+  display: block;
+  margin-bottom: 0.35rem;
+}
+.footer-brand p { font-size: 0.8rem; margin: 0; }
+.footer-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem 1rem;
+  align-content: start;
+}
+.footer-nav a { color: rgba(255,255,255,0.5); text-decoration: none; font-size: 0.82rem; }
+.footer-nav a:hover { color: var(--gold); text-decoration: none; }
+.footer-legal p { margin: 0.25rem 0; }
+.footer-legal a { color: rgba(255,255,255,0.4); text-decoration: none; }
+.footer-legal a:hover { color: white; }
+@media (min-width: 768px) {
+  .footer-inner { grid-template-columns: 1.2fr 2fr 1fr; align-items: start; }
+}
 </style>

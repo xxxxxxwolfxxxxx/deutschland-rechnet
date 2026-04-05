@@ -6,20 +6,16 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
 ---
 <Layout
   title="Kostenlose Rechner für Deutschland"
-  description="Brutto-Netto, Unterhalt, Elterngeld, Stromkosten und viele weitere kostenlose Rechner mit Deutschland-Bezug. Kein Login, sofortiges Ergebnis."
+  description="Brutto-Netto, Unterhalt, Elterngeld, Stromkosten und viele weitere kostenlose Rechner. Kein Login, sofortiges Ergebnis."
   canonicalPath="/"
 >
   <div class="hero">
     <div class="hero-text">
-      <h1>Deutschland rechnet</h1>
-      <p class="hero-sub">Kostenlose Rechner für alle Lebenslagen – einfach eingeben und Ergebnis erhalten.</p>
-      <ul class="promises">
-        <li>✅ Kein Abo, kein Login, keine Registrierung</li>
-        <li>✅ Sofortiges Ergebnis direkt im Browser</li>
-        <li>✅ Alle Daten bleiben bei dir – nichts wird gespeichert</li>
-      </ul>
+      <p class="hero-label">Dein Rechner-Portal</p>
+      <h1>Deutschland <em>rechnet</em></h1>
+      <p class="hero-sub">Kostenlose Rechner für Gehalt, Steuern, Kredit und mehr — direkt im Browser, ohne Anmeldung.</p>
     </div>
-    <img src={`${base}/images/categories/hero.png`} alt="Deutschland rechnet" class="hero-img" loading="eager" width="220" height="220" />
+    <img src={`${base}/images/categories/hero.png`} alt="" class="hero-img" loading="eager" />
   </div>
 
   <CategoryGrid />
@@ -29,19 +25,47 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
 .hero {
   display: flex;
   align-items: center;
-  gap: 1.5rem;
-  background: white;
-  border: 1.5px solid var(--color-border);
-  border-radius: var(--radius);
-  padding: 1.5rem;
-  margin-bottom: 2rem;
-  box-shadow: var(--shadow);
+  gap: 2rem;
+  margin-bottom: 2.5rem;
+  padding: 1.5rem 0 0.5rem;
 }
 .hero-text { flex: 1; }
-h1 { font-size: 1.75rem; margin-bottom: 0.5rem; }
-.hero-sub { color: var(--color-text-muted); margin-bottom: 1rem; }
-.promises { list-style: none; display: flex; flex-direction: column; gap: 0.35rem; font-size: 0.9rem; }
-.hero-img { width: 160px; height: 160px; object-fit: contain; flex-shrink: 0; display: none; }
-@media (min-width: 600px) { .hero-img { display: block; } }
-@media (min-width: 768px) { h1 { font-size: 2rem; } }
+.hero-label {
+  font-size: 0.76rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--red);
+  margin-bottom: 0.5rem;
+}
+h1 {
+  font-size: clamp(2.25rem, 5vw, 3.5rem);
+  font-weight: 600;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+  margin-bottom: 0.75rem;
+  color: var(--dark);
+}
+h1 em {
+  font-style: italic;
+  color: var(--red);
+}
+.hero-sub {
+  font-size: 1rem;
+  color: var(--muted);
+  max-width: 42ch;
+  line-height: 1.65;
+  margin: 0;
+}
+.hero-img {
+  width: 0;
+  height: 0;
+  display: none;
+}
+@media (min-width: 500px) {
+  .hero-img { display: block; width: 150px; height: 150px; object-fit: contain; flex-shrink: 0; }
+}
+@media (min-width: 768px) {
+  .hero-img { width: 200px; height: 200px; }
+}
 </style>
