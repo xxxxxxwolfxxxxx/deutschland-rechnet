@@ -24,7 +24,13 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
 )}
 
 <style>
-.related { margin-top: 2.5rem; padding-top: 2rem; border-top: 1px solid var(--color-border); }
+.related {
+  margin-top: 1.5rem;
+  padding: 1.5rem;
+  background: var(--surface);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-sm);
+}
 .related h2 { margin-bottom: 1rem; }
 .related-grid { display: grid; gap: 0.75rem; }
 @media (min-width: 768px) { .related-grid { grid-template-columns: 1fr 1fr 1fr; } }

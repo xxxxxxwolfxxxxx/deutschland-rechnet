@@ -15,9 +15,11 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
   categoryLight={cat.colorLight}
   categoryImage={cat.image}
 >
-  <a href={`${base}/`} class="back-link">← Alle Kategorien</a>
-  <h1>{cat.label}</h1>
-  <p class="cat-desc">{cat.description}</p>
+  <div class="page-header">
+    <a href={`${base}/`} class="back-link">← Alle Kategorien</a>
+    <h1>{cat.label}</h1>
+    <p class="cat-desc">{cat.description}</p>
+  </div>
   <div class="grid">
     {calcs.map(c => (
       <CalculatorCard title={c.title} description={c.description} href={`${base}/${c.category}/${c.slug}/`} accentColor={cat.color} />

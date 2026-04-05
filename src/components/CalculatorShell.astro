@@ -18,9 +18,9 @@ const cat = CATEGORIES[calculator.category];
 
   <div class="calc-wrapper" style={`--accent: ${cat.color};`}>
     <slot />
+    <p class="source-note">{sourceNote}</p>
   </div>
 
-  <p class="source-note">{sourceNote}</p>
   <RelatedLinks current={calculator} />
 </article>
 
@@ -63,6 +63,9 @@ const cat = CATEGORIES[calculator.category];
   font-size: 0.78rem;
   color: var(--muted);
   line-height: 1.6;
+  margin-top: 1rem;
   margin-bottom: 0;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--border);
 }
 </style>
