@@ -1,0 +1,122 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import CalculatorShell from '../../components/CalculatorShell.astro';
+import { CALCULATORS, CATEGORIES } from '../../data/calculators';
+const calc = CALCULATORS.find(c => c.slug === 'kurzarbeitergeld-rechner')!;
+const cat = CATEGORIES[calc.category];
+const year = new Date().getFullYear();
+---
+<Layout
+  title={`Kurzarbeitergeld-Rechner ${year}`}
+  description="Kurzarbeitergeld berechnen – 60% bzw. 67% (mit Kind) des Nettolohnausfalls nach § 95 SGB III."
+  canonicalPath="/geld/kurzarbeitergeld-rechner/"
+  categoryColor={cat.color}
+  categoryLight={cat.colorLight}
+  categoryImage={cat.image}
+>
+  <div class="page-header">
+    <a href={`${import.meta.env.BASE_URL}geld/`} class="back-link">← Geld &amp; Gehalt</a>
+    <h1>Kurzarbeitergeld-Rechner {year}</h1>
+  </div>
+  <CalculatorShell
+    calculator={calc}
+    intro="Berechnen Sie Ihr Kurzarbeitergeld nach § 95 SGB III: 60% des pauschalierten Nettolohnausfalls (67% mit Kind). Geben Sie Ihr Bruttogehalt und den Arbeitsausfall ein."
+    sourceNote="Kurzarbeitergeld nach §§ 95 ff. SGB III. Nettolohn pauschaliert nach Steuerklasse. Die tatsächliche Höhe berechnet die Bundesagentur für Arbeit nach amtlichen Tabellen. Keine Rechtsberatung."
+  >
+    <div class="calc-form">
+      <div class="calc-grid">
+        <div class="calc-group">
+          <label for="brutto">Bruttogehalt (€/Monat)</label>
+          <input type="number" id="brutto" min="500" max="20000" value="3500" step="50" />
+        </div>
+        <div class="calc-group">
+          <label for="ausfall">Arbeitsausfall (%)</label>
+          <input type="number" id="ausfall" min="10" max="100" value="100" step="10" />
+        </div>
+        <div class="calc-group">
+          <label for="stklasse">Steuerklasse</label>
+          <select id="stklasse">
+            <option value="I">I</option>
+            <option value="II">II</option>
+            <option value="III">III</option>
+            <option value="IV">IV</option>
+            <option value="V">V</option>
+            <option value="VI">VI</option>
+          </select>
+        </div>
+        <div class="calc-group" style="display:flex;align-items:center;padding-top:1.5rem;">
+          <label style="display:flex;align-items:center;gap:0.5rem;font-weight:400;cursor:pointer;">
+            <input type="checkbox" id="kind" style="width:auto;" />
+            Kind im Haushalt (67%-Satz)
+          </label>
+        </div>
+      </div>
+
+      <div class="presets" style="display:flex;gap:0.5rem;flex-wrap:wrap;margin-bottom:0.75rem;">
+        <span style="font-size:0.82rem;color:var(--muted);align-self:center;">Ausfall:</span>
+        <button class="preset-btn" data-ausfall="25">25%</button>
+        <button class="preset-btn" data-ausfall="50">50%</button>
+        <button class="preset-btn" data-ausfall="75">75%</button>
+        <button class="preset-btn" data-ausfall="100">100%</button>
+      </div>
+
+      <div class="calc-result">
+        <div class="label">Kurzarbeitergeld</div>
+        <div id="kug">— €</div>
+      </div>
+      <div id="details" style="margin-top:0.75rem;font-size:0.88rem;color:#666;display:flex;gap:1.5rem;flex-wrap:wrap;"></div>
+    </div>
+  </CalculatorShell>
+</Layout>
+
+<style>
+.preset-btn {
+  background: var(--surface);
+  border: 1.5px solid var(--border);
+  border-radius: 20px;
+  padding: 0.25rem 0.75rem;
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+  font-family: var(--font-ui);
+  color: var(--text);
+}
+.preset-btn:hover, .preset-btn.active {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 8%, white);
+  color: var(--accent);
+}
+</style>
+
+<script type="module">
+const { berechneKurzarbeitergeld } = await import(import.meta.env.BASE_URL + 'scripts/kurzarbeitergeld.js');
+function fmt(n) { return n.toLocaleString('de-DE', {minimumFractionDigits:2, maximumFractionDigits:2}) + ' €'; }
+function berechne() {
+  const bruttoMonat = parseFloat(document.getElementById('brutto').value)||3500;
+  const steuerklasse = document.getElementById('stklasse').value;
+  const hatKind = document.getElementById('kind').checked;
+  const ausfallProzent = parseFloat(document.getElementById('ausfall').value)||100;
+  const r = berechneKurzarbeitergeld({ bruttoMonat, steuerklasse, hatKind, ausfallProzent });
+  document.getElementById('kug').textContent = fmt(r.kug);
+  document.getElementById('details').innerHTML =
+    `<span>Netto ohne Kurzarbeit: <strong>${fmt(r.sollNetto)}</strong></span>` +
+    `<span>Netto aus Arbeit: <strong>${fmt(r.istNetto)}</strong></span>` +
+    `<span>Gesamtnetto: <strong>${fmt(r.gesamtNetto)}</strong></span>` +
+    `<span>Einkommensverlust: <strong style="color:#c8102e">${fmt(r.verlust)}</strong></span>` +
+    `<span>Leistungssatz: <strong>${(r.leistungssatz * 100).toFixed(0)} %</strong></span>`;
+  document.querySelectorAll('.preset-btn').forEach(b =>
+    b.classList.toggle('active', parseFloat(b.dataset.ausfall) === ausfallProzent));
+}
+['brutto','ausfall','stklasse'].forEach(id =>
+  document.getElementById(id).addEventListener('change', berechne));
+['brutto','ausfall'].forEach(id =>
+  document.getElementById(id).addEventListener('input', berechne));
+document.getElementById('kind').addEventListener('change', berechne);
+document.querySelectorAll('.preset-btn').forEach(b => {
+  b.addEventListener('click', () => {
+    document.getElementById('ausfall').value = b.dataset.ausfall;
+    berechne();
+  });
+});
+berechne();
+</script>
