@@ -1,0 +1,70 @@
+---
+import Layout from '../layouts/Layout.astro';
+const base = import.meta.env.BASE_URL.replace(/\/$/, '');
+---
+<Layout
+  title="AGB"
+  description="Allgemeine Geschäftsbedingungen von Deutschland rechnet."
+  canonicalPath="/agb/"
+>
+  <a href={`${base}/`}>← Startseite</a>
+  <h1>Allgemeine Geschäftsbedingungen (AGB)</h1>
+
+  <div class="legal-box">
+    <p><strong>Stand:</strong> April 2026</p>
+
+    <h2>§ 1 Geltungsbereich</h2>
+    <p>
+      Diese Allgemeinen Geschäftsbedingungen gelten für die Nutzung der Website deutschland-rechnet (im Folgenden „Angebot"), betrieben von Matthias Dührkop, Rhedewiesen 1, 19258 Boizenburg/Elbe.
+    </p>
+
+    <h2>§ 2 Leistungsbeschreibung</h2>
+    <p>
+      Das Angebot stellt kostenlose Online-Rechner und Konverter zur Verfügung. Die Berechnungen dienen ausschließlich als unverbindliche Orientierungshilfe. Es besteht kein Anspruch auf dauerhafte Verfügbarkeit des Angebots.
+    </p>
+
+    <h2>§ 3 Nutzung des Angebots</h2>
+    <p>
+      Das Angebot darf ausschließlich zu privaten, nicht-kommerziellen Zwecken genutzt werden, sofern keine ausdrückliche schriftliche Genehmigung für eine kommerzielle Nutzung vorliegt. Eine automatisierte Massenabfrage (Scraping, Crawling) ist untersagt.
+    </p>
+
+    <h2>§ 4 Haftungsausschluss</h2>
+    <p>
+      Alle Berechnungsergebnisse sind ohne Gewähr. Sie ersetzen keine steuerliche, rechtliche oder medizinische Fachberatung. Der Betreiber übernimmt keine Haftung für Schäden, die aus der Nutzung der bereitgestellten Berechnungen entstehen.
+    </p>
+
+    <h2>§ 5 Werbung</h2>
+    <p>
+      Das Angebot kann Werbeanzeigen enthalten. Durch die Nutzung des Angebots erklären Sie sich damit einverstanden, dass Werbung eingeblendet werden kann.
+    </p>
+
+    <h2>§ 6 Datenschutz</h2>
+    <p>
+      Die eingegebenen Daten werden ausschließlich lokal im Browser verarbeitet und nicht an Server übermittelt oder gespeichert. Es werden keine personenbezogenen Daten erhoben.
+    </p>
+
+    <h2>§ 7 Änderungen</h2>
+    <p>
+      Der Betreiber behält sich vor, diese AGB jederzeit zu ändern. Die aktuelle Version ist stets auf dieser Seite abrufbar.
+    </p>
+
+    <h2>§ 8 Anwendbares Recht</h2>
+    <p>
+      Es gilt das Recht der Bundesrepublik Deutschland. Gerichtsstand ist, soweit gesetzlich zulässig, Boizenburg/Elbe.
+    </p>
+  </div>
+</Layout>
+
+<style>
+.legal-box {
+  background: white;
+  border: 1.5px solid var(--color-border);
+  border-radius: var(--radius);
+  padding: 2rem;
+  margin-top: 1.5rem;
+  max-width: 700px;
+}
+.legal-box h2 { margin-top: 1.5rem; margin-bottom: 0.5rem; font-size: 1.1rem; }
+.legal-box h2:first-child { margin-top: 0; }
+.legal-box p { margin-bottom: 0.75rem; line-height: 1.7; }
+</style>
