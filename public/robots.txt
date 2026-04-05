@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://matthiasduhrkop.github.io/deutschland-rechnet/sitemap-index.xml
+Sitemap: https://xxxxxxwolfxxxxx.github.io/deutschland-rechnet/sitemap-index.xml

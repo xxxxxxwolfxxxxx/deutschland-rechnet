@@ -2,7 +2,7 @@ import { defineConfig } from 'astro/config';
 import sitemap from '@astrojs/sitemap';
 
 export default defineConfig({
-  site: 'https://matthiasduhrkop.github.io',
+  site: 'https://xxxxxxwolfxxxxx.github.io',
   base: '/deutschland-rechnet',
   trailingSlash: 'always',
   integrations: [sitemap()],
