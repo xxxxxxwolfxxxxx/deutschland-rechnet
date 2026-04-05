@@ -58,7 +58,7 @@ const year = new Date().getFullYear();
 </Layout>
 
 <script type="module">
-const { berechneMietpreisbremse } = await import(import.meta.env.BASE_URL + 'scripts/mietpreisbremse.js');
+const { berechneMietpreisbremse } = await import(window.__base + 'scripts/mietpreisbremse.js');
 function fmt(n) { return n.toLocaleString('de-DE', {minimumFractionDigits:2, maximumFractionDigits:2}) + ' €'; }
 function fmtQm(n) { return n.toLocaleString('de-DE', {minimumFractionDigits:2, maximumFractionDigits:2}) + ' €/m²'; }
 function berechne() {

@@ -65,7 +65,7 @@ const year = new Date().getFullYear();
 </Layout>
 
 <script type="module">
-const { berechneKalorienbedarf } = await import(import.meta.env.BASE_URL + 'scripts/kalorien.js');
+const { berechneKalorienbedarf } = await import(window.__base + 'scripts/kalorien.js');
 function berechne() {
   const g = document.getElementById('geschlecht').value;
   const a = parseInt(document.getElementById('alter').value)||0;

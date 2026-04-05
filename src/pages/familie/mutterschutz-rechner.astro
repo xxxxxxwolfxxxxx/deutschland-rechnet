@@ -47,7 +47,7 @@ const year = new Date().getFullYear();
 </Layout>
 
 <script type="module">
-const { berechneMutterschutz } = await import(import.meta.env.BASE_URL + 'scripts/mutterschutz.js');
+const { berechneMutterschutz } = await import(window.__base + 'scripts/mutterschutz.js');
 function fmtDate(s) {
   const [y,m,d] = s.split('-');
   return `${d}.${m}.${y}`;

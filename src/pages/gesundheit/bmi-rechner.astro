@@ -44,7 +44,7 @@ const year = new Date().getFullYear();
 </Layout>
 
 <script type="module">
-const { berechneBMI } = await import(import.meta.env.BASE_URL + 'scripts/bmi.js');
+const { berechneBMI } = await import(window.__base + 'scripts/bmi.js');
 function berechne() {
   const g = parseFloat(document.getElementById('gewicht').value)||0;
   const gr = parseFloat(document.getElementById('groesse').value)||1;
