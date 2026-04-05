@@ -1,0 +1,114 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import CalculatorShell from '../../components/CalculatorShell.astro';
+import { CALCULATORS, CATEGORIES } from '../../data/calculators';
+const calc = CALCULATORS.find(c => c.slug === 'photovoltaik-rechner')!;
+const cat = CATEGORIES[calc.category];
+const year = new Date().getFullYear();
+---
+<Layout
+  title={`Photovoltaik-Rechner ${year}`}
+  description="PV-Anlage Wirtschaftlichkeit berechnen: Amortisationszeit, Jahresertrag und 25-Jahres-Rendite nach EEG 2023."
+  canonicalPath="/energie/photovoltaik-rechner/"
+  categoryColor={cat.color}
+  categoryLight={cat.colorLight}
+  categoryImage={cat.image}
+>
+  <div class="page-header">
+    <a href={`${import.meta.env.BASE_URL}energie/`} class="back-link">← Energie</a>
+    <h1>Photovoltaik-Rechner {year}</h1>
+  </div>
+  <CalculatorShell
+    calculator={calc}
+    intro="Berechnen Sie Amortisationszeit, Jahresertrag und Rendite Ihrer Photovoltaik-Anlage. Einspeisevergütung nach EEG 2023: 8,11 ct/kWh (Überschuss, bis 10 kWp)."
+    sourceNote="Einspeisevergütung nach EEG 2023. Sonnenstunden-Durchschnitt Deutschland: 950 kWh/kWp/Jahr. Moduldegradation: 0,5%/Jahr. Keine Investitionsberatung."
+  >
+    <div class="calc-form">
+      <div class="calc-grid">
+        <div class="calc-group">
+          <label for="leistung">Anlagenleistung (kWp)</label>
+          <input type="number" id="leistung" min="1" max="100" value="8" step="0.5" />
+        </div>
+        <div class="calc-group">
+          <label for="investition">Investitionskosten (€)</label>
+          <input type="number" id="investition" min="1000" max="200000" value="14000" step="500" />
+        </div>
+        <div class="calc-group">
+          <label for="strompreis">Strompreis (€/kWh)</label>
+          <input type="number" id="strompreis" min="0.10" max="1.00" value="0.31" step="0.01" />
+        </div>
+        <div class="calc-group">
+          <label for="eigenverbrauch">Eigenverbrauch (%)</label>
+          <input type="number" id="eigenverbrauch" min="0" max="100" value="30" step="5" />
+        </div>
+      </div>
+
+      <div class="presets" style="display:flex;gap:0.5rem;flex-wrap:wrap;margin-bottom:0.75rem;">
+        <span style="font-size:0.82rem;color:var(--muted);align-self:center;">Anlagengrößen:</span>
+        <button class="preset-btn" data-kwp="5"  data-invest="9000">5 kWp</button>
+        <button class="preset-btn" data-kwp="8"  data-invest="14000">8 kWp</button>
+        <button class="preset-btn" data-kwp="10" data-invest="17000">10 kWp</button>
+        <button class="preset-btn" data-kwp="15" data-invest="23000">15 kWp</button>
+      </div>
+
+      <div class="calc-result">
+        <div class="label">Amortisationszeit</div>
+        <div id="amort">— Jahre</div>
+      </div>
+      <div id="details" style="margin-top:0.75rem;font-size:0.88rem;color:#666;display:flex;gap:1.5rem;flex-wrap:wrap;"></div>
+    </div>
+  </CalculatorShell>
+</Layout>
+
+<style>
+.preset-btn {
+  background: var(--surface);
+  border: 1.5px solid var(--border);
+  border-radius: 20px;
+  padding: 0.25rem 0.75rem;
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+  font-family: var(--font-ui);
+  color: var(--text);
+}
+.preset-btn:hover, .preset-btn.active {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 8%, white);
+  color: var(--accent);
+}
+</style>
+
+<script type="module">
+const { berechnePhotovoltaik } = await import(import.meta.env.BASE_URL + 'scripts/photovoltaik.js');
+function fmt(n) { return n.toLocaleString('de-DE', {minimumFractionDigits:2, maximumFractionDigits:2}) + ' €'; }
+function fmtKwh(n) { return n.toLocaleString('de-DE') + ' kWh'; }
+function berechne() {
+  const leistungKwp = parseFloat(document.getElementById('leistung').value)||8;
+  const investition = parseFloat(document.getElementById('investition').value)||14000;
+  const strompreis = parseFloat(document.getElementById('strompreis').value)||0.31;
+  const eigenverbrauchAnteil = (parseFloat(document.getElementById('eigenverbrauch').value)||30) / 100;
+  const r = berechnePhotovoltaik({ leistungKwp, investition, strompreis, eigenverbrauchAnteil });
+  document.getElementById('amort').textContent = r.amortJahre ? `${r.amortJahre} Jahre` : '> 30 Jahre';
+  document.getElementById('details').innerHTML =
+    `<span>Jahresertrag: <strong>${fmtKwh(r.jahresertragKwh)}</strong></span>` +
+    `<span>Einsparung/Jahr: <strong>${fmt(r.jahresertragEuro)}</strong></span>` +
+    `<span>Eigenverbrauch: <strong>${fmtKwh(r.eigenverbrauchKwh)}</strong></span>` +
+    `<span>Einspeisung: <strong>${fmtKwh(r.einspeisungKwh)}</strong></span>` +
+    `<span>Einspeiseerlöse: <strong>${fmt(r.einspeiseerloese)}</strong></span>` +
+    `<span>Gewinn nach 25 J.: <strong style="color:${r.rendite25j >= 0 ? '#1e7e34' : '#c8102e'}">${fmt(r.rendite25j)}</strong></span>`;
+  document.querySelectorAll('.preset-btn').forEach(b => {
+    b.classList.toggle('active', parseFloat(b.dataset.kwp) === leistungKwp);
+  });
+}
+['leistung','investition','strompreis','eigenverbrauch'].forEach(id =>
+  document.getElementById(id).addEventListener('input', berechne));
+document.querySelectorAll('.preset-btn').forEach(b => {
+  b.addEventListener('click', () => {
+    document.getElementById('leistung').value = b.dataset.kwp;
+    document.getElementById('investition').value = b.dataset.invest;
+    berechne();
+  });
+});
+berechne();
+</script>
