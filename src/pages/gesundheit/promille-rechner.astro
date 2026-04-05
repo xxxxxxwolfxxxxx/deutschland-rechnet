@@ -1,0 +1,157 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import CalculatorShell from '../../components/CalculatorShell.astro';
+import { CALCULATORS, CATEGORIES } from '../../data/calculators';
+const calc = CALCULATORS.find(c => c.slug === 'promille-rechner')!;
+const cat = CATEGORIES[calc.category];
+const year = new Date().getFullYear();
+---
+<Layout
+  title={`Promille-Rechner ${year}`}
+  description="Blutalkohol nach Widmark-Formel kostenlos berechnen. Mit Abbau-Funktion und Getränke-Vorlagen."
+  canonicalPath="/gesundheit/promille-rechner/"
+  categoryColor={cat.color}
+  categoryLight={cat.colorLight}
+>
+  <a href={`${import.meta.env.BASE_URL}gesundheit/`}>← Gesundheit & Fitness</a>
+  <h1>Promille-Rechner – Blutalkohol berechnen</h1>
+  <CalculatorShell
+    calculator={calc}
+    intro="Berechnen Sie Ihren Blutalkohol nach der Widmark-Formel. Hinweis: Dies ist eine unverbindliche Schätzung. Der tatsächliche Blutalkohol hängt von vielen individuellen Faktoren ab. Niemals Fahrzeuge unter Alkoholeinfluss führen."
+    sourceNote="Widmark-Formel: BAK = Alkohol(g) / (Körpergewicht × r). Verteilungsfaktor r: männlich 0,7 / weiblich 0,6. Abbau ca. 0,15 ‰/h."
+  >
+    <div class="calc-form">
+      <div class="calc-grid two-col">
+        <div class="calc-group">
+          <label for="gewicht">Körpergewicht (kg)</label>
+          <input type="number" id="gewicht" min="40" max="200" value="75" step="1" />
+        </div>
+        <div class="calc-group">
+          <label for="geschlecht">Geschlecht</label>
+          <select id="geschlecht">
+            <option value="m">Männlich</option>
+            <option value="w">Weiblich</option>
+          </select>
+        </div>
+        <div class="calc-group">
+          <label for="stunden">Stunden seit Trinkbeginn</label>
+          <input type="number" id="stunden" min="0" max="24" value="1" step="0.5" />
+        </div>
+      </div>
+
+      <div class="calc-group">
+        <label>Getränke hinzufügen</label>
+        <div class="getraenke-vorlagen">
+          <button type="button" class="vorlage-btn" data-menge="500" data-vol="5">+ Bier (0,5 L)</button>
+          <button type="button" class="vorlage-btn" data-menge="200" data-vol="12">+ Wein (0,2 L)</button>
+          <button type="button" class="vorlage-btn" data-menge="100" data-vol="11">+ Sekt (0,1 L)</button>
+          <button type="button" class="vorlage-btn" data-menge="40" data-vol="40">+ Schnaps (4 cl)</button>
+        </div>
+      </div>
+
+      <div id="getraenke-liste" class="getraenke-liste"></div>
+
+      <div class="calc-result">
+        <div class="label">Blutalkohol (BAK)</div>
+        <div id="bak-wert">0,00 ‰</div>
+      </div>
+      <div id="bak-info" style="margin-top:0.5rem;font-size:0.85rem;color:#666;"></div>
+      <p id="bak-hinweis" class="bak-warn" style="display:none;">Achtung: Fahruntüchtigkeit ab 0,5 ‰ (0,3 ‰ bei auffälligem Fahren).</p>
+    </div>
+  </CalculatorShell>
+</Layout>
+
+<style>
+.two-col { grid-template-columns: 1fr 1fr; }
+.getraenke-vorlagen { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 0.75rem; }
+.vorlage-btn {
+  padding: 0.4rem 0.75rem;
+  background: var(--bg);
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-family: var(--font-ui);
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text);
+  transition: border-color 0.15s;
+}
+.vorlage-btn:hover { border-color: var(--cat-color, var(--red)); }
+.getraenke-liste { display: flex; flex-direction: column; gap: 0.4rem; margin-bottom: 0.75rem; }
+.getraenk-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.4rem 0.75rem;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: 0.85rem;
+}
+.getraenk-row button {
+  margin-left: auto;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--muted);
+  font-size: 1rem;
+  line-height: 1;
+  padding: 0 0.25rem;
+}
+.getraenk-row button:hover { color: var(--red); }
+.bak-warn {
+  margin-top: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  background: #fff3cd;
+  border-radius: var(--radius-sm);
+  font-size: 0.82rem;
+  color: #856404;
+  border: 1px solid #ffc107;
+}
+</style>
+
+<script type="module">
+const { berechnePromille } = await import(import.meta.env.BASE_URL + 'scripts/promille.js');
+
+let getraenke = [];
+
+function berechne() {
+  const gewicht = parseFloat(document.getElementById('gewicht').value)||75;
+  const geschlecht = document.getElementById('geschlecht').value;
+  const stunden = parseFloat(document.getElementById('stunden').value)||0;
+  const r = berechnePromille({ getraenke, gewichtKg: gewicht, geschlecht, stundenNachBeginn: stunden });
+  document.getElementById('bak-wert').textContent = r.bak.toLocaleString('de-DE', {minimumFractionDigits:2, maximumFractionDigits:2}) + ' ‰';
+  document.getElementById('bak-info').textContent = getraenke.length
+    ? `Reiner Alkohol: ${r.alkoholGramm} g · Rohwert: ${r.rohWert} ‰ · Abbau: ${r.abbau} ‰`
+    : 'Fügen Sie Getränke hinzu.';
+  document.getElementById('bak-hinweis').style.display = r.bak >= 0.3 ? '' : 'none';
+}
+
+function renderListe() {
+  const liste = document.getElementById('getraenke-liste');
+  liste.innerHTML = getraenke.map((g, i) =>
+    `<div class="getraenk-row">
+      <span>${g.label}</span>
+      <span style="color:var(--muted);font-size:0.78rem;">${g.mengeML} ml · ${g.volProzent} %</span>
+      <button onclick="entferne(${i})">×</button>
+    </div>`
+  ).join('');
+  berechne();
+}
+
+window.entferne = function(i) { getraenke.splice(i, 1); renderListe(); };
+
+document.querySelectorAll('.vorlage-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    getraenke.push({
+      label: btn.textContent.replace('+ ',''),
+      mengeML: parseInt(btn.dataset.menge),
+      volProzent: parseInt(btn.dataset.vol),
+    });
+    renderListe();
+  });
+});
+
+['gewicht','geschlecht','stunden'].forEach(id => document.getElementById(id).addEventListener('input', berechne));
+berechne();
+</script>
