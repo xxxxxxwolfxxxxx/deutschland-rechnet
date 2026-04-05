@@ -114,7 +114,7 @@ const year = new Date().getFullYear();
 </style>
 
 <script type="module">
-const { berechnePromille } = await import(import.meta.env.BASE_URL + 'scripts/promille.js');
+const { berechnePromille } = await import(window.__base + 'scripts/promille.js');
 
 let getraenke = [];
 

@@ -96,6 +96,10 @@ const navLinks = [
   </noscript>
 
   <script is:inline>
+    window.__base = document.head.querySelector('link[rel="icon"]').href.replace('/favicon.svg', '/');
+  </script>
+
+  <script is:inline>
     const btn = document.querySelector('.hamburger');
     const overlay = document.getElementById('mobile-menu');
     const closeBtn = document.querySelector('.close-btn');

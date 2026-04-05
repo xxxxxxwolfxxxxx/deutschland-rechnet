@@ -54,7 +54,7 @@ const dreiJahreHer = new Date(Date.now() - 3*365*24*3600*1000).toISOString().spl
 </Layout>
 
 <script type="module">
-const { berechneKuendigungsfrist } = await import(import.meta.env.BASE_URL + 'scripts/kuendigungsfrist.js');
+const { berechneKuendigungsfrist } = await import(window.__base + 'scripts/kuendigungsfrist.js');
 function berechne() {
   const seite = document.getElementById('seite').value;
   const eintrittsdatum = document.getElementById('eintrittsdatum').value;

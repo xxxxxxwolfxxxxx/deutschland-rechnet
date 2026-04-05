@@ -44,7 +44,7 @@ const year = new Date().getFullYear();
 </Layout>
 
 <script type="module">
-const { berechneMindestlohn } = await import(import.meta.env.BASE_URL + 'scripts/mindestlohn.js');
+const { berechneMindestlohn } = await import(window.__base + 'scripts/mindestlohn.js');
 function fmt(n) { return n.toLocaleString('de-DE', {minimumFractionDigits:2, maximumFractionDigits:2}) + ' €'; }
 function berechne() {
   const stunden = parseFloat(document.getElementById('stunden').value)||0;
