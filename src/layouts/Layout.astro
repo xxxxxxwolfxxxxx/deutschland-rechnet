@@ -7,9 +7,10 @@ interface Props {
   canonicalPath: string;
   categoryColor?: string;
   categoryLight?: string;
+  categoryImage?: string;
 }
 
-const { title, description, canonicalPath, categoryColor, categoryLight } = Astro.props;
+const { title, description, canonicalPath, categoryColor, categoryLight, categoryImage } = Astro.props;
 const siteUrl = import.meta.env.SITE ?? 'https://deutschland-rechnet.de';
 const base = import.meta.env.BASE_URL.replace(/\/$/, '');
 const canonical = `${siteUrl}${base}${canonicalPath}`;
@@ -41,6 +42,19 @@ const navLinks = [
   <meta property="og:url" content={canonical} />
   {categoryColor && (
     <style set:html={`:root { --cat-color: ${categoryColor}; --cat-light: ${categoryLight ?? '#f8f8f8'}; }`} />
+  )}
+  {categoryImage && (
+    <style set:html={`
+    body::after {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background: url('${base}${categoryImage}') center 30% / cover no-repeat;
+      opacity: 0.15;
+      z-index: -1;
+      pointer-events: none;
+    }
+  `} />
   )}
 </head>
 <body>
