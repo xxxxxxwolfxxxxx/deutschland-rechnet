@@ -1,6 +1,7 @@
 ---
 import Layout from '../../layouts/Layout.astro';
 import CalculatorCard from '../../components/CalculatorCard.astro';
+import CategoryHero from '../../components/CategoryHero.astro';
 import { getByCategory, CATEGORIES } from '../../data/calculators';
 
 const cat = CATEGORIES['familie'];
@@ -15,11 +16,15 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
   categoryLight={cat.colorLight}
   categoryImage={cat.image}
 >
-  <div class="page-header">
-    <a href={`${base}/`} class="back-link">← Alle Kategorien</a>
-    <h1>{cat.label}</h1>
-    <p class="cat-desc">{cat.description}</p>
-  </div>
+  <CategoryHero
+    color={cat.color}
+    image={cat.image}
+    label={cat.label}
+    text={cat.description}
+    base={base}
+    backHref={`${base}/`}
+    backLabel="← Alle Kategorien"
+  />
   <div class="grid">
     {calcs.map(c => (
       <CalculatorCard title={c.title} description={c.description} href={`${base}/${c.category}/${c.slug}/`} accentColor={cat.color} />
@@ -27,7 +32,6 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
   </div>
 </Layout>
 <style>
-.cat-desc { color: var(--muted); margin-bottom: 1.5rem; }
 .grid { display: grid; gap: 0.75rem; }
 @media (min-width: 640px) { .grid { grid-template-columns: 1fr 1fr; } }
 </style>

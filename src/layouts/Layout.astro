@@ -41,7 +41,7 @@ const navLinks = [
   <meta property="og:type" content="website" />
   <meta property="og:url" content={canonical} />
   {categoryColor && (
-    <style set:html={`:root { --cat-color: ${categoryColor}; --cat-light: ${categoryLight ?? '#f8f8f8'}; }`} />
+    <style set:html={`:root { --cat-color: ${categoryColor}; --cat-light: ${categoryLight ?? '#f8f8f8'}; --page-bg: ${categoryLight ?? '#f5f4f0'}; }`} />
   )}
 </head>
 <body>
