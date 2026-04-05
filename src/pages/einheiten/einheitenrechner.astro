@@ -1,0 +1,126 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import CalculatorShell from '../../components/CalculatorShell.astro';
+import { CALCULATORS, CATEGORIES } from '../../data/calculators';
+const calc = CALCULATORS.find(c => c.slug === 'einheitenrechner')!;
+const cat = CATEGORIES[calc.category];
+const year = new Date().getFullYear();
+---
+<Layout
+  title={`Einheitenrechner ${year}`}
+  description="Länge, Gewicht, Temperatur und Volumen kostenlos umrechnen. Meter, Kilometer, Zoll, Pfund, Celsius, Fahrenheit und viele mehr."
+  canonicalPath="/einheiten/einheitenrechner/"
+  categoryColor={cat.color}
+  categoryLight={cat.colorLight}
+>
+  <a href={`${import.meta.env.BASE_URL}einheiten/`}>← Einheiten & Mathe</a>
+  <h1>Einheitenrechner {year} – alle Einheiten umrechnen</h1>
+  <CalculatorShell
+    calculator={calc}
+    intro="Rechnen Sie kostenlos zwischen allen gängigen Maßeinheiten um: Länge (Meter, Kilometer, Meilen, Zoll), Gewicht (Kilogramm, Pfund, Gramm, Tonnen), Temperatur (Celsius, Fahrenheit, Kelvin) und Volumen (Liter, Milliliter, Gallonen). Kein Login, sofortiges Ergebnis."
+    sourceNote="Umrechnungsfaktoren nach SI-Standard."
+  >
+    <div class="calc-form">
+      <div class="calc-group">
+        <label for="kategorie">Kategorie</label>
+        <select id="kategorie">
+          <option value="laenge">Länge</option>
+          <option value="gewicht">Gewicht</option>
+          <option value="temperatur">Temperatur</option>
+          <option value="volumen">Volumen</option>
+        </select>
+      </div>
+      <div class="calc-grid">
+        <div class="calc-group">
+          <label for="wert">Wert</label>
+          <input type="number" id="wert" value="1" step="any" />
+        </div>
+        <div class="calc-group">
+          <label for="von">Von</label>
+          <select id="von"></select>
+        </div>
+      </div>
+      <div id="ergebnis-liste" class="ergebnis-liste"></div>
+    </div>
+  </CalculatorShell>
+</Layout>
+
+<script>
+const EINHEITEN = {
+  laenge: {
+    einheiten: { m:1, km:1000, cm:0.01, mm:0.001, mi:1609.344, yd:0.9144, ft:0.3048, in:0.0254 },
+    labels: { m:'Meter', km:'Kilometer', cm:'Zentimeter', mm:'Millimeter', mi:'Meilen', yd:'Yards', ft:'Fuß', in:'Zoll' },
+  },
+  gewicht: {
+    einheiten: { kg:1, g:0.001, mg:0.000001, t:1000, lb:0.453592, oz:0.0283495 },
+    labels: { kg:'Kilogramm', g:'Gramm', mg:'Milligramm', t:'Tonnen', lb:'Pfund', oz:'Unzen' },
+  },
+  temperatur: { spezial: true },
+  volumen: {
+    einheiten: { l:1, ml:0.001, m3:1000, cl:0.01, gal:3.78541, fl_oz:0.0295735 },
+    labels: { l:'Liter', ml:'Milliliter', m3:'Kubikmeter', cl:'Centiliter', gal:'Gallone (US)', fl_oz:'Fluid Ounce' },
+  },
+};
+
+function toC(wert, von) {
+  if (von==='c') return wert;
+  if (von==='f') return (wert - 32) * 5/9;
+  if (von==='k') return wert - 273.15;
+}
+function fromC(celsius, zu) {
+  if (zu==='c') return celsius;
+  if (zu==='f') return celsius * 9/5 + 32;
+  if (zu==='k') return celsius + 273.15;
+}
+
+function updateEinheiten() {
+  const kat = (document.getElementById('kategorie') as HTMLSelectElement).value;
+  const vonSelect = document.getElementById('von') as HTMLSelectElement;
+  vonSelect.innerHTML = '';
+  if (kat === 'temperatur') {
+    [['c','Celsius'],['f','Fahrenheit'],['k','Kelvin']].forEach(([v,l]) => {
+      const o = document.createElement('option'); o.value=v; o.textContent=l; vonSelect.appendChild(o);
+    });
+  } else {
+    const e = EINHEITEN[kat];
+    Object.keys(e.einheiten).forEach(k => {
+      const o = document.createElement('option'); o.value=k; o.textContent=e.labels[k]||k; vonSelect.appendChild(o);
+    });
+  }
+  berechne();
+}
+
+function berechne() {
+  const kat = (document.getElementById('kategorie') as HTMLSelectElement).value;
+  const wert = parseFloat((document.getElementById('wert') as HTMLInputElement).value)||0;
+  const von = (document.getElementById('von') as HTMLSelectElement).value;
+  const liste = document.getElementById('ergebnis-liste')!;
+  liste.innerHTML = '';
+  if (kat === 'temperatur') {
+    const celsius = toC(wert, von);
+    [['c','Celsius'],['f','Fahrenheit'],['k','Kelvin']].forEach(([k,label]) => {
+      if (k===von) return;
+      const r = Math.round(fromC(celsius,k)*10000)/10000;
+      liste.innerHTML += `<div class="conv-row"><span>${label}</span><strong>${r.toLocaleString('de-DE')}</strong></div>`;
+    });
+  } else {
+    const e = EINHEITEN[kat];
+    const inBasis = wert * (e.einheiten[von]||1);
+    Object.keys(e.einheiten).forEach(k => {
+      if (k===von) return;
+      const r = Math.round(inBasis / e.einheiten[k] * 100000) / 100000;
+      liste.innerHTML += `<div class="conv-row"><span>${e.labels[k]||k}</span><strong>${r.toLocaleString('de-DE')}</strong></div>`;
+    });
+  }
+}
+
+document.getElementById('kategorie')!.addEventListener('change', updateEinheiten);
+document.getElementById('von')!.addEventListener('change', berechne);
+document.getElementById('wert')!.addEventListener('input', berechne);
+updateEinheiten();
+</script>
+
+<style>
+.ergebnis-liste { margin-top: 1rem; display: grid; gap: 0.5rem; }
+.conv-row { display: flex; justify-content: space-between; padding: 0.5rem 0.75rem; background: white; border-radius: var(--radius); border: 1px solid var(--color-border); }
+</style>
