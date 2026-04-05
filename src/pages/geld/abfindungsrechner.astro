@@ -1,0 +1,58 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import CalculatorShell from '../../components/CalculatorShell.astro';
+import { CALCULATORS, CATEGORIES } from '../../data/calculators';
+const calc = CALCULATORS.find(c => c.slug === 'abfindungsrechner')!;
+const cat = CATEGORIES[calc.category];
+const year = new Date().getFullYear();
+---
+<Layout
+  title={`Abfindungsrechner ${year}`}
+  description="Abfindung bei Kündigung kostenlos berechnen nach § 1a KSchG. Orientierungswert: 0,5 Monatsgehälter je Beschäftigungsjahr."
+  canonicalPath="/geld/abfindungsrechner/"
+  categoryColor={cat.color}
+  categoryLight={cat.colorLight}
+  categoryImage={cat.image}
+>
+  <div class="page-header">
+    <a href={`${import.meta.env.BASE_URL}geld/`} class="back-link">← Geld & Gehalt</a>
+    <h1>Abfindungsrechner {year} – Orientierungswert berechnen</h1>
+  </div>
+  <CalculatorShell
+    calculator={calc}
+    intro="Berechnen Sie den Orientierungswert Ihrer Abfindung. Nach § 1a KSchG gilt: 0,5 Monatsgehälter je Beschäftigungsjahr. Dies ist kein gesetzlicher Anspruch, sondern ein verbreiteter Verhandlungsrichtwert. Höhere Abfindungen sind durch Verhandlung möglich."
+    sourceNote="Orientierungswert nach § 1a KSchG. Kein Rechtsanspruch auf Abfindung außer bei betriebsbedingter Kündigung mit Klageverzicht. Abfindungen sind grundsätzlich steuerpflichtig (evtl. Fünftelregelung)."
+  >
+    <div class="calc-form">
+      <div class="calc-grid">
+        <div class="calc-group">
+          <label for="gehalt">Bruttomonatsgehalt (€)</label>
+          <input type="number" id="gehalt" min="0" max="100000" value="3500" step="100" />
+        </div>
+        <div class="calc-group">
+          <label for="jahre">Betriebszugehörigkeit (Jahre)</label>
+          <input type="number" id="jahre" min="1" max="50" value="5" step="1" />
+        </div>
+      </div>
+      <div class="calc-result">
+        <div class="label">Abfindung (Orientierungswert)</div>
+        <div id="abfindung">— €</div>
+      </div>
+      <p id="info" style="margin-top:0.5rem;font-size:0.85rem;color:#666;"></p>
+    </div>
+  </CalculatorShell>
+</Layout>
+
+<script type="module">
+const { berechneAbfindung } = await import(import.meta.env.BASE_URL + 'scripts/abfindung.js');
+function fmt(n) { return n.toLocaleString('de-DE', {minimumFractionDigits:2, maximumFractionDigits:2}) + ' €'; }
+function berechne() {
+  const gehalt = parseFloat(document.getElementById('gehalt').value)||0;
+  const jahre = parseFloat(document.getElementById('jahre').value)||1;
+  const r = berechneAbfindung({ bruttoMonat: gehalt, dienstjahre: jahre });
+  document.getElementById('abfindung').textContent = fmt(r.abfindung);
+  document.getElementById('info').textContent = `${r.monatsgehaelter} Monatsgehälter (${jahre} Jahre × 0,5)`;
+}
+['gehalt','jahre'].forEach(id => document.getElementById(id).addEventListener('input', berechne));
+berechne();
+</script>
