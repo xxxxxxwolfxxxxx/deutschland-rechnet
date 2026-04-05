@@ -53,7 +53,7 @@ const year = new Date().getFullYear();
 </Layout>
 
 <script type="module">
-const { berechneRente } = await import(import.meta.env.BASE_URL + 'scripts/rentenrechner.js');
+const { berechneRente } = await import(window.__base + 'scripts/rentenrechner.js');
 function fmt(n) { return n.toLocaleString('de-DE', {minimumFractionDigits:2, maximumFractionDigits:2}) + ' €'; }
 function berechne() {
   const entgeltpunkte = parseFloat(document.getElementById('ep').value)||0;
