@@ -1,0 +1,73 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import CalculatorShell from '../../components/CalculatorShell.astro';
+import { CALCULATORS, CATEGORIES } from '../../data/calculators';
+const calc = CALCULATORS.find(c => c.slug === 'ueberstunden-rechner')!;
+const cat = CATEGORIES[calc.category];
+const year = new Date().getFullYear();
+---
+<Layout
+  title={`Überstunden-Rechner ${year}`}
+  description="Überstundenvergütung kostenlos berechnen. Stundenlohn aus Monatsgehalt und Wochenstunden, mit optionalem Zuschlag."
+  canonicalPath="/geld/ueberstunden-rechner/"
+  categoryColor={cat.color}
+  categoryLight={cat.colorLight}
+  categoryImage={cat.image}
+>
+  <div class="page-header">
+    <a href={`${import.meta.env.BASE_URL}geld/`} class="back-link">← Geld & Gehalt</a>
+    <h1>Überstunden-Rechner {year} – Vergütung berechnen</h1>
+  </div>
+  <CalculatorShell
+    calculator={calc}
+    intro="Berechnen Sie Ihre Überstundenvergütung. Der Stundenlohn wird aus Ihrem Bruttomonatsgehalt und den vereinbarten Wochenstunden ermittelt. Viele Tarifverträge sehen Zuschläge von 25–50 % vor."
+    sourceNote="Berechnung: Stundenlohn = Bruttomonatsgehalt ÷ (Wochenstunden × 52 ÷ 12). Tarifliche Zuschläge variieren. Keine Steuer- oder SV-Berücksichtigung."
+  >
+    <div class="calc-form">
+      <div class="calc-grid">
+        <div class="calc-group">
+          <label for="gehalt">Bruttomonatsgehalt (€)</label>
+          <input type="number" id="gehalt" min="0" max="50000" value="3000" step="100" />
+        </div>
+        <div class="calc-group">
+          <label for="wochenstunden">Vereinbarte Wochenstunden</label>
+          <input type="number" id="wochenstunden" min="1" max="60" value="40" step="0.5" />
+        </div>
+        <div class="calc-group">
+          <label for="ueberstunden">Anzahl Überstunden</label>
+          <input type="number" id="ueberstunden" min="0" max="500" value="10" step="1" />
+        </div>
+        <div class="calc-group">
+          <label for="zuschlag">Überstundenzuschlag (%)</label>
+          <select id="zuschlag">
+            <option value="0">Kein Zuschlag (0 %)</option>
+            <option value="25" selected>25 % Zuschlag</option>
+            <option value="50">50 % Zuschlag</option>
+            <option value="100">100 % Zuschlag</option>
+          </select>
+        </div>
+      </div>
+      <div class="calc-result">
+        <div class="label">Überstundenvergütung (brutto)</div>
+        <div id="vergütung">— €</div>
+      </div>
+      <p id="info" style="margin-top:0.5rem;font-size:0.85rem;color:#666;"></p>
+    </div>
+  </CalculatorShell>
+</Layout>
+
+<script type="module">
+const { berechneUeberstunden } = await import(import.meta.env.BASE_URL + 'scripts/ueberstunden.js');
+function fmt(n) { return n.toLocaleString('de-DE', {minimumFractionDigits:2, maximumFractionDigits:2}) + ' €'; }
+function berechne() {
+  const bruttoMonat = parseFloat(document.getElementById('gehalt').value)||0;
+  const stundenProWoche = parseFloat(document.getElementById('wochenstunden').value)||40;
+  const ueberstunden = parseFloat(document.getElementById('ueberstunden').value)||0;
+  const zuschlagProzent = parseFloat(document.getElementById('zuschlag').value)||0;
+  const r = berechneUeberstunden({ bruttoMonat, stundenProWoche, ueberstunden, zuschlagProzent });
+  document.getElementById('vergütung').textContent = fmt(r.vergütung);
+  document.getElementById('info').textContent = `Stundenlohn: ${fmt(r.stundenlohn)} · Stunden/Monat: ${r.stundenProMonat.toLocaleString('de-DE')}`;
+}
+['gehalt','wochenstunden','ueberstunden','zuschlag'].forEach(id => document.getElementById(id).addEventListener('input', berechne));
+berechne();
+</script>

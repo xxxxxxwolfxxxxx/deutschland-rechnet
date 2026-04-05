@@ -1,0 +1,61 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import CalculatorShell from '../../components/CalculatorShell.astro';
+import { CALCULATORS, CATEGORIES } from '../../data/calculators';
+const calc = CALCULATORS.find(c => c.slug === 'rentenpunkte-rechner')!;
+const cat = CATEGORIES[calc.category];
+const year = new Date().getFullYear();
+---
+<Layout
+  title={`Rentenpunkte-Rechner ${year}`}
+  description="Rentenpunkte (Entgeltpunkte) und Rentenanspruch kostenlos berechnen – nach § 70 SGB VI mit aktuellem Rentenwert 2025."
+  canonicalPath="/familie/rentenpunkte-rechner/"
+  categoryColor={cat.color}
+  categoryLight={cat.colorLight}
+  categoryImage={cat.image}
+>
+  <div class="page-header">
+    <a href={`${import.meta.env.BASE_URL}familie/`} class="back-link">← Familie & Soziales</a>
+    <h1>Rentenpunkte-Rechner {year} – Rentenanspruch berechnen</h1>
+  </div>
+  <CalculatorShell
+    calculator={calc}
+    intro="Berechnen Sie Ihre jährlichen Rentenpunkte (Entgeltpunkte) und den daraus resultierenden Rentenanspruch. Wer ein Jahr lang das Durchschnittsentgelt (2025: 45.358 €) verdient, erhält genau 1 Rentenpunkt. Ein Rentenpunkt entspricht derzeit 39,32 € Monatsrente (West)."
+    sourceNote="Entgeltpunkte nach § 70 SGB VI. Durchschnittsentgelt 2025: 45.358 € (vorläufig). Aktueller Rentenwert West ab Juli 2024: 39,32 €/Punkt. Ohne Berücksichtigung von Rentenabschlägen/-zuschlägen."
+  >
+    <div class="calc-form">
+      <div class="calc-grid">
+        <div class="calc-group">
+          <label for="brutto">Jahres-Bruttogehalt (€)</label>
+          <input type="number" id="brutto" min="0" max="500000" value="45000" step="1000" />
+        </div>
+        <div class="calc-group">
+          <label for="jahre">Anzahl Jahre (Simulation)</label>
+          <input type="number" id="jahre" min="1" max="50" value="1" step="1" />
+        </div>
+      </div>
+      <div class="calc-result">
+        <div class="label">Rentenpunkte pro Jahr</div>
+        <div id="punkte">—</div>
+      </div>
+      <div id="details" style="margin-top:0.75rem;font-size:0.88rem;color:#666;display:flex;gap:1.5rem;flex-wrap:wrap;"></div>
+    </div>
+  </CalculatorShell>
+</Layout>
+
+<script type="module">
+const { berechneRentenpunkte } = await import(import.meta.env.BASE_URL + 'scripts/rentenpunkte.js');
+function fmt(n) { return n.toLocaleString('de-DE', {minimumFractionDigits:2, maximumFractionDigits:2}) + ' €'; }
+function berechne() {
+  const brutto = parseFloat(document.getElementById('brutto').value)||0;
+  const jahre = parseInt(document.getElementById('jahre').value)||1;
+  const r = berechneRentenpunkte({ bruttoJahr: brutto, jahre });
+  document.getElementById('punkte').textContent = r.entgeltpunkte.toLocaleString('de-DE', {minimumFractionDigits:2, maximumFractionDigits:2}) + ' Punkte/Jahr';
+  document.getElementById('details').innerHTML =
+    (jahre > 1 ? `<span>Punkte gesamt (${jahre} Jahre): ${r.entgeltpunkteGesamt.toLocaleString('de-DE', {minimumFractionDigits:2})} Punkte</span>` : '') +
+    `<span>Monatliche Rente (${jahre} Jahr${jahre>1?'e':''}): ${fmt(r.monatsrente)}</span>` +
+    `<span>Rentenwert: ${fmt(r.rentenwert)}/Punkt</span>`;
+}
+['brutto','jahre'].forEach(id => document.getElementById(id).addEventListener('input', berechne));
+berechne();
+</script>

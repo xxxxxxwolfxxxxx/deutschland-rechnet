@@ -1,0 +1,70 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import CalculatorShell from '../../components/CalculatorShell.astro';
+import { CALCULATORS, CATEGORIES } from '../../data/calculators';
+const calc = CALCULATORS.find(c => c.slug === 'mutterschutz-rechner')!;
+const cat = CATEGORIES[calc.category];
+const year = new Date().getFullYear();
+---
+<Layout
+  title={`Mutterschutz-Rechner ${year}`}
+  description="Mutterschutzbeginn und -ende aus dem errechneten Geburtstermin berechnen – nach § 3 MuSchG."
+  canonicalPath="/familie/mutterschutz-rechner/"
+  categoryColor={cat.color}
+  categoryLight={cat.colorLight}
+  categoryImage={cat.image}
+>
+  <div class="page-header">
+    <a href={`${import.meta.env.BASE_URL}familie/`} class="back-link">← Familie & Soziales</a>
+    <h1>Mutterschutz-Rechner {year} – Fristen berechnen</h1>
+  </div>
+  <CalculatorShell
+    calculator={calc}
+    intro="Berechnen Sie Ihre Mutterschutzfristen aus dem errechneten Geburtstermin. Die Schutzfrist beginnt 6 Wochen vor dem Geburtstermin und endet 8 Wochen danach (bei Früh- und Mehrlingsgeburten: 12 Wochen)."
+    sourceNote="Mutterschutzfristen nach § 3 Abs. 1 und 2 MuSchG. Schutzfrist vor Geburt: 6 Wochen. Nach Geburt: 8 Wochen (Regelfall), 12 Wochen bei Früh- oder Mehrlingsgeburt."
+  >
+    <div class="calc-form">
+      <div class="calc-grid">
+        <div class="calc-group">
+          <label for="geburtstermin">Errechneter Geburtstermin</label>
+          <input type="date" id="geburtstermin" />
+        </div>
+        <div class="calc-group">
+          <label for="frueh">Besondere Umstände</label>
+          <select id="frueh">
+            <option value="0">Normale Geburt (8 Wochen nach Geburt)</option>
+            <option value="1">Früh- oder Mehrlingsgeburt (12 Wochen nach Geburt)</option>
+          </select>
+        </div>
+      </div>
+      <div class="calc-result">
+        <div class="label">Mutterschutzbeginn</div>
+        <div id="beginn">— Datum eingeben</div>
+      </div>
+      <div id="details" style="margin-top:0.75rem;font-size:0.9rem;color:#555;display:flex;flex-direction:column;gap:0.35rem;"></div>
+    </div>
+  </CalculatorShell>
+</Layout>
+
+<script type="module">
+const { berechneMutterschutz } = await import(import.meta.env.BASE_URL + 'scripts/mutterschutz.js');
+function fmtDate(s) {
+  const [y,m,d] = s.split('-');
+  return `${d}.${m}.${y}`;
+}
+function berechne() {
+  const geburt = document.getElementById('geburtstermin').value;
+  if (!geburt) return;
+  const fruehgeburt = document.getElementById('frueh').value === '1';
+  const r = berechneMutterschutz({ geburtstermin: geburt, fruehgeburt });
+  document.getElementById('beginn').textContent = fmtDate(r.beginn);
+  document.getElementById('details').innerHTML = [
+    `<span>Errechneter Geburtstermin: <strong>${fmtDate(geburt)}</strong></span>`,
+    `<span>Mutterschutzbeginn: <strong>${fmtDate(r.beginn)}</strong> (6 Wochen vor Geburt)</span>`,
+    `<span>Mutterschutzende: <strong>${fmtDate(r.ende)}</strong> (${r.schutzNachGeburt / 7} Wochen nach Geburt)</span>`,
+  ].join('');
+}
+document.getElementById('geburtstermin').valueAsDate = new Date(Date.now() + 90 * 24 * 60 * 60 * 1000);
+['geburtstermin','frueh'].forEach(id => document.getElementById(id).addEventListener('input', berechne));
+berechne();
+</script>
