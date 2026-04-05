@@ -1,0 +1,30 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import CalculatorCard from '../../components/CalculatorCard.astro';
+import { getByCategory, CATEGORIES } from '../../data/calculators';
+
+const cat = CATEGORIES['wohnen'];
+const calcs = getByCategory('wohnen');
+const base = import.meta.env.BASE_URL.replace(/\/$/, '');
+---
+<Layout
+  title={cat.label}
+  description={`Alle kostenlosen ${cat.label}-Rechner: ${calcs.map(c => c.title).join(', ')}.`}
+  canonicalPath="/wohnen/"
+  categoryColor={cat.color}
+  categoryLight={cat.colorLight}
+>
+  <a href={`${base}/`}>← Alle Kategorien</a>
+  <h1>{cat.emoji} {cat.label}</h1>
+  <p>{cat.description}</p>
+  <div class="grid">
+    {calcs.map(c => (
+      <CalculatorCard title={c.title} description={c.description} href={`${base}/${c.category}/${c.slug}/`} accentColor={cat.color} />
+    ))}
+  </div>
+</Layout>
+
+<style>
+.grid { display: grid; gap: 0.75rem; margin-top: 1.5rem; }
+@media (min-width: 768px) { .grid { grid-template-columns: 1fr 1fr; } }
+</style>
