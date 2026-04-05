@@ -1,0 +1,75 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import CalculatorShell from '../../components/CalculatorShell.astro';
+import { CALCULATORS, CATEGORIES } from '../../data/calculators';
+const calc = CALCULATORS.find(c => c.slug === 'tilgungs-kreditrechner')!;
+const cat = CATEGORIES[calc.category];
+const year = new Date().getFullYear();
+---
+<Layout
+  title={`Kreditrechner ${year}`}
+  description="Monatliche Kreditrate, Gesamtkosten und Zinsen für Annuitätendarlehen berechnen – kostenlos. Für Hypotheken, Autokredite und Ratenkredite."
+  canonicalPath="/wohnen/tilgungs-kreditrechner/"
+  categoryColor={cat.color}
+  categoryLight={cat.colorLight}
+>
+  <a href={`${import.meta.env.BASE_URL}wohnen/`}>← Wohnen & Immobilien</a>
+  <h1>Kreditrechner {year} – Rate und Zinsen berechnen</h1>
+  <CalculatorShell
+    calculator={calc}
+    intro="Berechnen Sie die monatliche Rate, die Gesamtkosten und die Zinslast für Ihren Kredit. Geben Sie Darlehensbetrag, Zinssatz und Laufzeit ein – das Ergebnis erscheint sofort. Geeignet für Hypotheken, Autokredite und Ratenkredite."
+    sourceNote="Berechnung nach Annuitätendarlehen-Formel. Ohne Berücksichtigung von Bearbeitungsgebühren oder Sondertilgungen."
+  >
+    <div class="calc-form">
+      <div class="calc-grid">
+        <div class="calc-group">
+          <label for="betrag">Darlehensbetrag (€)</label>
+          <input type="number" id="betrag" min="0" max="10000000" value="200000" step="1000" />
+        </div>
+        <div class="calc-group">
+          <label for="zins">Zinssatz (% p.a.)</label>
+          <input type="number" id="zins" min="0" max="20" value="3.5" step="0.1" />
+        </div>
+        <div class="calc-group">
+          <label for="laufzeit">Laufzeit (Jahre)</label>
+          <input type="number" id="laufzeit" min="1" max="50" value="20" />
+        </div>
+      </div>
+      <div class="calc-result">
+        <div class="label">Monatliche Rate</div>
+        <div id="rate">— €</div>
+      </div>
+      <div class="detail-grid">
+        <div><span>Gesamtkosten:</span> <strong id="gesamt">—</strong></div>
+        <div><span>Davon Zinsen:</span> <strong id="zinsen">—</strong></div>
+      </div>
+    </div>
+  </CalculatorShell>
+</Layout>
+
+<script>
+function fmt(n) { return n.toLocaleString('de-DE', {minimumFractionDigits:2, maximumFractionDigits:2}) + ' €'; }
+function berechne() {
+  const betrag = parseFloat(document.getElementById('betrag').value)||0;
+  const zinssatz = parseFloat(document.getElementById('zins').value)||0;
+  const jahre = parseInt(document.getElementById('laufzeit').value)||1;
+  const n = jahre * 12;
+  const r = zinssatz / 100 / 12;
+  let rate;
+  if (r === 0) { rate = betrag / n; }
+  else { rate = betrag * (r * Math.pow(1+r,n)) / (Math.pow(1+r,n) - 1); }
+  rate = Math.round(rate * 100) / 100;
+  const gesamt = Math.round(rate * n * 100) / 100;
+  const zinsen = Math.round((gesamt - betrag) * 100) / 100;
+  document.getElementById('rate').textContent = fmt(rate);
+  document.getElementById('gesamt').textContent = fmt(gesamt);
+  document.getElementById('zinsen').textContent = fmt(zinsen);
+}
+['betrag','zins','laufzeit'].forEach(id => document.getElementById(id).addEventListener('input', berechne));
+berechne();
+</script>
+
+<style>
+.detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; margin-top: 0.75rem; font-size: 0.9rem; }
+.detail-grid span { color: var(--color-text-muted); }
+</style>
