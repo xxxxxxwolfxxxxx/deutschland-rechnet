@@ -59,7 +59,7 @@ const year = new Date().getFullYear();
 
 <script type="module">
 const { berechneGrunderwerbsteuer } = await import(import.meta.env.BASE_URL + 'scripts/grunderwerbsteuer.js');
-function fmt(n) { return n.toLocaleString('de-DE', {minimumFractionDigits:2}) + ' €'; }
+function fmt(n) { return n.toLocaleString('de-DE', {minimumFractionDigits:2, maximumFractionDigits:2}) + ' €'; }
 function berechne() {
   const kp = parseFloat(document.getElementById('kaufpreis').value)||0;
   const bl = document.getElementById('bundesland').value;
