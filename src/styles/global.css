@@ -50,13 +50,23 @@ p  { margin-bottom: 1rem; }
 
 .container { max-width: var(--max-width); margin: 0 auto; padding: 0 1.25rem; }
 
+.page-header {
+  background: var(--surface);
+  border-radius: var(--radius);
+  padding: 1.25rem 1.5rem 1.5rem;
+  margin-bottom: 1.5rem;
+  box-shadow: var(--shadow-sm);
+}
+.page-header h1 { margin-bottom: 0; }
+.page-header .cat-desc { color: var(--muted); margin: 0.5rem 0 0; }
+
 .back-link {
   display: inline-flex;
   align-items: center;
   gap: 0.4rem;
   color: var(--muted);
   font-size: 0.85rem;
-  margin-bottom: 1.25rem;
+  margin-bottom: 0.6rem;
   transition: color 0.15s;
   text-decoration: none;
 }
