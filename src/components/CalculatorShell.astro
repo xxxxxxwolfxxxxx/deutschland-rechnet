@@ -12,20 +12,14 @@ const cat = CATEGORIES[calculator.category];
 const base = import.meta.env.BASE_URL.replace(/\/$/, '');
 ---
 <article>
-  <div class="cat-hero" style={`--hero-color: ${cat.color}; --hero-light: ${cat.colorLight};`}>
-    <div class="cat-hero-inner">
-      <img
-        src={`${base}${cat.image}`}
-        alt={cat.label}
-        class="cat-hero-img"
-        loading="lazy"
-        width="110"
-        height="110"
-      />
-      <div>
-        <span class="cat-badge" style={`background: ${cat.color};`}>{cat.label}</span>
-        <p class="intro">{intro}</p>
-      </div>
+  <div
+    class="cat-hero"
+    style={`--hero-color: ${cat.color}; background-image: url('${base}${cat.image}');`}
+  >
+    <div class="cat-hero-overlay"></div>
+    <div class="cat-hero-content">
+      <span class="cat-badge">{cat.label}</span>
+      <p class="intro">{intro}</p>
     </div>
   </div>
 
@@ -39,43 +33,52 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
 
 <style>
 .cat-hero {
-  background: var(--hero-light);
+  position: relative;
   border-radius: var(--radius);
-  padding: 1.5rem;
+  overflow: hidden;
+  min-height: 180px;
   margin-bottom: 1.5rem;
-  border-left: 4px solid var(--hero-color);
-}
-.cat-hero-inner {
+  background-size: cover;
+  background-position: center top;
   display: flex;
-  gap: 1.25rem;
-  align-items: center;
+  align-items: flex-end;
 }
-.cat-hero-img {
-  width: 85px;
-  height: 85px;
-  object-fit: contain;
-  flex-shrink: 0;
-  display: none;
-  border-radius: 8px;
+@media (min-width: 640px) { .cat-hero { min-height: 220px; } }
+.cat-hero-overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    160deg,
+    rgba(0,0,0,0.72) 0%,
+    rgba(0,0,0,0.35) 50%,
+    color-mix(in srgb, var(--hero-color) 60%, rgba(0,0,0,0.4)) 100%
+  );
 }
-@media (min-width: 480px) { .cat-hero-img { display: block; } }
+.cat-hero-content {
+  position: relative;
+  z-index: 2;
+  padding: 1.5rem;
+  width: 100%;
+}
 .cat-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.3rem;
+  display: inline-block;
+  background: var(--hero-color);
   color: white;
-  font-size: 0.74rem;
-  font-weight: 600;
-  padding: 0.22rem 0.65rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 0.2rem 0.65rem;
   border-radius: 20px;
-  margin-bottom: 0.5rem;
-  letter-spacing: 0.03em;
+  margin-bottom: 0.6rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
 }
 .intro {
-  color: var(--muted);
+  color: rgba(255,255,255,0.88);
   font-size: 0.88rem;
   line-height: 1.65;
   margin: 0;
+  max-width: 60ch;
+  text-shadow: 0 1px 3px rgba(0,0,0,0.4);
 }
 .calc-wrapper {
   background: var(--surface);
