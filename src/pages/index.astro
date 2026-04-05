@@ -1,0 +1,48 @@
+---
+import Layout from '../layouts/Layout.astro';
+import CategoryGrid from '../components/CategoryGrid.astro';
+
+const base = import.meta.env.BASE_URL.replace(/\/$/, '');
+---
+<Layout
+  title="Kostenlose Rechner für Deutschland"
+  description="Brutto-Netto, Unterhalt, Elterngeld, Stromkosten und viele weitere kostenlose Rechner mit Deutschland-Bezug. Kein Login, sofortiges Ergebnis."
+  canonicalPath="/"
+>
+  <div class="hero">
+    <div class="hero-text">
+      <h1>Deutschland rechnet</h1>
+      <p class="hero-sub">Kostenlose Rechner für alle Lebenslagen – einfach eingeben und Ergebnis erhalten.</p>
+      <ul class="promises">
+        <li>✅ Kein Abo, kein Login, keine Registrierung</li>
+        <li>✅ Keine Werbung, keine 30-Sekunden-Videos</li>
+        <li>✅ Sofortiges Ergebnis direkt im Browser</li>
+        <li>✅ Alle Daten bleiben bei dir – nichts wird gespeichert</li>
+      </ul>
+    </div>
+    <img src={`${base}/images/categories/hero.png`} alt="Deutschland rechnet" class="hero-img" loading="eager" width="220" height="220" />
+  </div>
+
+  <CategoryGrid />
+</Layout>
+
+<style>
+.hero {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  background: white;
+  border: 1.5px solid var(--color-border);
+  border-radius: var(--radius);
+  padding: 1.5rem;
+  margin-bottom: 2rem;
+  box-shadow: var(--shadow);
+}
+.hero-text { flex: 1; }
+h1 { font-size: 1.75rem; margin-bottom: 0.5rem; }
+.hero-sub { color: var(--color-text-muted); margin-bottom: 1rem; }
+.promises { list-style: none; display: flex; flex-direction: column; gap: 0.35rem; font-size: 0.9rem; }
+.hero-img { width: 160px; height: 160px; object-fit: contain; flex-shrink: 0; display: none; }
+@media (min-width: 600px) { .hero-img { display: block; } }
+@media (min-width: 768px) { h1 { font-size: 2rem; } }
+</style>
