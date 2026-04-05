@@ -1,0 +1,88 @@
+/* src/styles/global.css */
+:root {
+  --color-black: #1a1a1a;
+  --color-red: #DD0000;
+  --color-gold: #FFCE00;
+  --color-white: #ffffff;
+  --color-bg: #f8f8f8;
+  --color-border: #e0e0e0;
+  --color-text: #1a1a1a;
+  --color-text-muted: #666666;
+  --color-link: #CC0000;
+  --font: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --max-width: 900px;
+  --radius: 8px;
+  --shadow: 0 1px 4px rgba(0,0,0,0.1);
+
+  /* Kategorie-Farben */
+  --cat-geld:       #1e7e34;
+  --cat-geld-light: #e8f5e9;
+  --cat-wohnen:       #1565c0;
+  --cat-wohnen-light: #e3f2fd;
+  --cat-energie:       #b8860b;
+  --cat-energie-light: #fff8e1;
+  --cat-auto:       #b71c1c;
+  --cat-auto-light: #ffebee;
+  --cat-familie:       #e65100;
+  --cat-familie-light: #fff3e0;
+  --cat-gesundheit:       #00796b;
+  --cat-gesundheit-light: #e0f2f1;
+  --cat-einheiten:       #6a1b9a;
+  --cat-einheiten-light: #f3e5f5;
+
+  /* Aktive Kategorie (wird per inline style gesetzt) */
+  --cat-color: #1a1a1a;
+  --cat-light: #f8f8f8;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html { font-size: 16px; scroll-behavior: smooth; }
+
+body {
+  font-family: var(--font);
+  color: var(--color-text);
+  background: var(--color-bg);
+  line-height: 1.6;
+}
+
+a { color: var(--color-link); }
+a:hover { text-decoration: none; }
+
+h1 { font-size: 1.75rem; font-weight: 700; line-height: 1.2; margin-bottom: 0.75rem; }
+h2 { font-size: 1.25rem; font-weight: 600; margin-bottom: 0.5rem; }
+p  { margin-bottom: 1rem; }
+
+.container { max-width: var(--max-width); margin: 0 auto; padding: 0 1rem; }
+
+/* Calculator UI shared styles */
+.calc-group { margin-bottom: 1rem; }
+.calc-group label { display: block; font-weight: 500; margin-bottom: 0.25rem; font-size: 0.9rem; }
+.calc-group input,
+.calc-group select {
+  width: 100%;
+  padding: 0.6rem 0.75rem;
+  border: 1.5px solid var(--color-border);
+  border-radius: var(--radius);
+  font-size: 1rem;
+  font-family: var(--font);
+  background: white;
+}
+.calc-group input:focus,
+.calc-group select:focus { outline: 2px solid var(--color-red); border-color: var(--color-red); }
+
+.calc-result {
+  background: var(--color-black);
+  color: var(--color-white);
+  border-radius: var(--radius);
+  padding: 1.25rem 1.5rem;
+  margin-top: 1.25rem;
+  font-size: 1.5rem;
+  font-weight: 700;
+}
+.calc-result .label { font-size: 0.85rem; font-weight: 400; color: #aaa; margin-bottom: 0.25rem; }
+
+@media (min-width: 768px) {
+  h1 { font-size: 2rem; }
+  .calc-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+}
