@@ -1,0 +1,66 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import CalculatorShell from '../../components/CalculatorShell.astro';
+import { CALCULATORS, CATEGORIES } from '../../data/calculators';
+const calc = CALCULATORS.find(c => c.slug === 'kfz-steuer-rechner')!;
+const cat = CATEGORIES[calc.category];
+const year = new Date().getFullYear();
+---
+<Layout
+  title={`Kfz-Steuer-Rechner ${year}`}
+  description="Kfz-Steuer für Benziner, Diesel und Elektrofahrzeuge kostenlos berechnen. Jahres- und Monatssteuer nach KraftStG."
+  canonicalPath="/auto/kfz-steuer-rechner/"
+  categoryColor={cat.color}
+  categoryLight={cat.colorLight}
+>
+  <a href={`${import.meta.env.BASE_URL}auto/`}>← Auto & Mobilität</a>
+  <h1>Kfz-Steuer-Rechner {year} – kostenlos berechnen</h1>
+  <CalculatorShell
+    calculator={calc}
+    intro="Berechnen Sie Ihre jährliche Kfz-Steuer kostenlos nach aktuellem KraftStG. Wählen Sie die Antriebsart, geben Sie Hubraum und CO2-Ausstoß ein – das Ergebnis erscheint sofort. Elektrofahrzeuge sind bis 2030 von der Kfz-Steuer befreit."
+    sourceNote="Berechnung nach KraftStG: 2,00 €/100 ccm (Benzin), 9,50 €/100 ccm (Diesel) + CO2-Staffel ab 96 g/km. Stand 2025."
+  >
+    <div class="calc-form">
+      <div class="calc-grid">
+        <div class="calc-group">
+          <label for="antrieb">Antriebsart</label>
+          <select id="antrieb">
+            <option value="benzin">Benzin</option>
+            <option value="diesel">Diesel</option>
+            <option value="elektro">Elektro</option>
+          </select>
+        </div>
+        <div class="calc-group" id="hubraum-group">
+          <label for="hubraum">Hubraum (ccm)</label>
+          <input type="number" id="hubraum" min="0" max="10000" value="1400" step="50" />
+        </div>
+        <div class="calc-group" id="co2-group">
+          <label for="co2">CO2-Ausstoß (g/km)</label>
+          <input type="number" id="co2" min="0" max="500" value="120" />
+        </div>
+      </div>
+      <div class="calc-result">
+        <div class="label">Kfz-Steuer pro Jahr</div>
+        <div id="steuer-jahr">— €</div>
+      </div>
+      <p id="steuer-monat" style="margin-top:0.5rem;font-size:0.85rem;color:#666;"></p>
+    </div>
+  </CalculatorShell>
+</Layout>
+
+<script type="module">
+const { berechneKfzSteuer } = await import(import.meta.env.BASE_URL + 'scripts/kfz-steuer.js');
+function fmt(n) { return n.toLocaleString('de-DE', {minimumFractionDigits:2}) + ' €'; }
+function berechne() {
+  const antrieb = document.getElementById('antrieb').value;
+  const hubraum = parseInt(document.getElementById('hubraum').value)||0;
+  const co2 = parseInt(document.getElementById('co2').value)||0;
+  document.getElementById('hubraum-group').style.display = antrieb==='elektro' ? 'none' : '';
+  document.getElementById('co2-group').style.display = antrieb==='elektro' ? 'none' : '';
+  const r = berechneKfzSteuer({ antrieb, hubraum, co2 });
+  document.getElementById('steuer-jahr').textContent = r.hinweis || fmt(r.steuerJahr);
+  document.getElementById('steuer-monat').textContent = r.hinweis ? '' : 'Pro Monat: ' + fmt(r.steuerMonat);
+}
+['antrieb','hubraum','co2'].forEach(id => document.getElementById(id).addEventListener('input', berechne));
+berechne();
+</script>

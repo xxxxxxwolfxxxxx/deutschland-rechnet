@@ -1,0 +1,59 @@
+---
+import { CATEGORIES, getByCategory, type Category } from '../data/calculators';
+import CalculatorCard from './CalculatorCard.astro';
+
+const base = import.meta.env.BASE_URL.replace(/\/$/, '');
+const categories = Object.entries(CATEGORIES) as [Category, typeof CATEGORIES[Category]][];
+---
+<div class="cat-grid">
+  {categories.map(([key, cat]) => {
+    const calcs = getByCategory(key);
+    return (
+      <div class="cat-section" style={`border-left: 4px solid ${cat.color};`}>
+        <div class="cat-header" style={`background: ${cat.colorLight};`}>
+          <div class="cat-header-text">
+            <h2><a href={`${base}/${key}/`} style={`color: ${cat.color};`}>{cat.emoji} {cat.label}</a></h2>
+            <p class="cat-desc">{cat.description}</p>
+          </div>
+          <img src={`${base}${cat.image}`} alt={cat.label} class="cat-thumb" loading="lazy" width="80" height="80" />
+        </div>
+        <div class="calc-list">
+          {calcs.map(c => (
+            <CalculatorCard
+              title={c.title}
+              description={c.description}
+              href={`${base}/${c.category}/${c.slug}/`}
+              accentColor={cat.color}
+            />
+          ))}
+        </div>
+        {calcs.length === 0 && <p class="coming-soon">Demnächst verfügbar</p>}
+      </div>
+    );
+  })}
+</div>
+
+<style>
+.cat-grid { display: flex; flex-direction: column; gap: 2rem; }
+.cat-section {
+  border-radius: var(--radius);
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  background: white;
+}
+.cat-header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem 1.25rem;
+}
+.cat-header-text { flex: 1; }
+.cat-section h2 { margin: 0 0 0.2rem 0; font-size: 1.1rem; }
+.cat-section h2 a { text-decoration: none; font-weight: 700; }
+.cat-section h2 a:hover { text-decoration: underline; }
+.cat-desc { color: var(--color-text-muted); font-size: 0.85rem; margin: 0; }
+.cat-thumb { width: 72px; height: 72px; object-fit: contain; flex-shrink: 0; }
+.calc-list { display: grid; gap: 0.5rem; padding: 1rem 1.25rem; }
+.coming-soon { padding: 1rem 1.25rem; color: var(--color-text-muted); font-style: italic; font-size: 0.9rem; }
+@media (min-width: 768px) { .calc-list { grid-template-columns: 1fr 1fr; } }
+</style>

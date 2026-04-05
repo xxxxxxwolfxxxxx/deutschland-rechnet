@@ -1,0 +1,53 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import CalculatorShell from '../../components/CalculatorShell.astro';
+import { CALCULATORS, CATEGORIES } from '../../data/calculators';
+const calc = CALCULATORS.find(c => c.slug === 'stromkosten-rechner')!;
+const cat = CATEGORIES[calc.category];
+const year = new Date().getFullYear();
+---
+<Layout
+  title={`Stromkosten-Rechner ${year}`}
+  description="Stromkosten aus Verbrauch (kWh) und Strompreis berechnen – kostenlos. Jahres- und Monatskosten auf einen Blick."
+  canonicalPath="/energie/stromkosten-rechner/"
+  categoryColor={cat.color}
+  categoryLight={cat.colorLight}
+>
+  <a href={`${import.meta.env.BASE_URL}energie/`}>← Energie</a>
+  <h1>Stromkosten-Rechner {year} – kWh in Euro umrechnen</h1>
+  <CalculatorShell
+    calculator={calc}
+    intro="Berechnen Sie Ihre jährlichen und monatlichen Stromkosten kostenlos. Geben Sie Ihren Jahresverbrauch in kWh und den aktuellen Strompreis pro kWh ein. Der bundesdeutsche Durchschnittshaushalt verbraucht ca. 3.500 kWh pro Jahr."
+    sourceNote="Berechnung: Verbrauch (kWh) × Preis (ct/kWh). Durchschnittsstrompreis 2025 laut BDEW ca. 31 ct/kWh. Ohne Grundgebühr."
+  >
+    <div class="calc-form">
+      <div class="calc-grid">
+        <div class="calc-group">
+          <label for="kwh">Jahresverbrauch (kWh)</label>
+          <input type="number" id="kwh" min="0" max="100000" value="3500" step="100" />
+        </div>
+        <div class="calc-group">
+          <label for="preis">Strompreis (Cent/kWh)</label>
+          <input type="number" id="preis" min="0" max="100" value="31" step="0.1" />
+        </div>
+      </div>
+      <div class="calc-result">
+        <div class="label">Stromkosten pro Jahr</div>
+        <div id="jahr">— €</div>
+      </div>
+      <p id="monat" style="margin-top:0.5rem;font-size:0.95rem;color:#666;"></p>
+    </div>
+  </CalculatorShell>
+</Layout>
+
+<script>
+function berechne() {
+  const kwh = parseFloat((document.getElementById('kwh') as HTMLInputElement).value)||0;
+  const preis = parseFloat((document.getElementById('preis') as HTMLInputElement).value)||0;
+  const jahr = Math.round(kwh * preis) / 100;
+  document.getElementById('jahr')!.textContent = jahr.toLocaleString('de-DE', {minimumFractionDigits:2}) + ' €';
+  document.getElementById('monat')!.textContent = 'Pro Monat: ' + (jahr/12).toLocaleString('de-DE', {minimumFractionDigits:2}) + ' €';
+}
+['kwh','preis'].forEach(id => document.getElementById(id)!.addEventListener('input', berechne));
+berechne();
+</script>

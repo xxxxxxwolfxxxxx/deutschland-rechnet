@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://xxxxxxwolfxxxxx.github.io/deutschland-rechnet/sitemap-index.xml
