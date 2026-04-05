@@ -14,8 +14,10 @@ const year = new Date().getFullYear();
   categoryLight={cat.colorLight}
   categoryImage={cat.image}
 >
-  <a href={`${import.meta.env.BASE_URL}energie/`}>← Energie</a>
-  <h1>Stromkosten-Rechner {year} – kWh in Euro umrechnen</h1>
+  <div class="page-header">
+    <a href={`${import.meta.env.BASE_URL}energie/`} class="back-link">← Energie</a>
+    <h1>Stromkosten-Rechner {year} – kWh in Euro umrechnen</h1>
+  </div>
   <CalculatorShell
     calculator={calc}
     intro="Berechnen Sie Ihre Stromkosten kostenlos. Wählen Sie Ihre Haushaltsgröße als Richtwert oder geben Sie Ihren eigenen Jahresverbrauch ein. Durchschnittsstrompreis 2025: ca. 31 ct/kWh (BDEW)."
