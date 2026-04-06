@@ -30,8 +30,7 @@ export const CATEGORIES: Record<Category, { label: string; emoji: string; descri
 export const CALCULATORS: Calculator[] = [
   // GELD
   { slug: 'brutto-netto-rechner',        title: 'Brutto-Netto-Rechner',        description: 'Nettolohn aus Bruttogehalt berechnen.',                                            category: 'geld',      featured: true,  live: true },
-  { slug: 'unterhaltsrechner',           title: 'Unterhaltsrechner',           description: 'Kindesunterhalt nach Düsseldorfer Tabelle berechnen.',                           category: 'geld',      featured: true,  live: true },
-  { slug: 'elterngeld-rechner',          title: 'Elterngeld-Rechner',          description: 'Elterngeld und ElterngeldPlus nach BEEG berechnen.',                              category: 'geld',      featured: false, live: true },
+  { slug: 'trinkgeld-rechner',           title: 'Trinkgeld-Rechner',           description: 'Trinkgeld für Restaurant berechnen.',                                            category: 'geld',      featured: false, live: true },
   { slug: 'kurzarbeitergeld-rechner',    title: 'Kurzarbeitergeld-Rechner',    description: 'Kurzarbeitergeld Höhe berechnen.',                                              category: 'geld',      featured: false, live: true },
   { slug: 'abfindungsrechner',           title: 'Abfindungsrechner',           description: 'Abfindung bei Kündigung berechnen.',                                            category: 'geld',      featured: false, live: true },
   { slug: 'mindestlohn-rechner',         title: 'Mindestlohn-Rechner',         description: 'Stunden in Mindestlohn-Gehalt umrechnen.',                                      category: 'geld',      featured: false, live: true },
@@ -68,6 +67,8 @@ export const CALCULATORS: Calculator[] = [
   { slug: 'anfahrtskosten-rechner',      title: 'Anfahrtskosten-Rechner',       description: 'Anfahrtskosten für Umzug berechnen.',                                      category: 'auto',      featured: false, live: true },
   // FAMILIE
   { slug: 'kindergeld-rechner',          title: 'Kindergeld-Rechner',           description: 'Kindergeld nach Anzahl der Kinder berechnen.',                               category: 'familie',   featured: false, live: true },
+  { slug: 'unterhaltsrechner',           title: 'Unterhaltsrechner',           description: 'Kindesunterhalt nach Düsseldorfer Tabelle berechnen.',                           category: 'familie',   featured: true,  live: true },
+  { slug: 'elterngeld-rechner',          title: 'Elterngeld-Rechner',          description: 'Elterngeld und ElterngeldPlus nach BEEG berechnen.',                              category: 'familie',   featured: false, live: true },
   { slug: 'wohngeld-rechner',            title: 'Wohngeld-Rechner',             description: 'Anspruch auf Wohngeld prüfen.',                                            category: 'familie',   featured: false, live: true },
   { slug: 'renten-rechner',              title: 'Renten-Rechner',               description: 'Gesetzliche Rente und Rentenlücke berechnen.',                              category: 'familie',   featured: false, live: true },
   { slug: 'rentenpunkte-rechner',        title: 'Rentenpunkte-Rechner',         description: 'Entgeltpunkte und Rentenanspruch berechnen.',                              category: 'familie',   featured: false, live: true },
@@ -81,7 +82,6 @@ export const CALCULATORS: Calculator[] = [
   { slug: 'promille-rechner',             title: 'Promille-Rechner',              description: 'Blutalkohol nach Widmark-Formel berechnen.',                              category: 'gesundheit',featured: false, live: true },
   { slug: 'grundumsatz-rechner',         title: 'Grundumsatz-Rechner',           description: 'Grundumsatz (BMR) nach Harris-Benedict berechnen.',                      category: 'gesundheit',featured: false, live: true },
   { slug: 'optimalerpuls-rechner',        title: 'Optimaler Puls-Rechner',        description: 'Optimalen Trainingspuls nach Alter berechnen.',                          category: 'gesundheit',featured: false, live: true },
-  { slug: 'trinkgeld-rechner',           title: 'Trinkgeld-Rechner',             description: 'Trinkgeld für Restaurant berechnen.',                                     category: 'gesundheit',featured: false, live: true },
   // EINHEITEN
   { slug: 'einheitenrechner',             title: 'Einheitenrechner',               description: 'Länge, Gewicht, Temperatur umrechnen.',                                  category: 'einheiten', featured: true,  live: true },
   { slug: 'inflationsrechner',            title: 'Inflationsrechner',              description: 'Kaufkraftverlust durch Inflation berechnen.',                             category: 'einheiten', featured: false, live: true },
