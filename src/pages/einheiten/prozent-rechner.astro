@@ -1,0 +1,122 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import CalculatorShell from '../../components/CalculatorShell.astro';
+import { CALCULATORS, CATEGORIES } from '../../data/calculators';
+const calc = CALCULATORS.find(c => c.slug === 'prozent-rechner')!;
+const cat = CATEGORIES[calc.category];
+const year = new Date().getFullYear();
+---
+<Layout
+  title={`Prozent-Rechner ${year}`}
+  description="Prozentwerte, Grundwerte und prozentuale Veränderungen berechnen – schnell und kostenlos."
+  canonicalPath="/einheiten/prozent-rechner/"
+  categoryColor={cat.color}
+  categoryLight={cat.colorLight}
+  categoryImage={cat.image}
+>
+  <div class="page-header">
+    <a href={`${import.meta.env.BASE_URL}einheiten/`} class="back-link">← Einheiten & Mathe</a>
+    <h1>Prozent-Rechner {year} – Kostenlos & Schnell</h1>
+  </div>
+  <CalculatorShell
+    calculator={calc}
+    intro="Der Prozent-Rechner beherrscht alle drei Grundrechenarten der Prozentrechnung: Prozentwert berechnen, Prozentsatz ermitteln und prozentuale Veränderung bestimmen."
+    sourceNote="Mathematische Grundformeln der Prozentrechnung. Ohne Gewähr."
+    explanation="Drei Grundformeln: (1) Prozentwert = Grundwert × Prozentsatz/100. (2) Prozentsatz = Prozentwert/Grundwert × 100. (3) Prozentuale Veränderung = (Neu - Alt)/Alt × 100. Positive Werte = Zunahme, negative = Abnahme."
+  >
+    <div class="calc-form">
+      <div class="mode-tabs">
+        <button class="mode-tab active" data-mode="1">X% von Y</button>
+        <button class="mode-tab" data-mode="2">X ist wie viel % von Y</button>
+        <button class="mode-tab" data-mode="3">% Veränderung</button>
+      </div>
+      <div class="calc-grid" id="mode1">
+        <div class="calc-group">
+          <label for="prozentsatz1">Prozentsatz (%)</label>
+          <input type="number" id="prozentsatz1" value="19" step="0.1" />
+        </div>
+        <div class="calc-group">
+          <label for="grundwert1">Grundwert</label>
+          <input type="number" id="grundwert1" value="250" step="1" />
+        </div>
+      </div>
+      <div class="calc-grid" id="mode2" style="display:none;">
+        <div class="calc-group">
+          <label for="wert2">Prozentwert</label>
+          <input type="number" id="wert2" value="47.5" step="0.1" />
+        </div>
+        <div class="calc-group">
+          <label for="grundwert2">Grundwert</label>
+          <input type="number" id="grundwert2" value="250" step="1" />
+        </div>
+      </div>
+      <div class="calc-grid" id="mode3" style="display:none;">
+        <div class="calc-group">
+          <label for="alt3">Alter Wert</label>
+          <input type="number" id="alt3" value="200" step="1" />
+        </div>
+        <div class="calc-group">
+          <label for="neu3">Neuer Wert</label>
+          <input type="number" id="neu3" value="250" step="1" />
+        </div>
+      </div>
+      <div class="calc-result">
+        <div class="label" id="ergebnis-label">Prozentwert</div>
+        <div id="ergebnis">—</div>
+      </div>
+      <div id="details" style="margin-top:0.75rem;font-size:0.88rem;color:#666;"></div>
+    </div>
+  </CalculatorShell>
+</Layout>
+
+<script type="module">
+function berechne() {
+  const mode = document.querySelector('.mode-tab.active').dataset.mode;
+  let ergebnis, details;
+  if (mode === '1') {
+    const p = parseFloat(document.getElementById('prozentsatz1').value) || 0;
+    const g = parseFloat(document.getElementById('grundwert1').value) || 0;
+    const w = g * p / 100;
+    document.getElementById('ergebnis-label').textContent = 'Prozentwert';
+    document.getElementById('ergebnis').textContent = w.toLocaleString('de-DE', {maximumFractionDigits:4});
+    document.getElementById('details').textContent = `${p}% von ${g.toLocaleString('de-DE')} = ${w.toLocaleString('de-DE', {maximumFractionDigits:4})}`;
+  } else if (mode === '2') {
+    const w = parseFloat(document.getElementById('wert2').value) || 0;
+    const g = parseFloat(document.getElementById('grundwert2').value) || 0;
+    const p = g !== 0 ? (w / g * 100) : 0;
+    document.getElementById('ergebnis-label').textContent = 'Prozentsatz';
+    document.getElementById('ergebnis').textContent = p.toLocaleString('de-DE', {maximumFractionDigits:2}) + ' %';
+    document.getElementById('details').textContent = `${w.toLocaleString('de-DE')} ist ${p.toLocaleString('de-DE', {maximumFractionDigits:2})}% von ${g.toLocaleString('de-DE')}`;
+  } else {
+    const alt = parseFloat(document.getElementById('alt3').value) || 0;
+    const neu = parseFloat(document.getElementById('neu3').value) || 0;
+    const p = alt !== 0 ? ((neu - alt) / alt * 100) : 0;
+    const richtung = p >= 0 ? 'Zunahme' : 'Abnahme';
+    document.getElementById('ergebnis-label').textContent = 'Prozentuale Veränderung';
+    document.getElementById('ergebnis').textContent = (p >= 0 ? '+' : '') + p.toLocaleString('de-DE', {maximumFractionDigits:2}) + ' %';
+    document.getElementById('ergebnis').style.color = p >= 0 ? '#1e7e34' : '#b71c1c';
+    document.getElementById('details').textContent = `${richtung} von ${alt.toLocaleString('de-DE')} auf ${neu.toLocaleString('de-DE')} = ${p >= 0 ? '+' : ''}${p.toLocaleString('de-DE', {maximumFractionDigits:2})}%`;
+  }
+}
+document.querySelectorAll('.mode-tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.mode-tab').forEach(t => t.classList.remove('active'));
+    tab.classList.add('active');
+    ['mode1','mode2','mode3'].forEach(id => document.getElementById(id).style.display = 'none');
+    document.getElementById('mode' + tab.dataset.mode).style.display = '';
+    berechne();
+  });
+});
+['prozentsatz1','grundwert1','wert2','grundwert2','alt3','neu3'].forEach(id => {
+  const el = document.getElementById(id);
+  if (el) el.addEventListener('input', berechne);
+});
+berechne();
+</script>
+
+<style>
+.mode-tabs { display:flex; gap:0.5rem; margin-bottom:1.25rem; flex-wrap:wrap; }
+.mode-tab { padding:0.5rem 1rem; border:2px solid var(--border); background:transparent; border-radius:var(--radius-sm); cursor:pointer; font-size:0.85rem; font-weight:500; transition:all 0.15s; }
+.mode-tab.active { border-color:var(--accent); background:var(--accent); color:white; }
+.mode-tab:hover:not(.active) { border-color:var(--accent); }
+</style>

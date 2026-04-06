@@ -1,0 +1,108 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import CalculatorShell from '../../components/CalculatorShell.astro';
+import { CALCULATORS, CATEGORIES } from '../../data/calculators';
+const calc = CALCULATORS.find(c => c.slug === 'makronaehrstoff-rechner')!;
+const cat = CATEGORIES[calc.category];
+const year = new Date().getFullYear();
+---
+<Layout
+  title={`Makronährstoff-Rechner ${year}`}
+  description="Täglichen Protein-, Fett- und Kohlenhydratbedarf berechnen – basierend auf Mifflin-St-Jeor-Formel."
+  canonicalPath="/gesundheit/makronaehrstoff-rechner/"
+  categoryColor={cat.color}
+  categoryLight={cat.colorLight}
+  categoryImage={cat.image}
+>
+  <div class="page-header">
+    <a href={`${import.meta.env.BASE_URL}gesundheit/`} class="back-link">← Gesundheit & Fitness</a>
+    <h1>Makronährstoff-Rechner {year}</h1>
+  </div>
+  <CalculatorShell
+    calculator={calc}
+    intro="Berechne deinen täglichen Bedarf an Protein, Fett und Kohlenhydraten. Basierend auf der Mifflin-St-Jeor-Formel und deinem persönlichen Ziel."
+    sourceNote="Berechnung nach Mifflin-St-Jeor-Formel. Richtwerte für Makronährstoffe. Individuelle Bedürfnisse können abweichen. Keine Ernährungsberatung."
+    explanation="Protein: 1,6-2,2g/kg (Muskelaufbau), 0,8-1,2g/kg (Erhalt). Fett: 0,8-1g/kg. Rest = Kohlenhydrate. Kalorienbedarf = Grundumsatz (Mifflin-St-Jeor) × PAL-Faktor. Abnehmen: -500 kcal, Zunehmen: +300 kcal. 1g Protein = 4 kcal, 1g Fett = 9 kcal, 1g Kohlenhydrate = 4 kcal."
+  >
+    <div class="calc-form">
+      <div class="calc-grid">
+        <div class="calc-group">
+          <label for="gewicht">Gewicht (kg)</label>
+          <input type="number" id="gewicht" min="30" max="300" value="75" step="1" />
+        </div>
+        <div class="calc-group">
+          <label for="groesse">Größe (cm)</label>
+          <input type="number" id="groesse" min="100" max="250" value="175" step="1" />
+        </div>
+        <div class="calc-group">
+          <label for="alter">Alter (Jahre)</label>
+          <input type="number" id="alter" min="14" max="100" value="30" step="1" />
+        </div>
+        <div class="calc-group">
+          <label for="geschlecht">Geschlecht</label>
+          <select id="geschlecht">
+            <option value="m" selected>Männlich</option>
+            <option value="w">Weiblich</option>
+          </select>
+        </div>
+        <div class="calc-group">
+          <label for="aktiv">Aktivitätslevel</label>
+          <select id="aktiv">
+            <option value="1.2">Sitzend (Bürojob)</option>
+            <option value="1.375" selected>Leicht aktiv (1-3x Sport)</option>
+            <option value="1.55">Mäßig aktiv (3-5x Sport)</option>
+            <option value="1.725">Sehr aktiv (6-7x Sport)</option>
+            <option value="1.9">Extrem aktiv (Profisport)</option>
+          </select>
+        </div>
+        <div class="calc-group">
+          <label for="ziel">Ziel</label>
+          <select id="ziel">
+            <option value="abnehmen">Abnehmen (-500 kcal)</option>
+            <option value="erhalten" selected>Erhalten</option>
+            <option value="zunehmen">Zunehmen (+300 kcal)</option>
+          </select>
+        </div>
+      </div>
+      <div class="calc-result">
+        <div class="label">Täglicher Kalorienbedarf</div>
+        <div id="ergebnis">— kcal</div>
+      </div>
+      <div id="details" style="margin-top:0.75rem;font-size:0.88rem;color:#666;display:flex;gap:1.5rem;flex-wrap:wrap;"></div>
+    </div>
+  </CalculatorShell>
+</Layout>
+
+<script type="module">
+function berechne() {
+  const gewicht = parseFloat(document.getElementById('gewicht').value) || 75;
+  const groesse = parseFloat(document.getElementById('groesse').value) || 175;
+  const alter = parseInt(document.getElementById('alter').value) || 30;
+  const geschlecht = document.getElementById('geschlecht').value;
+  const aktiv = parseFloat(document.getElementById('aktiv').value) || 1.375;
+  const ziel = document.getElementById('ziel').value;
+  let bmr = geschlecht === 'm' 
+    ? 10 * gewicht + 6.25 * groesse - 5 * alter + 5
+    : 10 * gewicht + 6.25 * groesse - 5 * alter - 161;
+  let gesamt = bmr * aktiv;
+  if (ziel === 'abnehmen') gesamt -= 500;
+  if (ziel === 'zunehmen') gesamt += 300;
+  gesamt = Math.max(800, gesamt);
+  const protein = gewicht * (ziel === 'abnehmen' ? 2.0 : ziel === 'zunehmen' ? 1.8 : 1.2);
+  const fett = gewicht * 0.9;
+  const proteinKcal = protein * 4;
+  const fettKcal = fett * 9;
+  const kohlenhydratKcal = Math.max(0, gesamt - proteinKcal - fettKcal);
+  const kohlenhydrate = kohlenhydratKcal / 4;
+  const fmt = (n) => n.toFixed(0) + 'g';
+  document.getElementById('ergebnis').textContent = gesamt.toFixed(0) + ' kcal';
+  document.getElementById('details').innerHTML =
+    `<span>Protein: <strong>${fmt(protein)}</strong> (${proteinKcal.toFixed(0)} kcal)</span>` +
+    `<span>Fett: <strong>${fmt(fett)}</strong> (${fettKcal.toFixed(0)} kcal)</span>` +
+    `<span>Kohlenhydrate: <strong>${fmt(kohlenhydrate)}</strong> (${kohlenhydratKcal.toFixed(0)} kcal)</span>` +
+    `<span>Grundumsatz: <strong>${bmr.toFixed(0)} kcal</strong></span>`;
+}
+['gewicht','groesse','alter'].forEach(id => document.getElementById(id).addEventListener('input', berechne));
+['geschlecht','aktiv','ziel'].forEach(id => document.getElementById(id).addEventListener('change', berechne));
+berechne();
+</script>

@@ -1,0 +1,91 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import CalculatorShell from '../../components/CalculatorShell.astro';
+import { CALCULATORS, CATEGORIES } from '../../data/calculators';
+const calc = CALCULATORS.find(c => c.slug === 'wie-viel-haus')!;
+const cat = CATEGORIES[calc.category];
+const year = new Date().getFullYear();
+---
+<Layout
+  title={`Wie viel Haus kann ich mir leisten? ${year}`}
+  description="Berechnen Sie den maximalen Kaufpreis basierend auf Ihrem Einkommen, Eigenkapital und der gewünschten monatlichen Rate."
+  canonicalPath="/wohnen/wie-viel-haus/"
+  categoryColor={cat.color}
+  categoryLight={cat.colorLight}
+  categoryImage={cat.image}
+>
+  <div class="page-header">
+    <a href={`${import.meta.env.BASE_URL}wohnen/`} class="back-link">← Wohnen & Immobilien</a>
+    <h1>Wie viel Haus kann ich mir leisten? {year}</h1>
+  </div>
+  <CalculatorShell
+    calculator={calc}
+    intro="Finden Sie heraus, welchen Kaufpreis Sie sich leisten können. Geben Sie Ihr Nettoeinkommen, Eigenkapital und die maximale monatliche Rate ein."
+    sourceNote="Faustformel-Berechnung. Die tatsächliche Finanzierung hängt von vielen Faktoren ab. Lassen Sie sich von Ihrer Bank beraten."
+    explanation="Maximale Finanzierung = Eigenkapital + Darlehen. Das Darlehen wird aus der maximalen monatlichen Rate berechnet: Darlehen = Rate / (Zins/12 + Tilgung/12). Hinzu kommen Nebenkosten (ca. 10-15%), die aus dem Eigenkapital stammen müssen. Faustregel: Die Rate sollte 35% des Nettoeinkommens nicht überschreiten."
+  >
+    <div class="calc-form">
+      <div class="calc-grid">
+        <div class="calc-group">
+          <label for="einkommen">Monatliches Nettoeinkommen (€)</label>
+          <input type="number" id="einkommen" min="500" max="50000" value="3000" step="100" />
+        </div>
+        <div class="calc-group">
+          <label for="eigenkapital">Eigenkapital (€)</label>
+          <input type="number" id="eigenkapital" min="0" max="2000000" value="50000" step="5000" />
+        </div>
+        <div class="calc-group">
+          <label for="rate">Max. monatliche Rate (€)</label>
+          <input type="number" id="rate" min="100" max="10000" value="900" step="50" />
+        </div>
+        <div class="calc-group">
+          <label for="zins">Zinssatz (% p.a.)</label>
+          <input type="number" id="zins" min="0.5" max="10" value="3.5" step="0.1" />
+        </div>
+        <div class="calc-group">
+          <label for="laufzeit">Zinsbindung (Jahre)</label>
+          <input type="number" id="laufzeit" min="5" max="30" value="15" step="1" />
+        </div>
+        <div class="calc-group">
+          <label for="nebenkosten">Kaufnebenkosten (%)</label>
+          <input type="number" id="nebenkosten" min="5" max="20" value="12" step="0.5" />
+        </div>
+      </div>
+      <div class="calc-result">
+        <div class="label">Maximaler Kaufpreis</div>
+        <div id="ergebnis">— €</div>
+      </div>
+      <div id="details" style="margin-top:0.75rem;font-size:0.88rem;color:#666;display:flex;gap:1.5rem;flex-wrap:wrap;"></div>
+    </div>
+  </CalculatorShell>
+</Layout>
+
+<script type="module">
+function berechne() {
+  const einkommen = parseFloat(document.getElementById('einkommen').value) || 3000;
+  const eigenkapital = parseFloat(document.getElementById('eigenkapital').value) || 50000;
+  const rate = parseFloat(document.getElementById('rate').value) || 900;
+  const zins = parseFloat(document.getElementById('zins').value) || 3.5;
+  const laufzeit = parseInt(document.getElementById('laufzeit').value) || 15;
+  const nebenkostenPct = parseFloat(document.getElementById('nebenkosten').value) || 12;
+  const empfohleneRate = einkommen * 0.35;
+  const tilgung = 0.02;
+  const zinsMonat = zins / 100 / 12;
+  const tilgungMonat = tilgung / 12;
+  const darlehen = rate / (zinsMonat + tilgungMonat);
+  const nebenkostenFaktor = 1 + nebenkostenPct / 100;
+  const maxKaufpreis = (eigenkapital + darlehen) / nebenkostenFaktor;
+  const nebenkostenKosten = maxKaufpreis * nebenkostenPct / 100;
+  const finanzierung = maxKaufpreis - nebenkostenKosten;
+  document.getElementById('ergebnis').textContent = maxKaufpreis.toLocaleString('de-DE', {minimumFractionDigits:0, maximumFractionDigits:0}) + ' €';
+  document.getElementById('details').innerHTML =
+    `<span>Empfohlene max. Rate (35%): <strong>${empfohleneRate.toLocaleString('de-DE', {minimumFractionDigits:0})} €</strong></span>` +
+    `<span>Mögliches Darlehen: <strong>${darlehen.toLocaleString('de-DE', {minimumFractionDigits:0})} €</strong></span>` +
+    `<span>Nebenkosten: <strong>${nebenkostenKosten.toLocaleString('de-DE', {minimumFractionDigits:0})} €</strong></span>` +
+    `<span>Immobilienwert (ohne NK): <strong>${finanzierung.toLocaleString('de-DE', {minimumFractionDigits:0})} €</strong></span>` +
+    `<span>Rate/Einkommen: <strong>${(rate/einkommen*100).toFixed(1)}%</strong></span>`;
+}
+['einkommen','eigenkapital','rate','zins','laufzeit','nebenkosten'].forEach(id =>
+  document.getElementById(id).addEventListener('input', berechne));
+berechne();
+</script>

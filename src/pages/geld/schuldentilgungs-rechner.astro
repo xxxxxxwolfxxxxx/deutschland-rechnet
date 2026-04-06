@@ -1,0 +1,138 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import CalculatorShell from '../../components/CalculatorShell.astro';
+import { CALCULATORS, CATEGORIES } from '../../data/calculators';
+const calc = CALCULATORS.find(c => c.slug === 'schuldentilgungs-rechner')!;
+const cat = CATEGORIES[calc.category];
+const year = new Date().getFullYear();
+---
+<Layout
+  title={`Schuldentilgungs-Rechner ${year}`}
+  description="Schneeball- vs. Lawinenmethode: Finde die beste Strategie zum Schulden tilgen."
+  canonicalPath="/geld/schuldentilgungs-rechner/"
+  categoryColor={cat.color}
+  categoryLight={cat.colorLight}
+  categoryImage={cat.image}
+>
+  <div class="page-header">
+    <a href={`${import.meta.env.BASE_URL}geld/`} class="back-link">← Geld & Gehalt</a>
+    <h1>Schuldentilgungs-Rechner {year} – Schneeball vs. Lawine</h1>
+  </div>
+  <CalculatorShell
+    calculator={calc}
+    intro="Vergleiche die Schneeballmethode (kleinste Schuld zuerst) mit der Lawinenmethode (höchster Zins zuerst). Gib deine Schulden und die monatliche Rate ein."
+    sourceNote="Vereinfachte Berechnung. Tatsächliche Tilgung kann abweihen. Keine Finanzberatung."
+    explanation="Schneeballmethode: Kleinste Schuld zuerst tilgen (psychologischer Vorteil). Lawinenmethode: Höchster Zins zuerst (mathematisch optimal). Der Rechner zeigt die Laufzeit und Gesamtzinsen für beide Methoden. Bei gleichen Zinsen sind beide Methoden gleich."
+  >
+    <div class="calc-form">
+      <div class="calc-grid">
+        <div class="calc-group">
+          <label for="schuld1">Schuld 1: Betrag (€)</label>
+          <input type="number" id="schuld1" min="0" max="500000" value="5000" step="100" />
+        </div>
+        <div class="calc-group">
+          <label for="zins1">Schuld 1: Zins (%)</label>
+          <input type="number" id="zins1" min="0" max="30" value="5" step="0.5" />
+        </div>
+        <div class="calc-group">
+          <label for="schuld2">Schuld 2: Betrag (€)</label>
+          <input type="number" id="schuld2" min="0" max="500000" value="15000" step="100" />
+        </div>
+        <div class="calc-group">
+          <label for="zins2">Schuld 2: Zins (%)</label>
+          <input type="number" id="zins2" min="0" max="30" value="8" step="0.5" />
+        </div>
+        <div class="calc-group">
+          <label for="schuld3">Schuld 3: Betrag (€)</label>
+          <input type="number" id="schuld3" min="0" max="500000" value="3000" step="100" />
+        </div>
+        <div class="calc-group">
+          <label for="zins3">Schuld 3: Zins (%)</label>
+          <input type="number" id="zins3" min="0" max="30" value="12" step="0.5" />
+        </div>
+        <div class="calc-group">
+          <label for="rate">Monatliche Gesamtrate (€)</label>
+          <input type="number" id="rate" min="50" max="10000" value="500" step="50" />
+        </div>
+      </div>
+      <div class="calc-result">
+        <div class="label">Bessere Methode</div>
+        <div id="ergebnis">—</div>
+      </div>
+      <div id="details" style="margin-top:0.75rem;font-size:0.88rem;color:#666;display:flex;gap:1.5rem;flex-wrap:wrap;"></div>
+    </div>
+  </CalculatorShell>
+</Layout>
+
+<script type="module">
+function berechneSchneeball(schulden, rate) {
+  let schuldenCopy = schulden.map(s => ({...s}));
+  let gesamtZinsen = 0;
+  let monate = 0;
+  while (schuldenCopy.some(s => s.rest > 0) && monate < 600) {
+    schuldenCopy.sort((a, b) => a.rest - b.rest);
+    let verfuegbar = rate;
+    for (let s of schuldenCopy) {
+      if (s.rest <= 0) continue;
+      const zins = s.rest * (s.zins / 100 / 12);
+      gesamtZinsen += zins;
+      s.rest += zins;
+      const zahlung = Math.min(verfuegbar, s.rest);
+      s.rest -= zahlung;
+      verfuegbar -= zahlung;
+      if (verfuegbar <= 0) break;
+    }
+    monate++;
+  }
+  return { monate, gesamtZinsen };
+}
+
+function berechneLawine(schulden, rate) {
+  let schuldenCopy = schulden.map(s => ({...s}));
+  let gesamtZinsen = 0;
+  let monate = 0;
+  while (schuldenCopy.some(s => s.rest > 0) && monate < 600) {
+    schuldenCopy.sort((a, b) => b.zins - a.zins);
+    let verfuegbar = rate;
+    for (let s of schuldenCopy) {
+      if (s.rest <= 0) continue;
+      const zins = s.rest * (s.zins / 100 / 12);
+      gesamtZinsen += zins;
+      s.rest += zins;
+      const zahlung = Math.min(verfuegbar, s.rest);
+      s.rest -= zahlung;
+      verfuegbar -= zahlung;
+      if (verfuegbar <= 0) break;
+    }
+    monate++;
+  }
+  return { monate, gesamtZinsen };
+}
+
+function berechne() {
+  const schulden = [];
+  for (let i = 1; i <= 3; i++) {
+    const betrag = parseFloat(document.getElementById(`schuld${i}`).value) || 0;
+    const zins = parseFloat(document.getElementById(`zins${i}`).value) || 0;
+    if (betrag > 0) schulden.push({ rest: betrag, zins, original: betrag });
+  }
+  const rate = parseFloat(document.getElementById('rate').value) || 500;
+  const schnee = berechneSchneeball(schulden, rate);
+  const lawine = berechneLawine(schulden, rate);
+  const fmt = (n) => n.toLocaleString('de-DE', {minimumFractionDigits:2, maximumFractionDigits:2}) + ' €';
+  const bessereMethode = schnee.gesamtZinsen <= lawine.gesamtZinsen ? 'Schneeball' : 'Lawine';
+  document.getElementById('ergebnis').textContent = bessereMethode;
+  document.getElementById('ergebnis').style.color = bessereMethode === 'Lawine' ? '#1565c0' : '#1e7e34';
+  const schneeJahre = Math.floor(schnee.monate / 12);
+  const schneeMon = schnee.monate % 12;
+  const lawineJahre = Math.floor(lawine.monate / 12);
+  const lawineMon = lawine.monate % 12;
+  document.getElementById('details').innerHTML =
+    `<span>Schneeball: <strong>${schneeJahre}J ${schneeMon}M</strong>, Zinsen: <strong>${fmt(schnee.gesamtZinsen)}</strong></span>` +
+    `<span>Lawine: <strong>${lawineJahre}J ${lawineMon}M</strong>, Zinsen: <strong>${fmt(lawine.gesamtZinsen)}</strong></span>` +
+    `<span>Ersparnis: <strong>${fmt(Math.abs(schnee.gesamtZinsen - lawine.gesamtZinsen))}</strong></span>`;
+}
+['schuld1','zins1','schuld2','zins2','schuld3','zins3','rate'].forEach(id =>
+  document.getElementById(id).addEventListener('input', berechne));
+berechne();
+</script>

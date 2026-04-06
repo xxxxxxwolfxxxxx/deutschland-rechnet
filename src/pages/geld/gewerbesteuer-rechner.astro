@@ -1,0 +1,78 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import CalculatorShell from '../../components/CalculatorShell.astro';
+import { CALCULATORS, CATEGORIES } from '../../data/calculators';
+const calc = CALCULATORS.find(c => c.slug === 'gewerbesteuer-rechner')!;
+const cat = CATEGORIES[calc.category];
+const year = new Date().getFullYear();
+---
+<Layout
+  title={`Gewerbesteuer-Rechner ${year}`}
+  description="Gewerbesteuer nach Hebesatz und Rechtsform berechnen – kostenlos und aktuell."
+  canonicalPath="/geld/gewerbesteuer-rechner/"
+  categoryColor={cat.color}
+  categoryLight={cat.colorLight}
+  categoryImage={cat.image}
+>
+  <div class="page-header">
+    <a href={`${import.meta.env.BASE_URL}geld/`} class="back-link">← Geld & Gehalt</a>
+    <h1>Gewerbesteuer-Rechner {year}</h1>
+  </div>
+  <CalculatorShell
+    calculator={calc}
+    intro="Berechnen Sie Ihre Gewerbesteuer. Geben Sie Ihren Gewerbeertrag, den Hebesatz Ihrer Gemeinde und Ihre Rechtsform ein."
+    sourceNote="Berechnung nach GewStG 2025. Hebesätze können sich ändern. Ohne Gewähr – für verbindliche Auskünfte wenden Sie sich an das Finanzamt."
+    explanation="Gewerbesteuer = (Gewerbeertrag - 24.500 € Freibetrag) × Steuermesszahl 3,5% × Hebesatz. Der Freibetrag gilt nur für Einzelunternehmen und Personengesellschaften. Körperschaften (GmbH, AG) haben keinen Freibetrag. Hebesätze variieren: München 490%, Berlin 410%, Hamburg 470%. Die Gewerbesteuer kann auf die Einkommensteuer angerechnet werden (Faktor 3,8)."
+  >
+    <div class="calc-form">
+      <div class="calc-grid">
+        <div class="calc-group">
+          <label for="gewerbeertrag">Gewerbeertrag (€)</label>
+          <input type="number" id="gewerbeertrag" min="0" max="10000000" value="100000" step="1000" />
+        </div>
+        <div class="calc-group">
+          <label for="hebesatz">Hebesatz (%)</label>
+          <input type="number" id="hebesatz" min="200" max="900" value="410" step="10" />
+        </div>
+        <div class="calc-group">
+          <label for="rechtsform">Rechtsform</label>
+          <select id="rechtsform">
+            <option value="einzel" selected>Einzelunternehmen</option>
+            <option value="person">Personengesellschaft (OHG, KG)</option>
+            <option value="koerper">Körperschaft (GmbH, AG)</option>
+          </select>
+        </div>
+      </div>
+      <div class="calc-result">
+        <div class="label">Gewerbesteuer</div>
+        <div id="ergebnis">— €</div>
+      </div>
+      <div id="details" style="margin-top:0.75rem;font-size:0.88rem;color:#666;display:flex;gap:1.5rem;flex-wrap:wrap;"></div>
+    </div>
+  </CalculatorShell>
+</Layout>
+
+<script type="module">
+function berechne() {
+  const gewerbeertrag = parseFloat(document.getElementById('gewerbeertrag').value) || 100000;
+  const hebesatz = parseFloat(document.getElementById('hebesatz').value) || 410;
+  const rechtsform = document.getElementById('rechtsform').value;
+  const freibetrag = (rechtsform === 'einzel' || rechtsform === 'person') ? 24500 : 0;
+  const steuerpflichtig = Math.max(0, gewerbeertrag - freibetrag);
+  const messbetrag = steuerpflichtig * 0.035;
+  const gewerbesteuer = messbetrag * (hebesatz / 100);
+  const effektiverSatz = gewerbeertrag > 0 ? (gewerbesteuer / gewerbeertrag * 100) : 0;
+  const anrechnungESt = gewerbesteuer * 3.8;
+  document.getElementById('ergebnis').textContent = gewerbesteuer.toLocaleString('de-DE', {minimumFractionDigits:2, maximumFractionDigits:2}) + ' €';
+  document.getElementById('details').innerHTML =
+    `<span>Freibetrag: <strong>${freibetrag.toLocaleString('de-DE')} €</strong></span>` +
+    `<span>Steuerpflichtiger Ertrag: <strong>${steuerpflichtig.toLocaleString('de-DE')} €</strong></span>` +
+    `<span>Messbetrag (3,5%): <strong>${messbetrag.toLocaleString('de-DE', {minimumFractionDigits:2, maximumFractionDigits:2})} €</strong></span>` +
+    `<span>Effektiver Steuersatz: <strong>${effektiverSatz.toFixed(2)} %</strong></span>` +
+    `<span>Mögliche ESt-Anrechnung (3,8×): <strong>${anrechnungESt.toLocaleString('de-DE', {minimumFractionDigits:2, maximumFractionDigits:2})} €</strong></span>`;
+}
+['gewerbeertrag','hebesatz'].forEach(id =>
+  document.getElementById(id).addEventListener('input', berechne));
+document.getElementById('rechtsform').addEventListener('change', berechne);
+berechne();
+</script>

@@ -1,0 +1,97 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import CalculatorShell from '../../components/CalculatorShell.astro';
+import { CALCULATORS, CATEGORIES } from '../../data/calculators';
+const calc = CALCULATORS.find(c => c.slug === 'kaufen-vs-mieten')!;
+const cat = CATEGORIES[calc.category];
+const year = new Date().getFullYear();
+---
+<Layout
+  title={`Kaufen vs. Mieten ${year}`}
+  description="Vergleichen Sie die Gesamtkosten von Immobilienkauf und Mieten. Finden Sie heraus, was nach Ihrer Laufzeit günstiger ist."
+  canonicalPath="/wohnen/kaufen-vs-mieten/"
+  categoryColor={cat.color}
+  categoryLight={cat.colorLight}
+  categoryImage={cat.image}
+>
+  <div class="page-header">
+    <a href={`${import.meta.env.BASE_URL}wohnen/`} class="back-link">← Wohnen & Immobilien</a>
+    <h1>Kaufen vs. Mieten {year} – Was ist günstiger?</h1>
+  </div>
+  <CalculatorShell
+    calculator={calc}
+    intro="Sollte man eine Immobilie kaufen oder lieber mieten? Dieser Rechner vergleicht die Gesamtkosten beider Optionen über einen selbst gewählten Zeitraum. Berücksichtigt werden Zinsen, Wertsteigerung, Mietsteigerung und die Rendite des eingesetzten Eigenkapitals."
+    sourceNote="Vereinfachte Modellrechnung. Tatsächliche Kosten können abweihen. Berücksichtigt nicht alle Nebenkosten wie Instandhaltung beim Kauf oder Modernisierungsumlage bei der Miete."
+    explanation="Vergleicht die Gesamtkosten von Kaufen (Kaufpreis + Zinsen - Wertsteigerung) vs. Mieten (Miete × Monate + Mietsteigerung). Das investierte Eigenkapital wird mit der Rendite verzinst. Nach der Laufzeit wird die Immobilie mit Wertsteigerung verkauft und mit den kumulierten Mietkosten + investierter Differenz verglichen."
+  >
+    <div class="calc-form">
+      <div class="calc-grid">
+        <div class="calc-group">
+          <label for="kaufpreis">Kaufpreis (€)</label>
+          <input type="number" id="kaufpreis" min="50000" max="5000000" value="350000" step="5000" />
+        </div>
+        <div class="calc-group">
+          <label for="miete">Kaltmiete pro Monat (€)</label>
+          <input type="number" id="miete" min="100" max="10000" value="1200" step="50" />
+        </div>
+        <div class="calc-group">
+          <label for="eigenkapital">Eigenkapital (€)</label>
+          <input type="number" id="eigenkapital" min="0" max="2000000" value="70000" step="5000" />
+        </div>
+        <div class="calc-group">
+          <label for="zins">Zinssatz (% p.a.)</label>
+          <input type="number" id="zins" min="0.5" max="10" value="3.5" step="0.1" />
+        </div>
+        <div class="calc-group">
+          <label for="laufzeit">Vergleichszeitraum (Jahre)</label>
+          <input type="number" id="laufzeit" min="5" max="40" value="20" step="1" />
+        </div>
+        <div class="calc-group">
+          <label for="mietsteigerung">Jährliche Mietsteigerung (%)</label>
+          <input type="number" id="mietsteigerung" min="0" max="10" value="2" step="0.5" />
+        </div>
+        <div class="calc-group">
+          <label for="wertsteigerung">Jährliche Wertsteigerung Immobilie (%)</label>
+          <input type="number" id="wertsteigerung" min="-5" max="10" value="2" step="0.5" />
+        </div>
+      </div>
+      <div class="calc-result">
+        <div class="label">Ergebnis nach <span id="laufzeit-label">20</span> Jahren</div>
+        <div id="ergebnis">— €</div>
+      </div>
+      <div id="details" style="margin-top:0.75rem;font-size:0.88rem;color:#666;display:flex;gap:1.5rem;flex-wrap:wrap;"></div>
+    </div>
+  </CalculatorShell>
+</Layout>
+
+<script type="module">
+const { vergleicheKaufenMieten } = await import(window.__base + 'scripts/kaufen-vs-mieten.js');
+function fmt(n) { return n.toLocaleString('de-DE', {minimumFractionDigits:2, maximumFractionDigits:2}) + ' €'; }
+function berechne() {
+  const kaufpreis = parseFloat(document.getElementById('kaufpreis').value) || 350000;
+  const miete = parseFloat(document.getElementById('miete').value) || 1200;
+  const eigenkapital = parseFloat(document.getElementById('eigenkapital').value) || 70000;
+  const zins = parseFloat(document.getElementById('zins').value) || 3.5;
+  const laufzeit = parseInt(document.getElementById('laufzeit').value) || 20;
+  const mietsteigerung = parseFloat(document.getElementById('mietsteigerung').value) || 2;
+  const wertsteigerung = parseFloat(document.getElementById('wertsteigerung').value) || 2;
+  const r = vergleicheKaufenMieten({ kaufpreis, miete, eigenkapital, zins, laufzeit, mietsteigerung, wertsteigerung });
+  document.getElementById('laufzeit-label').textContent = laufzeit;
+  if (r.kaufenGuemstiger) {
+    document.getElementById('ergebnis').textContent = 'Kaufen ist günstiger!';
+    document.getElementById('ergebnis').style.color = '#1e7e34';
+  } else {
+    document.getElementById('ergebnis').textContent = 'Mieten ist günstiger!';
+    document.getElementById('ergebnis').style.color = '#b71c1c';
+  }
+  document.getElementById('details').innerHTML =
+    `<span>Kosten Kaufen: <strong>${fmt(r.kostenKaufen)}</strong></span>` +
+    `<span>Kosten Mieten: <strong>${fmt(r.kostenMieten)}</strong></span>` +
+    `<span>Differenz: <strong>${fmt(Math.abs(r.differenz))}</strong></span>` +
+    `<span>Immobilienwert nach ${laufzeit}J: <strong>${fmt(r.immobilienwert)}</strong></span>` +
+    `<span>Gesamtmieten: <strong>${fmt(r.gesamtmiete)}</strong></span>`;
+}
+['kaufpreis','miete','eigenkapital','zins','laufzeit','mietsteigerung','wertsteigerung'].forEach(id =>
+  document.getElementById(id).addEventListener('input', berechne));
+berechne();
+</script>

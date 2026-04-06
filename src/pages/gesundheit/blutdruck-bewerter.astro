@@ -1,0 +1,93 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import CalculatorShell from '../../components/CalculatorShell.astro';
+import { CALCULATORS, CATEGORIES } from '../../data/calculators';
+const calc = CALCULATORS.find(c => c.slug === 'blutdruck-bewerter')!;
+const cat = CATEGORIES[calc.category];
+const year = new Date().getFullYear();
+---
+<Layout
+  title={`Blutdruck-Bewerter ${year}`}
+  description="Blutdruckwerte nach WHO-Klassifikation einordnen – systolisch, diastolisch und Alter."
+  canonicalPath="/gesundheit/blutdruck-bewerter/"
+  categoryColor={cat.color}
+  categoryLight={cat.colorLight}
+  categoryImage={cat.image}
+>
+  <div class="page-header">
+    <a href={`${import.meta.env.BASE_URL}gesundheit/`} class="back-link">← Gesundheit & Fitness</a>
+    <h1>Blutdruck-Bewerter {year}</h1>
+  </div>
+  <CalculatorShell
+    calculator={calc}
+    intro="Bewerte deinen Blutdruck nach der WHO-Klassifikation. Gib systolischen und diastolischen Wert ein und erhalte die Einordnung."
+    sourceNote="Nach WHO-Richtlinien. Einzelmessungen sind nicht aussagekräftig. Bei Unklarheiten Arzt konsultieren. Keine medizinische Beratung."
+    explanation="WHO-Klassifikation: Optimal < 120/80, Normal 120-129/80-84, Hoch-normal 130-139/85-89, Grad 1 Hypertonie 140-159/90-99, Grad 2 160-179/100-109, Grad 3 ≥ 180/110. Der Blutdruck sollte im Sitzen nach 5 Minuten Ruhe gemessen werden. Einzelwerte sind nicht aussagekräftig – Langzeitmessung ist besser."
+  >
+    <div class="calc-form">
+      <div class="calc-grid">
+        <div class="calc-group">
+          <label for="systolisch">Systolisch (oberer Wert, mmHg)</label>
+          <input type="number" id="systolisch" min="60" max="250" value="120" step="1" />
+        </div>
+        <div class="calc-group">
+          <label for="diastolisch">Diastolisch (unterer Wert, mmHg)</label>
+          <input type="number" id="diastolisch" min="40" max="150" value="80" step="1" />
+        </div>
+        <div class="calc-group">
+          <label for="alter">Alter (Jahre)</label>
+          <input type="number" id="alter" min="18" max="100" value="40" step="1" />
+        </div>
+      </div>
+      <div class="calc-result">
+        <div class="label" id="ergebnis-label">Einstufung</div>
+        <div id="ergebnis">—</div>
+      </div>
+      <div id="details" style="margin-top:0.75rem;font-size:0.88rem;color:#666;display:flex;gap:1.5rem;flex-wrap:wrap;"></div>
+    </div>
+  </CalculatorShell>
+</Layout>
+
+<script type="module">
+function berechne() {
+  const syst = parseInt(document.getElementById('systolisch').value) || 120;
+  const diast = parseInt(document.getElementById('diastolisch').value) || 80;
+  const alter = parseInt(document.getElementById('alter').value) || 40;
+  let klassifikation, farbe, risiko;
+  if (syst < 120 && diast < 80) {
+    klassifikation = 'Optimal';
+    farbe = '#1e7e34';
+    risiko = 'Niedriges Risiko';
+  } else if (syst <= 129 && diast <= 84) {
+    klassifikation = 'Normal';
+    farbe = '#1e7e34';
+    risiko = 'Niedriges Risiko';
+  } else if (syst <= 139 || diast <= 89) {
+    klassifikation = 'Hoch-normal';
+    farbe = '#b8860b';
+    risiko = 'Erhöhtes Risiko – Beobachten';
+  } else if (syst <= 159 || diast <= 99) {
+    klassifikation = 'Grad 1 Hypertonie';
+    farbe = '#e65100';
+    risiko = 'Mittleres Risiko – Arzt aufsuchen';
+  } else if (syst <= 179 || diast <= 109) {
+    klassifikation = 'Grad 2 Hypertonie';
+    farbe = '#b71c1c';
+    risiko = 'Hohes Risiko – Behandlung nötig';
+  } else {
+    klassifikation = 'Grad 3 Hypertonie';
+    farbe = '#b71c1c';
+    risiko = 'Sehr hohes Risiko – sofort zum Arzt';
+  }
+  document.getElementById('ergebnis-label').textContent = klassifikation;
+  document.getElementById('ergebnis').textContent = `${syst}/${diast} mmHg`;
+  document.getElementById('ergebnis').style.color = farbe;
+  document.getElementById('details').innerHTML =
+    `<span>Alter: <strong>${alter} Jahre</strong></span>` +
+    `<span>Werte: <strong>${syst}/${diast}</strong></span>` +
+    `<span>Einstufung: <strong style="color:${farbe}">${klassifikation}</strong></span>` +
+    `<span>Risiko: <strong>${risiko}</strong></span>`;
+}
+['systolisch','diastolisch','alter'].forEach(id => document.getElementById(id).addEventListener('input', berechne));
+berechne();
+</script>
