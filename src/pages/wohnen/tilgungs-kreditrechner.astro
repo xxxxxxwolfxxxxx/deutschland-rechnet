@@ -22,6 +22,7 @@ const year = new Date().getFullYear();
     calculator={calc}
     intro="Berechnen Sie die monatliche Rate, die Gesamtkosten und die Zinslast für Ihren Kredit. Geben Sie Darlehensbetrag, Zinssatz und Laufzeit ein – das Ergebnis erscheint sofort. Geeignet für Hypotheken, Autokredite und Ratenkredite."
     sourceNote="Berechnung nach Annuitätendarlehen-Formel. Ohne Berücksichtigung von Bearbeitungsgebühren oder Sondertilgungen."
+    explanation="Die monatliche Rate bei einem Annuitätendarlehen berechnet sich aus: Darlehen × (Sollzins/12 + Tilgungssatz/12). Die Zinszahlung bleibt im ersten Jahr konstant, während der Tilgungsanteil mit jeder Rate steigt (da die Restschuld sinkt). Die effektive Jahresbelastung = Rate × 12. Die Restschuld nach der Zinsbindung = Darlehen - kumulierte Tilgung."
   >
     <div class="calc-form">
       <div class="calc-grid">
