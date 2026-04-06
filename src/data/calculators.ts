@@ -18,13 +18,13 @@ export interface Calculator {
 }
 
 export const CATEGORIES: Record<Category, { label: string; emoji: string; description: string; color: string; colorLight: string; image: string }> = {
-  geld:      { label: 'Geld & Gehalt',        emoji: '💰', description: 'Gehalt, Steuern, Sozialleistungen',       color: '#1e7e34', colorLight: '#e8f5e9', image: '/images/categories/geld.png' },
-  wohnen:    { label: 'Wohnen & Immobilien',  emoji: '🏠', description: 'Miete, Kauf, Kredit, Nebenkosten',        color: '#1565c0', colorLight: '#e3f2fd', image: '/images/categories/wohnen.png' },
-  energie:   { label: 'Energie',              emoji: '⚡', description: 'Strom, Heizung, Photovoltaik',            color: '#b8860b', colorLight: '#fff8e1', image: '/images/categories/energie.png' },
-  auto:      { label: 'Auto & Mobilität',     emoji: '🚗', description: 'Kfz-Steuer, Sprit, Fahrtkosten',          color: '#b71c1c', colorLight: '#ffebee', image: '/images/categories/auto.png' },
-  familie:   { label: 'Familie & Soziales',   emoji: '👨‍👩‍👧', description: 'Elterngeld, Kindergeld, Rente',      color: '#e65100', colorLight: '#fff3e0', image: '/images/categories/familie.png' },
-  gesundheit:{ label: 'Gesundheit & Fitness', emoji: '🏃', description: 'BMI, Kalorien, Promille',                  color: '#00796b', colorLight: '#e0f2f1', image: '/images/categories/gesundheit.png' },
-  einheiten: { label: 'Einheiten & Mathe',    emoji: '📐', description: 'Länge, Gewicht, Temperatur, Inflation',  color: '#6a1b9a', colorLight: '#f3e5f5', image: '/images/categories/einheiten.png' },
+  geld:      { label: 'Geld & Gehalt',        emoji: '💰', description: 'Gehalt, Steuern, Sozialleistungen',       color: '#1e7e34', colorLight: '#c8e6c9', image: '/images/categories/geld.png' },
+  wohnen:    { label: 'Wohnen & Immobilien',  emoji: '🏠', description: 'Miete, Kauf, Kredit, Nebenkosten',        color: '#1565c0', colorLight: '#bbdefb', image: '/images/categories/wohnen.png' },
+  energie:   { label: 'Energie',              emoji: '⚡', description: 'Strom, Heizung, Photovoltaik',            color: '#b8860b', colorLight: '#ffe082', image: '/images/categories/energie.png' },
+  auto:      { label: 'Auto & Mobilität',     emoji: '🚗', description: 'Kfz-Steuer, Sprit, Fahrtkosten',          color: '#b71c1c', colorLight: '#ffcdd2', image: '/images/categories/auto.png' },
+  familie:   { label: 'Familie & Soziales',   emoji: '👨‍👩‍👧', description: 'Elterngeld, Kindergeld, Rente',      color: '#e65100', colorLight: '#ffccbc', image: '/images/categories/familie.png' },
+  gesundheit:{ label: 'Gesundheit & Fitness', emoji: '🏃', description: 'BMI, Kalorien, Promille',                  color: '#00796b', colorLight: '#b2dfdb', image: '/images/categories/gesundheit.png' },
+  einheiten: { label: 'Einheiten & Mathe',    emoji: '📐', description: 'Länge, Gewicht, Temperatur, Inflation',  color: '#6a1b9a', colorLight: '#e1bee7', image: '/images/categories/einheiten.png' },
 };
 
 export const CALCULATORS: Calculator[] = [
