@@ -1,0 +1,116 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import CalculatorShell from '../../components/CalculatorShell.astro';
+import { CALCULATORS, CATEGORIES } from '../../data/calculators';
+const calc = CALCULATORS.find(c => c.slug === 'tilgungsplan')!;
+const cat = CATEGORIES[calc.category];
+const year = new Date().getFullYear();
+---
+<Layout
+  title={`Tilgungsplan ${year}`}
+  description="Tilgungsplan für Baudarlehen erstellen."
+  canonicalPath="/wohnen/tilgungsplan/"
+  categoryColor={cat.color}
+  categoryLight={cat.colorLight}
+  categoryImage={cat.image}
+>
+  <div class="page-header">
+    <a href={`${import.meta.env.BASE_URL}wohnen/`} class="back-link">← Wohnen & Immobilien</a>
+    <h1>Tilgungsplan {year}</h1>
+  </div>
+  <CalculatorShell
+    calculator={calc}
+    intro="Erstellen Sie einen Tilgungsplan für Ihr Baudarlehen. Der Rechner zeigt die monatliche Entwicklung von Restschuld, Zinsen und Tilgung."
+    sourceNote="Vereinfachte Berechnung mit gleichbleibender Rate. In der Praxis können Tilgungswechsel, Sondertilgungen und Zinsanpassungen die Tilgung beeinflussen."
+  >
+    <div class="calc-form">
+      <div class="calc-grid">
+        <div class="calc-group">
+          <label for="darlehen">Darlehensbetrag (€)</label>
+          <input type="number" id="darlehen" min="10000" max="5000000" value="300000" step="5000" />
+        </div>
+        <div class="calc-group">
+          <label for="zins">Sollzins (% p.a.)</label>
+          <input type="number" id="zins" min="0.1" max="15" value="3.5" step="0.1" />
+        </div>
+        <div class="calc-group">
+          <label for="tilgung">Anfangstilgung (% p.a.)</label>
+          <input type="number" id="tilgung" min="0.5" max="10" value="2" step="0.5" />
+        </div>
+        <div class="calc-group">
+          <label for="sonder">Sondertilgung pro Jahr (€)</label>
+          <input type="number" id="sonder" min="0" max="100000" value="0" step="500" />
+        </div>
+      </div>
+
+      <div class="calc-result">
+        <div class="label">Monatliche Rate</div>
+        <div id="rate">— €</div>
+      </div>
+      <div id="details" style="margin-top:0.75rem;font-size:0.88rem;color:#666;display:flex;gap:1.5rem;flex-wrap:wrap;"></div>
+      <div id="tilgungsplan" style="margin-top:1rem;overflow-x:auto;font-size:0.85rem;"></div>
+    </div>
+  </CalculatorShell>
+</Layout>
+
+<script type="module">
+function berechne() {
+  const darlehen = parseFloat(document.getElementById('darlehen').value)||300000;
+  const zins = parseFloat(document.getElementById('zins').value)||3.5;
+  const tilgung = parseFloat(document.getElementById('tilgung').value)||2;
+  const sonder = parseFloat(document.getElementById('sonder').value)||0;
+  
+  const mZins = zins / 100 / 12;
+  const mTilgung = tilgung / 100 / 12;
+  const rate = darlehen * (mZins + mTilgung);
+  
+  let rest = darlehen;
+  let gezahlteZinsen = 0;
+  let gezahlteTilgung = 0;
+  let monate = 0;
+  const maxMonate = 1200;
+  
+  while (rest > 0 && monate < maxMonate) {
+    const zinsen = rest * mZins;
+    const tilgungMonat = rate - zinsen + (sonder / 12);
+    rest -= tilgungMonat;
+    gezahlteZinsen += zinsen;
+    gezahlteTilgung += tilgungMonat;
+    monate++;
+  }
+  
+  const jahre = Math.ceil(monate / 12);
+  
+  document.getElementById('rate').textContent = rate.toLocaleString('de-DE', {minimumFractionDigits:2}) + ' €';
+  document.getElementById('details').innerHTML =
+    `<span>Gesamtlaufzeit: <strong>ca. ${jahre} Jahre</strong></span>` +
+    `<span>Gesamtzinsen: <strong>${gezahlteZinsen.toLocaleString('de-DE', {minimumFractionDigits:0})} €</strong></span>` +
+    `<span>Gesamttilgung: <strong>${gezahlteTilgung.toLocaleString('de-DE', {minimumFractionDigits:0})} €</strong></span>` +
+    `<span>÷ Rate/Monat: <strong>${rate.toLocaleString('de-DE', {minimumFractionDigits:2})} €</strong></span>`;
+  
+  let html = '<table style="width:100%;border-collapse:collapse;margin-top:0.5rem;">';
+  html += '<tr style="background:var(--dark);color:white;"><th style="padding:0.5rem;text-align:left;">Jahr</th><th style="padding:0.5rem;text-align:right;">Zinsen gesamt</th><th style="padding:0.5rem;text-align:right;">Tilgung gesamt</th><th style="padding:0.5rem;text-align:right;">Restschuld</th></tr>';
+  
+  rest = darlehen;
+  for (let j = 1; j <= Math.min(30, jahre); j++) {
+    let jZinsen = 0, jTilgung = 0;
+    for (let m = 0; m < 12 && rest > 0; m++) {
+      const z = rest * mZins;
+      const t = Math.min(rate - z + (sonder / 12), rest);
+      jZinsen += z;
+      jTilgung += t;
+      rest -= t;
+    }
+    if (j <= 10 || j === jahre) {
+      html += `<tr style="border-bottom:1px solid var(--border);"><td style="padding:0.4rem;">${j}. Jahr</td><td style="padding:0.4rem;text-align:right;">${jZinsen.toLocaleString('de-DE', {maximumFractionDigits:0})} €</td><td style="padding:0.4rem;text-align:right;">${jTilgung.toLocaleString('de-DE', {maximumFractionDigits:0})} €</td><td style="padding:0.4rem;text-align:right;font-weight:500;">${Math.max(0, rest).toLocaleString('de-DE', {maximumFractionDigits:0})} €</td></tr>`;
+    } else if (j === 11) {
+      html += '<tr><td colspan="4" style="padding:0.4rem;text-align:center;color:var(--muted);">...</td></tr>';
+    }
+  }
+  html += '</table>';
+  document.getElementById('tilgungsplan').innerHTML = html;
+}
+['darlehen','zins','tilgung','sonder'].forEach(id =>
+  document.getElementById(id).addEventListener('input', berechne));
+berechne();
+</script>

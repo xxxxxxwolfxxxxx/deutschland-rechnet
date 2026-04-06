@@ -1,0 +1,98 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import CalculatorShell from '../../components/CalculatorShell.astro';
+import { CALCULATORS, CATEGORIES } from '../../data/calculators';
+const calc = CALCULATORS.find(c => c.slug === 'kfz-steuer-co2')!;
+const cat = CATEGORIES[calc.category];
+const year = new Date().getFullYear();
+---
+<Layout
+  title={`Kfz-Steuer nach CO₂ ${year}`}
+  description="Kfz-Steuer für Benziner und Diesel nach CO₂-Ausstoß berechnen."
+  canonicalPath="/auto/kfz-steuer-co2/"
+  categoryColor={cat.color}
+  categoryLight={cat.colorLight}
+  categoryImage={cat.image}
+>
+  <div class="page-header">
+    <a href={`${import.meta.env.BASE_URL}auto/`} class="back-link">← Auto & Mobilität</a>
+    <h1>Kfz-Steuer nach CO₂ {year}</h1>
+  </div>
+  <CalculatorShell
+    calculator={calc}
+    intro="Berechnen Sie die Kfz-Steuer für Ihr Fahrzeug basierend auf Hubraum und CO₂-Ausstoß nach aktueller Gesetzgebung."
+    sourceNote="Berechnung nach § 9 Kraftfahrzeugsteuergesetz (KraftStG). Für Erstzulassungen ab 2021 gilt die CO₂-abhängige Staffelung. Keine Berücksichtigung von Saisonzulassungen oder Oldtimer-Rabatten."
+  >
+    <div class="calc-form">
+      <div class="calc-grid">
+        <div class="calc-group">
+          <label for="antrieb">Antriebsart</label>
+          <select id="antrieb">
+            <option value="benzin" selected>Benziner</option>
+            <option value="diesel">Diesel</option>
+          </select>
+        </div>
+        <div class="calc-group">
+          <label for="hubraum">Hubraum (cm³)</label>
+          <input type="number" id="hubraum" min="500" max="8000" value="2000" step="100" />
+        </div>
+        <div class="calc-group">
+          <label for="co2">CO₂-Ausstoß (g/km)</label>
+          <input type="number" id="co2" min="0" max="400" value="140" step="1" />
+        </div>
+        <div class="calc-group">
+          <label for="zulassung">Erstzulassung</label>
+          <select id="zulassung">
+            <option value="2024">2024 oder später</option>
+            <option value="2021">2021–2023</option>
+            <option value="2012">2012–2020</option>
+            <option value="vor2012">Vor 2012</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="calc-result">
+        <div class="label">Jährliche Kfz-Steuer</div>
+        <div id="steuer">— €</div>
+      </div>
+      <div id="details" style="margin-top:0.75rem;font-size:0.88rem;color:#666;display:flex;gap:1.5rem;flex-wrap:wrap;"></div>
+    </div>
+  </CalculatorShell>
+</Layout>
+
+<script type="module">
+function berechne() {
+  const antrieb = document.getElementById('antrieb').value;
+  const hubraum = parseFloat(document.getElementById('hubraum').value)||2000;
+  const co2 = parseFloat(document.getElementById('co2').value)||140;
+  const zulassung = document.getElementById('zulassung').value;
+  
+  let steuer = 0;
+  let hubraumSteuer = 0;
+  let co2Steuer = 0;
+  
+  if (zulassung === '2024' || zulassung === '2021') {
+    co2Steuer = Math.max(0, co2 - 95) * 2;
+    steuer = hubraumSteuer + co2Steuer;
+  } else if (zulassung === '2012') {
+    hubraumSteuer = antrieb === 'benzin' ? hubraum * 0.02 : hubraum * 0.095;
+    co2Steuer = Math.max(0, co2 - 95) * 2;
+    steuer = hubraumSteuer + co2Steuer;
+  } else {
+    hubraumSteuer = antrieb === 'benzin' ? hubraum * 0.02 : hubraum * 0.095;
+    steuer = hubraumSteuer;
+  }
+  
+  document.getElementById('steuer').textContent = steuer.toLocaleString('de-DE', {minimumFractionDigits:2}) + ' €';
+  document.getElementById('details').innerHTML =
+    `<span>Hubraum-Steuer: <strong>${hubraumSteuer.toLocaleString('de-DE', {minimumFractionDigits:2})} €</strong></span>` +
+    `<span>CO₂-Steuer: <strong>${co2Steuer.toLocaleString('de-DE', {minimumFractionDigits:2})} €</strong></span>` +
+    `<span>Gesamt/Jahr: <strong>${steuer.toLocaleString('de-DE', {minimumFractionDigits:2})} €</strong></span>` +
+    `<span>÷ Monatlich: <strong>${(steuer/12).toLocaleString('de-DE', {minimumFractionDigits:2})} €</strong></span>`;
+}
+['hubraum','co2'].forEach(id =>
+  document.getElementById(id).addEventListener('input', berechne));
+['antrieb','zulassung'].forEach(id =>
+  document.getElementById(id).addEventListener('change', berechne));
+berechne();
+</script>
