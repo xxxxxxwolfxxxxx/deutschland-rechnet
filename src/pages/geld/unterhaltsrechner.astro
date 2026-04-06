@@ -7,8 +7,8 @@ const cat = CATEGORIES[calc.category];
 const year = new Date().getFullYear();
 ---
 <Layout
-  title={`Unterhaltsrechner ${year} – Düsseldorfer Tabelle`}
-  description="Kindesunterhalt nach Düsseldorfer Tabelle 2026 berechnen – mit Kindergeld-Anrechnung (§ 1612b BGB), Selbstbehalt-Prüfung und detailliertem Rechenweg."
+  title={`Unterhaltsrechner ${year} – Düsseldorfer Tabelle & OLG-Leitlinien`}
+  description="Kindesunterhalt berechnen nach Düsseldorfer Tabelle 2026 – mit Bundesland-Auswahl (OLG-Leitlinien), Kindergeld-Anrechnung § 1612b BGB, Selbstbehalt und Rechenweg."
   canonicalPath="/geld/unterhaltsrechner/"
   categoryColor={cat.color}
   categoryLight={cat.colorLight}
@@ -20,11 +20,37 @@ const year = new Date().getFullYear();
   </div>
   <CalculatorShell
     calculator={calc}
-    intro="Berechnen Sie den monatlichen Kindesunterhalt nach der Düsseldorfer Tabelle 2026 – inklusive Kindergeld-Anrechnung (§ 1612b BGB) und Selbstbehalt-Prüfung. Der Rechner zeigt den vollständigen Rechenweg."
-    sourceNote="Grundlage: Düsseldorfer Tabelle 2026 (OLG Düsseldorf, gültig ab 1.1.2026). Kindergeld 2026: 255 €/Kind (§ 66 EStG). Selbstbehalt § 1603 BGB: 1.450 € (erwerbstätig) / 1.200 € (nicht erwerbstätig). Hinweis: Andere Oberlandesgerichte (z. B. Frankfurt, München, Hamburg) können abweichende Leitlinien anwenden. Keine Rechtsberatung."
+    intro="Berechnen Sie den monatlichen Kindesunterhalt nach der Düsseldorfer Tabelle 2026 – mit Bundesland-Auswahl, Kindergeld-Anrechnung (§ 1612b BGB), Selbstbehalt-Prüfung und vollständigem Rechenweg."
+    sourceNote="Grundlage: Düsseldorfer Tabelle 2026 (gültig ab 1.1.2026). Kindergeld 2026: 255 €/Kind (§ 66 EStG). Selbstbehalt variiert je nach OLG-Bezirk. Die Betragsangaben für einzelne OLG-Leitlinien basieren auf zuletzt veröffentlichten Fassungen – bitte stets die aktuelle Version des zuständigen OLG prüfen. Keine Rechtsberatung."
   >
     <div class="calc-form">
       <div class="calc-grid">
+        <div class="calc-group">
+          <label for="bundesland">Bundesland</label>
+          <select id="bundesland">
+            <option value="NW_D">Nordrhein-Westfalen (OLG Düsseldorf)</option>
+            <option value="NW_K">Nordrhein-Westfalen (OLG Köln)</option>
+            <option value="NW_H">Nordrhein-Westfalen (OLG Hamm)</option>
+            <option value="BY">Bayern (OLG München)</option>
+            <option value="BE">Berlin (Kammergericht)</option>
+            <option value="BB">Brandenburg (OLG Brandenburg)</option>
+            <option value="HB">Bremen (OLG Bremen)</option>
+            <option value="HH">Hamburg (OLG Hamburg)</option>
+            <option value="HE">Hessen (OLG Frankfurt)</option>
+            <option value="MV">Mecklenburg-Vorpommern (OLG Rostock)</option>
+            <option value="NI_C">Niedersachsen (OLG Celle)</option>
+            <option value="NI_O">Niedersachsen (OLG Oldenburg)</option>
+            <option value="RP_K">Rheinland-Pfalz (OLG Koblenz)</option>
+            <option value="RP_Z">Rheinland-Pfalz (OLG Zweibrücken)</option>
+            <option value="SL">Saarland (OLG Saarbrücken)</option>
+            <option value="SN">Sachsen (OLG Dresden)</option>
+            <option value="ST">Sachsen-Anhalt (OLG Naumburg)</option>
+            <option value="SH">Schleswig-Holstein (OLG Schleswig)</option>
+            <option value="TH">Thüringen (OLG Jena)</option>
+            <option value="BW_S">Baden-Württemberg (OLG Stuttgart)</option>
+            <option value="BW_K">Baden-Württemberg (OLG Karlsruhe)</option>
+          </select>
+        </div>
         <div class="calc-group">
           <label for="alter">Alter des Kindes</label>
           <input type="number" id="alter" min="0" max="25" value="8" />
@@ -50,13 +76,15 @@ const year = new Date().getFullYear();
           </select>
         </div>
         <div class="calc-group">
-          <label for="volljährig">Wohnt das Kind beim anderen Elternteil?</label>
+          <label for="betreuung">Wohnt das Kind beim anderen Elternteil?</label>
           <select id="betreuung">
             <option value="1" selected>Ja (Residenzmodell)</option>
             <option value="0">Nein (volljährig / eigener Haushalt)</option>
           </select>
         </div>
       </div>
+
+      <div id="olg-badge" class="olg-badge"></div>
 
       <div class="calc-result" id="result-box">
         <div class="label">Monatlicher Barunterhalt</div>
@@ -65,7 +93,7 @@ const year = new Date().getFullYear();
 
       <div id="rechenweg" style="margin-top:1.25rem;"></div>
 
-      <div class="bl-hinweis" id="bl-hinweis" style="display:none;"></div>
+      <div id="olg-hinweis" class="bl-hinweis" style="display:none;"></div>
     </div>
   </CalculatorShell>
 </Layout>
@@ -105,11 +133,24 @@ const year = new Date().getFullYear();
   color: var(--text, #333);
   line-height: 1.55;
 }
-.mangelfall {
-  color: #c8102e;
+.bl-hinweis ul { margin: 0.4rem 0 0 1.2rem; padding: 0; font-size: 0.82rem; }
+.olg-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.8rem;
   font-weight: 600;
-  margin-top: 0.5rem;
-  font-size: 0.88rem;
+  padding: 0.3rem 0.75rem;
+  border-radius: 20px;
+  background: var(--surface, #f5f5f5);
+  border: 1.5px solid var(--border, #e0e0e0);
+  color: var(--muted, #777);
+  margin-bottom: 0.75rem;
+}
+.olg-badge.abweichend {
+  background: color-mix(in srgb, var(--accent, #c8102e) 8%, white);
+  border-color: color-mix(in srgb, var(--accent, #c8102e) 30%, white);
+  color: var(--accent, #c8102e);
 }
 </style>
 
@@ -131,6 +172,74 @@ const TABELLE = [
 const STUFEN_LABEL = ['0–5 Jahre', '6–11 Jahre', '12–17 Jahre', 'ab 18 Jahre'];
 const KINDERGELD = 255; // 2026
 
+// OLG-Daten: selbstbehaltErw / selbstbehaltNichtErw / tabellenname / hinweis / abweichend
+// Quellen: Aktuelle OLG-Leitlinien (Stand 2025/2026, ohne Gewähr – bitte aktuell prüfen)
+const OLG = {
+  NW_D: { olg: 'OLG Düsseldorf', tabelle: 'Düsseldorfer Tabelle', sbE: 1450, sbN: 1200,
+    hinweis: 'Die Düsseldorfer Tabelle gilt in NRW (OLG-Bezirk Düsseldorf) direkt. Sie ist bundesweit die am häufigsten angewendete Leitlinie.',
+    abweichend: false },
+  NW_K: { olg: 'OLG Köln', tabelle: 'Kölner Leitlinien', sbE: 1450, sbN: 1200,
+    hinweis: 'Das OLG Köln folgt in der Regel der Düsseldorfer Tabelle. Abweichungen möglich – aktuelle Kölner Leitlinien prüfen.',
+    abweichend: false },
+  NW_H: { olg: 'OLG Hamm', tabelle: 'Hammer Leitlinien', sbE: 1450, sbN: 1200,
+    hinweis: 'Das OLG Hamm folgt überwiegend der Düsseldorfer Tabelle. Die Hammer Leitlinien können in Einzelheiten abweichen.',
+    abweichend: false },
+  BY: { olg: 'OLG München', tabelle: 'Münchner Leitlinien', sbE: 1510, sbN: 1200,
+    hinweis: 'Das OLG München wendet eigene Unterhaltsrechtliche Leitlinien an (Münchner Leitlinien). Der Selbstbehalt für Erwerbstätige ist mit 1.510 € etwas höher als in der Düsseldorfer Tabelle. Die Bedarfssätze entsprechen der Düsseldorfer Tabelle.',
+    abweichend: true },
+  BE: { olg: 'Kammergericht Berlin', tabelle: 'Berliner Leitlinien', sbE: 1450, sbN: 1200,
+    hinweis: 'Das Kammergericht Berlin (KG) publiziert eigene Unterhaltsrechtliche Leitlinien. Die Bedarfssätze folgen der Düsseldorfer Tabelle; der Selbstbehalt entspricht den Düsseldorfer Werten. Bitte aktuelle KG-Leitlinien prüfen.',
+    abweichend: false },
+  BB: { olg: 'OLG Brandenburg', tabelle: 'Brandenburger Leitlinien', sbE: 1450, sbN: 1200,
+    hinweis: 'Das OLG Brandenburg folgt der Düsseldorfer Tabelle. Bitte aktuelle Leitlinien des OLG Brandenburg prüfen.',
+    abweichend: false },
+  HB: { olg: 'OLG Bremen', tabelle: 'Bremer Leitlinien', sbE: 1450, sbN: 1200,
+    hinweis: 'Das Hanseatische OLG Bremen folgt überwiegend der Düsseldorfer Tabelle. Aktuelle Bremer Leitlinien prüfen.',
+    abweichend: false },
+  HH: { olg: 'OLG Hamburg', tabelle: 'Hamburger Leitlinien', sbE: 1450, sbN: 1200,
+    hinweis: 'Das Hanseatische OLG Hamburg (HamOLG) veröffentlicht eigene Hamburger Leitlinien. Die Bedarfssätze entsprechen der Düsseldorfer Tabelle; der Selbstbehalt folgt den Düsseldorfer Werten. Aktuelle Hamburger Leitlinien prüfen.',
+    abweichend: false },
+  HE: { olg: 'OLG Frankfurt am Main', tabelle: 'Frankfurter Leitlinien', sbE: 1600, sbN: 1400,
+    hinweis: 'Das OLG Frankfurt am Main (zuständig für Hessen und Thüringen) wendet die Frankfurter Leitlinien an. Der Selbstbehalt ist mit 1.600 € (erwerbstätig) / 1.400 € (nicht erwerbstätig) deutlich höher als in der Düsseldorfer Tabelle. Dies kann den Unterhaltsbetrag erheblich beeinflussen.',
+    abweichend: true },
+  MV: { olg: 'OLG Rostock', tabelle: 'Rostocker Tabelle', sbE: 1450, sbN: 1200,
+    hinweis: 'Das OLG Rostock veröffentlicht eigene Unterhaltsrechtliche Leitlinien, bekannt als „Rostocker Tabelle". Die Bedarfssätze entsprechen der Düsseldorfer Tabelle. Der Selbstbehalt entspricht den Düsseldorfer Werten. Besonderheit: Die Rostocker Leitlinien enthalten teils detailliertere Regelungen zur Einkommensbereinigung (z. B. Fahrtkosten). Aktuelle Fassung der Rostocker Tabelle prüfen.',
+    abweichend: false },
+  NI_C: { olg: 'OLG Celle', tabelle: 'Celler Leitlinien', sbE: 1450, sbN: 1200,
+    hinweis: 'Das OLG Celle folgt der Düsseldorfer Tabelle. Die Celler Leitlinien können in Einzelheiten abweichen.',
+    abweichend: false },
+  NI_O: { olg: 'OLG Oldenburg', tabelle: 'Oldenburger Leitlinien', sbE: 1450, sbN: 1200,
+    hinweis: 'Das OLG Oldenburg folgt der Düsseldorfer Tabelle. Aktuelle Oldenburger Leitlinien prüfen.',
+    abweichend: false },
+  RP_K: { olg: 'OLG Koblenz', tabelle: 'Koblenzer Leitlinien', sbE: 1450, sbN: 1200,
+    hinweis: 'Das OLG Koblenz folgt der Düsseldorfer Tabelle. Aktuelle Koblenzer Leitlinien prüfen.',
+    abweichend: false },
+  RP_Z: { olg: 'OLG Zweibrücken', tabelle: 'Zweibrücker Leitlinien', sbE: 1450, sbN: 1200,
+    hinweis: 'Das OLG Zweibrücken folgt der Düsseldorfer Tabelle. Aktuelle Leitlinien prüfen.',
+    abweichend: false },
+  SL: { olg: 'OLG Saarbrücken', tabelle: 'Saarbrücker Leitlinien', sbE: 1450, sbN: 1200,
+    hinweis: 'Das OLG Saarbrücken folgt der Düsseldorfer Tabelle. Aktuelle Saarbrücker Leitlinien prüfen.',
+    abweichend: false },
+  SN: { olg: 'OLG Dresden', tabelle: 'Dresdner Leitlinien', sbE: 1450, sbN: 1200,
+    hinweis: 'Das OLG Dresden folgt der Düsseldorfer Tabelle. Aktuelle Dresdner Leitlinien prüfen.',
+    abweichend: false },
+  ST: { olg: 'OLG Naumburg', tabelle: 'Naumburger Leitlinien', sbE: 1450, sbN: 1200,
+    hinweis: 'Das OLG Naumburg folgt der Düsseldorfer Tabelle. Aktuelle Naumburger Leitlinien prüfen.',
+    abweichend: false },
+  SH: { olg: 'OLG Schleswig', tabelle: 'Schleswiger Leitlinien', sbE: 1450, sbN: 1200,
+    hinweis: 'Das OLG Schleswig folgt der Düsseldorfer Tabelle. Aktuelle Schleswiger Leitlinien prüfen.',
+    abweichend: false },
+  TH: { olg: 'OLG Jena', tabelle: 'Jenaer Leitlinien', sbE: 1450, sbN: 1200,
+    hinweis: 'Das OLG Jena folgt der Düsseldorfer Tabelle. Aktuelle Jenaer Leitlinien prüfen.',
+    abweichend: false },
+  BW_S: { olg: 'OLG Stuttgart', tabelle: 'Süddeutsche Leitlinien', sbE: 1450, sbN: 1200,
+    hinweis: 'OLG Stuttgart und OLG Karlsruhe veröffentlichen gemeinsam die Süddeutschen Leitlinien zum Unterhaltsrecht. Die Bedarfssätze entsprechen der Düsseldorfer Tabelle. Aktuelle Fassung der Süddeutschen Leitlinien prüfen.',
+    abweichend: false },
+  BW_K: { olg: 'OLG Karlsruhe', tabelle: 'Süddeutsche Leitlinien', sbE: 1450, sbN: 1200,
+    hinweis: 'OLG Stuttgart und OLG Karlsruhe veröffentlichen gemeinsam die Süddeutschen Leitlinien zum Unterhaltsrecht. Die Bedarfssätze entsprechen der Düsseldorfer Tabelle. Aktuelle Fassung der Süddeutschen Leitlinien prüfen.',
+    abweichend: false },
+};
+
 function stufe(alter) { return alter <= 5 ? 0 : alter <= 11 ? 1 : alter <= 17 ? 2 : 3; }
 
 function fmt(n) {
@@ -138,6 +247,8 @@ function fmt(n) {
 }
 
 function berechne() {
+  const blKey = document.getElementById('bundesland').value;
+  const olg = OLG[blKey];
   const alter = parseInt(document.getElementById('alter').value) || 0;
   const einkommenRoh = parseFloat(document.getElementById('einkommen').value) || 0;
   const kinderAnzahl = parseInt(document.getElementById('kinderanzahl').value) || 1;
@@ -145,6 +256,11 @@ function berechne() {
   const residenz = document.getElementById('betreuung').value === '1';
   const s = stufe(alter);
   const volljährig = alter >= 18;
+
+  // OLG-Badge aktualisieren
+  const badge = document.getElementById('olg-badge');
+  badge.textContent = `📋 ${olg.olg} · ${olg.tabelle}`;
+  badge.className = 'olg-badge' + (olg.abweichend ? ' abweichend' : '');
 
   // Bereinigtes Einkommen: 200 € Abzug pro weiterem Kind
   const einkommenBereinigt = Math.max(0, einkommenRoh - (kinderAnzahl - 1) * 200);
@@ -158,10 +274,7 @@ function berechne() {
   const gruppeNr = gruppeIdx + 1;
 
   // Kindergeld-Anrechnung § 1612b BGB
-  // Minderjährig: halbes Kindergeld wird angerechnet (127,50 €)
-  // Volljährig oder kein Residenzmodell: volles Kindergeld (255 €)
-  let kindergeldAnrechnung = 0;
-  let kindergeldArt = '';
+  let kindergeldAnrechnung, kindergeldArt;
   if (residenz && !volljährig) {
     kindergeldAnrechnung = KINDERGELD / 2;
     kindergeldArt = '½ Kindergeld (minderjährig, § 1612b BGB)';
@@ -169,21 +282,17 @@ function berechne() {
     kindergeldAnrechnung = KINDERGELD;
     kindergeldArt = 'Volles Kindergeld (volljährig / eigener Haushalt, § 1612b BGB)';
   }
-
   const barunterhalt = Math.max(0, tabellenBetrag - kindergeldAnrechnung);
 
-  // Selbstbehalt § 1603 BGB
-  const selbstbehalt = erwerbstaetig ? 1450 : 1200;
+  // OLG-spezifischer Selbstbehalt § 1603 BGB
+  const selbstbehalt = erwerbstaetig ? olg.sbE : olg.sbN;
   const verfügbar = einkommenBereinigt - selbstbehalt;
   const mangelfall = verfügbar < barunterhalt;
-
-  // Tatsächlicher Unterhalt
   const zahlung = mangelfall ? Math.max(0, verfügbar) : barunterhalt;
 
-  // Ergebnis anzeigen
+  // Ergebnis
   document.getElementById('ergebnis').textContent = fmt(zahlung);
-  const box = document.getElementById('result-box');
-  box.style.background = mangelfall ? '#c8102e' : '';
+  document.getElementById('result-box').style.background = mangelfall ? '#c8102e' : '';
 
   // Rechenweg
   let html = '';
@@ -197,7 +306,7 @@ function berechne() {
   html += `<tr class="sum-row"><td>Bereinigtes Einkommen</td><td>${fmt(einkommenBereinigt)}</td></tr>`;
   html += '</tbody></table>';
 
-  html += '<p class="rw-heading">Schritt 2 – Düsseldorfer Tabelle 2026</p>';
+  html += `<p class="rw-heading">Schritt 2 – ${olg.tabelle} 2026</p>`;
   html += '<table class="rechenweg-table"><tbody>';
   html += `<tr><td>Altersgruppe des Kindes</td><td>${STUFEN_LABEL[s]}</td></tr>`;
   html += `<tr><td>Einkommensgruppe</td><td>${gruppeNr} (bis ${TABELLE[gruppeIdx][0] === Infinity ? '∞' : fmt(TABELLE[gruppeIdx][0]).replace(',00 €', ' €')})</td></tr>`;
@@ -214,10 +323,10 @@ function berechne() {
   html += '<p class="rw-heading">Schritt 4 – Selbstbehalt-Prüfung (§ 1603 BGB)</p>';
   html += '<table class="rechenweg-table"><tbody>';
   html += `<tr><td>Bereinigtes Einkommen</td><td>${fmt(einkommenBereinigt)}</td></tr>`;
-  html += `<tr><td>Notwendiger Selbstbehalt (${erwerbstaetig ? 'erwerbstätig' : 'nicht erwerbstätig'})</td><td>− ${fmt(selbstbehalt)}</td></tr>`;
+  html += `<tr><td>Selbstbehalt ${olg.olg} (${erwerbstaetig ? 'erwerbstätig' : 'nicht erwerbstätig'})</td><td>− ${fmt(selbstbehalt)}</td></tr>`;
   html += `<tr class="sum-row${verfügbar < 0 ? ' warn-row' : ''}"><td>Verbleibend nach Selbstbehalt</td><td>${fmt(Math.max(0, verfügbar))}</td></tr>`;
   if (mangelfall) {
-    html += `<tr class="warn-row"><td colspan="2"><strong>Mangelfall:</strong> Verfügbares Einkommen (${fmt(Math.max(0, verfügbar))}) reicht nicht für den vollen Barunterhalt (${fmt(barunterhalt)}). Der Unterpflichtige muss ggf. alle zumutbaren Maßnahmen ergreifen, um seine Leistungsfähigkeit zu steigern.</td></tr>`;
+    html += `<tr class="warn-row"><td colspan="2"><strong>Mangelfall:</strong> Verfügbares Einkommen (${fmt(Math.max(0, verfügbar))}) reicht nicht für den vollen Barunterhalt (${fmt(barunterhalt)}). Im Mangelfall müssen alle zumutbaren Maßnahmen ergriffen werden, um die Leistungsfähigkeit zu steigern (§ 1603 Abs. 2 BGB).</td></tr>`;
   }
   html += '</tbody></table>';
 
@@ -228,22 +337,13 @@ function berechne() {
 
   document.getElementById('rechenweg').innerHTML = html;
 
-  // Bundesland-Hinweis
-  const blEl = document.getElementById('bl-hinweis');
-  blEl.style.display = 'block';
-  blEl.innerHTML = `<strong>Hinweis: Bundesland-Unterschiede</strong><br>
-    Die Düsseldorfer Tabelle (OLG Düsseldorf) ist bundesweit die bekannteste Leitlinie, hat aber keine gesetzliche Bindungswirkung.
-    Andere Oberlandesgerichte können abweichen:<br>
-    <ul style="margin:0.4rem 0 0 1.2rem;padding:0;font-size:0.82rem;">
-      <li><strong>OLG Frankfurt:</strong> Eigene Leitlinien, teils höhere Selbstbehalte</li>
-      <li><strong>OLG München / Bayern:</strong> Münchener Unterhaltsleitlinien, ähnlich aber nicht identisch</li>
-      <li><strong>OLG Hamburg:</strong> Hamburger Leitlinien</li>
-      <li><strong>OLG Stuttgart / Karlsruhe:</strong> Süddeutsche Leitlinien</li>
-    </ul>
-    Im Streitfall entscheidet das zuständige Familiengericht nach den Leitlinien seines OLG-Bezirks.`;
+  // OLG-Hinweis
+  const hinweisEl = document.getElementById('olg-hinweis');
+  hinweisEl.style.display = 'block';
+  hinweisEl.innerHTML = `<strong>${olg.olg} – ${olg.tabelle}</strong><br>${olg.hinweis}${olg.abweichend ? '<br><em style="color:#c8102e">⚠ Dieser OLG-Bezirk weicht in den Selbstbehalten von der Düsseldorfer Tabelle ab.</em>' : ''}`;
 }
 
-['alter','einkommen','kinderanzahl','erwerbstaetig','betreuung'].forEach(id => {
+['bundesland','alter','einkommen','kinderanzahl','erwerbstaetig','betreuung'].forEach(id => {
   const el = document.getElementById(id);
   el.addEventListener('input', berechne);
   el.addEventListener('change', berechne);
