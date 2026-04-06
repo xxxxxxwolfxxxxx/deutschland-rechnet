@@ -18,16 +18,9 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
       <p class="site-hero-label">Dein kostenloses Rechner-Portal</p>
       <h1>Deutschland <em>rechnet</em></h1>
       <p class="site-hero-sub">
-        Über 40 kostenlose Rechner für Gehalt, Steuern, Kredit, Energie und Familie –
-        direkt im Browser, ohne Anmeldung, ohne Werbung.
+        Gehalt, Steuern, Kredit, Energie, Familie – über 40 Rechner,
+        sofort im Browser, ohne Anmeldung.
       </p>
-      <div class="site-hero-badges">
-        <span>Brutto-Netto</span>
-        <span>Kreditrechner</span>
-        <span>Stromkosten</span>
-        <span>Elterngeld</span>
-        <span>Mietpreisbremse</span>
-      </div>
     </div>
   </div>
 
@@ -41,26 +34,28 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
   position: relative;
   border-radius: var(--radius);
   overflow: hidden;
-  aspect-ratio: 1 / 1;
+  aspect-ratio: 4 / 3;
   width: 100%;
   margin-bottom: 2rem;
-  background-size: cover;
-  background-position: center;
+  background-size: contain;
+  background-position: center right;
+  background-repeat: no-repeat;
+  background-color: #1a1917;
 }
 @media (min-width: 640px) {
-  .site-hero { aspect-ratio: 16 / 9; }
+  .site-hero { aspect-ratio: 16 / 7; }
 }
 @media (min-width: 900px) {
-  .site-hero { aspect-ratio: 21 / 9; }
+  .site-hero { aspect-ratio: 21 / 8; }
 }
 .site-hero-overlay {
   position: absolute;
   inset: 0;
   background: linear-gradient(
-    170deg,
-    rgba(0,0,0,0.82) 0%,
-    rgba(0,0,0,0.60) 35%,
-    rgba(0,0,0,0.10) 70%,
+    90deg,
+    rgba(0,0,0,0.85) 0%,
+    rgba(0,0,0,0.65) 40%,
+    rgba(0,0,0,0.15) 65%,
     rgba(0,0,0,0.00) 100%
   );
 }
@@ -68,38 +63,38 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
   position: absolute;
   top: 0;
   left: 0;
-  right: 0;
   z-index: 2;
-  padding: 1.75rem 2rem;
-  max-width: 640px;
+  padding: 1.5rem 1.5rem;
+  width: 55%;
+  max-width: 520px;
 }
 .site-hero-label {
-  font-size: 0.72rem;
+  font-size: clamp(0.62rem, 1.4vw, 0.72rem);
   font-weight: 700;
-  letter-spacing: 0.1em;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--gold);
-  margin-bottom: 0.5rem;
+  margin-bottom: 0.35rem;
 }
 .site-hero-content h1 {
-  font-size: clamp(2rem, 6vw, 3.5rem);
+  font-size: clamp(1.5rem, 5vw, 3.2rem);
   font-weight: 600;
   line-height: 1.1;
   letter-spacing: -0.02em;
   color: white;
-  margin-bottom: 0.75rem;
+  margin-bottom: 0.5rem;
   text-shadow: 0 2px 8px rgba(0,0,0,0.5);
 }
 .site-hero-content h1 em {
   font-style: italic;
   color: var(--gold);
+  display: block;
 }
 .site-hero-sub {
-  font-size: 0.92rem;
+  font-size: clamp(0.78rem, 1.8vw, 0.95rem);
   color: rgba(255,255,255,0.88);
-  max-width: 46ch;
-  line-height: 1.65;
-  margin: 0 0 1rem;
+  line-height: 1.55;
+  margin: 0;
   text-shadow: 0 1px 4px rgba(0,0,0,0.5);
 }
 .site-hero-badges {
