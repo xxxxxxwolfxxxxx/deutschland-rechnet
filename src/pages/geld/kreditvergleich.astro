@@ -1,0 +1,143 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import CalculatorShell from '../../components/CalculatorShell.astro';
+import { CALCULATORS, CATEGORIES } from '../../data/calculators';
+const calc = CALCULATORS.find(c => c.slug === 'kreditvergleich')!;
+const cat = CATEGORIES[calc.category];
+const year = new Date().getFullYear();
+---
+<Layout
+  title={`Kreditvergleich ${year}`}
+  description="Effektiven Jahreszins für Kredite vergleichen."
+  canonicalPath="/geld/kreditvergleich/"
+  categoryColor={cat.color}
+  categoryLight={cat.colorLight}
+  categoryImage={cat.image}
+>
+  <div class="page-header">
+    <a href={`${import.meta.env.BASE_URL}geld/`} class="back-link">← Geld & Gehalt</a>
+    <h1>Kreditvergleich {year}</h1>
+  </div>
+  <CalculatorShell
+    calculator={calc}
+    intro="Vergleichen Sie verschiedene Kreditangebote und berechnen Sie den effektiven Jahreszins. Der Rechner zeigt auch die monatliche Rate und die Gesamtkosten des Kredits."
+    sourceNote="Effektiver Jahreszins nach PAngV. Die tatsächlichen Kosten hängen von Ihrer Bonität und dem konkreten Kreditangebot ab."
+  >
+    <div class="calc-form">
+      <div class="calc-grid">
+        <div class="calc-group">
+          <label for="kreditbetrag">Kreditbetrag (€)</label>
+          <input type="number" id="kreditbetrag" min="1000" max="500000" value="20000" step="500" />
+        </div>
+        <div class="calc-group">
+          <label for="laufzeit">Laufzeit (Monate)</label>
+          <select id="laufzeit">
+            <option value="12">12 Monate</option>
+            <option value="24">24 Monate</option>
+            <option value="36" selected>36 Monate</option>
+            <option value="48">48 Monate</option>
+            <option value="60">60 Monate</option>
+            <option value="72">72 Monate</option>
+            <option value="84">84 Monate</option>
+          </select>
+        </div>
+      </div>
+      <div class="calc-section">
+        <h3>Kreditangebot 1</h3>
+        <div class="calc-grid">
+          <div class="calc-group">
+            <label for="zins1">Sollzins (% p.a.)</label>
+            <input type="number" id="zins1" min="0" max="20" value="5.9" step="0.1" />
+          </div>
+          <div class="calc-group">
+            <label for="rate1">Rate (€) oder Zins wählen</label>
+            <input type="number" id="rate1" min="0" max="10000" value="0" step="10" placeholder="0 = nach Zins" />
+          </div>
+        </div>
+      </div>
+      <div class="calc-section">
+        <h3>Kreditangebot 2</h3>
+        <div class="calc-grid">
+          <div class="calc-group">
+            <label for="zins2">Sollzins (% p.a.)</label>
+            <input type="number" id="zins2" min="0" max="20" value="4.9" step="0.1" />
+          </div>
+          <div class="calc-group">
+            <label for="rate2">Rate (€)</label>
+            <input type="number" id="rate2" min="0" max="10000" value="0" step="10" placeholder="0 = nach Zins" />
+          </div>
+        </div>
+      </div>
+
+      <div class="calc-result">
+        <div class="label">Bester Kredit</div>
+        <div id="bester">—</div>
+      </div>
+      <div id="details" style="margin-top:0.75rem;font-size:0.88rem;color:#666;display:flex;gap:1.5rem;flex-wrap:wrap;"></div>
+    </div>
+  </CalculatorShell>
+</Layout>
+
+<script type="module">
+function berechneRate(betrag, zins, laufzeit) {
+  const mZins = zins / 100 / 12;
+  if (mZins === 0) return betrag / laufzeit;
+  return betrag * (mZins * Math.pow(1 + mZins, laufzeit)) / (Math.pow(1 + mZins, laufzeit) - 1);
+}
+function berechneGesamtkosten(betrag, rate, laufzeit) {
+  return rate * laufzeit;
+}
+function berechne() {
+  const kreditbetrag = parseFloat(document.getElementById('kreditbetrag').value)||20000;
+  const laufzeit = parseInt(document.getElementById('laufzeit').value)||36;
+  const zins1 = parseFloat(document.getElementById('zins1').value)||5.9;
+  const zins2 = parseFloat(document.getElementById('zins2').value)||4.9;
+  const rate1Input = parseFloat(document.getElementById('rate1').value)||0;
+  const rate2Input = parseFloat(document.getElementById('rate2').value)||0;
+  
+  const rate1 = rate1Input > 0 ? rate1Input : berechneRate(kreditbetrag, zins1, laufzeit);
+  const rate2 = rate2Input > 0 ? rate2Input : berechneRate(kreditbetrag, zins2, laufzeit);
+  
+  const kosten1 = berechneGesamtkosten(kreditbetrag, rate1, laufzeit);
+  const kosten2 = berechneGesamtkosten(kreditbetrag, rate2, laufzeit);
+  const differenz = Math.abs(kosten1 - kosten2);
+  
+  const detailsEl = document.getElementById('details');
+  const besterEl = document.getElementById('bester');
+  
+  if (kosten1 < kosten2) {
+    besterEl.textContent = 'Angebot 1';
+    besterEl.style.color = '#1e7e34';
+  } else if (kosten2 < kosten1) {
+    besterEl.textContent = 'Angebot 2';
+    besterEl.style.color = '#1e7e34';
+  } else {
+    besterEl.textContent = 'Gleichwertig';
+    besterEl.style.color = '#c9930a';
+  }
+  
+  detailsEl.innerHTML =
+    `<div><strong>Angebot 1:</strong> ${rate1.toFixed(2)} €/Monat, ${kosten1.toFixed(2)} € gesamt</div>` +
+    `<div><strong>Angebot 2:</strong> ${rate2.toFixed(2)} €/Monat, ${kosten2.toFixed(2)} € gesamt</div>` +
+    `<div><strong>Ersparnis:</strong> ${differenz.toFixed(2)} €</div>`;
+}
+['kreditbetrag','zins1','zins2','rate1','rate2'].forEach(id =>
+  document.getElementById(id).addEventListener('input', berechne));
+document.getElementById('laufzeit').addEventListener('change', berechne);
+berechne();
+</script>
+
+<style>
+.calc-section {
+  background: var(--bg);
+  border-radius: var(--radius-sm);
+  padding: 1rem;
+  margin-bottom: 1rem;
+}
+.calc-section h3 {
+  font-size: 0.9rem;
+  color: var(--muted);
+  margin-bottom: 0.75rem;
+  font-family: var(--font-ui);
+}
+</style>

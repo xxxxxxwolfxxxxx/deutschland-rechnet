@@ -42,6 +42,10 @@ export const CALCULATORS: Calculator[] = [
   { slug: 'arbeitslosengeld-rechner',    title: 'Arbeitslosengeld-Rechner',    description: 'Arbeitslosengeld (ALG 1) nach SGB III berechnen.',                             category: 'geld',      featured: true,  live: true },
   { slug: 'steuernachzahlung-rechner',   title: 'Steuernachzahlung-Rechner',   description: 'Steuernachzahlung oder Erstattung schätzen.',                                   category: 'geld',      featured: false, live: true },
   { slug: 'gehaltserhoehung-rechner',    title: 'Gehaltserhöhung-Rechner',     description: 'Nettoeffekt einer Gehaltserhöhung berechnen.',                                 category: 'geld',      featured: false, live: true },
+  { slug: 'kreditvergleich',            title: 'Kreditvergleich',           description: 'Kredite vergleichen und effektiven Zins berechnen.',                           category: 'geld',      featured: false, live: true },
+  { slug: 'sparen-rechner',            title: 'Sparen-Rechner',           description: 'Guthaben mit Zinseszins berechnen.',                                           category: 'geld',      featured: false, live: true },
+  { slug: 'steuerklasse-optimieren',   title: 'Steuerklasse optimieren',  description: 'Optimalen Steuerklassen-Wechsel berechnen.',                                category: 'geld',      featured: false, live: true },
+  { slug: 'abgeltungsteuer-rechner',   title: 'Abgeltungsteuer-Rechner', description: 'Kapitalerträge mit Abgeltungsteuer berechnen.',                               category: 'geld',      featured: false, live: true },
   // WOHNEN
   { slug: 'tilgungs-kreditrechner',      title: 'Kreditrechner',               description: 'Monatliche Rate, Zinsen und Tilgung berechnen.',                               category: 'wohnen',    featured: true,  live: true },
   { slug: 'grunderwerbsteuer-rechner',   title: 'Grunderwerbsteuer-Rechner',   description: 'Grunderwerbsteuer nach Bundesland berechnen.',                                  category: 'wohnen',    featured: true,  live: true },
@@ -51,6 +55,8 @@ export const CALCULATORS: Calculator[] = [
   { slug: 'hauskauf-rechner',            title: 'Hauskauf-Rechner',             description: 'Gesamtkosten beim Hauskauf berechnen.',                                        category: 'wohnen',    featured: false, live: true },
   { slug: 'mietrechner',                 title: 'Mietrechner',                 description: 'Kaltmiete zu Warmmiete umrechnen.',                                            category: 'wohnen',    featured: false, live: true },
   { slug: 'quadratmeterpreis-vergleich', title: 'Quadratmeterpreis',            description: 'Immobilienpreise pro m² nach Region vergleichen.',                             category: 'wohnen',    featured: false, live: true },
+  { slug: 'grundbuch-eintragung',      title: 'Grundbuch-Eintragung',      description: 'Kosten für Grundbucheintragung berechnen.',                                category: 'wohnen',    featured: false, live: true },
+  { slug: 'tilgungsplan',             title: 'Tilgungsplan',               description: 'Tilgungsplan für Baudarlehen erstellen.',                                     category: 'wohnen',    featured: false, live: true },
   // ENERGIE
   { slug: 'stromkosten-rechner',          title: 'Stromkosten-Rechner',          description: 'Stromkosten aus kWh-Verbrauch berechnen.',                                     category: 'energie',   featured: true,  live: true },
   { slug: 'heizkosten-rechner',          title: 'Heizkosten-Rechner',           description: 'Jährliche Heizkosten berechnen.',                                              category: 'energie',   featured: false, live: true },
@@ -65,6 +71,8 @@ export const CALCULATORS: Calculator[] = [
   { slug: 'leasing-rechner',             title: 'Leasing-Rechner',              description: 'Monatliche Leasingrate berechnen.',                                        category: 'auto',      featured: false, live: true },
   { slug: 'kfz-versicherung-rechner',    title: 'Kfz-Versicherung',             description: 'Kfz-Versicherungsbeitrag schätzen.',                                       category: 'auto',      featured: false, live: true },
   { slug: 'anfahrtskosten-rechner',      title: 'Anfahrtskosten-Rechner',       description: 'Anfahrtskosten für Umzug berechnen.',                                      category: 'auto',      featured: false, live: true },
+  { slug: 'kfz-steuer-co2',           title: 'Kfz-Steuer nach CO²',       description: 'Kfz-Steuer für Benziner und Diesel nach CO²-Ausstoß berechnen.',            category: 'auto',      featured: false, live: true },
+  { slug: 'fuehrerschein-kosten',     title: 'Führerschein-Kosten',       description: 'Kosten für Auto- oder Motorradführerschein schätzen.',                       category: 'auto',      featured: false, live: true },
   // FAMILIE
   { slug: 'kindergeld-rechner',          title: 'Kindergeld-Rechner',           description: 'Kindergeld nach Anzahl der Kinder berechnen.',                               category: 'familie',   featured: false, live: true },
   { slug: 'unterhaltsrechner',           title: 'Unterhaltsrechner',           description: 'Kindesunterhalt nach Düsseldorfer Tabelle berechnen.',                           category: 'familie',   featured: true,  live: true },
@@ -76,12 +84,16 @@ export const CALCULATORS: Calculator[] = [
   { slug: 'schwangerschafts-rechner',    title: 'Schwangerschafts-Rechner',     description: 'Geburtstermin und Mutterschaftsgeld berechnen.',                           category: 'familie',   featured: false, live: true },
   { slug: 'betreuungskosten-rechner',    title: 'Betreuungskosten-Rechner',     description: 'Kita-Gebühren nach Einkommen berechnen.',                                category: 'familie',   featured: false, live: true },
   { slug: 'erbschaftsteuer-rechner',     title: 'Erbschaftsteuer-Rechner',      description: 'Erbschaftsteuer nach Verwandtschaftsgrad berechnen.',                      category: 'familie',   featured: false, live: true },
+  { slug: 'scheidungskosten-rechner',  title: 'Scheidungskosten-Rechner',  description: 'Kosten für Scheidung schätzen.',                                        category: 'familie',   featured: false, live: true },
+  { slug: 'ehegattenunterhalt-rechner', title: 'Ehegattenunterhalt-Rechner', description: 'Trennungsunterhalt und nachehelichen Unterhalt berechnen.',                category: 'familie',   featured: false, live: true },
   // GESUNDHEIT
   { slug: 'bmi-rechner',                 title: 'BMI-Rechner',                   description: 'Body-Mass-Index nach WHO-Formel berechnen.',                               category: 'gesundheit',featured: true,  live: true },
   { slug: 'kalorien-rechner',             title: 'Kalorien-Rechner',              description: 'Täglichen Kalorienbedarf nach Mifflin-St-Jeor berechnen.',                category: 'gesundheit',featured: false, live: true },
   { slug: 'promille-rechner',             title: 'Promille-Rechner',              description: 'Blutalkohol nach Widmark-Formel berechnen.',                              category: 'gesundheit',featured: false, live: true },
   { slug: 'grundumsatz-rechner',         title: 'Grundumsatz-Rechner',           description: 'Grundumsatz (BMR) nach Harris-Benedict berechnen.',                      category: 'gesundheit',featured: false, live: true },
   { slug: 'optimalerpuls-rechner',        title: 'Optimaler Puls-Rechner',        description: 'Optimalen Trainingspuls nach Alter berechnen.',                          category: 'gesundheit',featured: false, live: true },
+  { slug: 'kalorien-verbrennen',      title: 'Kalorien verbrennen',       description: 'Kalorienverbrauch beim Sport berechnen.',                                 category: 'gesundheit',featured: false, live: true },
+  { slug: 'idealgewicht-rechner',      title: 'Idealgewicht-Rechner',        description: 'Idealgewicht nach Broca und BMI berechnen.',                               category: 'gesundheit',featured: false, live: true },
   // EINHEITEN
   { slug: 'einheitenrechner',             title: 'Einheitenrechner',               description: 'Länge, Gewicht, Temperatur umrechnen.',                                  category: 'einheiten', featured: true,  live: true },
   { slug: 'inflationsrechner',            title: 'Inflationsrechner',              description: 'Kaufkraftverlust durch Inflation berechnen.',                             category: 'einheiten', featured: false, live: true },

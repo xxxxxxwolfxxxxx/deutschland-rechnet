@@ -1,0 +1,106 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import CalculatorShell from '../../components/CalculatorShell.astro';
+import { CALCULATORS, CATEGORIES } from '../../data/calculators';
+const calc = CALCULATORS.find(c => c.slug === 'fuehrerschein-kosten')!;
+const cat = CATEGORIES[calc.category];
+const year = new Date().getFullYear();
+---
+<Layout
+  title={`Führerschein-Kosten ${year}`}
+  description="Kosten für Auto- oder Motorradführerschein schätzen."
+  canonicalPath="/auto/fuehrerschein-kosten/"
+  categoryColor={cat.color}
+  categoryLight={cat.colorLight}
+  categoryImage={cat.image}
+>
+  <div class="page-header">
+    <a href={`${import.meta.env.BASE_URL}auto/`} class="back-link">← Auto & Mobilität</a>
+    <h1>Führerschein-Kosten {year}</h1>
+  </div>
+  <CalculatorShell
+    calculator={calc}
+    intro="Schätzen Sie die Kosten für Ihren Führerschein. Die Kosten variieren stark je nach Region, Fahrschule und Anzahl der Fahrstunden."
+    sourceNote="Durchschnittswerte basierend auf ADAC-Daten. Die tatsächlichen Kosten können je nach Fahrschule und persönlichem Lernfortschritt stark abweichen."
+  >
+    <div class="calc-form">
+      <div class="calc-grid">
+        <div class="calc-group">
+          <label for="fuehrerschein">Führerscheinklasse</label>
+          <select id="fuehrerschein">
+            <option value="B" selected>PKW (Klasse B)</option>
+            <option value="A">Motorrad (Klasse A)</option>
+            <option value="A2">Motorrad (Klasse A2)</option>
+            <option value="A1">Motorrad (Klasse A1)</option>
+            <option value="BE">Anhänger (Klasse BE)</option>
+          </select>
+        </div>
+        <div class="calc-group">
+          <label for="region">Region</label>
+          <select id="region">
+            <option value="gross" selected>Großstadt</option>
+            <option value="mittel">Mittelstadt</option>
+            <option value="klein">Kleinstadt/Land</option>
+          </select>
+        </div>
+        <div class="calc-group">
+          <label for="stunden">Erwartete Fahrstunden</label>
+          <input type="number" id="stunden" min="6" max="60" value="30" step="1" />
+        </div>
+        <div class="calc-group">
+          <label for="extras">
+            <input type="checkbox" id="automatik" style="width:auto;margin-right:0.5rem;" />
+            Nur Automatik (kein Schaltfahrzeug)
+          </label>
+        </div>
+      </div>
+
+      <div class="calc-result">
+        <div class="label">Geschätzte Gesamtkosten</div>
+        <div id="kosten">— €</div>
+      </div>
+      <div id="details" style="margin-top:0.75rem;font-size:0.88rem;color:#666;display:flex;gap:1.5rem;flex-wrap:wrap;"></div>
+    </div>
+  </CalculatorShell>
+</Layout>
+
+<script type="module">
+const GRUNDKOSTEN = { B: 350, A: 400, A2: 350, A1: 300, BE: 200 };
+const STUNDENKOSTEN = { gross: 55, mittel: 45, klein: 38 };
+const REGION_FAKTOR = { gross: 1.2, mittel: 1.0, klein: 0.85 };
+
+function berechne() {
+  const klasse = document.getElementById('fuehrerschein').value;
+  const region = document.getElementById('region').value;
+  const stunden = parseInt(document.getElementById('stunden').value)||30;
+  const automatik = document.getElementById('automatik').checked;
+  
+  const grund = GRUNDKOSTEN[klasse] || 350;
+  const stundenkosten = STUNDENKOSTEN[region] || 45;
+  const faktor = REGION_FAKTOR[region] || 1.0;
+  const avgStundenkosten = stundenkosten * faktor;
+  
+  const fahrstunden = stunden * avgStundenkosten;
+  const prufungsgebuehr = automatik ? 0 : 0;
+  const gebuhren = automatik ? 350 : 250;
+  const sehtest = 6;
+  const erstehilfe = 15;
+  const foto = 10;
+  const turovprufung = automatik ? 650 : 800;
+  
+  const gesamt = grund + fahrstunden + gebuhren + sehtest + erstehilfe + foto + turovprufung;
+  
+  document.getElementById('kosten').textContent = gesamt.toLocaleString('de-DE', {minimumFractionDigits:0}) + ' €';
+  document.getElementById('details').innerHTML =
+    `<span>Grundgebühr: <strong>${grund} €</strong></span>` +
+    `<span>${stunden} Fahrstunden: <strong>${fahrstunden.toLocaleString('de-DE', {minimumFractionDigits:0})} €</strong></span>` +
+    `<span>Gebühren: <strong>${gebuhren + sehtest + erstehilfe + foto} €</strong></span>` +
+    `<span>TÜV-Prüfung: <strong>${turovprufung} €</strong></span>`;
+}
+['stunden'].forEach(id =>
+  document.getElementById(id).addEventListener('input', berechne));
+['fuehrerschein','region'].forEach(id =>
+  document.getElementById(id).addEventListener('change', berechne));
+document.getElementById('automatik').addEventListener('change', berechne);
+berechne();
+</script>

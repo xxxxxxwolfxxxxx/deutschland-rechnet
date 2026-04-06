@@ -1,0 +1,71 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import CalculatorShell from '../../components/CalculatorShell.astro';
+import { CALCULATORS, CATEGORIES } from '../../data/calculators';
+const calc = CALCULATORS.find(c => c.slug === 'grundbuch-eintragung')!;
+const cat = CATEGORIES[calc.category];
+const year = new Date().getFullYear();
+---
+<Layout
+  title={`Grundbuch-Eintragung ${year}`}
+  description="Kosten für Grundbucheintragung berechnen."
+  canonicalPath="/wohnen/grundbuch-eintragung/"
+  categoryColor={cat.color}
+  categoryLight={cat.colorLight}
+  categoryImage={cat.image}
+>
+  <div class="page-header">
+    <a href={`${import.meta.env.BASE_URL}wohnen/`} class="back-link">← Wohnen & Immobilien</a>
+    <h1>Grundbuch-Eintragung {year}</h1>
+  </div>
+  <CalculatorShell
+    calculator={calc}
+    intro="Berechnen Sie die Kosten für die Grundbucheintragung einer Hypothek oder Grundschuld. Die Kosten richten sich nach dem Darlehensbetrag."
+    sourceNote="Gebühren nach GNotKG (Gerichts- und Notarkostengesetz). Kosten für Notar und Grundbuchamt betragen ca. 1,5-2% des eingetragenen Betrags."
+  >
+    <div class="calc-form">
+      <div class="calc-grid">
+        <div class="calc-group">
+          <label for="betrag">Darlehensbetrag (€)</label>
+          <input type="number" id="betrag" min="10000" max="5000000" value="200000" step="5000" />
+        </div>
+        <div class="calc-group">
+          <label for="typ">Eintragungsart</label>
+          <select id="typ">
+            <option value="hypothek" selected>Hypothek</option>
+            <option value="grundschuld">Grundschuld</option>
+            <option value="rentenschuld">Rentenschuld</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="calc-result">
+        <div class="label">Geschätzte Kosten</div>
+        <div id="kosten">— €</div>
+      </div>
+      <div id="details" style="margin-top:0.75rem;font-size:0.88rem;color:#666;display:flex;gap:1.5rem;flex-wrap:wrap;"></div>
+    </div>
+  </CalculatorShell>
+</Layout>
+
+<script type="module">
+function berechne() {
+  const betrag = parseFloat(document.getElementById('betrag').value)||200000;
+  const gebuehrSatz = 0.001 + 0.002;
+  const gebuehr = betrag * gebuehrSatz;
+  const notar = betrag * 0.01;
+  const grundbuch = betrag * 0.005;
+  const gesamt = notar + grundbuch + 20;
+  
+  document.getElementById('kosten').textContent = gesamt.toLocaleString('de-DE', {minimumFractionDigits:2}) + ' €';
+  document.getElementById('details').innerHTML =
+    `<span>Notarkosten: <strong>${notar.toLocaleString('de-DE')} €</strong></span>` +
+    `<span>Grundbuchgebühr: <strong>${grundbuch.toLocaleString('de-DE')} €</strong></span>` +
+    `<span>Beglaubigung: <strong>20 €</strong></span>` +
+    `<span>Gesamt: <strong>${gesamt.toLocaleString('de-DE')} €</strong></span>`;
+}
+['betrag'].forEach(id =>
+  document.getElementById(id).addEventListener('input', berechne));
+document.getElementById('typ').addEventListener('change', berechne);
+berechne();
+</script>
