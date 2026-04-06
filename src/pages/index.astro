@@ -2,7 +2,7 @@
 import Layout from '../layouts/Layout.astro';
 import CategoryGrid from '../components/CategoryGrid.astro';
 
-const base = import.meta.env.BASE_URL.replace(/\/$/, '');
+const base = import.meta.env.BASE_URL;
 ---
 <Layout
   title="Kostenlose Rechner für Deutschland"
@@ -11,7 +11,7 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
 >
   <div
     class="site-hero"
-    style={`background-image: url('${base}/images/categories/hero.png');`}
+    style={`background-image: url('${base}images/categories/hero.png');`}
   >
     <div class="site-hero-overlay"></div>
     <div class="site-hero-content">

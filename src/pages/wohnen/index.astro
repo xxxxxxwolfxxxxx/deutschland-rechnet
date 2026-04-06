@@ -6,7 +6,7 @@ import { getByCategory, CATEGORIES } from '../../data/calculators';
 
 const cat = CATEGORIES['wohnen'];
 const calcs = getByCategory('wohnen');
-const base = import.meta.env.BASE_URL.replace(/\/$/, '');
+const base = import.meta.env.BASE_URL;
 ---
 <Layout
   title={cat.label}
@@ -22,12 +22,12 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
     label={cat.label}
     text={cat.description}
     base={base}
-    backHref={`${base}/`}
+    backHref={`${base}`}
     backLabel="← Alle Kategorien"
   />
   <div class="grid">
     {calcs.map(c => (
-      <CalculatorCard title={c.title} description={c.description} href={`${base}/${c.category}/${c.slug}/`} accentColor={cat.color} />
+      <CalculatorCard title={c.title} description={c.description} href={`${base}${c.category}/${c.slug}/`} accentColor={cat.color} />
     ))}
   </div>
 </Layout>
