@@ -1,0 +1,90 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import CalculatorShell from '../../components/CalculatorShell.astro';
+import { CALCULATORS, CATEGORIES } from '../../data/calculators';
+const calc = CALCULATORS.find(c => c.slug === 'waermepumpe-rechner')!;
+const cat = CATEGORIES[calc.category];
+const year = new Date().getFullYear();
+---
+<Layout
+  title={`Wärmepumpe-Rechner ${year}`}
+  description="Heizkosten-Vergleich: Wärmepumpe vs. Gas/Öl. Sofortige Amortisationszeit-Berechnung."
+  canonicalPath="/energie/waermepumpe-rechner/"
+  categoryColor={cat.color}
+  categoryLight={cat.colorLight}
+  categoryImage={cat.image}
+>
+  <div class="page-header">
+    <a href={`${import.meta.env.BASE_URL}energie/`} class="back-link">← Energie</a>
+    <h1>Wärmepumpe-Rechner {year}</h1>
+  </div>
+  <CalculatorShell
+    calculator={calc}
+    intro="Vergleichen Sie die Heizkosten einer Wärmepumpe mit einer konventionellen Gas- oder Ölheizung. Der Rechner zeigt die jährliche Ersparnis und die Amortisationszeit der Investitionskosten."
+    sourceNote="Durchschnittswerte basierend auf BWP/co2online-Daten. Die tatsächlichen Kosten hängen von Dämmung, Heizverhalten, Wetter und aktuellen Energiepreisen ab."
+  >
+    <div class="calc-form">
+      <div class="calc-grid">
+        <div class="calc-group">
+          <label for="flaeche">Wohnfläche (m²)</label>
+          <input type="number" id="flaeche" min="30" max="500" value="120" step="10" />
+        </div>
+        <div class="calc-group">
+          <label for="verbrauch">Aktueller Gasverbrauch (kWh/Jahr)</label>
+          <input type="number" id="verbrauch" min="5000" max="50000" value="15000" step="500" />
+        </div>
+        <div class="calc-group">
+          <label for="gaskosten">Gaskosten (ct/kWh)</label>
+          <input type="number" id="gaskosten" min="5" max="20" value="10" step="0.5" />
+        </div>
+        <div class="calc-group">
+          <label for="stromkosten">Stromkosten (ct/kWh)</label>
+          <input type="number" id="stromkosten" min="20" max="50" value="30" step="1" />
+        </div>
+        <div class="calc-group">
+          <label for="wp_jahrescope">Wärmepumpe JAZ (COP)</label>
+          <input type="number" id="wp_jahrescope" min="2" max="5" value="3.5" step="0.1" />
+        </div>
+        <div class="calc-group">
+          <label for="investition">Geschätzte Investitionskosten (€)</label>
+          <input type="number" id="investition" min="5000" max="50000" value="15000" step="500" />
+        </div>
+        <div class="calc-group">
+          <label for="förderung">Förderung (%)</label>
+          <input type="number" id="förderung" min="0" max="70" value="30" step="5" />
+        </div>
+      </div>
+
+      <div class="calc-result">
+        <div class="label">Jährliche Ersparnis</div>
+        <div id="ersparnis">— €</div>
+      </div>
+      <div id="details" style="margin-top:0.75rem;font-size:0.88rem;color:#666;display:flex;gap:1.5rem;flex-wrap:wrap;"></div>
+    </div>
+  </CalculatorShell>
+</Layout>
+
+<script type="module">
+const { berechneWärmepumpe } = await import(window.__base + 'scripts/waermepumpe.js');
+function fmt(n) { return n.toLocaleString('de-DE', {minimumFractionDigits:2, maximumFractionDigits:2}) + ' €'; }
+function berechne() {
+  const flaeche = parseFloat(document.getElementById('flaeche').value)||120;
+  const verbrauch = parseFloat(document.getElementById('verbrauch').value)||15000;
+  const gaskosten = parseFloat(document.getElementById('gaskosten').value)||10;
+  const stromkosten = parseFloat(document.getElementById('stromkosten').value)||30;
+  const wpJahrescope = parseFloat(document.getElementById('wp_jahrescope').value)||3.5;
+  const investition = parseFloat(document.getElementById('investition').value)||15000;
+  const förderung = parseFloat(document.getElementById('förderung').value)||30;
+  const r = berechneWärmepumpe({ flaeche, verbrauch, gaskosten, stromkosten, wpJahrescope, investition, förderung });
+  document.getElementById('ersparnis').textContent = fmt(r.ersparnis);
+  document.getElementById('details').innerHTML =
+    `<span>Gaskosten/Jahr: <strong>${fmt(r.gasKosten)}</strong></span>` +
+    `<span>WP-Stromkosten/Jahr: <strong>${fmt(r.wpKosten)}</strong></span>` +
+    `<span>Amortisation: <strong>${r.amortisation} Jahre</strong></span>` +
+    `<span>Invest. nach Förderung: <strong>${fmt(r.investitionNetto)}</strong></span>` +
+    `<span>CO₂-Einsparung: <strong>${r.co2Einsparung} kg/Jahr</strong></span>`;
+}
+['flaeche','verbrauch','gaskosten','stromkosten','wp_jahrescope','investition','förderung'].forEach(id =>
+  document.getElementById(id).addEventListener('input', berechne));
+berechne();
+</script>

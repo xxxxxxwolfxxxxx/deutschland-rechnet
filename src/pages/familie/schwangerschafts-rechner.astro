@@ -1,0 +1,77 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import CalculatorShell from '../../components/CalculatorShell.astro';
+import { CALCULATORS, CATEGORIES } from '../../data/calculators';
+const calc = CALCULATORS.find(c => c.slug === 'schwangerschafts-rechner')!;
+const cat = CATEGORIES[calc.category];
+const year = new Date().getFullYear();
+---
+<Layout
+  title={`Schwangerschafts-Rechner ${year}`}
+  description="Geburtstermin, Mutterschaftsgeld und wichtige Termine berechnen."
+  canonicalPath="/familie/schwangerschafts-rechner/"
+  categoryColor={cat.color}
+  categoryLight={cat.colorLight}
+  categoryImage={cat.image}
+>
+  <div class="page-header">
+    <a href={`${import.meta.env.BASE_URL}familie/`} class="back-link">← Familie & Soziales</a>
+    <h1>Schwangerschafts-Rechner {year}</h1>
+  </div>
+  <CalculatorShell
+    calculator={calc}
+    intro="Berechnen Sie Ihren voraussichtlichen Geburtstermin und wichtige Termine. Der Mutterschaftsgeld-Rechner zeigt, was Ihnen während der Mutterschutzfrist zusteht."
+    sourceNote="Berechnung nach Naegele-Regel (40 Wochen ab 1. Tag der letzten Periode). Der tatsächliche Geburtstermin kann ± 14 Tage abweichen. Mutterschaftsgeld nach MuSchG § 19."
+  >
+    <div class="calc-form">
+      <div class="calc-grid">
+        <div class="calc-group">
+          <label for="letztePeriode">1. Tag der letzten Periode</label>
+          <input type="date" id="letztePeriode" />
+        </div>
+        <div class="calc-group">
+          <label for="netto">Monatliches Nettoeinkommen (€)</label>
+          <input type="number" id="netto" min="500" max="10000" value="2200" step="50" />
+        </div>
+        <div class="calc-group">
+          <label for="arbeitgeber">Arbeitgeberzuschuss</label>
+          <select id="arbeitgeber">
+            <option value="ja" selected>Mutterschaftsgeld-Plus (Arbeitgeber zahlt Differenz)</option>
+            <option value="nein">Kein Arbeitgeberzuschuss</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="calc-result">
+        <div class="label">Voraussichtlicher Geburtstermin</div>
+        <div id="geburtstermin">—</div>
+      </div>
+      <div id="details" style="margin-top:0.75rem;font-size:0.88rem;color:#666;display:flex;gap:1.5rem;flex-wrap:wrap;"></div>
+    </div>
+  </CalculatorShell>
+</Layout>
+
+<script type="module">
+const { berechneSchwangerschaft } = await import(window.__base + 'scripts/schwangerschaft.js');
+function fmtD(d) { return d.toLocaleDateString('de-DE', {day:'2-digit',month:'2-digit',year:'numeric'}); }
+function fmt(n) { return n.toLocaleString('de-DE', {minimumFractionDigits:2, maximumFractionDigits:2}) + ' €'; }
+function berechne() {
+  const letztePeriode = document.getElementById('letztePeriode').value;
+  const netto = parseFloat(document.getElementById('netto').value)||2200;
+  const arbeitgeberZuschuss = document.getElementById('arbeitgeber').value === 'ja';
+  if (!letztePeriode) return;
+  const r = berechneSchwangerschaft({ letztePeriode, netto, arbeitgeberZuschuss });
+  document.getElementById('geburtstermin').textContent = fmtD(r.geburtstermin);
+  document.getElementById('details').innerHTML =
+    `<span>SSW jetzt: <strong>${r.ssw} (${r.sswTage} Tage)</strong></span>` +
+    `<span>Mutterschaftsgeld/Tag: <strong>${fmt(r.mutterschaftsgeldTag)}</strong></span>` +
+    `<span>Mutterschaftsgeld/6 Wochen: <strong>${fmt(r.mutterschaftsgeldVorGeburt)}</strong></span>` +
+    `<span>Mutterschaftsgeld/8 Wochen: <strong>${fmt(r.mutterschaftsgeldNachGeburt)}</strong></span>` +
+    `<span>Gesamt-Mutterschaftsgeld: <strong>${fmt(r.gesamt)}</strong></span>`;
+}
+document.getElementById('letztePeriode').valueAsDate = new Date();
+document.getElementById('letztePeriode').addEventListener('change', berechne);
+['netto'].forEach(id => document.getElementById(id).addEventListener('input', berechne));
+document.getElementById('arbeitgeber').addEventListener('change', berechne);
+berechne();
+</script>

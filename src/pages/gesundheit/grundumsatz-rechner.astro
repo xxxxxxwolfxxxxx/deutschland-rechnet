@@ -1,0 +1,76 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import CalculatorShell from '../../components/CalculatorShell.astro';
+import { CALCULATORS, CATEGORIES } from '../../data/calculators';
+const calc = CALCULATORS.find(c => c.slug === 'grundumsatz-rechner')!;
+const cat = CATEGORIES[calc.category];
+const year = new Date().getFullYear();
+---
+<Layout
+  title={`Grundumsatz-Rechner ${year}`}
+  description="Grundumsatz (BMR) nach Harris-Benedict berechnen – Kalorienverbrauch im Ruhezustand."
+  canonicalPath="/gesundheit/grundumsatz-rechner/"
+  categoryColor={cat.color}
+  categoryLight={cat.colorLight}
+  categoryImage={cat.image}
+>
+  <div class="page-header">
+    <a href={`${import.meta.env.BASE_URL}gesundheit/`} class="back-link">← Gesundheit & Fitness</a>
+    <h1>Grundumsatz-Rechner {year}</h1>
+  </div>
+  <CalculatorShell
+    calculator={calc}
+    intro="Berechnen Sie Ihren Grundumsatz (Basal Metabolic Rate) nach der Harris-Benedict-Formel. Das ist die Kalorienmenge, die Ihr Körper im Ruhezustand täglich verbraucht."
+    sourceNote="Berechnung nach Harris-Benedict-Formel (revidiert). Der tatsächliche Grundumsatz kann je nach Muskelmasse, Schilddrüsenfunktion und anderen Faktoren abweichen."
+  >
+    <div class="calc-form">
+      <div class="calc-grid">
+        <div class="calc-group">
+          <label for="gewicht">Gewicht (kg)</label>
+          <input type="number" id="gewicht" min="30" max="250" value="75" step="1" />
+        </div>
+        <div class="calc-group">
+          <label for="groesse">Größe (cm)</label>
+          <input type="number" id="groesse" min="100" max="220" value="175" step="1" />
+        </div>
+        <div class="calc-group">
+          <label for="alter">Alter (Jahre)</label>
+          <input type="number" id="alter" min="15" max="100" value="30" step="1" />
+        </div>
+        <div class="calc-group">
+          <label for="geschlecht">Geschlecht</label>
+          <select id="geschlecht">
+            <option value="m" selected>Männlich</option>
+            <option value="w">Weiblich</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="calc-result">
+        <div class="label">Grundumsatz pro Tag</div>
+        <div id="grundumsatz">— kcal</div>
+      </div>
+      <div id="details" style="margin-top:0.75rem;font-size:0.88rem;color:#666;display:flex;gap:1.5rem;flex-wrap:wrap;"></div>
+    </div>
+  </CalculatorShell>
+</Layout>
+
+<script type="module">
+const { berechneGrundumsatz } = await import(window.__base + 'scripts/grundumsatz.js');
+function berechne() {
+  const gewicht = parseFloat(document.getElementById('gewicht').value)||75;
+  const groesse = parseFloat(document.getElementById('groesse').value)||175;
+  const alter = parseInt(document.getElementById('alter').value)||30;
+  const geschlecht = document.getElementById('geschlecht').value;
+  const r = berechneGrundumsatz({ gewicht, groesse, alter, geschlecht });
+  document.getElementById('grundumsatz').textContent = r.grundumsatz + ' kcal';
+  document.getElementById('details').innerHTML =
+    `<span>Gewicht: <strong>${gewicht} kg</strong></span>` +
+    `<span>Größe: <strong>${groesse} cm</strong></span>` +
+    `<span>Alter: <strong>${alter} Jahre</strong></span>`;
+}
+['gewicht','groesse','alter'].forEach(id =>
+  document.getElementById(id).addEventListener('input', berechne));
+document.getElementById('geschlecht').addEventListener('change', berechne);
+berechne();
+</script>

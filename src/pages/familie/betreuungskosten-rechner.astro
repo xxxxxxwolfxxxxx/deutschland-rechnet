@@ -1,0 +1,93 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import CalculatorShell from '../../components/CalculatorShell.astro';
+import { CALCULATORS, CATEGORIES } from '../../data/calculators';
+const calc = CALCULATORS.find(c => c.slug === 'betreuungskosten-rechner')!;
+const cat = CATEGORIES[calc.category];
+const year = new Date().getFullYear();
+---
+<Layout
+  title={`Betreuungskosten-Rechner ${year}`}
+  description="Kita-Gebühren und Betreuungskosten nach Einkommen und Gemeinde berechnen."
+  canonicalPath="/familie/betreuungskosten-rechner/"
+  categoryColor={cat.color}
+  categoryLight={cat.colorLight}
+  categoryImage={cat.image}
+>
+  <div class="page-header">
+    <a href={`${import.meta.env.BASE_URL}familie/`} class="back-link">← Familie & Soziales</a>
+    <h1>Betreuungskosten-Rechner {year}</h1>
+  </div>
+  <CalculatorShell
+    calculator={calc}
+    intro="Schätzen Sie die monatlichen Kita-Gebühren basierend auf Einkommen, Betreuungsstunden und Gemeindesatzung. Die tatsächlichen Kosten variieren stark je nach Kommune."
+    sourceNote="Durchschnittswerte basierend auf Kitakosten-Monitor 2024. Die tatsächlichen Kosten hängen von der jeweiligen Gemeinde, dem Alter des Kindes und den Betreuungszeiten ab."
+  >
+    <div class="calc-form">
+      <div class="calc-grid">
+        <div class="calc-group">
+          <label for="einkommen">Jahres-Bruttoeinkommen (€)</label>
+          <input type="number" id="einkommen" min="0" max="200000" value="60000" step="5000" />
+        </div>
+        <div class="calc-group">
+          <label for="kinder">Anzahl Kinder in Betreuung</label>
+          <input type="number" id="kinder" min="1" max="10" value="1" step="1" />
+        </div>
+        <div class="calc-group">
+          <label for="stunden">Betreuungszeit pro Tag (Stunden)</label>
+          <select id="stunden">
+            <option value="4">Bis 4 Stunden</option>
+            <option value="6" selected>Bis 6 Stunden</option>
+            <option value="8">Bis 8 Stunden</option>
+            <option value="10">Über 8 Stunden</option>
+          </select>
+        </div>
+        <div class="calc-group">
+          <label for="alter">Alter des jüngsten Kindes</label>
+          <select id="alter">
+            <option value="krippe">Unter 3 Jahre (Krippe)</option>
+            <option value="kita" selected>3–6 Jahre (Kita)</option>
+          </select>
+        </div>
+        <div class="calc-group">
+          <label for="region">Region</label>
+          <select id="region">
+            <option value="low" selected>Ländlich (günstig)</option>
+            <option value="mid">Mittelstadt</option>
+            <option value="high">Großstadt (teuer)</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="calc-result">
+        <div class="label">Geschätzte monatliche Kosten pro Kind</div>
+        <div id="kosten">— €</div>
+      </div>
+      <div id="details" style="margin-top:0.75rem;font-size:0.88rem;color:#666;display:flex;gap:1.5rem;flex-wrap:wrap;"></div>
+    </div>
+  </CalculatorShell>
+</Layout>
+
+<script type="module">
+const { berechneBetreuungskosten } = await import(window.__base + 'scripts/betreuungskosten.js');
+function fmt(n) { return n.toLocaleString('de-DE', {minimumFractionDigits:2, maximumFractionDigits:2}) + ' €'; }
+function berechne() {
+  const einkommen = parseFloat(document.getElementById('einkommen').value)||60000;
+  const kinder = parseInt(document.getElementById('kinder').value)||1;
+  const stunden = parseInt(document.getElementById('stunden').value)||6;
+  const alter = document.getElementById('alter').value;
+  const region = document.getElementById('region').value;
+  const r = berechneBetreuungskosten({ einkommen, kinder, stunden, alter, region });
+  document.getElementById('kosten').textContent = fmt(r.kostenProKind);
+  document.getElementById('details').innerHTML =
+    `<span>Grundgebühr: <strong>${fmt(r.grundgebuehr)}</strong></span>` +
+    `<span>Einkommenszuschlag: <strong>${fmt(r.einkommenszuschlag)}</strong></span>` +
+    `<span>Gesamt (${kinder} Kind${kinder > 1 ? 'er' : ''}): <strong>${fmt(r.gesamtkosten)}</strong></span>` +
+    `<span>Elternbeitrag: <strong>${fmt(r.elternbeitrag)}</strong></span>`;
+}
+['einkommen','kinder'].forEach(id =>
+  document.getElementById(id).addEventListener('input', berechne));
+['stunden','alter','region'].forEach(id =>
+  document.getElementById(id).addEventListener('change', berechne));
+berechne();
+</script>
