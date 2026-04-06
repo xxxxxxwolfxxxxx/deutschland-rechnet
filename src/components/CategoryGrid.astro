@@ -1,14 +1,14 @@
 ---
 import { CATEGORIES, getByCategory, type Category } from '../data/calculators';
 
-const base = import.meta.env.BASE_URL.replace(/\/$/, '');
+const base = import.meta.env.BASE_URL;
 const categories = Object.entries(CATEGORIES) as [Category, typeof CATEGORIES[Category]][];
 ---
 <div class="cat-grid">
   {categories.map(([key, cat]) => {
     const count = getByCategory(key).length;
     return (
-      <a href={`${base}/${key}/`} class="cat-tile">
+      <a href={`${base}${key}/`} class="cat-tile">
         <div class="cat-bg" style={`background-image: url('${base}${cat.image}')`}></div>
         <div class="cat-overlay" style={`--cat-accent: ${cat.color};`}></div>
         <div class="cat-content">
