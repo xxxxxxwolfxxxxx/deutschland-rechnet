@@ -22,6 +22,7 @@ const year = new Date().getFullYear();
     calculator={calc}
     intro="Erstellen Sie einen Tilgungsplan für Ihr Baudarlehen. Der Rechner zeigt die monatliche Entwicklung von Restschuld, Zinsen und Tilgung."
     sourceNote="Vereinfachte Berechnung mit gleichbleibender Rate. In der Praxis können Tilgungswechsel, Sondertilgungen und Zinsanpassungen die Tilgung beeinflussen."
+    explanation="Bei der Annuitätentilgung bleibt die monatliche Rate gleich, während sich das Verhältnis von Zinsen zu Tilgung verschiebt: Anfangs mehr Zinsen, später mehr Tilgung. Jeden Monat: Restschuld × (Zinssatz/12) = Zinsen, Rate - Zinsen = Tilgung. Sondertilgungen reduzieren direkt die Restschuld und verkürzen die Laufzeit. Die Gesamtlaufzeit ergibt sich aus der Anzahl der Monate bis zur vollständigen Tilgung."
   >
     <div class="calc-form">
       <div class="calc-grid">

@@ -7,8 +7,9 @@ interface Props {
   calculator: Calculator;
   intro: string;
   sourceNote: string;
+  explanation?: string;
 }
-const { calculator, intro, sourceNote } = Astro.props;
+const { calculator, intro, sourceNote, explanation } = Astro.props;
 const cat = CATEGORIES[calculator.category];
 const base = import.meta.env.BASE_URL;
 ---
@@ -23,6 +24,12 @@ const base = import.meta.env.BASE_URL;
 
   <div class="calc-wrapper" style={`--accent: ${cat.color};`}>
     <slot />
+    {explanation && (
+      <div class="explanation">
+        <h3>So wird gerechnet</h3>
+        <p>{explanation}</p>
+      </div>
+    )}
     <p class="source-note">{sourceNote}</p>
   </div>
 
@@ -38,6 +45,25 @@ const base = import.meta.env.BASE_URL;
   padding: 1.75rem;
   box-shadow: var(--shadow-sm);
   margin-bottom: 1.5rem;
+}
+.explanation {
+  background: var(--bg);
+  border-radius: var(--radius-sm);
+  padding: 1rem 1.25rem;
+  margin: 1rem 0;
+}
+.explanation h3 {
+  font-size: 0.9rem;
+  font-family: var(--font-ui);
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 0.5rem;
+}
+.explanation p {
+  font-size: 0.875rem;
+  line-height: 1.6;
+  margin: 0;
+  color: var(--text);
 }
 .source-note {
   font-size: 0.78rem;

@@ -22,6 +22,7 @@ const year = new Date().getFullYear();
     calculator={calc}
     intro="Vergleichen Sie verschiedene Kreditangebote und berechnen Sie den effektiven Jahreszins. Der Rechner zeigt auch die monatliche Rate und die Gesamtkosten des Kredits."
     sourceNote="Effektiver Jahreszins nach PAngV. Die tatsächlichen Kosten hängen von Ihrer Bonität und dem konkreten Kreditangebot ab."
+    explanation="Die monatliche Rate wird nach der klassischen Annuitätenformel berechnet: Rate = Kredit × (Zinssatz/12 × (1+Zinssatz/12)^Laufzeit) / ((1+Zinssatz/12)^Laufzeit - 1). Die Gesamtkosten = Rate × Laufzeit - Kreditbetrag. Der effektive Jahreszins (nicht hier berechnet) umfasst zusätzlich Bearbeitungsgebühren und ist nach PAngV Pflichtangabe."
   >
     <div class="calc-form">
       <div class="calc-grid">
