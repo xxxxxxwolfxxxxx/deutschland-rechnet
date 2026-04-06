@@ -1,0 +1,119 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import CalculatorShell from '../../components/CalculatorShell.astro';
+import { CALCULATORS, CATEGORIES } from '../../data/calculators';
+const calc = CALCULATORS.find(c => c.slug === 'hauskauf-rechner')!;
+const cat = CATEGORIES[calc.category];
+const year = new Date().getFullYear();
+---
+<Layout
+  title={`Hauskauf-Rechner ${year}`}
+  description="Gesamtkosten beim Hauskauf berechnen – Kaufpreis, Nebenkosten, Finanzierung und monatliche Rate."
+  canonicalPath="/wohnen/hauskauf-rechner/"
+  categoryColor={cat.color}
+  categoryLight={cat.colorLight}
+  categoryImage={cat.image}
+>
+  <div class="page-header">
+    <a href={`${import.meta.env.BASE_URL}wohnen/`} class="back-link">← Wohnen & Immobilien</a>
+    <h1>Hauskauf-Rechner {year}</h1>
+  </div>
+  <CalculatorShell
+    calculator={calc}
+    intro="Berechnen Sie die Gesamtkosten beim Hauskauf: Kaufpreis, Nebenkosten (Notar, Grunderwerbsteuer, Makler), Eigenkapital und monatliche Rate für die Finanzierung."
+    sourceNote="Vereinfachte Berechnung ohne Berücksichtigung von Tilgungsbeginn, Sondertilgungen oder variablen Zinsen. Konsultieren Sie für eine genaue Finanzierungsplanung Ihre Bank."
+  >
+    <div class="calc-form">
+      <div class="calc-grid">
+        <div class="calc-group">
+          <label for="kaufpreis">Kaufpreis (€)</label>
+          <input type="number" id="kaufpreis" min="50000" max="5000000" value="400000" step="5000" />
+        </div>
+        <div class="calc-group">
+          <label for="bundesland">Bundesland</label>
+          <select id="bundesland">
+            <option value="BW">Baden-Württemberg</option>
+            <option value="BY">Bayern</option>
+            <option value="BE">Berlin</option>
+            <option value="BB">Brandenburg</option>
+            <option value="HB">Bremen</option>
+            <option value="HH">Hamburg</option>
+            <option value="HE">Hessen</option>
+            <option value="MV">Mecklenburg-Vorpommern</option>
+            <option value="NI">Niedersachsen</option>
+            <option value="NW" selected>Nordrhein-Westfalen</option>
+            <option value="RP">Rheinland-Pfalz</option>
+            <option value="SL">Saarland</option>
+            <option value="SN">Sachsen</option>
+            <option value="ST">Sachsen-Anhalt</option>
+            <option value="SH">Schleswig-Holstein</option>
+            <option value="TH">Thüringen</option>
+          </select>
+        </div>
+        <div class="calc-group">
+          <label for="eigenkapital">Eigenkapital (€)</label>
+          <input type="number" id="eigenkapital" min="0" max="5000000" value="80000" step="5000" />
+        </div>
+        <div class="calc-group">
+          <label for="zins">Sollzins (% p.a.)</label>
+          <input type="number" id="zins" min="0.1" max="15" value="3.5" step="0.1" />
+        </div>
+        <div class="calc-group">
+          <label for="tilgung">Tilgung (% p.a.)</label>
+          <input type="number" id="tilgung" min="0.5" max="10" value="2" step="0.5" />
+        </div>
+        <div class="calc-group">
+          <label for="laufzeit">Zinsbindung (Jahre)</label>
+          <select id="laufzeit">
+            <option value="5">5 Jahre</option>
+            <option value="10" selected>10 Jahre</option>
+            <option value="15">15 Jahre</option>
+            <option value="20">20 Jahre</option>
+            <option value="25">25 Jahre</option>
+          </select>
+        </div>
+        <div class="calc-group" style="display:flex;align-items:center;">
+          <label style="display:flex;align-items:center;gap:0.5rem;font-weight:400;cursor:pointer;">
+            <input type="checkbox" id="makler" style="width:auto;" checked />
+            Makler (3,57% inkl. MwSt.)
+          </label>
+        </div>
+      </div>
+
+      <div class="calc-result">
+        <div class="label">Monatliche Rate</div>
+        <div id="rate">— €</div>
+      </div>
+      <div id="details" style="margin-top:0.75rem;font-size:0.88rem;color:#666;display:flex;gap:1.5rem;flex-wrap:wrap;"></div>
+    </div>
+  </CalculatorShell>
+</Layout>
+
+<script type="module">
+const { berechneHauskauf } = await import(window.__base + 'scripts/hauskauf.js');
+function fmt(n) { return n.toLocaleString('de-DE', {minimumFractionDigits:2, maximumFractionDigits:2}) + ' €'; }
+function berechne() {
+  const kaufpreis = parseFloat(document.getElementById('kaufpreis').value)||400000;
+  const bundesland = document.getElementById('bundesland').value;
+  const eigenkapital = parseFloat(document.getElementById('eigenkapital').value)||80000;
+  const zins = parseFloat(document.getElementById('zins').value)||3.5;
+  const tilgung = parseFloat(document.getElementById('tilgung').value)||2;
+  const laufzeit = parseInt(document.getElementById('laufzeit').value)||10;
+  const makler = document.getElementById('makler').checked;
+  const r = berechneHauskauf({ kaufpreis, bundesland, eigenkapital, zins, tilgung, laufzeit, makler });
+  document.getElementById('rate').textContent = fmt(r.monatlicheRate);
+  document.getElementById('details').innerHTML =
+    `<span>Kaufpreis: <strong>${fmt(r.kaufpreis)}</strong></span>` +
+    `<span>Nebenkosten: <strong>${fmt(r.nebenkosten)}</strong></span>` +
+    `<span>Gesamtkosten: <strong>${fmt(r.gesamtkosten)}</strong></span>` +
+    `<span>Darlehen: <strong>${fmt(r.darlehen)}</strong></span>` +
+    `<span>Zinsaufwand (${laufzeit}J): <strong>${fmt(r.zinsaufwand)}</strong></span>` +
+    `<span>Tilgungszeit: <strong>ca. ${r.tilgungszeit} Jahre</strong></span>`;
+}
+['kaufpreis','eigenkapital','zins','tilgung'].forEach(id =>
+  document.getElementById(id).addEventListener('input', berechne));
+['bundesland','laufzeit'].forEach(id =>
+  document.getElementById(id).addEventListener('change', berechne));
+document.getElementById('makler').addEventListener('change', berechne);
+berechne();
+</script>
