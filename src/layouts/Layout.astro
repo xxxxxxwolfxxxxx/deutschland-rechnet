@@ -12,18 +12,18 @@ interface Props {
 
 const { title, description, canonicalPath, categoryColor, categoryLight, categoryImage } = Astro.props;
 const siteUrl = import.meta.env.SITE ?? 'https://deutschland-rechnet.de';
-const base = import.meta.env.BASE_URL.replace(/\/$/, '');
+const base = import.meta.env.BASE_URL;
 const canonical = `${siteUrl}${base}${canonicalPath}`;
 const year = new Date().getFullYear();
 
 const navLinks = [
-  { href: `${base}/geld/`, label: 'Geld' },
-  { href: `${base}/wohnen/`, label: 'Wohnen' },
-  { href: `${base}/energie/`, label: 'Energie' },
-  { href: `${base}/auto/`, label: 'Auto' },
-  { href: `${base}/familie/`, label: 'Familie' },
-  { href: `${base}/gesundheit/`, label: 'Gesundheit' },
-  { href: `${base}/einheiten/`, label: 'Einheiten' },
+  { href: `${base}geld/`, label: 'Geld' },
+  { href: `${base}wohnen/`, label: 'Wohnen' },
+  { href: `${base}energie/`, label: 'Energie' },
+  { href: `${base}auto/`, label: 'Auto' },
+  { href: `${base}familie/`, label: 'Familie' },
+  { href: `${base}gesundheit/`, label: 'Gesundheit' },
+  { href: `${base}einheiten/`, label: 'Einheiten' },
 ];
 ---
 <!DOCTYPE html>
@@ -34,8 +34,8 @@ const navLinks = [
   <title>{title} – kostenlos | Deutschland rechnet</title>
   <meta name="description" content={description} />
   <link rel="canonical" href={canonical} />
-  <link rel="icon" type="image/svg+xml" href={`${base}/favicon.svg`} />
-  <link rel="sitemap" href={`${base}/sitemap-index.xml`} />
+  <link rel="icon" type="image/svg+xml" href={`${base}favicon.svg`} />
+  <link rel="sitemap" href={`${base}sitemap-index.xml`} />
   <meta property="og:title" content={`${title} – kostenlos | Deutschland rechnet`} />
   <meta property="og:description" content={description} />
   <meta property="og:type" content="website" />
@@ -47,7 +47,7 @@ const navLinks = [
 <body>
   <header>
     <div class="container header-inner">
-      <a href={`${base}/`} class="logo">
+      <a href={`${base}`} class="logo">
         <span class="logo-flag"><span></span><span></span><span></span></span>
         <span class="logo-text">Deutschland rechnet</span>
       </a>
@@ -64,7 +64,7 @@ const navLinks = [
     <button class="close-btn" aria-label="Menü schließen">✕</button>
     <nav>
       {navLinks.map(l => <a href={l.href}>{l.label}</a>)}
-      <a href={`${base}/`} class="home-link">← Startseite</a>
+      <a href={`${base}`} class="home-link">← Startseite</a>
     </nav>
   </div>
 
@@ -75,7 +75,7 @@ const navLinks = [
   <footer>
     <div class="container footer-inner">
       <div class="footer-brand">
-        <a href={`${base}/`} class="footer-logo">Deutschland rechnet</a>
+        <a href={`${base}`} class="footer-logo">Deutschland rechnet</a>
         <p>Kostenlose Rechner für alle Lebenslagen</p>
       </div>
       <div class="footer-nav">
@@ -83,7 +83,7 @@ const navLinks = [
       </div>
       <div class="footer-legal">
         <p>© {year} Deutschland rechnet</p>
-        <p><a href={`${base}/impressum/`}>Impressum</a> · <a href={`${base}/agb/`}>AGB</a></p>
+        <p><a href={`${base}impressum/`}>Impressum</a> · <a href={`${base}agb/`}>AGB</a></p>
       </div>
     </div>
   </footer>

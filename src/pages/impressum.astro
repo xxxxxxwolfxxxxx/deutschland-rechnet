@@ -1,13 +1,13 @@
 ---
 import Layout from '../layouts/Layout.astro';
-const base = import.meta.env.BASE_URL.replace(/\/$/, '');
+const base = import.meta.env.BASE_URL;
 ---
 <Layout
   title="Impressum"
   description="Impressum von Deutschland rechnet – Angaben gemäß § 5 TMG."
   canonicalPath="/impressum/"
 >
-  <a href={`${base}/`}>← Startseite</a>
+  <a href={`${base}`}>← Startseite</a>
   <h1>Impressum</h1>
 
   <div class="legal-box">
