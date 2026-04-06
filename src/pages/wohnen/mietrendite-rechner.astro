@@ -1,0 +1,77 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import CalculatorShell from '../../components/CalculatorShell.astro';
+import { CALCULATORS, CATEGORIES } from '../../data/calculators';
+const calc = CALCULATORS.find(c => c.slug === 'mietrendite-rechner')!;
+const cat = CATEGORIES[calc.category];
+const year = new Date().getFullYear();
+---
+<Layout
+  title={`Mietrendite-Rechner ${year}`}
+  description="Brutto- und Nettorendite von Mietimmobilien berechnen – kostenlos und sofort."
+  canonicalPath="/wohnen/mietrendite-rechner/"
+  categoryColor={cat.color}
+  categoryLight={cat.colorLight}
+  categoryImage={cat.image}
+>
+  <div class="page-header">
+    <a href={`${import.meta.env.BASE_URL}wohnen/`} class="back-link">← Wohnen & Immobilien</a>
+    <h1>Mietrendite-Rechner {year}</h1>
+  </div>
+  <CalculatorShell
+    calculator={calc}
+    intro="Berechnen Sie die Brutto- und Nettorendite Ihrer Mietimmobilie. Geben Sie Kaufpreis, Jahreskaltmiete und Bewirtschaftungskosten ein."
+    sourceNote="Vereinfachte Berechnung. Tatsächliche Renditen können abweichen. Keine Anlageberatung."
+    explanation="Bruttorendite = Jahreskaltmiete ÷ Kaufpreis × 100. Nettorendite = (Jahreskaltmiete - Bewirtschaftungskosten) ÷ Kaufpreis × 100. Bewirtschaftungskosten: ca. 10-15% der Miete für Instandhaltung, Verwaltung, Mietausfallwagnis. Eine gute Rendite liegt bei 4-6%."
+  >
+    <div class="calc-form">
+      <div class="calc-grid">
+        <div class="calc-group">
+          <label for="kaufpreis">Kaufpreis (€)</label>
+          <input type="number" id="kaufpreis" min="10000" max="10000000" value="300000" step="5000" />
+        </div>
+        <div class="calc-group">
+          <label for="kaltmiete">Jahreskaltmiete (€)</label>
+          <input type="number" id="kaltmiete" min="1000" max="500000" value="14400" step="100" />
+        </div>
+        <div class="calc-group">
+          <label for="nebenkosten">Nebenkosten/Jahr (€)</label>
+          <input type="number" id="nebenkosten" min="0" max="100000" value="1500" step="100" />
+        </div>
+        <div class="calc-group">
+          <label for="instandhaltung">Instandhaltung/Jahr (€)</label>
+          <input type="number" id="instandhaltung" min="0" max="100000" value="1000" step="100" />
+        </div>
+      </div>
+      <div class="calc-result">
+        <div class="label">Nettorendite</div>
+        <div id="ergebnis">— %</div>
+      </div>
+      <div id="details" style="margin-top:0.75rem;font-size:0.88rem;color:#666;display:flex;gap:1.5rem;flex-wrap:wrap;"></div>
+    </div>
+  </CalculatorShell>
+</Layout>
+
+<script type="module">
+function berechne() {
+  const kaufpreis = parseFloat(document.getElementById('kaufpreis').value) || 300000;
+  const kaltmiete = parseFloat(document.getElementById('kaltmiete').value) || 14400;
+  const nebenkosten = parseFloat(document.getElementById('nebenkosten').value) || 1500;
+  const instandhaltung = parseFloat(document.getElementById('instandhaltung').value) || 1000;
+  const bruttoRendite = kaufpreis > 0 ? (kaltmiete / kaufpreis * 100) : 0;
+  const bewirtschaftung = nebenkosten + instandhaltung;
+  const nettoMiete = kaltmiete - bewirtschaftung;
+  const nettoRendite = kaufpreis > 0 ? (nettoMiete / kaufpreis * 100) : 0;
+  const bewirtschaftungsPct = kaltmiete > 0 ? (bewirtschaftung / kaltmiete * 100) : 0;
+  document.getElementById('ergebnis').textContent = nettoRendite.toFixed(2) + ' %';
+  document.getElementById('ergebnis').style.color = nettoRendite >= 4 ? '#1e7e34' : nettoRendite >= 2 ? '#b8860b' : '#b71c1c';
+  document.getElementById('details').innerHTML =
+    `<span>Bruttorendite: <strong>${bruttoRendite.toFixed(2)} %</strong></span>` +
+    `<span>Nettorendite: <strong>${nettoRendite.toFixed(2)} %</strong></span>` +
+    `<span>Bewirtschaftungskosten: <strong>${bewirtschaftung.toLocaleString('de-DE', {minimumFractionDigits:0})} €/Jahr (${bewirtschaftungsPct.toFixed(1)}%)</strong></span>` +
+    `<span>Nettokaltmiete: <strong>${nettoMiete.toLocaleString('de-DE', {minimumFractionDigits:0})} €/Jahr</strong></span>`;
+}
+['kaufpreis','kaltmiete','nebenkosten','instandhaltung'].forEach(id =>
+  document.getElementById(id).addEventListener('input', berechne));
+berechne();
+</script>

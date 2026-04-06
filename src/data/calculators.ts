@@ -46,6 +46,15 @@ export const CALCULATORS: Calculator[] = [
   { slug: 'sparen-rechner',            title: 'Sparen-Rechner',           description: 'Guthaben mit Zinseszins berechnen.',                                           category: 'geld',      featured: false, live: true },
   { slug: 'steuerklasse-optimieren',   title: 'Steuerklasse optimieren',  description: 'Optimalen Steuerklassen-Wechsel berechnen.',                                category: 'geld',      featured: false, live: true },
   { slug: 'abgeltungsteuer-rechner',   title: 'Abgeltungsteuer-Rechner', description: 'Kapitalerträge mit Abgeltungsteuer berechnen.',                               category: 'geld',      featured: false, live: true },
+  { slug: 'etf-sparplan-rechner',      title: 'ETF-Sparplan-Rechner',    description: 'Vermögensaufbau mit ETF-Sparplan berechnen.',                                 category: 'geld',      featured: false, live: true },
+  { slug: 'fire-rechner',             title: 'FIRE-Rechner',          description: 'Finanzielle Unabhängigkeit durch Sparquote und Rendite berechnen.',         category: 'geld',      featured: false, live: true },
+  { slug: 'gewerbesteuer-rechner',    title: 'Gewerbesteuer-Rechner', description: 'Gewerbesteuer nach Hebesatz und Rechtsform berechnen.',                            category: 'geld',      featured: false, live: true },
+  { slug: 'gmbh-vs-einzelunternehmen', title: 'GmbH vs. Einzelunternehmen', description: 'Steuerbelastung: GmbH oder Einzelunternehmen?',                       category: 'geld',      featured: false, live: true },
+  { slug: 'schuldentilgungs-rechner',  title: 'Schuldentilgungs-Rechner', description: 'Schneeball- vs. Lawinenmethode zum Schulden tilgen.',                    category: 'geld',      featured: false, live: true },
+  { slug: 'notgroschen-rechner',       title: 'Notgroschen-Rechner',     description: 'Empfohlene Höhe des Notgroschens berechnen.',                                     category: 'geld',      featured: false, live: true },
+  { slug: 'krypto-steuern-rechner',    title: 'Krypto-Steuern-Rechner',  description: 'Steuerfreiheit und Freibeträge für Krypto-Gewinne prüfen.',                     category: 'geld',      featured: false, live: true },
+  { slug: 'homeoffice-pauschale',      title: 'Homeoffice-Pauschale',    description: 'Steuervorteil der Homeoffice-Pauschale berechnen.',                                category: 'geld',      featured: false, live: true },
+  { slug: 'risikoprofil-rechner',      title: 'Risikoprofil-Rechner',    description: 'Persönliches Anlegerprofil ermitteln und passende Strategie finden.',             category: 'geld',      featured: false, live: true },
   // WOHNEN
   { slug: 'tilgungs-kreditrechner',      title: 'Kreditrechner',               description: 'Monatliche Rate, Zinsen und Tilgung berechnen.',                               category: 'wohnen',    featured: true,  live: true },
   { slug: 'grunderwerbsteuer-rechner',   title: 'Grunderwerbsteuer-Rechner',   description: 'Grunderwerbsteuer nach Bundesland berechnen.',                                  category: 'wohnen',    featured: true,  live: true },
@@ -56,6 +65,9 @@ export const CALCULATORS: Calculator[] = [
   { slug: 'mietrechner',                 title: 'Mietrechner',                 description: 'Kaltmiete zu Warmmiete umrechnen.',                                            category: 'wohnen',    featured: false, live: true },
   { slug: 'quadratmeterpreis-vergleich', title: 'Quadratmeterpreis',            description: 'Immobilienpreise pro m² nach Region vergleichen.',                             category: 'wohnen',    featured: false, live: true },
   { slug: 'grundbuch-eintragung',      title: 'Grundbuch-Eintragung',      description: 'Kosten für Grundbucheintragung berechnen.',                                category: 'wohnen',    featured: false, live: true },
+  { slug: 'kaufen-vs-mieten',          title: 'Kaufen vs. Mieten',         description: 'Vergleich: Immobilienkauf oder Mieten – was ist günstiger?',                category: 'wohnen',    featured: false, live: true },
+  { slug: 'mietrendite-rechner',          title: 'Mietrendite-Rechner',            description: 'Brutto- und Nettorendite von Mietimmobilien berechnen.',                 category: 'wohnen',    featured: false, live: true },
+  { slug: 'wie-viel-haus',                title: 'Wie viel Haus kann ich mir leisten?', description: 'Maximalen Kaufpreis basierend auf Einkommen berechnen.',              category: 'wohnen',    featured: false, live: true },
   { slug: 'tilgungsplan',             title: 'Tilgungsplan',               description: 'Tilgungsplan für Baudarlehen erstellen.',                                     category: 'wohnen',    featured: false, live: true },
   // ENERGIE
   { slug: 'stromkosten-rechner',          title: 'Stromkosten-Rechner',          description: 'Stromkosten aus kWh-Verbrauch berechnen.',                                     category: 'energie',   featured: true,  live: true },
@@ -86,6 +98,7 @@ export const CALCULATORS: Calculator[] = [
   { slug: 'erbschaftsteuer-rechner',     title: 'Erbschaftsteuer-Rechner',      description: 'Erbschaftsteuer nach Verwandtschaftsgrad berechnen.',                      category: 'familie',   featured: false, live: true },
   { slug: 'scheidungskosten-rechner',  title: 'Scheidungskosten-Rechner',  description: 'Kosten für Scheidung schätzen.',                                        category: 'familie',   featured: false, live: true },
   { slug: 'ehegattenunterhalt-rechner', title: 'Ehegattenunterhalt-Rechner', description: 'Trennungsunterhalt und nachehelichen Unterhalt berechnen.',                category: 'familie',   featured: false, live: true },
+  { slug: 'bafoeg-rechner',            title: 'BAföG-Rechner',             description: 'BAföG-Höhe nach Eltern-Einkommen, Vermögen und Geschwistern berechnen.',          category: 'familie',   featured: false, live: true },
   // GESUNDHEIT
   { slug: 'bmi-rechner',                 title: 'BMI-Rechner',                   description: 'Body-Mass-Index nach WHO-Formel berechnen.',                               category: 'gesundheit',featured: true,  live: true },
   { slug: 'kalorien-rechner',             title: 'Kalorien-Rechner',              description: 'Täglichen Kalorienbedarf nach Mifflin-St-Jeor berechnen.',                category: 'gesundheit',featured: false, live: true },
@@ -94,9 +107,15 @@ export const CALCULATORS: Calculator[] = [
   { slug: 'optimalerpuls-rechner',        title: 'Optimaler Puls-Rechner',        description: 'Optimalen Trainingspuls nach Alter berechnen.',                          category: 'gesundheit',featured: false, live: true },
   { slug: 'kalorien-verbrennen',      title: 'Kalorien verbrennen',       description: 'Kalorienverbrauch beim Sport berechnen.',                                 category: 'gesundheit',featured: false, live: true },
   { slug: 'idealgewicht-rechner',      title: 'Idealgewicht-Rechner',        description: 'Idealgewicht nach Broca und BMI berechnen.',                               category: 'gesundheit',featured: false, live: true },
+  { slug: 'makronaehrstoff-rechner',   title: 'Makronährstoff-Rechner',      description: 'Täglichen Protein-, Fett- und Kohlenhydratbedarf berechnen.',                  category: 'gesundheit',featured: false, live: true },
+  { slug: 'schlaf-rechner',            title: 'Schlaf-Rechner',              description: 'Optimale Schlafens- und Aufwachzeiten nach Schlafzyklen berechnen.',           category: 'gesundheit',featured: false, live: true },
+  { slug: 'blutdruck-bewerter',        title: 'Blutdruck-Bewerter',          description: 'Blutdruckwerte nach WHO-Klassifikation einordnen.',                            category: 'gesundheit',featured: false, live: true },
   // EINHEITEN
   { slug: 'einheitenrechner',             title: 'Einheitenrechner',               description: 'Länge, Gewicht, Temperatur umrechnen.',                                  category: 'einheiten', featured: true,  live: true },
   { slug: 'inflationsrechner',            title: 'Inflationsrechner',              description: 'Kaufkraftverlust durch Inflation berechnen.',                             category: 'einheiten', featured: false, live: true },
+  { slug: 'prozent-rechner',              title: 'Prozent-Rechner',                description: 'Prozentwerte, Grundwerte und prozentuale Veränderungen berechnen.',       category: 'einheiten', featured: false, live: true },
+  { slug: 'mwst-rechner',                 title: 'MwSt-Rechner',                   description: 'Netto und Brutto mit 19% oder 7% MwSt umrechnen.',                      category: 'einheiten', featured: false, live: true },
+  { slug: 'rabatt-rechner',               title: 'Rabatt-Rechner',                 description: 'Rabatte und Endpreise bei Einzel- und Mehrfachrabatten berechnen.',      category: 'einheiten', featured: false, live: true },
 ];
 
 export function getByCategory(category: Category): Calculator[] {

@@ -1,0 +1,91 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import CalculatorShell from '../../components/CalculatorShell.astro';
+import { CALCULATORS, CATEGORIES } from '../../data/calculators';
+const calc = CALCULATORS.find(c => c.slug === 'notgroschen-rechner')!;
+const cat = CATEGORIES[calc.category];
+const year = new Date().getFullYear();
+---
+<Layout
+  title={`Notgroschen-Rechner ${year}`}
+  description="Empfohlene Höhe des Notgroschens berechnen – basierend auf Ausgaben und Lebenssituation."
+  canonicalPath="/geld/notgroschen-rechner/"
+  categoryColor={cat.color}
+  categoryLight={cat.colorLight}
+  categoryImage={cat.image}
+>
+  <div class="page-header">
+    <a href={`${import.meta.env.BASE_URL}geld/`} class="back-link">← Geld & Gehalt</a>
+    <h1>Notgroschen-Rechner {year}</h1>
+  </div>
+  <CalculatorShell
+    calculator={calc}
+    intro="Berechne deinen persönlichen Notgroschen. Berücksichtigt werden monatliche Ausgaben, Beschäftigungsstatus und die Anzahl der Kinder."
+    sourceNote="Empfehlungen basieren auf allgemeinen Finanzratgebern. Individuelle Bedürfnisse können abweichen. Keine Finanzberatung."
+    explanation="Empfehlung: 3-6 Monatsausgaben als Notgroschen. Selbstständige: 6-12 Monate. Der Notgroschen sollte auf einem Tagesgeldkonto liegen (schnell verfügbar, kein Verlustrisiko). Berechnung: Monatliche Fixkosten × empfohlene Monate. Variable Kosten können reduziert werden."
+  >
+    <div class="calc-form">
+      <div class="calc-grid">
+        <div class="calc-group">
+          <label for="ausgaben">Monatliche Ausgaben (€)</label>
+          <input type="number" id="ausgaben" min="200" max="20000" value="2000" step="100" />
+        </div>
+        <div class="calc-group">
+          <label for="status">Beschäftigungsstatus</label>
+          <select id="status">
+            <option value="angestellt" selected>Angestellt (unbefristet)</option>
+            <option value="befristet">Angestellt (befristet)</option>
+            <option value="selbst">Selbstständig/Freiberufler</option>
+            <option value="arbeiter">Arbeiter</option>
+          </select>
+        </div>
+        <div class="calc-group">
+          <label for="kinder">Anzahl Kinder</label>
+          <input type="number" id="kinder" min="0" max="10" value="0" step="1" />
+        </div>
+        <div class="calc-group">
+          <label for="zweites">Zweites Einkommen im Haushalt?</label>
+          <select id="zweites">
+            <option value="nein" selected>Nein</option>
+            <option value="ja">Ja</option>
+          </select>
+        </div>
+      </div>
+      <div class="calc-result">
+        <div class="label">Empfohlener Notgroschen</div>
+        <div id="ergebnis">— €</div>
+      </div>
+      <div id="details" style="margin-top:0.75rem;font-size:0.88rem;color:#666;display:flex;gap:1.5rem;flex-wrap:wrap;"></div>
+    </div>
+  </CalculatorShell>
+</Layout>
+
+<script type="module">
+function berechne() {
+  const ausgaben = parseFloat(document.getElementById('ausgaben').value) || 2000;
+  const status = document.getElementById('status').value;
+  const kinder = parseInt(document.getElementById('kinder').value) || 0;
+  const zweites = document.getElementById('zweites').value === 'ja';
+  let monate;
+  switch (status) {
+    case 'selbst': monate = 9; break;
+    case 'befristet': monate = 6; break;
+    case 'arbeiter': monate = 5; break;
+    default: monate = 4;
+  }
+  if (kinder > 0) monate += kinder * 0.5;
+  if (zweites) monate -= 1;
+  monate = Math.max(3, Math.min(12, Math.round(monate)));
+  const notgroschen = ausgaben * monate;
+  const fmt = (n) => n.toLocaleString('de-DE', {minimumFractionDigits:0, maximumFractionDigits:0}) + ' €';
+  document.getElementById('ergebnis').textContent = fmt(notgroschen);
+  document.getElementById('details').innerHTML =
+    `<span>Empfohlene Monate: <strong>${monate}</strong></span>` +
+    `<span>Monatliche Ausgaben: <strong>${fmt(ausgaben)}</strong></span>` +
+    `<span>Notgroschen: <strong>${fmt(notgroschen)}</strong></span>` +
+    `<span>Tipp: Auf Tagesgeldkonto parken</span>`;
+}
+['ausgaben','kinder'].forEach(id => document.getElementById(id).addEventListener('input', berechne));
+['status','zweites'].forEach(id => document.getElementById(id).addEventListener('change', berechne));
+berechne();
+</script>
