@@ -54,6 +54,7 @@ export const CALCULATORS: Calculator[] = [
   { slug: 'kfz-steuer-rechner',        title: 'Kfz-Steuer-Rechner',        description: 'Kfz-Steuer für Benziner, Diesel und Elektro berechnen.',                  category: 'auto',      featured: true,  live: true },
   { slug: 'spritkosten-rechner',       title: 'Spritkosten-Rechner',       description: 'Kraftstoffkosten für eine Fahrt berechnen.',                               category: 'auto',      featured: false, live: true },
   { slug: 'fahrtkosten-rechner',       title: 'Fahrtkosten-Rechner',       description: 'Steuerliche Kilometerpauschale berechnen.',                                category: 'auto',      featured: false, live: true },
+  { slug: 'busgeldrechner',            title: 'Bußgeldrechner',            description: 'Bußgeld, Punkte und Fahrverbot nach aktuellem Bußgeldkatalog berechnen.',    category: 'auto',      featured: true,  live: true },
   // FAMILIE
   { slug: 'kindergeld-rechner',        title: 'Kindergeld-Rechner',        description: 'Kindergeld nach Anzahl der Kinder berechnen.',                             category: 'familie',   featured: false, live: true },
   { slug: 'wohngeld-rechner',          title: 'Wohngeld-Rechner',          description: 'Anspruch auf Wohngeld prüfen.',                                            category: 'familie',   featured: false, live: true },
