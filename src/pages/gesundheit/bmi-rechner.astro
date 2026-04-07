@@ -23,6 +23,24 @@ const year = new Date().getFullYear();
     intro="Berechnen Sie Ihren Body-Mass-Index (BMI) kostenlos nach der WHO-Formel. Geben Sie Ihr Gewicht und Ihre Körpergröße ein – der BMI und die Einordnung nach WHO-Kategorien erscheint sofort. Der BMI ist ein Richtwert und ersetzt keine ärztliche Beratung."
     sourceNote="Berechnung: BMI = Gewicht (kg) ÷ Körpergröße² (m). Kategorien nach WHO-Standard."
     explanation="Der BMI (Body-Mass-Index) = Gewicht (kg) / Größe² (m²). Die WHO-Klassifikation: Untergewicht < 18,5, Normalgewicht 18,5-24,9, Übergewicht 25-29,9, Adipositas Grad I 30-34,9, Grad II 35-39,9, Grad III ≥ 40. Der BMI berücksichtigt nicht die Muskelmasse – Sportler können einen hohen BMI haben, ohne übergewichtig zu sein. Für Kinder und Jugendliche gelten altersspezifische Perzentilen."
+    faqs={[
+      {
+        q: "Ist der BMI eine verlässliche Maßzahl für Übergewicht?",
+        a: "Der BMI ist ein guter Richtwert für die Bevölkerung, hat aber Grenzen: Er unterscheidet nicht zwischen Fett- und Muskelmasse. Sportler mit hohem Muskelfettanteil können fälschlich als übergewichtig eingestuft werden. Bei sehr kleinen oder sehr großen Personen kann er irreführend sein."
+      },
+      {
+        q: "Ab wann spricht man von Übergewicht gemäß WHO?",
+        a: "Laut Weltgesundheitsorganisation (WHO) liegt Übergewicht bei einem BMI von 25,0 oder höher. Adipositas (Fettleibigkeit) beginnt bei BMI 30,0. Die Grenzen gelten für Erwachsene ab 18 Jahren."
+      },
+      {
+        q: "Warum zeigt der Rechner verschiedene BMI-Klassen an?",
+        a: "Die WHO unterscheidet mehrere Grade der Adipositas, da das Gesundheitsrisiko mit zunehmendem BMI steigt. Grad I (30-34,9) ist moderat erhöht, Grad II (35-39,9) stark und Grad III (≥40) sehr stark erhöhtes Risiko für Begleiterkrankungen wie Diabetes oder Herz-Kreislauf-Erkrankungen."
+      },
+      {
+        q: "Muss ich meinen BMI regelmäßig kontrollieren?",
+        a: "Eine Kontrolle alle paar Monate ist sinnvoll, besonders bei Gewichtsänderungen. Bei bestehenden Gesundheitsrisiken (wie Bluthochdruck oder Diabetes) sollten Sie gemeinsam mit Ihrem Arzt Zielwerte vereinbaren und diese überwachen."
+      }
+    ]}
   >
     <div class="calc-form">
       <div class="calc-grid">

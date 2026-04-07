@@ -23,6 +23,24 @@ const year = new Date().getFullYear();
     intro="Prüfen Sie, ob Ihre Miete gegen die Mietpreisbremse verstößt (§§ 556d–556g BGB). In Gebieten mit angespanntem Wohnungsmarkt darf die Miete die ortsübliche Vergleichsmiete um maximal 10% übersteigen."
     sourceNote="Mietpreisbremse nach §§ 556d–556g BGB. Gilt nur in per Landesverordnung ausgewiesenen Gebieten. Ausnahmen: Erstbezug, umfassende Modernisierung, höhere Vormiete. Keine Rechtsberatung."
     explanation="Die Mietpreisbremse (§ 556d BGB) begrenzt die Miete bei Neuvermietungen in angespannten Wohnungsmärkten auf maximal 10% über der ortsüblichen Vergleichsmiete. Die ortsübliche Miete wird anhand des Mietspiegels ermittelt. Ausnahmen: Erstvermietung nach umfassender Modernisierung, erstmalige Vermietung nach dem 1.10.2014. Bei Überschreitung kann der Mieter die Miete mindern und zu viel gezahlte Miete zurückfordern."
+    faqs={[
+      {
+        q: "In welchen Städten gilt die Mietpreisbremse?",
+        a: "Die Mietpreisbremse gilt nur in von den Landesregierungen per Verordnung festgelegten Gebieten mit angespanntem Wohnungsmarkt. Dazu gehören beispielsweise große Städte wie Berlin, Hamburg, München, Köln und Frankfurt sowie deren Umland. Die genaue Gebietsausweisung finden Sie auf den Websites der jeweiligen Landesbehörden."
+      },
+      {
+        q: "Was zählt als 'ortsübliche Vergleichsmiete'?",
+        a: "Die ortsübliche Vergleichsmiete wird aus dem Mietenspiegel der jeweiligen Stadt oder Region ermittelt. Sie repräsentiert die durchschnittliche Nettokaltmiete für vergleichbare Wohnungen (Baujahr, Größe, Ausstattung, Lage). Viele Städte veröffentlichen ihren Mietenspiegel online oder bei den örtlichen Mietenspiegelkommissionen."
+      },
+      {
+        q: "Gilt die Mietpreisbremse auch für Bestandmieter?",
+        a: "Nein, die Mietpreisbremse gilt nur bei Neuvermietungen oder Wiedervermietungen nach einer Leerstandsperiode. Bei bestehenden Mietverhältnissen schützt sie nicht vor Mieterhöhungen – hier gelten die üblichen Mieterhöhungsgrenzen nach § 558 BGB (meist 15% über drei Jahre)."
+      },
+      {
+        q: "Kann ich meine Miete senken, wenn sie zu hoch ist?",
+        a: "Ja, wenn Ihre Miete die ortsübliche Vergleichsmiete um mehr als 10% übersteigt, können Sie die Miete auf den zulässigen Betrag mindern. Zu viel gezahlte Miete können Sie innerhalb von 30 Tagen zurückverlangen. Der Vermieter kann dagegen nur mit Nachweis einer Ausnahme (z.B. Modernisierung) vorgehen."
+      }
+    ]}
   >
     <div class="calc-form">
       <div class="calc-grid">
@@ -49,10 +67,26 @@ const year = new Date().getFullYear();
           Vormiete war bereits höher (Bestandsschutz nach § 556e BGB)
         </label>
       </div>
-      <div class="calc-result" id="result-box">
-        <div class="label">Zulässige Kaltmiete gesamt</div>
-        <div id="erlaubt">— €</div>
-      </div>
+       <div class="calc-result" id="result-box">
+         <div class="label">Zulässige Kaltmiete gesamt</div>
+         <div id="erlaubt">— €</div>
+         <div class="result-actions">
+           <button 
+             data-copy-result="#erlaubt" 
+             class="btn-copy"
+             title="Resultat kopieren"
+           >
+             📋 Kopieren
+           </button>
+           <button 
+             data-save-pdf="#result-box" 
+             class="btn-pdf"
+             title="Als PDF speichern"
+           >
+             📄 PDF
+           </button>
+         </div>
+       </div>
       <div id="details" style="margin-top:0.75rem;font-size:0.88rem;color:#666;display:flex;gap:1.5rem;flex-wrap:wrap;"></div>
     </div>
   </CalculatorShell>

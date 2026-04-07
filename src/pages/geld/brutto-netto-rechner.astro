@@ -23,6 +23,24 @@ const year = new Date().getFullYear();
     intro="Mit dem Brutto-Netto-Rechner berechnen Sie schnell und kostenlos Ihr monatliches Nettoeinkommen. Geben Sie Ihr Bruttogehalt, Ihre Steuerklasse und Ihr Bundesland ein – alle Abzüge wie Lohnsteuer, Solidaritätszuschlag und Sozialversicherungsbeiträge werden automatisch berücksichtigt."
     sourceNote="Berechnung nach § 32a EStG 2025, aktuellen SV-Beitragssätzen (BMAS) und länderspezifischen Kirchensteuersätzen. Ohne Gewähr – für verbindliche Auskünfte wenden Sie sich an das Finanzamt."
     explanation="Das Bruttogehalt wird um folgende Abzüge reduziert: Lohnsteuer (progressiv nach § 32a EStG, 14-45%), Solidaritätszuschlag (5,5% der Lohnsteuer), Kirchensteuer (8-9% je nach Bundesland), Rentenversicherung (18,6%), Krankenversicherung (14,6% + Zusatzbeitrag), Arbeitslosenversicherung (2,6%) und Pflegeversicherung (2,4% bzw. 2,7% für Kinderlose). Die Sozialabgaben werden nur bis zur jeweiligen Beitragsbemessungsgrenze erhoben."
+    faqs={[
+      {
+        q: "Wie wird der Bruttolohn zum Nettolohn berechnet?",
+        a: "Vom Bruttolohn werden Lohnsteuer, Solidaritätszuschlag, eventuelle Kirchensteuer sowie Sozialversicherungsbeiträge (Renten-, Kranken-, Arbeitslosen- und Pflegeversicherung) abgezogen. Der Rechner berücksichtigt automatisch alle relevanten Abzüge basierend auf Ihrer Steuerklasse und Ihrem Bundesland."
+      },
+      {
+        q: "Welche Steuerklasse sollte ich bei Teilzeitbeschäftigung wählen?",
+        a: "Die Steuerklasse hängt nicht von der Arbeitszeit ab, sondern vom Familienstand und anderen Faktoren. Ledige ohne Kinder gehören grundsätzlich in Steuerklasse I. Bei Teilzeit wird nur das tatsächlich erzielende Einkommen versteuert."
+      },
+      {
+        q: "Warum unterscheidet sich mein Netto vom Rechnergebnis?",
+        a: "Mögliche Gründe: zusätzliches Einkommen (z.B. Nebenjob), sonstige Abzüge (wie Werbungskosten oder Sonderausgaben), betrieblich begründete Zulagen oder Ihre individuelle Krankenzusatzversicherung. Der Rechner zeigt das gesetzliche Mindestnetto."
+      },
+      {
+        q: "Wie wirkt sich ein Gehaltswechsel im Jahr auf die Steuer aus?",
+        a: "Bei einem Gehaltswechsel während des Jahres wird die Einkommensteuer nach dem Jahresgehalt berechnet. Der Arbeitgeber führt dabei eine Vorausberechnung durch – eventuelle Unterschiede werden bei der Einkommensteuererklärung ausgeglichen."
+      }
+    ]}
   >
     <div class="calc-form">
       <div class="calc-grid">

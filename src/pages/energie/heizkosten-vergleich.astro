@@ -18,12 +18,26 @@ const year = new Date().getFullYear();
     <a href={`${import.meta.env.BASE_URL}energie/`} class="back-link">← Energie</a>
     <h1>Heizkosten-Vergleich {year}</h1>
   </div>
-  <CalculatorShell
-    calculator={calc}
-    intro="Vergleiche die jährlichen Heizkosten verschiedener Energieträger für dein Haus. Gib Wohnfläche, Dämmstandard und gewünschte Temperatur ein."
-    sourceNote="Durchschnittswerte based on aktueller Energiepreise und Verbrauchskennwerte. Tatsächliche Kosten können je nach Nutzung und Standort variieren."
-    explanation="Vergleicht Jahresheizkosten für: Erdgas, Heizöl, Wärmepumpe (Luft/Wasser), Holzpellets und Fernwärme. Berechnung basiert auf spezifischem Endenergieverbrauch (kWh/(m²·a)) und aktuellen Energiepreisen. Für Wärmepumpe wird die Jahresarbeitszahl (JAZ) berücksichtigt."
-  >
+   <CalculatorShell
+     calculator={calc}
+     intro="Vergleiche die jährlichen Heizkosten verschiedener Energieträger für dein Haus. Gib Wohnfläche, Dämmstandard und gewünschte Temperatur ein."
+     sourceNote="Durchschnittswerte based on aktueller Energiepreise und Verbrauchskennwerte. Tatsächliche Kosten können je nach Nutzung und Standort variieren."
+     explanation="Vergleicht Jahresheizkosten für: Erdgas, Heizöl, Wärmepumpe (Luft/Wasser), Holzpellets und Fernwärme. Berechnung basiert auf spezifischem Endenergieverbrauch (kWh/(m²·a)) und aktuellen Energiepreisen. Für Wärmepumpe wird die Jahresarbeitszahl (JAZ) berücksichtigt."
+     faqs={[
+       {
+         q: "Welcher Energieträger ist derzeit am günstigsten?",
+         a: "Aktuell sind Holzpellets oft der günstigste Energieträger wegen ihres niedrigen Preises pro kWh und guten Wirkungsgrads. Allerdings hängt das günstigste System stark von deinem Standort, deiner Immobilie und den verfügbaren Anschlüssen ab. Wärmepumpen können bei günstigem Stromtarif und guter Jahresarbeitszahl (JAZ) sehr wettbewerbsfähig sein."
+       },
+       {
+         q: "Wie wirkt sich die Dämmung auf die Heizkosten aus?",
+         a: "Die Dämmung hat einen enormen Einfluss auf die Heizkosten. Ein unsanierter Altbau benötigt etwa 150 kWh/(m²·a), während ein Effizienzhaus nur noch 60 kWh/(m²·a) und ein Passivhaus sogar nur 22 kWh/(m²·a) benötigt. Gute Dämmung reduziert nicht nur die Heizkosten, sondern erhöht auch den Wohnkomfort deutlich."
+       },
+       {
+         q: "Ist eine Wärmepumpe immer die beste Wahl?",
+         a: "Eine Wärmepumpe ist nicht automatisch die beste Wahl. Sie benötigt einen ausreichend dimensionierten Heizkreislauf (ideal: Fußbodenheizung oder große Heizkörper) und arbeitet am effizientesten bei niedrigen Vorlauftemperaturen. In sehr alten Gebäuden mit schlecht gedämmter Hülle und bestehenden Heizkörpern kann ein modernes Gas-Brennwerttanketzsystem wirtschaftlicher sein."
+       }
+     ]}
+   >
     <div class="calc-form">
       <div class="calc-grid">
         <div class="calc-group">
@@ -48,10 +62,26 @@ const year = new Date().getFullYear();
           <input type="number" id="jawz" min="2.5" max="5.5" value="3.8" step="0.1" />
         </div>
       </div>
-      <div class="calc-result">
-        <div class="label">Niedrigste jährliche Kosten</div>
-        <div id="ergebnis">— €</div>
-      </div>
+       <div class="calc-result">
+         <div class="label">Niedrigste jährliche Kosten</div>
+         <div id="ergebnis">— €</div>
+         <div class="result-actions">
+           <button 
+             data-copy-result="#ergebnis" 
+             class="btn-copy"
+             title="Resultat kopieren"
+           >
+             📋 Kopieren
+           </button>
+           <button 
+             data-save-pdf="#ergebnis" 
+             class="btn-pdf"
+             title="Als PDF speichern"
+           >
+             📄 PDF
+           </button>
+         </div>
+       </div>
       <div id="details" style="margin-top:0.75rem;font-size:0.88rem;color:#666;display:flex;gap:1.5rem;flex-wrap:wrap;"></div>
     </div>
   </CalculatorShell>

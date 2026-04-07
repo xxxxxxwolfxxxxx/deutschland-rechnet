@@ -8,12 +8,77 @@ interface Props {
   intro: string;
   sourceNote: string;
   explanation?: string;
+  faqs?: Array<{ q: string; a: string }>;
 }
-const { calculator, intro, sourceNote, explanation } = Astro.props;
+const { calculator, intro, sourceNote, explanation, faqs } = Astro.props;
 const cat = CATEGORIES[calculator.category];
 const base = import.meta.env.BASE_URL;
+const siteUrl = import.meta.env.SITE ?? 'https://deutschland-rechnet.de';
+
+const webAppSchema = {
+  "@context": "https://schema.org",
+  "@type": "WebApplication",
+  "name": `${calculator.title} - Deutschland rechnet`,
+  "applicationCategory": "CalculatorApplication",
+  "operatingSystem": "Web",
+  "offers": {
+    "@type": "Offer",
+    "price": "0",
+    "priceCurrency": "EUR"
+  },
+  "inLanguage": "de-DE",
+  "url": `${siteUrl}${base}${calculator.category}/${calculator.slug}/`,
+  "description": calculator.description,
+  "author": {
+    "@type": "Organization",
+    "name": "Deutschland rechnet"
+  }
+};
+
+const breadcrumbSchema = {
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  "itemListElement": [
+    {
+      "@type": "ListItem",
+      "position": 1,
+      "name": "Startseite",
+      "item": `${siteUrl}${base}`
+    },
+    {
+      "@type": "ListItem",
+      "position": 2,
+      "name": cat.label,
+      "item": `${siteUrl}${base}${calculator.category}/`
+    },
+    {
+      "@type": "ListItem",
+      "position": 3,
+      "name": calculator.title,
+      "item": `${siteUrl}${base}${calculator.category}/${calculator.slug}/`
+    }
+  ]
+};
+
+const faqSchema = faqs && faqs.length > 0 ? {
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": faqs.map(faq => ({
+    "@type": "Question",
+    "name": faq.q,
+    "acceptedAnswer": {
+      "@type": "Answer",
+      "text": faq.a
+    }
+  }))
+} : null;
 ---
 <article>
+  <!-- JSON-LD Schemas -->
+  <script type="application/ld+json" set:html={JSON.stringify(webAppSchema)} />
+  <script type="application/ld+json" set:html={JSON.stringify(breadcrumbSchema)} />
+  {faqSchema && <script type="application/ld+json" set:html={JSON.stringify(faqSchema)} />}
+
   <CategoryHero
     color={cat.color}
     image={cat.image}
@@ -32,6 +97,20 @@ const base = import.meta.env.BASE_URL;
     )}
     <p class="source-note">{sourceNote}</p>
   </div>
+
+  {faqs && faqs.length > 0 && (
+    <div class="faq-section">
+      <h3>Häufige Fragen</h3>
+      <div class="faq-items">
+        {faqs.map((faq) => (
+          <div class="faq-item">
+            <h4 class="faq-question">{faq.q}</h4>
+            <div class="faq-answer">{faq.a}</div>
+          </div>
+        ))}
+      </div>
+    </div>
+  )}
 
   <RelatedLinks current={calculator} />
 </article>
@@ -73,5 +152,66 @@ const base = import.meta.env.BASE_URL;
   margin-bottom: 0;
   padding-top: 0.75rem;
   border-top: 1px solid var(--border);
+}
+.faq-section {
+  margin-bottom: 1.5rem;
+  background: var(--surface);
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1.75rem;
+}
+.faq-section h3 {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 1rem;
+}
+.faq-items {
+  display: grid;
+  gap: 0.75rem;
+}
+.faq-item {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 1rem;
+  background: var(--bg);
+}
+.faq-question {
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 0.4rem;
+  font-size: 0.95rem;
+}
+.faq-answer {
+  color: var(--text-light);
+  line-height: 1.5;
+  font-size: 0.9rem;
+  margin: 0;
+}
+
+/* Result action buttons */
+.result-actions {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+  flex-wrap: wrap;
+}
+.result-actions button {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 0.5rem 0.75rem;
+  border-radius: var(--radius-sm);
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.result-actions button:hover {
+  background: var(--surface);
+  color: var(--accent);
+  border-color: var(--accent);
+}
+.result-actions button:active {
+  transform: scale(0.98);
 }
 </style>

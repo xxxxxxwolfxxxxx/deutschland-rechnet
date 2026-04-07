@@ -18,12 +18,26 @@ const year = new Date().getFullYear();
     <a href={`${import.meta.env.BASE_URL}wohnen/`} class="back-link">← Wohnen & Immobilien</a>
     <h1>Grunderwerbsteuer-Rechner {year} – nach Bundesland</h1>
   </div>
-  <CalculatorShell
-    calculator={calc}
-    intro="Berechnen Sie die Grunderwerbsteuer beim Immobilienkauf kostenlos nach Bundesland. Die Steuersätze variieren zwischen 3,5 % (Bayern) und 6,5 % (NRW, Schleswig-Holstein u.a.). Geben Sie Kaufpreis und Bundesland ein – das Ergebnis erscheint sofort."
-    sourceNote="Steuersätze nach aktuellen Landesgesetzen (Stand 2025). Bayern und Sachsen 3,5 %, alle anderen 5,0–6,5 %."
-    explanation="Die Grunderwerbsteuer wird beim Kauf von Immobilien und Grundstücken fällig. Die Sätze variieren je nach Bundesland: Bayern 3,5%, Sachsen 3,5%, andere zwischen 5,0% und 6,5%. Bemessungsgrundlage ist der Kaufpreis. Ausnahmen: Ersterwerb von Familien mit Kindern, bestimmte Unternehmensumstrukturierungen. Die Steuer wird vom Finanzamt festgesetzt und ist innerhalb eines Monats nach Bescheid fällig."
-  >
+   <CalculatorShell
+     calculator={calc}
+     intro="Berechnen Sie die Grunderwerbsteuer beim Immobilienkauf kostenlos nach Bundesland. Die Steuersätze variieren zwischen 3,5 % (Bayern) und 6,5 % (NRW, Schleswig-Holstein u.a.). Geben Sie Kaufpreis und Bundesland ein – das Ergebnis erscheint sofort."
+     sourceNote="Steuersätze nach aktuellen Landesgesetzen (Stand 2025). Bayern und Sachsen 3,5 %, alle anderen 5,0–6,5 %."
+     explanation="Die Grunderwerbsteuer wird beim Kauf von Immobilien und Grundstücken fällig. Die Sätze variieren je nach Bundesland: Bayern 3,5%, Sachsen 3,5%, andere zwischen 5,0% und 6,5%. Bemessungsgrundlage ist der Kaufpreis. Ausnahmen: Ersterwerb von Familien mit Kindern, bestimmte Unternehmensumstrukturierungen. Die Steuer wird vom Finanzamt festgesetzt und ist innerhalb eines Monats nach Bescheid fällig."
+     faqs={[
+       {
+         q: "Warum variiert die Grunderwerbsteuer nach Bundesland?",
+         a: "Die Grunderwerbsteuer ist eine Landessteuer, sodass jedes Bundesland den Steuersatz selbst festlegt. Dies führt zu unterschiedlichen Sätzen zwischen 3,5% und 6,5%. Bayern und Sachsen haben mit 3,5% den niedrigsten Satz, während NRW, Schleswig-Holstein und Thüringen mit 6,5% den höchsten Satz haben."
+       },
+       {
+         q: "Gibt es Ausnahmen oder Ermäßigungen bei der Grunderwerbsteuer?",
+         a: "Ja, es gibt mehrere Ausnahmen: Ersterwerb von Eigenheimen durch Familien mit Kindern (in einigen Bundesländern), Übertragungen zwischen Ehepartnern oder Eltern und Kindern, Unternehmensumstrukturierungen sowie Erwerb von landwirtschaftlichem Boden. Die genauen Regelungen variieren jedoch stark zwischen den Bundesländern."
+       },
+       {
+         q: "Wann muss die Grunderwerbsteuer gezahlt werden?",
+         a: "Die Grunderwerbsteuer wird nach notarieller Beurkundung fällig. Das Finanzamt sends einen Steuerbescheid, der innerhalb von einem Monat zu zahlen ist. Bei Nichtzahlung können Säumniszuschläge erhoben werden. Der Notar überweist in der Regel den Kaufpreis erst nach Zahlung der Grunderwerbsteuer an den Verkäufer."
+       }
+     ]}
+   >
     <div class="calc-form">
       <div class="calc-grid">
         <div class="calc-group">
@@ -52,10 +66,26 @@ const year = new Date().getFullYear();
           </select>
         </div>
       </div>
-      <div class="calc-result">
-        <div class="label">Grunderwerbsteuer</div>
-        <div id="steuer">— €</div>
-      </div>
+       <div class="calc-result">
+         <div class="label">Grunderwerbsteuer</div>
+         <div id="steuer">— €</div>
+         <div class="result-actions">
+           <button 
+             data-copy-result="#steuer" 
+             class="btn-copy"
+             title="Resultat kopieren"
+           >
+             📋 Kopieren
+           </button>
+           <button 
+             data-save-pdf="#steuer" 
+             class="btn-pdf"
+             title="Als PDF speichern"
+           >
+             📄 PDF
+           </button>
+         </div>
+       </div>
       <p id="info" style="margin-top:0.5rem;font-size:0.85rem;color:#666;"></p>
     </div>
   </CalculatorShell>
