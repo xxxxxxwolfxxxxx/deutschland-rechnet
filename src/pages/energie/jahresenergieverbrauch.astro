@@ -1,0 +1,164 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import CalculatorShell from '../../components/CalculatorShell.astro';
+import { CALCULATORS, CATEGORIES } from '../../data/calculators';
+const calc = CALCULATORS.find(c => c.slug === 'jahresenergieverbrauch')!;
+const cat = CATEGORIES[calc.category];
+const year = new Date().getFullYear();
+---
+<Layout
+  title={`Jahresenergieverbrauch ${year}`}
+  description="Strom-, Gas- und Wasserverbrauch deines Haushalts berechnen – mit Vergleich zum Durchschnitt."
+  canonicalPath="/energie/jahresenergieverbrauch/"
+  categoryColor={cat.color}
+  categoryLight={cat.colorLight}
+  categoryImage={cat.image}
+>
+  <div class="page-header">
+    <a href={`${import.meta.env.BASE_URL}energie/`} class="back-link">← Energie</a>
+    <h1>Jahresenergieverbrauch {year}</h1>
+  </div>
+   <CalculatorShell
+     calculator={calc}
+     intro="Berechne den jährlichen Energie- und Wasserverbrauch deines Haushalts. Vergleiche deine Werte mit dem deutschen Durchschnitt und entdecke Einsparpotenziale."
+     sourceNote="Durchschnittswerte gemäß BDEW, Destatis und BFSJ. Tatsächliche Werte können je nach Haushaltsgröße, Verhalten und Gebäudeeffizienz variieren."
+     explanation="Berechnet den jährlichen Verbrauch für Strom, Gas, Wasser und Wärme basierend auf Haushaltsgröße, Wohnfläche und Nutzungsverhalten. Vergleichswerte: Strom 1.500-3.500 kWh/Jahr (2-Personen-Haushalt), Gas 10.000-20.000 kWh/Jahr, Wasser 120-150 Liter pro Person und Tag."
+     faqs={[
+       {
+         q: "Wie hoch ist der durchschnittliche Stromverbrauch eines Haushalts?",
+         a: "Der durchschnittliche Stromverbrauch in Deutschland liegt bei etwa 2.500 kWh pro Jahr für einen Zwei-Personen-Haushalt. Single-Haushalte verbrauchen oft weniger (1.500-2.000 kWh), während Familien mit Kindern deutlich mehr benötigen (3.500-5.000 kWh). Stark variierende Faktoren sind Elektroheizung, Warmwasserbereitung und zahlreiche Standby-Geräte."
+       },
+       {
+         q: "Wie kann ich meinen Wasserverbrauch reduzieren?",
+         a: "Effektive Spartipps: Waschmaschine und Geschirrspüler nur voll beladen starten, duschen statt baden (spart bis zu 50% Wasser), wassersparende Brausen und Durchflussbegrenzer installieren, Regenwasser für Garten nutzen und Tropfbewässerung statt Sprenger verwenden. Auch das Bewusstsein beim Händewaschen und Zähneputzen macht einen großen Unterschied."
+       },
+       {
+         q: "Welchen Einfluss hat das Baujahr auf meine Heizkosten?",
+         a: "Das Baujahr hat einen enormen Einfluss auf die Heizkosten. Häuser vor 1978 benötigen oft 160 kWh/(m²·a), während Neubau nach 2020 nur noch 35 kWh/(m²·a) benötigt. Eine Modernisierung kann den Heizenergiebedarf um 60-70% reduzieren. Besonders wirksam sind Dachdämmung, Fassadendämmung und Austausch alter Fenster gegen moderne Wärmeschutzverglasung."
+       }
+     ]}
+   >
+    <div class="calc-form">
+      <div class="calc-grid">
+        <div class="calc-group">
+          <label for="personen">Anzahl Personen im Haushalt</label>
+          <input type="number" id="personen" min="1" max="10" value="2" step="1" />
+        </div>
+        <div class="calc-group">
+          <label for="wohnflaeche">Wohnfläche (m²)</label>
+          <input type="number" id="wohnflaeche" min="20" max="300" value="80" step="5" />
+        </div>
+        <div class="calc-group">
+          <label for="baujahr">Baujahr des Gebäudes</label>
+          <select id="baujahr">
+            <option value="vor1978">vor 1978 (unsaniert)</option>
+            <option value="1979-1995" selected>1979-1995</option>
+            <option value="1996-2009">1996-2009</option>
+            <option value="nach2010">nach 2010 (effizient)</option>
+            <option value="nach2020">nach 2020 (KfW/Effizienzhaus)</option>
+          </select>
+        </div>
+        <div class="calc-group">
+          <label for="warmewasser">Warmwasseraufbereitung</label>
+          <select id="warmewasser">
+            <option value="zentral" selected>Zentral über Heizung</option>
+            <option value="dezentral">Dezentral (Durchlauferhitzer)</option>
+            <option value="solar">Solarunterstützt</option>
+          </select>
+        </div>
+      </div>
+       <div class="calc-result">
+         <div class="label">Gesamtenergiekosten pro Jahr</div>
+         <div id="ergebnis">— €</div>
+         <div class="result-actions">
+           <button 
+             data-copy-result="#ergebnis" 
+             class="btn-copy"
+             title="Resultat kopieren"
+           >
+             📋 Kopieren
+           </button>
+           <button 
+             data-save-pdf="#ergebnis" 
+             class="btn-pdf"
+             title="Als PDF speichern"
+           >
+             📄 PDF
+           </button>
+         </div>
+       </div>
+      <div id="details" style="margin-top:0.75rem;font-size:0.88rem;color:#666;display:flex;gap:1.5rem;flex-wrap:wrap;"></div>
+    </div>
+  </CalculatorShell>
+</Layout>
+
+<script type="module">
+function berechne() {
+  const personen = parseInt(document.getElementById('personen').value) || 2;
+  const wohnflaeche = parseFloat(document.getElementById('wohnflaeche').value) || 80;
+  const baujahr = document.getElementById('baujahr').value;
+  const warmewasser = document.getElementById('warmewasser').value;
+  
+  // Grundverbrauchswerte (Durchschnitt Deutschland)
+  const stromProPerson = 750; // kWh/Jahr pro Person
+  const wasserProPersonProTag = 125; // Liter/Tag pro Person
+  
+  // Heizwärmebedarf abhängig von Baujahr und Wohnfläche
+  let spezHeizwaermeBedarf;
+  switch (baujahr) {
+    case 'vor1978': spezHeizwaermeBedarf = 160; break; // kWh/(m²·a)
+    case '1979-1995': spezHeizwaermeBedarf = 100; break;
+    case '1996-2009': spezHeizwaermeBedarf = 70; break;
+    case 'nach2010': spezHeizwaermeBedarf = 50; break;
+    case 'nach2020': spezHeizwaermeBedarf = 35; break;
+    default: spezHeizwaermeBedarf = 80;
+  }
+  
+  // Warmwasserzuschlag
+  const wwZuschlag = warmewasser === 'dezentral' ? 1.3 : 
+                     warmewasser === 'solar' ? 0.7 : 1.0;
+  
+  // Berechnungen
+  const jahresStrom = personen * stromProPerson;
+  const jahresWasserLiter = personen * wasserProPersonProTag * 365;
+  const jahresWasserM3 = jahresWasserLiter / 1000;
+  const jahresHeizwaermeKwh = wohnflaeche * spezHeizwaermeBedarf * wwZuschlag;
+  
+  // Energiepreise (Durchschnitt 2024)
+  const stromPreis = 0.42; // €/kWh
+  const gasPreis = 0.12; // €/kWh
+  const wasserPreis = 1.80; // €/m³ (inkl. Abwasser)
+  
+  // Kosten
+  const stromKosten = jahresStrom * stromPreis;
+  const gasKosten = jahresHeizwaermeKwh * gasPreis;
+  const wasserKosten = jahresWasserM3 * wasserPreis;
+  const gesamtKosten = stromKosten + gasKosten + wasserKosten;
+  
+  // Vergleichswerte (2-Personen-Haushalt, 80m², Baujahr 1990-2010)
+  const vergleichStrom = 2 * stromProPerson * stromPreis;
+  const vergleichGas = 80 * 85 * gasPreis; // Durchschnittswert
+  const vergleichWasser = 2 * wasserProPersonProTag * 365 / 1000 * wasserPreis;
+  const vergleichGesamt = vergleichStrom + vergleichGas + vergleichWasser;
+  
+  const fmt = (n) => n.toLocaleString('de-DE', {minimumFractionDigits:0, maximumFractionDigits:0}) + ' €';
+  const fmtWh = (n) => n.toLocaleString('de-DE', {minimumFractionDigits:0}) + ' kWh';
+  const fmtLiter = (n) => n.toLocaleString('de-DE', {minimumFractionDigits:0}) + ' Liter';
+  const fmtM3 = (n) => n.toLocaleString('de-DE', {minimumFractionDigits:1}) + ' m³';
+  
+  document.getElementById('ergebnis').textContent = fmt(gesamtKosten);
+  document.getElementById('ergebnis').style.color = gesamtKosten < vergleichGesamt ? '#1e7e34' : '#b71c1c';
+  
+  document.getElementById('details').innerHTML =
+    `<span>Stromverbrauch: <strong>${fmtWh(jahresStrom)}</strong> (Vergleich: ${fmtWh(2 * stromProPerson)})</span>` +
+    `<span>Stromkosten: <strong>${fmt(stromKosten)}</strong> (Vergleich: ${fmt(vergleichStrom)})</span>` +
+    `<span>Heizwärme: <strong>${fmtWh(jahresHeizwaermeKwh)}</strong> (Vergleich: ${fmtWh(80 * 85)})</span>` +
+    `<span>Heizkosten: <strong>${fmt(gasKosten)}</strong> (Vergleich: ${fmt(vergleichGas)})</span>` +
+    `<span>Wasserverbrauch: <strong>${fmtLiter(jahresWasserLiter)}</strong> (${fmtM3(jahresWasserM3)})</span>` +
+    `<span>Wasserkosten: <strong>${fmt(wasserKosten)}</strong> (Vergleich: ${fmt(vergleichWasser)})</span>` +
+    `<span>Dein Gesamtverbrauch: <strong>${((gesamtKosten/vergleichGesamt-1)*100).toFixed(1)}%</strong> gegenüber Durchschnitt</span>`;
+}
+['personen','wohnflaeche'].forEach(id => document.getElementById(id).addEventListener('input', berechne));
+['baujahr','warmewasser'].forEach(id => document.getElementById(id).addEventListener('change', berechne));
+berechne();
+</script>
