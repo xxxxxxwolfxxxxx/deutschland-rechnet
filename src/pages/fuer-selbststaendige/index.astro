@@ -1,0 +1,155 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import CalculatorCard from '../../components/CalculatorCard.astro';
+import { CALCULATORS } from '../../data/calculators';
+
+const base = import.meta.env.BASE_URL;
+
+const sections = [
+  {
+    label: 'Steuern & Abgaben',
+    color: '#c0392b',
+    slugs: ['gewerbesteuer-rechner', 'steuernachzahlung-rechner', 'umsatzsteuer-rechner', 'abgeltungsteuer-rechner', 'kirchensteuer-rechner', 'krypto-steuern-rechner'],
+  },
+  {
+    label: 'Unternehmensform & Struktur',
+    color: '#1a237e',
+    slugs: ['gmbh-vs-einzelunternehmen', 'homeoffice-pauschale', 'fahrtkosten-rechner', 'anfahrtskosten-rechner'],
+  },
+  {
+    label: 'Finanzen & Vorsorge',
+    color: '#7d3c98',
+    slugs: ['notgroschen-rechner', 'sparen-rechner', 'etf-sparplan-rechner', 'fire-rechner', 'risikoprofil-rechner', 'kreditvergleich'],
+  },
+  {
+    label: 'Wachstum & Planung',
+    color: '#2e7d32',
+    slugs: ['schuldentilgungs-rechner', 'tilgungs-kreditrechner', 'inflationsrechner'],
+  },
+];
+
+const bySlug = Object.fromEntries(CALCULATORS.map(c => [c.slug, c]));
+---
+<Layout
+  title="Rechner für Selbstständige"
+  description="Kostenlose Rechner für Selbstständige und Freiberufler: Gewerbesteuer, GmbH vs. Einzelunternehmen, Homeoffice-Pauschale, Steuernachzahlung und mehr."
+  canonicalPath="/fuer-selbststaendige/"
+>
+  <div
+    class="persona-hero"
+    style={`background-image: url('${base}images/categories/selbststaendige.png');`}
+  >
+    <div class="persona-hero-overlay"></div>
+    <div class="persona-hero-content">
+      <a href={base} class="hero-back">← Alle Kategorien</a>
+      <span class="persona-badge">Für Selbstständige</span>
+      <h1>Deine Rechner als Unternehmer</h1>
+      <p>Gewerbesteuer, GmbH-Vergleich, Homeoffice-Pauschale und Altersvorsorge – alle wichtigen Rechner für Selbstständige und Freiberufler.</p>
+    </div>
+  </div>
+
+  <div class="sections">
+    {sections.map(section => {
+      const calcs = section.slugs.map(s => bySlug[s]).filter(Boolean);
+      if (calcs.length === 0) return null;
+      return (
+        <section class="calc-section">
+          <h2 class="section-title" style={`--sec-color: ${section.color}`}>{section.label}</h2>
+          <div class="grid">
+            {calcs.map(c => (
+              <CalculatorCard
+                title={c.title}
+                description={c.description}
+                href={`${base}${c.category}/${c.slug}/`}
+                accentColor={section.color}
+              />
+            ))}
+          </div>
+        </section>
+      );
+    })}
+  </div>
+</Layout>
+
+<style>
+.persona-hero {
+  position: relative;
+  border-radius: var(--radius);
+  overflow: hidden;
+  aspect-ratio: 4 / 3;
+  width: 100%;
+  margin-bottom: 2rem;
+  background-size: cover;
+  background-position: center top;
+}
+@media (min-width: 640px) { .persona-hero { aspect-ratio: 16 / 7; } }
+@media (min-width: 900px) { .persona-hero { aspect-ratio: 21 / 8; } }
+.persona-hero-overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    rgba(0,0,0,0.82) 0%,
+    rgba(0,0,0,0.60) 35%,
+    rgba(0,0,0,0.15) 65%,
+    transparent 100%
+  );
+}
+.persona-hero-content {
+  position: absolute;
+  top: 0; left: 0;
+  z-index: 2;
+  padding: 1.5rem;
+  width: 60%;
+  max-width: 540px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.hero-back {
+  color: rgba(255,255,255,0.6);
+  font-size: 0.78rem;
+  text-decoration: none;
+  transition: color 0.15s;
+}
+.hero-back:hover { color: white; text-decoration: none; }
+.persona-badge {
+  display: inline-block;
+  background: #c0392b;
+  color: white;
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 0.2rem 0.65rem;
+  border-radius: 20px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  width: fit-content;
+}
+.persona-hero-content h1 {
+  font-size: clamp(1.2rem, 4vw, 2.4rem);
+  color: white;
+  margin: 0;
+  line-height: 1.2;
+}
+.persona-hero-content p {
+  color: rgba(255,255,255,0.85);
+  font-size: clamp(0.78rem, 1.8vw, 0.92rem);
+  line-height: 1.55;
+  margin: 0;
+  text-shadow: 0 1px 4px rgba(0,0,0,0.5);
+}
+.sections { display: flex; flex-direction: column; gap: 2rem; }
+.section-title {
+  font-size: 0.85rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--sec-color);
+  margin-bottom: 0.75rem;
+  padding-bottom: 0.4rem;
+  border-bottom: 2px solid var(--sec-color);
+  display: inline-block;
+}
+.grid { display: grid; gap: 0.75rem; }
+@media (min-width: 640px) { .grid { grid-template-columns: 1fr 1fr; } }
+</style>
