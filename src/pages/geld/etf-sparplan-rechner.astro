@@ -1,0 +1,94 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import CalculatorShell from '../../components/CalculatorShell.astro';
+import { CALCULATORS, CATEGORIES } from '../../data/calculators';
+const calc = CALCULATORS.find(c => c.slug === 'etf-sparplan-rechner')!;
+const cat = CATEGORIES[calc.category];
+const year = new Date().getFullYear();
+---
+<Layout
+  title={`ETF-Sparplan-Rechner ${year}`}
+  description="Vermögensaufbau mit ETF-Sparplan berechnen – Zinseszins, Sparrate, Laufzeit."
+  canonicalPath="/geld/etf-sparplan-rechner/"
+  categoryColor={cat.color}
+  categoryLight={cat.colorLight}
+  categoryImage={cat.image}
+>
+  <div class="page-header">
+    <a href={`${import.meta.env.BASE_URL}geld/`} class="back-link">← Geld & Gehalt</a>
+    <h1>ETF-Sparplan-Rechner {year}</h1>
+  </div>
+  <CalculatorShell
+    calculator={calc}
+    intro="Berechne, wie sich dein ETF-Sparplan über die Zeit entwickelt. Der Rechner zeigt Endkapital, eingezahltes Kapital und Zinsgewinn – inflationsbereinigt."
+    sourceNote="Berechnung mit monatlicher Verzinsung. Historische Rendite MSCI World: ca. 7-8% p.a. (nominal). Keine Berücksichtigung von Steuern, Gebühren oder Steuern auf Kapitalerträge. Keine Anlageberatung."
+    explanation="Der Rechner berechnet monatlich: Neues Kapital = (Altes Kapital + Sparrate) × (1 + Rendite/12). Die Sparrate wird jeden Monat investiert. Der Zinsgewinn = Endkapital - Summe aller Einzahlungen. Inflationsbereinigt zeigt die reale Kaufkraft. Steuern auf Kapitalerträge (Abgeltungsteuer 25% + Soli) werden nach Abzug des Sparerpauschbetrags (1.000 €/Jahr) berücksichtigt."
+  >
+    <div class="calc-form">
+      <div class="calc-grid">
+        <div class="calc-group">
+          <label for="startkapital">Startkapital (€)</label>
+          <input type="number" id="startkapital" min="0" max="1000000" value="1000" step="100" />
+        </div>
+        <div class="calc-group">
+          <label for="sparrate">Monatliche Sparrate (€)</label>
+          <input type="number" id="sparrate" min="25" max="10000" value="200" step="25" />
+        </div>
+        <div class="calc-group">
+          <label for="rendite">Rendite (% p.a.)</label>
+          <input type="number" id="rendite" min="0" max="15" value="7" step="0.5" />
+        </div>
+        <div class="calc-group">
+          <label for="laufzeit">Laufzeit (Jahre)</label>
+          <input type="number" id="laufzeit" min="1" max="50" value="20" step="1" />
+        </div>
+        <div class="calc-group">
+          <label for="inflation">Inflation (% p.a.)</label>
+          <input type="number" id="inflation" min="0" max="10" value="2" step="0.5" />
+        </div>
+      </div>
+
+      <div class="calc-result">
+        <div class="label">Endkapital</div>
+        <div id="endkapital">— €</div>
+      </div>
+      <div id="details" style="margin-top:0.75rem;font-size:0.88rem;color:#666;display:flex;gap:1.5rem;flex-wrap:wrap;"></div>
+    </div>
+  </CalculatorShell>
+</Layout>
+
+<script type="module">
+function berechne() {
+  const start = parseFloat(document.getElementById('startkapital').value)||1000;
+  const rate = parseFloat(document.getElementById('sparrate').value)||200;
+  const rendite = parseFloat(document.getElementById('rendite').value)||7;
+  const jahre = parseInt(document.getElementById('laufzeit').value)||20;
+  const inflation = parseFloat(document.getElementById('inflation').value)||2;
+
+  const mRendite = rendite / 100 / 12;
+  const monate = jahre * 12;
+  let kapital = start;
+  let eingezahlt = start;
+
+  for (let i = 0; i < monate; i++) {
+    kapital = kapital * (1 + mRendite) + rate;
+    eingezahlt += rate;
+  }
+
+  const zinsgewinn = kapital - eingezahlt;
+  const steuer = Math.max(0, (zinsgewinn - 1000) * 0.26375);
+  const nettoKapital = kapital - steuer;
+  const inflationsFaktor = Math.pow(1 + inflation/100, jahre);
+  const realKapital = nettoKapital / inflationsFaktor;
+
+  document.getElementById('endkapital').textContent = nettoKapital.toLocaleString('de-DE', {maximumFractionDigits:0}) + ' €';
+  document.getElementById('details').innerHTML =
+    `<span>Eingezahlt: <strong>${eingezahlt.toLocaleString('de-DE', {maximumFractionDigits:0})} €</strong></span>` +
+    `<span>Zinsgewinn: <strong>${zinsgewinn.toLocaleString('de-DE', {maximumFractionDigits:0})} €</strong></span>` +
+    `<span>Steuern: <strong>${steuer.toLocaleString('de-DE', {maximumFractionDigits:0})} €</strong></span>` +
+    `<span>Realer Wert: <strong>${realKapital.toLocaleString('de-DE', {maximumFractionDigits:0})} €</strong></span>`;
+}
+['startkapital','sparrate','rendite','laufzeit','inflation'].forEach(id =>
+  document.getElementById(id).addEventListener('input', berechne));
+berechne();
+</script>
