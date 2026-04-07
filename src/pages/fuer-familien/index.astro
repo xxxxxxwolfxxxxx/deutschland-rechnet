@@ -84,8 +84,10 @@ const bySlug = Object.fromEntries(CALCULATORS.map(c => [c.slug, c]));
   aspect-ratio: 4 / 3;
   width: 100%;
   margin-bottom: 2rem;
-  background-size: cover;
-  background-position: center top;
+  background-size: contain;
+  background-color: var(--dark);
+  background-position: center right;
+  background-repeat: no-repeat;
 }
 @media (min-width: 640px) { .persona-hero { aspect-ratio: 16 / 7; } }
 @media (min-width: 900px) { .persona-hero { aspect-ratio: 21 / 8; } }
