@@ -116,8 +116,21 @@ export const CALCULATORS: Calculator[] = [
   { slug: 'prozent-rechner',              title: 'Prozent-Rechner',                description: 'Prozentwerte, Grundwerte und prozentuale Veränderungen berechnen.',       category: 'einheiten', featured: false, live: true },
   { slug: 'mwst-rechner',                 title: 'MwSt-Rechner',                   description: 'Netto und Brutto mit 19% oder 7% MwSt umrechnen.',                      category: 'einheiten', featured: false, live: true },
   { slug: 'rabatt-rechner',               title: 'Rabatt-Rechner',                 description: 'Rabatte und Endpreise bei Einzel- und Mehrfachrabatten berechnen.',      category: 'einheiten', featured: false, live: true },
+  { slug: 'heizkosten-vergleich',         title: 'Heizkosten-Vergleich',           description: 'Heizkosten verschiedener Energieträger vergleichen.',                category: 'energie',   featured: false, live: true },
+  { slug: 'solarspeicher-dimensionierung',title: 'Solarspeicher-Dimensionierung',  description: 'Optimale Batteriegröße für deine PV-Anlage berechnen.',              category: 'energie',   featured: false, live: true },
+  { slug: 'jahresenergieverbrauch',       title: 'Jahresenergieverbrauch',         description: 'Strom-, Gas- und Wasserverbrauch deines Haushalts berechnen.',     category: 'energie',   featured: false, live: true },
+  { slug: 'co2-einsparung-renovierung',   title: 'CO₂-Einsparung durch Renovierung',description: 'Energie- und CO₂-Einsparung durch Sanierungsmaßnahmen berechnen.',category: 'energie',   featured: false, live: true },
+  { slug: 'energieausweis-vorberechnung', title: 'Energieausweis-Vorberechnung',   description: 'Wichtige Kennwerte für den Energieausweis deines Hauses ermitteln.',category: 'energie',   featured: false, live: true },
+  { slug: 'unterhaltskosten-auto',        title: 'Unterhaltskosten Auto',          description: 'Jährliche Kosten deines Autos inkl. Wertverlust, Steuer, Versicherung.', category: 'auto',      featured: false, live: true },
+  { slug: 'elektroauto-verbrennungsmotor',title: 'Elektroauto vs Verbrennungsmotor',description: 'Kostenvergleich E-Auto und Verbrenner über die gesamte Nutzungsdauer.',category: 'auto',      featured: false, live: true },
+  { slug: 'reichweite-elektroauto',       title: 'Reichweite Elektroauto',         description: 'Realistische Reichweite abhängig von Temperatur, Fahrstil und Gelände.',   category: 'auto',      featured: false, live: true },
+  { slug: 'treibstoffkosten-reise',       title: 'Treibstoffkosten für Reise',     description: 'Spritkosten für eine geplante Strecke berechnen.',                 category: 'auto',      featured: false, live: true },
+  { slug: 'co2-flotte-berechnung',        title: 'CO₂-Flotten-Berechnung',         description: 'Flottenemissionen für Unternehmen berechnen und ausgleichen.',       category: 'auto',      featured: false, live: true },
+  { slug: 'wartungskosten-auto',          title: 'Wartungskosten Auto',            description: 'Voraussichtliche Instandhaltungskosten nach Alter und Laufleistung.',  category: 'auto',      featured: false, live: true },
+  { slug: 'familienzuschuss-rechner',     title: 'Familienzuschuss-Rechner',       description: 'Zulässige Höhe des Familienzuschusses beim Finanzamt prüfen.',       category: 'familie',   featured: false, live: true },
+  { slug: 'unterhaltsvorschuss-rechner',  title: 'Unterhaltsvorschuss-Rechner',    description: 'Höhe des staatlichen Unterhaltsvorschusses für Alleinerziehende.',     category: 'familie',   featured: false, live: true },
+  { slug: 'schwangerengeld-rechner',      title: 'Schwangerengeld-Rechner',        description: 'Zuschuss zum Mutterschaftsgeld bei freiwilliger Versicherung berechnen.',category: 'familie',   featured: false, live: true }
 ];
-
 export function getByCategory(category: Category): Calculator[] {
   return CALCULATORS.filter(c => c.category === category && c.live);
 }
