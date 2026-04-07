@@ -1,0 +1,136 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import CalculatorShell from '../../components/CalculatorShell.astro';
+import { CALCULATORS, CATEGORIES } from '../../data/calculators';
+const calc = CALCULATORS.find(c => c.slug === 'solarspeicher-dimensionierung')!;
+const cat = CATEGORIES[calc.category];
+const year = new Date().getFullYear();
+---
+<Layout
+  title={`Solarspeicher-Dimensionierung ${year}`}
+  description="Optimale Batteriegröße für deine PV-Anlage berechnen – Speicherbedarf anhand deines Verbrauchsprofils."
+  canonicalPath="/energie/solarspeicher-dimensionierung/"
+  categoryColor={cat.color}
+  categoryLight={cat.colorLight}
+  categoryImage={cat.image}
+>
+  <div class="page-header">
+    <a href={`${import.meta.env.BASE_URL}energie/`} class="back-link">← Energie</a>
+    <h1>Solarspeicher-Dimensionierung {year}</h1>
+  </div>
+  <CalculatorShell
+    calculator={calc}
+    intro="Berechne die optimale Speichergröße für deine Photovoltaikanlage. Je besser Speicher und PV-Anlage aufeinander abgestimmt sind, desto höher ist dein Eigenverbrauchsanteil."
+    sourceNote="Berechnung basiert auf durchschnittlichen Lastprofilen und PV-Ertrag. Tatsächliche Werte können je nach Verbrauchswetter, Neigung und Ausrichtung variieren."
+    explanation="Die optimale Batteriekapazität hängt von deinem nächtlichen Stromverbrauch und der überschüssigen Solarproduktion ab. Empfehlung: Speichergröße = (Jahresverbrauch × 0,2) ÷ 365 für Nachtspeicherung, begrenzt auf 80% des überschüssigen PV-Tagesertrags. Ein Speicher sollte weder zu klein (häufige Tiefentladung) noch zu groß (niedrige Auslastung) sein."
+  >
+    <div class="calc-form">
+      <div class="calc-grid">
+        <div class="calc-group">
+          <label for="jahresverbrauch">Jahresstromverbrauch (kWh)</label>
+          <input type="number" id="jahresverbrauch" min="500" max="20000" value="4000" step="100" />
+        </div>
+        <div class="calc-group">
+          <label for="pvleistung">PV-Anlagenleistung (kWp)</label>
+          <input type="number" id="pvleistung" min="1" max="50" value="10" step="0.5" />
+        </div>
+        <div class="calc-group">
+          <label for="speicherziel">Speicherziel</label>
+          <select id="speicherziel">
+            <option value="nachtspeicherung" selected>Nachtspeicherung (höhere Unabhängigkeit)</option>
+            <option value="maximaleeigenverbrauch">Maximaler Eigenverbrauch (wirtschaftlich optimum)</option>
+            <option value="notstrom">Notstromversorgung (mind. 1 Tag autonomy)</option>
+          </select>
+        </div>
+        <div class="calc-group">
+          <label for="verbrauchsprofil">Dein Verbrauchsprofil</label>
+          <select id="verbrauchsprofil">
+            <option value="haushaltsueblich" selected>Haushaltsüblich (Abendspitze)</option>
+            <option value="gleichmaessig">Gleichmäßig über den Tag</option>
+            <option value="tageslastbetont">Starker Tagesverbrauch (Home Office)</option>
+          </select>
+        </div>
+      </div>
+      <div class="calc-result">
+        <div class="label">Empfohlene Speichergröße</div>
+        <div id="ergebnis">— kWh</div>
+      </div>
+      <div id="details" style="margin-top:0.75rem;font-size:0.88rem;color:#666;display:flex;gap:1.5rem;flex-wrap:wrap;"></div>
+    </div>
+  </CalculatorShell>
+</Layout>
+
+<script type="module">
+function berechne() {
+  const jahresVerbrauch = parseFloat(document.getElementById('jahresverbrauch').value) || 4000;
+  const pvLeistung = parseFloat(document.getElementById('pvleistung').value) || 10;
+  const speicherZiel = document.getElementById('speicherziel').value;
+  const verbrauchsProfil = document.getElementById('verbrauchsprofil').value;
+  
+  // Jahresertrag der PV-Anlage (kWh/kWp) - abhängig von Standort, Neigung, Ausrichtung
+  const spezifischerJahresertrag = 950; // kWh/kWp für Deutschland Durchschnitt
+  const pvJahresertrag = pvLeistung * spezifischerJahresertrag;
+  
+  // Täglicher Durchschnittsverbrauch
+  const taeglicherDurchschnittsverbrauch = jahresVerbrauch / 365;
+  
+  // Geschätzter nächtlicher Verbrauch (zwischen 22:00 und 06:00)
+  let nachtAnteil;
+  switch (verbrauchsProfil) {
+    case 'haushaltsueblich': nachtAnteil = 0.4; break; // 40% nachts
+    case 'gleichmaessig': nachtAnteil = 0.25; break; // 25% nachts
+    case 'tageslastbetont': nachtAnteil = 0.15; break; // 15% nachts
+    default: nachtAnteil = 0.3;
+  }
+  const nachtverbrauch = taeglicherDurchschnittsverbrauch * nachtAnteil;
+  
+  // Überschüssige Solarproduktion tagsüber (vereinfacht)
+  const tagesertrag = pvJahresertrag / 365; // kWh/Tag
+  const verbrauchTagsüber = taeglicherDurchschnittsverbrauch * (1 - nachtAnteil);
+  const ueberschussTagsüber = Math.max(0, tagesertrag - verbrauchTagsüber);
+  
+  let empfohleneSpeichergröße;
+  switch (speicherZiel) {
+    case 'nachtspeicherung':
+      // Speicher für den nächtlichen Verbrauch
+      empfohleneSpeichergröße = nachtverbrauch;
+      break;
+    case 'maximaleeigenverbrauch':
+      // Optimaler Speicher für maximale Nutzung des PV-Überschusses
+      empfohleneSpeichergröße = Math.min(nachtverbrauch * 2, ueberschussTagsüber * 1.5);
+      break;
+    case 'notstrom':
+      // Speicher für Notstromversorgung (1 Tag Autonomie bei kritischer Last)
+      const kritischeLast = taeglicherDurchschnittsverbrauch * 0.7; // nur essentielle Verbraucher
+      empfohleneSpeichergröße = kritischeLast;
+      break;
+    default:
+      empfohleneSpeichergröße = nachtverbrauch;
+  }
+  
+  // Praktische Grenzen setzen (min 2 kWh, max 80% der PV-Tagesproduktion)
+  const minSpeicher = 2;
+  const maxSpeicherDurchPV = tagesertrag * 0.8;
+  empfohleneSpeichergröße = Math.max(minSpeicher, Math.min(empfohleneSpeichergröße, maxSpeicherDurchPV));
+  
+  // Ergebnisse berechnen
+  const pvDeckungsTag = Math.min(100, (tagesertrag / taeglicherDurchschnittsverbrauch) * 100);
+  const speicherDeckungsNacht = Math.min(100, (empfohleneSpeichergröße / nachtverbrauch) * 100);
+  const jahresEinsparungDurchSpeicher = empfohleneSpeichergröße * 365 * 0.3; // geschätzte zusätzliche Einsparung
+  
+  const fmt = (n) => n.toLocaleString('de-DE', {minimumFractionDigits:1, maximumFractionDigits:1});
+  document.getElementById('ergebnis').textContent = fmt(empfohleneSpeichergröße) + ' kWh';
+  document.getElementById('ergebnis').style.color = '#1e7e34';
+  
+  document.getElementById('details').innerHTML =
+    `<span>Jahresertrag PV: <strong>${pvJahresertrag.toLocaleString('de-DE', {minimumFractionDigits:0})} kWh/Jahr</strong></span>` +
+    `<span>Tagesdurchschnittsverbrauch: <strong>${taeglicherDurchschnittsverbrauch.toLocaleString('de-DE', {minimumFractionDigits:1})} kWh/Tag</strong></span>` +
+    `<span>Geschätzter Nachtverbrauch: <strong>${nachtverbrauch.toLocaleString('de-DE', {minimumFractionDigits:1})} kWh/ Nacht</strong></span>` +
+    `<span>PV-Überschuss tagsüber: <strong>${uberschussTagsüber.toLocaleString('de-DE', {minimumFractionDigits:1})} kWh/Tag</strong></span>` +
+    `<span>Speicher deckt Nacht: <strong>${speicherDeckungsNacht.toFixed(0)}%</strong> des Nachtverbrauchs</span>` +
+    `<span>Zusätzliche jährliche Einsparung: <strong>${jahresEinsparungDurchSpeicher.toLocaleString('de-DE', {minimumFractionDigits:0})} kWh</strong></span>`;
+}
+['jahresverbrauch','pvleistung'].forEach(id => document.getElementById(id).addEventListener('input', berechne));
+['speicherziel','verbrauchsprofil'].forEach(id => document.getElementById(id).addEventListener('change', berechne));
+berechne();
+</script>
