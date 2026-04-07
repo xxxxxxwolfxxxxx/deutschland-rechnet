@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://xxxxxxwolfxxxxx.github.io/deutschland-rechnet/sitemap-index.xml
+Sitemap: https://deutschland-rechnet.de/sitemap-index.xml
