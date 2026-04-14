@@ -23,18 +23,11 @@ const year = new Date().getFullYear();
      intro="Mit dem Heizkosten-Vergleich berechnen Sie die jährlichen Heizkosten für verschiedene Energieträger."
      sourceNote="Gas, Öl, Strom, Wärmepumpe, Pellets."
      explanation="Jeder Energieträger hat anderen Preis und Wirkungsgrad. Kosten werden in Cent/kWh verglichen."
-     faqs={[
-      { q: "Welcher am günstigsten?", a: "Wärmepumpe und Holzpellets." },
-    ]},
-       {
-         q: "Wie wirkt sich die Dämmung auf die Heizkosten aus?",
-         a: "Die Dämmung hat einen enormen Einfluss auf die Heizkosten. Ein unsanierter Altbau benötigt etwa 150 kWh/(m²·a), während ein Effizienzhaus nur noch 60 kWh/(m²·a) und ein Passivhaus sogar nur 22 kWh/(m²·a) benötigt. Gute Dämmung reduziert nicht nur die Heizkosten, sondern erhöht auch den Wohnkomfort deutlich."
-       },
-       {
-         q: "Ist eine Wärmepumpe immer die beste Wahl?",
-         a: "Eine Wärmepumpe ist nicht automatisch die beste Wahl. Sie benötigt einen ausreichend dimensionierten Heizkreislauf (ideal: Fußbodenheizung oder große Heizkörper) und arbeitet am effizientesten bei niedrigen Vorlauftemperaturen. In sehr alten Gebäuden mit schlecht gedämmter Hülle und bestehenden Heizkörpern kann ein modernes Gas-Brennwerttanketzsystem wirtschaftlicher sein."
-       }
-     ]}
+      faqs={[
+        { q: "Welcher am günstigsten?", a: "Wärmepumpe und Holzpellets." },
+        { q: "Wie wirkt sich die Dämmung auf die Heizkosten aus?", a: "Die Dämmung hat einen enormen Einfluss. Ein unsanierter Altbau benötigt etwa 150 kWh/(m²·a), während ein Effizienzhaus nur noch 60 kWh/(m²·a) benötigt." },
+        { q: "Ist eine Wärmepumpe immer die beste Wahl?", a: "Eine Wärmepumpe ist nicht automatisch die beste Wahl. Sie benötigt einen ausreichend dimensionierten Heizkreislauf und arbeitet am effizientesten bei niedrigen Vorlauftemperaturen." }
+      ]}
    >
     <div class="calc-form">
       <div class="calc-grid">
