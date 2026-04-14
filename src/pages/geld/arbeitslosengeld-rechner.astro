@@ -22,7 +22,7 @@ const year = new Date().getFullYear();
     calculator={calc}
     intro="Berechnen Sie Ihr Arbeitslosengeld (ALG 1) nach § 149 SGB III. Das ALG beträgt 60 % des pauschalierten Nettoentgelts (67 % mit Kindern). Grundlage ist das Arbeitsentgelt der letzten 12 Monate vor der Arbeitslosmeldung."
     sourceNote="Berechnung nach §§ 149 ff. SGB III. Vereinfachte Schätzung – tatsächliches ALG hängt von den gemeldeten Beitragszeiten und dem tatsächlichen Arbeitsentgelt ab. Zuständig: Agentur für Arbeit am Wohnort."
-    explanation="Das ALG 1 berechnet sich aus dem Bruttogehalt abzüglich der Arbeitnehmeranteile zur Sozialversicherung (Krankenversicherung 14,6%, Rentenversicherung 18,6%, Arbeitslosenversicherung 2,6%, Pflegeversicherung 2,4%). Dieser pauschalierte Nettobetrag wird mit 60% (bzw. 67% bei Kindern) multipliziert. Berücksichtigt wird nur das Gehalt bis zur Beitragsbemessungsgrenze (2024: 7.450 €/Monat west, 7.100 € ost)."
+    explanation="Das ALG 1 berechnet sich aus dem Bruttogehalt abzüglich der Arbeitnehmeranteile zur Sozialversicherung (Krankenversicherung 14,6%, Rentenversicherung 18,6%, Arbeitslosenversicherung 2,6%, Pflegeversicherung 2,4% bzw. 2,7% für Kinderlose). Dieser Nettobetrag (Bemessungsentgelt) wird mit 60% (bzw. 67% bei Kindern) multipliziert. Berücksichtigt wird nur das Gehalt bis zur Beitragsbemessungsgrenze (2026: 7.750 €/Monat West, 7.350 € Ost)."
   >
     <div class="calc-form">
       <div class="calc-grid">
@@ -77,6 +77,12 @@ const year = new Date().getFullYear();
             Kind/Kinder im Haushalt (67%-Satz)
           </label>
         </div>
+        <div class="calc-group" style="display:flex;align-items:center;padding-top:1rem;">
+          <label style="display:flex;align-items:center;gap:0.5rem;font-weight:400;cursor:pointer;">
+            <input type="checkbox" id="kinderlos" style="width:auto;" />
+            Kinderlos (2,7% PV statt 2,4%)
+          </label>
+        </div>
       </div>
 
       <div class="calc-result">
@@ -97,18 +103,19 @@ function berechne() {
   const bundesland = document.getElementById('bundesland').value;
   const arbeitszeit = parseFloat(document.getElementById('arbeitszeit').value)||100;
   const hatKind = document.getElementById('kind').checked;
-  const r = berechneALG({ brutto, stklasse, bundesland, arbeitszeit, hatKind });
+  const kinderlos = document.getElementById('kinderlos').checked;
+  const r = berechneALG({ bruttoMonat: brutto, steuerklasse: stklasse, bundesland, arbeitszeit, hatKind, kinderlos });
   document.getElementById('alg').textContent = fmt(r.alg);
   document.getElementById('details').innerHTML =
-    `<span>Netto-Gehalt: <strong>${fmt(r.netto)}</strong></span>` +
     `<span>Bemessungsentgelt: <strong>${fmt(r.bemessungsentgelt)}</strong></span>` +
-    `<span>Leistungssatz: <strong>${(r.satz * 100).toFixed(0)} %</strong></span>` +
-    `<span>Jahres-Brutto: <strong>${fmt(r.jahresBrutto)}</strong></span>`;
+    `<span>SV-Anteile: <strong>${fmt(r.svGesamt)}</strong></span>` +
+    `<span>Leistungssatz: <strong>${r.satz.toFixed(0)} %</strong></span>`;
 }
 ['brutto','stklasse','bundesland','arbeitszeit'].forEach(id =>
   document.getElementById(id).addEventListener('input', berechne));
 ['stklasse','bundesland','arbeitszeit'].forEach(id =>
   document.getElementById(id).addEventListener('change', berechne));
-document.getElementById('kind').addEventListener('change', berechne);
+['kind','kinderlos'].forEach(id =>
+  document.getElementById(id).addEventListener('change', berechne));
 berechne();
 </script>

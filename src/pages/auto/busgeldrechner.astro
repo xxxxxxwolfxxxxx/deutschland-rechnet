@@ -8,21 +8,21 @@ const year = new Date().getFullYear();
 ---
 <Layout
   title={`Bußgeldrechner ${year} – Bußgeldkatalog Deutschland`}
-  description="Bußgeld, Punkte in Flensburg und Fahrverbot berechnen – Geschwindigkeit, Rotlicht, Handy, Alkohol und Parken nach aktuellem Bußgeldkatalog 2021."
-  canonicalPath="/auto/busgeldrechner/"
-  categoryColor={cat.color}
-  categoryLight={cat.colorLight}
-  categoryImage={cat.image}
->
-  <div class="page-header">
-    <a href={`${import.meta.env.BASE_URL}auto/`} class="back-link">← Auto &amp; Mobilität</a>
-    <h1>Bußgeldrechner {year}</h1>
-  </div>
-  <CalculatorShell
-    calculator={calc}
-    intro="Berechnen Sie Bußgeld, Punkte in Flensburg und Fahrverbot für alle gängigen Verkehrsverstöße – nach dem aktuellen Bußgeldkatalog (BKatV, gültig ab 09.11.2021)."
-    sourceNote="Grundlage: Bußgeldkatalogverordnung (BKatV) i. d. F. vom 09.11.2021. Fahrverbot gilt nur für Ersttäter; bei Wiederholungstätern können höhere Strafen verhängt werden. Ab 1,6 ‰ Blutalkohol oder bei Unfällen greift das Strafrecht (§ 316 StGB) – kein Bußgeld, sondern Strafverfahren. Keine Rechtsberatung."
-    explanation="Der Bußgeldkatalog regelt die Strafen für Verkehrsverstöße. Die Höhe hängt von der Schwere des Verstoßes ab: Geschwindigkeitsüberschreitung innerorts: bis 10 km/h = 30 €, 11-15 km/h = 50 €, 16-20 km/h = 70 €, 21-25 km/h = 115 € + 1 Punkt. Ab 21 km/h innerorts droht zusätzlich ein Fahrverbot. Punkte in Flensburg werden nach dem Fahreignungs-Bewertungssystem (FAER) vergeben."
+description="Bußgeld, Punkte in Flensburg und Fahrverbot berechnen – Geschwindigkeit, Rotlicht, Handy, Alkohol und Parken nach aktuellem Bußgeldkatalog 2024."
+    canonicalPath="/auto/busgeldrechner/"
+    categoryColor={cat.color}
+    categoryLight={cat.colorLight}
+    categoryImage={cat.image}
+  >
+    <div class="page-header">
+      <a href={`${import.meta.env.BASE_URL}auto/`} class="back-link">← Auto &amp; Mobilität</a>
+      <h1>Bußgeldrechner {year}</h1>
+    </div>
+    <CalculatorShell
+      calculator={calc}
+      intro="Berechnen Sie Bußgeld, Punkte in Flensburg und Fahrverbot für alle gängigen Verkehrsverstöße – nach dem aktuellen Bußgeldkatalog (BKatV, gültig ab 09.11.2021, mit Punktereform 2024)."
+      sourceNote="Grundlage: Bußgeldkatalogverordnung (BKatV) i. d. F. vom 09.11.2021, Punkte nach Fahreignungsregister (FAER) 2024 (2-Punkte-System). Fahrverbot gilt nur für Ersttäter; bei Wiederholungstätern können höhere Strafen verhängt werden. Ab 1,6 ‰ Blutalkohol oder bei Unfällen greift das Strafrecht (§ 316 StGB) – kein Bußgeld, sondern Strafverfahren. Keine Rechtsberatung."
+      explanation="Der Bußgeldkatalog regelt die Strafen für Verkehrsverstöße. Die Höhe hängt von der Schwere des Verstoßes ab: Geschwindigkeitsüberschreitung innerorts: bis 10 km/h = 30 €, 11-15 km/h = 50 €, 16-20 km/h = 70 €, 21-25 km/h = 115 € + 1 Punkt. Ab 21 km/h innerorts droht zusätzlich ein Fahrverbot. Punkte in Flensburg werden nach dem Fahreignungs-Bewertungssystem (FAER) vergeben – seit 2024 gilt das 2-Punkte-System (Auszählung bei 2 Punkten, Tilgung bei 1 Punkt)."
   >
     <div class="calc-form">
 
