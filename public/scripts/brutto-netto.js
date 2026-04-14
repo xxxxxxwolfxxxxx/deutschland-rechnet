@@ -1,14 +1,18 @@
-// Berechnungsgrundlage: § 32a EStG 2025, BMAS SV-Beitragssätze 2025
+// Berechnungsgrundlage: § 32a EStG 2026, BMAS SV-Beitragssätze 2026
 const SV = {
-  krankenversicherung: 0.073 + 0.009,
+  krankenversicherung: 0.073 + 0.011,  // 14,6% + Zusatzbeitrag 1,1%
   rentenversicherung: 0.093,
   arbeitslosenversicherung: 0.013,
-  pflegeversicherung: 0.018,
-  kvBBG: 5512.50,
-  rvBBG: 7550,
+  pflegeversicherung: 0.024,  // 2,4% (Kinderlose 2,7%)
+  pflegeversicherungKinderlos: 0.027,
+  kvBBG: 5712.50,  // 2026 West
+  rvBBG: 7750,    // 2026 West
 };
 
-const KIST = { by: 0.08, bw: 0.08 };
+// Kirchensteuer: 8% in BY, BW, HE, NRW, RP, SL, SN, ST, TH; 9% in BE, BB, HB, HH, MV, NI, SH
+const KIST = {
+  by: 0.08, bw: 0.08, he: 0.08, nrw: 0.08, rp: 0.08, sl: 0.08, sn: 0.08, st: 0.08, th: 0.08
+};
 
 function einkommensteuerJahr(zvE) {
   if (zvE <= 12096) return 0;
@@ -35,7 +39,7 @@ const SK_FAKTOREN = {
 
 export const STEUERKLASSEN = [1, 2, 3, 4, 5, 6];
 
-export function berechneNettoGehalt({ bruttoMonat, steuerklasse, kirchensteuer, bundesland }) {
+export function berechneNettoGehalt({ bruttoMonat, steuerklasse, kirchensteuer, bundesland, kinderlos = false }) {
   const bruttoJahr = bruttoMonat * 12;
   const freibetrag = SK_FAKTOREN[steuerklasse]?.freibetrag ?? 12096;
   const kvBasis = Math.min(bruttoMonat, SV.kvBBG);
@@ -43,7 +47,8 @@ export function berechneNettoGehalt({ bruttoMonat, steuerklasse, kirchensteuer, 
   const kv = Math.round(kvBasis * SV.krankenversicherung * 100) / 100;
   const rv = Math.round(rvBasis * SV.rentenversicherung * 100) / 100;
   const av = Math.round(rvBasis * SV.arbeitslosenversicherung * 100) / 100;
-  const pv = Math.round(kvBasis * SV.pflegeversicherung * 100) / 100;
+  const pvSatz = kinderlos ? SV.pflegeversicherungKinderlos : SV.pflegeversicherung;
+  const pv = Math.round(kvBasis * pvSatz * 100) / 100;
   const svGesamt = kv + rv + av + pv;
   const svJahr = svGesamt * 12;
   const zvE = Math.max(0, bruttoJahr - freibetrag - svJahr);
