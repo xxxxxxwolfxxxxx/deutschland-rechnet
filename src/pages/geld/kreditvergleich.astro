@@ -20,14 +20,13 @@ const year = new Date().getFullYear();
   </div>
   <CalculatorShell
     calculator={calc}
-    intro="Vergleichen Sie verschiedene Kreditangebote und berechnen Sie den effektiven Jahreszins. Der Rechner zeigt auch die monatliche Rate und die Gesamtkosten des Kredits."
-    sourceNote="Effektiver Jahreszins nach PAngV. Die tatsächlichen Kosten hängen von Ihrer Bonität und dem konkreten Kreditangebot ab."
-    explanation="Die monatliche Rate wird nach der klassischen Annuitätenformel berechnet: Rate = Kredit × (Zinssatz/12 × (1+Zinssatz/12)^Laufzeit) / ((1+Zinssatz/12)^Laufzeit - 1). Die Gesamtkosten = Rate × Laufzeit - Kreditbetrag. Der effektive Jahreszins (nicht hier berechnet) umfasst zusätzlich Bearbeitungsgebühren und ist nach PAngV Pflichtangabe."
+    intro="Mit dem Kreditvergleich berechnen Sie den effektiven Jahreszins verschiedener Kreditangebote."
+    sourceNote="Effektiver Jahreszins inkl. Nebenkosten."
+    explanation="Der Effektivzins berücksichtigt alle Kosten wie Bearbeitungsgebühren und Restschuldversicherungen."
     faqs={[
-      {
-        q: "Was ist der effektive Jahreszins und warum ist er wichtig?",
-        a: "Der effektive Jahreszins zeigt die tatsächlichen Kosten eines Kredits pro Jahr, einschließlich aller Gebühren und Kosten. Er ermöglicht einen fairen Vergleich verschiedener Kreditangebote, da der nominelle Sollzins allein irreführend sein kann."
-      },
+      { q: "Sollzins vs. Effektivzins?", a: "Effektivzins ist aussagekräftiger." },
+      { q: "Welcher Zinssatz ist gut?", a: "Ab ca. 3-5% für gute Bonität." },
+    ]},
       {
         q: "Wie wirkt sich die Laufzeit auf die monatliche Rate aus?",
         a: "Je länger die Laufzeit, desto geringer ist die monatliche Rate – jedoch steigen die Gesamtkosten aufgrund längerer Zinszahlung. Eine kürzere Laufzeit bedeutet höhere Raten, aber geringere Gesamtkosten."

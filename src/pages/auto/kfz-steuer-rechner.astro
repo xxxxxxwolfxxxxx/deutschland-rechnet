@@ -20,9 +20,9 @@ const year = new Date().getFullYear();
   </div>
   <CalculatorShell
     calculator={calc}
-    intro="Berechnen Sie Ihre jährliche Kfz-Steuer kostenlos nach aktuellem KraftStG. Wählen Sie die Antriebsart, geben Sie Hubraum und CO2-Ausstoß ein – das Ergebnis erscheint sofort. Elektrofahrzeuge sind bis 2030 von der Kfz-Steuer befreit."
-    sourceNote="Berechnung nach KraftStG: 2,00 €/100 ccm (Benzin), 9,50 €/100 ccm (Diesel) + CO2-Staffel ab 96 g/km. Stand 2026."
-    explanation="Die Kfz-Steuer berechnet sich aus Hubraum und CO₂-Ausstoß. Für Benziner: 2 €/100ccm Hubraum. Für Diesel: 9,50 €/100ccm. Zusätzlich fällt CO₂-Steuer an: 2 € pro g/km CO₂ zwischen 96-115 g/km, 2,20 € zwischen 116-135 g/km, 2,50 € zwischen 136-155 g/km, 2,90 € zwischen 156-175 g/km, 3,40 € zwischen 176-195 g/km und 4,00 € über 195 g/km. Elektroautos sind bis 2030 von der Kfz-Steuer befreit. Oldtimer (H-Kennzeichen) zahlen pauschal 191,73 €/Jahr. Saisonkennzeichen ermöglichen eine Reduzierung auf die Nutzungsmonate."
+    intro="Mit dem Kfz-Steuer-Rechner berechnen Sie die jährliche Kfz-Steuer für Ihr Fahrzeug."
+    sourceNote="Benziner: 2€/100 cm³, Diesel: 9,50€/100 cm³."
+    explanation="Benziner: 2€ pro 100 cm³ + CO₂-Komponente. Diesel: 9,50€ + CO₂. Elektro: 0€ bis 2030."
   >
     <div class="calc-form">
       <div class="calc-grid">

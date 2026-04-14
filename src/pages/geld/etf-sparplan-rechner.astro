@@ -20,9 +20,9 @@ const year = new Date().getFullYear();
   </div>
   <CalculatorShell
     calculator={calc}
-    intro="Berechne, wie sich dein ETF-Sparplan über die Zeit entwickelt. Der Rechner zeigt Endkapital, eingezahltes Kapital und Zinsgewinn – inflationsbereinigt."
-    sourceNote="Berechnung mit monatlicher Verzinsung. Historische Rendite MSCI World: ca. 7-8% p.a. (nominal). Keine Berücksichtigung von Steuern, Gebühren oder Steuern auf Kapitalerträge. Keine Anlageberatung."
-    explanation="Der Rechner berechnet monatlich: Neues Kapital = (Altes Kapital + Sparrate) × (1 + Rendite/12). Die Sparrate wird jeden Monat investiert. Der Zinsgewinn = Endkapital - Summe aller Einzahlungen. Inflationsbereinigt zeigt die reale Kaufkraft. Steuern auf Kapitalerträge (Abgeltungsteuer 25% + Soli) werden nach Abzug des Sparerpauschbetrags (1.000 €/Jahr) berücksichtigt."
+    intro="Mit dem ETF-Sparplan-Rechner berechnen Sie, wie Ihr Vermögen bei regelmäßigem Sparen in ETFs wächst."
+    sourceNote="Historische Renditen ca. 7% p.a."
+    explanation="Der Rechner nutzt den Zinseszins-Effekt. Langfristig sind ca. 5-7% reale Rendite möglich."
   >
     <div class="calc-form">
       <div class="calc-grid">

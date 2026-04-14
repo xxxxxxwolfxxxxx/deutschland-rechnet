@@ -20,14 +20,12 @@ const year = new Date().getFullYear();
   </div>
    <CalculatorShell
      calculator={calc}
-     intro="Berechne den jährlichen Energie- und Wasserverbrauch deines Haushalts. Vergleiche deine Werte mit dem deutschen Durchschnitt und entdecke Einsparpotenziale."
-     sourceNote="Durchschnittswerte gemäß BDEW, Destatis und BFSJ. Tatsächliche Werte können je nach Haushaltsgröße, Verhalten und Gebäudeeffizienz variieren."
-     explanation="Berechnet den jährlichen Verbrauch für Strom, Gas, Wasser und Wärme basierend auf Haushaltsgröße, Wohnfläche und Nutzungsverhalten. Vergleichswerte: Strom 1.500-3.500 kWh/Jahr (2-Personen-Haushalt), Gas 10.000-20.000 kWh/Jahr, Wasser 120-150 Liter pro Person und Tag."
+     intro="Mit dem Jahresenergieverbrauch-Rechner berechnen Sie den geschätzten Jahresenergieverbrauch Ihres Haushalts."
+     sourceNote="Strom, Gas, Wasser."
+     explanation="Der Verbrauch wird basierend auf Durchschnittswerten für verschiedene Haushaltsgrößen geschätzt."
      faqs={[
-       {
-         q: "Wie hoch ist der durchschnittliche Stromverbrauch eines Haushalts?",
-         a: "Der durchschnittliche Stromverbrauch in Deutschland liegt bei etwa 2.500 kWh pro Jahr für einen Zwei-Personen-Haushalt. Single-Haushalte verbrauchen oft weniger (1.500-2.000 kWh), während Familien mit Kindern deutlich mehr benötigen (3.500-5.000 kWh). Stark variierende Faktoren sind Elektroheizung, Warmwasserbereitung und zahlreiche Standby-Geräte."
-       },
+      { q: "Durchschnittlicher Verbrauch?", a: "Strom: 1-Person: 1.500 kWh, 2-Personen: 2.500 kWh." },
+    ]},
        {
          q: "Wie kann ich meinen Wasserverbrauch reduzieren?",
          a: "Effektive Spartipps: Waschmaschine und Geschirrspüler nur voll beladen starten, duschen statt baden (spart bis zu 50% Wasser), wassersparende Brausen und Durchflussbegrenzer installieren, Regenwasser für Garten nutzen und Tropfbewässerung statt Sprenger verwenden. Auch das Bewusstsein beim Händewaschen und Zähneputzen macht einen großen Unterschied."

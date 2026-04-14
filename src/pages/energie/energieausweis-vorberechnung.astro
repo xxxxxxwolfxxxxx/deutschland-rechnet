@@ -20,14 +20,12 @@ const year = new Date().getFullYear();
   </div>
    <CalculatorShell
      calculator={calc}
-     intro="Ermitteln Sie die wichtigsten Kennwerte für einen Energieausweis Ihres Gebäudes. Der Rechner zeigt Endenergiebedarf, CO₂-Emissionen und Effizienzklasse an."
-     sourceNote="Berechnung nach den Vorgaben der Energieeinsparverordnung (EnEV) / Gebäudeenergiegesetz (GEG). Tatsächliche Werte können je nach Nutzung variieren."
-     explanation="Der Energieausweis zeigt den Energiebedarf eines Gebäudes zur Beheizung, Warmwasserbereitung und (optional) Lüftung. Der Endenergiebedarf wird in kWh/(m²·a) angegeben. Die CO₂-Emissionen ergeben sich aus dem Energiebedarf multipliziert mit dem jeweiligen Emissionsfaktor des Energieträgers."
+     intro="Mit dem Energieausweis-Vorberechnungs-Rechner berechnen Sie wichtige Kennwerte für den Energieausweis."
+     sourceNote="kWh/(m²·a)."
+     explanation="Der Energieausweis gibt den Verbrauch in kWh/(m²·a) an. Unter 100 ist gut, über 250 ist schlecht."
      faqs={[
-       {
-         q: "Wann benötige ich einen Energieausweis?",
-         a: "Energieausweis Pflicht: Beim Verkauf, Vermietung, Verpachtung von Gebäuden und bei öffentlichen Gebäuden mit über 250 m² Nutzfläche, die Kundenverkehr haben. Nicht erforderlich: Denkmalschutzgebäude, Gebäude unter 50 m² Nutzfläche, Ferienhäuser (weniger als 4 Monate/Jahr genutzt), sowie Gebäude mit Denkmalwert."
-       },
+      { q: "Was bedeutet der Kennwert?", a: "Jährlicher Energieverbrauch pro m². Je niedriger, desto besser." },
+    ]},
        {
          q: "Wie lange ist ein Energieausweis gültig?",
          a: "Ein Energieausweis ist 10 Jahre ab Ausstellungsdatum gültig. Nach Ablauf muss bei erneuter Vermietung, Verpachtung oder Verkauf ein neuer Ausweis erstellt werden. Ausnahme: Bei umfassenden Sanierungsmaßnahmen, die den Energiebedarf deutlich verändern, kann eine frühere Aktualisierung sinnvoll sein."

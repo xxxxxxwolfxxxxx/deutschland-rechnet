@@ -20,14 +20,12 @@ const year = new Date().getFullYear();
   </div>
   <CalculatorShell
     calculator={calc}
-    intro="Berechnen Sie Ihren Body-Mass-Index (BMI) kostenlos nach der WHO-Formel. Geben Sie Ihr Gewicht und Ihre Körpergröße ein – der BMI und die Einordnung nach WHO-Kategorien erscheint sofort. Der BMI ist ein Richtwert und ersetzt keine ärztliche Beratung."
-    sourceNote="Berechnung: BMI = Gewicht (kg) ÷ Körpergröße² (m). Kategorien nach WHO-Standard."
-    explanation="Der BMI (Body-Mass-Index) = Gewicht (kg) / Größe² (m²). Die WHO-Klassifikation: Untergewicht < 18,5, Normalgewicht 18,5-24,9, Übergewicht 25-29,9, Adipositas Grad I 30-34,9, Grad II 35-39,9, Grad III ≥ 40. Der BMI berücksichtigt nicht die Muskelmasse – Sportler können einen hohen BMI haben, ohne übergewichtig zu sein. Für Kinder und Jugendliche gelten altersspezifische Perzentilen."
+    intro="Mit dem BMI-Rechner berechnen Sie Ihren Body-Mass-Index nach der WHO-Formel."
+    sourceNote="BMI = Gewicht / Größe²."
+    explanation="Unter 18,5: Untergewicht. 18,5-24,9: Normalgewicht. 25-29,9: Übergewicht. 30+: Adipositas."
     faqs={[
-      {
-        q: "Ist der BMI eine verlässliche Maßzahl für Übergewicht?",
-        a: "Der BMI ist ein guter Richtwert für die Bevölkerung, hat aber Grenzen: Er unterscheidet nicht zwischen Fett- und Muskelmasse. Sportler mit hohem Muskelfettanteil können fälschlich als übergewichtig eingestuft werden. Bei sehr kleinen oder sehr großen Personen kann er irreführend sein."
-      },
+      { q: "Ist der BMI aussagekräftig?", a: "Berücksichtigt keine Muskelmasse." },
+    ]},
       {
         q: "Ab wann spricht man von Übergewicht gemäß WHO?",
         a: "Laut Weltgesundheitsorganisation (WHO) liegt Übergewicht bei einem BMI von 25,0 oder höher. Adipositas (Fettleibigkeit) beginnt bei BMI 30,0. Die Grenzen gelten für Erwachsene ab 18 Jahren."

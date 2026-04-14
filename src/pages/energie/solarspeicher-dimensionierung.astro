@@ -20,14 +20,12 @@ const year = new Date().getFullYear();
   </div>
    <CalculatorShell
      calculator={calc}
-     intro="Berechne die optimale Speichergröße für deine Photovoltaikanlage. Je besser Speicher und PV-Anlage aufeinander abgestimmt sind, desto höher ist dein Eigenverbrauchsanteil."
-     sourceNote="Berechnung basiert auf durchschnittlichen Lastprofilen und PV-Ertrag. Tatsächliche Werte können je nach Verbrauchswetter, Neigung und Ausrichtung variieren."
-     explanation="Die optimale Batteriekapazität hängt von deinem nächtlichen Stromverbrauch und der überschüssigen Solarproduktion ab. Empfehlung: Speichergröße = (Jahresverbrauch × 0,2) ÷ 365 für Nachtspeicherung, begrenzt auf 80% des überschüssigen PV-Tagesertrags. Ein Speicher sollte weder zu klein (häufige Tiefentladung) noch zu groß (niedrige Auslastung) sein."
+     intro="Mit dem Solarspeicher-Dimensionierungs-Rechner berechnen Sie die optimale Batteriegröße für Ihre PV-Anlage."
+     sourceNote="1 kWh pro 1.000 kWh Jahresverbrauch."
+     explanation="Die optimale Größe hängt vom Verbrauchsprofil ab. Faustformel: 1 kWh pro 1.000 kWh Verbrauch."
      faqs={[
-       {
-         q: "Wie groß sollte mein PV-Speicher für ein Einfamilienhaus sein?",
-         a: "Für ein durchschnittliches Einfamilienhaus mit 4.000 kWh Jahresverbrauch und 10 kWp PV-Anlage empfiehlt sich ein Speicher zwischen 5-10 kWh. Die genaue Größe hängt von deinem Verbrauchsprofil ab: Bei hohem Abendverbrauch (haushaltsüblich) eher 7-10 kWh, bei gleichmäßigem Verbrauch 4-6 kWh sind oft ausreichend."
-       },
+      { q: "Was ist nutzbare Kapazität?", a: "Niedriger als nominale Kapazität, da nicht vollständig entladen werden sollte." },
+    ]},
        {
          q: "Lohnt sich ein PV-Speicher wirtschaftlich?",
          a: "Die Wirtschaftlichkeit hängt stark vom Strompreis und dem Einspeisevergütungssatz ab. Bei aktuellen Strompreisen über 0,30 €/kWh und sinkenden Speicherpreisen rechnen sich Speicher oft innerhalb von 8-12 Jahren. Wichtiger Faktor ist dein Eigenverbrauchsanteil ohne Speicher – je niedriger dieser ist, desto stärker steigert ein Speicher die Wirtschaftlichkeit."
