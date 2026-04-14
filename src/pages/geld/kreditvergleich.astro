@@ -24,20 +24,10 @@ const year = new Date().getFullYear();
     sourceNote="Effektiver Jahreszins inkl. Nebenkosten."
     explanation="Der Effektivzins berücksichtigt alle Kosten wie Bearbeitungsgebühren und Restschuldversicherungen."
     faqs={[
-      { q: "Sollzins vs. Effektivzins?", a: "Effektivzins ist aussagekräftiger." },
-      { q: "Welcher Zinssatz ist gut?", a: "Ab ca. 3-5% für gute Bonität." },
-    ]
-        q: "Wie wirkt sich die Laufzeit auf die monatliche Rate aus?",
-        a: "Je länger die Laufzeit, desto geringer ist die monatliche Rate – jedoch steigen die Gesamtkosten aufgrund längerer Zinszahlung. Eine kürzere Laufzeit bedeutet höhere Raten, aber geringere Gesamtkosten."
-      },
-      {
-        q: "Soll ich die Rate eingeben oder den Zinssatz?",
-        a: "Sie können entweder den Zinssatz eingeben und die Rate wird berechnet, oder eine feste Rate vorgeben – dann wird der entsprechende Zinssatz rückwärts berechnet. So können Sie sowohl Sollzins- als auch Rategebundene Angebote vergleichen."
-      },
-      {
-        q: "Warum unterscheiden sich meine Bankangebote vom Rechnergebnis?",
-        a: "Banken können zusätzliche Kosten wie Bearbeitungsgebühren, Versicherungen oder Kontoführungsgebühren haben, die im einfachen Zinsrechner nicht enthalten sind. Der Rechner zeigt die Basis-Kosten des reinen Darlehens."
-      }
+      { q: "Sollzins vs. Effektivzins – was ist der Unterschied?", a: "Der Sollzins ist der reine Kreditzins. Der Effektivzins ist aussagekräftiger, da er auch Bearbeitungsgebühren, Versicherungen und andere Kosten einrechnet." },
+      { q: "Welcher Zinssatz ist noch gut?", a: "Das hängt von Ihrer Bonität ab. Gute Bonität (SCHUFA 100-200): 3-5%. Mittlere Bonität: 5-8%. Niedrige Bonität: 8-15%+." },
+      { q: "Wie wirkt sich die Laufzeit auf die Rate aus?", a: "Je länger die Laufzeit, desto niedriger die Rate – aber höhere Gesamtkosten durch längere Zinszahlung. Kürzere Laufzeit = höhere Rate, aber geringere Gesamtkosten." },
+      { q: "Warum unterscheiden sich meine Bankangebote vom Rechner?", a: "Banken rechnen zusätzliche Kosten ein (Versicherungen, Gebühren, Kontoführung). Der Rechner zeigt die Basis-Darlehenskosten. Vergleichen Sie immer die Effektivzinssätze!" }
     ]}
   >
     <div class="calc-form">

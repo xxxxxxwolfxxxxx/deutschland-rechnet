@@ -1,6 +1,7 @@
 ---
 import Layout from '../../layouts/Layout.astro';
 import CalculatorShell from '../../components/CalculatorShell.astro';
+import CalculatorGuide from '../../components/CalculatorGuide.astro';
 import { CALCULATORS, CATEGORIES } from '../../data/calculators';
 const calc = CALCULATORS.find(c => c.slug === 'stromkosten-rechner')!;
 const cat = CATEGORIES[calc.category];
@@ -23,6 +24,13 @@ const year = new Date().getFullYear();
     intro="Mit dem Stromkosten-Rechner berechnen Sie Ihre Stromkosten basierend auf Verbrauch und Strompreis."
     sourceNote="Kosten = Verbrauch × Preis."
     explanation="Stromkosten = Verbrauch (kWh) × Preis (€/kWh). Durchschnitt: 2.500-4.000 kWh/Jahr."
+    faqs={[
+      { q: "Was ist eine kWh?", a: "Eine Kilowatt-Stunde (kWh) ist die Energiemenge, die ein 1 kW-Gerät in einer Stunde verbraucht. Beispiel: Ein 100W-Gerät verbraucht in 10 Stunden 1 kWh. Der Stromzähler zeigt den Verbrauch in kWh." },
+      { q: "Wie hoch ist ein durchschnittlicher Stromverbrauch?", a: "1-Person-Haushalt: 1.500 kWh/Jahr, 2-Person: 2.500 kWh, 3-Person: 3.500 kWh, 4-Person: 4.500 kWh. Mit elektrischer Heizung oder Wärmepumpe kann der Verbrauch verdoppeln sich." },
+      { q: "Warum sind meine Stromkosten höher als berechnet?", a: "Der Grundpreis! Der Rechner zeigt nur die Stromkosten (kWh × Preis). Der Gesamtpreis in der Rechnung enthält auch die monatliche Grundgebühr (ca. 10-20€/Monat). Zusätzlich kommt Mehrwertsteuer hinzu." },
+      { q: "Wie kann ich Strom sparen?", a: "LED-Lampen statt Glühbirnen, Geräte ausschalten (nicht nur Stand-by), Kühlschrank nicht neben Herd stellen, duschen statt baden (falls Boiler), Waschamaschine nur voll laden, bei neuen Geräten auf Effizienzklasse achten." },
+      { q: "Lohnt sich eine Wärmepumpe wirtschaftlich?", a: "Bei hohen Strompreisen und altér Heizung: Ja. Wärmepumpen brauchen ca. 3x weniger Energie als Heizöl/Gas-Heizungen (COP 3-4). Mit Solaranlage noch besser. Kosten: 10.000-30.000€, amortisiert sich in 10-15 Jahren." }
+    ]}
   >
     <div class="calc-form">
       <div class="calc-group">
@@ -52,6 +60,32 @@ const year = new Date().getFullYear();
       <p id="monat" style="margin-top:0.5rem;font-size:0.95rem;color:#666;"></p>
     </div>
   </CalculatorShell>
+
+  <CalculatorGuide
+    title="Stromkosten verstehen und optimieren"
+    content={`<p>Der <strong>Strompreis</strong> setzt sich aus mehreren Komponenten zusammen:
+<ul>
+  <li><strong>Strombeschaffung:</strong> 40-50% des Preises (Erzeugung + Großhandel)</li>
+  <li><strong>Netznutzung:</strong> 20-30% (Stromleitungen)</li>
+  <li><strong>Steuern & Abgaben:</strong> 20-30% (MwSt. 19%, EEG-Umlage 3,67 Cent)</li>
+  <li><strong>Betriebskosten:</strong> 5-10% (Verwaltung, Kundenservice)</li>
+</ul>
+</p>
+
+<p><strong>Strompreis 2026:</strong> Der Durchschnittspreis liegt bei ca. 28-35 Cent/kWh (brutto), je nach Anbieter und Vertrag. 2023-2024 waren die Preise deutlich höher (über 50 Cent/kWh).</p>
+
+<p><strong>So setzen sich die Jahreskosten zusammen (3-Person-Haushalt mit 3.500 kWh):</strong>
+<ul>
+  <li>Stromkosten (kWh): 3.500 × 0,30€ = 1.050€</li>
+  <li>Grundpreis (monatlich): 15€ × 12 = 180€</li>
+  <li>Gesamtkosten netto: 1.230€</li>
+  <li>Mit MwSt. (19%): ca. 1.464€ brutto pro Jahr</li>
+</ul>
+</p>
+
+<p><strong>Energiewende-Komponenten:</strong> Die EEG-Umlage (seit 2023 abgebaut) finanzierte den Ausbau erneuerbarer Energien. Heute kommt der Strom zu ca. 45% aus Erneuerbaren (Wind, Solar, Wasser) und 48% aus Kohle/Gas (Stand 2024). Erneuerbare Energien werden immer günstiger, Gas-/Kohlepreise aber schwankender.</p>`}
+    relatedSlugs={['heizkosten-rechner', 'photovoltaik-rechner', 'waermepumpe-rechner']}
+  />
 </Layout>
 
 <style>

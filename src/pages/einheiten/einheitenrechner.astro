@@ -1,6 +1,7 @@
 ---
 import Layout from '../../layouts/Layout.astro';
 import CalculatorShell from '../../components/CalculatorShell.astro';
+import CalculatorGuide from '../../components/CalculatorGuide.astro';
 import { CALCULATORS, CATEGORIES } from '../../data/calculators';
 const calc = CALCULATORS.find(c => c.slug === 'einheitenrechner')!;
 const cat = CATEGORIES[calc.category];
@@ -23,6 +24,13 @@ const year = new Date().getFullYear();
     intro="Mit dem Einheitenrechner rechnen Sie verschiedene Einheiten um."
     sourceNote="Länge, Gewicht, Temperatur."
     explanation="1 Zoll = 2,54 cm, 1 Pfund = 0,453592 kg, 0°C = 32°F."
+    faqs={[
+      { q: "Welche Einheiten werden unterstützt?", a: "Länge (m, km, cm, mm, Zoll, Fuß, Yards, Meilen), Gewicht (kg, g, mg, Tonnen, Pfund, Unzen), Temperatur (Celsius, Fahrenheit, Kelvin), Volumen (Liter, Milliliter, Kubikmeter, Gallonen)." },
+      { q: "Warum unterscheidet sich mein Ergebnis von anderen Rechnern?", a: "Unterschiedliche Runder oder Approximationen. Dieser Rechner nutzt standardisierte internationale Umrechnungsfaktoren (z.B. 1 Zoll = 2,54 cm exakt)." },
+      { q: "Wie rechne ich Temperaturen um?", a: "°C zu °F: (°C × 9/5) + 32. °F zu °C: (°F − 32) × 5/9. Kelvin: K = °C + 273,15. Die Umrechnung erfolgt über Celsius als Basis." },
+      { q: "Was ist der Unterschied zwischen US-Gallonen und Litern?", a: "1 US-Gallone = 3,78541 Liter. 1 Liter = 0,264172 US-Gallonen. Die US-Gallone ist kleiner als die britische Gallone (4,54609 Liter)." },
+      { q: "Warum sollte ich Umrechner nutzen?", a: "Für schnelle, fehlerfreie Umrechnungen zwischen verschiedenen Einheitensystemen. Besonders praktisch bei internationalen Conversions (metrisch ↔ anglo-amerikanisch)." }
+    ]}
   >
     <div class="calc-form">
       <div class="calc-group">
@@ -47,6 +55,33 @@ const year = new Date().getFullYear();
       <div id="ergebnis-liste" class="ergebnis-liste"></div>
     </div>
   </CalculatorShell>
+
+  <CalculatorGuide
+    title="Internationales Einheitensystem verstehen"
+    content={`<p>Es gibt verschiedene Einheitensysteme weltweit: Das <strong>Metrische System (SI)</strong> ist international standardisiert und wird in den meisten Ländern verwendet. Die <strong>Anglo-amerikanischen Einheiten</strong> (Zoll, Fuß, Meilen, Pfund) werden vor allem in den USA, Großbritannien und einigen Commonwealth-Ländern verwendet.</p>
+
+<p><strong>Längen-Umrechnungen:</strong>
+<ul>
+  <li>1 Zoll (inch) = 2,54 cm exakt</li>
+  <li>1 Fuß = 12 Zoll = 30,48 cm</li>
+  <li>1 Yard = 3 Fuß = 0,9144 m</li>
+  <li>1 Meile = 1,60934 km</li>
+</ul>
+</p>
+
+<p><strong>Gewichts-Umrechnungen:</strong>
+<ul>
+  <li>1 Pfund (lb) = 453,592 Gramm</li>
+  <li>1 Unze (oz) = 28,3495 Gramm</li>
+  <li>1 Tonne = 1.000 kg</li>
+</ul>
+</p>
+
+<p><strong>Temperatur-Umrechnungen:</strong> Das Celsius-System (°C) basiert auf Wasser-Gefrierpunkt (0°C) und Siedepunkt (100°C). Fahrenheit (°F) nutzt Wasser-Gefrierpunkt 32°F und Siedepunkt 212°F. Kelvin (K) ist die absolute Temperaturskala für wissenschaftliche Zwecke.</p>
+
+<p><strong>Praktischer Tipp:</strong> Merken Sie sich diese Vergleiche: 1 Zoll ≈ Daumenkuppe, 1 kg ≈ 2,2 Pfund, 0°C = 32°F, 20°C ≈ 68°F (Raumtemperatur).</p>`}
+    relatedSlugs={['prozent-rechner', 'mwst-rechner', 'rabatt-rechner']}
+  />
 </Layout>
 
 <script>

@@ -1,6 +1,7 @@
 ---
 import Layout from '../../layouts/Layout.astro';
 import CalculatorShell from '../../components/CalculatorShell.astro';
+import CalculatorGuide from '../../components/CalculatorGuide.astro';
 import { CALCULATORS, CATEGORIES } from '../../data/calculators';
 const calc = CALCULATORS.find(c => c.slug === 'kfz-steuer-rechner')!;
 const cat = CATEGORIES[calc.category];
@@ -23,6 +24,13 @@ const year = new Date().getFullYear();
     intro="Mit dem Kfz-Steuer-Rechner berechnen Sie die jährliche Kfz-Steuer für Ihr Fahrzeug."
     sourceNote="Benziner: 2€/100 cm³, Diesel: 9,50€/100 cm³."
     explanation="Benziner: 2€ pro 100 cm³ + CO₂-Komponente. Diesel: 9,50€ + CO₂. Elektro: 0€ bis 2030."
+    faqs={[
+      { q: "Wie setzt sich die Kfz-Steuer zusammen?", a: "Die Grundsteuer ist nach Hubraum gestaffelt (Benzin 2€, Diesel 9,50€ pro 100 cm³). Hinzu kommt die CO₂-Komponente: 2€ pro g/km über 95 g/km (Benzin) oder 120 g/km (Diesel). Für Elektrofahrzeuge gilt Steuerbefreiung bis 31.12.2030." },
+      { q: "Warum kostet Diesel mehr?", a: "Diesel stößt mehr CO₂ und Stickoxide aus. Deshalb wird Diesel mit 9,50€ pro 100 cm³ besteuert, während Benziner 2€ zahlen. Der Kostenvorteil wird durch die höhere Steuer aufgezehrt." },
+      { q: "Was ist die CO₂-Komponente?", a: "Fahrzeuge mit zu hohem CO₂-Ausstoß zahlen zusätzliche Steuern: 2€ für jeden g/km über dem Grenzwert (95 g/km Benzin, 120 g/km Diesel). Das soll Anreize für sparsamere Fahrzeuge setzen." },
+      { q: "Sind Elektrofahrzeuge wirklich steuerfrei?", a: "Neuzulassungen bis 31.12.2030 sind befreit. Nach Ablauf dieser Frist gilt: Für Elektrofahrzeuge mit über 40 kWh Batterie: 2€ pro 100 kg Leergewicht. Das ist deutlich günstiger als bei Benzin-/Dieselfahrzeugen." },
+      { q: "Wie muss ich die Steuer zahlen?", a: "Die Kfz-Steuer wird bei Zulassung für 12 Monate im Voraus gezahlt (ca. 2.400 Millionen Euro jährlich für den Staat). Die Zahlung erfolgt per Überweisung an die Zulassungsstelle." }
+    ]}
   >
     <div class="calc-form">
       <div class="calc-grid">
@@ -50,6 +58,30 @@ const year = new Date().getFullYear();
       <p id="steuer-monat" style="margin-top:0.5rem;font-size:0.85rem;color:#666;"></p>
     </div>
   </CalculatorShell>
+
+  <CalculatorGuide
+    title="Kfz-Steuer verstehen und sparen"
+    content={`<p>Die <strong>Kraftfahrzeugsteuer (Kfz-Steuer)</strong> ist eine Steuer auf die Haltung von Fahrzeugen in Deutschland. Sie wird von der Zulassungsstelle eingezogen und ergibt sich aus zwei Komponenten: der Grundsteuer (nach Hubraum und Antriebsart) und der CO₂-Komponente.</p>
+
+<p><strong>Die Berechnung für Benziner:</strong>
+<ul>
+  <li>Grundsteuer: 2€ pro 100 cm³ Hubraum</li>
+  <li>CO₂-Komponente: 2€ für jeden g/km über 95 g/km</li>
+</ul>
+</p>
+
+<p><strong>Die Berechnung für Diesel:</strong>
+<ul>
+  <li>Grundsteuer: 9,50€ pro 100 cm³ Hubraum</li>
+  <li>CO₂-Komponente: 2€ für jeden g/km über 120 g/km</li>
+</ul>
+</p>
+
+<p><strong>Elektrofahrzeuge:</strong> Fahrzeuge mit Erstzulassung bis 31.12.2030 sind komplett befreit. Danach: 2€ pro 100 kg Leergewicht (maximaler Betrag).</p>
+
+<p><strong>Spartipp:</strong> Fahrzeuge mit niedrigerem Hubraum und CO₂-Ausstoß sparen deutlich Steuern. Ein 1.2L-Motor mit 110 g/km CO₂ kostet ca. 40% weniger Steuer als ein 3.0L-Diesel mit 200 g/km.</p>`}
+    relatedSlugs={['spritkosten-rechner', 'fahrtkosten-rechner', 'anfahrtskosten-rechner']}
+  />
 </Layout>
 
 <script type="module">

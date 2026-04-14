@@ -1,0 +1,153 @@
+---
+import { CALCULATORS } from '../data/calculators';
+
+interface Props {
+  title?: string;
+  content: string;
+  relatedSlugs?: string[];
+}
+
+const { title = 'Hintergrund & Erklärung', content, relatedSlugs = [] } = Astro.props;
+const base = import.meta.env.BASE_URL;
+
+// Find related calculator objects
+const relatedCalcs = relatedSlugs
+  .map(slug => CALCULATORS.find(c => c.slug === slug))
+  .filter(Boolean);
+---
+
+<div class="guide-section">
+  <h3>{title}</h3>
+
+  <div class="guide-content">
+    <Fragment set:html={content} />
+  </div>
+
+  {relatedCalcs.length > 0 && (
+    <div class="related-section">
+      <h4>Verwandte Rechner</h4>
+      <div class="related-grid">
+        {relatedCalcs.map((calc) => (
+          <a href={`${base}${calc.category}/${calc.slug}/`} class="related-link">
+            <span class="related-name">{calc.title}</span>
+            <span class="related-arrow">→</span>
+          </a>
+        ))}
+      </div>
+    </div>
+  )}
+</div>
+
+<style>
+.guide-section {
+  background: var(--surface);
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1.75rem;
+  margin-bottom: 1.5rem;
+}
+
+.guide-section h3 {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 1rem;
+  margin-top: 0;
+}
+
+.guide-content {
+  line-height: 1.7;
+  color: var(--text);
+  font-size: 0.95rem;
+  margin-bottom: 1rem;
+}
+
+.guide-content :global(p) {
+  margin: 0.75rem 0;
+  margin-bottom: 0.75rem;
+}
+
+.guide-content :global(ul),
+.guide-content :global(ol) {
+  margin: 0.75rem 0;
+  padding-left: 1.5rem;
+}
+
+.guide-content :global(li) {
+  margin-bottom: 0.5rem;
+}
+
+.guide-content :global(strong) {
+  font-weight: 600;
+  color: var(--text);
+}
+
+.guide-content :global(em) {
+  font-style: italic;
+  color: var(--text-light);
+}
+
+.guide-content :global(code) {
+  background: var(--bg);
+  padding: 0.2rem 0.4rem;
+  border-radius: 0.25rem;
+  font-family: 'Courier New', monospace;
+  font-size: 0.9em;
+  color: var(--accent);
+}
+
+.related-section {
+  border-top: 1px solid var(--border);
+  padding-top: 1rem;
+  margin-top: 1rem;
+}
+
+.related-section h4 {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 0.75rem;
+  margin-top: 0;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.related-grid {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.related-link {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.6rem 0.8rem;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  text-decoration: none;
+  color: var(--text);
+  transition: all 0.15s ease;
+}
+
+.related-link:hover {
+  background: color-mix(in srgb, var(--accent) 8%, var(--bg));
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.related-name {
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.related-arrow {
+  font-size: 0.85rem;
+  opacity: 0.6;
+  transition: opacity 0.15s ease;
+}
+
+.related-link:hover .related-arrow {
+  opacity: 1;
+}
+</style>

@@ -1,6 +1,7 @@
 ---
 import Layout from '../../layouts/Layout.astro';
 import CalculatorShell from '../../components/CalculatorShell.astro';
+import CalculatorGuide from '../../components/CalculatorGuide.astro';
 import { CALCULATORS, CATEGORIES } from '../../data/calculators';
 const calc = CALCULATORS.find(c => c.slug === 'grunderwerbsteuer-rechner')!;
 const cat = CATEGORIES[calc.category];
@@ -24,7 +25,11 @@ const year = new Date().getFullYear();
      sourceNote="0% bis 6,5% je nach Bundesland."
      explanation="Bayern und Sachsen haben 0%, NRW 6,5%. Die Steuer muss innerhalb von 2 Wochen gezahlt werden."
       faqs={[
-        { q: "Welches Bundesland hat höchste Steuer?", a: "NRW, Schleswig-Holstein, Brandenburg mit 6,5%." }
+        { q: "Welches Bundesland hat die höchste Grunderwerbsteuer?", a: "Nordrhein-Westfalen, Schleswig-Holstein, Brandenburg, Saarland und Thüringen mit jeweils 6,5%. Bayern und Sachsen haben 3,5%, die niedrigsten Sätze." },
+        { q: "Wer muss die Grunderwerbsteuer zahlen?", a: "Der Käufer der Immobilie muss die Steuer zahlen. Sie wird bei Eintragung der Eigentumsübertragung beim Finanzamt fällig. Die Zahlung muss innerhalb von 2 Wochen erfolgen." },
+        { q: "Was ist in der Steuerbemessung enthalten?", a: "Die Grunderwerbsteuer wird auf den Kaufpreis berechnet. Makler-, Notar- und Grundbuchgebühren sind NICHT enthalten. Diese kommen zusätzlich hinzu (ca. 5-10% weitere Kosten)." },
+        { q: "Gibt es Ausnahmen oder Ermäßigungen?", a: "Ja, z.B. für Familienheimzuschuss-Eigenheime in manchen Bundesländern. Auch bestimmte Erbschaften sind befreit. Der Notar prüft dies bei der Vertragsgestaltung." },
+        { q: "Unterscheidet sich der Satz für Grund vs. Gebäude?", a: "Nein, die Grunderwerbsteuer wird auf den gesamten Kaufpreis berechnet (Land + Gebäude), nicht differenziert. Der Steuersatz ist für beide gleich." }
       ]}
    >
     <div class="calc-form">
@@ -78,6 +83,34 @@ const year = new Date().getFullYear();
       <p id="info" style="margin-top:0.5rem;font-size:0.85rem;color:#666;"></p>
     </div>
   </CalculatorShell>
+
+  <CalculatorGuide
+    title="Grunderwerbsteuer beim Immobilienkauf"
+    content={`<p>Die <strong>Grunderwerbsteuer (GrESt)</strong> ist eine Steuer, die beim Kauf von Grundstücken und Immobilien anfällt. Sie wird auf Bundeslandebene unterschiedlich festgelegt – von 3,5% in Bayern bis 6,5% in NRW und anderen Ländern.</p>
+
+<p><strong>Bundesland-Unterschiede (aktuelle Sätze):</strong>
+<ul>
+  <li>3,5%: Bayern, Sachsen</li>
+  <li>5,0%: Baden-Württemberg, Bremen, Niedersachsen, Rheinland-Pfalz, Sachsen-Anhalt</li>
+  <li>5,5%: Hamburg, Mecklenburg-Vorpommern, Sachsen</li>
+  <li>6,0%: Berlin, Hessen, Mecklenburg-Vorpommern</li>
+  <li>6,5%: Brandenburg, Nordrhein-Westfalen, Saarland, Schleswig-Holstein, Thüringen</li>
+</ul>
+</p>
+
+<p><strong>Wichtige Nebenkosten beim Hauskauf:</strong>
+<ul>
+  <li>Grunderwerbsteuer: 3,5 – 6,5%</li>
+  <li>Maklergebühren (optional): 3 – 7,14%</li>
+  <li>Notargebühren: ca. 1,5 – 2%</li>
+  <li>Grundbuchgebühren: ca. 0,1 – 0,2%</li>
+  <li>Makler + Notar + Grundbuch = ca. 5 – 10% extra</li>
+</ul>
+</p>
+
+<p><strong>Beispiel:</strong> Beim Kauf für 350.000€ in NRW (6,5%): Grunderwerbsteuer = 22.750€. Mit Makler und Notar kommen weitere 17.500€ hinzu. Gesamtnebenkosten: ca. 40.250€ (11,5%).</p>`}
+    relatedSlugs={['hauskauf-rechner', 'immobilienkauf-nebenkosten', 'tilgungs-kreditrechner']}
+  />
 </Layout>
 
 <script type="module">

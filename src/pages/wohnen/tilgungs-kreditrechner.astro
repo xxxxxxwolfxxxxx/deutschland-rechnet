@@ -1,6 +1,7 @@
 ---
 import Layout from '../../layouts/Layout.astro';
 import CalculatorShell from '../../components/CalculatorShell.astro';
+import CalculatorGuide from '../../components/CalculatorGuide.astro';
 import { CALCULATORS, CATEGORIES } from '../../data/calculators';
 const calc = CALCULATORS.find(c => c.slug === 'tilgungs-kreditrechner')!;
 const cat = CATEGORIES[calc.category];
@@ -23,6 +24,13 @@ const year = new Date().getFullYear();
     intro="Mit dem Kreditrechner berechnen Sie die monatliche Rate für Ihren Kredit. Der Rechner ermittelt Zinsen, Tilgung und Gesamtkosten."
     sourceNote="Annuitätendarlehen."
     explanation="Die monatliche Rate setzt sich aus Zins und Tilgung zusammen. Bei gleichbleibendem Zins bleibt die Rate konstant."
+    faqs={[
+      { q: "Was ist ein Annuitätendarlehen?", a: "Ein Darlehen, bei dem die monatliche Rate (Annuität) über die gesamte Laufzeit gleich bleibt. Die Rate setzt sich aus Zins- und Tilgungsanteil zusammen. Am Anfang ist der Zinsanteil höher, später die Tilgung." },
+      { q: "Was bedeutet 'Tilgung'?", a: "Die Tilgung ist die Rückzahlung des Darlehensbetrags. Bei jedem Zahlungsvorgang wird zuerst der Zins gezahlt, dann wird der restliche Betrag der Tilgung zugeordnet. Dadurch sinkt die Restschuld." },
+      { q: "Wie berechne ich die monatliche Rate?", a: "Formel: Rate = Darlehensbetrag × (Monatszins × (1+Monatszins)^Monate) / ((1+Monatszins)^Monate - 1). Beispiel: 200.000€ bei 3,5% für 20 Jahre = ca. 1.001€/Monat." },
+      { q: "Warum steigen die Zinsen in dem Rechner nicht?", a: "Der Rechner geht von einem gleichbleibenden Zinssatz über die gesamte Laufzeit aus. Bei echten Hypotheken können Zinsen nach Ablauf des Zinsbindungszeitraums angepasst werden." },
+      { q: "Wie viel spare ich mit kürzerer Laufzeit?", a: "Beispiel: 200.000€ à 3,5%: 10 Jahre = 6.100€ Zinsen (monatlich 2.035€), 20 Jahre = 40.240€ Zinsen (monatlich 1.001€). Kürzere Laufzeit = höhere Rate, aber deutlich weniger Gesamtkosten." }
+    ]}
   >
     <div class="calc-form">
       <div class="calc-grid">
@@ -49,6 +57,32 @@ const year = new Date().getFullYear();
       </div>
     </div>
   </CalculatorShell>
+
+  <CalculatorGuide
+    title="Tilgungsplan und Kreditberechnung"
+    content={`<p>Der <strong>Tilgungsplan</strong> zeigt, wie sich ein Darlehen mit jedem Zahlungsvorgang abbaut. Bei einem Annuitätendarlehen besteht jede Zahlung aus einem Zins- und einem Tilgungsanteil.</p>
+
+<p><strong>Am Anfang der Laufzeit:</strong>
+<ul>
+  <li>Hoher Zinsanteil (z.B. 583€ von 1.001€)</li>
+  <li>Niedriger Tilgungsanteil (z.B. 418€)</li>
+  <li>Die Restschuld sinkt nur langsam</li>
+</ul>
+</p>
+
+<p><strong>Am Ende der Laufzeit:</strong>
+<ul>
+  <li>Niedriger Zinsanteil (z.B. 5€)</li>
+  <li>Hoher Tilgungsanteil (z.B. 996€)</li>
+  <li>Die Restschuld sinkt schnell</li>
+</ul>
+</p>
+
+<p><strong>Beispiel-Tilgungsplan:</strong> Ein 200.000€-Kredit bei 3,5% über 20 Jahre hat 240 Raten à 1.001€. Gesamtkosten: 240.240€. Zinsen: 40.240€.</p>
+
+<p><strong>Wichtig für Hypotheken:</strong> Bei Immobilienkrediten ist der Zinsbindungszeitraum wichtig! Sie sind nur für die vereinbarte Zeit an den Zinssatz gebunden. Danach erfolgt eine Anschlussfinanzierung, bei der sich der Zins ändern kann.</p>`}
+    relatedSlugs={['hauskauf-rechner', 'immobilienkauf-nebenkosten', 'grunderwerbsteuer-rechner']}
+  />
 </Layout>
 
 <script>
