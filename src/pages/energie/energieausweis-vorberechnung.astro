@@ -23,18 +23,11 @@ const year = new Date().getFullYear();
      intro="Mit dem Energieausweis-Vorberechnungs-Rechner berechnen Sie wichtige Kennwerte für den Energieausweis."
      sourceNote="kWh/(m²·a)."
      explanation="Der Energieausweis gibt den Verbrauch in kWh/(m²·a) an. Unter 100 ist gut, über 250 ist schlecht."
-     faqs={[
-      { q: "Was bedeutet der Kennwert?", a: "Jährlicher Energieverbrauch pro m². Je niedriger, desto besser." },
-    ]},
-       {
-         q: "Wie lange ist ein Energieausweis gültig?",
-         a: "Ein Energieausweis ist 10 Jahre ab Ausstellungsdatum gültig. Nach Ablauf muss bei erneuter Vermietung, Verpachtung oder Verkauf ein neuer Ausweis erstellt werden. Ausnahme: Bei umfassenden Sanierungsmaßnahmen, die den Energiebedarf deutlich verändern, kann eine frühere Aktualisierung sinnvoll sein."
-       },
-       {
-         q: "Was ist der Unterschied zwischen Energiebedarfsausweis und Energieverbrauchsausweis?",
-         a: "Der Energiebedarfsausweis berechnet den theoretischen Energiebedarf anhand der Gebäudehülle und Haustechnik (für alle Gebäude möglich). Der Energieverbrauchsausweis basiert auf den tatsächlich verbrauchten Energiemengen der letzten 3 Jahre und ist nur für Gebäude mit mindestens 5 Wohnungen zulässig. Für Ein- und Zweifamilienhäuser gibt es nur den Bedarfsausweis."
-       }
-     ]}
+      faqs={[
+        { q: "Was bedeutet der Kennwert?", a: "Jährlicher Energieverbrauch pro m². Je niedriger, desto besser." },
+        { q: "Wie lange ist ein Energieausweis gültig?", a: "10 Jahre ab Ausstellungsdatum." },
+        { q: "Bedarfs- vs. Verbrauchsausweis?", a: "Bedarfsausweis: theoretisch. Verbrauchsausweis: tatsächlicher Verbrauch." }
+      ]}
    >
     <div class="calc-form">
       <div class="calc-grid">
