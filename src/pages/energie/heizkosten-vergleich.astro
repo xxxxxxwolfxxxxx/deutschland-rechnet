@@ -20,14 +20,12 @@ const year = new Date().getFullYear();
   </div>
    <CalculatorShell
      calculator={calc}
-     intro="Vergleiche die jährlichen Heizkosten verschiedener Energieträger für dein Haus. Gib Wohnfläche, Dämmstandard und gewünschte Temperatur ein."
-     sourceNote="Durchschnittswerte based on aktueller Energiepreise und Verbrauchskennwerte. Tatsächliche Kosten können je nach Nutzung und Standort variieren."
-     explanation="Vergleicht Jahresheizkosten für: Erdgas, Heizöl, Wärmepumpe (Luft/Wasser), Holzpellets und Fernwärme. Berechnung basiert auf spezifischem Endenergieverbrauch (kWh/(m²·a)) und aktuellen Energiepreisen. Für Wärmepumpe wird die Jahresarbeitszahl (JAZ) berücksichtigt."
+     intro="Mit dem Heizkosten-Vergleich berechnen Sie die jährlichen Heizkosten für verschiedene Energieträger."
+     sourceNote="Gas, Öl, Strom, Wärmepumpe, Pellets."
+     explanation="Jeder Energieträger hat anderen Preis und Wirkungsgrad. Kosten werden in Cent/kWh verglichen."
      faqs={[
-       {
-         q: "Welcher Energieträger ist derzeit am günstigsten?",
-         a: "Aktuell sind Holzpellets oft der günstigste Energieträger wegen ihres niedrigen Preises pro kWh und guten Wirkungsgrads. Allerdings hängt das günstigste System stark von deinem Standort, deiner Immobilie und den verfügbaren Anschlüssen ab. Wärmepumpen können bei günstigem Stromtarif und guter Jahresarbeitszahl (JAZ) sehr wettbewerbsfähig sein."
-       },
+      { q: "Welcher am günstigsten?", a: "Wärmepumpe und Holzpellets." },
+    ]},
        {
          q: "Wie wirkt sich die Dämmung auf die Heizkosten aus?",
          a: "Die Dämmung hat einen enormen Einfluss auf die Heizkosten. Ein unsanierter Altbau benötigt etwa 150 kWh/(m²·a), während ein Effizienzhaus nur noch 60 kWh/(m²·a) und ein Passivhaus sogar nur 22 kWh/(m²·a) benötigt. Gute Dämmung reduziert nicht nur die Heizkosten, sondern erhöht auch den Wohnkomfort deutlich."

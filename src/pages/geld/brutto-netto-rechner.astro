@@ -20,25 +20,31 @@ const year = new Date().getFullYear();
   </div>
   <CalculatorShell
     calculator={calc}
-    intro="Mit dem Brutto-Netto-Rechner berechnen Sie schnell und kostenlos Ihr monatliches Nettoeinkommen. Geben Sie Ihr Bruttogehalt, Ihre Steuerklasse und Ihr Bundesland ein – alle Abzüge wie Lohnsteuer, Solidaritätszuschlag und Sozialversicherungsbeiträge werden automatisch berücksichtigt."
-    sourceNote="Berechnung nach § 32a EStG 2026, aktuellen SV-Beitragssätzen (BMAS) und länderspezifischen Kirchensteuersätzen. Ohne Gewähr – für verbindliche Auskünfte wenden Sie sich an das Finanzamt."
-    explanation="Das Bruttogehalt wird um folgende Abzüge reduziert: Lohnsteuer (progressiv nach § 32a EStG, 14-45%), Solidaritätszuschlag (5,5% der Lohnsteuer), Kirchensteuer (8-9% je nach Bundesland), Rentenversicherung (18,6%), Krankenversicherung (14,6% + Zusatzbeitrag), Arbeitslosenversicherung (2,6%) und Pflegeversicherung (2,4% bzw. 2,7% für Kinderlose). Die Sozialabgaben werden nur bis zur jeweiligen Beitragsbemessungsgrenze erhoben."
+    intro="Mit dem Brutto-Netto-Rechner 2026 berechnen Sie schnell und zuverlässig Ihren monatlichen Nettolohn aus Ihrem Bruttogehalt. Geben Sie einfach Ihr Bruttogehalt, Ihre Steuerklasse und Ihr Bundesland ein – alle gesetzlichen Abzüge werden automatisch berücksichtigt."
+    sourceNote="Berechnung nach § 32a EStG 2026, aktuellen SV-Beitragssätzen (BMAS)."
+    explanation="Die Lohnsteuer wird nach § 32a EStG berechnet (14% bis 45%). Der Solidaritätszuschlag liegt bei 5,5% der Lohnsteuer. Die Kirchensteuer beträgt 8% bzw. 9% je nach Bundesland."
     faqs={[
+      { q: "Wie hoch sind die Abzüge?", a: "Die Abzüge liegen je nach Steuerklasse und Einkommen zwischen 20% und 45%." },
+      { q: "Welche Steuerklasse sollte ich wählen?", a: "Die Steuerklasse richtet sich nach Ihrem Familienstand." },
+      { q: "Warum weicht mein Netto ab?", a: "Der Rechner zeigt das gesetzliche Netto ohne individuelle Freibeträge." },
+      { q: "Was ist die Beitragsbemessungsgrenze?", a: "Der maximale Betrag für Sozialversicherungsbeiträge." },
+      { q: "Beeinflusst das Bundesland den Nettolohn?", a: "Ja, über die Kirchensteuer (8% oder 9%)." },
+    ]},
       {
-        q: "Wie wird der Bruttolohn zum Nettolohn berechnet?",
-        a: "Vom Bruttolohn werden Lohnsteuer, Solidaritätszuschlag, eventuelle Kirchensteuer sowie Sozialversicherungsbeiträge (Renten-, Kranken-, Arbeitslosen- und Pflegeversicherung) abgezogen. Der Rechner berücksichtigt automatisch alle relevanten Abzüge basierend auf Ihrer Steuerklasse und Ihrem Bundesland."
+        q: "Welche Steuerklasse sollte ich wählen?",
+        a: "Die Steuerklasse richtet sich nach Ihrem Familienstand und Ihrer familiären Situation. Ledige ohne Kinder gehören grundsätzlich in Steuerklasse I. Verheiratete können zwischen den Kombinationen III/V oder IV/IV wählen. Alleinerziehende gehören in Steuerklasse II."
       },
       {
-        q: "Welche Steuerklasse sollte ich bei Teilzeitbeschäftigung wählen?",
-        a: "Die Steuerklasse hängt nicht von der Arbeitszeit ab, sondern vom Familienstand und anderen Faktoren. Ledige ohne Kinder gehören grundsätzlich in Steuerklasse I. Bei Teilzeit wird nur das tatsächlich erzielende Einkommen versteuert."
+        q: "Warum weicht mein tatsächliches Netto vom Rechnerergebnis ab?",
+        a: "Der Rechner zeigt das gesetzliche Netto ohne individuelle Freibeträge, betriebliche Zulagen oder Sonderzahlungen wie Weihnachtsgeld. Auch Vorsorgeaufwendungen, Handwerkerleistungen oder Spenden werden erst in der Steuererklärung berücksichtigt."
       },
       {
-        q: "Warum unterscheidet sich mein Netto vom Rechnergebnis?",
-        a: "Mögliche Gründe: zusätzliches Einkommen (z.B. Nebenjob), sonstige Abzüge (wie Werbungskosten oder Sonderausgaben), betrieblich begründete Zulagen oder Ihre individuelle Krankenzusatzversicherung. Der Rechner zeigt das gesetzliche Mindestnetto."
+        q: "Was ist die Beitragsbemessungsgrenze?",
+        a: "Die Beitragsbemessungsgrenze ist der maximale Betrag, bis zu dem Sozialversicherungsbeiträge erhoben werden. Für 2026 liegt sie in der Rentenversicherung bei ca. 7.550€ monatlich (West) bzw. 7.450€ (Ost). Alles darüber ist beitragsfrei."
       },
       {
-        q: "Wie wirkt sich ein Gehaltswechsel im Jahr auf die Steuer aus?",
-        a: "Bei einem Gehaltswechsel während des Jahres wird die Einkommensteuer nach dem Jahresgehalt berechnet. Der Arbeitgeber führt dabei eine Vorausberechnung durch – eventuelle Unterschiede werden bei der Einkommensteuererklärung ausgeglichen."
+        q: "Beeinflusst das Bundesland den Nettolohn?",
+        a: "Ja, über die Kirchensteuer. In Bayern und Baden-Württemberg beträgt sie 9%, in den übrigen Bundesländern 8%. Da die Kirchensteuer auf die Lohnsteuer berechnet wird, ergibt sich ein leicht höherer Abzug in den beiden südlichen Bundesländern."
       }
     ]}
   >

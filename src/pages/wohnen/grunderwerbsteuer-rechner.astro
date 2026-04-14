@@ -20,14 +20,12 @@ const year = new Date().getFullYear();
   </div>
    <CalculatorShell
      calculator={calc}
-     intro="Berechnen Sie die Grunderwerbsteuer beim Immobilienkauf kostenlos nach Bundesland. Die Steuersätze variieren zwischen 3,5 % (Bayern) und 6,5 % (NRW, Schleswig-Holstein u.a.). Geben Sie Kaufpreis und Bundesland ein – das Ergebnis erscheint sofort."
-     sourceNote="Steuersätze nach aktuellen Landesgesetzen (Stand 2025). Bayern und Sachsen 3,5 %, alle anderen 5,0–6,5 %."
-     explanation="Die Grunderwerbsteuer wird beim Kauf von Immobilien und Grundstücken fällig. Die Sätze variieren je nach Bundesland: Bayern 3,5%, Sachsen 3,5%, andere zwischen 5,0% und 6,5%. Bemessungsgrundlage ist der Kaufpreis. Ausnahmen: Ersterwerb von Familien mit Kindern, bestimmte Unternehmensumstrukturierungen. Die Steuer wird vom Finanzamt festgesetzt und ist innerhalb eines Monats nach Bescheid fällig."
+     intro="Mit dem Grunderwerbsteuer-Rechner berechnen Sie die Grunderwerbsteuer beim Kauf einer Immobilie."
+     sourceNote="0% bis 6,5% je nach Bundesland."
+     explanation="Bayern und Sachsen haben 0%, NRW 6,5%. Die Steuer muss innerhalb von 2 Wochen gezahlt werden."
      faqs={[
-       {
-         q: "Warum variiert die Grunderwerbsteuer nach Bundesland?",
-         a: "Die Grunderwerbsteuer ist eine Landessteuer, sodass jedes Bundesland den Steuersatz selbst festlegt. Dies führt zu unterschiedlichen Sätzen zwischen 3,5% und 6,5%. Bayern und Sachsen haben mit 3,5% den niedrigsten Satz, während NRW, Schleswig-Holstein und Thüringen mit 6,5% den höchsten Satz haben."
-       },
+      { q: "Welches Bundesland hat höchste Steuer?", a: "NRW, Schleswig-Holstein, Brandenburg mit 6,5%." },
+    ]},
        {
          q: "Gibt es Ausnahmen oder Ermäßigungen bei der Grunderwerbsteuer?",
          a: "Ja, es gibt mehrere Ausnahmen: Ersterwerb von Eigenheimen durch Familien mit Kindern (in einigen Bundesländern), Übertragungen zwischen Ehepartnern oder Eltern und Kindern, Unternehmensumstrukturierungen sowie Erwerb von landwirtschaftlichem Boden. Die genauen Regelungen variieren jedoch stark zwischen den Bundesländern."

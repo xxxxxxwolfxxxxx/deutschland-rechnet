@@ -20,9 +20,26 @@ const year = new Date().getFullYear();
   </div>
   <CalculatorShell
     calculator={calc}
-    intro="Berechnen Sie Ihr Kurzarbeitergeld nach § 95 SGB III: 60% des pauschalierten Nettolohnausfalls (67% mit Kind). Geben Sie Ihr Bruttogehalt und den Arbeitsausfall ein."
-    sourceNote="Kurzarbeitergeld nach §§ 95 ff. SGB III. Nettolohn pauschaliert nach Steuerklasse. Die tatsächliche Höhe berechnet die Bundesagentur für Arbeit nach amtlichen Tabellen. Keine Rechtsberatung."
-    explanation="Das Kurzarbeitergeld beträgt 60% des pauschalierten Nettoentgelts (67% bei mindestens einem Kind im Haushalt). Die Berechnung erfolgt nach § 95 SGB III: Vom Bruttogehalt wird ein pauschalisierter Nettoabzug vorgenommen (abhängig von der Steuerklasse). Der tatsächliche Arbeitsausfall in Prozent wird auf diesen pauschalierten Nettobetrag angewendet. Ab dem 4. Monat der Kurzarbeit erhöht sich der Leistungssatz auf 70%/77%, ab dem 7. Monat auf 80%/87%."
+    intro="Mit dem Kurzarbeitergeld-Rechner berechnen Sie die Höhe Ihres Kurzarbeitergeldes bei Arbeitsausfall."
+    sourceNote="Berechnung nach SGB III."
+    explanation="60% des Netto-Entgeltverlusters (67% mit Kindern)."
+    faqs={[
+      { q: "Wie lange bekomme ich Kurzarbeitergeld?", a: "Bis zu 12 Monate, max. 24." },
+      { q: "Wann habe ich Anspruch?", a: "Bei 10% Arbeitsausfall." },
+      { q: "Wird auf Hartz IV angerechnet?", a: "Ja, aber mit Freibeträgen." },
+    ]},
+      { q: "Wann habe ich Anspruch?", a: "Bei mindestens 10% Arbeitsausfall." },
+      { q: "Wird es auf Hartz IV angerechnet?", a: "Ja, aber mit Freibeträgen." },
+    ]},
+      {
+        q: "Wann habe ich Anspruch auf Kurzarbeitergeld?",
+        a: "Bei mindestens 10% Arbeitsausfall und wenn die Betriebsorganisation zustimmt. Eine Anzeige bei der Arbeitsagentur ist erforderlich."
+      },
+      {
+        q: "Wird Kurzarbeitergeld auf Hartz IV angerechnet?",
+        a: "Ja, es wird als Einkommen angerechnet. Allerdings gibt es Freibeträge, sodass eine vollständige Anrechnung oft nicht erfolgt."
+      }
+    ]}
   >
     <div class="calc-form">
       <div class="calc-grid">

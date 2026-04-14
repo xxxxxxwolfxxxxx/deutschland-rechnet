@@ -20,9 +20,9 @@ const year = new Date().getFullYear();
   </div>
   <CalculatorShell
     calculator={calc}
-    intro="Berechnen Sie den Endpreis nach einem oder mehreren Rabatten. Achtung: Mehrfachrabatte werden nicht addiert, sondern nacheinander angewendet!"
-    sourceNote="Mathematische Rabattberechnung. Ohne Gewähr."
-    explanation="Rabatt = Originalpreis × Rabatt%/100. Endpreis = Originalpreis - Rabatt. Bei mehreren Rabatten: Nicht addieren! Jeder Rabatt wird auf den bereits reduzierten Preis angewendet. Beispiel: 20% + 10% = nicht 30%, sondern 100×0,8×0,9 = 72% = 28% Gesamt."
+    intro="Mit dem Rabatt-Rechner berechnen Sie den Endpreis nach Rabatt."
+    sourceNote="Endpreis = Originalpreis × (100 - Rabatt) / 100."
+    explanation="100€ mit 20% Rabatt = 20€ Ersparnis, Endpreis = 80€."
   >
     <div class="calc-form">
       <div class="calc-grid">

@@ -20,8 +20,26 @@ const year = new Date().getFullYear();
   </div>
   <CalculatorShell
     calculator={calc}
-    intro="Berechnen Sie Trinkgeld für Restaurant, Café, Lieferdienst oder Taxi. Wählen Sie einen Prozentsatz oder geben Sie einen eigenen Betrag ein."
-    sourceNote="Trinkgeld ist freiwillig und keine Pflicht. Üblich sind 5–10% bei gutem Service. In Deutschland ist die Umsatzsteuer bereits im Preis enthalten."
+    intro="Mit dem Trinkgeld-Rechner finden Sie schnell heraus, wie viel Trinkgeld in verschiedenen Situationen üblich und angemessen ist."
+    sourceNote="Trinkgeld ist freiwillig."
+    explanation="Übliche Sätze: Restaurant 5-10%, guter Service 10%, außergewöhnlicher 15-20%."
+    faqs={[
+      { q: "Wie viel Trinkgeld ist üblich?", a: "10% im Restaurant, 5-10€ beim Lieferdienst." },
+      { q: "Muss man Trinkgeld geben?", a: "Nein, es ist freiwillig." },
+      { q: "Karte oder bar?", a: "Bar wird bevorzugt, aber Karte geht auch." },
+    ]},
+      { q: "Muss man Trinkgeld geben?", a: "Trinkgeld ist freiwillig. Es besteht keine Pflicht, aber es ist üblich." },
+      { q: "Trinkgeld mit Karte oder bar?", a: "Bar wird bevorzugt, aber Kartenzahlung ist ebenfalls üblich." },
+    ]},
+      {
+        q: "Muss man Trinkgeld geben?",
+        a: "Trinkgeld ist in Deutschland eine freiwillige Anerkennung für guten Service. Es besteht keine Pflicht, aber es ist üblich, bei zufriedenstellendem Service ein Trinkgeld zu geben."
+      },
+      {
+        q: "Trinkgeld mit Karte oder bar?",
+        a: "Bar wird bevorzugt, aber Kartenzahlung mit eingetragenem Trinkgeld ist ebenfalls üblich und geht direkt an den Mitarbeiter."
+      }
+    ]}
   >
     <div class="calc-form">
       <div class="calc-grid">

@@ -20,9 +20,9 @@ const year = new Date().getFullYear();
   </div>
   <CalculatorShell
     calculator={calc}
-    intro="Berechnen Sie schnell den Netto- oder Bruttobetrag mit der deutschen Umsatzsteuer. Wählen Sie zwischen 19% (Regelsatz) und 7% (ermäßigter Satz)."
-    sourceNote="Berechnung nach UStG. 19% Regelsteuersatz, 7% ermäßigter Satz. Ohne Gewähr."
-    explanation="Brutto = Netto × (1 + MwSt-Satz/100). Netto = Brutto / (1 + MwSt-Satz/100). MwSt-Betrag = Brutto - Netto. In Deutschland: 19% Regelsteuersatz, 7% ermäßigter Satz (Lebensmittel, Bücher, ÖPNV). Die Umsatzsteuer wird vom Unternehmer ans Finanzamt abgeführt."
+    intro="Mit dem MwSt-Rechner berechnen Sie Netto- und Bruttopreise mit 19% oder 7% MwSt."
+    sourceNote="19% oder 7%."
+    explanation="MwSt (19%) = Netto × 0,19. Brutto = Netto × 1,19."
   >
     <div class="calc-form">
       <div class="calc-grid">

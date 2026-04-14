@@ -20,14 +20,12 @@ const year = new Date().getFullYear();
   </div>
    <CalculatorShell
      calculator={calc}
-     intro="Berechnen Sie die Energie- und CO₂-Einsparung durch energetische Sanierungsmaßnahmen an Ihrem Haus. Berücksichtigen Sie staatliche Fördermittel und erfahren Sie Ihre Amortisationszeit."
-     sourceNote="Einsparwerte basado auf typischen Sanierungseffekten. Tatsächliche Werte können je nach Gebäudezustand und Ausführung variieren. Fördersätze können sich ändern."
-     explanation="Die Berechnung zeigt die jährliche Energieeinsparung (kWh) und CO₂-Einsparung (kg) durch Maßnahmen wie Wärmedämmung, Fensterwechsel oder Heizungserneuerung. Die Amortisationszeit ergibt sich aus den Investitionskosten abzüglich Fördermittel geteilt durch die jährlichen Energiekosteneinsparungen."
+     intro="Mit dem CO₂-Einsparung-Rechner berechnen Sie die Energie- und CO₂-Einsparungen durch Sanierungsmaßnahmen."
+     sourceNote="Dämmung, neue Heizung, Fenster."
+     explanation="Dämmung: bis 50% Einsparung, neue Heizung: bis 40%. Die Einsparungen werden in € und kg CO₂ angegeben."
      faqs={[
-       {
-         q: "Welche Sanierungsmaßnahme spart am meisten CO₂?",
-         a: "Die Außenwanddämmung führt typischerweise zu den höchsten absoluten CO₂-Einsparungen, besonders bei unsanierten Altbauten vor 1979. Bei einem 120 m² Haus kann sie bis zu 11.500 kg CO₂ pro Jahr einsparen. Allerdings hat sie auch höhere Investitionskosten. Die Heizungserneuerung auf Wärmepumpe bietet oft das beste Verhältnis von Einsparung zu Investition."
-       },
+      { q: "Höchste Einsparung?", a: "Dachdämmung (bis 50%) und neue Heizung (bis 40%)." },
+    ]},
        {
          q: "Wie hoch sind die typischen Fördersätze für energetische Sanierung?",
          a: "Die Fördersätze variieren je nach Maßnahme und Bundesland. Bei der Bundesförderung für effiziente Gebäude (BEG) gibt es derzeit Zuschüsse von 15-25% für Einzelmaßnahmen und bis zu 40% für Komplettsanierungen. Zusätzlich gibt es oft zinsgünstige Kredite über die KfW. Manche Kommunen und Energieversorger bieten weitere Förderprogramme an."

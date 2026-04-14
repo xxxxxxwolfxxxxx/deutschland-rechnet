@@ -20,14 +20,12 @@ const year = new Date().getFullYear();
   </div>
   <CalculatorShell
     calculator={calc}
-    intro="Prüfen Sie, ob Ihre Miete gegen die Mietpreisbremse verstößt (§§ 556d–556g BGB). In Gebieten mit angespanntem Wohnungsmarkt darf die Miete die ortsübliche Vergleichsmiete um maximal 10% übersteigen."
-    sourceNote="Mietpreisbremse nach §§ 556d–556g BGB. Gilt nur in per Landesverordnung ausgewiesenen Gebieten. Ausnahmen: Erstbezug, umfassende Modernisierung, höhere Vormiete. Keine Rechtsberatung."
-    explanation="Die Mietpreisbremse (§ 556d BGB) begrenzt die Miete bei Neuvermietungen in angespannten Wohnungsmärkten auf maximal 10% über der ortsüblichen Vergleichsmiete. Die ortsübliche Miete wird anhand des Mietspiegels ermittelt. Ausnahmen: Erstvermietung nach umfassender Modernisierung, erstmalige Vermietung nach dem 1.10.2014. Bei Überschreitung kann der Mieter die Miete mindern und zu viel gezahlte Miete zurückfordern."
+    intro="Mit dem Mietpreisbremse-Rechner prüfen Sie, ob die Miete in Ihrer Region der Mietpreisbremse unterliegt."
+    sourceNote="Maximal 10% über ortsüblicher Miete."
+    explanation="Die Mietpreisbremse begrenzt die Miete auf maximal 10% über der ortsüblichen Vergleichsmiete."
     faqs={[
-      {
-        q: "In welchen Städten gilt die Mietpreisbremse?",
-        a: "Die Mietpreisbremse gilt nur in von den Landesregierungen per Verordnung festgelegten Gebieten mit angespanntem Wohnungsmarkt. Dazu gehören beispielsweise große Städte wie Berlin, Hamburg, München, Köln und Frankfurt sowie deren Umland. Die genaue Gebietsausweisung finden Sie auf den Websites der jeweiligen Landesbehörden."
-      },
+      { q: "Gilt in meiner Stadt?", a: "Nur in ausgewiesenen Gebieten mit angespanntem Markt." },
+    ]},
       {
         q: "Was zählt als 'ortsübliche Vergleichsmiete'?",
         a: "Die ortsübliche Vergleichsmiete wird aus dem Mietenspiegel der jeweiligen Stadt oder Region ermittelt. Sie repräsentiert die durchschnittliche Nettokaltmiete für vergleichbare Wohnungen (Baujahr, Größe, Ausstattung, Lage). Viele Städte veröffentlichen ihren Mietenspiegel online oder bei den örtlichen Mietenspiegelkommissionen."
