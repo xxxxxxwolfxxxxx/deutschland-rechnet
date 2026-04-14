@@ -1,6 +1,7 @@
 ---
 import Layout from '../../layouts/Layout.astro';
 import CalculatorShell from '../../components/CalculatorShell.astro';
+import CalculatorGuide from '../../components/CalculatorGuide.astro';
 import { CALCULATORS, CATEGORIES } from '../../data/calculators';
 const calc = CALCULATORS.find(c => c.slug === 'busgeldrechner')!;
 const cat = CATEGORIES[calc.category];
@@ -23,7 +24,14 @@ description="Bußgeld, Punkte in Flensburg und Fahrverbot berechnen – Geschwin
       intro="Mit dem Bußgeldrechner berechnen Sie die fälligen Strafen bei Verkehrsverstößen."
       sourceNote="Bußgeldkatalog."
       explanation="Geschwindigkeitsüberschreitungen, Rotlichtverstöße und Alkohol führen zu unterschiedlichen Strafen."
-  >
+      faqs={[
+        { q: "Was sind Punkte in Flensburg?", a: "Das Flensburg-System vergeben Punkte für Verkehrsverstöße. Ab 8 Punkten wird die Fahrerlaubnis entzogen. Punkte verfallen nach 2-10 Jahren je nach Schweregrad. Mit den Gewinnspielen können Punkte reduziert werden." },
+        { q: "Was ist ein Fahrverbot?", a: "Ein Fahrverbot ist ein vorübergehendes Verbot, Auto zu fahren (meist 1-3 Monate). Es kann mit Geldstrafen kombiniert sein. Nach Ablauf darf wieder gefahren werden. Fahrverbote vermeiden ist wichtiger als Punkte, weil sie sofort wirken." },
+        { q: "Kann ich Einspruch gegen einen Verwarnungsbetrag einlegen?", a: "Ja, innerhalb von 2 Wochen nach Erhalt. Ein Anwalt prüft oft, ob Blitzerfehler (nicht kalibriert, Messpfosten falsch) vorliegen. Bei Fehlern kann der Bußgeldbescheid aufgehoben werden." },
+        { q: "Unterscheiden sich Bußgelder nach Bundesland?", a: "Nein, der Bußgeldkatalog ist bundesweit einheitlich. Aber Fahrverbote, Punkte und deren Dauer sind im Straßenverkehrsgesetz (StVG) bundesweit gleich geregelt." },
+        { q: "Was ist ein 'qualifizierter Rotlichtverstoß'?", a: "Das ist ein Rotlichtverstoß, bei dem die Ampel länger als 1 Sekunde rot war. Das ist schwerer als 'einfache' Rotlichtverstöße und führt zu höheren Geldstrafen (100€ vs. 200€) und Punkten." }
+      ]}
+    >
     <div class="calc-form">
 
       <!-- Verstoß-Auswahl -->
@@ -148,6 +156,39 @@ description="Bußgeld, Punkte in Flensburg und Fahrverbot berechnen – Geschwin
 
     </div>
   </CalculatorShell>
+
+  <CalculatorGuide
+    title="Bußgeldkatalog und Verkehrsrecht verstehen"
+    content={`<p>Der <strong>Bußgeldkatalog</strong> ist ein einheitliches Regelwerk für Bußgelder und Fahrverbote in Deutschland. Er wird regelmäßig angepasst und ist bindend für alle Behörden.</p>
+
+<p><strong>Die wichtigsten Konsequenzen:</strong>
+<ul>
+  <li><strong>Bußgeld:</strong> Geldstrafe zwischen 15€ und 1.000€</li>
+  <li><strong>Punkte:</strong> 1-4 Punkte in Flensburg (ab 8 Punkten: Fahrerlaubnis weg)</li>
+  <li><strong>Fahrverbot:</strong> 1-3 Monate oder sogar dauerhaft bei schweren Verstößen</li>
+</ul>
+</p>
+
+<p><strong>Die Flensburg-Punkte verfallen nach:</strong>
+<ul>
+  <li>2 Jahren bei Vergehen (1-2 Punkte)</li>
+  <li>3 Jahren bei Ordnungswidrigkeiten (3-4 Punkte)</li>
+  <li>10 Jahren nach Wiedererlangung der Fahrerlaubnis (schwere Straftaten)</li>
+</ul>
+</p>
+
+<p><strong>Wichtige Verstöße mit besonders hohen Strafen:</strong>
+<ul>
+  <li>Alkohol am Steuer (über 0,5‰): 500€, 2 Punkte, 1 Monat Fahrverbot</li>
+  <li>Drogenfahrt: 500€, 2 Punkte, 1 Monat Fahrverbot</li>
+  <li>Gefährdendes Überholen: bis 400€, 4 Punkte, 2 Monate Fahrverbot</li>
+  <li>Handy am Steuer: 100€, 1 Punkt</li>
+</ul>
+</p>
+
+<p><strong>Rechtsmittel:</strong> Innerhalb von 2 Wochen kann man gegen einen Bußgeldbescheid Einspruch erheben. Ein Verkehrsanwalt prüft oft, ob die Messung fehlerhaft war oder formale Fehler vorliegen.</p>`}
+    relatedSlugs={['kfz-steuer-rechner', 'fahrtkosten-rechner', 'leasing-rechner']}
+  />
 </Layout>
 
 <style>

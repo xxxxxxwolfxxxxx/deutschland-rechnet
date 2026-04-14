@@ -1,6 +1,7 @@
 ---
 import Layout from '../../layouts/Layout.astro';
 import CalculatorShell from '../../components/CalculatorShell.astro';
+import CalculatorGuide from '../../components/CalculatorGuide.astro';
 import { CALCULATORS, CATEGORIES } from '../../data/calculators';
 const calc = CALCULATORS.find(c => c.slug === 'arbeitslosengeld-rechner')!;
 const cat = CATEGORIES[calc.category];
@@ -23,6 +24,13 @@ const year = new Date().getFullYear();
     intro="Mit dem Arbeitslosengeld-Rechner berechnen Sie Ihre Ansprüche auf ALG I nach SGB III."
     sourceNote="Berechnung nach SGB III."
     explanation="ALG beträgt 60% des Nettoeinkommens (67% mit Kindern). Bezugsdauer: 12-24 Monate."
+    faqs={[
+      { q: "Wie lange bekomme ich Arbeitslosengeld?", a: "Die Bezugsdauer richtet sich nach der Versicherungszeit: 6 Monate bei 12 Monaten Beitrag, 12 Monate bei 24 Monaten, 24 Monate bei 48 Monaten (nur über 50 Jahre). Für Ältere können bis zu 24 Monate Bezugsdauer gelten." },
+      { q: "Wann habe ich Anspruch auf ALG I?", a: "Sie brauchen mindestens 12 Monate Beitragszahlung in den letzten 30 Monaten, müssen arbeitslos gemeldet sein, die Arbeitsvermittlung nutzen und das 15. Lebensjahr vollendet haben." },
+      { q: "Was ist das 'Bemessungsentgelt'?", a: "Das ist das durchschnittliche tägliche/monatliche Entgelt aus den letzten 52 Wochen vor der Arbeitslosigkeit. Es bildet die Basis für die ALG-Berechnung. Das Entgelt wird bereinigt um außergewöhnliche Zahlungen." },
+      { q: "Wird ALG auf andere Einkünfte angerechnet?", a: "Ja, Arbeitslosengeld wird bei Hartz IV angerechnet. Aber: Die ersten 165€ bei Einkommen aus Erwerbstätigkeit bleiben unberücksichtigt." },
+      { q: "Kann ich arbeiten während ich ALG beziehe?", a: "Ja, Hinzuverdienst ist möglich bis zu 165€/Monat (Freibetrag). Darüber wird das Einkommen zu 80% angerechnet. Bei mehr als 15h/Woche gilt man nicht mehr als arbeitslos."  }
+    ]}
   >
     <div class="calc-form">
       <div class="calc-grid">
@@ -92,6 +100,25 @@ const year = new Date().getFullYear();
       <div id="details" style="margin-top:0.75rem;font-size:0.88rem;color:#666;display:flex;gap:1.5rem;flex-wrap:wrap;"></div>
     </div>
   </CalculatorShell>
+
+  <CalculatorGuide
+    title="So funktioniert Arbeitslosengeld (ALG I)"
+    content={`<p><strong>Arbeitslosengeld (ALG I)</strong> ist eine Versicherungsleistung für Personen, die arbeitslos geworden sind und die Anspruchsvoraussetzungen erfüllen. Es ersetzt teilweise das bisherige Arbeitseinkommen und soll Übergangszahlungen während der Jobsuche leisten.</p>
+
+<p><strong>Der Leistungssatz:</strong>
+<ul>
+  <li>60% des letzten Nettoeinkommens (ohne Kinder)</li>
+  <li>67% des letzten Nettoeinkommens (mit Kindern)</li>
+</ul>
+</p>
+
+<p><strong>Dauer des Bezugs:</strong> Abhängig von Alter und Beitragsjahren. Grundsätzlich: 12 Monate für 24 Monate Versicherungszeit, 6 Monate für 12 Monate Versicherungszeit, 24 Monate für über 50-Jährige mit 48 Monaten Versicherung.</p>
+
+<p><strong>Wichtig:</strong> ALG I ist nicht das gleiche wie Hartz IV (Grundsicherung). ALG I setzt eine bestimmte Versicherungszeit voraus und wird zeitlich begrenzt gezahlt. Danach kann unter bestimmten Bedingungen ALG II (Grundsicherung) folgen.</p>
+
+<p><strong>Tipp:</strong> Eine frühzeitige Arbeitslosmeldung (nicht erst ab Tag 1 Arbeitslosigkeit) ist wichtig. Die Agentur für Arbeit muss mit dem Antrag auf ALG I beauftragt sein.</p>`}
+    relatedSlugs={['brutto-netto-rechner', 'mindestlohn-rechner', 'gehaltserhoehung-rechner']}
+  />
 </Layout>
 
 <script type="module">

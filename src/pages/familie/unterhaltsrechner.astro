@@ -1,6 +1,7 @@
 ---
 import Layout from '../../layouts/Layout.astro';
 import CalculatorShell from '../../components/CalculatorShell.astro';
+import CalculatorGuide from '../../components/CalculatorGuide.astro';
 import { CALCULATORS, CATEGORIES } from '../../data/calculators';
 const calc = CALCULATORS.find(c => c.slug === 'unterhaltsrechner')!;
 const cat = CATEGORIES[calc.category];
@@ -103,6 +104,26 @@ const year = new Date().getFullYear();
       <div id="olg-hinweis" class="bl-hinweis" style="display:none;"></div>
     </div>
   </CalculatorShell>
+
+  <CalculatorGuide
+    title="Kindesunterhalt nach der Düsseldorfer Tabelle"
+    content={`<p>Die <strong>Düsseldorfer Tabelle</strong> ist die am weitesten verbreitete Richtlinie zur Berechnung des Kindesunterhalts in Deutschland. Sie wird regelmäßig aktualisiert (2026 ab 1.1.2026) und berücksichtigt steigende Lebenshaltungskosten.</p>
+
+<p><strong>Die Berechnung erfolgt in mehreren Schritten:</strong>
+<ul>
+  <li><strong>Schritt 1:</strong> Bereinigung des Nettoeinkommens (Abzug von 5-10% berufsbedingter Aufwendungen)</li>
+  <li><strong>Schritt 2:</strong> Feststellung der Einkommensgruppe in der Düsseldorfer Tabelle (0-2.000€, 2.001-2.500€, etc.)</li>
+  <li><strong>Schritt 3:</strong> Ablesen des Unterhaltsbedarfs aus der Tabelle (z.B. 492€ für ein Kind bis 6 Jahren bei 1.500€ Einkommen)</li>
+  <li><strong>Schritt 4:</strong> Anrechnung des halben Kindergelds (§ 1612b BGB)</li>
+  <li><strong>Schritt 5:</strong> Überprüfung des Selbstbehalts (mind. 1.540€ für minderjährige Kinder)</li>
+</ul>
+</p>
+
+<p><strong>Unterschiede zwischen OLG-Leitlinien:</strong> Neben der Düsseldorfer Tabelle gibt es regionale OLG-Leitlinien mit leicht unterschiedlichen Selbstbehalt-Sätzen und Kindergeld-Regelungen. Der Unterhaltsanspruch richtet sich nach dem Wohnort des Kindes und seinem Alter.</p>
+
+<p><strong>2026 Werte:</strong> Kindergeld pro Kind: 255€/Monat. Unterhaltsbedarfssatz für Kinder bis 6 Jahre: 492€, 6-12 Jahre: 571€, 12-18 Jahre: 695€, über 18 Jahre (Studium): 934€. Diese Sätze sind bei 1.500€ bereinigtem Einkommen des Unterhaltspflichtigen – höhere Einkommen führen zu höheren Unterhaltsbeträgen.</p>`}
+    relatedSlugs={['ehegattenunterhalt-rechner', 'elterngeld-rechner', 'kindergeld-rechner']}
+  />
 </Layout>
 
 <style>
