@@ -1,6 +1,7 @@
 ---
 import Layout from '../../layouts/Layout.astro';
 import CalculatorShell from '../../components/CalculatorShell.astro';
+import CalculatorGuide from '../../components/CalculatorGuide.astro';
 import { CALCULATORS, CATEGORIES } from '../../data/calculators';
 const calc = CALCULATORS.find(c => c.slug === 'abgeltungsteuer-rechner')!;
 const cat = CATEGORIES[calc.category];
@@ -23,6 +24,14 @@ const year = new Date().getFullYear();
     intro="Mit dem Abgeltungsteuer-Rechner berechnen Sie die Steuer auf Ihre Kapitalerträge nach dem Freibetrag."
     sourceNote="25% + Solidaritätszuschlag."
     explanation="Der Sparer-Pauschbetrag liegt bei 1.000€ (Verheiratete: 2.000€)."
+    faqs={[
+      { q: "Was ist die Abgeltungsteuer?", a: "Die Abgeltungsteuer ist eine einheitliche Steuer auf Kapitalerträge (Zinsen, Dividenden, Kursgewinne) in Höhe von 25%. Sie wird zusammen mit dem Solidaritätszuschlag (5,5%) erhoben. Bank oder Broker führen die Steuer direkt ab." },
+      { q: "Was ist der Sparerpauschbetrag?", a: "Der Sparerpauschbetrag ist ein Freibetrag: Die ersten 1.000€ Kapitalerträge pro Jahr sind steuerfrei (Verheiratete: 2.000€). Erst danach fällt Abgeltungsteuer an. Der Freibetrag wird pro Depotinhaber gewährt." },
+      { q: "Gilt die Abgeltungsteuer auch auf Aktien und ETFs?", a: "Ja. Realisierte Kursgewinne, Dividenden und Ausschüttungen unterliegen der Abgeltungsteuer, auch bei ETFs und Aktien. Ausnahme: Gewinne aus Einzelwertpapieren, die länger als 1 Jahr gehalten wurden, sind unter bestimmten Bedingungen steuerfrei (Einstiegsbesteuerung ab 2024)." },
+      { q: "Wann zahle ich Kirchensteuer auf Kapitalerträge?", a: "Kirchensteuer wird nur von Kirchenmitgliedern erhoben. Sie beträgt in Baden-Württemberg 8% (evangelisch) oder 9% (katholisch) der Abgeltungsteuer (nicht des Kapitalertrags). Kirchensteuer wird direkt vom Depot abgebucht." },
+      { q: "Kann ich mehrere Depots nutzen, um den Freibetrag zu verdoppeln?", a: "Nein. Der Sparerpauschbetrag ist pro Steuerperson und Kalenderjahr begrenzt, unabhängig von der Anzahl der Depots. Die Depotbanken melden die Kapitalerträge zusammengefasst an das Finanzamt." },
+      { q: "Was ändert sich 2024 bei der Besteuerung?", a: "Seit 2024 gilt: Kursgewinne aus dem Verkauf von Einzelaktien, die über 1 Jahr gehalten wurden, sind bis 1 Million€ pro Jahr steuerfrei (Einstiegsbesteuerung). Gewinne über 1 Mio. werden zu 50% besteuert. Diese Regel gilt NICHT für ETFs." }
+    ]}
   >
     <div class="calc-form">
       <div class="calc-grid">
@@ -57,6 +66,25 @@ const year = new Date().getFullYear();
       <div id="details" style="margin-top:0.75rem;font-size:0.88rem;color:#666;display:flex;gap:1.5rem;flex-wrap:wrap;"></div>
     </div>
   </CalculatorShell>
+
+  <CalculatorGuide
+    title="So funktioniert die Abgeltungsteuer"
+    content={`<p><strong>Die Abgeltungsteuer</strong> ist eine pauschale Einkommensteuer auf Kapitalerträge wie Zinsen, Dividenden und Kursgewinne. Sie wird in Deutschland einheitlich mit <strong>25%</strong> plus Solidaritätszuschlag (5,5%) erhoben. Banken und Broker führen die Steuer direkt ab – Sie müssen nicht selbst mit dem Finanzamt abrechnen.</p>
+
+<p><strong>Der Sparerpauschbetrag:</strong> Der erste Freibetrag für Kapitalerträge beträgt <strong>1.000€ pro Jahr</strong> für Alleinstehende (verheiratete Paare zusammen: 2.000€). Kapitalerträge bis zu dieser Grenze sind vollständig steuerfrei. Danach greift die volle 25% Abgeltungsteuer.</p>
+
+<p><strong>Wichtiger Hinweis zu 2024:</strong> Eine neue Einstiegsbesteuerung gilt für Kursgewinne aus Einzelaktien:
+<ul>
+  <li><strong>Aktien</strong>, die länger als 1 Jahr gehalten werden: Erste 1 Million€ Gewinn pro Jahr sind steuerfrei (danach 50% Besteuerung)</li>
+  <li><strong>ETFs und Fonds</strong>: Für diese gelten weiterhin die normalen Abgeltungsteuerregeln</li>
+</ul>
+</p>
+
+<p><strong>Kirchensteuer auf Kapitalerträge:</strong> Kirchenmitglieder zahlen zusätzliche Kirchensteuer (8-9% der Kapitalertragsteuer). Diese wird von der Bank direkt abgebucht, wenn im Kirchensteuersystem angemeldet.</p>
+
+<p><strong>Praktisches Beispiel:</strong> Sie haben 5.000€ Dividenden erhalten. Nach dem Sparerpauschbetrag von 1.000€ sind 4.000€ zu versteuern. Abgeltungsteuer: 4.000 × 25% = 1.000€. Plus Solidaritätszuschlag: 1.000 × 5,5% = 55€. Gesamt: 1.055€ Steuern.</p>`}
+    relatedSlugs={['etf-sparplan-rechner', 'fire-rechner', 'sparen-rechner']}
+  />
 </Layout>
 
 <script type="module">
