@@ -1,6 +1,7 @@
 ---
 import Layout from '../../layouts/Layout.astro';
 import CalculatorShell from '../../components/CalculatorShell.astro';
+import CalculatorGuide from '../../components/CalculatorGuide.astro';
 import { CALCULATORS, CATEGORIES } from '../../data/calculators';
 const calc = CALCULATORS.find(c => c.slug === 'makronaehrstoff-rechner')!;
 const cat = CATEGORIES[calc.category];
@@ -23,6 +24,32 @@ const year = new Date().getFullYear();
     intro="Mit dem Makronährstoff-Rechner berechnen Sie Ihren täglichen Bedarf an Protein, Fett und Kohlenhydraten."
     sourceNote="Protein 1,6-2,2g/kg."
     explanation="Protein: 1,6-2,2g pro kg Körpergewicht. Fett: 0,8-1g. Kohlenhydrate: Restliche Kalorien."
+    faqs={[
+      {
+        q: "Warum ist Protein beim Abnehmen wichtiger als beim Erhalten?",
+        a: "Beim Kaloriendefizit schützt höheres Protein (2,0 g/kg) die Muskelmasse vor Abbau. Beim Erhalten genügt 1,2-1,6 g/kg, da keine intensive Proteinsynthese nötig ist."
+      },
+      {
+        q: "Sind alle Fette gleich schlecht?",
+        a: "Nein, der Rechner nutzt einen Durchschnittswert. Hochwertige Fette (Omega-3 aus Fisch, Olivenöl) haben Anti-Entzündungs-Effekte. Die Menge ist wichtiger als die Art, solange es gesunde Quellen sind."
+      },
+      {
+        q: "Warum sind Kohlenhydrate nicht einfach Restmenge?",
+        a: "Technisch stimmt das, aber Kohlenhydrate sind die größte Energiequelle und sollten individuell angepasst werden: Sportler brauchen mehr; bei Low-Carb-Diäten weniger."
+      },
+      {
+        q: "Sollte ich diese Makros exakt einhalten?",
+        a: "Nicht perfekt – eine Abweichung von 10-20% ist akzeptabel. Das Wichtigste ist das Kaloriendefizit. Die Makroverteilung optimiert nur die Zusammensetzung."
+      },
+      {
+        q: "Was ist bessere für Muskelaufbau: mehr Protein oder mehr Kalorien?",
+        a: "Beides zusammen. Ein Kalorienüberschuss mit hohem Protein (1,8-2,2 g/kg) maximiert Muskelwachstum. Nur Protein ohne Überschuss bringt wenig."
+      },
+      {
+        q: "Kann ich diese Makros für alle Mahlzeiten verwenden?",
+        a: "Ja, verteilen Sie sie über den Tag. Manche bevorzugen mehr Protein zum Frühstück und Dinner, Kohlenhydrate um Trainingszeiten. Das ist Feintuning, nicht kritisch."
+      }
+    ]}
   >
     <div class="calc-form">
       <div class="calc-grid">
@@ -71,6 +98,17 @@ const year = new Date().getFullYear();
       <div id="details" style="margin-top:0.75rem;font-size:0.88rem;color:#666;display:flex;gap:1.5rem;flex-wrap:wrap;"></div>
     </div>
   </CalculatorShell>
+  <CalculatorGuide
+    title="Makronährstoffe optimal verteilen"
+    content="Die drei Makronährstoffe – Protein, Fett und Kohlenhydrate – sind die Pfeiler jeder Ernährung. Der Rechner verteilt Ihre Kalorienziele basierend auf wissenschaftlichen Empfehlungen und Ihrem Ziel.
+
+**Protein: Der Muskel-Baustein:** Protein ist lebensnotwendig und wird bei Trainingszielen erhöht. Beim Abnehmen mit hohem Protein (2,0 g/kg) bleiben Ihre Muskeln erhalten und der Hunger reduziert sich – wichtig für Compliance. Beim Zunehmen reichen 1,8 g/kg.
+
+**Fett: Nicht der Feind:** Fett ist für Hormonproduktion, Vitamin-Absorption und Sättigung kritisch. Der Rechner kalkuliert 0,8-0,9 g/kg als Minimum. Unter 20% Ihrer Gesamtkalorien (z.B. unter 55g bei 2500 kcal) sollte es nicht gehen – hormonelle Störungen drohen.
+
+**Kohlenhydrate: Energie und Flexibilität:** Kohlenhydrate füllen die verbleibenden Kalorien auf. Mehr Kohlenhydrate um Trainingszeiten verbessern die Leistung. Weniger Kohlenhydrate (unter 100g) führt zu Ketose, was für manche funktioniert, für andere ermüdend ist. Persönliche Anpassung ist wichtig."
+    relatedSlugs={['kalorien-rechner', 'grundumsatz-rechner', 'idealgewicht-rechner']}
+  />
 </Layout>
 
 <script type="module">
