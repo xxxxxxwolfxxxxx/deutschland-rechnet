@@ -1,10 +1,20 @@
 ---
 import Layout from '../../layouts/Layout.astro';
 import CalculatorShell from '../../components/CalculatorShell.astro';
+import CalculatorGuide from '../../components/CalculatorGuide.astro';
 import { CALCULATORS, CATEGORIES } from '../../data/calculators';
 const calc = CALCULATORS.find(c => c.slug === 'renten-rechner')!;
 const cat = CATEGORIES[calc.category];
 const year = new Date().getFullYear();
+
+const faqs = [
+  { q: 'Wann kann ich in Rente gehen?', a: 'Die reguläre Renteneintrittsalter liegt bei 67 Jahren. Mit Zu- oder Abschlägen ist es ab 63 oder 62 möglich.' },
+  { q: 'Wie wird meine Rente berechnet?', a: 'Rente = (Entgeltpunkte × aktueller Rentenwert × Rentenartfaktor). Der aktuelle Rentenwert wird jährlich angepasst.' },
+  { q: 'Was sind Entgeltpunkte?', a: 'Ein Entgeltpunkt wird für ein Jahr Beiträge zum Durchschnittsverdienst verdient. Unterschiedliche Einkommen ergeben unterschiedliche Punkte.' },
+  { q: 'Gibt es Zu- oder Abschläge?', a: 'Ja: 0,6% pro Monat Zuschlag bei Hinausschiebung, 0,3% pro Monat Abschlag bei Frührentne.' },
+  { q: 'Wird meine Rente besteuert?', a: 'Ja, Renteneinkünfte unterliegen der Besteuerung. Der steuerpflichtige Anteil steigt jährlich.' },
+  { q: 'Kann ich vor 67 in Rente gehen?', a: 'Ja, ab 62 oder 63 mit Abschlägen, oder mit 45 Versicherungsjahren ohne Abschlag.' },
+];
 ---
 <Layout
   title={`Renten-Rechner ${year}`}
@@ -23,6 +33,7 @@ const year = new Date().getFullYear();
     intro="Mit dem Renten-Rechner berechnen Sie Ihre voraussichtliche gesetzliche Rente und die Rentenlücke."
     sourceNote="Rentenpunkte × 40€."
     explanation="Die Rente wird aus Rentenpunkten berechnet. 1 Punkt = ca. 40€/Monat."
+    faqs={faqs}
   >
     <div class="calc-form">
       <div class="calc-grid">
@@ -51,6 +62,21 @@ const year = new Date().getFullYear();
       <div id="luecke-box" style="display:none;margin-top:0.75rem;padding:0.75rem 1rem;border-radius:8px;background:#fff3cd;font-size:0.88rem;"></div>
     </div>
   </CalculatorShell>
+
+  <CalculatorGuide
+    title="Rente – Absicherung im Alter und bei Erwerbsminderung"
+    content="Die gesetzliche Rente ist das Rückgrat der Altersversorgung in Deutschland. Die Renteneintrittsalter liegt regulär bei 67 Jahren, aber es gibt Optionen für frühere Renteneintritt mit Zu- oder Abschlägen.
+
+Die Rentenberechnung basiert auf Entgeltpunkten, dem aktuellen Rentenwert und einem Rentenartfaktor. Jedes Arbeitsjahr mit Durchschnittseinkommen verdient 1 Rentenpunkt. Der aktuelle Rentenwert wird jährlich angepasst (2024: ca. 40€ pro Punkt).
+
+Ein wichtiges Konzept: Erwerbstätigenversicherung funktioniert anders als Renteneintritt. Auch ohne 45 Jahre Versicherung können Sie Rente beziehen, müssen aber Abschläge akzeptieren. Mit 45 Jahren Versicherung ist Renteneintritt mit 63 Jahren ohne Abschlag möglich.
+
+Frauen haben seit 2023 bessere Möglichkeiten: Die Erwerbstätigenrente wurde erweitert. Auch Zeiten der Kindererziehung zählen mit (Anrechtigungszeiten).
+
+Finanzierungstipp: Betriebliche oder private Zusatzversicherung verbessert oft die Rentensicherheit erheblich. Prüfen Sie auch Ausgleichszahlungen und Lebensversicherungen."
+    relatedSlugs={['rentenpunkte-rechner', 'elterngeld-rechner']}
+  />
+
 </Layout>
 
 <script type="module">
