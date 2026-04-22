@@ -1,6 +1,7 @@
 ---
 import Layout from '../../layouts/Layout.astro';
 import CalculatorShell from '../../components/CalculatorShell.astro';
+import CalculatorGuide from '../../components/CalculatorGuide.astro';
 import { CALCULATORS, CATEGORIES } from '../../data/calculators';
 const calc = CALCULATORS.find(c => c.slug === 'hauskauf-rechner')!;
 const cat = CATEGORIES[calc.category];
@@ -23,6 +24,14 @@ const year = new Date().getFullYear();
     intro="Mit dem Hauskauf-Rechner berechnen Sie die Gesamtkosten beim Kauf eines Hauses."
     sourceNote="Kaufpreis + Nebenkosten + Renovierung."
     explanation="Gesamtkosten = Kaufpreis + Nebenkosten (5-12%) + Renovierung. Hinzu laufende Kosten."
+    faqs={[
+      { q: "Welche Nebenkosten fallen beim Hauskauf an?", a: "Typischerweise 8-15% des Kaufpreises: Grunderwerbsteuer (5-6%), Notargebühren (1-2%), Makler (3-7,5%), Grundbuchgebühren (0,2-0,5%), Handwerker für Inspektionen, Versicherung. Hinzu kommen Makler, Handwerker und Inspektionen." },
+      { q: "Wie viel Eigenkapital sollte ich haben?", a: "Finanzielle Sicherheit mit 20-30% Eigenkapital. Mit weniger wird der Kreditvertrag teurer. Mit 10% ist es gerade noch möglich, aber risikobehaftet. Mindestens 5-10% sollten es sein, sonst wird keine Bank anständig kreditieren." },
+      { q: "Wie lange sollte ich das Darlehen laufen lassen?", a: "Bei den aktuellen Zinsen (2024/2025) sind 15-20 Jahre attraktiv. Wer später abbezahlen kann, sollte weniger lange binden. Bei günstigen Raten lohnt sich auch 10 Jahre. Ein Generationendarlehen über 30+ Jahre sollte gut überlegt sein." },
+      { q: "Macht es Sinn, die Immobilie vor Kauf zu prüfen lassen?", a: "Ja, eine Baugutachten (500-1.500€) kann tausende sparen. Ohne Besichtigung durch einen Sachverständigen riskiert man Überraschungen (Schimmel, Elektrik, Dämmung, Dach). Besonders bei älteren Häusern sinnvoll." },
+      { q: "Wie viel Puffer sollte ich für Renovierungen einplanen?", a: "Als Faustregel: 1% des Kaufpreises pro Jahr Alter des Hauses. Ein 30 Jahre altes Haus = 30% Renovierungspuffer. Bei modernen Häusern reichen 5-10%. Immer ein Extra-Budget für Überraschungen (Rohre, Heizung, Fassade)." },
+      { q: "Wann ist der beste Zeitpunkt zum Hauskauf?", a: "Markttiefs nutzen – in Zeiten höherer Zinssätze ist der Wettbewerb geringer. Personal: wenn Familie stabil, Job sicher. Langfristig amortisieren sich gute Kaufentscheidungen in 15+ Jahren sowieso." }
+    ]}
   >
     <div class="calc-form">
       <div class="calc-grid">
@@ -88,6 +97,12 @@ const year = new Date().getFullYear();
       <div id="details" style="margin-top:0.75rem;font-size:0.88rem;color:#666;display:flex;gap:1.5rem;flex-wrap:wrap;"></div>
     </div>
   </CalculatorShell>
+
+  <CalculatorGuide
+    title="Hauskauf richtig planen – Gesamtkosten verstehen"
+    content="<p>Beim Hauskauf fallen neben dem Kaufpreis erhebliche Nebenkosten an, die oft unterschätzt werden. Mit unserem Rechner können Sie alle Kostenpositionen transparent sehen: Notargebühren, Grundbuchgebühren, Maklergebühren, Grunderwerbsteuer – je nach Bundesland und Kaufpreis unterschiedlich.</p>\n\n<p><strong>Nebenkosten realistisch einschätzen:</strong> Ein grober Anhalt: 8-15% des Kaufpreises zusätzlich. In teuren Bundesländern (NRW, Hessen) kann die Grunderwerbsteuer allein 6% sein. Mit Makler (3-7,5%) wird es schnell 10-15%. Diese Kosten müssen meist aus Eigenkapital finanziert werden, da Banken sie nicht kreditieren.</p>\n\n<p><strong>Finanzierung planen:</strong> Berechnen Sie realistische Raten: Eine 400.000€-Hypothek über 20 Jahre bei 4% Zins kostet ca. 1.900€/Monat + Nebenkosten aus Taschen. Die Faustregel: Kreditrate sollte max. 40-45% des Nettoeinkommens sein. Mit 2 Einkommen darf die Quote höher sein.</p>\n\n<p><strong>Lage und Wertsteigerung berücksichtigen:</strong> Ein Haus ist keine reine Kostenposition, sondern langfristige Wertsicherung. In guten Lagen steigen Preise 2-3% p.a. Deshalb: zentrale Lage ist oft teurer, aber rentabler. Das Umland spart Kaufpreis, verliert aber bei Wertsteigerung.</p>\n\n<p><strong>Inspektionen und Gutachten:</strong> Ein Bauherren-Gutachten (500-1.500€) kann Tausende sparen, wenn Mängel frühzeitig erkannt werden. Auch ein Energieausweis (50-300€) gibt Aufschluss über Heizkosten-Perspektive. Diese Investition ist sinnvoll vor Kauf – nicht nachher.</p>\n\n<p><strong>Mit Puffern kalkulieren:</strong> Planen Sie mindestens 1% des Kaufpreises pro Altersjahrgang für Instandhaltung. Ein 30 Jahre altes Haus hat oft Dachrenovierung (20.000-50.000€), Elektrik oder Heizung anstehend. Ein Puffer für Überraschungen ist essentiell.</p>\n\n<p><strong>Entscheidungshilfen nutzen:</strong> Vergleichen Sie: Kaufen vs. Mieten. Lage vs. Kaufpreis. Makler vs. privat. Alle diese Faktoren spielen in die Gesamtrentabilität einer Immobilie über 20+ Jahre hinein. Nutzen Sie unsere verwandten Rechner zum Vergleich!</p>"
+    relatedSlugs={['wie-viel-haus', 'immobilienkauf-nebenkosten', 'kaufen-vs-mieten']}
+  />
 </Layout>
 
 <script type="module">
