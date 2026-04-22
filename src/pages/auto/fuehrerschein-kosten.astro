@@ -1,6 +1,7 @@
 ---
 import Layout from '../../layouts/Layout.astro';
 import CalculatorShell from '../../components/CalculatorShell.astro';
+import CalculatorGuide from '../../components/CalculatorGuide.astro';
 import { CALCULATORS, CATEGORIES } from '../../data/calculators';
 const calc = CALCULATORS.find(c => c.slug === 'fuehrerschein-kosten')!;
 const cat = CATEGORIES[calc.category];
@@ -22,6 +23,32 @@ const year = new Date().getFullYear();
     calculator={calc}
     intro="Mit dem Führerschein-Kosten-Rechner schätzen Sie die Gesamtkosten für den Erwerb eines Führerscheins."
     sourceNote="2.000-3.500€ für Klasse B."
+    faqs={[
+      {
+        q: "Warum sind Fahrstunden so teuer?",
+        a: "Fahrstunden kosten 45-55 € pro Stunde in Großstädten, manchmal mehr. Diese Kosten decken den Versicherungs- und Treibstoffaufwand des Fahrlehrers, Abnutzung des Fahrzeugs und seine Dienstleistung. In ländlichen Regionen sind die Preise oft günstiger."
+      },
+      {
+        q: "Wie viele Fahrstunden sind für den Führerschein notwendig?",
+        a: "Das Minimum liegt bei 12 Fahrstunden für Klasse B, wenn Sie besonders schnell lernen. Die meisten Menschen benötigen 25-40 Stunden. Schüler ohne Vorerfahrung sollten eher von 30-40 Stunden ausgehen."
+      },
+      {
+        q: "Was kostet die Fahrschule in verschiedenen Bundesländern?",
+        a: "Berlin und Köln sind teurer (durchschnittlich 55+ € pro Stunde), während Sachsen und Thüringen günstiger sind (38-42 € pro Stunde). In Bayern liegt der Schnitt um 48 €. Vergleichen Sie Schulen in Ihrer Region!"
+      },
+      {
+        q: "Lohnt sich ein Automatik-Führerschein?",
+        a: "Automatik-Führerscheine kosten weniger (keine Schaltung zu lernen), aber Sie dürfen damit keine Schaltfahrzeuge fahren. Heute kaufen viele Menschen Automatik-Autos, daher kann sich dieser Weg lohnen – prüfen Sie aber, ob Sie je ein Schaltfahrzeug brauchen."
+      },
+      {
+        q: "Wann muss ich den Führerschein verlängern oder erneuern?",
+        a: "Der Führerschein ist 15 Jahre gültig (früher 10 Jahre). Die Erneuerung kostet etwa 35-50 €. Es gibt keinen Fahrtest – nur ein neues Dokument mit biometrischem Foto."
+      },
+      {
+        q: "Gibt es Rabatte oder Vergünstigungen für Fahrschulen?",
+        a: "Ja! Manche Schulen bieten Paketpreise an (z. B. 20 Fahrstunden für einen reduzierten Satz). Auch Schüler, Azubis oder Arbeitslose können in manchen Schulen Rabatte aushandeln. Fragen Sie direkt nach!"
+      }
+    ]}
   >
     <div class="calc-form">
       <div class="calc-grid">
@@ -62,6 +89,26 @@ const year = new Date().getFullYear();
       <div id="details" style="margin-top:0.75rem;font-size:0.88rem;color:#666;display:flex;gap:1.5rem;flex-wrap:wrap;"></div>
     </div>
   </CalculatorShell>
+
+  <CalculatorGuide
+    title="Führerschein-Kosten verstehen und sparen"
+    content="
+    <p>Der Führerschein ist teuer – für viele Teenager und junge Erwachsene eine beachtliche finanzielle Hürde. Die Gesamtkosten sind viel mehr als nur Fahrstunden: Verwaltungsgebühren, Lernmaterialien, Prüfungen und Sehtests addieren sich schnell zu 2.000-3.500 €.</p>
+
+    <p><strong>Die Kostenstruktur im Detail:</strong> Fahrstunden machen etwa 50-60% der Gesamtkosten aus. Eine 30er-Fahrtstunde in einer Großstadt (55 €/h) kostet 1.650 €. Dazu kommen Grundgebühr der Fahrschule (300-400 €), TÜV-Prüfung (800 €), Theorie-Prüfung (80-100 €) und kleine Posten wie Sehtest und Erste-Hilfe-Kurs.</p>
+
+    <p><strong>Regionale Preisunterschiede sind erheblich:</strong> In Berlin zahlen Sie für eine Fahrstunde 55-60 €, in Mecklenburg-Vorpommern oft nur 38-42 €. Der Unterschied ergibt sich aus Lebenshaltungskosten, Fahrzeugversicherungen und lokaler Konkurrenz zwischen Fahrschulen.</p>
+
+    <p><strong>Sparstrategie 1: Sorgfältige Vorbereitung:</strong> Wer die Theorie gründlich lernt, braucht weniger Fahrstunden. Ein Gratis-Lernportal (wie die Staatliche Fahrschul-App) und YouTube-Videos können helfen. Ernsthaftes Lernen spart 10-15 Stunden Fahrunterricht – das sind 500-800 € Ersparnis!</p>
+
+    <p><strong>Sparstrategie 2: Fahrschulen vergleichen:</strong> Preis ist nicht alles, aber lokale Konkurrenz schafft Preisunterschiede. Holen Sie Kostenvoranschläge ein. Manche Schulen bieten Pakete an: „30 Fahrstunden + Theorie für 1.400 €" statt Einzelpreise.</p>
+
+    <p><strong>Sparstrategie 3: Automatik-Führerschein:</strong> Wenn Sie nur Automatik fahren möchten, sparen Sie eine Fahrtstunde pro Woche (ca. 4-5 Fahrstunden = 200-270 €). Allerdings: Sie dürfen dann keine Schaltfahrzeuge fahren.</p>
+
+    <p><strong>Kombinierte Klassen sparen Geld:</strong> Die BE-Klasse (Anhänger) kostet günstiger, wenn Sie sie zusammen mit B machen. Motorrad-Klassen (A1, A2, A) kosten anfangs mehr, aber sind für echte Motorbike-Fans ein gutes Investment.</p>
+    "
+    relatedSlugs={['kfz-versicherung-rechner', 'kfz-steuer-co2', 'spritkosten-rechner']}
+  />
 </Layout>
 
 <script type="module">
