@@ -1,6 +1,7 @@
 ---
 import Layout from '../../layouts/Layout.astro';
 import CalculatorShell from '../../components/CalculatorShell.astro';
+import CalculatorGuide from '../../components/CalculatorGuide.astro';
 import { CALCULATORS, CATEGORIES } from '../../data/calculators';
 const calc = CALCULATORS.find(c => c.slug === 'trinkgeld-rechner')!;
 const cat = CATEGORIES[calc.category];
@@ -26,8 +27,11 @@ const year = new Date().getFullYear();
     faqs={[
       { q: "Wie viel Trinkgeld ist üblich?", a: "10% im Restaurant, 5% beim Friseur, 5-10€ beim Lieferdienst, 1-2€ pro Getränk an der Bar." },
       { q: "Muss man Trinkgeld geben?", a: "Nein, Trinkgeld ist in Deutschland freiwillig. Es besteht keine Pflicht, aber es ist eine schöne Geste für guten Service." },
-      { q: "Trinkgeld mit Karte oder bar?", a: "Bar wird bevorzugt, da die Mitarbeiter es direkt bekommen. Mit Karte kann man auch ein Trinkgeld hinzufügen, das dann meist direkt an den Mitarbeiter geht." }
+      { q: "Trinkgeld mit Karte oder bar?", a: "Bar wird bevorzugt, da die Mitarbeiter es direkt bekommen. Mit Karte kann man auch ein Trinkgeld hinzufügen, das dann meist direkt an den Mitarbeiter geht." },
+      { q: "Ist Trinkgeld in anderen Ländern höher oder niedriger?", a: "Sehr unterschiedlich: USA 15-20% (fast Pflicht), Großbritannien 10-15%, Südeuropa 5%, Skandinavien oft nicht üblich. Deutschland ist mit 5-10% im unteren Bereich." },
+      { q: "Wie berechne ich Trinkgeld bei Bargeldlos-Zahlung korrekt?", a: "Manche Karten-Terminals fragen direkt nach Trinkgeld – dann einfach den Betrag eingeben. Manche Restaurants schreiben die Rechnung ohne Trinkgeld – dann können Sie es bar hinzufügen oder später an den Server zahlen." }
     ]}
+  >
   >
     <div class="calc-form">
       <div class="calc-grid">
@@ -101,3 +105,61 @@ berechne();
   color: var(--accent);
 }
 </style>
+
+  <CalculatorGuide
+    title="Trinkgeld-Rechner – Faire Vergütung berechnen"
+    content={`
+      <p><strong>Trinkgeld</strong> ist eine freiwillige, zusätzliche Zahlung an Servicepersonal (Kellner, Friseur, Taxifahrer, Lieferboten, etc.) als Anerkennung für guten Service. In Deutschland ist Trinkgeld ein bewährtes Konzept, aber es ist – anders als in den USA – nicht verpflichtend.</p>
+
+      <p>Der Trinkgeld-Rechner hilft Ihnen, <strong>schnell und fair zu berechnen, wie viel Trinkgeld in verschiedenen Situationen angemessen ist</strong>. Keine Verwirrung mehr an der Kasse!</p>
+
+      <p><strong>Wichtig:</strong> In Deutschland ist Trinkgeld ein Zeichen der Wertschätzung, kein Druckmittel. Wenn der Service nicht gut war, können Sie weniger geben oder gar kein Trinkgeld geben. Es gibt keine Erwartungshaltung wie in den USA.</p>
+
+      <h4>Übliche Trinkgeld-Sätze in Deutschland</h4>
+      <ul>
+        <li><strong>Restaurant:</strong> 5-10% (normalerweise 10% bei gutem Service)</li>
+        <li><strong>Café/Kneipe:</strong> 1-2€, oder 5-10% bei größeren Summen</li>
+        <li><strong>Friseur:</strong> 5%, minimal 1€</li>
+        <li><strong>Taxifahrer:</strong> 5-10%, aufrunden ist üblich (von 11,30€ auf 12€)</li>
+        <li><strong>Lieferdienst:</strong> 1-3€ (auch kleine Aufträge), prozentual 5-10%</li>
+        <li><strong>Hotel (Zimmermädchen):</strong> 1-2€ pro Nacht oder 5€ pro Aufenthalt</li>
+        <li><strong>Portier/Gepäckträger:</strong> 1-3€ pro Gepäckstück oder Dienstleistung</li>
+        <li><strong>Bar/Getränke:</strong> 1-2€ pro Getränk oder 10%</li>
+      </ul>
+
+      <h4>Wann sollte ich weniger Trinkgeld geben?</h4>
+      <ul>
+        <li>Schlechter Service (Unhöflichkeit, lange Wartezeiten trotz wenig Betrieb)</li>
+        <li>Fehlerhafte Bestellung, die nicht korrigiert wird</li>
+        <li>Beträge, auf die Sie wenig Einfluss hatten (z.B. überteuerte Getränke)</li>
+      </ul>
+
+      <h4>Wann sollte ich mehr Trinkgeld geben?</h4>
+      <ul>
+        <li>Außergewöhnlich freundlicher und aufmerksamer Service</li>
+        <li>Besondere Wünsche werden erfüllt (bestimmte Zubereitungsart, Beratung)</li>
+        <li>Sie waren häufiger Gast und der Service war konsistent gut</li>
+        <li>Der Service erfolgte unter schwierigen Bedingungen (großer Ansturm, komplexe Bestellung)</li>
+      </ul>
+
+      <h4>Trinkgeld bargeldlos oder bar?</h4>
+      <p>In Deutschland ist Bargeldtrinkgeld immer noch die Norm:</p>
+      <ul>
+        <li><strong>Bar:</strong> Der Mitarbeiter bekommt es sofort in die Hand. Das ist das Idealmodell.</li>
+        <li><strong>EC-Karte/Kreditkarte:</strong> Manche Terminals fragen nach Trinkgeld – dann eingeben. Oder Sie zahlen Rechnung mit Karte und geben Trinkgeld bar.</li>
+        <li><strong>Online-Bestellungen:</strong> Manchmal ist Trinkgeld im System integriert (Lieferdienste). Sonst bar an den Boten geben.</li>
+      </ul>
+
+      <h4>Internationale Unterschiede</h4>
+      <p>Wenn Sie ins Ausland reisen, beachten Sie die dortigen Gepflogenheiten:</p>
+      <ul>
+        <li><strong>USA:</strong> 15-20% erwartet (fast Pflicht), ohne Trinkgeld ist es unhöflich</li>
+        <li><strong>Großbritannien/Irland:</strong> 10-15% üblich</li>
+        <li><strong>Frankreich:</strong> 5-10%, oft mit Rechnung zusammen</li>
+        <li><strong>Skandinavien:</strong> Trinkgeld kaum üblich, Service ist in Gehaltsmodell eingebunden</li>
+        <li><strong>Südeuropa:</strong> 3-5%, oft nur kleiner Betrag</li>
+      </ul>
+    `}
+    relatedSlugs={['rabatt-rechner', 'kreditvergleich']}
+  />
+</Layout>
