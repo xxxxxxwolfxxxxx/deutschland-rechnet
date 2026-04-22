@@ -1,6 +1,7 @@
 ---
 import Layout from '../../layouts/Layout.astro';
 import CalculatorShell from '../../components/CalculatorShell.astro';
+import CalculatorGuide from '../../components/CalculatorGuide.astro';
 import { CALCULATORS, CATEGORIES } from '../../data/calculators';
 const calc = CALCULATORS.find(c => c.slug === 'kirchensteuer-rechner')!;
 const cat = CATEGORIES[calc.category];
@@ -22,7 +23,15 @@ const year = new Date().getFullYear();
     calculator={calc}
     intro="Mit dem Kirchensteuer-Rechner berechnen Sie die Höhe der Kirchensteuer basierend auf Ihrem Einkommen."
     sourceNote="8% oder 9% der Lohnsteuer."
-    explanation="Bayern und Baden-Württemberg: 9%, alle anderen Bundesländer: 8%."
+    explanation="Bayern und Baden-Württemberg: 8%, alle anderen Bundesländer: 9%."
+    faqs={[
+      { q: "Wer zahlt Kirchensteuer?", a: "Nur Kirchenmitglieder (evangelisch, katholisch, andere Kirchen). Konfessionslose zahlen keine Kirchensteuer. Die Kirchenzugehörigkeit wird beim Finanzamt abgefragt – Ihr Arbeitgeber sieht das nicht." },
+      { q: "Wie viel Kirchensteuer zahle ich?", a: "8-9% der Lohnsteuer (nicht des Einkommens!). Beispiel: Lohnsteuer 500€, Kirchensteuer = 500€ × 8% oder 9% = 40€ oder 45€. Die Unterschiede sind regional." },
+      { q: "Was ist der Unterschied 8% vs. 9%?", a: "Bayern und Baden-Württemberg: 8%. Alle anderen: 9%. Ein Unterschied von ca. 1% der Lohnsteuer. Wer umzieht, kann da etwas sparen, aber nicht viel." },
+      { q: "Kann ich austreten?", a: "Ja. Du kannst dich vom Finanzamt abmelden (Kirchenaustritt). Das kostet meist 0-50€ (regional unterschiedlich) und spart sofort alle Kirchensteuern. Nach Austritt: Keine Trauungen, Beerdigungen in der Kirche ohne Gebühren." },
+      { q: "Gilt Kirchensteuer auch für Kapitalerträge?", a: "Ja. Dividenden, Zinsen und Kursgewinne unterliegen auch der Abgeltungsteuer + Kirchensteuer. Die Bank zieht das direkt ab, wenn du im Kirchensteuersystem angemeldet bist." },
+      { q: "Kann ich die Kirchensteuer sparen?", a: "Nur durch Austritt. Als Kirchenmitglied zahlst du zwingend. Manche zahlen auch symbolisch, weil sie die Kirchenarbeit unterstützen wollen. Das ist eine persönliche Entscheidung." }
+    ]}
   >
     <div class="calc-form">
       <div class="calc-grid">
@@ -67,6 +76,18 @@ const year = new Date().getFullYear();
       <div id="details" style="margin-top:0.75rem;font-size:0.88rem;color:#666;display:flex;gap:1.5rem;flex-wrap:wrap;"></div>
     </div>
   </CalculatorShell>
+
+  <CalculatorGuide
+    title="So funktioniert die Kirchensteuer"
+    content={`<p><strong>Kirchensteuer</strong> ist eine Steuer, die nur von Kirchenmitgliedern bezahlt wird – evangelisch, katholisch, oder Freikirchen. Sie wird auf die Lohnsteuer als Prozentsatz berechnet (8-9%, je Bundesland). Konfessionslose zahlen nichts.</p>
+
+<p><strong>Wie wird sie berechnet?</strong> Kirchensteuer = Lohnsteuer × 8% oder 9% (regional). Beispiel: Brutto 42.000€, Lohnsteuer 6.000€, Kirchensteuer = 6.000€ × 9% = 540€/Jahr = 45€/Monat. Die Kirche erhält den Betrag, nicht das Finanzamt.</p>
+
+<p><strong>Regionaler Unterschied:</strong> Bayern und Baden-Württemberg zahlen 8%, alle anderen Bundesländer 9%. Das ergibt einen Unterschied von ca. 1% der Lohnsteuer – minimal, aber messbar.</p>
+
+<p><strong>Austritt und Konsequenzen:</strong> Du kannst austreten (beim Finanzamt anmelden, kostet 0-50€). Danach sparst du sofort alle Kirchensteuern. Aber: Du bekommst kirchliche Dienste nur gegen Gebühren (Trauung, Beerdigung, Taufe). Viele treten aus steuerlichen Gründen aus, bereuen es später aber.</p>`}
+    relatedSlugs={['brutto-netto-rechner', 'abgeltungsteuer-rechner', 'gehaltserhoehung-rechner']}
+  />
 </Layout>
 
 <script type="module">
