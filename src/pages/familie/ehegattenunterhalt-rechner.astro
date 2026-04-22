@@ -1,10 +1,20 @@
 ---
 import Layout from '../../layouts/Layout.astro';
 import CalculatorShell from '../../components/CalculatorShell.astro';
+import CalculatorGuide from '../../components/CalculatorGuide.astro';
 import { CALCULATORS, CATEGORIES } from '../../data/calculators';
 const calc = CALCULATORS.find(c => c.slug === 'ehegattenunterhalt-rechner')!;
 const cat = CATEGORIES[calc.category];
 const year = new Date().getFullYear();
+
+const faqs = [
+  { q: 'Was ist Ehegattenunterhalt?', a: 'Ehegattenunterhalt ist eine Unterhaltsleistung, die ein Ehepartner dem anderen nach Trennung oder Scheidung zahlen muss, wenn dieser hilfsbedürftig ist.' },
+  { q: 'Wie wird Ehegattenunterhalt berechnet?', a: 'Als Grundlage dient die Düsseldorf-Tabelle. Der Unterhalt wird als prozentualer Anteil des unterhaltsrelevanten Nettoeinkommens berechnet.' },
+  { q: 'Was ist unterhaltsrelevantes Einkommen?', a: 'Das ist das bereinigte Nettoeinkommen abzüglich Verbindlichkeiten, Steuern und Sozialversicherungsbeiträge.' },
+  { q: 'Gilt eine Gehaltsgrenze?', a: 'Nein, es gibt keine Gehaltsgrenze für Unterhaltsansprüche. Der Anteil steigt aber, je höher das Einkommen wird.' },
+  { q: 'Wie lange wird Unterhalt gezahlt?', a: 'Ehegattenunterhalt wird in der Regel bis zur Wiederheirat oder zum Tode gezahlt. Es gibt aber Ausnahmen bei Unbilligkeit.' },
+  { q: 'Kann Unterhalt reduziert werden?', a: 'Ja, bei Einkommensminderung oder wenn es unbillig wäre. Eine Reduktion braucht einen Antrag beim Gericht.' },
+];
 ---
 <Layout
   title={`Ehegattenunterhalt-Rechner ${year}`}
@@ -23,6 +33,7 @@ const year = new Date().getFullYear();
     intro="Mit dem Ehegattenunterhalt-Rechner berechnen Sie den Trennungsunterhalt und den nachehelichen Unterhalt."
     sourceNote="50% des gemeinsamen Einkommens."
     explanation="Der Trennungsunterhalt richtet sich nach dem eheangemessenen Bedarf. Der nacheheliche ist zeitlich begrenzt."
+    faqs={faqs}
   >
     <div class="calc-form">
       <div class="calc-grid">
@@ -54,6 +65,20 @@ const year = new Date().getFullYear();
       <div id="details" style="margin-top:0.75rem;font-size:0.88rem;color:#666;display:flex;gap:1.5rem;flex-wrap:wrap;"></div>
     </div>
   </CalculatorShell>
+
+  <CalculatorGuide
+    title="Ehegattenunterhalt – Ansprüche und Berechnungen"
+    content="Ehegattenunterhalt (Trennungsunterhalt und Unterhaltsleistungen nach Scheidung) ist ein wichtiges Thema beim Zusammenleben, bei Trennung oder Scheidung. Der Anspruch hängt von mehreren Faktoren ab: Ehedauer, Vermögensverhältnisse und wirtschaftliche Lage beider Partner.
+
+Die Berechnung erfolgt nach der Düsseldorf-Tabelle, die regelmäßig aktualisiert wird. Besonderheit: Ab einem gewissen Einkommen gelten abweichende Sätze, die individuell verhandelt werden können. Der Anspruch ist nicht automatisch gleich für beide Partner.
+
+Ein häufiges Missverständnis: Ehegattenunterhalt unterscheidet sich vom Kindesunterhalt. Elternteile, die Kinder betreuen, haben separate Ansprüche. Auch die Einrechnung von Einkommen ist unterschiedlich (Bruttoabzüge vs. Nettoabzüge).
+
+Bei Vereinbarungen über Unterhalt ist es wichtig, diese notariell zu beurkunden – mündliche Absprachen sind nicht bindend. Rückzahlungen oder Unterhaltskürzungen brauchen schriftliche Vereinbarungen.
+
+Tipp: Bei Verhandlungen sollten aktuelle Einkommensnachweise vorliegen. Steuerliche Gestaltungen können die Unterhaltszahlungen erheblich beeinflussen."
+    relatedSlugs={['scheidungskosten-rechner', 'unterhaltsrechner']}
+  />
 </Layout>
 
 <script type="module">
