@@ -1,6 +1,7 @@
 ---
 import Layout from '../../layouts/Layout.astro';
 import CalculatorShell from '../../components/CalculatorShell.astro';
+import CalculatorGuide from '../../components/CalculatorGuide.astro';
 import { CALCULATORS, CATEGORIES } from '../../data/calculators';
 const calc = CALCULATORS.find(c => c.slug === 'etf-sparplan-rechner')!;
 const cat = CATEGORIES[calc.category];
@@ -23,6 +24,14 @@ const year = new Date().getFullYear();
     intro="Mit dem ETF-Sparplan-Rechner berechnen Sie, wie Ihr Vermögen bei regelmäßigem Sparen in ETFs wächst."
     sourceNote="Historische Renditen ca. 7% p.a."
     explanation="Der Rechner nutzt den Zinseszins-Effekt. Langfristig sind ca. 5-7% reale Rendite möglich."
+    faqs={[
+      { q: "Wie viel sollte ich monatlich in einen ETF-Sparplan investieren?", a: "Das hängt von Ihrem Budget ab. Es gibt kein Minimum – selbst 25€/Monat sind sinnvoll. Eine Faustregel: Ziel ist mindestens 10% des Nettoeinkommens zu sparen. Beginnen Sie mit dem, was Sie entbehren können, und erhöhen Sie die Sparrate mit Gehaltserhöhungen." },
+      { q: "Welche ETF-Renditen sind realistisch?", a: "MSCI World ETFs erzielten langfristig (30+ Jahre) durchschnittlich 7-9% p.a. Breit gestreute, kostenlose (low-cost) ETFs sind optimal. Über kürzere Zeiträume sind Schwankungen normal. Kalkulieren Sie konservativ mit 5-6% für Planungen." },
+      { q: "Sind ETF-Sparpläne automatisch steuerfrei?", a: "Nein. Gewinne werden mit Abgeltungsteuer (25%) besteuert. Allerdings: Der Sparerpauschbetrag von 1.000€/Jahr (2.000€ verheiratet) ist steuerfrei. Viele Menschen zahlen Jahre, ohne Steuern zu schulden." },
+      { q: "Was ist besser: Einmalanlage oder Sparplan?", a: "Sparpläne senken das Timing-Risiko und fördern Disziplin. Einmalanlagen nutzen schneller die Kurssteigerungen, wenn Sie sowieso sparen wollen. Ideal: Einmalanlage + Sparplan kombinieren." },
+      { q: "Kann ich Sparpläne jederzeit pausieren oder erhöhen?", a: "Ja. Die meisten Broker erlauben kostenlose Anpassungen. Sie können erhöhen, senken, pausieren oder wieder aktivieren. Es gibt keine Strafgebühren." },
+      { q: "Wie lange sollte ein ETF-Sparplan laufen?", a: "Je länger, desto besser – minimum 10-15 Jahre, optimal 20-30+ Jahre. Der Zinseszins-Effekt ist entscheidend. Kurzfristige Schwankungen werden durch lange Laufzeiten ausgeglichen." }
+    ]}
   >
     <div class="calc-form">
       <div class="calc-grid">
@@ -55,6 +64,20 @@ const year = new Date().getFullYear();
       <div id="details" style="margin-top:0.75rem;font-size:0.88rem;color:#666;display:flex;gap:1.5rem;flex-wrap:wrap;"></div>
     </div>
   </CalculatorShell>
+
+  <CalculatorGuide
+    title="So funktioniert der ETF-Sparplan"
+    content={`<p><strong>Ein ETF-Sparplan</strong> ist ein automatischer, regelmäßiger Kauf von Exchange Traded Funds (ETFs). Sie legen einen Betrag fest (z.B. 200€), und dieser wird monatlich automatisch investiert. Das Ziel: langfristiger Vermögensaufbau durch Zinseszinseffekt und Disziplin.</p>
+
+<p><strong>Der Zinseszins-Effekt (Zins auf Zins):</strong> Wenn Ihre ETF-Anteile Gewinne machen, werden diese reinvestiert. Das sorgt für exponentielles Wachstum. Beispiel: 200€/Monat bei 7% Rendite über 20 Jahre führt zu ca. 110.000€ Endvermögen – obwohl Sie nur 48.000€ eingezahlt haben. Der Rest ist Zinsgewinn.</p>
+
+<p><strong>Realistische Renditen:</strong> Breit gestreute ETFs (MSCI World, FTSE All-World) erzielen historisch 7-9% p.a. über lange Zeiträume. Kurzfristig gibt es Schwankungen. Kalkulieren Sie konservativ mit 5-6% für Planungen, dann werden Sie positiv überrascht.</p>
+
+<p><strong>Inflation berücksichtigen:</strong> Die nominale Rendite ist nicht gleich die reale Rendite. Mit 2-3% Inflation sinkt die Kaufkraft Ihrer Ersparnisse. Der Rechner berücksichtigt das: Der "reale Wert" zeigt, wie viel Ihre Ersparnisse in heutigen Preisen wert sind.</p>
+
+<p><strong>Steuern auf ETF-Sparpläne:</strong> Gewinne unterliegen der Abgeltungsteuer (25% + 5,5% Soli). Der Sparerpauschbetrag (1.000€/Jahr) ist steuerfrei. Bis Sie diese Grenze überschritten haben, zahlen Sie keine Steuern. Danach entzieht die Bank die Steuern automatisch.</p>`}
+    relatedSlugs={['fire-rechner', 'abgeltungsteuer-rechner', 'sparen-rechner']}
+  />
 </Layout>
 
 <script type="module">
