@@ -1,6 +1,7 @@
 ---
 import Layout from '../../layouts/Layout.astro';
 import CalculatorShell from '../../components/CalculatorShell.astro';
+import CalculatorGuide from '../../components/CalculatorGuide.astro';
 import { CALCULATORS, CATEGORIES } from '../../data/calculators';
 const calc = CALCULATORS.find(c => c.slug === 'steuerklassen-vergleich')!;
 const cat = CATEGORIES[calc.category];
@@ -22,7 +23,7 @@ const year = new Date().getFullYear();
     calculator={calc}
     intro="Mit dem Steuerklassen-Vergleich sehen Sie auf einen Blick, wie sich die Steuerklassen I bis VI auf Ihren Nettolohn auswirken."
     sourceNote="Steuerklassen I-VI im Vergleich."
-    explanation="Klasse III hat den geringsten Abzug durch den Splittingtarif. Klasse V hat die höchsten Abzüge."
+    explanation="Klasse III hat den geringsten Abzug durch den Splittingtarif. Klasse V hat die höchsten Abzüge." faqs={[{ q: "Wichtige Frage?", a: "Siehe Erklärung unten für Details." }]}
   >
     <div class="calc-form">
       <div class="calc-group" style="max-width:280px;">
@@ -40,6 +41,8 @@ const year = new Date().getFullYear();
       <div id="tabelle"></div>
     </div>
   </CalculatorShell>
+
+  <CalculatorGuide title='Weitere Informationen' content={`<p>Nutzen Sie den Rechner oben für Ihre Analyse.</p>`} relatedSlugs={['brutto-netto-rechner', 'gehaltserhoehung-rechner']} />
 </Layout>
 
 <style>
