@@ -1,6 +1,7 @@
 ---
 import Layout from '../../layouts/Layout.astro';
 import CalculatorShell from '../../components/CalculatorShell.astro';
+import CalculatorGuide from '../../components/CalculatorGuide.astro';
 import { CALCULATORS, CATEGORIES } from '../../data/calculators';
 const calc = CALCULATORS.find(c => c.slug === 'grundbuch-eintragung')!;
 const cat = CATEGORIES[calc.category];
@@ -22,6 +23,14 @@ const year = new Date().getFullYear();
     calculator={calc}
     intro="Mit dem Grundbuch-Eintragung-Rechner berechnen Sie die Kosten für die Eintragung ins Grundbuch."
     sourceNote="0,5-1% des Kaufpreises."
+    faqs={[
+      { q: "Wann wird eine Grundbucheintragung notwendig?", a: "Bei jedem Immobilienkauf oder beim Aufnehmen eines Darlehens muss das Grundbuch aktualisiert werden. Auch bei Erbfällen oder Schenkungen ist eine Eintragung erforderlich. Dies dient der Rechtssicherheit für alle Beteiligten." },
+      { q: "Was ist der Unterschied zwischen Hypothek und Grundschuld?", a: "Eine Hypothek ist direkt an die Schuld gebunden – ist diese getilgt, erlischt die Hypothek automatisch. Eine Grundschuld ist unabhängig von der Schuld und bleibt eingetragen, auch wenn das Darlehen abbezahlt ist – muss dann gelöscht werden." },
+      { q: "Wie lange dauert eine Grundbucheintragung?", a: "Nach Notariatsurkundung dauert die Eintragung beim Grundbuchamt in der Regel 2-4 Wochen. In Ballungsgebieten kann es länger dauern. Die Bank zahlt den Kredit meist erst aus, wenn die Eintragung erfolgt ist." },
+      { q: "Kann ich die Kosten verhandeln?", a: "Die Gebühren für die Grundbucheintragung sind per Gesetz (GNotKG) festgelegt und können nicht verhandelt werden. Die Notargebühren dagegen sind in manchen Bundesländern gestaffelt – lohnt sich zu vergleichen." },
+      { q: "Wer zahlt die Grundbucheintragung – Käufer oder Verkäufer?", a: "Üblicherweise trägt der Käufer die Kosten für Notariat und Grundbuchgebühren. Dies ist aber Verhandlungssache und kann im Kaufvertrag anders geregelt werden. Maklergebühren werden meist aufgeteilt." },
+      { q: "Benötige ich eine Grundbucheintragung auch bei Umschuldung?", a: "Bei Umschuldung kann eine neue Eintragung nötig sein, wenn der alte Gläubiger nicht einverstanden ist oder die Bank das verlangt. Oft lässt sich eine Abtretung ohne neue Eintragung regeln – das ist günstiger." }
+    ]}
   >
     <div class="calc-form">
       <div class="calc-grid">
@@ -46,6 +55,12 @@ const year = new Date().getFullYear();
       <div id="details" style="margin-top:0.75rem;font-size:0.88rem;color:#666;display:flex;gap:1.5rem;flex-wrap:wrap;"></div>
     </div>
   </CalculatorShell>
+
+  <CalculatorGuide
+    title="Grundbuch verstehen und Eintragungen planen"
+    content="<p>Das Grundbuch ist eine offizielle Register aller Immobilien und ihrer Rechte. Jede Immobilie hat ein Grundbuchblatt, auf dem Eigentümer, Hypotheken, Grundschulden und andere Belastungen eingetragen sind. Eine Grundbucheintragung schafft Rechtssicherheit und ist bei Immobilienkauf, Kreditaufnahme oder Vererbung notwendig.</p>\n\n<p><strong>Eintragungsarten verstehen:</strong> Die häufigste Form ist die Grundschuld oder Hypothek als Sicherheit für ein Baudarlehen. Eine Hypothek ist zweckgebunden (an die Schuld gekoppelt), während eine Grundschuld flexibel ist und auch für andere Kredite genutzt werden kann. Dies erklärt die unterschiedlichen Gebühren im Rechner.</p>\n\n<p><strong>Kosten richtig kalkulieren:</strong> Die Gebühren für Grundbucheintragung bestehen aus Notargebühren und Grundbuchgebühren. Notare sind gesetzlich verpflichtet und schaffen Rechtssicherheit. Die Gebühren sind nach Kaufpreis gestaffelt – bei höheren Summen sinkt der Prozentsatz. Typischerweise fallen 1-2% des Kaufpreises an.</p>\n\n<p><strong>Wann die Eintragung erfolgt:</strong> Beim Hauskauf wird die Eintragung nach notarieller Beurkundung beim Grundbuchamt angemeldet. Dies dauert 2-4 Wochen. Die Bank gibt den Kredit erst frei, wenn die Eintragung erfolgt oder zumindest angemeldet ist. Ein Eintrag ins Grundbuch ist nicht öffentlich einsehbar – nur Eigentümer und Berechtigte können das sehen.</p>\n\n<p><strong>Sparpotenziale erkunden:</strong> Die Gebühren sind per Gesetz festgelegt und können nicht verhandelt werden. Allerdings: Sie können mit dem Kaufpreis verhandelt werden (z.B. Makler, Notarbeglaubigung für Möbel). Eine sorgfältige Vertragsgestaltung durch den Notar kann später Eintragungsprobleme vermeiden.</p>\n\n<p><strong>Besonderheiten und Irrtümer:</strong> Ein häufiger Irrtum ist, dass die Eintragung sofort erfolgt. Tatsächlich gibt es eine Bearbeitungsdauer. Auch: Die Eintragung ist NICHT öffentlich, anders als Flurkarte oder Katasterauszug. Wer Informationen braucht, muss einen beglaubigten Auszug beantragen.</p>"
+    relatedSlugs={['immobilienkauf-nebenkosten', 'hauskauf-rechner', 'grunderwerbsteuer-rechner']}
+  />
 </Layout>
 
 <script type="module">
