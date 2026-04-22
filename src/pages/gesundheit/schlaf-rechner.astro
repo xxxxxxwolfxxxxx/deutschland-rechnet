@@ -1,6 +1,7 @@
 ---
 import Layout from '../../layouts/Layout.astro';
 import CalculatorShell from '../../components/CalculatorShell.astro';
+import CalculatorGuide from '../../components/CalculatorGuide.astro';
 import { CALCULATORS, CATEGORIES } from '../../data/calculators';
 const calc = CALCULATORS.find(c => c.slug === 'schlaf-rechner')!;
 const cat = CATEGORIES[calc.category];
@@ -23,6 +24,32 @@ const year = new Date().getFullYear();
     intro="Mit dem Schlaf-Rechner berechnen Sie optimale Schlafens- und Aufwachzeiten basierend auf 90-Minuten-Schlafzyklen."
     sourceNote="5-6 Zyklen (7,5-9 Stunden)."
     explanation="Ein Schlafzyklus dauert ca. 90 Minuten. Optimal sind 4-6 Zyklen."
+    faqs={[
+      {
+        q: "Ist das 90-Minuten-Zyklen-Modell wissenschaftlich?",
+        a: "Ja, empirische Schlafforschung zeigt, dass typische Schlafzyklen 80-100 Minuten dauern. 90 Minuten ist ein praktisches Durchschnittsziel. Individuelle Variation ist normal."
+      },
+      {
+        q: "Was passiert, wenn ich in der REM-Phase aufwache?",
+        a: "Wenn Sie während einer REM-Phase (Traumschlaf, am Ende des Zyklus) aufwachen, fühlen Sie sich erhoxter. Aufwachen am Ende eines Zyklus verhindert den grogginess (Schlaftrunkenheit)."
+      },
+      {
+        q: "Ist 4-Stunden-Schlaf wirklich ausreichend?",
+        a: "Nein, nur 4 Stunden (ca. 2,67 Zyklen) ist nicht ausreichend für Langzeitgesundheit. Dies reicht möglicherweise für eine Nacht, aber regelmäßig führt es zu Schlafmangel-Defizit."
+      },
+      {
+        q: "Warum ist Einschlafzeit wichtig?",
+        a: "Die Zeit zum Einschlafen (typisch 10-20 Minuten) verschiebt Ihre optimalen Aufwachzeiten. Ein zu langer Einschlafprozess (über 30 Minuten) kann auf Schlafapnoe oder Insomnie hinweisen."
+      },
+      {
+        q: "Funktioniert das auch, wenn ich Schichtarbeit habe?",
+        a: "Ja, das Zyklen-Modell funktioniert unabhängig von Tageszeit. Aber Ihr zirkadianer Rhythmus (innere Uhr) bevorzugt Schlaf um 22-6 Uhr. Regelmäßige Zeiten sind wichtiger als die Zyklen-Länge."
+      },
+      {
+        q: "Kann ich das Zyklen-Modell für Mittagsschlaf nutzen?",
+        a: "Ja, 90 Minuten Mittagsschlaf ist ideal – genug Zeit für einen vollständigen Zyklus mit REM-Phase. Kürzere Nickerchen (20-30 min) sind ideal für schnelle Erholung ohne Grogginess."
+      }
+    ]}
   >
     <div class="calc-form">
       <div class="calc-grid">
@@ -57,6 +84,17 @@ const year = new Date().getFullYear();
       <div id="details" style="margin-top:0.75rem;font-size:0.88rem;color:#666;display:flex;gap:1.5rem;flex-wrap:wrap;"></div>
     </div>
   </CalculatorShell>
+  <CalculatorGuide
+    title="Schlafzyklen und optimale Aufwachzeiten"
+    content="Das Schlafzyklen-Modell basiert auf der wissenschaftlichen Realität, dass der menschliche Schlaf in Zyklen erfolgt, nicht kontinuierlich. Jeder Zyklus hat vier Phasen: leichter Schlaf, tieferer Schlaf, tiefster Schlaf (Tiefschlaf) und REM-Schlaf (Traumschlaf). Ein kompletter Zyklus dauert im Durchschnitt 90 Minuten.
+
+**Warum das Aufwachen zwischen Zyklen wichtig ist:** Wenn Sie am Ende eines Zyklus aufwachen (wenn Sie sich der REM-Phase nähern), fühlen Sie sich deutlich ausgeruhter als wenn Sie mitten im Tiefschlaf geweckt werden. Dies ist der Grund, warum 7,5 Stunden (5 Zyklen) manchmal erholsamer fühlt als 8 Stunden.
+
+**Praktische Anwendung:** Der Rechner berücksichtigt eine typische Einschlafzeit von 10-20 Minuten. Nutzen Sie diese Zeiten, es ist keine Wissenschaft – Variation von 15-30 Minuten ist völlig normal. Wichtiger als perfekte Uhrzeiten ist ein konsistenter Schlaf-Wach-Rhythmus.
+
+**Langzeitgesundheit:** Regelmäßiger 7-9-Stunden-Schlaf reduziert Krankheitsrisiken wie Diabetes, Herzerkrankungen und Depression. Die Zyklen helfen nur bei der Timing-Optimierung; die Gesamtschlafdauer und Konsistenz sind wichtiger."
+    relatedSlugs={['blutdruck-bewerter', 'grundumsatz-rechner', 'kalorien-rechner']}
+  />
 </Layout>
 
 <script type="module">
