@@ -1,10 +1,20 @@
 ---
 import Layout from '../../layouts/Layout.astro';
 import CalculatorShell from '../../components/CalculatorShell.astro';
+import CalculatorGuide from '../../components/CalculatorGuide.astro';
 import { CALCULATORS, CATEGORIES } from '../../data/calculators';
 const calc = CALCULATORS.find(c => c.slug === 'rentenpunkte-rechner')!;
 const cat = CATEGORIES[calc.category];
 const year = new Date().getFullYear();
+
+const faqs = [
+  { q: 'Wie erhalte ich Rentenpunkte?', a: 'Durch Beitragszahlungen zur Rentenversicherung. Ein Rentenpunkt wird für ein Jahr Einkommen auf Höhe des Durchschnitts verdient.' },
+  { q: 'Wer hat Anspruch auf Rentenpunkte?', a: 'Alle Versicherten der Rentenversicherung: Angestellte, Arbeiter, Beamte (nach Altversorgung), Selbstständige (freiwillig).' },
+  { q: 'Wie viele Punkte für ein Jahr?', a: 'Im Durchschnitt wird 1 Punkt pro Jahr verdient (bei Durchschnittseinkommen). Höheres Einkommen = mehr Punkte.' },
+  { q: 'Werden Anrechtigungszeiten berücksichtigt?', a: 'Ja: Ausbildung, Arbeitslosigkeit, Elternzeiten und Schulzeiten zählen teilweise mit.' },
+  { q: 'Wie werden Rentenpunkte zusammengerechnet?', a: 'Alle Punkte (Beitrags- und Anrechtigungszeiten) werden summiert und zur Rentenberechnung herangezogen.' },
+  { q: 'Kann ich Rentenpunkte von früheren Arbeiten geltend machen?', a: 'Ja, bei mehreren Beschäftigungen werden alle Punkte kumuliert, auch von früher. Nachweis durch Versicherungskonto.' },
+];
 ---
 <Layout
   title={`Rentenpunkte-Rechner ${year}`}
@@ -23,6 +33,7 @@ const year = new Date().getFullYear();
     intro="Mit dem Rentenpunkte-Rechner berechnen Sie Ihre Entgeltpunkte für die gesetzliche Rente."
     sourceNote="1 Punkt = Durchschnittsverdienst."
     explanation="1 Entgeltpunkt = 1 Durchschnittsverdienst. Maximal 2 Punkte pro Jahr möglich."
+    faqs={faqs}
   >
     <div class="calc-form">
       <div class="calc-grid">
@@ -42,6 +53,21 @@ const year = new Date().getFullYear();
       <div id="details" style="margin-top:0.75rem;font-size:0.88rem;color:#666;display:flex;gap:1.5rem;flex-wrap:wrap;"></div>
     </div>
   </CalculatorShell>
+
+  <CalculatorGuide
+    title="Rentenpunkte – Basis der Rentenberechnung"
+    content="Rentenpunkte (oder Entgeltpunkte) sind die Grundlage jeder Rentenberechnung. Sie werden für Beitragszahlungen zur Rentenversicherung erworben – ein Punkt pro Jahr mit Durchschnittseinkommen.
+
+Jede Beschäftigung mit unterschiedlichem Einkommen erzeugt unterschiedliche Punkte. Wer doppeltes Durchschnittseinkommen hat, verdient 2 Punkte pro Jahr. Wer die Hälfte verdient, bekommt 0,5 Punkte.
+
+Anrechtigungszeiten (ohne Beitrag) zählen auch mit: Schulzeiten, Arbeitslosigkeit, Ausbildung und Elternzeiten. Diese werden mit reduziertem Satz (ca. 0,75 Punkt pro Jahr) berücksichtigt.
+
+Wichtig: Rentenpunkte aus verschiedenen Lebens-Abschnitten werden summiert. Wenn Sie mehrmals zwischen Beschäftigung und Arbeitslosigkeit wechseln, alle Punkte addieren sich.
+
+Planungstipp: Prüfen Sie Ihr Versicherungskonto regelmäßig bei der Deutschen Rentenversicherung. Fehlerhafte Einträge können Ihre zukünftige Rente senken. Kostenlose Kontenklärung ist möglich."
+    relatedSlugs={['renten-rechner', 'elterngeld-rechner']}
+  />
+
 </Layout>
 
 <script type="module">
