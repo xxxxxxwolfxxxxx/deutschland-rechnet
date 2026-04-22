@@ -1,6 +1,7 @@
 ---
 import Layout from '../../layouts/Layout.astro';
 import CalculatorShell from '../../components/CalculatorShell.astro';
+import CalculatorGuide from '../../components/CalculatorGuide.astro';
 import { CALCULATORS, CATEGORIES } from '../../data/calculators';
 const calc = CALCULATORS.find(c => c.slug === 'waermepumpe-rechner')!;
 const cat = CATEGORIES[calc.category];
@@ -23,6 +24,14 @@ const year = new Date().getFullYear();
     intro="Mit dem Wärmepumpe-Rechner vergleichen Sie die Heizkosten einer Wärmepumpe mit einer Gasheizung."
     sourceNote="COP 3-4."
     explanation="Eine Wärmepumpe hat einen COP von 3-4. Das bedeutet: 1 kWh Strom → 3-4 kWh Wärme."
+    faqs={[
+      { q: "Wann rechnet sich ein Wärmepumpentausch wirtschaftlich?", a: "Mit moderaten Strompreisen (30-35ct/kWh) und JAZ 3.5: Ersparnis ~1.500-2.000€/a. Investition 15.000€ (nach 30% Förderung), Amortisationszeit 9-11 Jahre. Mit höherem Strompreis (50ct/kWh) oder besserer JAZ (4.0+): 6-8 Jahre. KfW-Förderung ist entscheidend!" },
+      { q: "Was ist der Unterschied zwischen COP, JAZ und SCOP?", a: "COP = Kennzahl im Labor, optimale Bedingungen. JAZ = reale Jahresarbeitszahl mit echtem Wetter und Betrieb (15-30% niedriger als COP). SCOP = standardisierter Europawert. Rechnen Sie mit JAZ 3.0-4.0, nicht mit Hersteller-COP 4-5!" },
+      { q: "Brauche ich ein neues Heizsystem für eine Wärmepumpe?", a: "Nicht zwingend! Moderne Hochtemperatur-Wärmepumpen (55-60°C) können auch alte Heizkörper versorgen. Effektiver (und günstiger): Alte Heizung + Wärmepumpe kombiniert = Hybrid-Lösung. Ideal: neue Heizkörper oder Flächenheizung = noch bessere Effizienz." },
+      { q: "Funktioniert eine Wärmepumpe auch im Winter bei -20°C?", a: "Ja! Moderne Geräte arbeiten bis -25°C zuverlässig (JAZ bleibt 2.5-3.0 auch bei Frost). Ein Gasbrennwert-Speicher hilft dann im Hintergrund nach. Ungünstig: sehr alte, ungedämmte Häuser brauchen extra viel Heizstrom bei Kälte (können teuer werden)." },
+      { q: "Brauche ich einen Heizstab oder Gasbrennwert-Hybrid?", a: "Hybrid mit Gas ist praktisch für Übergangsfälle und Spitzenlast (spart ~20€/a Stromkosten). Ein Heizstab allein ist ineffizient. Besser: gute Dämmung + Speicher → Wärmepumpe läuft effizient auch bei Kälte. Hybrid ist eine Sicherheit, keine Notwendigkeit." },
+      { q: "Kann ich eine Wärmepumpe mit PV-Anlage kombinieren?", a: "Ideal! Tagsüber PV-Strom direkt für Wärmepumpe nutzen (spart 30-40ct/kWh). Mit Speicher noch besser (Warmwasserspeicher 300-500L optimal). Eine 8-kWp-PV + 12-kW-Wärmepumpe können 80% des Heizbedarfs selbst deckeln." }
+    ]}
   >
     <div class="calc-form">
       <div class="calc-grid">
@@ -89,3 +98,19 @@ function berechne() {
   document.getElementById(id).addEventListener('input', berechne));
 berechne();
 </script>
+
+<CalculatorGuide
+  title="Wärmepumpen verstehen und wirtschaftlich bewerten"
+  content="<p>Wärmepumpen sind die zukunftsweisende Heizlösung für klimafreundliches Wohnen. Sie nutzen umweltfreie Wärme aus Luft, Erde oder Wasser und wandeln sie mit nur 25-35% Stromverbrauch in Heizwärme um. Das macht sie langfristig günstiger und CO₂-freier als Gas- oder Ölheizungen.</p>
+
+<p><strong>Funktionsweise und Effizienzmaßstäbe:</strong> Eine Wärmepumpe nutzt einen Wärme-Transportprozess ähnlich wie ein Kühlschrank. 1 kWh Strom erzeugt 3-4 kWh Wärmeleistung (Kennzahl JAZ = Jahresarbeitszahl). Der COP-Wert der Hersteller ist meist höher (4-5), weil er unter optimalen Laborbedingungen gemessen wird. Mit echtem Wetter rechnen Sie mit JAZ 2.8-4.0. Modern Luft-Wärmepumpen funktionieren auch bei -25°C, sind aber am effizientesten zwischen 0°C und +15°C.</p>
+
+<p><strong>Wirtschaftlichkeit mit realistischen Annahmen:</strong> Eine Wärmepumpe kostet heute 12.000-20.000€ (Komplettsystem). Mit der KfW-Förderung (25-70% Zuschuss ab 2024) sinkt das auf 8.000-15.000€ netto. Jährliche Stromkosten bei 15.000 kWh Bedarf und 30ct/kWh: 4.500€ für Wärmepumpe (JAZ 3.5) vs. 1.500€ für Gas. Das ist zunächst teurer, aber die Amortisationszeit verkürzt sich mit steigenden Strompreisen und sinkenden Wärmepumpenkosten.</p>
+
+<p><strong>Schlüsselbedingungen für Erfolg:</strong> Die Gebäudedämmung ist entscheidend – ungedämmte Altbauten brauchen 30-50% mehr Strom und amortisieren sich nicht. Moderne Wärmepumpen funktionieren auch mit alten Heizkörpern, sind aber weniger effizient. Ideal: Flächenheizung (Fußbodenheizung) oder moderne Niedertemperatur-Heizkörper bei niedrigen Vorlauftemperaturen (35-45°C). Mit Warmwasserspeicher lässt sich tagsüber PV-Strom nutzen und die Effizienz steigt.</p>
+
+<p><strong>Kombination mit erneuerbaren Stromquellen:</strong> Eine Wärmepumpe ist perfekt für Haushalte mit PV-Anlage oder grünem Stromangebot. Tagsüber können Sie den selbst erzeugten PV-Strom direkt nutzen (spart 40-50ct/kWh gegenüber Netzstrom). Mit intelligenter Steuerung oder Stromspeicher lässt sich der Eigennutzungsgrad auf 60-80% erhöhen. Damit rentiert sich eine Wärmepumpe deutlich schneller.</p>
+
+<p><strong>CO₂-Bilanz und Zukunftssicherheit:</strong> Eine Wärmepumpe spart sofort 30-50% CO₂ gegenüber Gas (Strommix Deutschland: ca. 500 g CO₂/kWh). Mit zukünftig grünerer Stromversorgung (Windkraft, Solar) wird diese Einsparung immer größer – während Gas weiterhin CO₂ produziert. Ab 2024 müssen Neubauten zu 60% erneuerbar heizen, ab 2030 zu 80%, Wärmepumpen sind der einfachste Weg dahin.</p>"
+  relatedSlugs={['heizkosten-rechner', 'photovoltaik-rechner', 'co2-einsparung-renovierung']}
+/>

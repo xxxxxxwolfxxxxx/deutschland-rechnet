@@ -1,6 +1,7 @@
 ---
 import Layout from '../../layouts/Layout.astro';
 import CalculatorShell from '../../components/CalculatorShell.astro';
+import CalculatorGuide from '../../components/CalculatorGuide.astro';
 import { CALCULATORS, CATEGORIES } from '../../data/calculators';
 const calc = CALCULATORS.find(c => c.slug === 'energieausweis-vorberechnung')!;
 const cat = CATEGORIES[calc.category];
@@ -24,9 +25,12 @@ const year = new Date().getFullYear();
      sourceNote="kWh/(m²·a)."
      explanation="Der Energieausweis gibt den Verbrauch in kWh/(m²·a) an. Unter 100 ist gut, über 250 ist schlecht."
       faqs={[
-        { q: "Was bedeutet der Kennwert?", a: "Jährlicher Energieverbrauch pro m². Je niedriger, desto besser." },
-        { q: "Wie lange ist ein Energieausweis gültig?", a: "10 Jahre ab Ausstellungsdatum." },
-        { q: "Bedarfs- vs. Verbrauchsausweis?", a: "Bedarfsausweis: theoretisch. Verbrauchsausweis: tatsächlicher Verbrauch." }
+        { q: "Was ist der Unterschied zwischen Endenergiebedarf und Primärenergiebedarf?", a: "Der Endenergiebedarf ist die am Gebäude benötigte Energie (z.B. kWh Gas). Der Primärenergiebedarf rechnet die Vorkette ein und ist deshalb um 30-50% höher. Der Energieausweis zeigt den Primärenergiebedarf." },
+        { q: "Welche Energieausweis-Klassen gibt es und was sind gute Werte?", a: "A+ (beste, <55 kWh/m²a), A, B, C, D, E, F, G (schlechteste, >350 kWh/m²a). Typische Werte: vor 1977 250-350, 1977-2000 150-250, nach 2009 80-120. Unter 100 ist sehr gut." },
+        { q: "Wie bekomme ich einen offiziellen Energieausweis?", a: "Ein zertifizierter Energieberater stellt ihn aus (Kosten: 50-250€). Für den Verkauf/Vermietung ab 2021 ist ein Energieausweis Pflicht. Sie können einen Bedarfsausweis (genauer) oder Verbrauchsausweis (günstiger) wählen." },
+        { q: "Warum unterscheiden sich meine tatsächlichen Heizkosten vom errechneten Wert?", a: "Der Energieausweis geht von Standardnutzung aus. Tatsächliche Verbrauch hängt ab von: Nutzerverhalten (wie oft heizen Sie?), Witterung (warme vs. kalte Winter), Lüftungsverhalten und Gebäudezustand (Risse, undichte Fenster)." },
+        { q: "Kann ich meinen Energieausweis verbessern?", a: "Ja! Durch Sanierungsmaßnahmen wie Dämmung (50% Einsparung), Heizungstausch (30%), Fensteraustausch (30%). Ein saniertes Haus mit A-Klasse spart 200-300€/a Heizkosten gegenüber G-Klasse ein." },
+        { q: "Ist der Energieausweis bindend für meine Betriebskosten?", a: "Nein, der Ausweis ist eine theoretische Berechnung. Tatsächliche Heizkosten hängen von Ihre Nutzerverhalten ab. Der Ausweis dient aber als verlässlicher Vergleich zwischen Gebäuden." }
       ]}
    >
     <div class="calc-form">
@@ -90,6 +94,22 @@ const year = new Date().getFullYear();
       <div id="details" style="margin-top:0.75rem;font-size:0.88rem;color:#666;display:flex;gap:1.5rem;flex-wrap:wrap;"></div>
     </div>
   </CalculatorShell>
+
+  <CalculatorGuide
+    title="Energieausweis und Energieklassifizierung verstehen"
+    content="<p>Der Energieausweis ist ein wichtiges Dokument, das die Energieeffizienz eines Gebäudes bewertet. Er dient potenziellen Käufern und Mietern als zuverlässiger Indikator für zu erwartende Heizkosten und wird bei jedem Hausverkauf oder der Vermietung benötigt.</p>
+
+<p><strong>Arten von Energieausweisen:</strong> Der Bedarfsausweis basiert auf einer Gebäudeanalyse und ist genauer, erfordert aber einen Energieberater (100-250€). Der Verbrauchsausweis berücksichtigt tatsächliche Heizrechnungen und ist günstiger (50-100€), kann aber durch Nutzerverhalten verfälscht sein. Für Verkauf/Vermietung ist der Bedarfsausweis vorzuziehen.</p>
+
+<p><strong>Energieklassen und Benchmarks:</strong> Die Einteilung reicht von A+ (sehr effizient, <55 kWh/m²a) bis G (unsaniert, >350 kWh/m²a). Ein typisches Haus von 1980 hat Klasse E (150-200), neuere Häuser ab 2015 Klasse B-C. Die Klassifizierung berücksichtigt auch die Art des Energieträgers – Wärmepumpen werden günstiger bewertet als Ölheizungen.</p>
+
+<p><strong>Endenergie vs. Primärenergie:</strong> Die im Ausweis angegebene Primärenergie ist 30-50% höher als die tatsächlich am Gebäude benötigte Endenergie, da sie die Vorkette (Förderung, Transport, Umwandlung) berücksichtigt. Ein Gas-Brennwertkessel mit 100 kWh Endenergie benötigt ca. 110 kWh Primärenergie, eine Wärmepumpe nur 40-50 kWh.</p>
+
+<p><strong>Praktischer Nutzen:</strong> Der Energieausweis ermöglicht direkten Vergleich zwischen Objekten. Ein Käufer erkennt sofort, ob ein Haus wenig oder viel kosten wird zum Heizen. Die Einstufung beeinflusst auch die Immobilienbewertung – sanierte Häuser mit guter Klasse sind begehrter und wertbeständiger.</p>
+
+<p><strong>Verbesserung der Energieklasse:</strong> Durch systematische Sanierung können Eigentümer mehrere Klassen springen. Dämmung kombiniert mit modernem Heizungstausch führt oft von F/G zu B/C – eine Steigerung um 300-400€/a Heizersparnis und deutlich höherer Verkaufswert (5-15% Aufschlag möglich).</p>"
+    relatedSlugs={['jahresenergieverbrauch', 'heizkosten-rechner', 'co2-einsparung-renovierung']}
+  />
 </Layout>
 
 <script type="module">
