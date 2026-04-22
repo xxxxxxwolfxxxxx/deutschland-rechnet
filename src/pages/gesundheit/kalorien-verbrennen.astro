@@ -1,6 +1,7 @@
 ---
 import Layout from '../../layouts/Layout.astro';
 import CalculatorShell from '../../components/CalculatorShell.astro';
+import CalculatorGuide from '../../components/CalculatorGuide.astro';
 import { CALCULATORS, CATEGORIES } from '../../data/calculators';
 const calc = CALCULATORS.find(c => c.slug === 'kalorien-verbrennen')!;
 const cat = CATEGORIES[calc.category];
@@ -23,6 +24,32 @@ const year = new Date().getFullYear();
     intro="Mit dem Kalorien-verbrennen-Rechner berechnen Sie den Kalorienverbrauch bei verschiedenen Sportarten."
     sourceNote="MET-Werte."
     explanation="Laufen (8 km/h): ca. 8 MET. Radfahren: ca. 6 MET. Schwimmen: ca. 7 MET."
+    faqs={[
+      {
+        q: "Was ist ein MET-Wert?",
+        a: "MET (Metabolic Equivalent of Task) ist ein Maß für die Intensität einer Aktivität. Ein MET-Wert von 1 entspricht dem Ruhestoffwechsel. Ein Joggen mit 8,3 MET verbraucht etwa 8-mal mehr Energie als zu sitzen."
+      },
+      {
+        q: "Warum unterscheidet sich der Kalorienverbrauch je nach Gewicht?",
+        a: "Schwerere Personen verbrauchen mehr Kalorien für die gleiche Aktivität, da ihr Körper mehr Energie braucht, um sich zu bewegen und die Körpertemperatur zu halten. Die Berechnung nutzt daher das Körpergewicht als Variable."
+      },
+      {
+        q: "Ist der berechnete Kalorienverbrauch genau?",
+        a: "Die MET-basierte Berechnung bietet eine gute Schätzung mit einer Genauigkeit von etwa 75-85%. Der tatsächliche Verbrauch hängt von Fitness-Level, Geschwindigkeit, Gelände und Metabolik ab. Eine Fitnessuhr misst präziser."
+      },
+      {
+        q: "Kann ich mit Sport allein abnehmen?",
+        a: "Sport allein ist selten ausreichend, da man überschätzt, wie viele Kalorien verbrannt werden (Snickers-Äquivalente zeigen das). Eine Kombination aus moderatem Kaloriendefizit und Training ist effektiver als nur Sport."
+      },
+      {
+        q: "Welche Sportart verbrennt die meisten Kalorien?",
+        a: "Sprinten und HIIT-Training führen (bis 14,5 MET), gefolgt von Treppensteigen und intensivem Radfahren. Langsamere Sportarten wie Yoga verbrauchen weniger, sind aber für Ausdauer und Flexibilität wertvoll."
+      },
+      {
+        q: "Gilbt es einen Nachbrenn-Effekt?",
+        a: "Ja, der sogenannte EPOC-Effekt (Excess Post-Exercise Oxygen Consumption) führt zu erhöhtem Energieverbrauch nach dem Training. Dieser ist aber meist kleiner als angenommen (5-10% des Trainingskalorienverbrauchs)."
+      }
+    ]}
   >
     <div class="calc-form">
       <div class="calc-grid">
@@ -58,6 +85,17 @@ const year = new Date().getFullYear();
       <div id="details" style="margin-top:0.75rem;font-size:0.88rem;color:#666;display:flex;gap:1.5rem;flex-wrap:wrap;"></div>
     </div>
   </CalculatorShell>
+  <CalculatorGuide
+    title="Kalorienverbrauch beim Sport richtig einordnen"
+    content="Der Kalorienverbrauch beim Sport wird mit MET-Werten (Metabolic Equivalent) berechnet – einem wissenschaftlichen Standard, der die Intensität von Aktivitäten vergleichbar macht. Eine 1-Stunde-Joggen-Einheit verbraucht tatsächlich weniger Kalorien, als viele denken.
+
+**Das Snickers-Problem:** Ein häufiger Motivationsfehler ist, dass Menschen denken: Ich jogge 1 Stunde = ich kann ein Snickers essen. Tatsächlich verbraucht eine 75 kg Person beim Joggen etwa 300-400 kcal – deutlich weniger als ein Snickers (250 kcal). Das zeigt, warum Sport allein für Gewichtsabnahme unzureichend ist.
+
+**Sport und Ernährung sind Partner, nicht Gegner:** Die effektivste Strategie kombiniert moderates Ausdauertraining (Kalorienverbrauch) mit Krafttraining (Muskelaufbau) und einem bewussten Kaloriendefizit über die Ernährung (größerer Hebel). Abnehmen entsteht zu 70% durch Ernährung, zu 30% durch Bewegung.
+
+**Langfristige Perspektive:** Regelmäßiges Training erhöht Ihren Grundumsatz durch Muskelaufbau und verbessert Ihre kardiovaskuläre Gesundheit, unabhängig vom Gewicht. Dies ist für Langzeitgesundheit wichtiger als kurzfristiger Gewichtsverlust."
+    relatedSlugs={['kalorien-rechner', 'grundumsatz-rechner', 'idealgewicht-rechner']}
+  />
 </Layout>
 
 <script type="module">
