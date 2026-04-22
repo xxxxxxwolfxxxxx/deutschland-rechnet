@@ -1,6 +1,7 @@
 ---
 import Layout from '../../layouts/Layout.astro';
 import CalculatorShell from '../../components/CalculatorShell.astro';
+import CalculatorGuide from '../../components/CalculatorGuide.astro';
 import { CALCULATORS, CATEGORIES } from '../../data/calculators';
 const calc = CALCULATORS.find(c => c.slug === 'kaufen-vs-mieten')!;
 const cat = CATEGORIES[calc.category];
@@ -23,6 +24,14 @@ const year = new Date().getFullYear();
     intro="Mit dem Kaufen-vs-Mieten-Rechner vergleichen Sie die Gesamtkosten von Immobilienkauf und Miete über einen Zeitraum."
     sourceNote="Kostenvergleich 10-30 Jahre."
     explanation="Kaufen: Kaufpreis + Zinsen + Nebenkosten - Wertsteigerung. Mieten: Mietkosten + Mieterhöhungen."
+    faqs={[
+      { q: "Ab wann lohnt sich der Kauf gegenüber Miete?", a: "Grobe Faustregel: Bei Kaufpreisen unter 20x der Jahresmiete (Mietrendite >5%) oder wenn man >10 Jahre bleibt. In teuren Städten (München, Berlin) dauert es länger. Bei billigen Gegenden schneller. Auch Lebenspläne zählen." },
+      { q: "Wie wirken sich Zinsen auf die Wirtschaftlichkeit aus?", a: "Niedrige Zinsen (2-3%) machen Kaufen günstiger als Miete. Höhere Zinsen (4-6%) können Miete attraktiver machen. Ein 1% Zinssprung erhöht die Kosten um 10.000€ pro 1 Mio. Kaufpreis über 20 Jahre." },
+      { q: "Sollte ich den Kaufpreis oder die Miete als Basis nehmen?", a: "Miete: 100€/m² = Kaufpreis knapp 30.000-40.000€/m². Das ist aber nur Faustregel. Besser: Vergleich über 20 Jahre inkl. Zinsen, Instandhaltung, Steuern, Wertsteigerung." },
+      { q: "Wie wichtig ist die Wertsteigerung beim Vergleich?", a: "Sehr wichtig auf lange Sicht. Im Schnitt steigen Immobilienpreise 2-3% p.a. (regional unterschiedlich). Das ist der Erfolgsfaktor für lange Haltefristen. Kurzfristig (5 Jahre) ist Wertsteigerung unsicher." },
+      { q: "Was ist mit Reparaturen und Instandhaltung beim Kauf?", a: "Faustregel: 0,5-1% des Wertes pro Jahr für Instandhaltung + Reserve für größere Arbeiten. Ein 400.000€-Haus = 2.000-4.000€/Jahr Budget. Mieter hat diesen Vorteil – alles trägt der Vermieter." },
+      { q: "Kann ich die Immobilie noch verlassen, wenn ich kaufe?", a: "Ja, aber teuer: Verkaufsgebühren (Makler, Notar, evtl. Steuern), falls Wertverlust seit Kauf. Miete hat Flexibilität (3 Monate Kündigungsfrist). Kaufen sperrt Kapital – nur empfohlen bei Langfristplanung (10+ Jahre)." }
+    ]}
   >
     <div class="calc-form">
       <div class="calc-grid">
@@ -62,6 +71,12 @@ const year = new Date().getFullYear();
       <div id="details" style="margin-top:0.75rem;font-size:0.88rem;color:#666;display:flex;gap:1.5rem;flex-wrap:wrap;"></div>
     </div>
   </CalculatorShell>
+
+  <CalculatorGuide
+    title="Kaufen vs. Miete – Wirtschaftliche Entscheidung treffen"
+    content="<p>Die Entscheidung zwischen Kauf und Miete ist eine der größten finanziellen Entscheidungen, die Sie treffen. Unser Rechner vergleicht beide über lange Zeit und zeigt Kostendifferenzen auf. Wichtig: Dies ist eine Zahlenfrage, aber auch eine Lebensfrage (Flexibilität, Stabilität, Bindung).</p>\n\n<p><strong>Die Preisrelation verstehen:</strong> Wenn die Monatsmiete unter 1/250 des Kaufpreises liegt, ist Kaufen wirtschaftlich. Beispiel: 1.000€ Miete × 250 = 250.000€ Kaufpreis-Schwelle. Ist der Preis deutlich höher, ist Miete billiger. Ist er tiefer, Kauf. Diese Faustregel hilft zur Schnell-Einschätzung.</p>\n\n<p><strong>Wertsteigerung berücksichtigen:</strong> Der Schlüssel! Eine Immobilie, die kostet Sie als Käufer vielleicht 2-3% mehr pro Jahr als Mietäquivalent, kann durch Wertsteigerung (2-3% p.a. typisch) am Ende günstiger sein. 20 Jahre mit 2% Wertsteigerung = 149% Wertzuwachs. Das ist Kapitalbildung.</p>\n\n<p><strong>Zinsen sind kritisch:</strong> Bei 2-3% Zinsen: Kaufen ist günstiger. Bei 5-6% Zinsen: Miete wird attraktiver. Die aktuelle Zinslandschaft (Frühjahr 2024: 3-4%) ist moderat günstig zum Kaufen. Ein Zinsanstieg würde Miete attraktiver machen.</p>\n\n<p><strong>Die versteckten Kosten beim Kauf:</strong> Nicht nur Zins und Tilgung, sondern Instandhaltung (0,5-1,5% p.a.), Grundsteuer, Versicherungen, Makler, Notar, evtl. Sanierungen. Diese oft unterschätzten Posten können den Vorteil aufzehren. Rücklagen bilden ist wichtig!</p>\n\n<p><strong>Flexibilität vs. Sicherheit:</strong> Miete: 3 Monate Kündigungsfrist, kurzfristig umziehen möglich. Kauf: Verkauf dauert 3-6 Monate, Makler/Notar kosten 10%, Verlust durch Marktentwicklung möglich. Wer in 5 Jahren vielleicht umzieht: eher Mieter bleiben.</p>\n\n<p><strong>Förderungen und Steuervorteile:</strong> Käufer: KfW-Kredite mit Zinssubvention, Energieeffizienz-Bonifizierung. Mieter: gibt es wenige direkt. Aber: Mieter sparen Risiken. Der Vermieter trägt Instandhaltung und Wertverlust-Risiko.</p>\n\n<p><strong>Persönliche Faktoren zählen:</strong> Hast du stabile Situation? Willst du 20+ Jahre bleiben? Liebst du die Freiheit zu renovieren? Wertschätzung von Vermögensaufbau? Dann: Kauf. Unsicher, mobil, risikoavers? Dann: Miete. Zahlen sind nur ein Teil der Entscheidung.</p>"
+    relatedSlugs={['mietrendite-rechner', 'hauskauf-rechner', 'mietrechner']}
+  />
 </Layout>
 
 <script type="module">
