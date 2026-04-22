@@ -1,10 +1,20 @@
 ---
 import Layout from '../../layouts/Layout.astro';
 import CalculatorShell from '../../components/CalculatorShell.astro';
+import CalculatorGuide from '../../components/CalculatorGuide.astro';
 import { CALCULATORS, CATEGORIES } from '../../data/calculators';
 const calc = CALCULATORS.find(c => c.slug === 'erbschaftsteuer-rechner')!;
 const cat = CATEGORIES[calc.category];
 const year = new Date().getFullYear();
+
+const faqs = [
+  { q: 'Wer muss Erbschaftsteuer zahlen?', a: 'Der Erbe muss Erbschaftsteuer zahlen. Steuerpflichtig sind Erwerbe von Todes wegen wie Vermögen, Grundstücke und Schulden.' },
+  { q: 'Welche Freibeträge gibt es?', a: 'Freibeträge nach Verwandtschaftsgrad: Kinder 400.000€, Ehepartner 400.000€, Enkel 200.000€, andere 20.000€.' },
+  { q: 'Wie sind die Steuersätze?', a: 'Die Sätze liegen zwischen 7-30% je nach Verwandtschaftsgrad und Höhe des Erbes. Nähere Verwandte zahlen niedrigere Sätze.' },
+  { q: 'Was ist Schenkungssteuer?', a: 'Schenkungssteuer fällt an, wenn Vermögen zu Lebzeiten übertragen wird. Die Sätze sind wie bei Erbschaftsteuer, Freibeträge alle 10 Jahre neu verfügbar.' },
+  { q: 'Kann ich Schulden von der Steuer absetzen?', a: 'Ja, Schulden des Erblassers mindern die Erbmasse und damit die Steuerlast.' },
+  { q: 'Gibt es Ausnahmen oder Vergünstigungen?', a: 'Ja: Ehewohnung ist unter Bedingungen steuerfrei, Betriebsvermögen, Kunstsammlungen und Grundstücke haben Vergünstigungen.' },
+];
 ---
 <Layout
   title={`Erbschaftsteuer-Rechner ${year}`}
@@ -23,6 +33,7 @@ const year = new Date().getFullYear();
     intro="Mit dem Erbschaftsteuer-Rechner berechnen Sie die Erbschaftsteuer basierend auf dem Nachlasswert."
     sourceNote="Steuerklassen I-III."
     explanation="Freibeträge: Partner 500.000€, Kinder 400.000€, Geschwister 20.000€."
+    faqs={faqs}
   >
     <div class="calc-form">
       <div class="calc-grid">
@@ -50,6 +61,20 @@ const year = new Date().getFullYear();
       <div id="details" style="margin-top:0.75rem;font-size:0.88rem;color:#666;display:flex;gap:1.5rem;flex-wrap:wrap;"></div>
     </div>
   </CalculatorShell>
+
+  <CalculatorGuide
+    title="Erbschaftsteuer – Vermögen richtig übertragen"
+    content="Erbschaftsteuer ist eine wichtige Besteuerung bei Vermögensübergang nach dem Tod. Die Berechnung berücksichtigt Verwandtschaftsgrade, Freibeträge und die Art des Vermögens.
+
+Ein häufiges Missverständnis: Der Freibetrag regeneriert sich nicht jedes Jahr – er ist ein Gesamtbetrag pro Erbfall. Mehrfache Erbschaften in kurzer Zeit können über Steuerfreibeträge addiert werden, aber die 10-Jahres-Frist ist relevant.
+
+Besonderheiten: Grundstücksvermögen hat andere Bewertungsregeln als mobiles Vermögen. Kunst und Kulturgüter können unter Bedingungen steuerfrei sein. Betriebsvermögen hat Verschonung bis zu bestimmten Grenzen.
+
+Planungstipp: Lebzeitige Schenkungen sind oft vorteilhafter als Erbschaften, da die Freibeträge alle 10 Jahre erneut nutzen können. Ein Testament sollte notariell beurkundet sein, um Rechtsstreitigkeiten zu vermeiden.
+
+Bei internationalen Vermögen: Erbschaftsteuer hängt davon ab, wo Sie Ihren Wohnsitz haben und wo sich das Vermögen befindet. Spezialberatung ist oft notwendig."
+    relatedSlugs={['renten-rechner', 'wohngeld-rechner']}
+  />
 </Layout>
 
 <script type="module">
