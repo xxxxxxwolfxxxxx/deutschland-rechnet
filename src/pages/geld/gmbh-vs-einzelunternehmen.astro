@@ -1,6 +1,7 @@
 ---
 import Layout from '../../layouts/Layout.astro';
 import CalculatorShell from '../../components/CalculatorShell.astro';
+import CalculatorGuide from '../../components/CalculatorGuide.astro';
 import { CALCULATORS, CATEGORIES } from '../../data/calculators';
 const calc = CALCULATORS.find(c => c.slug === 'gmbh-vs-einzelunternehmen')!;
 const cat = CATEGORIES[calc.category];
@@ -23,6 +24,14 @@ const year = new Date().getFullYear();
     intro="Mit dem GmbH vs. Einzelunternehmen-Rechner vergleichen Sie die Steuerbelastung beider Rechtsformen."
     sourceNote="Steuerbelastung im Vergleich."
     explanation="Bei hohen Gewinnen (über 100.000€) kann die GmbH vorteilhafter sein."
+    faqs={[
+      { q: "Ab wann ist eine GmbH-Gründung sinnvoll?", a: "Grobe Faustregel: Ab Gewinnen von 50.000-80.000€/Jahr wird die GmbH interessant. Der Break-Even hängt vom Hebesatz, Ausschüttungen und persönlichen Steuersatz ab. Mit hohem persönlichem Einkommen (45% Grenzsteuer) ist die GmbH oft schon ab 40.000€ rentabel." },
+      { q: "Was kostet die GmbH-Gründung?", a: "Gründungskosten: ca. 800-1.500€ (Notar, Handelsregister, Geschäftsführervergütung Jahr 1). Jährliche Kosten: Bilanzbuchhaltung (500-2.000€/Jahr), Steuererklärungen. Erst ab ca. 50.000€ Gewinn lohnt sich das ökonomisch." },
+      { q: "Kann ich Gewinne in der GmbH steuerfrei aufbauen?", a: "Ja, das ist der Vorteil! Ersparte Gewinne (Thesaurierung) werden mit 30% KSt + 5,5% Soli = 31,65% besteuert. Bei Einzelunternehmen wären es bis zu 45% ESt + SV-Beiträge. Die GmbH funktioniert als Steuerstundungs-Vehikel." },
+      { q: "Was ist der Nachteil der GmbH?", a: "Aufwand: Gründung, Bilanzbuchhaltung, Geschäftsführervergütung, Gewerbesteuer auch ohne Gewinn. Komplexität: Doppelbesteuerung bei Ausschüttung. Haftung: Begrenzt auf Gesellschaftsvermögen, aber: Du bist persönlich für fahrlässige/vorsätzliche Schäden haftbar." },
+      { q: "Muss ich mich selbst Gehalt zahlen?", a: "Ja! Geschäftsführer-Gehalt ist betriebsausgabe und wird mit ESt belastet. Ideal: Gehalt so wählen, dass Restgewinn nicht zu hoch ist. Urteilsregel: 'Angemessenes Geschäftsführergehalt' – das Finanzamt prüft, ob dein Gehalt unrealistisch niedrig ist." },
+      { q: "Kann ich als Einzelunternehmer später zur GmbH wechseln?", a: "Ja, aber mit Steuerfallen! Die Umwandlung (Betriebsvermögensübergang) ist steuerstabil, aber: Eventuelle stille Reserven werden offengelegt und versteuert. Mit Steuerberater planen!" }
+    ]}
   >
     <div class="calc-form">
       <div class="calc-grid">
@@ -46,6 +55,20 @@ const year = new Date().getFullYear();
       <div id="details" style="margin-top:0.75rem;font-size:0.88rem;color:#666;display:flex;gap:1.5rem;flex-wrap:wrap;"></div>
     </div>
   </CalculatorShell>
+
+  <CalculatorGuide
+    title="So funktioniert der Vergleich GmbH vs. Einzelunternehmen"
+    content={`<p><strong>Die Wahl der Rechtsform ist eine Steuerfrage:</strong> Ein Einzelunternehmer zahlt Einkommensteuer (bis 45%) + Sozialversicherung (ca. 19,5%) + Gewerbesteuer auf alle Gewinne. Eine GmbH zahlt Körperschaftsteuer (15%) + Solidaritätszuschlag (5,5%) + Gewerbesteuer, aber erst bei Ausschüttung wird der Gesellschafter (als Privatperson) mit Abgeltungsteuer (25%) belastet.</p>
+
+<p><strong>Der Break-Even punkt:</strong> Bei Gewinnen unter 40.000€ ist meist das Einzelunternehmen günstiger (weniger Aufwand, keine GmbH-Kosten). Ab 50.000-80.000€ wird die GmbH interessanter, weil die GmbH-Steuerbelastung niedriger ist, wenn man Gewinne einbehält (thesauriert). Der exakte Punkt hängt vom persönlichen Grenzsteuersatz ab.</p>
+
+<p><strong>Die Steuerstundungs-Strategie:</strong> Eine GmbH ermöglicht es, Gewinne mit nur 31,65% (15% KSt + 5,5% Soli + 11,15% Gewerbesteuer im Schnitt) zu besteuern und einzubehalten. Erst wenn Sie Geld ausschütten, zahlt der Gesellschafter zusätzlich Abgeltungsteuer (25%). Ein Einzelunternehmer zahlt sofort die volle Steuerlast (bis 45% ESt).</p>
+
+<p><strong>Versteckte Kosten der GmbH:</strong> Gründung (800-1.500€), jährliche Bilanzbuchhaltung (500-2.000€), Steuererklärungen, Geschäftsführervergütung (mind. angemessen), Gewerbesteuer auch bei Verlust (in manchen Bundesländern). Das addiert sich zu 3.000-5.000€ pro Jahr.</p>
+
+<p><strong>Praktisches Beispiel:</strong> Bei 100.000€ Gewinn zahlt ein Einzelunternehmer (Stklasse IV, Hebesatz 410%) ca. 40.000€ Gewinnesteuer + Gewerbesteuer. Eine GmbH mit gleicher Ausschüttung zahlt ca. 28.000€. Aber: Nach GmbH-Gründungs- und Betriebskosten ist der Vorteil nur noch 5.000-10.000€. Lohnt sich erst bei wiederkehrend hohen Gewinnen.</p>`}
+    relatedSlugs={['gewerbesteuer-rechner', 'brutto-netto-rechner', 'gehaltserhoehung-rechner']}
+  />
 </Layout>
 
 <script type="module">
