@@ -1,6 +1,7 @@
 ---
 import Layout from '../../layouts/Layout.astro';
 import CalculatorShell from '../../components/CalculatorShell.astro';
+import CalculatorGuide from '../../components/CalculatorGuide.astro';
 import { CALCULATORS, CATEGORIES } from '../../data/calculators';
 const calc = CALCULATORS.find(c => c.slug === 'abfindungsrechner')!;
 const cat = CATEGORIES[calc.category];
@@ -23,6 +24,14 @@ const year = new Date().getFullYear();
     intro="Mit dem Abfindungsrechner berechnen Sie die voraussichtliche Abfindung bei einer Kündigung."
     sourceNote="Verhandlungssache."
     explanation="Faustformel: 0,5 Monatsgehälter pro Jahr."
+    faqs={[
+      { q: "Gibt es einen gesetzlichen Anspruch auf Abfindung?", a: "Nein. Abfindung ist grundsätzlich Verhandlungssache (§1 KSchG). Ausnahme: Sozialplan bei Betriebsschließung oder Interessenausgleich bei Betriebsänderung gemäß § 1a KSchG. Der Orientierungswert: 0,5 Monatsgehälter pro Betriebszugehörigkeitsjahr." },
+      { q: "Wie wird die Betriebszugehörigkeit berechnet?", a: "Die gesamte Zeit vom ersten bis zum letzten Arbeitstag wird gezählt. Pausen (z.B. Elternzeit) zählen mit, Unterbrechungen durch Krankheit nicht. Beginnt mit dem ersten Arbeitstag im Unternehmen." },
+      { q: "Ist die Abfindung steuerfrei?", a: "Nicht automatisch. Abfindungen sind Einkünfte aus nichtselbstständiger Arbeit und unterliegen der Einkommensteuer. Es gibt aber die Fünftelregelung (§34 Abs. 1 EStG), die die Progression mildert – die Abfindung auf 5 Jahre verteilt besteuern." },
+      { q: "Werden Sozialversicherungsbeiträge auf die Abfindung fällig?", a: "Nein. Abfindungen sind beitragsfrei für Renten-, Arbeitslosenversicherung und Pflegeversicherung (§3 SGB IV). Nur für die Krankenversicherung können Beiträge anfallen, wenn der Versicherte nicht mehr in der Regelversicherung ist." },
+      { q: "Kann ich mit der Abfindung verhandeln?", a: "Ja! Der Orientierungswert (0,5 Monatsgehälter/Jahr) ist nur eine Richtlinie. Bei Betriebsräten, längerer Betriebszugehörigkeit oder älteren Arbeitnehmern sind oft höhere Abfindungen marktüblich. Ein Arbeitsrechtler kann helfen." },
+      { q: "Bekomme ich Arbeitslosengeld, wenn ich eine Abfindung erhalte?", a: "Die Abfindung selbst blockiert ALG I nicht. ABER: Bei zu hohem Vermögen kann ALG II (Hartz IV) verweigert werden. Auch Sperrfristen sind möglich, wenn du die Kündigung mitverursacht hast." }
+    ]}
   >
     <div class="calc-form">
       <div class="calc-grid">
@@ -42,6 +51,26 @@ const year = new Date().getFullYear();
       <p id="info" style="margin-top:0.5rem;font-size:0.85rem;color:#666;"></p>
     </div>
   </CalculatorShell>
+
+  <CalculatorGuide
+    title="So funktioniert die Abfindung bei Kündigung"
+    content={`<p><strong>Eine Abfindung</strong> ist eine einmalige Geldzahlung, die ein Arbeitgeber bei Beendigung des Arbeitsverhältnisses leisten kann. Sie soll den Arbeitnehmer für den Verlust des Arbeitsplatzes und die daraus resultierende wirtschaftliche Belastung entschädigen.</p>
+
+<p><strong>Der Orientierungswert nach § 1a KSchG:</strong> Die häufigste Faustformel lautet <strong>0,5 Monatsgehälter je Jahr der Betriebszugehörigkeit</strong>. Bei 10 Jahren und 3.000€ Bruttomonatsgehalt wären das also 15.000€. Wichtig: Dies ist kein Anspruch, sondern ein Orientierungswert für Verhandlungen.</p>
+
+<p><strong>Wann gibt es einen rechtlichen Anspruch?</strong> Ein gesetzlicher Anspruch entsteht nur in speziellen Fällen:
+<ul>
+  <li><strong>Betriebsschließung:</strong> Nach § 1a KSchG bei Kündigung wegen Betriebsschließung</li>
+  <li><strong>Betriebsänderung:</strong> Nach § 112 BetrVG im Interessenausgleich</li>
+  <li><strong>Sozialplan:</strong> Bei Arbeitgeber mit Betriebsrat ist oft ein Sozialplan Pflicht</li>
+</ul>
+</p>
+
+<p><strong>Fünftelregelung (wichtig für die Steuer!):</strong> Um progressive Besteuerung zu vermeiden, können Abfindungen mit der Fünftelregelung (§34 EStG) besteuert werden – die Abfindung wird so berücksichtigt, als würde sie gleichmäßig auf 5 Jahre verteilt. Dies reduziert oft die Steuerlast erheblich.</p>
+
+<p><strong>Verhandlungstipps:</strong> Die Abfindung ist fast immer Verhandlungssache. Faktoren, die höhere Abfindungen rechtfertigen: lange Betriebszugehörigkeit (ab 15+ Jahren), fortgeschrittenes Alter (ab 50+), schwierige Reintegration auf dem Arbeitsmarkt, betriebliche Gründe (Rationalisierung statt Verschulden des AN).</p>`}
+    relatedSlugs={['brutto-netto-rechner', 'kuendigungsfrist-rechner', 'arbeitslosengeld-rechner']}
+  />
 </Layout>
 
 <script type="module">
