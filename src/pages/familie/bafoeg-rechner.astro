@@ -1,10 +1,20 @@
 ---
 import Layout from '../../layouts/Layout.astro';
 import CalculatorShell from '../../components/CalculatorShell.astro';
+import CalculatorGuide from '../../components/CalculatorGuide.astro';
 import { CALCULATORS, CATEGORIES } from '../../data/calculators';
 const calc = CALCULATORS.find(c => c.slug === 'bafoeg-rechner')!;
 const cat = CATEGORIES[calc.category];
 const year = new Date().getFullYear();
+
+const faqs = [
+  { q: 'Wie wird das BAföG berechnet?', a: 'Das BAföG wird berechnet als Höchstsatz (992€) minus Einkommen- und Vermögensanrechnung. Es besteht aus 50% Zuschuss und 50% zinslosem Darlehen.' },
+  { q: 'Welcher Freibetrag gilt für Eltern?', a: 'Der Eltern-Freibetrag beträgt 37.350€/Jahr (zusammen) oder 24.850€/Jahr (getrennt). Zusätzlich gibt es für jedes Geschwister in Ausbildung einen Freibetrag von 8.820€/Jahr.' },
+  { q: 'Wie wird eigenes Einkommen angerechnet?', a: 'Einkommen über 55€/Monat wird zu 100% angerechnet. Unter dieser Grenze bleibt das Einkommen unberücksichtigt.' },
+  { q: 'Ist Vermögen relevant?', a: 'Ja. Ein Vermögensfreibetrag von 15.000€ gibt es. Vermögen darüber wird monatlich zu 1/12 angerechnet.' },
+  { q: 'Wie lange wird BAföG gezahlt?', a: 'BAföG wird bis zum Ende des Studiums bzw. Ausbildung gezahlt, maximal aber bis zur Regelstudienzeit zuzüglich 1 Semester.' },
+  { q: 'Muss das BAföG zurückgezahlt werden?', a: 'Der Darlehensanteil (50%) muss ab 5 Jahren nach Ende der Förderung zurückgezahlt werden, der Zuschussanteil (50%) nicht.' },
+];
 ---
 <Layout
   title={`BAföG-Rechner ${year}`}
@@ -23,6 +33,7 @@ const year = new Date().getFullYear();
     intro="Mit dem BAföG-Rechner berechnen Sie die voraussichtliche BAföG-Förderung."
     sourceNote="Maximal 992-1.063€/Monat."
     explanation="Das BAföG besteht aus 50% Zuschuss und 50% zinslosem Darlehen."
+    faqs={faqs}
   >
     <div class="calc-form">
       <div class="calc-grid">
@@ -61,6 +72,20 @@ const year = new Date().getFullYear();
       <div id="details" style="margin-top:0.75rem;font-size:0.88rem;color:#666;display:flex;gap:1.5rem;flex-wrap:wrap;"></div>
     </div>
   </CalculatorShell>
+
+  <CalculatorGuide
+    title="BAföG – Ausbildungsfinanzierung verstehen"
+    content="Das BAföG (Bundesausbildungsförderungsgesetz) ist eines der wichtigsten Finanzierungsinstrumente für Studierende und Auszubildende in Deutschland. Es wird als Mischung aus Zuschuss und Darlehen gewährt, um wirtschaftliche Hürden bei der Ausbildung zu senken.
+
+Die Höhe des BAföG hängt vom Einkommen und Vermögen der Eltern, dem eigenen Einkommen und vorhandenen Vermögen ab. Der Rechner berücksichtigt die aktuellen Freibeträge und das Modell der 50%-Spaltung (Zuschuss vs. zinslose Darlehen).
+
+Ein häufiges Missverständnis: BAföG ist nicht automatisch genauer – wenn Eltern weniger verdienen als der Freibetrag (z.B. bei Arbeitslosigkeit), bleibt der volle Höchstsatz erhalten. Auch Geschwister in Ausbildung reduzieren die Eltern-Freibeträge erheblich.
+
+Nach Abschluss der Ausbildung müssen 50% des erhaltenen BAföG als zinslose Darlehen zurückgezahlt werden (KfW-Darlehen). Dies sollte bei der Finanzplanung eingeplant werden. Berufstätige Absolventen zahlen in der Regel 25 Jahre lang Raten von etwa 105€-130€ monatlich.
+
+Der Antrag muss beim BAföG-Amt gestellt werden. Wichtig: Stellen Sie den Antrag frühzeitig, da BAföG erst vom Monat der Antragstellung an gezahlt wird, nicht rückwirkend."
+    relatedSlugs={['kindergeld-rechner', 'elterngeld-rechner']}
+  />
 </Layout>
 
 <script type="module">
