@@ -1,6 +1,7 @@
 ---
 import Layout from '../../layouts/Layout.astro';
 import CalculatorShell from '../../components/CalculatorShell.astro';
+import CalculatorGuide from '../../components/CalculatorGuide.astro';
 import { CALCULATORS, CATEGORIES } from '../../data/calculators';
 const calc = CALCULATORS.find(c => c.slug === 'pfaendungsfreigrenze-rechner')!;
 const cat = CATEGORIES[calc.category];
@@ -23,6 +24,11 @@ const year = new Date().getFullYear();
     intro="Mit dem Pfändungsfreigrenze-Rechner berechnen Sie den pfändungsfreien Betrag Ihres Einkommens."
     sourceNote="Nach § 850c ZPO."
     explanation="Die Grenze liegt bei ca. 1.450€ für eine Person, +410€ für jede weitere Person."
+    faqs={[
+      { q: "Was ist eine Pfändungsfreigrenze?", a: "Das ist der Betrag deines Einkommens, den ein Gläubiger NICHT pfänden darf, um dir Lebensunterhalt zu sichern. Alles darüber hinaus kann gepfändet werden (Lohnpfändung)." },
+      { q: "Wer setzt die Pfändungsfreigrenze?", a: "Der Gerichtsvollzieher nach § 850c ZPO. Die Grenze ist gestaffelt: 1.450€ Basis + 410€ für jede Unterhaltsberechtigte Person (Partner, Kinder)." },
+      { q: "Kann der Gläubiger unter die Freigrenze pfänden?", a: "Nein. Die Pfändungsfreigrenze ist ein Schutz. Unter diesem Betrag kann nicht gepfändet werden. Darüber hinaus kann der Gläubiger aber bis zu 50% des Überschusses pfänden lassen." }
+    ]}
   >
     <div class="calc-form">
       <div class="calc-grid">
@@ -49,6 +55,16 @@ const year = new Date().getFullYear();
       <div id="details" style="margin-top:0.75rem;font-size:0.88rem;color:#666;display:flex;gap:1.5rem;flex-wrap:wrap;"></div>
     </div>
   </CalculatorShell>
+
+  <CalculatorGuide
+    title="So funktioniert die Pfändungsfreigrenze"
+    content={`<p><strong>Die Pfändungsfreigrenze schützt dich vor Lohnpfändung.</strong> Sie ist der Mindestbetrag, den dein Arbeitgeber dir auszahlen MUSS, unabhängig von Schulden. Alles darunter ist unpfändbar – das ist dein Lebensminimum.</p>
+
+<p><strong>Die Grenze 2026:</strong> Ca. 1.450€/Monat für eine alleinstehende Person. +410€ für jede unterhaltsberechtigte Person (Ehepartner, Kinder). Beispiel: Verheiratet mit Kind = 1.450€ + 410€ + 410€ = 2.270€ unpfändbar.</p>
+
+<p><strong>Die Pfändungskaskade:</strong> Alles über der Freigrenze wird in Stufen gepfändet. Die erste Stufe: 50% des Überschusses. Beispiel: Netto 2.000€, Freigrenze 1.450€, Überschuss 550€ → 275€ können gepfändet werden (50%).</p>`}
+    relatedSlugs={['brutto-netto-rechner', 'schuldentilgungs-rechner', 'mindestlohn-rechner']}
+  />
 </Layout>
 
 <script type="module">
