@@ -23,6 +23,14 @@ const year = new Date().getFullYear();
     intro="Mit dem Mietrechner berechnen Sie die Warmmiete aus der Kaltmiete inklusive aller Nebenkosten."
     sourceNote="Kaltmiete + Betriebskosten + Heizung."
     explanation="Die Warmmiete setzt sich zusammen aus: Kaltmiete + Betriebskosten + Heizkosten."
+    faqs={[
+      { q: "Was ist der Unterschied zwischen Kaltmiete und Warmmiete?", a: "Kaltmiete: nur Miete für Wohnung. Warmmiete: Kaltmiete + Heizung, Wasser, Müll, ggf. Hausmeister. Warmmiete ist oft 30-50% höher. Im Inserat muss beides angegeben sein." },
+      { q: "Was gehört zu den Nebenkosten?", a: "Zwingend: Heizung, Wasser/Abwasser, Müll. Oft: Hausmeister, Reinigung, Versicherung, Schneeräumung. Nicht enthalten: Strom, Gas (sofern separate Zähler), Rundfunk, Internet. Im Mietvertrag sollte dies klar sein." },
+      { q: "Wie prüfe ich, ob die Nebenkosten fair sind?", a: "Vergleich mit ähnlichen Wohnungen in der Gegend. Heizung sollte 3-5€/m²/Monat sein (abhängig von Energieträger und Klima). Wasser 1-2€/m²/Monat. Sind sie deutlich höher, nachfragen oder Abrechnungsüberprüfung anfordern." },
+      { q: "Kann Nebenkosten-Erhöhung unbegrenzt stattfinden?", a: "Nein, Staffelung ist per Gesetz limitiert. In der Regel: max. 20% in 3 Jahren. Große Sprünge erlauben Mietern, zum Jahresende zu kündigen. Immer Abrechnung prüfen!" },
+      { q: "Wann bekomme ich meine Nebenkosten-Nachzahlung?", a: "Spätestens 12 Monate nach Jahresende. Abrechnungen sollten innerhalb 12 Monaten erfolgen. Ist es länger, verfallen Ansprüche. Nachzahlungen > 1 Monatsmiete sind in 3 Monaten zahlbar (Zahlungsfrist)." },
+      { q: "Sind Makler-, Anwalts- oder Gerichtskosten Nebenkosten?", a: "Nein, das sind außergewöhnliche Kosten und darf der Vermieter nicht auf den Mieter umlegen. Auch Renovierungen vor Neu-Vermietung sind keine Nebenkosten, sondern Instandhaltung = Vermieterspflicht." }
+    ]}
   >
     <div class="calc-form">
       <div class="calc-grid">
@@ -72,6 +80,12 @@ const year = new Date().getFullYear();
       <div id="details" style="margin-top:0.75rem;font-size:0.88rem;color:#666;display:flex;gap:1.5rem;flex-wrap:wrap;"></div>
     </div>
   </CalculatorShell>
+
+  <CalculatorGuide
+    title="Kaltmiete vs. Warmmiete verstehen"
+    content="<p>Der Unterschied zwischen Kalt- und Warmmiete ist essentiell für die Budgetplanung. Die Kaltmiete ist nur der Nutzungsanteil der Wohnung. Die Warmmiete addiert Heizung, Wasser und Abwasser hinzu – und ist oft 30-50% teurer. Unser Rechner hilft, beide transparent zu vergleichen.</p>\n\n<p><strong>Zusammensetzung der Warmmiete:</strong> Kaltmiete (z.B. 800€) + Nebenkosten wie Heizung (150-200€), Wasser/Abwasser (40-80€), Müll (15-30€), Hausmeister/Reinigung (10-50€), Versicherung (5-20€). Total: kann leicht 1.100-1.200€ sein. Überprüfen Sie, was konkret in der Warmmiete enthalten ist!</p>\n\n<p><strong>Wie werden Nebenkosten verteilt:</strong> Die wichtigsten Schlüssel sind Wohnfläche (für Heizung, Wasser oft), Personenzahl (für Müll), Nutzungseinheiten (für Aufzug). Jeder Vermieter verteilt unterschiedlich – das ist Verhandlung. Unfaire Schlüssel können beim Vermieter beanstandet werden.</p>\n\n<p><strong>Heizkostenoptimierung:</strong> Heizung ist der größte Nebenkostenfaktor. Tipps: Temperatur nachts auf 16°C senken = 6-8% Ersparnis. Hydraulischer Abgleich (Handwerker, 300-500€) kann Heizkosten um 5-15% reduzieren. Ventile entlüften (kostenlos, regelmäßig). Alte Heizungen sind Energiefresser – Modern-Sanierung rechnet sich oft.</p>\n\n<p><strong>Rücklage und Abrechnung:</strong> Der Vermieter stellt Vorauszahlungen auf Nebenkosten ein (z.B. 100€/Monat). Einmal pro Jahr erfolgt die Abrechnung – Rückzahlung oder Nachzahlung. Nachzahlung >1 Monatsmiete ist in 3 Monaten zahlbar. Zu lange Abrechnung (>12 Monate) ist unzulässig.</p>\n\n<p><strong>Was Sie prüfen können:</strong> Quittat Sie Rechnungen? Sind Wohnfläche und Quadratmeterzahl korrekt? Vergleichen Sie mit ähnlichen Wohnungen – auffällige Unterschiede? Heizung kann auch Mietverein prüfen lassen. Abrechnung sollte detailliert sein, nicht pauschal.</p>\n\n<p><strong>Spar-Chancen als Mieter:</strong> Wassersparer-Einsätze (5-10€) sparen 20-30% Wasser. Stoßlüften statt Dauerlüften (10 Min, 3-4x täglich). Mietervertrag checken: sind Versicherungen überteuert? Hausmeister-Service überdimensioniert? Alles hinterfragbar.</p>\n\n<p><strong>Streit bei Abrechnungen:</strong> Verstehen Sie Ihre Abrechnung nicht? Mietverein konsultieren (10-15€/Monat Mitgliedschaft) – die prüfen kostenlos. Starke Abweichungen zu Vorjahr? Nachfragen stellen! Falsche Abrechnungen verjähren nach 4 Jahren.</p>"
+    relatedSlugs={['nebenkosten-rechner', 'mietpreisbremse-rechner', 'quadratmeterpreis-vergleich']}
+  />
 </Layout>
 
 <script type="module">
