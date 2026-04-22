@@ -1,6 +1,7 @@
 ---
 import Layout from '../../layouts/Layout.astro';
 import CalculatorShell from '../../components/CalculatorShell.astro';
+import CalculatorGuide from '../../components/CalculatorGuide.astro';
 import { CALCULATORS, CATEGORIES } from '../../data/calculators';
 const calc = CALCULATORS.find(c => c.slug === 'rabatt-rechner')!;
 const cat = CATEGORIES[calc.category];
@@ -23,6 +24,14 @@ const year = new Date().getFullYear();
     intro="Mit dem Rabatt-Rechner berechnen Sie den Endpreis nach Rabatt."
     sourceNote="Endpreis = Originalpreis × (100 - Rabatt) / 100."
     explanation="100€ mit 20% Rabatt = 20€ Ersparnis, Endpreis = 80€."
+    faqs={[
+      { q: "Wie berechne ich einen Rabatt schnell im Kopf?", a: "Teilen Sie den Originalpreis durch 10 und multiplizieren Sie mit der Rabatthälfte. Beispiel: 150€ mit 20% = 150÷10=15, 15×2=30€ Rabatt. Oder nutzen Sie Dezimalzahlen: 150 × 0,8 = 120€ Endpreis." },
+      { q: "Was ist der Unterschied zwischen Rabatt und Skonto?", a: "Rabatt ist ein sofort gewährter Preisnachlass (z.B. Black Friday-Aktion). Skonto ist ein Zahlungszinsvorteil für schnelle Bezahlung (z.B. 2% Skonto bei sofortiger Bezahlung)." },
+      { q: "Wie wirken sich mehrere Rabatte kombiniert?", a: "Achtung: Rabatte werden hintereinander berechnet, nicht addiert! 50% + 20% Rabatt sind nicht 70%, sondern: 100€ → 50€ (nach 50%) → 40€ (nach 20%). Das ist zusammen 60% Rabatt, nicht 70%." },
+      { q: "Warum ist 'Kaufen Sie 2, zahlen Sie 1' kein 50%-Rabatt?", a: "Es ist genau 50% Rabatt beim zweiten Artikel. Aber auf den Gesamtkauf ist es weniger: 2×100€=200€, Sie zahlen aber 150€, das ist ein Rabatt von nur 25% insgesamt." },
+      { q: "Wie erkenne ich, ob ein Rabatt wirklich gut ist?", a: "Vergleichen Sie den Endpreis mit Konkurrenzangeboten – nicht immer sind hohe Rabatt-Prozente echte Sparmöglichkeiten. Achten Sie auch auf ursprüngliche Preise: 50% Rabatt auf einen überteuerten Originalartikel ist oft kein Schnäppchen." },
+      { q: "Gilt der Rabatt vor oder nach MwSt?", a: "In Deutschland wird der Rabatt normalerweise auf den Nettopreis gewährt, die MwSt wird dann auf den rabattierten Preis berechnet. Das ist für den Käufer günstiger." }
+    ]}
   >
     <div class="calc-form">
       <div class="calc-grid">
@@ -79,3 +88,45 @@ function berechne() {
   document.getElementById(id).addEventListener('input', berechne));
 berechne();
 </script>
+
+  <CalculatorGuide
+    title="Rabatt-Rechner – Sparen Sie richtig"
+    content={`
+      <p>Ein <strong>Rabatt</strong> ist ein Preisnachlass auf ein Produkt oder eine Dienstleistung. Rabatte sind überall: im Supermarkt ("20% auf Wurstwaren"), im Online-Shop ("Black Friday: bis zu 50% Rabatt"), bei Großeinkäufen ("Ab 10 Stück: 15% Mengenrabatt") oder für Stammkunden.</p>
+
+      <p>Der Rabatt-Rechner zeigt nicht nur den <strong>Endpreis nach Rabatt</strong>, sondern berechnet auch <strong>kombinierte Rabatte</strong> korrekt. Das ist wichtig, denn viele Menschen denken, mehrere Rabatte würden sich einfach addieren – aber das ist mathematisch falsch.</p>
+
+      <p><strong>Beispiel:</strong> Ein Produkt kostet 200€. Sie erhalten 50% Rabatt, dann noch 20% Extra-Rabatt. Das ist nicht 70% Gesamtrabatt, sondern:</p>
+      <ul style="list-style: none; padding: 0;">
+        <li>200€ × 0,5 = 100€ (nach 50%)</li>
+        <li>100€ × 0,8 = 80€ (nach 20% auf die 100€)</li>
+        <li>Gesamtrabatt: 120€, nicht 140€!</li>
+      </ul>
+
+      <h4>Rabatt vs. andere Preisnachlässe</h4>
+      <ul>
+        <li><strong>Rabatt:</strong> Direkter Preisnachlass in % oder €. Wird sofort am Kasse abgezogen.</li>
+        <li><strong>Skonto:</strong> Zahlungsvorteil (z.B. "2% Skonto bei Bezahlung innerhalb von 8 Tagen"). Nur wenn Sie schnell zahlen.</li>
+        <li><strong>Bonusprogramm:</strong> Rückgabe von Punkten/Geld bei zukünftigen Käufen. Kein sofortiger Preisvorteil.</li>
+        <li><strong>Staffelrabatt:</strong> Je mehr Sie kaufen, desto höher der Rabatt. Besonders bei Großeinkäufen."</li>
+      </ul>
+
+      <h4>Wann ist ein Rabatt wirklich ein Schnäppchen?</h4>
+      <p>Nicht alle Rabatte sind gleich wertvoll. Achten Sie auf:</p>
+      <ul>
+        <li><strong>Vergleichen Sie absolute Preise, nicht Prozente:</strong> Ein "70% Rabatt" kann immer noch teuer sein, wenn der Originalpreis künstlich hoch war.</li>
+        <li><strong>Schwarze Liste Check:</strong> Einige Anbieter erhöhen die Preise kurz vor dem Rabatt-Event, um große Prozente zu zeigen.</li>
+        <li><strong>Kombinieren Sie schlau:</strong> Nutzen Sie mehrere Rabatte nacheinander – aber beachten Sie, dass sie nicht addiert werden!</li>
+        <li><strong>Zeitlich begrenzt:</strong> Echte Rabatte haben oft Ablaufdaten. Vorsicht vor künstlichem Druck.</li>
+      </ul>
+
+      <h4>Rabatte in verschiedenen Branchen</h4>
+      <ul>
+        <li><strong>Einzelhandel:</strong> Saisonnale Rabatte (Ausverkauf), Mengenrabatte, Treue-Rabatte.</li>
+        <li><strong>Online-Shops:</strong> Code-Rabatte ("SAVE20"), Black Friday/Cyber Monday (bis zu 80%), Flash Sales.</li>
+        <li><strong>B2B (Geschäftskunden):</strong> Mengenrabatte, langfristige Partnerschafts-Rabatte, Jahresabschluss-Rabatte.</li>
+      </ul>
+    `}
+    relatedSlugs={['mwst-rechner', 'prozent-rechner']}
+  />
+</Layout>
