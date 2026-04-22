@@ -1,10 +1,20 @@
 ---
 import Layout from '../../layouts/Layout.astro';
 import CalculatorShell from '../../components/CalculatorShell.astro';
+import CalculatorGuide from '../../components/CalculatorGuide.astro';
 import { CALCULATORS, CATEGORIES } from '../../data/calculators';
 const calc = CALCULATORS.find(c => c.slug === 'schwangerschafts-rechner')!;
 const cat = CATEGORIES[calc.category];
 const year = new Date().getFullYear();
+
+const faqs = [
+  { q: 'Wann bin ich schwanger?', a: 'Eine Schwangerschaft dauert etwa 40 Wochen (280 Tage) ab dem ersten Tag der letzten Regelblutung.' },
+  { q: 'Wie wird der Geburtstermin berechnet?', a: 'Der Termin wird nach Nägeles Regel berechnet: Erster Tag der letzten Periode + 280 Tage.' },
+  { q: 'Was ist SSW?', a: 'SSW = Schwangerschaftswoche. Sie zählt ab dem ersten Tag der letzten Periode, nicht ab Zeugung.' },
+  { q: 'Wann beginnt die Schutzfrist für Mutterschutz?', a: 'Die Schutzfrist beginnt 6 Wochen vor dem Geburtstermin und endet 8 Wochen danach.' },
+  { q: 'Wann ist der beste Zeitpunkt für Kinderwunsch?', a: 'Die Wahrscheinlichkeit ist höchsten 1-2 Tage vor dem Eisprung (etwa 14 Tage vor der nächsten Periode).' },
+  { q: 'Wie viele Vorsorgeuntersuchungen gibt es?', a: 'Gesetzliche Schwangerschaftsversorgung: mindestens 10 Untersuchungen, ab einem bestimmten Alter mehr.' },
+];
 ---
 <Layout
   title={`Schwangerschafts-Rechner ${year}`}
@@ -23,6 +33,7 @@ const year = new Date().getFullYear();
     intro="Mit dem Schwangerschafts-Rechner berechnen Sie den voraussichtlichen Geburtstermin und das Mutterschaftsgeld."
     sourceNote="280 Tage Schwangerschaft."
     explanation="Die Schwangerschaft dauert durchschnittlich 280 Tage (40 Wochen)."
+    faqs={faqs}
   >
     <div class="calc-form">
       <div class="calc-grid">
@@ -50,6 +61,20 @@ const year = new Date().getFullYear();
       <div id="details" style="margin-top:0.75rem;font-size:0.88rem;color:#666;display:flex;gap:1.5rem;flex-wrap:wrap;"></div>
     </div>
   </CalculatorShell>
+
+  <CalculatorGuide
+    title="Schwangerschaft – Berechnung und Meilensteine"
+    content="Eine Schwangerschaft dauert etwa 40 Wochen oder 280 Tage ab dem ersten Tag der letzten Regelblutung. Diese Zeitrechnung ist Standard, auch wenn die tatsächliche Zeugung später stattgefunden hat.
+
+Die Berechnung des Geburtstermins erfolgt nach Nägeles Regel: erster Tag der letzten Periode + 280 Tage. Die SSW (Schwangerschaftswoche) zeigt an, wie lange die Schwangerschaft dauert – SSW 1 ist die erste Woche nach letzter Periode.
+
+Meilensteine: Die erste Vorsorgeuntersuchung sollte in den ersten 8-12 Wochen stattfinden. Die Mutterschutzfrist beginnt 6 Wochen vor dem Geburtstermin. Wichtig für Finanzplanung: Elterngeld, Mutterschaftsgeld und Mutterschutzbestimmungen.
+
+Ein häufiges Missverständnis: SSW und Lebenswochen des Babys sind unterschiedlich. Bei Geburt ist das Baby bereits ca. 40 Wochen alt (nach SSW), aber 0 Wochen alt (nach Lebenswochen).
+
+Finanzierungstipp: Machen Sie frühzeitig Anträge für alle Leistungen – Mutterschaftsgeld, Elterngeld, Wohngeld. Rückzahlungen bei verspäteten Anträgen können große Lücken entstehen lassen."
+    relatedSlugs={['mutterschutz-rechner', 'elterngeld-rechner']}
+  />
 </Layout>
 
 <script type="module">
