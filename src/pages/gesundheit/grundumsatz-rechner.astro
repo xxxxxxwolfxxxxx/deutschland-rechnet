@@ -1,6 +1,7 @@
 ---
 import Layout from '../../layouts/Layout.astro';
 import CalculatorShell from '../../components/CalculatorShell.astro';
+import CalculatorGuide from '../../components/CalculatorGuide.astro';
 import { CALCULATORS, CATEGORIES } from '../../data/calculators';
 const calc = CALCULATORS.find(c => c.slug === 'grundumsatz-rechner')!;
 const cat = CATEGORIES[calc.category];
@@ -23,6 +24,32 @@ const year = new Date().getFullYear();
     intro="Mit dem Grundumsatz-Rechner berechnen Sie Ihren Grundumsatz (BMR) nach der Harris-Benedict-Formel."
     sourceNote="Kalorien im Ruhezustand."
     explanation="Männer: 88,362 + (13,397 × Gewicht) + (4,799 × Größe) - (5,677 × Alter)."
+    faqs={[
+      {
+        q: "Was ist der Grundumsatz (BMR)?",
+        a: "Der Grundumsatz ist die Energiemenge, die Ihr Körper täglich in völliger Ruhe verbraucht – also für Atmung, Kreislauf, Organfunktionen und Zellteilung ohne zusätzliche Aktivität."
+      },
+      {
+        q: "Unterschied zwischen Grundumsatz und Gesamtenergieverbrauch?",
+        a: "Der Grundumsatz ist der Ruheenergieverbrauch. Der Gesamtenergieverbrauch (TDEE) addiert dazu Sport, tägliche Aktivität und Thermoregulation. Die Harris-Benedict-Formel berücksichtigt aber bereits einen Aktivitätsfaktor."
+      },
+      {
+        q: "Warum unterscheidet sich der Grundumsatz nach Geschlecht?",
+        a: "Frauen haben typischerweise mehr Körperfett und weniger Muskelmasse, daher liegt ihr Grundumsatz etwa 5-10% unter dem von Männern mit gleichen Parametern."
+      },
+      {
+        q: "Wie kann ich meinen Grundumsatz erhöhen?",
+        a: "Durch Muskelaufbau, da Muskeln metabolisch aktiver sind als Fett. Auch ausreichend Schlaf, Proteinzufuhr und regelmäßiges Training unterstützen einen höheren Grundumsatz."
+      },
+      {
+        q: "Warum sinkt der Grundumsatz mit dem Alter?",
+        a: "Im Alter verliert man natürlicherweise Muskelmasse (Sarkopenie) und der Metabolismus verlangsamt sich. Pro Jahrzehnt sinkt der Grundumsatz etwa um 2-8% bei inaktiven Personen."
+      },
+      {
+        q: "Ist die Harris-Benedict-Formel noch aktuell?",
+        a: "Ja, sie gehört zu den bewährten Standards. Es gibt neuere Formeln wie Mifflin-St Jeor, die für moderne Populationen etwas genauer sein können, aber Harris-Benedict bleibt zuverlässig."
+      }
+    ]}
   >
     <div class="calc-form">
       <div class="calc-grid">
@@ -54,6 +81,17 @@ const year = new Date().getFullYear();
       <div id="details" style="margin-top:0.75rem;font-size:0.88rem;color:#666;display:flex;gap:1.5rem;flex-wrap:wrap;"></div>
     </div>
   </CalculatorShell>
+  <CalculatorGuide
+    title="Grundumsatz verstehen und nutzen"
+    content="Der Grundumsatz (Basal Metabolic Rate, BMR) ist die Mindestmenge an Energie, die Ihr Körper täglich benötigt, um lebenswichtige Funktionen zu erfüllen – Atemzüge, Herzschlag, Nervenfunktion, Organarbeit und Zellerhalt. Selbst wenn Sie im Bett liegen und nichts tun, verbrauchen Sie diese Kalorien.
+
+**Warum der Grundumsatz für Diäten wichtig ist:** Wenn Sie wissen, wie viele Kalorien Sie grundlegend benötigen, können Sie realistische Diätziele setzen. Eine Reduktion um nur 10-15% unter Ihrem Grundumsatz ist daher potenziell unsicher – Ihr Körper bräuchte diese Energie für Basisfunktionen. Gewichtsabnahme funktioniert am besten durch ein moderates Defizit von 300-500 kcal unter Ihrem Gesamtverbrauch.
+
+**Praktische Anwendung:** Multiplizieren Sie Ihren Grundumsatz mit einem Aktivitätsfaktor (1,2 für sedentär, 1,5 für moderat aktiv, 1,8+ für sehr aktiv), um Ihren täglichen Energiebedarf zu schätzen. Dies ist die Basis für ausgewogene Ernährungsplanung und professionelle Fitness-Coaching.
+
+**Häufige Mythen entlarven:** Der Grundumsatz lässt sich nicht durch einzelne Mahlzeiten oder Supplements ankurbeln – nur durch längerfristiges Muskeltraining. Auch sehr restriktive Diäten verlangsamen ihn nicht sofort, führen aber langfristig zu Muskelabbau und damit zu einem gesunken Grundumsatz, was den Jo-Jo-Effekt erklärt."
+    relatedSlugs={['kalorien-rechner', 'idealgewicht-rechner', 'makronaehrstoff-rechner']}
+  />
 </Layout>
 
 <script type="module">
