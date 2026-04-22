@@ -1,6 +1,7 @@
 ---
 import Layout from '../../layouts/Layout.astro';
 import CalculatorShell from '../../components/CalculatorShell.astro';
+import CalculatorGuide from '../../components/CalculatorGuide.astro';
 import { CALCULATORS, CATEGORIES } from '../../data/calculators';
 const calc = CALCULATORS.find(c => c.slug === 'mietrendite-rechner')!;
 const cat = CATEGORIES[calc.category];
@@ -23,6 +24,11 @@ const year = new Date().getFullYear();
     intro="Mit dem Mietrendite-Rechner berechnen Sie die Brutto- und Nettorendite einer Mietimmobilie."
     sourceNote="Bruttorendite = Jahresmiete / Kaufpreis."
     explanation="Bruttorendite = Jahresmiete / Kaufpreis × 100. Nettorendite berücksichtigt alle Kosten."
+    faqs={[
+      { q: "Was ist Mietrendite und wie unterscheidet sie sich von Gesamtrendite?", a: "Brutto-Mietrendite = Jahresmiete / Kaufpreis. Netto-Mietrendite = (Jahresmiete - Betriebskosten) / Kaufpreis. Gesamtrendite addiert Wertsteigerung dazu – das ist die realistischere Kennzahl." },
+      { q: "Ab wann ist eine Mietrendite noch rentabel?", a: "Unter 2,5% ist problematisch. 3-4% ist solide. 5%+ sehr gut. Finanzierungszins beachten – bei 4% Zinsen sollte Rendite >5% sein." },
+      { q: "Wie wichtig ist Wertsteigerung für die Gesamtrendite?", a: "Sehr! Mietrendite 2%, Wertsteigerung 3% = Gesamtrendite 5%. Das ist das reale Modell für Vermögensaufbau." }
+    ]}
   >
     <div class="calc-form">
       <div class="calc-grid">
@@ -50,6 +56,8 @@ const year = new Date().getFullYear();
       <div id="details" style="margin-top:0.75rem;font-size:0.88rem;color:#666;display:flex;gap:1.5rem;flex-wrap:wrap;"></div>
     </div>
   </CalculatorShell>
+
+  <CalculatorGuide title="Mietrendite verstehen" content="<p>Die Mietrendite ist eine Kennzahl für Anleger. Brutto-Mietrendite: Jahresmiete / Kaufpreis. Netto-Mietrendite: abzüglich Betriebskosten. Gesamtrendite addiert Wertsteigerung – das ist realistischer.</p><p><strong>Rentabilität:</strong> Unter 2,5% problematisch. 3-4% solide. 5%+ sehr gut. Wertsteigerung ist entscheidend: 2% Miete + 3% Wertsteigerung = 5% Gesamtrendite.</p>" relatedSlugs={['kaufen-vs-mieten', 'hauskauf-rechner', 'mietrechner']} />
 </Layout>
 
 <script type="module">
