@@ -1,6 +1,7 @@
 ---
 import Layout from '../../layouts/Layout.astro';
 import CalculatorShell from '../../components/CalculatorShell.astro';
+import CalculatorGuide from '../../components/CalculatorGuide.astro';
 import { CALCULATORS, CATEGORIES } from '../../data/calculators';
 const calc = CALCULATORS.find(c => c.slug === 'mindestlohn-rechner')!;
 const cat = CATEGORIES[calc.category];
@@ -23,6 +24,14 @@ const year = new Date().getFullYear();
     intro="Mit dem Mindestlohn-Rechner berechnen Sie Ihr monatliches Mindestlohn-Gehalt auf Basis Ihres Stundenlohns."
     sourceNote="Aktueller Mindestlohn 2026: 12,82€."
     explanation="Der gesetzliche Mindestlohn beträgt seit Januar 2026: 12,82€ brutto pro Stunde."
+    faqs={[
+      { q: "Wer bekommt Mindestlohn?", a: "Alle Arbeitnehmer in Deutschland, außer: Auszubildende, Auslandsentsandte bis 3 Monate, Langzeitarbeitslose in den ersten 6 Monaten. Auch Mini-Jobber, Schüler und Studenten müssen den Mindestlohn erhalten, wenn sie arbeiten." },
+      { q: "Wie wird der Mindestlohn berechnet?", a: "Stundenlohn × Wochenstunden × 4,33 (Durchschnitt Wochen/Monat) oder einfach: Stundenlohn × (wöchentliche Stunden × 52 Wochen ÷ 12 Monate). Der Arbeitgeber muss mindes tens diesen Betrag zahlen, bevor Steuern abgezogen werden." },
+      { q: "Gibt es Ausnahmen von der Mindestlohn-Regel?", a: "Ja: Auszubildende sind befreit. Auch: Freiberufler und Selbstständige müssen den Mindestlohn nicht zahlen – das betrifft nur Angestellte. Übergangsvorschriften für Langzeitarbeitslose (erste 6 Monate) können gelten." },
+      { q: "Wird der Mindestlohn regelmäßig erhöht?", a: "Ja. Die Mindestlohnkommission bewertet jährlich, ob eine Anpassung nötig ist. 2024: 12,41€, 2025: 12,55€, 2026: 12,82€. Die Erhöhung folgt Inflationsrate und Lohnentwicklung." },
+      { q: "Kann mein Arbeitgeber den Mindestlohn verweigern?", a: "Nein. Es ist illegal. Du kannst Beschwerde bei der Finanzbehörde (Zollbehörden für Schwarzarbeit) oder der Gewerkschaft einreichen. Der Arbeitgeber muss nachzahlen + Verzugszinsen." },
+      { q: "Ist Mindestlohn das gleiche wie Lohn im Tarifvertrag?", a: "Nein. Mindestlohn ist das Minimum, das ALLE erhalten müssen. Tarifverträge können höhere Löhne festlegen. Viele Branchen haben Tarifverträge mit 15-20€+/Stunde." }
+    ]}
   >
     <div class="calc-form">
       <div class="calc-grid">
@@ -42,6 +51,18 @@ const year = new Date().getFullYear();
       <div id="details" style="margin-top:0.75rem;font-size:0.88rem;color:#666;display:flex;gap:1.5rem;flex-wrap:wrap;"></div>
     </div>
   </CalculatorShell>
+
+  <CalculatorGuide
+    title="So funktioniert der Mindestlohn"
+    content={`<p><strong>Der Mindestlohn ist die unterste Lohngrenze,</strong> die Arbeitgeber zahlen müssen. Es ist ein Schutz, damit Arbeiter nicht ausbeutet werden. In Deutschland liegt der aktuelle Mindestlohn bei 12,82€ pro Stunde (2026).</p>
+
+<p><strong>Berechnung:</strong> Stundenlohn × Wochenstunden × 4,33 (durchschnittliche Wochen pro Monat) = Mindestgehalt pro Monat. Beispiel: 12,82€/h × 40h/Woche × 4,33 = ca. 2.218€ brutto/Monat.</p>
+
+<p><strong>Wer bekommt Mindestlohn?</strong> Fast alle Arbeitnehmer. Ausnahmen: Auszubildende, Praktikanten (unter bestimmten Bedingungen), Langzeitarbeitslose in den ersten 6 Monaten. Mini-Jobber erhalten auch Mindestlohn – auch wenn sie nur 10 Stunden/Woche arbeiten.</p>
+
+<p><strong>Regelmäßige Erhöhung:</strong> Die Mindestlohnkommission prüft jährlich, ob eine Anpassung nötig ist. 2024: 12,41€, 2025: 12,55€, 2026: 12,82€. Die Erhöhung folgt der Inflationsentwicklung und Tarifentwicklung.</p>`}
+    relatedSlugs={['brutto-netto-rechner', 'gehaltserhoehung-rechner', 'kuendigungsfrist-rechner']}
+  />
 </Layout>
 
 <script type="module">
