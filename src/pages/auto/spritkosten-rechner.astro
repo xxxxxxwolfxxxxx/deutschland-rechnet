@@ -1,6 +1,7 @@
 ---
 import Layout from '../../layouts/Layout.astro';
 import CalculatorShell from '../../components/CalculatorShell.astro';
+import CalculatorGuide from '../../components/CalculatorGuide.astro';
 import { CALCULATORS, CATEGORIES } from '../../data/calculators';
 const calc = CALCULATORS.find(c => c.slug === 'spritkosten-rechner')!;
 const cat = CATEGORIES[calc.category];
@@ -23,6 +24,32 @@ const year = new Date().getFullYear();
     intro="Mit dem Spritkosten-Rechner berechnen Sie die Kraftstoffkosten für eine Fahrt."
     sourceNote="Kosten = (Verbrauch/100) × Entfernung × Preis."
     explanation="Beispiel: 8 L/100 km, 500 km, 1,60€/L = 64€."
+    faqs={[
+      {
+        q: "Wie verlässlich sind die Verbrauchsangaben vom Hersteller?",
+        a: "WLTP-Angaben (Worldwide Harmonized Light Vehicle Test Procedure) sind realistischer als die alten NEFZ-Werte, aber immer noch optimistisch. Rechnen Sie mit 10-20% höheren Verbräuchen im echten Alltag. Autobahn-Fahrten und kaltes Wetter erhöhen den Verbrauch zusätzlich."
+      },
+      {
+        q: "Welche Faktoren erhöhen meinen Spritverbrauch?",
+        a: "Falsche Reifendrücke (zu niedrig = +5%), schlechter Fahrstil (zu schnell, ständiges Beschleunigen), Zusatzgewicht (Dachbox, voller Kofferraum), Kurzstreckenfahrten (Motor kalt = höherer Verbrauch) und Klimaanlage (bis +15% im Sommer)."
+      },
+      {
+        q: "Ist Diesel wirklich günstiger im Betrieb?",
+        a: "Diesel-Autos haben etwa 15-25% niedrigeren Verbrauch als Benziner. Diesel kostet aber oft ähnlich oder nur wenig weniger pro Liter. Lohnt sich erst bei Jahresfahrleistungen über 10.000-12.000 km. Für Stadtverkehr (viel Idling) ist Benzin meist günstiger."
+      },
+      {
+        q: "Wie finde ich den tatsächlichen Verbrauch meines Autos?",
+        a: "Tanken Sie voll, fahren Sie eine bekannte Strecke (mind. 100 km), tanken Sie wieder voll und teilen Sie die Liter durch die Kilometer × 100. Viele moderne Autos zeigen auch den aktuellen Verbrauch auf dem Bordcomputer an – nutzen Sie das!"
+      },
+      {
+        q: "Spritpreisunterschiede – wie viel kann ich sparen?",
+        a: "Großstädte sind oft 10-15 Cent/Liter teurer als ländliche Gegenden. Tanken Sie unterwegs günstig (Autobahn-Tankstellen ausgenommen). Apps wie TankPro zeigen die günstigsten Stationen. Bei einer 600-Liter-Jahrestankung sparen Sie 60-90 € durch geschicktes Tanken."
+      },
+      {
+        q: "Gibts Spritsparprogramme oder Ecocards?",
+        a: "Es gibt keine echten Spritsparprogramme. Aber: Eco-Fahrweise (früher hochschalten, sanft beschleunigen, Bremsenergierückgewinnung nutzen) senkt Verbrauch um 5-15%. Regelmäßige Wartung (Ölwechsel, Filterkunde, Zündkerzen) spart auch 2-5%."
+      }
+    ]}
   >
     <div class="calc-form">
       <div class="calc-group">
@@ -56,6 +83,26 @@ const year = new Date().getFullYear();
       <div id="details" style="margin-top:0.75rem;font-size:0.88rem;color:#666;display:flex;gap:1.5rem;flex-wrap:wrap;"></div>
     </div>
   </CalculatorShell>
+
+  <CalculatorGuide
+    title="Spritkosten verstehen und senken"
+    content="
+    <p>Spritkosten sind der größte variable Kostenblock beim Autofahren. Wer geschickt handelt, spart hunderte Euro pro Jahr. Der Rechner hilft, die Realkosten zu kalkulieren und Einsparpotenziale zu erkennen.</p>
+
+    <p><strong>Die Grundformel und wie sie funktioniert:</strong> Kosten = (Verbrauch / 100) × Strecke × Preis. Ein Auto mit 7,5 L/100km auf 500 km mit Spritpreis 1,70 €/L = (7,5/100) × 500 × 1,70 = 63,75 €. Einfach, aber die Details stecken im Teufel: der echte Verbrauch und die Spritpreise variieren enorm.</p>
+
+    <p><strong>Hersteller-Verbrauch vs. Realität:</strong> Die WLTP-Norm simuliert optimale Bedingungen: Neuwagen im Labor, warmer Motor, ebene Strecke, konstante Geschwindigkeit. Im echten Leben fahren Sie kalt an, im Stau, bei Regen, mit voller Batterie. Realverbrauch ist 10-30% höher als angegeben – planen Sie mit 15% Puffer.</p>
+
+    <p><strong>Die Größten Spritfresser:</strong> Kalter Motor verbraucht 20-50% mehr Sprit. Erste 5 km = höchster Verbrauch. Kurzstreckenfahrten (unter 5 km) sind unwirtschaftlich. Falsche Reifendrücke (+5% pro bar zu wenig). Dachbox oder Anhänger (+20-40%). Klimaanlage Summer (+8-15%). Dynamisches Fahren (ständig Gas geben) statt konstante Geschwindigkeit (+15-25%).</p>
+
+    <p><strong>Spritsparprogramm – was funktioniert wirklich:</strong> Eco-Fahrstil senkt Verbrauch nachweislich um 10-15%. Das bedeutet: früh hochschalten (ab 1.500-2.000 RPM), sanft beschleunigen, vorausschauend fahren (lange Bremswege vermeiden), regelmäßig Wartung (richtiger Reifendruck, sauberer Luftfilter). Zusammen sparen Sie 500-800 € pro Jahr.</p>
+
+    <p><strong>Diesel vs. Benzin – wann lohnt sich Diesel?</strong> Diesel-Autos verbrauchen 15-25% weniger. Aber: Diesel kostet oft ähnlich wie Super. Für Vielfahrer (15.000+ km/Jahr) rechnet sich Diesel. Für Gelegenheitsfahrer nicht. E10-Benzin ist manchmal 5-10 Cent günstiger – prüfen Sie Ihre Fahrzeugzulassung.</p>
+
+    <p><strong>Tipp für lange Fahrten:</strong> Recherchieren Sie Spritpreise mit Apps (TankPro, ADAC). Tanken Sie in günstigen Regionen. Rechnen Sie mit durchschnittlich 1,65-1,80 € in Deutschland 2024. Bei 100-Liter-Jahresbedarf sparen intelligente Planung echte Geldbeträge – Rechner nutzen, planen, sparen!</p>
+    "
+    relatedSlugs={['anfahrtskosten-rechner', 'fahrtkosten-rechner', 'kfz-versicherung-rechner']}
+  />
 </Layout>
 
 <style>

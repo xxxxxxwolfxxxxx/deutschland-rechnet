@@ -1,6 +1,7 @@
 ---
 import Layout from '../../layouts/Layout.astro';
 import CalculatorShell from '../../components/CalculatorShell.astro';
+import CalculatorGuide from '../../components/CalculatorGuide.astro';
 import { CALCULATORS, CATEGORIES } from '../../data/calculators';
 const calc = CALCULATORS.find(c => c.slug === 'kfz-steuer-co2')!;
 const cat = CATEGORIES[calc.category];
@@ -23,6 +24,32 @@ const year = new Date().getFullYear();
     intro="Mit dem Kfz-Steuer nach CO₂-Rechner berechnen Sie die Kfz-Steuer basierend auf dem CO₂-Ausstoß."
     sourceNote="CO₂-abhängig seit 2024."
     explanation="Seit 2024: 2€ pro g CO₂ über 95 g/km (Benziner) bzw. 115 g/km (Diesel)."
+    faqs={[
+      {
+        q: "Wie hat sich die Kfz-Steuer 2024 verändert?",
+        a: "Seit 2024 gelten neue Regeln: Die CO₂-abhängige Steuer wurde erheblich verschärft. Für Fahrzeuge mit Erstzulassung ab 2024 entfällt die Hubraumsteuer komplett – nur CO₂-Ausstoß zählt. Das bevorzugt sparsamere Fahrzeuge massiv."
+      },
+      {
+        q: "Wer muss die höheren Steuern zahlen?",
+        a: "Hauptsächlich Besitzer von älteren Autos (Vor-2012) mit großem Hubraum und hohem CO₂-Ausstoß. Ein 2.5l-Diesel von 2005 zahlt etwa 320 € jährlich. Ein 2.0l-Diesel von 2024 mit optimiertem CO₂ kostet nur 190 € Steuer – eine Differenz von 130 €."
+      },
+      {
+        q: "Sind Elektrofahrzeuge steuerfrei?",
+        a: "Ja! E-Autos mit Erstzulassung ab 2024 zahlen 0 € Kfz-Steuer für die ersten 10 Jahre. Danach entfällt die Vergünstigung. Das ist ein großer Vorteil für Neukauf von Elektrofahrzeugen."
+      },
+      {
+        q: "Welchen CO₂-Wert finde ich im Fahrzeugschein?",
+        a: "Der CO₂-Wert steht im Fahrzeugschein (Feld 49 oder 50). Alternativ können Sie ihn auf der DAT-Website mit Ihrer Fahrzeugnummer recherchieren. Bei Diesel ist der Wert üblicherweise höher als bei Benzinern derselben Klasse."
+      },
+      {
+        q: "Kann ich meine alte Kfz-Steuer rückwirkend senken?",
+        a: "Nein, rückwirkend ist nicht möglich. Aber wenn Sie Ihr Auto verkaufen und ein effizienteres Fahrzeug kaufen, sparen Sie sofort ab der neuen Anmeldung. Der Wechsel auf ein sparsames Auto spart oft 100-200 € pro Jahr."
+      },
+      {
+        q: "Sind Hybrid-Fahrzeuge günstiger in der Steuer?",
+        a: "Nur teilweise. Plug-in-Hybrid (PHEV) mit Erstzulassung nach 2024 erhalten 25% Steuerermäßigung. Reine Hybride (HEV) haben keinen Vorteil. Ihr CO₂-Wert bestimmt die Steuer – und dieser ist bei Hybrid oft besser."
+      }
+    ]}
   >
     <div class="calc-form">
       <div class="calc-grid">
@@ -59,6 +86,26 @@ const year = new Date().getFullYear();
       <div id="details" style="margin-top:0.75rem;font-size:0.88rem;color:#666;display:flex;gap:1.5rem;flex-wrap:wrap;"></div>
     </div>
   </CalculatorShell>
+
+  <CalculatorGuide
+    title="Kfz-Steuer-Reform 2024 und CO₂-Belastung"
+    content="
+    <p>Die deutsche Kfz-Steuer ist 2024 fundamentaler umgestaltet worden. Das Ziel: höhere Strafen für Spritschlucker, Anreize für effiziente und elektrische Fahrzeuge. Wer es nicht wusste, zahlt jetzt überraschend viel.</p>
+
+    <p><strong>Die alte vs. neue Steuerlogik:</strong> Früher zahlte jeder Auto-Besitzer eine Hubraumsteuer (0,02 € pro cm³ bei Benzin, 0,095 € bei Diesel). Ein 2.0l-Benziner = 40 € Steuer. Ab 2024 entfällt das für Neufahrzeuge komplett! Stattdessen: 2 € pro Gramm CO₂ über dem Freibetrag (95 g/km für Benzin, 115 g/km für Diesel).</p>
+
+    <p><strong>Beispiel: Was ändert sich konkret?</strong> Ein Benziner-Neuzulassung (2024) mit 140 g CO₂ zahlt (140-95)×2 = 90 € Steuer. Ein Diesel-Neuzulassung (2024) mit 140 g CO₂ zahlt (140-115)×2 = 50 € Steuer. Der gleiche CO₂-Ausstoß, aber Benziner zahlt mehr – das soll mehr Diesel fördern.</p>
+
+    <p><strong>Die größten Sparpotenziale:</strong> Wer einen älteren, großvolumigen SUV fährt und in einen neuen sparsamen Kompakt-Hybrid wechselt, spart 150-250 € pro Jahr. Elektrofahrzeuge zahlen 10 Jahre lang 0 €. Ein Tesla Model 3 kostet statt Steuer nur noch die Versicherung – das ist ein enormer Vorteil.</p>
+
+    <p><strong>Übergangsregelungen für Bestandsflotten:</strong> Fahrzeuge vor 2024 behalten ihre alten Steuersätze bis zur Abmeldung. Wer noch einen 2000er-Diesel fährt, zahlt weiterhin nach Hubraum. Ein 3.0l-Diesel = 285 € Steuer, egal wie sparsam der Motor ist. Das motiviert zum Fahrzeugwechsel.</p>
+
+    <p><strong>Steuererleichterungen für Spezialfälle:</strong> Schwerbehindertenausweis mit Merkzeichen „aG" = 50% Rabatt. Oldtimer (H-Kennzeichen, über 30 Jahre alt) = 191 € pro Jahr (pauschal). Elektrofahrzeuge generell = 10 Jahre kostenfrei.</p>
+
+    <p><strong>Tipp für die Kaufentscheidung:</strong> Vergleichen Sie Kfz-Steuer PLUS Versicherung PLUS Spritkosten. Ein teurer Hybrid-Neuwagen mit niedrigen Steuern und Verbrauch kann langfristig günstiger sein als ein billiger gebrauchter Spritschlucker.</p>
+    "
+    relatedSlugs={['kfz-versicherung-rechner', 'spritkosten-rechner', 'fahrtkosten-rechner']}
+  />
 </Layout>
 
 <script type="module">

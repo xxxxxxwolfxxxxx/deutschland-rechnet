@@ -1,6 +1,7 @@
 ---
 import Layout from '../../layouts/Layout.astro';
 import CalculatorShell from '../../components/CalculatorShell.astro';
+import CalculatorGuide from '../../components/CalculatorGuide.astro';
 import { CALCULATORS, CATEGORIES } from '../../data/calculators';
 const calc = CALCULATORS.find(c => c.slug === 'kfz-versicherung-rechner')!;
 const cat = CATEGORIES[calc.category];
@@ -22,6 +23,32 @@ const year = new Date().getFullYear();
     calculator={calc}
     intro="Mit dem Kfz-Versicherung-Rechner schätzen Sie den jährlichen Versicherungsbeitrag."
     sourceNote="Typklasse, Regionalklasse, SF-Klasse."
+    faqs={[
+      {
+        q: "Was ist die Schadensfreiheitsklasse (SF-Klasse)?",
+        a: "Die SF-Klasse belohnt unfallfreies Fahren. Neukunden starten bei SF 0 mit höheren Prämien. Mit jedem schadensfreien Jahr steigt man eine Klasse auf (SF 1, 2, 3...). Bei SF 5 zahlt man oft 30-50% weniger als bei SF 0. Ein Unfall wirft Sie um mehrere Klassen zurück."
+      },
+      {
+        q: "Wie wichtig ist die Regionalklasse?",
+        a: "Sehr wichtig! Großstädte wie Berlin und Köln haben Regionalklasse 5 (teuer), während ländliche Regionen Klasse 1 haben (günstig). Der Unterschied beträgt 20-40% der Prämie. Wenn Sie umziehen, sollten Sie die Versicherung neu anpassen."
+      },
+      {
+        q: "Teilkasko oder Vollkasko – was macht Sinn?",
+        a: "Teilkasko deckt Fremdverschulden (Diebstahl, Hagel, Wildunfall, Vandalen). Vollkasko includes auch Eigenunfall und teilweise Parkschäden. Vollkasko kostet 50-100% mehr. Bei Autos unter 5 Jahren empfohlen, bei älteren oft zu teuer."
+      },
+      {
+        q: "Sind junge Fahrer wirklich teurer versichert?",
+        a: "Ja, massiv. Ein 18-Jähriger mit SF 0 zahlt 50-150% mehr als ein 40-Jähriger. Grund: Statistisch verursachen junge Fahrer mehr Unfälle. Mit zunehmendem Alter und besserer SF-Klasse senkt sich der Preis."
+      },
+      {
+        q: "Macht ein Fahrersicherheitstraining einen Unterschied?",
+        a: "Ja, einige Versicherer gewähren 5-10% Rabatt auf die Prämie. Die Kosten für ein Training (200-300 €) amortisieren sich schnell. Besonders lohnend für Jungfahrer und Anfänger."
+      },
+      {
+        q: "Wann sollte ich einen Versicherer wechseln?",
+        a: "Beim jährlichen Stichtag (oft 30. November) mit 4 Wochen Kündigungsfrist. Nutzen Sie Online-Vergleiche – Wechsel können 200-500 € pro Jahr sparen. Auch bei Haushaltsveränderungen (Heirat, Umzug) können neue Tarifkombos günstiger sein."
+      }
+    ]}
   >
     <div class="calc-form">
       <div class="calc-grid">
@@ -80,6 +107,26 @@ const year = new Date().getFullYear();
       <div id="details" style="margin-top:0.75rem;font-size:0.88rem;color:#666;display:flex;gap:1.5rem;flex-wrap:wrap;"></div>
     </div>
   </CalculatorShell>
+
+  <CalculatorGuide
+    title="Kfz-Versicherung richtig wählen und sparen"
+    content="
+    <p>Die Kfz-Versicherung ist teuer und vielen Menschen ein Rätsel. Warum zahlt der Nachbar 80 €/Monat und Sie 180 €? Die Antwort steckt in den unsichtbaren Faktoren: Regionalklasse, SF-Klasse, Fahrzeugtyp und Versicherungsumfang.</p>
+
+    <p><strong>Die vier Prämien-Hebel:</strong> (1) Fahrzeugtyp – Eine Oberklasse-Limousine kostet mehr Versicherung als ein Kleinwagen. (2) Regionalklasse – Berlin ist teurer als Mecklenburg-Vorpommern. (3) Schadensfreiheitsklasse – Jedes schadensfreie Jahr senkt die Prämie. (4) Versicherungsumfang – Vollkasko kostet doppelt so viel wie Haftpflicht, schützt aber mehr.</p>
+
+    <p><strong>Schadensfreiheitsklasse erklär:</strong> Sie starten bei SF 0 mit Faktor 2,5-3,0 (bedeutet: 250-300% des Normaltarifs). Nach einem unfallfreien Jahr erreichen Sie SF 1 (Faktor ca. 1,9), nach 10 Jahren SF 10 (Faktor ca. 0,45 = 55% Rabatt). Ein einzelner Unfall kann Sie um 3-5 Klassen zurückwerfen – daher ist Schadensfreiheit wertvoll!</p>
+
+    <p><strong>Regionalkassen im Detail:</strong> Diese basieren auf Unfallstatistiken für Postleitzahlbereiche. Bremen-Stadt: Klasse 5. Bremen-Land: Klasse 3. Der Unterschied? 20% höhere Prämie für die Stadt, weil dort mehr Unfälle passieren. Umzug = Neubewertung!</p>
+
+    <p><strong>Versicherungsumfang – Was brauche ich?</strong> Haftpflicht ist gesetzlich Pflicht (deckt Schäden an dritten Fahrzeugen). Teilkasko (optional): Diebstahl, Hagel, Wildunfall, Feuer. Vollkasko (optional): Teilkasko + Eigenunfallschäden. Bei finanziertem Auto: Vollkasko oft vertraglich verpflichtend.</p>
+
+    <p><strong>Sparstrategien, die funktionieren:</strong> (1) Jährlich vergleichen – Wechsel spart oft 300+ €. (2) Selbstbeteiligung erhöhen (von 300 € auf 500 €) = 10-15% Rabatt. (3) Rabatte nutzen (Eure Bank, Arbeitgeber, Fahrersicherheitstraining). (4) Fahrzeugrückstufe senken durch Einsteiger-Autos (SF-Klassen wirken dreifach bei neuen Fahrzeugen).</p>
+
+    <p><strong>Tipp für junge Fahrer:</strong> SF 0 ist teuer. Manche Versicherer bieten Sondertarife für unter-25-Jährige. Auch Eltern als Versicherungsnehmer (Sie als Fahrer) kann günstiger sein. Fahrersicherheitstraining kostet 200 € und spart oft 10% der Prämie – rechnet sich nach 2 Jahren!</p>
+    "
+    relatedSlugs={['kfz-steuer-co2', 'spritkosten-rechner', 'fuehrerschein-kosten']}
+  />
 </Layout>
 
 <script type="module">

@@ -1,6 +1,7 @@
 ---
 import Layout from '../../layouts/Layout.astro';
 import CalculatorShell from '../../components/CalculatorShell.astro';
+import CalculatorGuide from '../../components/CalculatorGuide.astro';
 import { CALCULATORS, CATEGORIES } from '../../data/calculators';
 const calc = CALCULATORS.find(c => c.slug === 'anfahrtskosten-rechner')!;
 const cat = CATEGORIES[calc.category];
@@ -22,6 +23,32 @@ const year = new Date().getFullYear();
     calculator={calc}
     intro="Mit dem Anfahrtskosten-Rechner berechnen Sie die Kosten für die Anreise zum Umzugsort."
     sourceNote="Kraftstoff + Maut + Parken."
+    faqs={[
+      {
+        q: "Wie wird der Spritverbrauch berechnet?",
+        a: "Der Rechner orientiert sich an Standardverbräuchen für verschiedene Fahrzeugklassen. Ein Kleinwagen verbraucht etwa 6 Liter pro 100 km, während ein Transporter 12 Liter pro 100 km benötigt. Aktuelle Spritpreise beeinflussen das Endergebnis direkt."
+      },
+      {
+        q: "Sollte ich Hin- und Rückfahrt einberechnen?",
+        a: "Ja, die meisten Umzüge erfordern mindestens eine Hin- und Rückfahrt. Wenn Sie mehrmals fahren müssen oder mit verschiedenen Fahrzeugen unterwegs sind, addieren Sie die Fahrten einfach hinzu."
+      },
+      {
+        q: "Ist die km-Pauschale nach § 9 EStG steuerlich absetzbar?",
+        a: "Die km-Pauschale von 0,30 € pro Kilometer ist im Geschäftsbetrieb steuerlich absetzbar. Bei privaten Umzügen gelten gegebenenfalls Besonderheiten – fragen Sie einen Steuerberater, ob Ihre Anfahrtskosten abzugsfähig sind."
+      },
+      {
+        q: "Wie genau sollte ich den Spritpreis eingeben?",
+        a: "Nutzen Sie den aktuellen Durchschnittspreis an deutschen Tankstellen. Sie finden aktuelle Preise auf Seiten wie Aral, Shell oder mithilfe des ADAC-Spritpreismonitors. Der Preis variiert regional und täglich."
+      },
+      {
+        q: "Welche Kosten sind in dieser Berechnung NICHT enthalten?",
+        a: "Der Rechner berücksichtigt nur Spritkosten und die km-Pauschale. Mautgebühren, Parkplatzkosten, Fähren oder Pannenkosten sind nicht inbegriffen – diese sollten Sie separat addieren, falls relevant."
+      },
+      {
+        q: "Kann ich den Rechner für Geschäftsfahrten nutzen?",
+        a: "Ja, absolut. Der Rechner funktioniert für alle Fahrttypen: Umzüge, Geschäftsfabrten, Kundenbesuche und private Reisen. Die Kategorisierung nach Fahrzeugtyp ermöglicht präzise Kostenkalkulationen für verschiedenste Szenarien."
+      }
+    ]}
   >
     <div class="calc-form">
       <div class="calc-grid">
@@ -55,6 +82,26 @@ const year = new Date().getFullYear();
       <div id="details" style="margin-top:0.75rem;font-size:0.88rem;color:#666;display:flex;gap:1.5rem;flex-wrap:wrap;"></div>
     </div>
   </CalculatorShell>
+
+  <CalculatorGuide
+    title="Anfahrtskosten richtig berechnen"
+    content="
+    <p>Anfahrtskosten entstehen bei vielen Gelegenheiten: beim Umzug in eine neue Stadt, bei Geschäftsreisen oder Kundenbesuchen. Eine genaue Kalkulation hilft, versteckte Kosten zu erkennen und Budgets realistisch zu planen.</p>
+
+    <p><strong>Die Grundkomponenten:</strong> Die Hauptkosten setzen sich aus dem Kraftstoffverbrauch, der Fahrtentfernung und aktuellen Spritpreisen zusammen. Hinzu kommt die steuerlich anerkannte km-Pauschale von 0,30 € pro Kilometer, die besonders bei Geschäftsfahrten relevant ist. Diese kann häufig vom Finanzamt anerkannt werden.</p>
+
+    <p><strong>Fahrzeugwahl beeinflußt massiv:</strong> Ein Kleinwagen verbraucht etwa 6 Liter pro 100 km, während ein Transporter schnell 12-14 Liter benötigt. Wer also einen großen Umzugstransporter mietet, sollte mit deutlich höheren Spritkosten rechnen. Moderne Fahrzeuge mit Hybrid- oder Elektroantrieb können Kosten senken.</p>
+
+    <p><strong>Regionale Spritpreisunterschiede:</strong> Tanken Sie an günstigen Orten – an Autobahnen sind die Preise oft 10-15% höher. Nutzen Sie Spritpreisportale, um die günstigsten Tankstellen entlang Ihrer Route zu finden.</p>
+
+    <p><strong>Beispielrechnung:</strong> Eine 300-km-Fahrt mit einem Kompaktklasse-Fahrzeug (7l/100km) bei 1,70 € pro Liter kostet etwa 35,70 € für Sprit. Mit der Fahrten-Multiplikation und der km-Pauschale ergibt sich eine realistisches Gesamtbudget.</p>
+
+    <p><strong>Steuern sparen:</strong> Dokumentieren Sie Ihre Fahrten – bei Geschäftsfahrten können Sie die km-Pauschale von der Steuer absetzen. Führen Sie ein Fahrtenbuch oder nutzen Sie digitale Apps zur Dokumentation.</p>
+
+    <p><strong>Tipp für Umzüge:</strong> Vergleichen Sie die Kosten für die Eigenfahrt mit professionellen Umzugsanbietern. Manchmal lohnt sich ein Umzugsunternehmen, besonders bei langen Strecken oder großem Volumen, weil Sie Zeit und Aufwand sparen.</p>
+    "
+    relatedSlugs={['spritkosten-rechner', 'fahrtkosten-rechner', 'kfz-versicherung-rechner']}
+  />
 </Layout>
 
 <script type="module">

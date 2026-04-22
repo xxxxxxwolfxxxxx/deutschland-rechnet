@@ -1,6 +1,7 @@
 ---
 import Layout from '../../layouts/Layout.astro';
 import CalculatorShell from '../../components/CalculatorShell.astro';
+import CalculatorGuide from '../../components/CalculatorGuide.astro';
 import { CALCULATORS, CATEGORIES } from '../../data/calculators';
 const calc = CALCULATORS.find(c => c.slug === 'fahrtkosten-rechner')!;
 const cat = CATEGORIES[calc.category];
@@ -23,6 +24,32 @@ const year = new Date().getFullYear();
     intro="Mit dem Fahrtkosten-Rechner berechnen Sie die steuerliche Kilometerpauschale für Fahrten zwischen Wohnung und Arbeitsstätte."
     sourceNote="0,30-0,38€ pro km."
     explanation="Die Pauschale beträgt 0,30€ pro km (bis 2026: 0,35€/0,38€ für weitere km geplant)."
+    faqs={[
+      {
+        q: "Was ist die Pendlerpauschale und wie funktioniert sie?",
+        a: "Die Pendlerpauschale (Entfernungspauschale) nach § 9 Absatz 1 Satz 3 Nummer 4 EStG ermöglicht es Arbeitnehmern, die Kosten für die Fahrt zur Arbeitsstätte steuerlich geltend zu machen. Sie beträgt 0,30 € pro Kilometer für die einfache Entfernung zwischen Wohnung und Arbeitsstätte."
+      },
+      {
+        q: "Wird die Hin- oder die Hinfahrt berechnet?",
+        a: "Es ist die einfache Entfernung – also nur die Hinfahrt. Die Pauschale deckt bereits implizit die Rückfahrt ab. Geben Sie also die Entfernung zwischen Ihrer Wohnung und Ihrem Arbeitsplatz ein, nicht die doppelte Strecke."
+      },
+      {
+        q: "Was ändert sich 2026 und danach?",
+        a: "Ab dem 1. Januar 2026 erhöht sich die Pauschale auf 0,35 € pro Kilometer für die ersten 20 km und auf 0,38 € für jede weitere Kilometer. Diese Erhöhung soll die gestiegenen Mobilitätskosten berücksichtigen."
+      },
+      {
+        q: "Kann ich die Pendlerpauschale und Fahrtkosten kombinieren?",
+        a: "Nein, Sie müssen sich entscheiden: Entweder nutzen Sie die Pauschale (pauschal 0,30 €/km) oder Sie rechnen tatsächliche Fahrtkosten einzeln auf. Die Pauschale ist meist günstiger und einfacher, daher die Standardmethode."
+      },
+      {
+        q: "Gelten manche Tage nicht als Arbeitstage?",
+        a: "Standardmäßig werden etwa 220 Arbeitstage pro Jahr angenommen (5 Tage pro Woche, 52 Wochen, minus Urlaub und Feiertage). Wenn Sie viel Home-Office haben, müssen Sie die Zahl entsprechend reduzieren. Nur Tage mit physischer Anwesenheit zählen."
+      },
+      {
+        q: "Muss ich belegen, dass ich tatsächlich zur Arbeit fahre?",
+        a: "Das Finanzamt vertraut grundsätzlich auf die Pauschale ohne Nachweise. Allerdings sollten Sie die Arbeitsstättenanerkennung dokumentieren. Bei Audits kann das Finanzamt Nachweise verlangen – halten Sie Verträge und Arbeitgeber-Bescheinigungen bereit."
+      }
+    ]}
   >
     <div class="calc-form">
       <div class="calc-grid">
@@ -42,6 +69,26 @@ const year = new Date().getFullYear();
       <p id="info" style="margin-top:0.5rem;font-size:0.85rem;color:#666;"></p>
     </div>
   </CalculatorShell>
+
+  <CalculatorGuide
+    title="Pendlerpauschale und Fahrtkosten-Steuerabzug"
+    content="
+    <p>Die Pendlerpauschale ist eines der wertvollsten Steuersparmodelle für berufstätige Menschen in Deutschland. Millionen von Arbeitnehmern nutzen diesen Abzug, um ihre Steuerlast zu senken – häufig, ohne die wahre Sparquote zu kennen.</p>
+
+    <p><strong>Der steuerliche Vorteil:</strong> Für 250 Arbeitstage und 25 km Entfernung ergibt sich ein jährlicher Abzug von 1.875 €. Bei einem Durchschnittsverdienst mit 42% Grenzsteuersatz spart man etwa 790 € Steuern pro Jahr – das ist ein echter Geldsegen.</p>
+
+    <p><strong>Wer kann die Pendlerpauschale nutzen?</strong> Arbeitnehmer und Selbstständige mit einer regelmäßigen Arbeitsstätte. Wichtig: Die Pauschale gilt nicht für Arbeiten im Home-Office – hier zählen nur die Tage physischer Präsenz im Betrieb.</p>
+
+    <p><strong>Was ist eine Arbeitsstätte?</strong> Das Finanzamt versteht hierunter einen Ort, an dem Sie regelmäßig tätig sind. Für Angestellte ist es der Arbeitgeber-Betrieb. Freiberufler und Selbstständige müssen zeigen, dass sie nicht von zuhause aus arbeiten.</p>
+
+    <p><strong>Wie wird die Entfernung gemessen?</strong> Nicht die tatsächliche Fahrtroute, sondern die Luftlinienentfernung zählt. Sie können die Route mit Google Maps überprüfen – nehmen Sie die Autoroute. Das Finanzamt akzeptiert üblicherweise die kürzeste zweckmäßige Straßenverbindung.</p>
+
+    <p><strong>Höhere Pauschalen ab 2026:</strong> Die geplante Erhöhung auf 0,35 € und später 0,38 € pro km ist ein positives Signal zur Inflationsbekämpfung. Langpendler profitieren überproportional von dieser Reform.</p>
+
+    <p><strong>Steuererklärung richtig ausfüllen:</strong> In der Steuererklärung tragen Sie die Pendlerpauschale in Anlage N (Arbeitnehmer) oder Anlage S (Selbstständige) ein. Der Rechner hilft, die genaue Summe zu ermitteln – diese geben Sie dann im Feld 'Entfernungspauschale' an.</p>
+    "
+    relatedSlugs={['spritkosten-rechner', 'anfahrtskosten-rechner', 'kfz-steuer-co2']}
+  />
 </Layout>
 
 <script type="module">

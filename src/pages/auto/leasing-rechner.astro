@@ -1,6 +1,7 @@
 ---
 import Layout from '../../layouts/Layout.astro';
 import CalculatorShell from '../../components/CalculatorShell.astro';
+import CalculatorGuide from '../../components/CalculatorGuide.astro';
 import { CALCULATORS, CATEGORIES } from '../../data/calculators';
 const calc = CALCULATORS.find(c => c.slug === 'leasing-rechner')!;
 const cat = CATEGORIES[calc.category];
@@ -23,6 +24,32 @@ const year = new Date().getFullYear();
     intro="Mit dem Leasing-Rechner berechnen Sie die monatliche Leasingrate für ein Fahrzeug."
     sourceNote="Abschreibung + Finanzierungskosten."
     explanation="Die Rate setzt sich zusammen aus Abschreibung (Preis - Restwert) / Laufzeit + Finanzierungskosten."
+    faqs={[
+      {
+        q: "Ist Leasing günstiger als Kauf?",
+        a: "Kommt auf die Nutzung an. Wer 10.000 km/Jahr fährt und alle 3 Jahre ein neues Auto will, kann mit Leasing sparen. Wer 200.000 km mit einem Auto fährt, ist beim Kauf billiger. Leasing ist Mietmodell – Kauf ist Investition."
+      },
+      {
+        q: "Was ist der Restwert im Leasing?",
+        a: "Der Restwert ist der angenommene Marktwert des Autos am Ende der Leasinglease. Wenn der tatsächliche Restwert höher ist, zahlen Sie weniger. Ist er niedriger, müssen Sie nachzahlen. Das Risiko trägt der Leasingnehmer."
+      },
+      {
+        q: "Wie viele Kilometer sind im Leasing inbegriffen?",
+        a: "Typischerweise 10.000-15.000 km/Jahr. Jeder km über dem Limit kostet oft 0,15-0,20 € extra. Überschätzung Ihrer km-Fahrleistung kann teuer werden – bei 30.000 km/Jahr statt 15.000 fallen 2.700-3.600 € Zusatzgebühren an!"
+      },
+      {
+        q: "Wer zahlt Versicherung und Wartung bei Leasing?",
+        a: "Das hängt vom Vertragstyp ab: Bei Null-Kilometer-Verträgen zahlt der Leasingnehmer (Sie) Versicherung, Wartung, Steuern. Bei All-Inclusive zahlt der Leasinggebel – dafür ist die Rate höher. Prüfen Sie den Vertrag genau!"
+      },
+      {
+        q: "Kann ich aus einem Leasingvertrag vorzeitig aussteigen?",
+        a: "Meist nicht ohne hohe Strafgebühren. Einige Verträge ermöglichen Kündigung mit 3 Monaten Vorlauf, kosten aber 5-10% der restlichen Leasingraten. Überlegen Sie sich Ihre Anforderungen genau!"
+      },
+      {
+        q: "Elektrofahrzeuge leasen – ist das günstiger?",
+        a: "Ja! E-Autos haben niedrigere Kfz-Steuern und Versicherungen. Zudem zahlen Sie 0 € Wartung (wenige Verschleißteile). Leasing für E-Autos ist oft 200-300 € günstiger monatlich als für vergleichbare Benziner – plus die Umweltbilanz."
+      }
+    ]}
   >
     <div class="calc-form">
       <div class="calc-grid">
@@ -69,6 +96,26 @@ const year = new Date().getFullYear();
       <div id="details" style="margin-top:0.75rem;font-size:0.88rem;color:#666;display:flex;gap:1.5rem;flex-wrap:wrap;"></div>
     </div>
   </CalculatorShell>
+
+  <CalculatorGuide
+    title="Leasing vs. Kauf – Die große Finanzentscheidung"
+    content="
+    <p>Leasing ist wie ein Auto-Abo: Sie zahlen monatlich dafür, fahren ein neues oder neueres Auto und geben es am Ende zurück. Kauf bedeutet: Sie zahlen (sofort oder über Kredit), gehören das Auto und fahren es, bis es Schrott ist. Finanzielle Unterschiede sind erheblich.</p>
+
+    <p><strong>Die Kostenstruktur beim Leasing:</strong> Monatliche Rate = (Kaufpreis - Restwert) / Laufzeit in Monaten + Finanzierungskosten. Beispiel: 35.000 € Kaufpreis, 18.000 € Restwert, 36 Monate Laufzeit = (35.000 - 18.000) / 36 = 472 € + Zinskosten. Hinzu kommen Steuern, Versicherung und eventuell Wartung.</p>
+
+    <p><strong>Die Fallen im Leasing:</strong> Jede abweichende Kilometerleistung kostet extra. 25.000 statt 15.000 km/Jahr? Das sind 120 € × 12 Monate × 3 Jahre = 4.320 € Zusatzkosten! Kratzer und Dellen werden geahndet (Schadensklärung). Rauchen im Auto = Strafgebühr. Angepasster Fahrzeugsitz = nicht OK.</p>
+
+    <p><strong>Leasing lohnt sich wenn:</strong> Sie alle 3-4 Jahre ein neues Auto fahren möchten, konstante km-Leistung haben, das Auto intensiv nutzen (Abnutzung ist kalkuliert) und keine Modifikationen vornehmen wollen. Für Geschäftsfahrer oft steuerlich günstig.</p>
+
+    <p><strong>Kauf lohnt sich wenn:</strong> Sie das Auto 8+ Jahre fahren, 150.000+ km Gesamtlaufleistung planen, individuelle Modifikationen (Sitzheizung nachrüsten, Farbe ändern) mögen oder einfach Freiheit wollen. Beim Kauf sparen Sie auf lange Sicht.</p>
+
+    <p><strong>Das Restwertrisiko verstehen:</strong> Der Leaser kalkuliert, dass Ihr Auto nach 36 Monaten noch 50% wert ist. Falls es dann nur 45% wert ist, zahlen Sie die Differenz. Diese Risiko-Prämie ist in der Rate einkalkuliert – Sie zahlen dafür, dass Ihr Portemonnaie geschützt ist.</p>
+
+    <p><strong>Total-Cost-of-Ownership-Rechnung:</strong> Ein 35.000 € BMW in 36 Monaten: Leasing ~550 €/Monat = 19.800 €. Kauf (Finanzierung): 550 €/Monat für 60 Monate, dann Verkauf für ~15.000 € = Netto ~18.000 € in 5 Jahren (günstiger!). Aber: Sie tragen das Reparaturrisiko.</p>
+    "
+    relatedSlugs={['spritkosten-rechner', 'kfz-versicherung-rechner', 'kfz-steuer-co2']}
+  />
 </Layout>
 
 <script type="module">
