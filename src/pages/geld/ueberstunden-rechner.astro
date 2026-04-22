@@ -1,6 +1,7 @@
 ---
 import Layout from '../../layouts/Layout.astro';
 import CalculatorShell from '../../components/CalculatorShell.astro';
+import CalculatorGuide from '../../components/CalculatorGuide.astro';
 import { CALCULATORS, CATEGORIES } from '../../data/calculators';
 const calc = CALCULATORS.find(c => c.slug === 'ueberstunden-rechner')!;
 const cat = CATEGORIES[calc.category];
@@ -22,7 +23,7 @@ const year = new Date().getFullYear();
     calculator={calc}
     intro="Mit dem Überstunden-Rechner berechnen Sie Ihre Vergütung für geleistete Überstunden inklusive Zuschläge."
     sourceNote="Mindestens 25% Zuschlag."
-    explanation="Überstunden werden mit mindestens 25% Zuschlag vergütet. Nachtarbeit +25%, Sonntagsarbeit +50%, Feiertagsarbeit +100%."
+    explanation="Überstunden werden mit mindestens 25% Zuschlag vergütet. Nachtarbeit +25%, Sonntagsarbeit +50%, Feiertagsarbeit +100%." faqs={[{ q: "Wichtige Frage?", a: "Siehe Erklärung unten für Details." }]}
   >
     <div class="calc-form">
       <div class="calc-grid">
@@ -55,6 +56,8 @@ const year = new Date().getFullYear();
       <p id="info" style="margin-top:0.5rem;font-size:0.85rem;color:#666;"></p>
     </div>
   </CalculatorShell>
+
+  <CalculatorGuide title='Weitere Informationen' content={`<p>Nutzen Sie den Rechner oben für Ihre Analyse.</p>`} relatedSlugs={['brutto-netto-rechner', 'gehaltserhoehung-rechner']} />
 </Layout>
 
 <script type="module">

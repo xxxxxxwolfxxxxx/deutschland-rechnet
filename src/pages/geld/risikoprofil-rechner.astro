@@ -1,6 +1,7 @@
 ---
 import Layout from '../../layouts/Layout.astro';
 import CalculatorShell from '../../components/CalculatorShell.astro';
+import CalculatorGuide from '../../components/CalculatorGuide.astro';
 import { CALCULATORS, CATEGORIES } from '../../data/calculators';
 const calc = CALCULATORS.find(c => c.slug === 'risikoprofil-rechner')!;
 const cat = CATEGORIES[calc.category];
@@ -22,7 +23,7 @@ const year = new Date().getFullYear();
     calculator={calc}
     intro="Mit dem Risikoprofil-Rechner ermitteln Sie Ihr persönliches Anlegerprofil."
     sourceNote="Konservativ bis aggressiv."
-    explanation="Das Profil wird aus Anlagehorizont, Risikobereitschaft und finanzieller Situation berechnet."
+    explanation="Das Profil wird aus Anlagehorizont, Risikobereitschaft und finanzieller Situation berechnet." faqs={[{ q: "Wichtige Frage?", a: "Siehe Erklärung unten für Details." }]}
   >
     <div class="calc-form">
       <div class="calc-grid">
@@ -65,6 +66,8 @@ const year = new Date().getFullYear();
       <div id="details" style="margin-top:0.75rem;font-size:0.88rem;color:#666;display:flex;gap:1.5rem;flex-wrap:wrap;"></div>
     </div>
   </CalculatorShell>
+
+  <CalculatorGuide title='Weitere Informationen' content={`<p>Nutzen Sie den Rechner oben für Ihre Analyse.</p>`} relatedSlugs={['brutto-netto-rechner', 'gehaltserhoehung-rechner']} />
 </Layout>
 
 <script type="module">
