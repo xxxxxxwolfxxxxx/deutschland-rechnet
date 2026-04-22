@@ -1,10 +1,20 @@
 ---
 import Layout from '../../layouts/Layout.astro';
 import CalculatorShell from '../../components/CalculatorShell.astro';
+import CalculatorGuide from '../../components/CalculatorGuide.astro';
 import { CALCULATORS, CATEGORIES } from '../../data/calculators';
 const calc = CALCULATORS.find(c => c.slug === 'kindergeld-rechner')!;
 const cat = CATEGORIES[calc.category];
 const year = new Date().getFullYear();
+
+const faqs = [
+  { q: 'Wer hat Anspruch auf Kindergeld?', a: 'Eltern, deren Kinder unter 18 Jahren sind, oder unter 25 Jahren wenn das Kind in Ausbildung oder Studium ist.' },
+  { q: 'Wie hoch ist das Kindergeld?', a: 'Das Kindergeld beträgt monatlich 250€ für das erste Kind, 250€ für das zweite, 250€ für das dritte und 300€ ab dem vierten Kind.' },
+  { q: 'Wird mein Einkommen berücksichtigt?', a: 'Nein, Kindergeld ist grundsätzlich einkommensunabhängig. Es gibt aber Grenzen beim Kinderfreibetrag.' },
+  { q: 'Wann endet der Kindergeldanspruch?', a: 'Entweder wenn das Kind 18 wird, bei Ausbildung mit 25 Jahren oder wenn das Kind eine Erwerbstätigkeit beginnt.' },
+  { q: 'Kann Kindergeld gepfändet werden?', a: 'Nein, Kindergeld ist (teilweise) gepfändungsfrei bis zur Höhe der Unterhaltsansprüche.' },
+  { q: 'Kann ich Kindergeld und Kinderfreibetrag zusammen nutzen?', a: 'Nein, dies wird automatisch in der Steuererklärung verglichen. Die günstigere Variante wird angewendet.' },
+];
 ---
 <Layout
   title={`Kindergeld-Rechner ${year}`}
@@ -23,6 +33,7 @@ const year = new Date().getFullYear();
     intro="Mit dem Kindergeld-Rechner berechnen Sie das Kindergeld für Ihre Kinder."
     sourceNote="250€/Kind."
     explanation="Das Kindergeld beträgt: 1. Kind: 250€, 2. Kind: 250€, 3. Kind: 250€, ab 4. Kind: je 250€."
+    faqs={faqs}
   >
     <div class="calc-form">
       <div class="calc-group">
@@ -44,6 +55,20 @@ const year = new Date().getFullYear();
       <p id="proKind" style="margin-top:0.25rem;font-size:0.82rem;color:#999;"></p>
     </div>
   </CalculatorShell>
+
+  <CalculatorGuide
+    title="Kindergeld – Finanzielle Unterstützung für Familien"
+    content="Kindergeld ist eine der wichtigsten Familienleistungen in Deutschland. Es wird nicht einkommensabhängig gezahlt, sondern als pauschale Unterstützung für jedes Kind.
+
+Das Kindergeld wird monatlich auf Antrag bei der Familienkasse (gehört zur Agentur für Arbeit) gezahlt. Wichtig: Der Antrag muss aktiv gestellt werden, das Kindergeld wird nicht automatisch gewährt. Für neugeborene Kinder sollte der Antrag schnell nach der Geburt gestellt werden.
+
+Ein häufiges Missverständnis: Kindergeld und Kinderfreibetrag sind zwei verschiedene Systeme. Die Finanzbehörden vergleichen automatisch beide und gewähren die günstigere Variante. In der Regel ist für Normalverdiener das Kindergeld vorteilhafter.
+
+Besonderheit: Für Kinder in Ausbildung oder Studium wird Kindergeld bis zum 25. Lebensjahr gezahlt, sofern sie nicht selbst genug verdienen. Arbeitet das Kind neben der Ausbildung, können Einkommensgrenzen greifen.
+
+Finanzierungstipp: Nutzen Sie das Kindergeld als zuverlässige Einnahmequelle in der Familie. Es kann nicht gepfändet werden (mit Ausnahme für Unterhaltsrückstände). Machen Sie keinen Fehler bei der Registerung von Bankkonten – Kindergeld braucht ein gültiges Konto für die Auszahlung."
+    relatedSlugs={['elterngeld-rechner', 'betreuungskosten-rechner']}
+  />
 </Layout>
 
 <script type="module">
