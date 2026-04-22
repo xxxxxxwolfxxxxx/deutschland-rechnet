@@ -1,6 +1,7 @@
 ---
 import Layout from '../../layouts/Layout.astro';
 import CalculatorShell from '../../components/CalculatorShell.astro';
+import CalculatorGuide from '../../components/CalculatorGuide.astro';
 import { CALCULATORS, CATEGORIES } from '../../data/calculators';
 const calc = CALCULATORS.find(c => c.slug === 'homeoffice-pauschale')!;
 const cat = CATEGORIES[calc.category];
@@ -21,8 +22,16 @@ const year = new Date().getFullYear();
   <CalculatorShell
     calculator={calc}
     intro="Mit dem Homeoffice-Pauschale-Rechner berechnen Sie den steuerlichen Vorteil für das Arbeiten von zu Hause."
-    sourceNote="6€ pro Tag, max. 1.000€."
-    explanation="Die Pauschale beträgt 6€ pro Tag, maximal 1.000€ pro Jahr."
+    sourceNote="6€ pro Tag, max. 1.260€."
+    explanation="Die Pauschale beträgt 6€ pro Tag, maximal 1.260€ pro Jahr (210 Tage)."
+    faqs={[
+      { q: "Wie viel ist die Homeoffice-Pauschale wert?", a: "6€ pro Arbeitstag im Homeoffice, maximal 210 Tage = 1.260€/Jahr. Sie schreiben das als Werbungskosten ab, ohne Belege. Das reduziert Ihr zu versteuerndes Einkommen. Bei 30% persönlichem Steuersatz spart das ca. 378€ Steuern pro Jahr." },
+      { q: "Was muss ich dokumentieren?", a: "Nichts! Das ist das Schöne der Pauschale. Während der Pandemie kam das, weil Menschen Homeoffice machen mussten – ohne Belege nachzuweisen. Sie schreiben einfach die Tage auf Ihrer Steuererklärung ein." },
+      { q: "Kann ich trotzdem teurere Ausgaben absetzen?", a: "Ja! Wenn Sie echte Nebenkosten haben (Möbel, Beleuchtung, Software, Telefon) UND diese nachweisen können, können Sie alternativ die HÖHEREN KOSTEN absetzen (statt der Pauschale). Das lohnt sich aber meist erst ab echtem Heimarbeitszimmer." },
+      { q: "Wer kann die Pauschale nutzen?", a: "Nur Angestellte, die sich im Homeoffice Kosten selbst tragen. Selbstständige und Freiberufler mit eigenem Arbeitszimmer können das Arbeitszimmer (bis 1.250€/Jahr) absetzen – das ist ähnlich, aber eine andere Regel." },
+      { q: "Gilt das auch für Mischarbeit (hybrid)?", a: "Ja! Jeder Tag, an dem Sie zu Hause arbeiten (auch 4h/Tag zählt), ist ein Homeoffice-Tag. 2 Tage/Woche = ca. 100 Tage/Jahr. 3 Tage/Woche = ca. 150 Tage/Jahr." },
+      { q: "Was ist mit Pendlerpauschale und Homeoffice-Pauschale?", a: "Beide können kombiniert werden! Wenn Sie an Bürotagen pendeln und an Homeoffice-Tagen nicht, schreiben Sie sowohl Pendlerpauschale (1,30€/km für Hin+Rückweg) als auch Homeoffice ab. Das addiert sich." }
+    ]}
   >
     <div class="calc-form">
       <div class="calc-grid">
@@ -46,6 +55,20 @@ const year = new Date().getFullYear();
       <div id="details" style="margin-top:0.75rem;font-size:0.88rem;color:#666;display:flex;gap:1.5rem;flex-wrap:wrap;"></div>
     </div>
   </CalculatorShell>
+
+  <CalculatorGuide
+    title="So funktioniert die Homeoffice-Pauschale"
+    content={`<p><strong>Die Homeoffice-Pauschale</strong> ist ein vereinfachter Abzug für Arbeitnehmer, die von zu Hause aus arbeiten. Sie beträgt <strong>6€ pro Arbeitstag</strong>, maximal 1.260€ pro Jahr (= 210 Tage). Das ist eine echte Steuervergünstigung, die während der Pandemie eingeführt wurde – ohne dass Sie Belege sammeln müssen.</p>
+
+<p><strong>Wie funktioniert es?</strong> Sie tragen die Zahl Ihrer Homeoffice-Tage in der Anlage N Ihrer Steuererklärung ein. Das Finanzamt rechnet automatisch: Tage × 6€. Diese Summe wird als Werbungskosten von Ihrem zu versteuernden Einkommen abgezogen. Ergebnis: Geringeres Einkommen → weniger Steuern.</p>
+
+<p><strong>Praktisches Beispiel:</strong> Sie arbeiten 150 Tage im Homeoffice pro Jahr. Das sind 150 × 6€ = 900€. Bei Ihrem persönlichen Steuersatz von 30% sparen Sie: 900€ × 30% = 270€ Steuern. Das ist ein direkter Vorteil ohne Nachweise.</p>
+
+<p><strong>Wenn Sie ein echtes Arbeitszimmer haben:</strong> Berufstätige mit eigenem Arbeitszimmer können alternativ bis zu 1.250€/Jahr für Miete/Nebenkosten absetzen (1/5 des Zimmers = z.B. 20m² bei 100m² Wohnung). Das ist oft höher als die Pauschale – aber Sie brauchen Belege.</p>
+
+<p><strong>Kombination mit Pendlerpauschale:</strong> Diese zwei Abzüge sind komplementär! An Tagen, wo Sie pendeln (ins Büro fahren), schreiben Sie Pendlerpauschale (1,30€/km einfache Entfernung). An Tagen, wo Sie daheim arbeiten, schreiben Sie die 6€ Homeoffice ab. Zusammen addiert das auf.</p>`}
+    relatedSlugs={['brutto-netto-rechner', 'gehaltserhoehung-rechner', 'arbeitslosengeld-rechner']}
+  />
 </Layout>
 
 <script type="module">
