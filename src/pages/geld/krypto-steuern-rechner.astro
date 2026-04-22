@@ -1,6 +1,7 @@
 ---
 import Layout from '../../layouts/Layout.astro';
 import CalculatorShell from '../../components/CalculatorShell.astro';
+import CalculatorGuide from '../../components/CalculatorGuide.astro';
 import { CALCULATORS, CATEGORIES } from '../../data/calculators';
 const calc = CALCULATORS.find(c => c.slug === 'krypto-steuern-rechner')!;
 const cat = CATEGORIES[calc.category];
@@ -21,8 +22,16 @@ const year = new Date().getFullYear();
   <CalculatorShell
     calculator={calc}
     intro="Mit dem Krypto-Steuern-Rechner prüfen Sie, ob Ihre Krypto-Gewinne steuerpflichtig sind."
-    sourceNote="Nach § 23 EStG."
-    explanation="Nach einem Jahr Haltedauer sind Gewinne steuerfrei."
+    sourceNote="Nach § 23 EStG (private Veräußerungsgeschäfte)."
+    explanation="Nach einem Jahr Haltedauer sind Gewinne steuerfrei. Freibetrag: 1.000€ (Verheiratete: 2.000€)."
+    faqs={[
+      { q: "Sind Kryptowährungen in Deutschland steuerfrei?", a: "Nein. Krypto-Gewinne sind private Veräußerungsgeschäfte (§23 EStG) und werden nach der Haltefrist beurteilt. UNTER 1 Jahr: Volle Besteuerung nach Einkommensteuer. ÜBER 1 Jahr: Komplett steuerfrei!" },
+      { q: "Was ist die Haltefrist für Steuerfreiheit?", a: "Genau 1 Jahr vom Kauf bis zum Verkauf. Beispiel: Gekauft 1.1.2024, verkauft 1.1.2025 = steuerfrei. 31.12.2024 = noch nicht 1 Jahr = steuerpflichtig. Die Frist wird auf den Tag genau gerechnet." },
+      { q: "Was zählt nicht zur Haltefrist?", a: "Tausch von Krypto gegen Krypto zählt als Veräußerung und setzt die Haltefrist zurück! Beispiel: Bitcoin gekauft Jan 2023, gegen Ethereum getauscht Dez 2023 = neue Haltefrist ab Dez 2023! Mining und Staking sind eigene Einkünfte." },
+      { q: "Gibt es einen Freibetrag?", a: "Ja! 1.000€ pro Jahr steuerfrei (Verheiratete: 2.000€). Erst über diesen Betrag wird besteuert. Beispiel: 5.000€ Gewinn, Freibetrag 1.000€ = 4.000€ steuerpflichtig." },
+      { q: "Wie dokumentiere ich meine Trades?", a: "Pflicht: Jeder Kauf und Verkauf mit Datum, Menge, Preis und Gesamtbetrag. Bitcoin-Steuer-Tools (Bitcoin.Tax, Koinly) helfen. Das FA kann Nachzahlungen fordern, wenn Dokumentation fehlt." },
+      { q: "Was ist mit Staking und Airdrops?", a: "Staking-Erträge sind Einkünfte aus Kapitalvermögen (Abgeltungsteuer 25%). Airdrops sind steuerpflichtiges Einkommen zum Marktwert beim Erhalt. Diese Gewinne sind dann wieder der 1-Jahr-Regel unterworfen." }
+    ]}
   >
     <div class="calc-form">
       <div class="calc-grid">
@@ -56,6 +65,24 @@ const year = new Date().getFullYear();
       <div id="details" style="margin-top:0.75rem;font-size:0.88rem;color:#666;display:flex;gap:1.5rem;flex-wrap:wrap;"></div>
     </div>
   </CalculatorShell>
+
+  <CalculatorGuide
+    title="So funktioniert die Besteuerung von Kryptowährungen"
+    content={`<p><strong>In Deutschland sind Krypto-Gewinne private Veräußerungsgeschäfte (§23 EStG).</strong> Das bedeutet: Ob Sie Steuern zahlen, hängt von der Haltefrist ab. Die gute Nachricht: Über 1 Jahr = komplett steuerfrei!</p>
+
+<p><strong>Die 1-Jahres-Regel:</strong>
+<ul>
+  <li><strong>Unter 1 Jahr Haltefrist:</strong> Volle Besteuerung mit Ihrem persönlichen Steuersatz (bis 45%)</li>
+  <li><strong>Über 1 Jahr Haltefrist:</strong> Komplett steuerfrei! Auch hohe Gewinne.</li>
+  <li><strong>Freibetrag:</strong> 1.000€ pro Jahr steuerfrei (Verheiratete: 2.000€), unabhängig von Haltefrist</li>
+</ul>
+</p>
+
+<p><strong>Wichtig: Was als Veräußerung zählt:</strong> Verkauf von Krypto gegen Euro ist klar. Aber auch: Kryptotausch (Bitcoin gegen Ethereum) ist eine Veräußerung! Das setzt die Haltefrist zurück. Staking und Mining sind separate Einkünfte (nicht die 1-Jahr-Regel).</p>
+
+<p><strong>Dokumentation ist Pflicht:</strong> Jeder Trade muss dokumentiert werden (Datum, Menge, Preis). Tools wie Bitcoin.Tax oder Koinly helfen. Das Finanzamt fordert diese Daten an – ohne Belege drohen Schätzungen und Strafzinsen.</p>`}
+    relatedSlugs={['abgeltungsteuer-rechner', 'sparen-rechner', 'etf-sparplan-rechner']}
+  />
 </Layout>
 
 <script type="module">
