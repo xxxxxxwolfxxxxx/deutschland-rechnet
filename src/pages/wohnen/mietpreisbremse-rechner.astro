@@ -1,7 +1,6 @@
 ---
 import Layout from '../../layouts/Layout.astro';
 import CalculatorShell from '../../components/CalculatorShell.astro';
-import CalculatorGuide from '../../components/CalculatorGuide.astro';
 import { CALCULATORS, CATEGORIES } from '../../data/calculators';
 const calc = CALCULATORS.find(c => c.slug === 'mietpreisbremse-rechner')!;
 const cat = CATEGORIES[calc.category];
@@ -25,12 +24,10 @@ const year = new Date().getFullYear();
     sourceNote="Maximal 10% über ortsüblicher Miete."
     explanation="Die Mietpreisbremse begrenzt die Miete auf maximal 10% über der ortsüblichen Vergleichsmiete."
     faqs={[
-      { q: "Wie wird die Mietpreisbremse berechnet?", a: "Die Mietpreisbremse begrenzt den Mietanstieg beim Mietwechsel oder bei Neuvermietung: max. 110% der ortsüblichen Miete (oder 120% in Ausnahmefällen). Sie gilt in Hotspot-Regionen wie Berlin, München, Hamburg." },
-      { q: "In welchen Bundesländern gibt es die Mietpreisbremse?", a: "Nicht bundesweit einheitlich. Berlin, Bremen, Brandenburg (Einzugsgebiete Berlin), Hessen, NRW, Schleswig-Holstein, Bayern und andere Länder haben eigene Regelungen. Nicht überall, z.B. Baden-Württemberg ohne. Immer lokal prüfen!" },
-      { q: "Was ist die „ortsübliche Miete"?", a: "Das ist die durchschnittliche Miete ähnlicher Wohnungen in der Gegend – gemessen über 4 Jahre Wohnungsmarktentwicklung. Sie wird von Gemeinden oder Maklern publik gemacht. Je nach Stadt gibt es Spannbreiten." },
-      { q: "Kann der Vermieter Mietpreisbremse umgehen?", a: "Ja, durch Modernisierung, Möblierung oder Zweitmiete – dann gilt die Bremse nicht. Auch möblierte Wohnungen sind oft ausgenommen. Als Mieter sollte man das in den Vertrag schauen und nachverhandeln." },
-      { q: "Wie lange sind Mietpreisbremsen gültig?", a: "Meist zeitlich begrenzt auf 4-5 Jahre und regelmäßig neu verhandelt. Bayern und Baden-Württemberg haben aktuell keine Bremsen mehr (2024). Berlin hat sie, Hamburg auch. Gesetzeslage ändert häufig – lokal recherchieren!" },
-      { q: "Was kann ich tun, wenn mein Vermieter die Bremse bricht?", a: "Mietzahlung unter Vorbehalt leisten, schriftlich widersprechen und Mietverein kontaktieren (kostet 10-15€/Monat Mitgliedschaft). Gericht kann Rückzahlung zu Unrecht gezahlter Miete anordnen – bis 4 Jahre Rückstand." }
+      { q: "Gilt die Mietpreisbremse in meiner Stadt?", a: "Nur in ausgewiesenen Gebieten mit angespanntem Wohnungsmarkt. Prüfen Sie die Liste des zuständigen Landes (z.B. Bayern, Berlin, Hessen)." },
+      { q: "Was ist die 'ortsübliche Vergleichsmiete'?", a: "Die durchschnittliche Nettokaltmiete für vergleichbare Wohnungen in der Region. Sie wird aus dem Mietenspiegel ermittelt und basiert auf Baujahr, Größe, Ausstattung und Lage." },
+      { q: "Schützt die Mietpreisbremse Bestandmieter?", a: "Nein, sie gilt nur bei Neuvermietungen. Bei bestehenden Mietverhältnissen gelten die üblichen Mieterhöhungsgrenzen (max. 15% über 3 Jahre nach § 558 BGB)." },
+      { q: "Kann ich meine zu hohe Miete senken?", a: "Ja, wenn die Miete >10% über der Vergleichsmiete liegt. Sie können mindern und zu viel Gezahltes (30 Tage Rückforderungsfrist) zurückfordern." }
     ]}
   >
     <div class="calc-form">
@@ -81,12 +78,6 @@ const year = new Date().getFullYear();
       <div id="details" style="margin-top:0.75rem;font-size:0.88rem;color:#666;display:flex;gap:1.5rem;flex-wrap:wrap;"></div>
     </div>
   </CalculatorShell>
-
-  <CalculatorGuide
-    title="Mietpreisbremse verstehen und Rechte nutzen"
-    content="<p>Die Mietpreisbremse ist ein Regulierungsinstrument in Bundesländern mit \"angespanntem Wohnungsmarkt\". Sie soll Mietexplosionen bremsen und Mieter vor Übervorteilung schützen. Unser Rechner zeigt, ob eine angebotene Miete die Bremse überschreitet – und was Mieter tun können.</p>\n\n<p><strong>Wie die Bremse funktioniert:</strong> Die Miete darf beim Mietwechsel oder Neuangebot maximal 110% der ortsüblichen Vergleichsmiete betragen (in manchen Ländern 120% unter Bedingungen). Die \"ortsübliche Miete\" ist eine statistische Größe, die von Gemeinden alle 4 Jahre erhoben wird. Sie ist einsehbar in Mietregistern oder über Makler.</p>\n\n<p><strong>In welchen Ländern und Regionen gilt es:</strong> Nicht bundesweit. Berlin hat eine strikte Bremse, Hamburg auch. Bayern hat Ausnahmen, Baden-Württemberg keine Bremse. Auch innerhalb von Bundesländern: nur Hotspot-Gegenden (Großstädte, Ballungsräume). Ländlich oft keine Bremse. Immer lokal prüfen!</p>\n\n<p><strong>Ausnahmen und Schlupflöcher:</strong> Eine Renovierung kann die Bremse aufheben – dann gilt sie nicht mehr. Möblierte Wohnungen sind oft ausgenommen. Auch Neubauten sind oft ausgenommen. Der Vermieter muss die Ausnahme aber nachweisen – einfach behaupten reicht nicht.</p>\n\n<p><strong>Was Mieter tun können:</strong> 1) Ortsübliche Miete prüfen (Mietregister, Makler), 2) Vermieter schriftlich auf Bremse hinweisen, 3) Mietzahlung unter Vorbehalt leisten, 4) Mieterverein oder Anwalt einschalten, 5) Gericht anrufen bei Streit. Verjährung: 4 Jahre Rückzahlung möglich.</p>\n\n<p><strong>Rechtliche Besonderheit:</strong> Ist die Miete über der Bremse, ist der Vertrag nicht ungültig, sondern nur die zu hohe Miete ist unwirksam. Der Mieter zahlt die zulässige Miete – der Vermieter kann nicht mehr eintreiben. Mieter sollten aber sofort handeln (nicht jahrelang zahlen, dann klagen).</p>\n\n<p><strong>Gesetzliche Entwicklung:</strong> Die Mietpreisbremse wird regelmäßig neu verhandelt. Manche Länder bauen sie ab (Bayern hat aufgegeben), andere versärften sie (Berlin wird strikte). Die Bundesregierung 2024 plant Lockerungen – aktuell rechtzeitig prüfen!</p>\n\n<p><strong>Zusätzliche Tipps:</strong> Mieterverbände (z.B. DMB, Mieterverein) bieten Beratung für 10-15€/Monat. Eine kostenlose Erstberatung lohnt sich. Auch: Energie-Preise sind nicht begrenzt – nur Grundmiete. Wer hohe Nebenkosten sieht: auch dort Compliance prüfen.</p>"
-    relatedSlugs={['mietrechner', 'nebenkosten-rechner', 'mietrendite-rechner']}
-  />
 </Layout>
 
 <script type="module">
