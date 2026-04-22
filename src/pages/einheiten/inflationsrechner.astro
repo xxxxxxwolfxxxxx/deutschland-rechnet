@@ -1,6 +1,7 @@
 ---
 import Layout from '../../layouts/Layout.astro';
 import CalculatorShell from '../../components/CalculatorShell.astro';
+import CalculatorGuide from '../../components/CalculatorGuide.astro';
 import { CALCULATORS, CATEGORIES } from '../../data/calculators';
 const calc = CALCULATORS.find(c => c.slug === 'inflationsrechner')!;
 const cat = CATEGORIES[calc.category];
@@ -23,6 +24,14 @@ const year = new Date().getFullYear();
     intro="Mit dem Inflationsrechner berechnen Sie den Kaufkraftverlust durch Inflation."
     sourceNote="2-3% pro Jahr."
     explanation="100€ heute sind in 10 Jahren bei 2% Inflation nur noch ca. 82€ wert."
+    faqs={[
+      { q: "Was ist Inflation und wie beeinflusst sie meine Ersparnisse?", a: "Inflation ist der kontinuierliche Anstieg der Preise für Waren und Dienstleistungen. Sie führt dazu, dass die gleiche Menge Geld mit der Zeit weniger wert wird. Wenn Sie 10.000€ sparen und die Inflation beträgt 2% pro Jahr, sind diese 10.000€ nächstes Jahr nur noch etwa 9.800€ wert." },
+      { q: "Wie unterscheiden sich Nominalzins und Realzins?", a: "Der Nominalzins ist der Zinssatz, den Sie von Ihrer Bank erhalten. Der Realzins berücksichtigt die Inflation. Wenn Ihr Sparkonto 1% Nominalzins bietet, aber die Inflation 2% beträgt, ist Ihr Realzins negativ: Sie verlieren Kaufkraft." },
+      { q: "Wie wirkt sich Inflation auf Mieten und Lebenshaltungskosten aus?", a: "Mieten und Lebenshaltungskosten steigen tendenziell mit der Inflation. Ein Mietvertrag mit 2% Steigerungsklausel folgt der Inflation. Ohne Anpassung würde Ihre Miete real sinken." },
+      { q: "Ist eine Inflationsrate von 2% gut oder schlecht?", a: "Eine leichte Inflation von etwa 2% gilt als normal und gesund für eine stabile Wirtschaft. Sie fördert Investitionen und Konsum. Zu hohe Inflation (über 5%) ist problematisch und reduziert die Kaufkraft stark." },
+      { q: "Wie schütze ich meine Ersparnisse vor Inflation?", a: "Sie können in Investitionen übergehen, die historisch über der Inflation Rendite bieten: Immobilien, Aktien, Anleihen mit Inflationsprämie oder Rohstoffe. Geldmarktkonten und kurzfristige Sparbriefe bieten aktuell oft Renditen, die zumindest die Inflation abdecken." },
+      { q: "Gibt es eine Obergrenze für Inflation?", a: "Es gibt keine gesetzliche Obergrenze. Extreme Inflation (Hyperinflation) entsteht durch massive Geldmengensteigerung und führt zu Währungszerstörung. Die Europäische Zentralbank hat ein Ziel von ca. 2% Inflation." }
+    ]}
   >
     <div class="calc-form">
       <div class="calc-grid">
@@ -46,6 +55,39 @@ const year = new Date().getFullYear();
       <div id="details" style="margin-top:0.75rem;font-size:0.88rem;color:#666;display:flex;gap:1.5rem;flex-wrap:wrap;"></div>
     </div>
   </CalculatorShell>
+
+  <CalculatorGuide
+    title="Inflationsrechner – So berechnen Sie den Kaufkraftverlust"
+    content={`
+      <p><strong>Inflation</strong> ist der Anstieg des allgemeinen Preisniveaus. Was heute 100€ kostet, könnte in fünf Jahren 110€ kosten. Das bedeutet, dass Ihr Geld weniger wert wird und weniger Waren kaufen kann – auch wenn der Kontostand gleich bleibt.</p>
+
+      <p>Mit dem Inflationsrechner können Sie berechnen, <strong>wie viel eine bestimmte Geldmenge in der Zukunft noch wert sein wird</strong>. Dies ist besonders wichtig für die Finanzplanung, Rentenbewertung und die Entscheidung über Sparquoten und Investitionen.</p>
+
+      <p><strong>Beispiel:</strong> Sie haben 50.000€ gespart. Mit einer durchschnittlichen Inflationsrate von 2,5% pro Jahr sind diese 50.000€ nach 10 Jahren nur noch etwa 38.500€ wert (gemessen an heutiger Kaufkraft). Das ist ein Kaufkraftverlust von ca. 11.500€.</p>
+
+      <h4>Wie funktioniert die Berechnung?</h4>
+      <p>Die Formel ist: <strong>Kaufkraft = Betrag ÷ (1 + Inflationsrate)^Zeitraum</strong></p>
+
+      <p>Der Rechner berücksichtigt die exponentielle Wirkung von Inflation – der Verlust wird jedes Jahr größer. Besonders über lange Zeiträume (10+ Jahre) ist der Effekt deutlich spürbar.</p>
+
+      <h4>Praktische Anwendungen</h4>
+      <ul>
+        <li><strong>Rentenbewertung:</strong> Überprüfen Sie, ob Ihre zukünftige Rente den heutigen Lebensstandard hält.</li>
+        <li><strong>Sparziele:</strong> Berechnen Sie, wie viel Sie wirklich sparen müssen, um ein Ziel in der Zukunft zu erreichen.</li>
+        <li><strong>Kredite:</strong> Ein Kredit wird realer billiger durch Inflation – besonders über lange Laufzeiten.</li>
+        <li><strong>Versicherungen:</strong> Achten Sie darauf, dass Ihre Lebensversicherungssumme die Inflation berücksichtigt.</li>
+      </ul>
+
+      <h4>Tipps zum Umgang mit Inflation</h4>
+      <ul>
+        <li><strong>Breite Investitionen:</strong> Aktien und Immobilien bieten historisch Inflationsschutz.</li>
+        <li><strong>Realrendite prüfen:</strong> Vergleichen Sie Zinsangebote immer mit der aktuellen Inflationsrate.</li>
+        <li><strong>Langfristig denken:</strong> Bei längeren Zeiträumen wird Inflation zum entscheidenden Faktor.</li>
+        <li><strong>Unterschied verstehen:</strong> Nominalwerte (auf dem Konto) vs. Realwerte (echte Kaufkraft).</li>
+      </ul>
+    `}
+    relatedSlugs={['prozent-rechner', 'mwst-rechner']}
+  />
 </Layout>
 
 <script type="module">
