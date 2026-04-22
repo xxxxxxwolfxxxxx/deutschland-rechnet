@@ -23,6 +23,11 @@ const year = new Date().getFullYear();
     intro="Mit dem Quadratmeterpreis-Vergleich sehen Sie aktuelle Immobilienpreise pro Quadratmeter nach Region."
     sourceNote="Durchschnittspreise Deutschland."
     explanation="In Großstädten sind die Preise deutlich höher als in ländlichen Regionen."
+    faqs={[
+      { q: "Wie wird der Quadratmeterpreis berechnet?", a: "Kaufpreis / Wohnfläche in m². Ein Haus für 600.000€ mit 200 m² = 3.000€/m²." },
+      { q: "Warum unterscheiden sich Preise so stark?", a: "Lage, Infrastruktur, Arbeitsplätze, Nachfrage. München: 8-12€/m²/Monat Miete, Land: 5-6€/m²." },
+      { q: "Ist höherer Quadratmeterpreis immer schlecht?", a: "Nein. Zentrale, gut ausgestattete Lagen sind teuer und haben Wertsteigerungschancen." }
+    ]}
   >
     <div class="calc-form">
       <div class="calc-grid">
@@ -64,6 +69,8 @@ const year = new Date().getFullYear();
       <div id="details" style="margin-top:0.75rem;font-size:0.88rem;color:#666;display:flex;gap:1.5rem;flex-wrap:wrap;"></div>
     </div>
   </CalculatorShell>
+
+  <CalculatorGuide title="Quadratmeterpreise vergleichen" content="<p>Der Quadratmeterpreis ist eine schnelle Kennzahl zum Vergleich. München: 8.000-12.000€/m² Kaufpreis, Leipzig: 4.000€/m². Nur ähnliche Lagen vergleichen!</p><p><strong>Tipps:</strong> Faustregel 20-25x Jahresmiete als Kaufpreis-Anhalt. Zentrale Lagen sind teurer, aber oft rentabler durch Wertsteigerung.</p>" relatedSlugs={['mietrechner', 'hauskauf-rechner', 'immobilienkauf-nebenkosten']} />
 </Layout>
 
 <script type="module">
