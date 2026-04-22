@@ -1,6 +1,7 @@
 ---
 import Layout from '../../layouts/Layout.astro';
 import CalculatorShell from '../../components/CalculatorShell.astro';
+import CalculatorGuide from '../../components/CalculatorGuide.astro';
 import { CALCULATORS, CATEGORIES } from '../../data/calculators';
 const calc = CALCULATORS.find(c => c.slug === 'promille-rechner')!;
 const cat = CATEGORIES[calc.category];
@@ -23,6 +24,32 @@ const year = new Date().getFullYear();
     intro="Mit dem Promille-Rechner berechnen Sie Ihren Blutalkoholgehalt nach der Widmark-Formel."
     sourceNote="Widmark-Formel."
     explanation="Alkohol (g) / (Körpergewicht × Körperfaktor) = Promille. Faktor: 0,68 (Männer), 0,55 (Frauen)."
+    faqs={[
+      {
+        q: "Warum unterscheidet sich die Blutalkoholkonzentration nach Geschlecht?",
+        a: "Frauen haben weniger Wasser im Körper und metabolisieren Alkohol langsamer, daher steigt ihr Blutalkohol schneller. Der Widmark-Faktor beträgt 0,55 (Frauen) vs. 0,68 (Männer)."
+      },
+      {
+        q: "Ist die Widmark-Formel genau?",
+        a: "Die Formel ist eine zuverlässige Schätzung mit 10-15% Genauigkeit. Die tatsächliche BAK hängt von Magen-Füllung, Alkoholabbau-Rate, Magenschleimhaut-Zustand und Metabolik ab."
+      },
+      {
+        q: "Wie schnell baut der Körper Alkohol ab?",
+        a: "Der Abbau erfolgt mit etwa 0,1-0,15 Promille pro Stunde, hauptsächlich durch die Leber. Dieser Wert ist sehr individuell, Fitmacher wie Essen und Schlaf beeinflussen ihn."
+      },
+      {
+        q: "Ist 0,5 Promille wirklich die Grenze zum Autofahren?",
+        a: "Ja, ab 0,5 Promille ist Autofahren strafbar. Bereits ab 0,3 Promille können Augenblicke oder auffälliges Fahren zu Konsequenzen führen. Die sichere Grenze für Fahrtüchtigkeit ist 0,0 Promille."
+      },
+      {
+        q: "Warum wird die Fahruntüchtigkeit bei höherer BAK viel schlimmer?",
+        a: "Mit höherer Alkoholkonzentration beeinflussen Alkohl das Urteilsvermögen, Reaktionszeit und Feinmotorik exponentiell – nicht linear. Ab 1,0 Promille ist kritische Intoxikation zu befürchten."
+      },
+      {
+        q: "Kann Kaffee oder kaltes Duschen helfen, schneller nüchtern zu werden?",
+        a: "Nein, das sind Mythen. Nur die Leber baut Alkohol ab, und das geht mit konstanter Geschwindigkeit. Kaffee kann nur die Wachheit erhöhen (maskierter Alkoholeinfluss), macht aber nicht nüchterner."
+      }
+    ]}
   >
     <div class="calc-form">
       <div class="calc-grid two-col">
@@ -63,6 +90,17 @@ const year = new Date().getFullYear();
       <p id="bak-hinweis" class="bak-warn" style="display:none;">Achtung: Fahruntüchtigkeit ab 0,5 ‰ (0,3 ‰ bei auffälligem Fahren).</p>
     </div>
   </CalculatorShell>
+  <CalculatorGuide
+    title="Blutalkoholkonzentration verstehen"
+    content="Die Blutalkoholkonzentration (BAK) ist ein exakter biochemischer Parameter – ein Maß für die Menge Alkohol im Blut. Die Widmark-Formel ist die Standard-Berechnungsmethode und wird in Rechtsmedizin und Polizei weltweit verwendet.
+
+**Die Absorption und der Metabolismus:** Nach dem Trinken wird Alkohol schnell absorbiert, besonders auf leeren Magen. Der Abbau erfolgt hauptsächlich in der Leber mit einer relativ konstanten Rate (etwa 0,1-0,15 Promille/Stunde), während der Alkoholspiegel steigt oder fällt je nach Trinkgeschwindigkeit versus Abbaugeschwindigkeit.
+
+**Besonderheiten bei Frauen und älteren Menschen:** Frauen werden schneller betrunken, weil weniger Wasser im Körper Alkohol verdünnt. Ältere Menschen haben zudem geringere Leber-Kapazität. Beide Gruppen sollten den Rechner mit Vorsicht nutzen und bei Unsicherheit einen Arzt konsultieren.
+
+**Sicherheit und Gesetze:** In Deutschland ist Autofahren ab 0,5 Promille strafbar. Aber auch unter 0,5 Promille können Beeinträchtigungen auftreten – 0,2 Promille reduziert bereits die Sicht. Die sicherste Wahl ist absolut 0,0 Promille beim Fahren."
+    relatedSlugs={['blutdruck-bewerter', 'schlaf-rechner', 'kalorien-rechner']}
+  />
 </Layout>
 
 <style>
