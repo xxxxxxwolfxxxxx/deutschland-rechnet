@@ -1,6 +1,7 @@
 ---
 import Layout from '../../layouts/Layout.astro';
 import CalculatorShell from '../../components/CalculatorShell.astro';
+import CalculatorGuide from '../../components/CalculatorGuide.astro';
 import { CALCULATORS, CATEGORIES } from '../../data/calculators';
 const calc = CALCULATORS.find(c => c.slug === 'immobilienkauf-nebenkosten')!;
 const cat = CATEGORIES[calc.category];
@@ -23,6 +24,14 @@ const year = new Date().getFullYear();
     intro="Mit dem Immobilienkauf-Nebenkosten-Rechner berechnen Sie alle Kosten, die neben dem Kaufpreis anfallen."
     sourceNote="5-12% des Kaufpreises."
     explanation="Typische Kosten: Grunderwerbsteuer (0-6,5%), Notar (1,5-2%), Makler (3-6%), Grundbuch (0,5%)."
+    faqs={[
+      { q: "Wie setzt sich die Grunderwerbsteuer zusammen?", a: "Sie ist eine Ländersteuer, daher unterschiedlich: von 3,5% in Bayern und Sachsen-Anhalt bis 6,5% in NRW und anderen Ländern. Fiktive Preise für bewegliche Sachen (z.B. Möbel) können ausgehandelt werden, um die Steuer zu senken." },
+      { q: "Kann ich die Grundbuchgebühren sparen?", a: "Nein, die sind per Gesetz geregelt (rund 0,2-0,5%). Aber: Eine frühzeitige Anmeldung spart Zeit. Sollte man mehrere Grundbucheinträge brauchen (Schulden), können diese gebündelt werden." },
+      { q: "Lohnt sich ein Makler wirklich?", a: "Der Makler kostet 3-7,5% des Kaufpreises. Dafür bekommt man: Besichtigungen koordiniert, Verhandlung unterstützt, Market-Screening. Ohne Makler: mehr Eigenrecherche, aber man spart die Gebühr. Je höher der Preis, desto eher lohnt sich der Makler." },
+      { q: "Wann muss ich Notargebühren zahlen?", a: "Der Notar ist verpflichtend beim Immobilienkauf und fällt 1-2% an. Er ist neutral und schützt Käufer UND Verkäufer. Notargebühren sind per GNotKG geregelt (Skala nach Kaufpreis). Ein billiger Notar spart da wenig." },
+      { q: "Sind die Nebenkosten von der Steuer absetzbar?", a: "Nein, nicht direkt. Aber: Maklerprovision kann bei Vermietung über 2 Jahre abgeschrieben werden. Notarkosten und Grundbuchgebühren sind Herstellungskosten und erhöhen die Anschaffungskosten – werden über Absetzung für Abnutzung aufgelöst." },
+      { q: "Muss ich für Inspektionen extra zahlen?", a: "Ja, Gutachten/Inspektionen sind freiwillig (aber empfohlen): Bauherrenmodell (TÜV/DEKRA) 300-500€, Energieausweis 50-300€, Makler-Inspektion inklusive. Sparen lohnt sich da nicht – Überraschungen kosten mehr." }
+    ]}
   >
     <div class="calc-form">
       <div class="calc-grid">
@@ -66,6 +75,12 @@ const year = new Date().getFullYear();
       <table class="result-table" id="aufstellung" style="margin-top:1rem;width:100%;border-collapse:collapse;font-size:0.88rem;"></table>
     </div>
   </CalculatorShell>
+
+  <CalculatorGuide
+    title="Immobilienkauf-Nebenkosten verstehen und sparen"
+    content="<p>Die Nebenkosten beim Immobilienkauf sind oft eine überraschende Größe für Käufer. Sie setzen sich zusammen aus mehreren Komponenten: Grunderwerbsteuer (je nach Bundesland 3,5-6,5%), Notargebühren (ca. 1-2%), Grundbuchgebühren (ca. 0,2-0,5%), Maklergebühren (3-7,5% optional) und weitere Inspektions- oder Vermessungskosten.</p>\n\n<p><strong>Grunderwerbsteuer nach Bundesland:</strong> Ein kritischer Kostenfaktor. Bayern und Sachsen-Anhalt sind mit 3,5% günstig. Nordrhein-Westfalen, Baden-Württemberg und andere sind mit 6-6,5% teuer. Eine Umzug oder ein Kauf im grenznahen Ausland kann strategisch sinnvoll sein, ist aber nicht immer praktikabel.</p>\n\n<p><strong>Notarkosten sind gesetzlich geregelt:</strong> Nach dem Gerichtskostengesetz (GNotKG) sind Notargebühren gestaffelt nach Kaufpreis. Beispiel: Bei 500.000€ Kaufpreis kostet der Notar ca. 8.000-10.000€. Diese können nicht verhandelt werden, sind aber gesetzlich gerecht kalkuliert.</p>\n\n<p><strong>Maklergebühren sind verhandelbar:</strong> Die übliche Quote (3-7,5%) ist Marktusance, nicht Gesetz. In Boom-Zeiten (2010-2021) sind oft 7,5% Standard. Heute (2024) sind 3-5% nach Marktkampf üblich. Als Käufer: direkt-kaufen oder Makler-Quote verhandeln.</p>\n\n<p><strong>Nebenkosten-Finanzierung:</strong> Banken finanzieren den Kaufpreis, aber NICHT die Nebenkosten. Diese müssen Sie aus Eigenkapital bezahlen. Ein Kaufpreis von 500.000€ mit 60.000€ Nebenkosten erfordert also 60.000€ Eigenkapital zusätzlich zum normalen Eigenkapital für die Hypothek.</p>\n\n<p><strong>Steuerliche Aspekte:</strong> Als Privatperson sind Nebenkosten keine direkt abzugsfähigen Betriebsausgaben. Sie erhöhen aber die Anschaffungskosten der Immobilie, werden also über Abschreibung berücksichtigt (bei Vermietung). Dies ist ein längerfristiger Vorteil, nicht sofort.</p>\n\n<p><strong>Spar-Strategien:</strong> Manche Käufer handeln aus, dass der Verkäufer die Maklergebühren trägt. Andere verhandeln Möbel/Einrichtung separat (reduziert Grunderwerbsteuer-Basis). Auch: In manchen Bundesländern gibt es Freibeträge oder Anreize – lokal recherchieren!</p>\n\n<p><strong>Checkliste für Sicherheit:</strong> Vor Notartermin alle Kosten prüfen, Angebot von Notary einholen, Grundbuchgebühren klären, ggf. Vermessung erforderlich (gibt es bereits?), Inspektionstermine buchen. Mit Checkliste vermeiden Sie böse Überraschungen.</p>"
+    relatedSlugs={['grundbuch-eintragung', 'hauskauf-rechner', 'grunderwerbsteuer-rechner']}
+  />
 </Layout>
 
 <style>
