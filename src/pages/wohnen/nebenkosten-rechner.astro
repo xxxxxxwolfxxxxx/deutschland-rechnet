@@ -1,6 +1,7 @@
 ---
 import Layout from '../../layouts/Layout.astro';
 import CalculatorShell from '../../components/CalculatorShell.astro';
+import CalculatorGuide from '../../components/CalculatorGuide.astro';
 import { CALCULATORS, CATEGORIES } from '../../data/calculators';
 const calc = CALCULATORS.find(c => c.slug === 'nebenkosten-rechner')!;
 const cat = CATEGORIES[calc.category];
@@ -23,6 +24,11 @@ const year = new Date().getFullYear();
     intro="Mit dem Nebenkosten-Rechner berechnen Sie die monatlichen Nebenkosten für Ihre Wohnung."
     sourceNote="2-3€ pro m²."
     explanation="Zu den Nebenkosten gehören: Heizung, Wasser, Müll, Grundsteuer, Versicherung, Hausmeister."
+    faqs={[
+      { q: "Welche Nebenkosten sind umlagefähig?", a: "Heizung, Wasser, Abwasser, Müll, Straßenreinigung, Hausmeister, Aufzug. Nicht: Werterhaltung, Makler, Kreditzinsen." },
+      { q: "Wie kann ich Heizkosten sparen?", a: "Temperatur 1°C senken = 6-8% Ersparnis. Hydraulischer Abgleich (300-500€). Ventile entlüften. Alte Heizungen sind teuer." },
+      { q: "Kann ich meine Nebenkostenabrechnung überprüfen?", a: "Ja! Mietverein prüft kostenlos. Häufige Fehler: falsche Quadratmeterzahl, doppelte Schlüssel. Nachforderung verfällt nach 4 Jahren." }
+    ]}
   >
     <div class="calc-form">
       <div class="calc-grid">
@@ -57,6 +63,8 @@ const year = new Date().getFullYear();
       <div id="details" style="margin-top:1rem;"></div>
     </div>
   </CalculatorShell>
+
+  <CalculatorGuide title="Nebenkosten verstehen" content="<p>Nebenkosten setzen sich zusammen aus Heizung (40-50%), Wasser (20-30%), Müll (5-10%), Hausmeister und Versicherungen. Faustregel: 2-3€/m² pro Monat ist normal. Vergleich mit ähnlichen Wohnungen lohnt sich!</p><p><strong>Sparen:</strong> Heizung um 1°C senken = 6-8% weniger. Wassersparer (5-10€) sparen 20-30%. Mieterverein prüft Abrechnungen kostenlos auf Fehler.</p>" relatedSlugs={['mietrechner', 'mietpreisbremse-rechner', 'tilgungsplan']} />
 </Layout>
 
 <style>
