@@ -1,6 +1,7 @@
 ---
 import Layout from '../../layouts/Layout.astro';
 import CalculatorShell from '../../components/CalculatorShell.astro';
+import CalculatorGuide from '../../components/CalculatorGuide.astro';
 import { CALCULATORS, CATEGORIES } from '../../data/calculators';
 const calc = CALCULATORS.find(c => c.slug === 'notgroschen-rechner')!;
 const cat = CATEGORIES[calc.category];
@@ -23,6 +24,13 @@ const year = new Date().getFullYear();
     intro="Mit dem Notgroschen-Rechner berechnen Sie die empfohlene Höhe Ihrer Notfallreserve."
     sourceNote="3-6 Monatsausgaben."
     explanation="Faustformel: 3-6 Monatsausgaben als Reserve. Für Selbstständige 6-12 Monate."
+    faqs={[
+      { q: "Wie viel sollte mein Notgroschen sein?", a: "Faustregel: 3-6 Monatsausgaben. Wer sicherer arbeiten kann (Beamte), 3 Monate. Unsichere Beschäftigung oder Kinder: 6+ Monate. Selbstständige: 6-12 Monate." },
+      { q: "Wo lagere ich meinen Notgroschen?", a: "Tagesgeldkonto ist ideal: liquide (jederzeit abrufbar), sicher (Einlagensicherung) und zinsträchtig. Sparbuch ist zu langsam. Depot/Aktien sind zu volatil für Notfallfonds." },
+      { q: "Zählt Kreditrahmen als Notgroschen?", a: "Nein! Ein verfügbarer Kreditrahmen ist keine echte Rücklagen. Was, wenn die Bank es sperrt? Echter Notgroschen = echtes Geld auf dem Konto." },
+      { q: "Muss ich jeden Monat Geld sparen, um den Notgroschen aufzubauen?", a: "Ja, wenn du einen aufbauen musst. Sparziel: monatlich 5-10% des Einkommens für den Aufbau. Mit 2.000€/Monat und 5% Sparquote = 6.000€ in 1 Jahr aufgebaut." },
+      { q: "Was mache ich mit dem Geld über Notgroschen?", a: "Investieren! ETF-Sparpläne, Immobilien, Schuldentilgung. Das Geld arbeitet für dich, statt zu schlafen. Notgroschen = Versicherung. Der Rest = Vermögensaufbau." }
+    ]}
   >
     <div class="calc-form">
       <div class="calc-grid">
@@ -58,6 +66,25 @@ const year = new Date().getFullYear();
       <div id="details" style="margin-top:0.75rem;font-size:0.88rem;color:#666;display:flex;gap:1.5rem;flex-wrap:wrap;"></div>
     </div>
   </CalculatorShell>
+
+  <CalculatorGuide
+    title="So funktioniert der Notgroschen"
+    content={`<p><strong>Der Notgroschen ist deine finanzielle Sicherheit.</strong> Es ist Geld, das du auf einem leicht zugänglichen Konto hast – für Notfälle wie Auto-Reparatur, Jobverlust oder Krankheit. Ohne Notgroschen gerätst du schnell in Schulden.</p>
+
+<p><strong>Faustregel nach Situation:</strong>
+<ul>
+  <li><strong>Beamte/unbefristet angestellt:</strong> 3 Monate Ausgaben</li>
+  <li><strong>Befristet angestellt/Arbeiter:</strong> 4-5 Monate</li>
+  <li><strong>Mit Kindern:</strong> +0,5 Monate pro Kind</li>
+  <li><strong>Selbstständig:</strong> 6-12 Monate (schwankende Einnahmen)</li>
+</ul>
+</p>
+
+<p><strong>Praktisches Beispiel:</strong> 2.000€ Monatsausgaben → 3-6 Monate = 6.000€-12.000€ Notgroschen. Wo? <strong>Tagesgeldkonto!</strong> Liquide, zinsträchtig, sicher (Einlagensicherung bis 100.000€).</p>
+
+<p><strong>Aufbau-Strategie:</strong> Spare monatlich 5-10% deines Einkommens für den Notgroschen. Ist dieser vollständig, nutze den Rest für Vermögensaufbau (ETF-Sparpläne, Immobilien, Schuldentilgung).</p>`}
+    relatedSlugs={['sparen-rechner', 'fire-rechner', 'schuldentilgungs-rechner']}
+  />
 </Layout>
 
 <script type="module">
