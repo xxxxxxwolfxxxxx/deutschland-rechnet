@@ -1,10 +1,19 @@
 ---
 import Layout from '../../layouts/Layout.astro';
 import CalculatorShell from '../../components/CalculatorShell.astro';
+import CalculatorGuide from '../../components/CalculatorGuide.astro';
 import { CALCULATORS, CATEGORIES } from '../../data/calculators';
 const calc = CALCULATORS.find(c => c.slug === 'betreuungskosten-rechner')!;
 const cat = CATEGORIES[calc.category];
 const year = new Date().getFullYear();
+
+const faqs = [
+  { q: 'Was sind abzugsfähige Kinderbetreuungskosten?', a: 'Kosten für Krippe, Kindergarten, Tagesmutter oder Hort sind abzugsfähig, wenn sie zur Ermöglichung der Erwerbstätigkeit entstehen.' },
+  { q: 'Wie hoch ist der maximale Abzug?', a: 'Der Höchstbetrag liegt bei 6.000€ pro Jahr und Kind (bis 14 Jahren). Für behinderte Kinder gibt es keine Höchstgrenze.' },
+  { q: 'Wer kann Kosten absetzen?', a: 'Eltern können Kosten absetzen, wenn mindestens ein Elternteil berufstätig oder in Ausbildung ist. Arbeitssuchende können teilweise auch absetzen.' },
+  { q: 'Welche Kosten sind nicht abzugsfähig?', a: 'Verpflegung, Unterricht (Musik, Sprachen), Übernachtung und Betreuung durch Verwandte sind nicht abzugsfähig.' },
+  { q: 'Wird das Kindergeld angerechnet?', a: 'Nein, Kindergeld wird nicht auf den Abzug von Betreuungskosten angerechnet.' },
+];
 ---
 <Layout
   title={`Betreuungskosten-Rechner ${year}`}
@@ -23,6 +32,7 @@ const year = new Date().getFullYear();
     intro="Mit dem Betreuungskosten-Rechner berechnen Sie die voraussichtlichen Kita-Gebühren."
     sourceNote="100-300€/Monat für U3."
     explanation="Die Gebühren werden von den Kommunen festgelegt und richten sich nach Einkommen und Betreuungszeit."
+    faqs={faqs}
   >
     <div class="calc-form">
       <div class="calc-grid">
@@ -67,6 +77,20 @@ const year = new Date().getFullYear();
       <div id="details" style="margin-top:0.75rem;font-size:0.88rem;color:#666;display:flex;gap:1.5rem;flex-wrap:wrap;"></div>
     </div>
   </CalculatorShell>
+
+  <CalculatorGuide
+    title="Betreuungskosten – Gebühren verstehen und optimieren"
+    content="Kinderbetreuung ist in Deutschland regional sehr unterschiedlich geregelt. Während manche Bundesländer kostenlose Betreuung ab dem dritten Lebensjahr anbieten, zahlen Eltern anderswo erhebliche Gebühren.
+
+Die Betreuungskosten werden von den Kommunen oder Bundesländern festgelegt und richten sich nach dem Einkommen der Eltern, der Anzahl der Kinder und der täglichen Betreuungszeit. Eine wichtige Unterscheidung: U3-Betreuung (unter 3 Jahren) ist in der Regel teurer als Kindergartenbetreuung ab 3 Jahren.
+
+Steuerlich können bis zu 6.000€ pro Jahr und Kind als Kinderbetreuungskosten abgesetzt werden – aber nur wenn mindestens ein Elternteil arbeitet. Entscheidend ist dabei die Abgrenzung: Lediglich die Betreuung ist absetzbar, nicht aber Verpflegung oder Bildungsangebote wie Musikunterricht.
+
+Ein häufiger Fehler: Eltern vergessen, dass Geschwister die Gesamtkosten senken können. Viele Kommunen haben Geschwisterkindregelungen, die die Gebühr für das zweite oder weitere Kind reduzieren. Auch Zuschüsse durch Arbeitgeber oder Wohngeldberücksichtigung sollten geprüft werden.
+
+Finanzierungstipps: Prüfen Sie Zuschüsse der Jugendämter, Wohngeldanträge und steuerliche Absetzbarkeit genau. In einigen Bundesländern gibt es Krippengutscheine oder landesfinanzierte Plätze, die Elternbeiträge senken."
+    relatedSlugs={['kindergeld-rechner', 'elterngeld-rechner']}
+  />
 </Layout>
 
 <script type="module">
