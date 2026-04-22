@@ -1,6 +1,7 @@
 ---
 import Layout from '../../layouts/Layout.astro';
 import CalculatorShell from '../../components/CalculatorShell.astro';
+import CalculatorGuide from '../../components/CalculatorGuide.astro';
 import { CALCULATORS, CATEGORIES } from '../../data/calculators';
 const calc = CALCULATORS.find(c => c.slug === 'optimalerpuls-rechner')!;
 const cat = CATEGORIES[calc.category];
@@ -23,6 +24,32 @@ const year = new Date().getFullYear();
     intro="Mit dem Optimaler-Puls-Rechner berechnen Sie Ihren optimalen Trainingspuls basierend auf Alter und Trainingsziel."
     sourceNote="Maximalpuls = 220 - Alter."
     explanation="Zone 1 (50-60%): Aufwärmen. Zone 2 (60-70%): Fettverbrennung. Zone 3 (70-80%): Ausdauer."
+    faqs={[
+      {
+        q: "Ist die Formel 220 minus Alter genau?",
+        a: "Die Formel ist eine grobe Schätzung mit einer Standardabweichung von etwa 10-20 bpm. Fitter Menschen haben oft einen niedrigeren Maximalpuls, ältere Menschen einen höheren. Eine Belastungs-EKG ist genauer, aber die Formel reicht für Training."
+      },
+      {
+        q: "Warum ist der Ruhepuls wichtig?",
+        a: "Der Ruhepuls zeigt deine kardiovaskuläre Fitness. Ein niedrigerer Ruhepuls (60 bpm) bedeutet bessere Herzeffizienz als ein höherer (80 bpm). Trainingserfolge senken den Ruhepuls über Zeit."
+      },
+      {
+        q: "In welcher Zone sollte ich trainieren?",
+        a: "Das hängt vom Ziel ab: Fettverbrennung (50-70%) für Anfänger, aerobe Ausdauer (70-80%) für mittlere Intensität, HIIT (80-90%+) für maximale Fitness-Gewinne. Variation ist optimal."
+      },
+      {
+        q: "Kann ich auch unter meiner Fettverbrennung-Zone trainieren?",
+        a: "Ja, Zonen 50-60% sind sehr effektiv für Regeneration und sind größtenteils aerob. Sie verbrennen zwar weniger kcal/h, aber sind nachhaltiger und verletzungsfreier."
+      },
+      {
+        q: "Ist anaerobes Training sicherer?",
+        a: "Nein, anaerobes Training (80%+) ist belastender für das Herz. Es sollte nur 1-2x pro Woche und mit Vorsicht gemacht werden. Vor intensivem Training bei älteren Personen sollte ein Arzt konsultiert werden."
+      },
+      {
+        q: "Wie oft sollte ich mein Training-Puls überprüfen?",
+        a: "Eine Pulsuhr oder Smartwatch bietet konstante Rückmeldung. Bei manueller Messung (Hals/Handgelenk für 15 Sekunden mal 4) sollte regelmäßig kontrolliert werden. Eine 10 bpm Abweichung ist normal."
+      }
+    ]}
   >
     <div class="calc-form">
       <div class="calc-grid">
@@ -43,6 +70,17 @@ const year = new Date().getFullYear();
       <div id="details" style="margin-top:0.75rem;font-size:0.88rem;color:#666;display:flex;gap:1.5rem;flex-wrap:wrap;"></div>
     </div>
   </CalculatorShell>
+  <CalculatorGuide
+    title="Herzfrequenzzonen und Trainingsintensität"
+    content="Die Herzfrequenz ist ein zuverlässiger Indikator für Trainingsintensität. Durch gezieltes Training in bestimmten Pulszonen optimieren Sie die Effektivität Ihres Workouts und reduzieren das Verletzungsrisiko.
+
+**Die fünf Trainingszonen:** Niedrig (50-60%) ist ideal für Aufwärmen und Recovery, Fettverbrennung (60-70%) ist belastungsarm und lange haltbar, aerob (70-80%) verbessert die Ausdauer, anaerobschwelle (80-90%) ist intensiv und kurzfristig, maximal (90-100%+) ist nur für Sprints und Tests geeignet.
+
+**Warum Ruhepuls wichtig ist:** Ein gesunker Ruhepuls über Zeit signalisiert bessere kardiovaskuläre Gesundheit. Trainingserfolge zeigen sich oft zuerst darin: Eine Person mit Ruhepuls 80, die auf 70 trainiert hat, macht messbare Fortschritte.
+
+**Praktische Anwendung:** Nutzen Sie eine Pulsuhr für genaues Feedback. Wenn Sie kein Gerät haben, trainieren Sie nach Empfindung: Leichte Atmung in Zone 2, normal sprechend in Zone 3, kurze Worte in Zone 4. Vielfalt in den Zonen ist wichtiger als immer maximale Intensität – die beste Trainingsroutine wechselt zwischen allen Zonen."
+    relatedSlugs={['kalorien-verbrennen', 'kalorien-rechner', 'grundumsatz-rechner']}
+  />
 </Layout>
 
 <script type="module">
