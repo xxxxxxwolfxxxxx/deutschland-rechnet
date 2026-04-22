@@ -1,6 +1,7 @@
 ---
 import Layout from '../../layouts/Layout.astro';
 import CalculatorShell from '../../components/CalculatorShell.astro';
+import CalculatorGuide from '../../components/CalculatorGuide.astro';
 import { CALCULATORS, CATEGORIES } from '../../data/calculators';
 const calc = CALCULATORS.find(c => c.slug === 'stromspeicher-rechner')!;
 const cat = CATEGORIES[calc.category];
@@ -23,6 +24,14 @@ const year = new Date().getFullYear();
     intro="Mit dem Stromspeicher-Rechner berechnen Sie die Amortisationszeit eines Stromspeichers für Ihre PV-Anlage."
     sourceNote="500-800€ pro kWh."
     explanation="Stromspeicher kosten ca. 500-800€ pro kWh nutzbare Kapazität. Lebensdauer 15-20 Jahre."
+    faqs={[
+      { q: "Wann amortisiert sich ein Stromspeicher wirklich?", a: "Bei moderaten Strompreisen (35ct/kWh) und ausreichend PV-Überschuss: 15-20 Jahre. Ein 10-kWh-Speicher (10.000€) bei 1.000€/a Zusatzersparnis amortisiert sich in 10 Jahren. Bei hohem Strompreis (50ct/kWh) schneller, bei niedrigem Preis länger." },
+      { q: "Rentiert sich Speicher ohne PV-Anlage?", a: "Nein. Ohne PV würde der Speicher nur nachts günstig laden (Nachtstrom-Tarife) – das lohnt sich nicht mehr, da Nachtstrom-Rabatte klein sind (~5-10% Unterschied zu Normaltarif). Speicher + PV ist die wirtschaftliche Kombination." },
+      { q: "Welche Zusatzkosten fallen für einen Speicher an?", a: "Installation/Elektriker: 500-1.500€. Wechselrichter für AC-gekoppelten Speicher: 2.000-4.000€ (optional, oft im Speicher-Komplettpaket). Wartung/Versicherung: ~50-100€/a. Diese Kosten sollten bei der Amortisationszeitberechnung berücksichtigt werden." },
+      { q: "Ist es billiger, einen Speicher später zu installieren?", a: "Nicht unbedingt. Speicherpreise fallen zwar, aber auch Strompreise steigen. Ein Speicher heute mit 10.000€ amortisiert sich, ein zukünftiger zu 7.000€ aber vielleicht nicht schneller – und Sie verpassen Einsparungen dazwischen. Faustregel: Kauf lohnt sich jetzt bei hohem Strompreis." },
+      { q: "Wie wirkt sich Strompreisanstieg auf die Amortisation aus?", a: "Strompreisanstieg +5%/a (realistisch): Nach 10 Jahren 50% höhere Strompreise, die Amortisationszeit verkürzt sich deutlich (von 18 auf 12-14 Jahre). Deshalb sollten Speicher realistisch mit zukünftigen, höheren Strompreisen kalkuliert werden." },
+      { q: "Kann ich mit Speicher autark vom Stromnetz leben?", a: "Nicht komplett. Ein 10-kWh-Speicher + 10-kWp-PV reicht für 2-3 Tage Autarkie. Im Winter oder längeren Schlechtwetter reicht es nicht. Volle Autarkie (365 Tage) würde 50-100 kWh Speicher benötigen (500.000€+). Realistisch: 80-90% Stromversorgung mit Speicher, Rest vom Netz." }
+    ]}
   >
     <div class="calc-form">
       <div class="calc-grid">
@@ -79,3 +88,19 @@ function berechne() {
   document.getElementById(id).addEventListener('input', berechne));
 berechne();
 </script>
+
+<CalculatorGuide
+  title="Stromspeicher wirtschaftlich bewerten"
+  content="<p>Ein Stromspeicher (Batterie) macht Solaranlagen wirtschaftlicher, indem er Überschuss-Strom nachts nutzbar macht. Statt 8-10ct/kWh für Netzeinspeisung zu erhalten, sparen Sie damit 40-50ct/kWh Stromkosten – eine enorme Differenz. Trotzdem sind Speicher noch eine längerfristige Investition mit 15-20 Jahren Amortisationszeit.</p>
+
+<p><strong>Die Rechnung: Mit vs. ohne Speicher:</strong> Annahme: 10 kWp PV-Anlage, 4.000 kWh/a Verbrauch, 35ct/kWh Strompreis, 10 kWh Speicher (10.000€). Ohne Speicher: 30% Eigenverbrauch (1.200 kWh selbst genutzt = 420€/a Ersparnis). Mit Speicher: 60% Eigenverbrauch (2.400 kWh = 840€/a Ersparnis). Zusatzertrag: ~420€/a, Amortisationszeit des Speichers: 24 Jahre (zu lange!). Erst mit höherem Strompreis (50ct/kWh) rechnet sich der Speicher in 15-16 Jahren.</p>
+
+<p><strong>Strompreisannahmen sind entscheidend:</strong> Mit moderaten 35ct/kWh ist Speicher noch grenzwertig. Mit zukünftigen höheren Strompreisen (45-50ct/kWh, realistisch bis 2030) oder heute schon hohen regionalen Preisen (München 50ct+, Norddeutschland 30ct) ist die Rechnung ganz anders. Ein Speicher verdient sich schneller, je höher der Strompreis ist – deshalb ist die Entscheidung zeitabhängig.</p>
+
+<p><strong>Zusatzinvestitionen nicht vergessen:</strong> Der reine Speicher kostet 10.000€, aber Installation/Elektrik (~1.000€), eventuell Wechselrichter-Erneuerung (~3.000-4.000€) und die Notstromschaltung (~500€) kommen hinzu. Gesamtbudget: 14.500€ für das Komplettpaket. Das verändert die Amortisationsrechnung deutlich.</p>
+
+<p><strong>Speicher sinnvoll einsetzen:</strong> Ideal ist ein hoher Eigenverbrauch tagsüber (Home Office, Wärmepumpe, Warmwasserspeicher) – dann wird der Speicher am wenigsten gebraucht, da der PV-Strom direkt genutzt wird. Ein reines Nachtspeichersystem (alle Überschüsse speichern) ist weniger effizient wegen Ladeverluste (5-10%).</p>
+
+<p><strong>Zukunftsperspektive:</strong> Speicherpreise fallen weiter (2024: ~1.000€/kWh, 2027 zielwert: 600€/kWh). Strompreise werden steigen. Das bedeutet: Speicher heute mit höherem Strompreis rechnen als angenommen – eine konservative Annahme (50ct/kWh) ist realistischer als 35ct/kWh.</p>"
+  relatedSlugs={['photovoltaik-rechner', 'solarspeicher-dimensionierung', 'waermepumpe-rechner']}
+/>

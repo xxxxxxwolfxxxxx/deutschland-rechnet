@@ -1,6 +1,7 @@
 ---
 import Layout from '../../layouts/Layout.astro';
 import CalculatorShell from '../../components/CalculatorShell.astro';
+import CalculatorGuide from '../../components/CalculatorGuide.astro';
 import { CALCULATORS, CATEGORIES } from '../../data/calculators';
 const calc = CALCULATORS.find(c => c.slug === 'photovoltaik-rechner')!;
 const cat = CATEGORIES[calc.category];
@@ -23,6 +24,14 @@ const year = new Date().getFullYear();
     intro="Mit dem Photovoltaik-Rechner berechnen Sie die Amortisationszeit und den möglichen Ertrag einer PV-Anlage."
     sourceNote="1.000 kWh pro kWp."
     explanation="Der jährliche Stromertrag liegt bei ca. 1.000 kWh pro kWp installierte Leistung."
+    faqs={[
+      { q: "Wie rechnet sich eine PV-Anlage wirtschaftlich?", a: "Eine 8-kWp-Anlage kostet ~13.000€, erzeugt 8.000 kWh/a Strom. Bei 30% Eigenverbrauch (2.400 kWh) und 40ct/kWh Strompreis spart sie ~960€/a. Die Amortisationszeit ist 13-15 Jahre, danach läuft sie noch 10-15 Jahre kostenlos." },
+      { q: "Lohnt sich eine PV-Anlage für mein Dach?", a: "Ja, wenn: Dach südlich/westlich ausgerichtet, keine Verschattung (Bäume, Gebäude), Hausdach/Flachdach stabil. Unrentabel bei Norddächern oder viel Verschattung. Auch kleine Anlagen (5 kWp) rechnen sich mittlerweile in 12-15 Jahren." },
+      { q: "Was ist der Unterschied zwischen Eigenverbrauch und Netzeinspeisung?", a: "Eigenverbrauch: Strom selbst nutzen, spart Stromkosten (40ct/kWh Wert). Netzeinspeisung: Überschüsse ins Netz, bringt 8-10ct/kWh Einspeisevergütung (EEG 2023). Optimal: Hoher Eigenverbrauch durch Stromspeicher oder Wärmepumpe." },
+      { q: "Brauche ich einen Stromspeicher (Batterie)?", a: "Nicht zwingend. Ohne Speicher nutzen Sie ~30% des PV-Stroms selbst, der Rest wird eingespeist. Mit Speicher (8-10 kWh = 5.000€+): 60-70% Eigenverbrauch möglich. ROI: 15-20 Jahre. Speicher lohnt sich bei hohem Strompreis und guter Ausnutzung." },
+      { q: "Wie lange leben Solarmodule?", a: "Moderne Module halten 30-40 Jahre. Nach 25 Jahren: 85-90% Leistung. Wechselrichter halten 10-15 Jahre und müssen erneuert werden (~2.500€ für 8 kWp). Nach 20 Jahren fallen Kosten für Wechselrichter-Tausch an." },
+      { q: "Welche staatlichen Zuschüsse gibt es?", a: "KfW-Förderung für PV + Speicher (bis 70% Zuschuss für gewisse Konstellationen, 2024-2025 variabel). Auch regionale Zuschüsse möglich. Umsatzsteuer-Befreiung ab 2024. Lohnt sich: Vor Installation alle Fördermöglichkeiten prüfen!" }
+    ]}
   >
     <div class="calc-form">
       <div class="calc-grid">
@@ -113,3 +122,19 @@ document.querySelectorAll('.preset-btn').forEach(b => {
 });
 berechne();
 </script>
+
+<CalculatorGuide
+  title="Solaranlagen wirtschaftlich planen"
+  content="<p>Photovoltaikanlagen sind mittlerweile eine rentable Investition für Hauseigentümer. Mit sinkenden Modulpreisen und stabilen Strompreisen amortisieren sich 5-10 kWp Anlagen in 12-15 Jahren – danach läuft die Stromerzeugung praktisch kostenlos für weitere 15-25 Jahre.</p>
+
+<p><strong>Größe und Kosten richtig dimensionieren:</strong> Eine typische Einfamilienhaus-Anlage ist 5-10 kWp groß (kostet heute 8.000-17.000€). Die Daumenregel: 1 kWp Fläche benötigt ~6-8 m² Dachfläche und kostet ~1.500-1.800€ (Modul + Installation). Eine 8-kWp-Anlage erzeugt ~8.000 kWh/a Strom, was den Jahresverbrauch eines 3-4-Personen-Haushalts deckt.</p>
+
+<p><strong>Eigenverbrauch optimieren:</strong> Ohne Speicher nutzen Sie etwa 30% des PV-Stroms selbst (wenn tagsüber wenig im Haus), der Rest wird ins Netz eingespeist. Mit Stromspeicher (Batterie 5-10 kWh) steigt der Eigenverbrauch auf 50-70%. Ein Stromspeicher kostet extra ~5.000-8.000€, rechnet sich aber bei hohem Strompreis (>40ct/kWh) in 15-20 Jahren. Noch besser: Wärmepumpe oder Wärmespeicher nutzen tagsüber den PV-Strom direkt.</p>
+
+<p><strong>Standort und Ausrichtung entscheidend:</strong> Südausrichtung ist ideal, West- oder Ostausrichtung ist mit 80-90% Ertrag fast so gut. Norddächer sind wirtschaftlich unrentabel. Wichtig: Keine Verschattung durch Bäume, Nachbargebäude oder Schornsteine – selbst 10% Schatten reduzieren Ertrag um 30-40%. Ein Fachmann kann vor Installation mit einer Thermokamera Verschattung prüfen.</p>
+
+<p><strong>Wirtschaftliche Bewertung über 25 Jahre:</strong> Eine 8-kWp-Anlage kostet einmalig 14.000€, erzeugt über 25 Jahre ~200.000 kWh Strom (Wert: ~40.000-60.000€ je nach Strompreis). Nach Abzug von Instandhaltung (~150€/a), Versicherung (~100€/a) und Wechselrichter-Tausch in Jahr 13 (~2.500€) bleibt ein Gewinn von ~15.000-35.000€. Das ist eine Rendite von 3-6% p.a. – besser als viele Geldanlagen.</p>
+
+<p><strong>Zukunftssicherheit und Regelwerk:</strong> PV-Anlagen haben eine Garantie von 25 Jahren (Module 90% Leistung garantiert). Der Wechselrichter muss nach 10-15 Jahren erneuert werden. Das neue Strommarktgesetz (ab 2024) unterstützt private Solaranlagen mit Umsatzsteuer-Befreiung und vereinfachten Regelungen. Eine 8-kWp-Anlage darf ohne Genehmigung installiert werden (vereinfachte Anmeldung bei Netzbetreiber).</p>"
+  relatedSlugs={['stromspeicher-rechner', 'waermepumpe-rechner', 'solarspeicher-dimensionierung']}
+/>

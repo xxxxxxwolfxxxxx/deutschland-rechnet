@@ -1,6 +1,7 @@
 ---
 import Layout from '../../layouts/Layout.astro';
 import CalculatorShell from '../../components/CalculatorShell.astro';
+import CalculatorGuide from '../../components/CalculatorGuide.astro';
 import { CALCULATORS, CATEGORIES } from '../../data/calculators';
 const calc = CALCULATORS.find(c => c.slug === 'heizkosten-rechner')!;
 const cat = CATEGORIES[calc.category];
@@ -23,6 +24,14 @@ const year = new Date().getFullYear();
     intro="Mit dem Heizkosten-Rechner berechnen Sie Ihre jährlichen Heizkosten basierend auf Verbrauch und Energieträger."
     sourceNote="Gas, Öl, Wärmepumpe."
     explanation="Heizkosten = Verbrauch × Brennstoffpreis. Richtwerte: Gas 1.500-2.500€/Jahr."
+    faqs={[
+      { q: "Welcher Energieträger ist aktuell am günstigsten?", a: "Wärmepumpen sind bei niedrigen Strompreisen günstiger (5-6 ct/kWh), Gas/Öl kosten etwa 10-12 ct/kWh. Pellets 6-8 ct/kWh – aber Lagerung erforderlich. Langfristig werden Wärmepumpen günstiger." },
+      { q: "Wie berechne ich meinen Jahresverbrauch, wenn ich ihn nicht kenne?", a: "Faustregel: 50 m² Wohnung ≈ 7.500 kWh/a, 100 m² ≈ 15.000 kWh/a, 140 m² ≈ 21.000 kWh/a. Nachtspeicherheizung: +20%, moderne Wärmepumpe: -30%. Bei Gasheizung: Jahresrechnung prüfen oder Zählerstand auslesen." },
+      { q: "Welche versteckten Kosten habe ich bei der Heizung?", a: "Wartung (100-200€/a für Gas/Öl), Schornsteinfeger (80-150€/2a), Reparaturen (Reserve 100-150€/a). Wärmepumpen: weniger Wartung (50€/a), aber höhere Anschaffungskosten." },
+      { q: "Kann ich meine Heizkosten senken ohne Heizung zu wechseln?", a: "Ja: Temperatur um 1°C senken = 6-8% Kostenersparnis. Hydraulischer Abgleich (300-500€) optimiert Verteilung. Entlüftung und Entlüftungsventile am Heizkörper (30€). Dämmen von Rohren im kalten Keller (gering, aber Effekt)." },
+      { q: "Lohnt sich ein Heizungstausch wirtschaftlich?", a: "Ja, wenn Heizung älter als 15-20 Jahre ist. Wärmepumpe spart 30-50% gegenüber alter Gasheizung, rechnet sich in 12-18 Jahren ohne Förderung, mit KfW-Zuschuss in 8-12 Jahren. Gas-Brennwert spart 10-15% gegenüber alter Heizung." },
+      { q: "Wie sicher sind die Preisprognosen für Heizenergie?", a: "Schwer zu sagen – Gas/Öl hängen von Weltmarkt ab, Strom von Energiewende. Mit Faustregel kann man rechnen: Gas/Öl Preise +1-2% p.a. erwartet, Strom in Pausen stabil. Wärmepumpen profitieren von Energiewende langfristig." }
+    ]}
   >
     <div class="calc-form">
       <div class="calc-group">
@@ -61,6 +70,22 @@ const year = new Date().getFullYear();
       <p id="monat" style="margin-top:0.5rem;font-size:0.95rem;color:#666;"></p>
     </div>
   </CalculatorShell>
+
+  <CalculatorGuide
+    title="Heizkosten verstehen und sparen"
+    content="<p>Heizkosten sind meist der größte Posten in der Energierechnung von Haushalten. Mit diesem Rechner können Sie präzise berechnen, welche Heizkosten Sie mit Ihrem aktuellen Energieträger erwarten – und vergleichen, wie viel Sie mit einem Wechsel sparen können.</p>
+
+<p><strong>Unterschiedliche Energieträger und ihre Kosten:</strong> Erdgas ist mit 10-12 ct/kWh derzeit eine preiswerte Option, Heizöl ähnlich (aber starken Preisschwankungen unterworfen). Fernwärme kostet etwa 12-15 ct/kWh und steigt mit den Stadtwerken. Holzpellets sind günstig (6-8 ct/kWh), erfordern aber Lagerung und Brenner-Anschaffung. Wärmepumpen nutzen Strom und sind bei moderaten Strompreisen eine zukunftssichere Option.</p>
+
+<p><strong>Verbrauch realistisch einschätzen:</strong> Die Faustregel von 150 kWh pro m² und Jahr ist ein guter Anhalt für alte, teilweise unsanierte Häuser. Moderne, gut sanierte Häuser verbrauchen nur 50-80 kWh/m²/a. Ein Einfamilienhaus mit 120 m² sollte realistische 12.000-18.000 kWh/a verbrauchen – nachzuprüfen in der jährlichen Heizkostenabrechnung.</p>
+
+<p><strong>Sparpotenziale erkennen:</strong> Die größte Wirkung hat Sanierung (40-60% Einsparung mit Dämmung + moderner Heizung). Ohne Sanierung: Temperaturabsenkung um 1°C spart 6-8%, ein hydraulischer Abgleich 5-15%, regelmäßige Wartung 2-5%. Ein Heizungstausch von alter Öl-/Gasheizung zu Brennwert spart 10-15%, zu Wärmepumpe 30-50%.</p>
+
+<p><strong>Wirtschaftlichkeit von Heizungstausch:</strong> Eine neue Gasbrennwertanlage kostet 5.000-8.000€ und spart 1.000-2.000€/a. Eine Wärmepumpe kostet 15.000-25.000€, spart aber 3.000-5.000€/a. Mit KfW-Zuschüssen (bis 70% Förderung 2024) amortisiert sich ein Wärmepumpentausch in 8-12 Jahren. Ölheizungen sollten 2025+ nicht mehr eingebaut werden (ab 2026 schrittweise verboten).</p>
+
+<p><strong>Zukunftssicher planen:</strong> Neue Heizungen sollten mindestens 15-20 Jahre halten. Gasheizungen sind eine riskante Langzeitinvestition bei Klimaziele und steigenden CO₂-Abgaben. Wärmepumpen werden durch sinkende Strompreise (Energiewende) langfristig günstiger und sind zukunftssicher.</p>"
+    relatedSlugs={['waermepumpe-rechner', 'jahresenergieverbrauch', 'energieausweis-vorberechnung']}
+  />
 </Layout>
 
 <style>

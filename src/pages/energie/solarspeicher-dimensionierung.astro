@@ -1,6 +1,7 @@
 ---
 import Layout from '../../layouts/Layout.astro';
 import CalculatorShell from '../../components/CalculatorShell.astro';
+import CalculatorGuide from '../../components/CalculatorGuide.astro';
 import { CALCULATORS, CATEGORIES } from '../../data/calculators';
 const calc = CALCULATORS.find(c => c.slug === 'solarspeicher-dimensionierung')!;
 const cat = CATEGORIES[calc.category];
@@ -24,7 +25,12 @@ const year = new Date().getFullYear();
      sourceNote="1 kWh pro 1.000 kWh Jahresverbrauch."
      explanation="Die optimale Größe hängt vom Verbrauchsprofil ab. Faustformel: 1 kWh pro 1.000 kWh Verbrauch."
       faqs={[
-        { q: "Was ist nutzbare Kapazität?", a: "Niedriger als nominale Kapazität, da nicht vollständig entladen werden sollte." }
+        { q: "Was ist der Unterschied zwischen nutzbarer und nominaler Kapazität?", a: "Nominale Kapazität ist die maximale Speichermenge (z.B. 10 kWh), nutzbar ist nur 80-90% (8-9 kWh), um die Batterie zu schonen. Zykling-Verluste: Laden/Entladen kostet 5-10% Energie." },
+        { q: "Wie groß sollte der Speicher sein?", a: "Faustregel: 1 kWh pro 1.000-1.500 kWh Jahresverbrauch. Ein Haushalt mit 4.000 kWh/a benötigt 3-4 kWh nutzbaren Speicher (nominale 4-5 kWh). Zu kleine Speicher (1-2 kWh) helfen wenig, zu große (>10 kWh) rechnen sich nicht mehr." },
+        { q: "Ist ein Stromspeicher immer wirtschaftlich sinnvoll?", a: "Nicht immer. Ohne Speicher: Mit 30% Eigenverbrauch kostet PV-Strom nichts. Mit Speicher: Amortisationszeit 15-20 Jahre. Nur lohnenswert bei hohem Strompreis (>40ct/kWh) oder hohem Eigenverbrauch-Potential (Home Office, Wärmepumpe)." },
+        { q: "Welche Batterietechnologie soll ich wählen?", a: "Lithium-Ionen ist Standard, sicher und langlebig (10-15 Jahre). Kosten: ~1.000-1.500€ pro nutzbarer kWh. Blei-Gel ist günstiger (500€/kWh) aber schwächer (weniger Zyklen, kürzere Lebensdauer). Salzwasser-Batterien sind neu, preiswerter und recycelbar, aber noch wenig Langzeit-Daten." },
+        { q: "Kann ich den Speicher mit Notstromfunktion bekommen?", a: "Ja, AC-gekoppelte Systeme mit USV (Unterbrechungsfreie Stromversorgung) können bei Netzausfall automatisch auf Batterie umschalten. Kostet ~500-1.000€ extra. Wichtig: Nur für einzelne Stromkreise möglich, nicht das ganze Haus." },
+        { q: "Wie oft kann eine Batterie geladen/entladen werden?", a: "Moderne LiFePO4-Batterien: 4.000-6.000 vollständige Zyklen (10-15 Jahre bei täglichem Betrieb). Das bedeutet ~60.000-120.000 kWh Durchsatz über die Lebensdauer – oft mehr als der Speicher kostet." }
       ]}
    >
     <div class="calc-form">
@@ -153,3 +159,19 @@ function berechne() {
 ['speicherziel','verbrauchsprofil'].forEach(id => document.getElementById(id).addEventListener('change', berechne));
 berechne();
 </script>
+
+<CalculatorGuide
+  title="Stromspeicher optimal dimensionieren"
+  content="<p>Ein Stromspeicher (Batterie) erhöht die Unabhängigkeit von externem Stromversorgern deutlich. Statt den Überschuss-PV-Strom tagsüber ins Netz einzuspeisen (8-10ct/kWh), nutzen Sie ihn nachts selbst (spart 40-50ct/kWh Stromkosten). Die richtige Speichergröße ist ein Kompromiss zwischen Unabhängigkeit und Wirtschaftlichkeit.</p>
+
+<p><strong>Speichergröße richtig wählen:</strong> Ein Haushalt mit 4.000 kWh/a Jahresverbrauch verbraucht nachts etwa 1.200-1.500 kWh (spät abends + Nacht + früh morgens). Eine 4-5 kWh nutzbare Speichergröße deckt das für ~3-4 Nächte. Größere Speicher (10+ kWh) nutzen kaum mehr, da die PV-Anlage nicht genug Überschuss hat. Die Faustregel: 1 kWh nutzbarer Speicher pro 1.000-1.500 kWh Jahresverbrauch ist ein wirtschaftliches Optimum.</p>
+
+<p><strong>Eigenverbrauchsquote erhöhen:</strong> Ohne Speicher nutzen Sie ~30% des PV-Stroms selbst (wenn tagsüber wenig im Haus), die anderen 70% gehen ins Netz (nur 8ct/kWh Vergütung). Mit Speicher steigt die Quote auf 50-70%. Ein Speicher von 5 kWh kostet ~6.000-7.500€, spart aber 50-100€/Jahr extra (zusätzlich zu PV-Einspeisevergütung). Die Amortisationszeit ist 15-20 Jahre – eine langfristige Investition.</p>
+
+<p><strong>Verbrauchsprofil und Speicherstrategie:</strong> Ein Home-Office-Haushalt mit tagsüber viel Verbrauch braucht weniger Speicher (der Strom wird direkt genutzt). Ein Haushalt mit Fernweh (lange weg) braucht keinen Speicher. Ideal: Speicher + Wärmepumpe oder Warmwasserspeicher – dann nutzen Sie tagsüber viel PV-Strom und amortisieren den Speicher schneller.</p>
+
+<p><strong>Batterietechnologie und Kosten:</strong> Lithium-Ionen (LiFePO4) ist heute Standard: ~1.000-1.500€ pro nutzbarer kWh, 10-15 Jahre Lebensdauer, 4.000-6.000 Ladezyklen. Beispiel 5 kWh: ~6.000-7.500€. Blei-Gel ist billiger (500€/kWh) aber kurzlebiger (5-8 Jahre). Salzwasser-Batterien sind neu, recycelbar und günstiger, aber Langzeit-Daten fehlen.</p>
+
+<p><strong>Notstromfunktion und Autarkie:</strong> Mit einer isolierten Notstromschaltung (USV) können Sie bei Netzausfall 1-2 Tage autark leben. Kostet ~500-1.000€ extra. Volle Autarkie (365 Tage ohne Netz) ist mit realistischen Speichergrößen unmöglich – schon ein paar wolkige Wochen im Winter braucht dann Netzstrom oder teuer Reservekapazität.</p>"
+  relatedSlugs={['photovoltaik-rechner', 'stromspeicher-rechner', 'jahresenergieverbrauch']}
+/>

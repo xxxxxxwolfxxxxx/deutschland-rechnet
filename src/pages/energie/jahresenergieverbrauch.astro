@@ -1,6 +1,7 @@
 ---
 import Layout from '../../layouts/Layout.astro';
 import CalculatorShell from '../../components/CalculatorShell.astro';
+import CalculatorGuide from '../../components/CalculatorGuide.astro';
 import { CALCULATORS, CATEGORIES } from '../../data/calculators';
 const calc = CALCULATORS.find(c => c.slug === 'jahresenergieverbrauch')!;
 const cat = CATEGORIES[calc.category];
@@ -24,7 +25,12 @@ const year = new Date().getFullYear();
      sourceNote="Strom, Gas, Wasser."
      explanation="Der Verbrauch wird basierend auf Durchschnittswerten für verschiedene Haushaltsgrößen geschätzt."
       faqs={[
-        { q: "Durchschnittlicher Verbrauch?", a: "Strom: 1-Person: 1.500 kWh, 2-Personen: 2.500 kWh." }
+        { q: "Wie vergleiche ich meinen Verbrauch mit dem Durchschnitt?", a: "Durchschnittswerte: Strom 1-Person 1.500 kWh/a, 2-Person 2.500 kWh/a, 4-Person 3.500 kWh/a. Gas 1-Person 5.000 kWh/a, 4-Person 20.000 kWh/a (unsaniert). Sparhaushalte sind 20-30% unter diesen Werten." },
+        { q: "Warum ist mein Verbrauch höher als der Durchschnitt?", a: "Mögliche Gründe: Schlechte Dämmung (vor 1978), alte Heizung, zu hohe Raumtemperatur (jedes °C +6%), alte/viele Elektrogeräte, häufige Dusche/Bad. Ein hydraulischer Abgleich oder Heizungsprüfung kann schon 10-20% sparen." },
+        { q: "Wie zuverlässig sind die prognostizierten Verbrauchswerte?", a: "Sehr zuverlässig für den Wärmebedarf (±10-15% Unsicherheit), da dieser von Gebäudephysik bestimmt wird. Stromverbrauch hängt mehr von Nutzerverhalten ab (±20-30%). Witterung kann Jahr zu Jahr stark variieren (kalter Winter +20%)." },
+        { q: "Kann ich meinen Energieverbrauch senken, ohne die Heizung zu wechseln?", a: "Ja, mit einfachen Maßnahmen: 1°C Temperatursenkung = 6-8%, Fenster abdichten (2-5%), Duschköpfe-Sparaufsätze (10-15% Wasser), alte Heizpumpe prüfen (5%). Größere Effekte: Isolierung von Heizungsrohren (10%), Heizkörper-Thermostaten (5-10%)." },
+        { q: "Wie viel kostet mich eine kWh Energie durchschnittlich?", a: "2024: Strom ~35-45 ct/kWh (regional unterschiedlich), Gas ~10-15 ct/kWh, Wasser ~2-3 €/m³. Für einen Durchschnittshaushalt (2.500 kWh Strom + 15.000 kWh Gas): ~2.000-2.500 €/a. Prognose: Strom ab 2025 günstiger durch Windkraft-Ausbau." },
+        { q: "Wie schnell amortisiert sich eine Energiesparberatung?", a: "Eine professionelle Energieberatung kostet 300-500€ und führt meist zu 15-25% Einsparung = 300-500€/a. Amortisationszeit: 1-2 Jahre. Fördert wird die Beratung durch die BAFA (80% Zuschuss, kostenlos oder 50€)." }
       ]}
    >
     <div class="calc-form">
@@ -151,3 +157,19 @@ function berechne() {
 ['baujahr','warmewasser'].forEach(id => document.getElementById(id).addEventListener('change', berechne));
 berechne();
 </script>
+
+<CalculatorGuide
+  title="Energieverbrauch realistisch bewerten"
+  content="<p>Der Jahresenergieverbrauch setzt sich aus drei Teilen zusammen: Heizwärme (ca. 80% des Gesamtverbrauchs), Warmwasser (ca. 10%) und Strom für Geräte (ca. 10%). Die Höhe hängt stark vom Gebäudezustand, von Nutzerverhalten und von der Witterung des jeweiligen Jahres ab.</p>
+
+<p><strong>Typische Verbrauchswerte für Deutschland:</strong> Ein 1-Personen-Haushalt verbraucht durchschnittlich 1.500 kWh Strom und 5.000 kWh Heizwärme pro Jahr. Ein 4-Personen-Haushalt in einem 120 m² Haus verbraucht ~3.500 kWh Strom und 15.000-20.000 kWh Heizwärme (je nach Dämmstandard). Alte, unsanierte Häuser (vor 1978) brauchen bis zu 250 kWh/m²/a, moderne Effizienzhäuser nur 50-70 kWh/m²/a – das ist ein 3-5-facher Unterschied!</p>
+
+<p><strong>Faktoren, die Verbrauch beeinflussen:</strong> Der Gebäudezustand ist dominant – Außenwanddämmung, Fenster und Heizung sind entscheidend. Auch Nutzerverhalten zählt: Raumtemperatur (1°C mehr = +6%), Lüftungsverhalten (zu viel Lüften kostet Wärme), Duschfrequenz und Geräteeffizienz. Klima und Witterung variieren Jahr zu Jahr um ±15% (warme vs. kalte Winter).</p>
+
+<p><strong>Benchmark-Vergleiche richtig einordnen:</strong> Der Vergleich zum statistischen Durchschnitt ist nützlich, sollte aber realistisch interpretiert werden. Ein älteres Haus wird automatisch höhere Werte haben, ein Neubau niedrigere. Relevant ist: Wie entwickelt sich Ihr eigener Verbrauch über die Jahre? Stabile Werte sind gut, steigende Werte deuten auf Verschleiß (Heizung, Fenster).</p>
+
+<p><strong>Sparpotenziale erkennen:</strong> Die größten Einsparungen bringt Gebäudesanierung (40-60%). Ohne Sanierung: Regelmäßige Wartung der Heizung (2-5% Ersparnis), Thermostatventile (5-10%), hydraulischer Abgleich (10-15%), Rohrdämmung (3-5%). Stromspar-Potenziale: LED-Beleuchtung (10-15%), Geräte-Austausch (10-20%), Stand-by-Geräte ausschalten (5-10%).</p>
+
+<p><strong>Zuverlässigkeit von Prognosen:</strong> Die Heizwärmeberechnung ist sehr zuverlässig (±10%), da sie auf Gebäudephysik basiert. Stromverbrauch hat höhere Unsicherheit (±20-30%), da er von Nutzerverhalten abhängt. Eine professionelle Energieberatung (BAFA-gefördert) kann mit 80% Zuschuss erhalten und zeigt konkrete Sparpotenziale für Ihr Haus.</p>"
+  relatedSlugs={['heizkosten-rechner', 'energieausweis-vorberechnung', 'co2-einsparung-renovierung']}
+/>

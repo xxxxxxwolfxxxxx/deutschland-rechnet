@@ -1,6 +1,7 @@
 ---
 import Layout from '../../layouts/Layout.astro';
 import CalculatorShell from '../../components/CalculatorShell.astro';
+import CalculatorGuide from '../../components/CalculatorGuide.astro';
 import { CALCULATORS, CATEGORIES } from '../../data/calculators';
 const calc = CALCULATORS.find(c => c.slug === 'co2-einsparung-renovierung')!;
 const cat = CATEGORIES[calc.category];
@@ -24,9 +25,12 @@ const year = new Date().getFullYear();
      sourceNote="Dämmung, neue Heizung, Fenster."
      explanation="Dämmung: bis 50% Einsparung, neue Heizung: bis 40%. Die Einsparungen werden in € und kg CO₂ angegeben."
       faqs={[
-        { q: "Höchste Einsparung?", a: "Dachdämmung (bis 50%) und neue Heizung (bis 40%)." },
-        { q: "Wie hoch sind die typischen Fördersätze?", a: "BEG-Zuschüsse von 15-25% für Einzelmaßnahmen, bis 40% für Komplettsanierungen." },
-        { q: "Lohnt sich eine Sanierung ohne Fördermittel?", a: "Ja, Amortisationszeiten von 8-15 Jahren sind möglich. Wohnkomfort und Marktwert steigen." }
+        { q: "Welche Sanierungsmaßnahme spart am meisten CO₂?", a: "Der Heizungstausch und die Außenwanddämmung sind besonders effektiv. Bei älteren Häusern (vor 1979) können diese Maßnahmen bis zu 100 kg CO₂ pro m² und Jahr einsparen." },
+        { q: "Was ist der Unterschied zwischen Einzelmaßnahmen und Komplettsanierungen?", a: "Einzelmaßnahmen wie Fensteraustausch sind günstiger, Komplettsanierungen erreichen aber KfW-Standards und ermöglichen höhere Förderquoten (bis 40%)." },
+        { q: "Wie berechnet sich die Amortisationszeit?", a: "Die Amortisationszeit ist das Verhältnis der Nettoinvestition zur jährlichen Energiekosteneinsparung. Typische Werte liegen bei 8-15 Jahren." },
+        { q: "Welche staatlichen Förderprogramme gibt es?", a: "KfW-Kredit 262 und BEG-Zuschüsse fördern Sanierungen mit 15-25% (Einzelmaßnahmen) bis 40% (KfW-Effizienzhaus 85). Zusätzlich können BAFA-Anträge für Heizungstausch gestellt werden." },
+        { q: "Wie sicher sind die CO₂-Einsparungsangaben?", a: "Die Werte basieren auf KfW-Richtwerten und DIN-Standards. Tatsächliche Einsparungen hängen von Gebäudezustand, Nutzerverhalten und Witterung ab (±15%)." },
+        { q: "Wann lohnt sich eine Sanierung wirtschaftlich?", a: "Generell bei Amortisationszeiten unter 20 Jahren. Zusätzlich steigen Wohnkomfort, Marktwert und Energieunabhängigkeit – oft schneller amortisiert als nur durch Energieersparnis." }
       ]}
    >
     <div class="calc-form">
@@ -86,6 +90,22 @@ const year = new Date().getFullYear();
       <div id="details" style="margin-top:0.75rem;font-size:0.88rem;color:#666;display:flex;gap:1.5rem;flex-wrap:wrap;"></div>
     </div>
   </CalculatorShell>
+
+  <CalculatorGuide
+    title="CO₂-Einsparung durch Sanierungsmaßnahmen verstehen"
+    content="<p>Gebäudesanierungen sind eine der wirksamsten Maßnahmen zur Reduktion von CO₂-Emissionen im privaten Bereich. Der Wärmeverbrauch für Heizung und Warmwasser macht etwa 80% des Energieverbrauchs in Wohngebäuden aus, daher können optimierte Gebäudehüllen und moderne Heizsysteme erhebliche Einsparungen erzielen.</p>
+
+<p><strong>Wichtigste Sanierungsmaßnahmen:</strong> Außenwanddämmung reduziert Wärmeverluste durch die Außenmauern um 40-60%. Dachboden-/Deckendämmung ist kostengünstig und sehr wirksam (30-50% Einsparung). Der Fensteraustausch auf 3-fach verglaste Fenster mindert Wärmeverluste durch Glas um 60-70%. Ein Heizungstausch auf Wärmepumpe oder moderne Gasbrennwerttechnik reduziert den Energieverbrauch um 30-50%.</p>
+
+<p><strong>Fördermittel optimal nutzen:</strong> Die KfW-Bank und BAFA bieten großzügige Zuschüsse und zinsverbilligte Kredite. Für KfW-Effizienzhaus 85 (Komplettsanierung mit 15% Einsparung) sind bis zu 40% Förderung möglich. Einzelmaßnahmen werden mit 15-25% gefördert. Die Kombinierbarkeit verschiedener Maßnahmen erhöht oft die Förderquote erheblich.</p>
+
+<p><strong>Wirtschaftlichkeit berechnen:</strong> Amortisationszeiten unter 15 Jahren sind üblich. Zusätzlich zu direkten Energieeinsparungen profitieren Sie von gestiegenem Wohnkomfort (höhere Temperaturen, kein Zugluft), höherem Immobilienwert und größerer Unabhängigkeit von Energiepreisen. Mieter sparen durch niedrigere Nebenkosten, Eigenheimbesitzer durch höheren Verkaufswert.</p>
+
+<p><strong>Planung und Umsetzung:</strong> Ein unabhängiger Energieberater erstellt einen Sanierungsfahrplan (gefördert durch BAFA). Dies hilft, Prioritäten zu setzen und Synergien zwischen Maßnahmen zu nutzen. Handwerkliche Qualität ist entscheidend – schlechte Ausführung (z.B. Wärmebrücken) mindert Einsparungen um 20-30%.</p>
+
+<p><strong>CO₂-Einsparungen korrekt bewerten:</strong> 1 kWh Heizenergie spart etwa 0,4 kg CO₂ (Strommix), bei Gasheizung etwa 0,2 kg CO₂ pro kWh. Die Amortisation der Herstellung von Dämmstoffen beträgt typisch 2-5 Jahre – danach ist die gesamte Lebenszyklusbetrachtung positiv.</p>"
+    relatedSlugs={['heizkosten-rechner', 'waermepumpe-rechner', 'photovoltaik-rechner']}
+  />
 </Layout>
 
 <script type="module">

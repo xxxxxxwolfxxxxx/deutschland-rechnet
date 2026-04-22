@@ -1,6 +1,7 @@
 ---
 import Layout from '../../layouts/Layout.astro';
 import CalculatorShell from '../../components/CalculatorShell.astro';
+import CalculatorGuide from '../../components/CalculatorGuide.astro';
 import { CALCULATORS, CATEGORIES } from '../../data/calculators';
 const calc = CALCULATORS.find(c => c.slug === 'heizkosten-vergleich')!;
 const cat = CATEGORIES[calc.category];
@@ -24,9 +25,12 @@ const year = new Date().getFullYear();
      sourceNote="Gas, Öl, Strom, Wärmepumpe, Pellets."
      explanation="Jeder Energieträger hat anderen Preis und Wirkungsgrad. Kosten werden in Cent/kWh verglichen."
       faqs={[
-        { q: "Welcher am günstigsten?", a: "Wärmepumpe und Holzpellets." },
-        { q: "Wie wirkt sich die Dämmung auf die Heizkosten aus?", a: "Die Dämmung hat einen enormen Einfluss. Ein unsanierter Altbau benötigt etwa 150 kWh/(m²·a), während ein Effizienzhaus nur noch 60 kWh/(m²·a) benötigt." },
-        { q: "Ist eine Wärmepumpe immer die beste Wahl?", a: "Eine Wärmepumpe ist nicht automatisch die beste Wahl. Sie benötigt einen ausreichend dimensionierten Heizkreislauf und arbeitet am effizientesten bei niedrigen Vorlauftemperaturen." }
+        { q: "Wie wirkt sich die Gebäudedämmung auf die Heizkosten aus?", a: "Extrem: Ein unsanierter Altbau benötigt ~150-180 kWh/(m²·a), teilsaniert ~100 kWh/(m²·a), modernes Effizienzhaus ~50-70 kWh/(m²·a). Eine Sanierung reduziert die Heizkosten um 40-60% – das ist oft rentabler als nur die Heizung zu wechseln." },
+        { q: "Welcher Energieträger ist langfristig am günstigsten?", a: "Kurzfristig: Holzpellets und Wärmepumpen. Langfristig: Wärmepumpen gewinnen durch sinkende Strompreise (Energiewende). Gas wird teurer (CO₂-Abgabe steigt), Öl wird ab 2025 schrittweise verboten. Pellets sind abhängig von Holzpreisen und Lagerplatz." },
+        { q: "Ist eine Wärmepumpe auch bei kalten Außentemperaturen wirtschaftlich?", a: "Ja! Moderne Wärmepumpen arbeiten bis -25°C effizient (JAZ 3-4). Wichtig: Gute Gebäudedämmung und niedrige Vorlauftemperaturen (≤55°C) – dann sind sie 30-50% günstiger als Gas/Öl." },
+        { q: "Wie sicher sind die Preisannahmen für die nächsten Jahre?", a: "Gas/Öl: Preis hängt von Weltmarkt ab, steigen durch CO₂-Abgabe (2024 45€/t, 2025 55€/t). Strom: Wird durch Energiewende günstiger (Solar/Wind). Pellets: Holzpreise relativ stabil. Verlässlichste Langfristinvestition: Dämmung + Wärmepumpe." },
+        { q: "Was ist der Unterschied zwischen COP und JAZ bei Wärmepumpen?", a: "COP (Coefficient of Performance) ist ein Laborwert unter idealen Bedingungen. JAZ (Jahresarbeitszahl) ist der echte Verbrauch übers Jahr mit echtem Wetter und Betriebszuständen. JAZ ist immer niedriger (2,5-4 statt 3-5). Rechnen Sie mit JAZ!" },
+        { q: "Kann ich den Energieträger während der Heizperiode wechseln?", a: "Nein, das ist technisch und rechtlich kompliziert. Planen Sie Wechsel für Sommer/Frühjahr. Bei moderaten Außentemperaturen ist ein paar Wochen ohne Heizung möglich. Neue Heizung sollte frühzeitig geplant und termin koordiniert werden." }
       ]}
    >
     <div class="calc-form">
@@ -145,3 +149,19 @@ function berechne() {
 document.getElementById('daemmstandard').addEventListener('change', berechne);
 berechne();
 </script>
+
+<CalculatorGuide
+  title="Energieträger vergleichen und die beste Wahl treffen"
+  content="<p>Die Wahl des Heizenergiestoffs ist eine langfristige Entscheidung, die 20+ Jahre wirkt. Ein guter Vergleich berücksichtigt nicht nur aktuelle Kosten, sondern auch Preisentwicklung, Umwelt und Anforderungen an das Gebäude.</p>
+
+<p><strong>Energieträger im Überblick:</strong> Erdgas ist etabliert, günstig und weit verbreitet – aber Preise steigen wegen CO₂-Abgabe (+€50/Tonne bis 2030). Heizöl ist ähnlich, wird aber ab 2026 bei Austausch eingeschränkt und ab 2045 verboten. Wärmepumpen sind zukunftssicher, werden aber durch steigende Strompreise belastet (momentan 30-40ct/kWh). Pellets sind klimafreundlich, erfordern aber Lagerung und Brenner-Investment. Fernwärme ist praktisch, aber oft teuer (12-15ct/kWh) und unflexibel.</p>
+
+<p><strong>Die Rolle der Gebäudedämmung:</strong> Das entscheidende Kriterium! Ein unsanierter Altbau braucht 150-180 kWh/(m²·a), gut saniert nur 50-70 kWh. Das heißt: Bei gleicher Heizart spart Dämmung mehr als Wechsel der Energiequelle. Dann wird jede kWh günstiger, egal ob Gas, Wärmepumpe oder Pellets. Ideal: Dämmung zuerst (ROI 10-15 Jahre), dann moderner Energieträger (Wärmepumpe oder Brennwert).</p>
+
+<p><strong>Wirtschaftliche Vergleiche realistisch bewerten:</strong> Der heutige Energiepreis ist nicht morgen gültig. Gas wird durch CO₂-Abgabe teurer (+€100-150/a für Standardhaus bis 2030). Strom fällt durch Windkraft und Solarausbau (Spot-Preise oft <10ct/kWh). Eine Wärmepumpe, die heute noch teuer erscheint, kann in 5-10 Jahren die beste Wahl sein. Faustformel: Wärmepumpen rechnen sich nach 10-15 Jahren gegenüber Gas.</p>
+
+<p><strong>Anforderungen an die Heizanlage:</strong> Wärmepumpen brauchen niedrige Vorlauftemperaturen (ideale 35-45°C) – alte Heizkörper-Systeme sind schlecht geeignet. Gas/Öl können problemlos in bestehende Systeme eingebaut werden. Pellets benötigen Lagerraum (ca. 4 m² pro 100kW Heizleistung). Fernwärme ist nur sinnvoll wenn verfügbar und die Leitung günstig.</p>
+
+<p><strong>Zukunftssicherheit und Regulierung:</strong> Ölheizungen werden ab 2026 nur noch in Hybrid-Kombination erlaubt, ab 2045 verboten. Gasheizungen sind bis 2045 erlaubt, aber Preisrisiko steigt. Wärmepumpen und Pellets sind zukunftssicher. Ab 2030 müssen Neubauten 100% Erneuerbare nutzen – Eigentümer sollten jetzt planen.</p>"
+  relatedSlugs={['heizkosten-rechner', 'waermepumpe-rechner', 'co2-einsparung-renovierung']}
+/>
