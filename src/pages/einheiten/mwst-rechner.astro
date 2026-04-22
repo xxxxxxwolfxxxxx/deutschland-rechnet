@@ -1,6 +1,7 @@
 ---
 import Layout from '../../layouts/Layout.astro';
 import CalculatorShell from '../../components/CalculatorShell.astro';
+import CalculatorGuide from '../../components/CalculatorGuide.astro';
 import { CALCULATORS, CATEGORIES } from '../../data/calculators';
 const calc = CALCULATORS.find(c => c.slug === 'mwst-rechner')!;
 const cat = CATEGORIES[calc.category];
@@ -23,6 +24,14 @@ const year = new Date().getFullYear();
     intro="Mit dem MwSt-Rechner berechnen Sie Netto- und Bruttopreise mit 19% oder 7% MwSt."
     sourceNote="19% oder 7%."
     explanation="MwSt (19%) = Netto × 0,19. Brutto = Netto × 1,19."
+    faqs={[
+      { q: "Was ist der Unterschied zwischen Netto und Brutto?", a: "Netto ist der Preis ohne Mehrwertsteuer, Brutto ist der Preis inklusive MwSt. Der Konsument zahlt immer den Bruttobetrag an der Kasse. Das Unternehmen zahlt die Differenz (die MwSt) an den Staat ab." },
+      { q: "Wann gilt 7% und wann 19% MwSt?", a: "7% MwSt gilt für Lebensmittel (außer Luxusartikel), Bücher, Zeitungen, Wasser, Nahverkehr. 19% ist der Regelsatz für alle anderen Waren und Dienstleistungen. Einige Branchen wie Gastronomie haben Sondersätze." },
+      { q: "Warum gibt es unterschiedliche MwSt-Sätze?", a: "Der ermäßigte Satz von 7% soll lebensnotwendige Güter günstiger machen, damit auch Haushalte mit niedrigem Einkommen diese kaufen können. Luxusgüter und Standard-Dienstleistungen unterliegen dem vollen Satz von 19%." },
+      { q: "Ist die MwSt ein Kostenfaktor für Unternehmen?", a: "Nein, die MwSt ist eine Steuer auf den Verbrauch. Unternehmen geben die MwSt ihrer Kunden an den Staat ab. Allerdings können sie Vorsteuer (MwSt auf ihre Einkäufe) geltend machen – das macht die MwSt meist neutral für B2B-Transaktionen." },
+      { q: "Welche Waren und Dienstleistungen sind steuerfrei?", a: "Manche Dienstleistungen sind steuerfrei: Versicherungen, Finanzdienstleistungen, Mieten (meist), Gesundheitsdienstleistungen von Ärzten/Zahnärzten. Diese haben 0% MwSt, nicht 7%." },
+      { q: "Wie berechne ich den Nettobetrag aus einem Bruttobetrag?", a: "Brutto ÷ 1,19 (bei 19% MwSt) oder Brutto ÷ 1,07 (bei 7%). Der Unterschied ist die MwSt. Beispiel: 119€ Brutto ÷ 1,19 = 100€ Netto, MwSt = 19€." }
+    ]}
   >
     <div class="calc-form">
       <div class="calc-grid">
@@ -52,6 +61,40 @@ const year = new Date().getFullYear();
       <div id="details" style="margin-top:0.75rem;font-size:0.88rem;color:#666;display:flex;gap:1.5rem;flex-wrap:wrap;"></div>
     </div>
   </CalculatorShell>
+
+  <CalculatorGuide
+    title="MwSt-Rechner – Netto & Brutto im Detail"
+    content={`
+      <p>Die <strong>Mehrwertsteuer (MwSt)</strong> ist eine indirekte Verbrauchssteuer, die auf fast alle Waren und Dienstleistungen in Deutschland erhoben wird. Sie ist für Verbraucher integraler Teil des Preises, aber Unternehmen müssen sie differenziert berechnen und abführen.</p>
+
+      <p><strong>Nettobetrag</strong> ist der Preis ohne MwSt, <strong>Bruttobetrag</strong> ist der Preis inklusive MwSt. Der Konsument zahlt immer den Bruttonpreis – das ist der Preis an der Kasse. Unternehmen rechnen intern mit Nettopreisen und geben die MwSt an den Finanzamt ab.</p>
+
+      <p><strong>Beispiel für einen Shop:</strong> Ein Artikel mit Nettopreis 100€ hat bei 19% MwSt einen Bruttoprois von 119€. Der Kunde zahlt 119€, das Unternehmen gibt 19€ MwSt ans Finanzamt ab und behält 100€.</p>
+
+      <h4>Die beiden MwSt-Sätze in Deutschland</h4>
+      <ul>
+        <li><strong>19% (Regelsatz):</strong> Gilt für fast alle Waren und Dienstleistungen (Kleidung, Elektronik, Möbel, Handwerk, Gastronomie, Hotels, etc.)</li>
+        <li><strong>7% (ermäßigter Satz):</strong> Lebensmittel, Bücher, Zeitungen, Nahverkehr, Wasser, Behindertenhilfe – Dinge des Grundbedarfs</li>
+      </ul>
+
+      <h4>Auswirkung auf Wirtschaft und Verbraucher</h4>
+      <p>Unternehmen können die MwSt ihrer Einkäufe (Vorsteuer) geltend machen – das nennt sich Vorsteuerabzug. Dadurch ist die MwSt für B2B-Transaktionen meist neutral. Nur der Endverbraucher trägt die echte Steuer.</p>
+
+      <p>Der ermäßigte Satz von 7% soll soziale Gerechtigkeit fördern: Lebensmittel kosten damit weniger, und Haushalte mit niedrigem Einkommen werden entlastet.</p>
+
+      <h4>Praktische Tipps</h4>
+      <ul>
+        <li><strong>Brutto immer kassieren:</strong> Rechnungen müssen den Bruttobetrag und die MwSt transparent ausweisen.</li>
+        <li><strong>Preisvergleich:</strong> Online-Preise sind oft Nettopreise – die MwSt wird erst beim Checkout addiert.</li>
+        <li><strong>Auslandsversand:</strong> Innerhalb der EU wird Einfuhr-MwSt verrechnet. Außerhalb EU: Import-MwSt beim Zoll.</li>
+        <li><strong>Rechnungsprüfung:</strong> Achten Sie darauf, dass die MwSt korrekt berechnet ist – Fehler gibt es häufiger.</li>
+      </ul>
+
+      <h4>Spezialfälle</h4>
+      <p>Manche Bereiche haben Sondersätze oder sind steuerfrei: Versicherungen, Arztbesuche, Mieten (keine MwSt), Bank- und Finanzdienstleistungen. Diese fallen unter 0% MwSt und sind für den Verbraucher günstiger.</p>
+    `}
+    relatedSlugs={['rabatt-rechner', 'prozent-rechner']}
+  />
 </Layout>
 
 <script type="module">
