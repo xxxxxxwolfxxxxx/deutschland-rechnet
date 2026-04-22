@@ -1,6 +1,7 @@
 ---
 import Layout from '../../layouts/Layout.astro';
 import CalculatorShell from '../../components/CalculatorShell.astro';
+import CalculatorGuide from '../../components/CalculatorGuide.astro';
 import { CALCULATORS, CATEGORIES } from '../../data/calculators';
 const calc = CALCULATORS.find(c => c.slug === 'kreditvergleich')!;
 const cat = CATEGORIES[calc.category];
@@ -27,7 +28,9 @@ const year = new Date().getFullYear();
       { q: "Sollzins vs. Effektivzins – was ist der Unterschied?", a: "Der Sollzins ist der reine Kreditzins. Der Effektivzins ist aussagekräftiger, da er auch Bearbeitungsgebühren, Versicherungen und andere Kosten einrechnet." },
       { q: "Welcher Zinssatz ist noch gut?", a: "Das hängt von Ihrer Bonität ab. Gute Bonität (SCHUFA 100-200): 3-5%. Mittlere Bonität: 5-8%. Niedrige Bonität: 8-15%+." },
       { q: "Wie wirkt sich die Laufzeit auf die Rate aus?", a: "Je länger die Laufzeit, desto niedriger die Rate – aber höhere Gesamtkosten durch längere Zinszahlung. Kürzere Laufzeit = höhere Rate, aber geringere Gesamtkosten." },
-      { q: "Warum unterscheiden sich meine Bankangebote vom Rechner?", a: "Banken rechnen zusätzliche Kosten ein (Versicherungen, Gebühren, Kontoführung). Der Rechner zeigt die Basis-Darlehenskosten. Vergleichen Sie immer die Effektivzinssätze!" }
+      { q: "Warum unterscheiden sich meine Bankangebote vom Rechner?", a: "Banken rechnen zusätzliche Kosten ein (Versicherungen, Gebühren, Kontoführung). Der Rechner zeigt die Basis-Darlehenskosten. Vergleichen Sie immer die Effektivzinssätze!" },
+      { q: "Was ist ein SCHUFA-Score und wie beeinflusst er meinen Kreditzins?", a: "Der SCHUFA-Score ist eine Bonitätseinstufung (300-900 Punkte). Je höher, desto besser. Ab 500 Punkten ist die Bonität normal, ab 650 sehr gut. Ein schlechterer Score führt zu höheren Zinsen oder Kreditablehnung." },
+      { q: "Sollte ich einen kurzen oder langen Kredit wählen?", a: "Kurz: Weniger Gesamtzinsen, aber höhere monatliche Rate. Lang: Niedrigere Rate, aber mehr Gesamtkosten. Wählen Sie basierend auf Ihrer finanziellen Situation und wie schnell Sie schuldenfrei sein möchten." }
     ]}
   >
     <div class="calc-form">
@@ -148,3 +151,41 @@ berechne();
   font-family: var(--font-ui);
 }
 </style>
+
+  <CalculatorGuide
+    title="Kreditvergleich – Die richtige Finanzierung wählen"
+    content={`
+      <p>Ein <strong>Kredit</strong> ist Geld, das Sie sich von einer Bank leihen. Sie müssen es mit Zinsen zurückzahlen. Der Kreditvergleich zeigt, welches Angebot wirklich am günstigsten ist – denn nicht immer ist der niedrigere Prozentsatz auch der beste Deal.</p>
+
+      <p>Mit unserem Rechner können Sie <strong>zwei Kreditangebote direkt vergleichen</strong>. Die wichtigste Metrik ist die <strong>Gesamtsumme, die Sie zurückzahlen müssen</strong> – nicht nur der Zinssatz.</p>
+
+      <p><strong>Beispiel:</strong> Kredit A: 5% Zinsen auf 20.000€ über 36 Monate. Kredit B: 4,5% über 60 Monate. Kredit B hat niedrigere Zinsen, aber Sie zahlen länger und mehr insgesamt. Der Rechner zeigt: Welcher ist wirklich günstiger?</p>
+
+      <h4>Sollzins vs. Effektivzins – Was zählt wirklich?</h4>
+      <ul>
+        <li><strong>Sollzins:</strong> Der reine Kreditzins ohne Nebenkosten. In Banken-Angeboten wird dieser meist prominent angezeigt.</li>
+        <li><strong>Effektivzins:</strong> Schließt Bearbeitungsgebühren, Provisionen und andere Kosten ein. Dieser ist aussagekräftiger und muss von Banken immer genannt werden. Vergleichen Sie Kredite anhand des Effektivzinses!</li>
+      </ul>
+
+      <h4>Wie beeinflusst die Laufzeit Ihre Entscheidung?</h4>
+      <p>Die Laufzeit ist ein kritischer Faktor:</p>
+      <ul>
+        <li><strong>Kurze Laufzeit (12-24 Monate):</strong> Höhere monatliche Rate, aber weniger Gesamtzinsen. Gut, wenn Sie schnell schuldenfrei sein möchten.</li>
+        <li><strong>Mittlere Laufzeit (36-48 Monate):</strong> Das Standardmodell. Gute Balance zwischen Rate und Gesamtkosten.</li>
+        <li><strong>Lange Laufzeit (60-84 Monate):</strong> Niedrigere monatliche Rate, aber deutlich höhere Gesamtzinsen. Nur wenn die höhere Rate Ihre Liquidität gefährdet.</li>
+      </ul>
+
+      <h4>Bonitätsprüfung und SCHUFA</h4>
+      <p>Banken prüfen Ihre Kreditwürdigkeit anhand des SCHUFA-Scores (150-900 Punkte in Deutschland). Je besser Ihr Score, desto niedriger Ihr Zinssatz. Ein schlechter Score kann zu Kreditablehnung oder sehr hohen Zinsen führen.</p>
+
+      <h4>Praktische Tipps für Kreditvergleiche</h4>
+      <ul>
+        <li><strong>Mehrere Banken vergleichen:</strong> Zinssätze unterscheiden sich deutlich je nach Anbieter – bis zu 2-3% Unterschied sind normal.</li>
+        <li><strong>Gesamtkosten beachten:</strong> Nicht nur der Prozentsatz zählt. Gebühren, Versicherungen und Sondertilgungsoptionen spielen eine Rolle.</li>
+        <li><strong>Vorsicht vor Nebenkosten:</strong> Manche Banken verstecken Versicherungen (Kreditausfallversicherung) oder Kontogebühren im Gesamtpreis.</li>
+        <li><strong>Sondertilgung verhandeln:</strong> Die Möglichkeit, Raten zu erhöhen oder Sondertilgungen zu machen, kann Ihnen Jahre Zinsen sparen.</li>
+      </ul>
+    `}
+    relatedSlugs={['trinkgeld-rechner', 'kurzarbeitergeld-rechner']}
+  />
+</Layout>
