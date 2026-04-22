@@ -1,6 +1,7 @@
 ---
 import Layout from '../../layouts/Layout.astro';
 import CalculatorShell from '../../components/CalculatorShell.astro';
+import CalculatorGuide from '../../components/CalculatorGuide.astro';
 import { CALCULATORS, CATEGORIES } from '../../data/calculators';
 const calc = CALCULATORS.find(c => c.slug === 'blutdruck-bewerter')!;
 const cat = CATEGORIES[calc.category];
@@ -23,6 +24,32 @@ const year = new Date().getFullYear();
     intro="Mit dem Blutdruck-Bewerter ordnen Sie Ihre Blutdruckwerte nach der WHO-Klassifikation ein."
     sourceNote="Optimal: unter 120/80."
     explanation="Optimal: unter 120/80. Normal: 120-129/80-84. Hoch: 140+/90+."
+    faqs={[
+      {
+        q: "Was ist der Unterschied zwischen systolisch und diastolisch?",
+        a: "Der systolische Wert (oben) misst den Druck beim Herzschlag, der diastolische Wert (unten) den Druck in der Entspannungsphase. Beide sind wichtig für die Bewertung der Herzgesundheit."
+      },
+      {
+        q: "Ab wann ist Blutdruck zu hoch?",
+        a: "Als erhöht gelten Werte ab 140/90 mmHg. Werte zwischen 120-139 systolisch sind normal bis hoch-normal und sollten beobachtet werden."
+      },
+      {
+        q: "Wie kann ich meinen Blutdruck senken?",
+        a: "Regelmäßige Bewegung, Salzreduktion, Stressabbau, weniger Alkohol und eine ausgewogene Ernährung helfen nachweislich, den Blutdruck zu senken."
+      },
+      {
+        q: "Warum ist Blutdruckmessung mehrmals täglich sinnvoll?",
+        a: "Der Blutdruck schwankt tagsüber natürlicherweise. Mehrfachmessungen geben ein realistischeres Bild und helfen, Messfehler auszuschließen."
+      },
+      {
+        q: "Sollte ich bei hohem Blutdruck zum Arzt?",
+        a: "Ja, insbesondere wenn Werte dauerhaft über 140/90 liegen oder Sie Symptome wie Kopfschmerzen haben. Ein Arzt kann die Ursache klären und eine Behandlung empfehlen."
+      },
+      {
+        q: "Beeinflussen Alter und Geschlecht die optimalen Blutdruckwerte?",
+        a: "Ja, mit zunehmendem Alter steigt der normale Blutdruck leicht an. Die WHO-Klassifikation berücksichtigt dies, rät aber zu universellen Zielwerten unter 130/80 für alle Altersgruppen."
+      }
+    ]}
   >
     <div class="calc-form">
       <div class="calc-grid">
@@ -46,6 +73,17 @@ const year = new Date().getFullYear();
       <div id="details" style="margin-top:0.75rem;font-size:0.88rem;color:#666;display:flex;gap:1.5rem;flex-wrap:wrap;"></div>
     </div>
   </CalculatorShell>
+  <CalculatorGuide
+    title="Blutdruckbewertung nach WHO-Standard"
+    content="Der Blutdruck wird in zwei Werten gemessen: dem systolischen Druck (beim Herzschlag) und dem diastolischen Druck (in der Ruephase). Die WHO-Klassifikation unterteilt diese in fünf Kategorien – von optimal bis Hypertonie Grad 3 – um Ihr persönliches Risiko für Herz-Kreislauf-Erkrankungen einzuschätzen.
+
+**Warum ist regelmäßige Messung wichtig?** Der Blutdruck schwankt natürlicherweise über den Tag verteilt, daher sind mehrere Messungen unter standardisierten Bedingungen (morgens, vor dem Frühstück) aussagekräftiger als einzelne Messwerte. Wer längerfristig erhöhte Werte hat, erhöht sein Risiko für Schlaganfall, Herzinfarkt und Nierenschäden.
+
+**Häufige Missverständnisse:** Viele denken, dass 140/90 ein harter Schwellwert ist – tatsächlich ist dies der Beginn der diagnostizierten Hypertonie, aber auch Werte von 130-139 systolisch sollten ernst genommen werden. Einmalig hohe Messwerte sind keine Diagnose (Weiß-Kittel-Effekt), regelmäßige Messungen über Tage oder Wochen zeigen das echte Bild.
+
+**Praktische Tipps für niedrigere Werte:** Neben Medikamenten helfen bereits kleine Lebensstiländerungen – 150 Minuten moderates Training pro Woche senken den systolischen Druck um bis zu 8 mmHg. Auch Stressabbau, ausreichend Schlaf (7-8 Stunden) und eine DASH-Diät (arm an Salz und gesättigten Fetten, reich an Obst und Gemüse) sind wirksam."
+    relatedSlugs={['bmi-rechner', 'grundumsatz-rechner', 'idealgewicht-rechner']}
+  />
 </Layout>
 
 <script type="module">
