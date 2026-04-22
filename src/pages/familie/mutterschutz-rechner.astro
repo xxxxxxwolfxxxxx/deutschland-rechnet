@@ -1,10 +1,20 @@
 ---
 import Layout from '../../layouts/Layout.astro';
 import CalculatorShell from '../../components/CalculatorShell.astro';
+import CalculatorGuide from '../../components/CalculatorGuide.astro';
 import { CALCULATORS, CATEGORIES } from '../../data/calculators';
 const calc = CALCULATORS.find(c => c.slug === 'mutterschutz-rechner')!;
 const cat = CATEGORIES[calc.category];
 const year = new Date().getFullYear();
+
+const faqs = [
+  { q: 'Was ist Mutterschutz?', a: 'Mutterschutz ist der rechtliche Schutz werdender Mütter. Es beinhaltet Beschäftigungsverbote, Kündigungsschutz und Mutterschaftsgeld.' },
+  { q: 'Wie lange dauert die Schutzfrist?', a: 'Die Mutterschutzfrist beträgt 6 Wochen vor und 8 Wochen nach dem errechneten Entbindungstermin.' },
+  { q: 'Bekomme ich in der Schutzfrist Geld?', a: 'Ja, Mutterschaftsgeld wird gezahlt. Bei Kassenpatienten zahlt die Krankenkasse, bei Privatpatienten der Arbeitgeber.' },
+  { q: 'Wie hoch ist das Mutterschaftsgeld?', a: 'Mutterschaftsgeld beträgt max. 13€/Tag oder das Durchschnittseinkommen der letzten 3 Monate bei Privatversicherten.' },
+  { q: 'Darf mein Arbeitgeber mich kündigen?', a: 'Nein, während der Schutzfrist ist eine Kündigung unzulässig. Der Schutz beginnt 4 Wochen vor Schutzfristbeginn.' },
+  { q: 'Kann ich während Mutterschutz arbeiten?', a: 'Nein, auf Arbeitsverbote in der Schutzfrist. Ausnahmen sind nur mit schriftlicher Zustimmung möglich.' },
+];
 ---
 <Layout
   title={`Mutterschutz-Rechner ${year}`}
@@ -23,6 +33,7 @@ const year = new Date().getFullYear();
     intro="Mit dem Mutterschutz-Rechner berechnen Sie den Beginn und das Ende des Mutterschutzes."
     sourceNote="6 Wochen vor, 8 Wochen nach Geburt."
     explanation="Der Mutterschutz beginnt 6 Wochen vor und endet 8 Wochen nach der Geburt."
+    faqs={faqs}
   >
     <div class="calc-form">
       <div class="calc-grid">
@@ -45,6 +56,20 @@ const year = new Date().getFullYear();
       <div id="details" style="margin-top:0.75rem;font-size:0.9rem;color:#555;display:flex;flex-direction:column;gap:0.35rem;"></div>
     </div>
   </CalculatorShell>
+
+  <CalculatorGuide
+    title="Mutterschutz – Rechtliche Sicherheit für werdende Mütter"
+    content="Mutterschutz ist ein fundamentaler rechtlicher Schutz für werdende und stillende Mütter. Die Schutzfrist beträgt 6 Wochen vor und 8 Wochen nach der Geburt. Während dieser Zeit darf die Mutter nicht arbeiten, und der Arbeitgeber darf nicht kündigen.
+
+Die Mutterschaftsgeldleistung beträgt maximal 13€/Tag bei gesetzlich Versicherten (die Krankenkasse zahlt). Privatversicherte und Selbstständige müssen mit ihrem Arbeitgeber klären, wie die Zahlung funktioniert.
+
+Ein häufiges Missverständnis: Mutterschutz und Elternzeit sind unterschiedlich. Mutterschutz ist ein automatischer gesetzlicher Schutz, Elternzeit muss beantragt werden und beginnt ab der Geburt.
+
+Bei Mehrlingen verlängert sich die Schutzfrist. Auch bei Totgeburten nach der 20. Woche gilt Mutterschutz. Arbeitnehmerinnen, die Mutterschutzfristen nicht einhalten, können eine Beschwerde beim Gewerbeaufsichtsamt einreichen.
+
+Tipp: Informieren Sie Ihren Arbeitgeber frühzeitig über die Schwangerschaft, damit er die Schutzbestimmungen einplanen kann."
+    relatedSlugs={['elterngeld-rechner', 'schwangerschafts-rechner']}
+  />
 </Layout>
 
 <script type="module">
