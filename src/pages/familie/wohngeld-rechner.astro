@@ -1,10 +1,20 @@
 ---
 import Layout from '../../layouts/Layout.astro';
 import CalculatorShell from '../../components/CalculatorShell.astro';
+import CalculatorGuide from '../../components/CalculatorGuide.astro';
 import { CALCULATORS, CATEGORIES } from '../../data/calculators';
 const calc = CALCULATORS.find(c => c.slug === 'wohngeld-rechner')!;
 const cat = CATEGORIES[calc.category];
 const year = new Date().getFullYear();
+
+const faqs = [
+  { q: 'Wer hat Anspruch auf Wohngeld?', a: 'Mieter oder Hauseigentümer mit kleinerem Einkommen. Ausgeschlossen sind BAföG-Empfänger und Arbeitslose (ALG II/Sozialhilfe).' },
+  { q: 'Wie wird Wohngeld berechnet?', a: 'Formel: Mietzuschuss = (Miete - Einkommen × Prozentsatz) × Multiplikator, maximal begrenzt.' },
+  { q: 'Was zählt als Einkommen?', a: 'Einkommen: Lohn, Kindergeld, Rente, Unterhaltsleistungen. Nicht zählbar: Kinderfreibetrag, Freibeträge für Behinderte.' },
+  { q: 'Wie hoch ist der maximale Zuschuss?', a: 'Der Höchstbetrag richtet sich nach Größe der Mietwohnung und Mietlevel. Beispiel: bis 600€ monatlich möglich.' },
+  { q: 'Muss ich Wohngeld beantragen?', a: 'Ja, Wohngeld wird nicht automatisch gezahlt. Antrag beim Wohngeldamt erforderlich.' },
+  { q: 'Wird Wohngeld angerechnet auf andere Leistungen?', a: 'Wohngeld wird nicht auf Grundsicherung angerechnet, sondern reduziert das Einkommen.' },
+];
 ---
 <Layout
   title={`Wohngeld-Rechner ${year}`}
@@ -23,6 +33,7 @@ const year = new Date().getFullYear();
     intro="Mit dem Wohngeld-Rechner prüfen Sie Ihren Anspruch auf Wohngeld."
     sourceNote="Mietzuschuss oder Lastenzuschuss."
     explanation="Das Wohngeld wird nach Einkommen, Miete und Haushaltsgröße berechnet."
+    faqs={faqs}
   >
     <div class="calc-form">
       <div class="calc-grid">
@@ -63,6 +74,20 @@ const year = new Date().getFullYear();
       <div id="details" style="margin-top:0.75rem;font-size:0.88rem;color:#666;display:flex;gap:1.5rem;flex-wrap:wrap;"></div>
     </div>
   </CalculatorShell>
+
+  <CalculatorGuide
+    title="Wohngeld – Finanzielle Unterstützung für Mieter"
+    content="Wohngeld ist eine Leistung, die Mieter mit geringerem Einkommen unterstützt. Es wird nicht automatisch gezahlt, sondern muss beim Wohngeldamt beantragt werden.
+
+Die Berechnung erfolgt nach einer komplizierten Formel, die Miethöhe, Einkommen, Familiengröße und regionale Mietlevel berücksichtigt. Ein Richtwert: Bei Einkommen unter 1.200€ für 1 Person können Sie oft Wohngeld bekommen.
+
+Wichtig: Wohngeld wird auf Grundsicherung (Hartz IV / ALG II) nicht angerechnet – es reduziert nicht die Sozialhilfe. Für BAföG-Empfänger ist Wohngeld nicht verfügbar.
+
+Ein häufiges Missverständnis: Der Zuschuss ist nicht die volle Miete – es ist ein Zuschuss, der die Mietbelastung unter einen bestimmten Prozentsatz des Einkommens bringt (üblicherweise 20-30%).
+
+Finanzierungstipp: Prüfen Sie regelmäßig, ob Sie noch Anspruch haben. Einkommensveränderungen (neue Beschäftigung, Bonus, etc.) können Ihren Wohngeldanspruch beeinflussen. Machen Sie Neuanträge proaktiv, bevor alte ablaufen."
+    relatedSlugs={['kindergeld-rechner', 'renten-rechner']}
+  />
 </Layout>
 
 <script type="module">

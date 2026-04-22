@@ -23,6 +23,11 @@ const year = new Date().getFullYear();
     intro="Mit dem Wie-viel-Haus-Rechner berechnen Sie, welchen Kaufpreis Sie sich basierend auf Ihrem Einkommen leisten können."
     sourceNote="110-120-faches des Nettoeinkommens."
     explanation="Die Rate sollte nicht mehr als 35% des Nettoeinkommens betragen."
+    faqs={[
+      { q: "Wie berechnet sich meine max. Kreditfähigkeit?", a: "Faustregel: 2,5-3x Bruttojahreseinkommen. Banken prüfen: verfügbares Einkommen nach festen Ausgaben x 40-50%." },
+      { q: "Welchen Eigenkapital-Anteil brauche ich?", a: "Min. 10-20% empfohlen. Mit <10%: höhere Zinsen, Versicherung. Mit 20-30%: bessere Konditionen." },
+      { q: "Wie wirken Nebenkosten auf meine Kaufkraft?", a: "8-15% des Kaufpreises zusätzlich - diese müssen aus Eigenkapital kommen! Plan: 25-30% Eigenkapital budgetieren." }
+    ]}
   >
     <div class="calc-form">
       <div class="calc-grid">
@@ -58,6 +63,8 @@ const year = new Date().getFullYear();
       <div id="details" style="margin-top:0.75rem;font-size:0.88rem;color:#666;display:flex;gap:1.5rem;flex-wrap:wrap;"></div>
     </div>
   </CalculatorShell>
+
+  <CalculatorGuide title="Kaufkraft realistisch planen" content="<p>Wie viel Haus kannst du leisten? Faustregel: 2,5-3x Bruttojahreseinkommen. Banken erlauben Raten bis 40-50% des Netto. Mit 3.000€ Netto: max. 1.200-1.500€ Kreditrate.</p><p><strong>Puffer wichtig:</strong> Nutze nur 80-90% der theoretischen Kaufkraft. Grund: Zinsrisiko bei Anschlussfinanzierung, Jobverlustrisiko, steigende Lebenshaltungskosten. Eine 10-20% Reserve gibt psychologische Sicherheit.</p>" relatedSlugs={['hauskauf-rechner', 'tilgungsplan', 'tilgungs-kreditrechner']} />
 </Layout>
 
 <script type="module">
