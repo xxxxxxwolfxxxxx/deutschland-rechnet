@@ -1,6 +1,7 @@
 ---
 import Layout from '../../layouts/Layout.astro';
 import CalculatorShell from '../../components/CalculatorShell.astro';
+import CalculatorGuide from '../../components/CalculatorGuide.astro';
 import { CALCULATORS, CATEGORIES } from '../../data/calculators';
 const calc = CALCULATORS.find(c => c.slug === 'gewerbesteuer-rechner')!;
 const cat = CATEGORIES[calc.category];
@@ -23,6 +24,14 @@ const year = new Date().getFullYear();
     intro="Mit dem Gewerbesteuer-Rechner berechnen Sie die Gewerbesteuer basierend auf Ihrem Gewinn und dem kommunalen Hebesatz."
     sourceNote="Hebesatz 300-500% je nach Gemeinde."
     explanation="Freibetrag 24.000€. Steuersatz ca. 14% bei Hebesatz 400%."
+    faqs={[
+      { q: "Wer muss Gewerbesteuer zahlen?", a: "Alle Freiberufler und Gewerbetreibenden, wenn ihr Gewerbeertrag über 24.500€/Jahr liegt (Freibetrag). Freiberufler (Ärzte, Anwälte, Architekten) sind befreit. Privatvermögen wird nicht besteuert, nur echte Geschäftstätigkeit." },
+      { q: "Was ist der Hebesatz?", a: "Der Hebesatz ist ein Multiplikator, den jede Gemeinde selbst festlegt (300-900%). Er wird auf einen Messbetrag (3,5%) angewendet. Beispiel: Messbetrag 3.500€ × Hebesatz 410% = 14.350€ Gewerbesteuer. Großstädte haben oft höhere Hebesätze." },
+      { q: "Wie unterscheiden sich Einzelunternehmen und GmbH?", a: "Einzelunternehmen & Personengesellschaften: Freibetrag 24.500€, anrechnung auf Einkommensteuer möglich. GmbH: Kein Freibetrag, Gewerbesteuer nicht auf ESt anrechenbar. Dafür: GmbH zahlt nur 30% Körperschaftsteuer + 5,5% Soli auf Gewinne (vs. bis 45% bei Einzelunternehmen)." },
+      { q: "Kann ich Gewerbesteuer sparen?", a: "Bedingt. Standortwahl: Gemeinden mit niedrigerem Hebesatz (ländlich ca. 300-350% vs. Großstädte 400%+) sparen 10-15%. GmbH-Gründung ab hohen Gewinnen (>50k€/Jahr) kann rentabel sein. Optimale Rechtsformwahl nach Steuerlast mit Berater." },
+      { q: "Ist Gewerbesteuer auf Einkommensteuer anrechenbar?", a: "Ja! Einzelunternehmen und Personengesellschaften können das 3,8-fache der Gewerbesteuer auf die Einkommensteuer anrechnen (max. die ESt-Schuld). GmbH kann nicht anrechnen, weil sie zwar Gewerbesteuer, aber keine ESt zahlt." },
+      { q: "Muss ich Gewerbesteuer zahlen, wenn ich Verlust mache?", a: "Nein. Gewerbesteuer wird nur auf positive Gewinne berechnet. Ein Verlust führt zu keiner Steuer. Allerdings: Minderungen durch Verluste können mit zukünftigen Gewinnen verrechnet werden (Verlustvor-/rücktrag)." }
+    ]}
   >
     <div class="calc-form">
       <div class="calc-grid">
@@ -50,6 +59,28 @@ const year = new Date().getFullYear();
       <div id="details" style="margin-top:0.75rem;font-size:0.88rem;color:#666;display:flex;gap:1.5rem;flex-wrap:wrap;"></div>
     </div>
   </CalculatorShell>
+
+  <CalculatorGuide
+    title="So funktioniert die Gewerbesteuer"
+    content={`<p><strong>Die Gewerbesteuer</strong> ist eine Gemeinde-Steuer auf gewerbliche Einkünfte. Sie wird auf den <strong>Gewerbeertrag</strong> (Gewinn aus selbstständiger Tätigkeit) erhoben. Freiberufler wie Ärzte, Anwälte und Architekten sind befreit – aber Handwerker, IT-Freelancer und E-Commerce-Unternehmer müssen zahlen.</p>
+
+<p><strong>Wie wird sie berechnet?</strong>
+<ol>
+  <li><strong>Gewerbeertrag:</strong> Ihr jährlicher Gewinn (Einnahmen minus Betriebsausgaben)</li>
+  <li><strong>Freibetrag:</strong> Erste 24.500€ sind steuerfrei (nur Einzelunternehmen & Personengesellschaften, nicht GmbH)</li>
+  <li><strong>Messbetrag:</strong> Steuerpflichtiger Ertrag × 3,5% = Messbetrag</li>
+  <li><strong>Hebesatz:</strong> Jede Gemeinde multipliziert mit eigenem Hebesatz (300-900%)</li>
+  <li><strong>Gewerbesteuer:</strong> Messbetrag × Hebesatz</li>
+</ol>
+
+Beispiel: 100.000€ Gewinn, Hebesatz 400%. Nach Freibetrag: 75.500€ × 3,5% = 2.642,50€ × 4 = <strong>10.570€ Gewerbesteuer</strong>.
+</p>
+
+<p><strong>Der Hebesatz-Effekt:</strong> Der Hebesatz ist ein Gemeinde-Multiplikator und variiert stark. Bayern und Baden-Württemberg sind oft günstiger (300-350%), während Berlin, München und Hamburg höher sind (400-500%+). Wer standortflexibel ist, spart durch Umzug mitunter 5.000€+/Jahr.</p>
+
+<p><strong>Wichtig für GmbH-Gründung:</strong> Eine GmbH hat keinen Freibetrag und zahlt immer Gewerbesteuer. Allerdings: GmbH zahlt nur 30% Körperschaftsteuer + 5,5% Soli, während Einzelunternehmen ESt bis 45% zahlen. Ab Gewinnen >50.000€/Jahr kann eine GmbH durch die Kombination rentabel sein.</p>`}
+    relatedSlugs={['gmbh-vs-einzelunternehmen', 'brutto-netto-rechner', 'mindestlohn-rechner']}
+  />
 </Layout>
 
 <script type="module">
