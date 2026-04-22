@@ -1,6 +1,7 @@
 ---
 import Layout from '../../layouts/Layout.astro';
 import CalculatorShell from '../../components/CalculatorShell.astro';
+import CalculatorGuide from '../../components/CalculatorGuide.astro';
 import { CALCULATORS, CATEGORIES } from '../../data/calculators';
 const calc = CALCULATORS.find(c => c.slug === 'idealgewicht-rechner')!;
 const cat = CATEGORIES[calc.category];
@@ -23,6 +24,32 @@ const year = new Date().getFullYear();
     intro="Mit dem Idealgewicht-Rechner berechnen Sie Ihr Idealgewicht nach verschiedenen Methoden."
     sourceNote="Broca-Index und BMI."
     explanation="Broca: Körpergröße - 100. BMI: 18,5-24,9. Die Wahrheit liegt in der Mitte."
+    faqs={[
+      {
+        q: "Gibt es ein universelles Idealgewicht?",
+        a: "Nein, das Idealgewicht ist individuell und hängt von Körperkomposition, Muskelanteil und Gesundheitszustand ab. Eine Person mit viel Muskelmasse kann schwerer sein als eine mit mehr Fett, obwohl beide gesund sind."
+      },
+      {
+        q: "Warum unterscheidet sich Broca von BMI?",
+        a: "Broca ist eine einfache Formel aus der Körpergröße, berücksichtigt aber nicht Geschlecht und Körperkomposition. Der BMI ist präziser, da er Körpergröße und Gewicht ins Verhältnis setzt, ignoriert aber ebenfalls Muskelmasse."
+      },
+      {
+        q: "Ist der Broca-Index noch zeitgemäß?",
+        a: "Broca ist schnell und handlich für Orientierungswerte, besonders für große Populationen. Der BMI ist statistisch aussagekräftiger, aber für Einzelpersonen ist die Körperzusammensetzung (DEXA, Bioimpedanz) noch genauer."
+      },
+      {
+        q: "Warum ändert sich das Idealgewicht mit dem Alter?",
+        a: "Mit zunehmendem Alter wird leicht mehr Körperfett als normal und gesund angesehen, während Muskelmasse sinkt. Der Rechner berücksichtigt dies durch eine Alterskorrektur."
+      },
+      {
+        q: "Sollte ich auf mein Idealgewicht trainieren?",
+        a: "Nicht zwingend. Wichtiger ist ein niedriger Körperfettanteil und gute Fitness. Gewicht allein sagt nichts über Gesundheit. Ein BMI im Normalbereich mit stabiler Muskulatur ist das Ziel."
+      },
+      {
+        q: "Wie lange dauert es, zum Idealgewicht zu gelangen?",
+        a: "Gesunder Gewichtsverlust liegt bei 0,5-1 kg pro Woche. Ein Defizit von 7700 kcal entspricht etwa 1 kg Körperfett. Crash-Diäten sind kontraproduktiv, ein stabiler Lifestyle-Wandel ist langfristig erfolgreich."
+      }
+    ]}
   >
     <div class="calc-form">
       <div class="calc-grid">
@@ -50,6 +77,17 @@ const year = new Date().getFullYear();
       <div id="details" style="margin-top:0.75rem;font-size:0.88rem;color:#666;display:flex;gap:1.5rem;flex-wrap:wrap;"></div>
     </div>
   </CalculatorShell>
+  <CalculatorGuide
+    title="Idealgewicht: Flexibilität statt starrer Zielwert"
+    content="Das Idealgewicht ist nicht als Punkt auf der Waage zu verstehen, sondern als Bereich, in dem sich Ihr Körper gesund, leistungsfähig und wohlbefindend anfühlt. Die beiden häufigsten Berechnungsmethoden – Broca und BMI – bieten Anhaltspunkte, sind aber keine Diagnosen.
+
+**Broca-Index:** Diese klassische Formel (Körpergröße minus 100) ist schnell, wurde aber vor über 100 Jahren entwickelt und berücksichtigt moderne körperliche Aktivität und Ernährung nicht optimal. Sie eignet sich gut als grobe Orientierung, besonders für Population-Level-Analysen.
+
+**BMI-Bereich:** Der Body-Mass-Index (18,5-24,9) ist statistisch aussagekräftiger und wird weltweit als Standard verwendet. Ein kritischer Punkt: BMI misst Gewicht pro Körperoberfläche, unterscheidet aber nicht zwischen Fett und Muskelmasse. Ein Sportler mit hohem Muskelanteil kann einen hohen BMI haben, obwohl sein Körperfettanteil niedrig ist.
+
+**Praktische Implikation:** Konzentrieren Sie sich weniger auf die Zahl auf der Waage und mehr auf greifbare Indikatoren wie Energie-Level, Fitnessstatus, wie Ihre Kleidung sitzt und wie Sie sich fühlen. Ein Personal Trainer kann Ihren Körperfettanteil messen und so ein realistisches, gesundes Zielgewicht für Sie ermitteln."
+    relatedSlugs={['bmi-rechner', 'grundumsatz-rechner', 'kalorien-rechner']}
+  />
 </Layout>
 
 <script type="module">
