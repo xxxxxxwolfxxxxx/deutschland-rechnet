@@ -1,10 +1,20 @@
 ---
 import Layout from '../../layouts/Layout.astro';
 import CalculatorShell from '../../components/CalculatorShell.astro';
+import CalculatorGuide from '../../components/CalculatorGuide.astro';
 import { CALCULATORS, CATEGORIES } from '../../data/calculators';
 const calc = CALCULATORS.find(c => c.slug === 'scheidungskosten-rechner')!;
 const cat = CATEGORIES[calc.category];
 const year = new Date().getFullYear();
+
+const faqs = [
+  { q: 'Was kostet eine Scheidung?', a: 'Die Kosten setzen sich zusammen aus Anwaltsgebühren und Gerichtsgebühren. Diese richten sich nach dem Streitwert (Vermögen).' },
+  { q: 'Wie hoch sind Anwaltsgebühren?', a: 'Anwälte berechnen Gebühren nach dem Rechtsanwaltsvergütungsgesetz (RVG). Kosten: etwa 500-2000€ abhängig von Komplexität.' },
+  { q: 'Wer trägt die Kosten?', a: 'In einvernehmlicher Scheidung trägt jede Partei die Hälfte der Kosten. Im Streitfall entscheidet das Gericht.' },
+  { q: 'Kann ich auf Kostenersparnis sparen?', a: 'Ja: Einigung über Unterhalt, Vermögen und Umgang spart erhebliche Kosten. Online-Scheidungen sind günstiger.' },
+  { q: 'Was ist eine einvernehmliche Scheidung?', a: 'Beide Partner einigen sich auf Unterhalts- und Vermögensaufteilung. Dies spart Kosten und Zeit.' },
+  { q: 'Gibt es Kostenbefreiung?', a: 'Ja, bei geringem Einkommen kann Verfahrenskostenhilfe beantragt werden.' },
+];
 ---
 <Layout
   title={`Scheidungskosten-Rechner ${year}`}
@@ -23,6 +33,7 @@ const year = new Date().getFullYear();
     intro="Mit dem Scheidungskosten-Rechner schätzen Sie die Kosten einer Scheidung."
     sourceNote="1.500-2.500€ einvernehmliche Scheidung."
     explanation="Die Kosten richten sich nach dem Streitwert. Bei geringem Einkommen kann Verfahrenskostenhilfe beantragt werden."
+    faqs={faqs}
   >
     <div class="calc-form">
       <div class="calc-grid">
@@ -53,6 +64,20 @@ const year = new Date().getFullYear();
       <div id="details" style="margin-top:0.75rem;font-size:0.88rem;color:#666;display:flex;gap:1.5rem;flex-wrap:wrap;"></div>
     </div>
   </CalculatorShell>
+
+  <CalculatorGuide
+    title="Scheidungskosten – Transparente Gebührenberechnung"
+    content="Scheidungskosten setzen sich aus Anwalts- und Gerichtsgebühren zusammen. Die Anwaltsgebühren werden nach dem Rechtsanwaltsvergütungsgesetz (RVG) berechnet und hängen vom Streitwert (üblicherweise das 3-fache des Jahresnettoeinkommens beider Partner) ab.
+
+In einer streitigen Scheidung muss jeder Partner einen Anwalt haben. Die Gerichtsgebühren sind gesetzlich festgelegt und können nicht verhandelt werden. Der Streitwert bestimmt die Höhe.
+
+Ein häufiges Missverständnis: Online-Scheidungen sind günstiger und schneller, wenn beide Partner sich einig sind. Eine einvernehmliche Scheidung kostet oft 1/3 der Kosten einer streitigen Scheidung.
+
+Bei Kostenbefreiung (Prozesskostenhilfe): Wenn Ihr Einkommen unter bestimmten Grenzen liegt, kann das Gericht die Kosten übernehmen oder reduzieren. Der Antrag wird beim Gericht gestellt.
+
+Finanzierungstipp: Versuchen Sie, sich auf Unterhalt, Vermögensaufteilung und Sorgerecht zu einigen, bevor Sie zum Gericht gehen. Jeder Punkt, über den Sie sich einigen, spart Kosten und Zeit."
+    relatedSlugs={['ehegattenunterhalt-rechner', 'unterhaltsrechner']}
+  />
 </Layout>
 
 <script type="module">
