@@ -1,6 +1,7 @@
 ---
 import Layout from '../../layouts/Layout.astro';
 import CalculatorShell from '../../components/CalculatorShell.astro';
+import CalculatorGuide from '../../components/CalculatorGuide.astro';
 import { CALCULATORS, CATEGORIES } from '../../data/calculators';
 const calc = CALCULATORS.find(c => c.slug === 'kalorien-rechner')!;
 const cat = CATEGORIES[calc.category];
@@ -23,6 +24,32 @@ const year = new Date().getFullYear();
     intro="Mit dem Kalorien-Rechner berechnen Sie Ihren täglichen Kalorienbedarf nach der Mifflin-St-Jeor-Formel."
     sourceNote="Grundumsatz × Aktivitätsfaktor."
     explanation="Männer: (10 × Gewicht) + (6,25 × Größe) - (5 × Alter) + 5. Frauen: -161."
+    faqs={[
+      {
+        q: "Warum ist der Kalorienbedarf bei Frauen und Männern unterschiedlich?",
+        a: "Frauen haben im Durchschnitt weniger Muskelmasse und mehr Körperfett, was zu einem niedrigeren Grundumsatz führt. Die Mifflin-St-Jeor-Formel berücksichtigt dies durch eine Konstante von -161 für Frauen."
+      },
+      {
+        q: "Wie zuverlässig ist die TDEE-Berechnung?",
+        a: "Die Formel bietet eine gute Schätzung mit einer Genauigkeit von etwa 75-80%. Individuelle Faktoren wie Stoffwechselrate, Schlafqualität, Stress und Hormonhaushalt können abweichen. Tracking ist besser als Rechnerei."
+      },
+      {
+        q: "Was bedeutet negative Kalorienbilanz?",
+        a: "Eine negative Bilanz tritt auf, wenn Sie weniger Kalorien essen als Sie verbrauchen. Dies führt zu Gewichtsverlust. Ein Defizit von 500 kcal täglich ergibt etwa 0,5 kg Gewichtsverlust pro Woche."
+      },
+      {
+        q: "Sollte ich unter meinen Grundumsatz gehen?",
+        a: "Nein, nicht dauerhaft. Wenn Sie deutlich unter Ihrem Grundumsatz essen, drosselt der Körper seinen Metabolismus, was den Gewichtsverlust verlangsamt und zu Muskelabbau führt."
+      },
+      {
+        q: "Wie genau sollte ich meine Aktivität eingeben?",
+        a: "Schätzen Sie konservativ – viele unterschätzen ihren Sitzanteil. Wenn Sie unsicher sind, wählen Sie eine Stufe darunter und beobachten Sie über 2-3 Wochen, ob Sie Gewicht zu- oder abnehmen."
+      },
+      {
+        q: "Reicht Kalorienzählen für Gesundheit aus?",
+        a: "Nein, Kalorienzählen ist ein Werkzeug für Gewichtsmanagement, nicht Gesundheit. Qualität der Lebensmittel, Mikronährstoffe, Schlaf und Bewegung sind ebenso wichtig."
+      }
+    ]}
   >
     <div class="calc-form">
       <div class="calc-grid">
@@ -63,6 +90,17 @@ const year = new Date().getFullYear();
       <p id="bmr" style="margin-top:0.5rem;font-size:0.85rem;color:#666;"></p>
     </div>
   </CalculatorShell>
+  <CalculatorGuide
+    title="TDEE und Kalorienbedarf richtig verstehen"
+    content="Ihr täglicher Energiebedarf (TDEE – Total Daily Energy Expenditure) setzt sich aus Grundumsatz, Aktivität und Verdauung zusammen. Die Mifflin-St-Jeor-Formel ist moderner und präziser als Harris-Benedict und berücksichtigt realistische Aktivitätsmuster.
+
+**Der richtige Kalorienbedarf ist individuell:** Die Berechnung ist eine Schätzung basierend auf Durchschnittswerten. Zwei Personen mit identischen Parametern können 200-300 kcal Unterschied im realen Verbrauch haben, je nach genetischer Veranlagung, Metabolik und Körperzusammensetzung.
+
+**Praktisches Tracking:** Beginnen Sie mit dem berechneten Wert, trackken Sie Ihre Nahrung und Ihr Gewicht über 2-3 Wochen, und passen Sie an. Wenn Sie nicht ab- oder zunehmen wie erwartet, justieren Sie die tägliche Energieaufnahme um 100-200 kcal nach.
+
+**Aktivitätsfaktor realistisch wählen:** Viele Menschen überschätzen ihre Aktivität erheblich. Ein Trainer mit Fitnessuhr zeigt oft, dass sedentäre Menschen mit 1-2x Sport/Woche (1,375 Aktivitätsfaktor) richtig liegen, nicht 1,55. Fehler hier führen zu fehlgeschlagenen Diäten."
+    relatedSlugs={['grundumsatz-rechner', 'makronaehrstoff-rechner', 'kalorien-verbrennen']}
+  />
 </Layout>
 
 <script type="module">
