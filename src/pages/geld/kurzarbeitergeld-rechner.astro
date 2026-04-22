@@ -1,6 +1,7 @@
 ---
 import Layout from '../../layouts/Layout.astro';
 import CalculatorShell from '../../components/CalculatorShell.astro';
+import CalculatorGuide from '../../components/CalculatorGuide.astro';
 import { CALCULATORS, CATEGORIES } from '../../data/calculators';
 const calc = CALCULATORS.find(c => c.slug === 'kurzarbeitergeld-rechner')!;
 const cat = CATEGORIES[calc.category];
@@ -26,8 +27,11 @@ const year = new Date().getFullYear();
     faqs={[
       { q: "Wie lange bekomme ich Kurzarbeitergeld?", a: "Bis zu 12 Monate, maximal 24 Monate bei besonderem wirtschaftlichem Bedarf." },
       { q: "Wann habe ich Anspruch auf Kurzarbeitergeld?", a: "Bei mindestens 10% Arbeitsausfall und wenn die Betriebsorganisation der Arbeitsagentur das anzeigt." },
-      { q: "Wird Kurzarbeitergeld auf Hartz IV angerechnet?", a: "Ja, es wird als Einkommen angerechnet. Allerdings gibt es Freibeträge, sodass eine vollständige Anrechnung oft nicht erfolgt." }
+      { q: "Wird Kurzarbeitergeld auf Hartz IV angerechnet?", a: "Ja, es wird als Einkommen angerechnet. Allerdings gibt es Freibeträge, sodass eine vollständige Anrechnung oft nicht erfolgt." },
+      { q: "Wie berechnet sich das Kurzarbeitergeld genau?", a: "60% des Netto-Entgeltverlusters (67% mit Kindern). Der Entgeltausfall ist der Unterschied zwischen dem Netto ohne und mit Kurzarbeit. Steuerklasse und Kinderlose beeinflussen die Nettocalculation." },
+      { q: "Muss der Arbeitgeber weiterhin Sozialversicherungsbeiträge zahlen?", a: "Ja, der Arbeitgeber zahlt weiterhin Sozialversicherungsbeiträge (Krankenversicherung, Rentenversicherung, etc.) auf Ihr Kurzarbeitergeld. Das ist ein Vorteil gegenüber Arbeitslosigkeit." }
     ]}
+  >
   >
     <div class="calc-form">
       <div class="calc-grid">
@@ -126,3 +130,51 @@ document.querySelectorAll('.preset-btn').forEach(b => {
 });
 berechne();
 </script>
+
+  <CalculatorGuide
+    title="Kurzarbeitergeld-Rechner – So sichern Sie Ihr Einkommen"
+    content={`
+      <p><strong>Kurzarbeitergeld (KuG)</strong> ist eine Sozialleistung der Bundesagentur für Arbeit (BA) in Deutschland. Es schützt Arbeitnehmer, wenn der Arbeitgeber aus wirtschaftlichen oder unvorhergesehenen Gründen die Arbeitszeit reduzieren muss. Statt Kündigung bekommen Sie einen Leistungszuschuss.</p>
+
+      <p>Besonders während Wirtschaftskrisen, Naturkatastrophen oder Pandemien (wie 2020/2021) ist Kurzarbeitergeld ein Rettungsanker für Millionen von Arbeitnehmern. Mit unserem Rechner können Sie berechnen, <strong>wie viel Kurzarbeitergeld Sie erhalten würden</strong> und wie sehr Ihr Nettoeinkommen sinken würde.</p>
+
+      <p><strong>Wichtig:</strong> Das Kurzarbeitergeld ersetzt nicht 100% des Verlusts – es sichert nur 60% ab (bzw. 67% wenn Sie Kinder haben). Das ist ein wichtiger Unterschied zur Arbeitslosigkeit.</p>
+
+      <h4>Voraussetzungen für Kurzarbeitergeld</h4>
+      <ul>
+        <li><strong>Arbeitsausfall:</strong> Der Arbeitgeber muss einen wirtschaftlichen Grund vorweisen (Absatzrückgang, Produktionsstörung, Rohstoffmangel, etc.).</li>
+        <li><strong>Anzeige:</strong> Der Arbeitgeber muss die Kurzarbeit der Arbeitsagentur anzeigen.</li>
+        <li><strong>Mindestausfallquote:</strong> Mindestens 10% der regulären Arbeitszeit muss ausfallen.</li>
+        <li><strong>Sozialversicherungsbeitrag:</strong> Sie müssen dem Arbeitgeber zugeordnet sein.</li>
+      </ul>
+
+      <h4>Wie wird Kurzarbeitergeld berechnet?</h4>
+      <p>Die Berechnung berücksichtigt:</p>
+      <ul>
+        <li><strong>Ihr Bruttoeinkommen</strong> im Bezugsmonat</li>
+        <li><strong>Ihre Steuerklasse</strong> (beeinflusst die Nettocalculation)</li>
+        <li><strong>Ob Sie Kinder haben</strong> (67% Satz statt 60%)</li>
+        <li><strong>Den Arbeitsausfall in Prozent</strong> (10%, 25%, 50%, 75%, 100%?)</li>
+      </ul>
+
+      <p>Formel: <strong>KuG = Netto-Entgeltausfall × Leistungssatz (60% oder 67%)</strong></p>
+
+      <p>Beispiel: Sie verdienen brutto 3.500€, Steuerklasse IV, keine Kinder. Ihr Nettogehalt ist etwa 2.300€. Bei 100% Arbeitsausfall erhalten Sie 60% von Ihrem Nettoentgeltausfall, also ca. 1.380€ KuG.</p>
+
+      <h4>Dauer und Grenzen</h4>
+      <ul>
+        <li><strong>Normal:</strong> Bis zu 12 Monate</li>
+        <li><strong>Bei besonderem Bedarf:</strong> Bis zu 24 Monate möglich (seit Corona auch 28 Monate)</li>
+        <li><strong>Nach Enddatum:</strong> Sie können wieder Arbeitslosengeld beantragen, wenn Sie gekündigt werden</li>
+      </ul>
+
+      <h4>Wichtige Hinweise</h4>
+      <ul>
+        <li><strong>Sozialversicherung läuft weiter:</strong> Der Arbeitgeber zahlt auch während Kurzarbeit Ihre Beiträge zur Kranken-, Renten- und Pflegeversicherung. Das ist ein großer Vorteil!</li>
+        <li><strong>Steuerpflichtig:</strong> Kurzarbeitergeld ist Einkommen und muss in der Steuererklärung angegeben werden.</li>
+        <li><strong>Hinzuverdienstmöglichkeit:</strong> Sie dürfen in der Zeit nebenberuflich dazuverdienen, ohne das KuG zu gefährden (Grenzen beachten).</li>
+      </ul>
+    `}
+    relatedSlugs={['kreditvergleich', 'trinkgeld-rechner']}
+  />
+</Layout>
