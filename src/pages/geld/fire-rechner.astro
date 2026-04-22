@@ -1,6 +1,7 @@
 ---
 import Layout from '../../layouts/Layout.astro';
 import CalculatorShell from '../../components/CalculatorShell.astro';
+import CalculatorGuide from '../../components/CalculatorGuide.astro';
 import { CALCULATORS, CATEGORIES } from '../../data/calculators';
 const calc = CALCULATORS.find(c => c.slug === 'fire-rechner')!;
 const cat = CATEGORIES[calc.category];
@@ -23,6 +24,14 @@ const year = new Date().getFullYear();
     intro="Mit dem FIRE-Rechner berechnen Sie, wann Sie durch Ihre Sparquote finanziell unabhängig sind."
     sourceNote="Financial Independence, Retire Early."
     explanation="25x Ihre jährlichen Ausgaben als Vermögen (4%-Regel)."
+    faqs={[
+      { q: "Was ist die 4%-Regel?", a: "Die 4%-Regel besagt, dass Sie pro Jahr 4% Ihres Vermögens entnehmen können, ohne es aufzubrauchen. Beispiel: Bei 1 Million€ Vermögen können Sie 40.000€/Jahr ausgeben. Die Regel basiert auf historischen Renditen und Inflationsraten." },
+      { q: "Warum 25x die Ausgaben?", a: "Wenn Sie 4% entnehmen können, bedeutet das: Sie brauchen das 25-fache Ihrer jährlichen Ausgaben (1 ÷ 0,04 = 25). Beispiel: 30.000€ Ausgaben × 25 = 750.000€ nötiges Vermögen." },
+      { q: "Ist FIRE realistisch in Deutschland?", a: "Ja, aber schwieriger als in den USA. Deutschland hat höhere Steuern, aber auch Rente als Sicherheitsnetz. FIRE funktioniert besser mit hoher Sparquote (40%+) und langfristigem Anlagehorizont (20-30+ Jahre). Starten Sie früh!" },
+      { q: "Was unterscheidet FIRE von normaler Altersvorsorge?", a: "FIRE zielt auf frühzeitige finanzielle Unabhängigkeit ab (statt 67 Jahren vielleicht mit 40-50 Jahren). Sie verlassen sich auf Vermögensrendite statt Rente. Allerdings: In Deutschland können Sie vor 62-63 Jahren keine Rente abrufen ohne Abschläge." },
+      { q: "Sollte ich Immobilien in FIRE einrechnen?", a: "Bedingt. Eine bezahlte Immobilie reduziert Ihre Ausgaben (kein Mietzins). Aber sie ist illiquide. FIRE-Rechner basieren meist auf liquide Vermögen (Aktien, ETFs). Eine mietfreie Immobilie + 25x restliche Ausgaben ist realistischer." },
+      { q: "Wie wichtig ist Risikominderung (Diversifikation)?", a: "Sehr wichtig. FIRE-Portfolios sollten breit diversifiziert sein (ETFs, Anleihen, Immobilien). Ein volatiles Portfolio kann scheitern, wenn ein Crash kurz nach dem Ruhestand kommt. Ziel: 60-70% Aktien, 30-40% Anleihen ab Alter 50+." }
+    ]}
   >
     <div class="calc-form">
       <div class="calc-grid">
@@ -59,6 +68,20 @@ const year = new Date().getFullYear();
       <div id="details" style="margin-top:0.75rem;font-size:0.88rem;color:#666;display:flex;gap:1.5rem;flex-wrap:wrap;"></div>
     </div>
   </CalculatorShell>
+
+  <CalculatorGuide
+    title="So funktioniert FIRE (Financial Independence, Retire Early)"
+    content={`<p><strong>FIRE bedeutet</strong>, dass Sie durch Sparen und Vermögensaufbau finanziell so unabhängig sind, dass Sie nicht mehr arbeiten müssen. Statt mit 67 in Rente gehen Sie mit 40 oder 50 – wenn Ihr Vermögen Ihre Lebenshaltungskosten deckt.</p>
+
+<p><strong>Die 4%-Regel (Kern von FIRE):</strong> Wenn Sie 4% Ihres Vermögens pro Jahr entnehmen können, ohne es aufzubrauchen (basierend auf historischen Renditen), benötigen Sie das <strong>25-fache Ihrer jährlichen Ausgaben</strong> als Vermögen. Beispiel: Bei 30.000€ Jahresausgaben brauchen Sie 750.000€ Vermögen, um 4% = 30.000€/Jahr zu entnehmen.</p>
+
+<p><strong>Die Formel zum Erreichen:</strong> Je höher Ihre <strong>Sparquote</strong>, desto schneller erreichen Sie FIRE. Ein Arbeitnehmer mit 50% Sparquote kann FIRE in 15-20 Jahren erreichen. Einer mit 30% Sparquote braucht 25-30 Jahre. Die reale Rendite (Rendite minus Inflation) ist entscheidend – mit 5% realer Rendite schaffen Sie FIRE schneller.</p>
+
+<p><strong>Wichtig für Deutschland:</strong> FIRE setzt Steuerbewusstsein voraus. Nutzen Sie den Sparerpauschbetrag (1.000€ steuerfrei), ETFs statt Einzelaktien (weniger Steuern bei Thesaurierung), und evtl. Rürup/Riester-Verträge für Steuervorteil. Auch: Sie können vor 62-63 Jahren keine gesetzliche Rente ohne Abschläge abrufen – kalkulieren Sie das ein.</p>
+
+<p><strong>Risiken von FIRE:</strong> Ein Marktcrash kurz nach Ihrem Renteneintritt kann problematisch sein (Sequence-of-Returns Risk). Lösungen: Flexibile Sparquote, Diversifikation (Immobilien, Anleihen, internationale ETFs), und ein Puffer von 2-3 Jahren Ausgaben in Cash.</p>`}
+    relatedSlugs={['etf-sparplan-rechner', 'sparen-rechner', 'gehaltserhoehung-rechner']}
+  />
 </Layout>
 
 <script type="module">
