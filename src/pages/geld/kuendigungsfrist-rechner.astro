@@ -1,6 +1,7 @@
 ---
 import Layout from '../../layouts/Layout.astro';
 import CalculatorShell from '../../components/CalculatorShell.astro';
+import CalculatorGuide from '../../components/CalculatorGuide.astro';
 import { CALCULATORS, CATEGORIES } from '../../data/calculators';
 const calc = CALCULATORS.find(c => c.slug === 'kuendigungsfrist-rechner')!;
 const cat = CATEGORIES[calc.category];
@@ -26,6 +27,14 @@ const dreiJahreHer = new Date(Date.now() - 3*365*24*3600*1000).toISOString().spl
     intro="Mit dem Kündigungsfrist-Rechner berechnen Sie die gesetzliche Kündigungsfrist nach § 622 BGB."
     sourceNote="Gesetzliche Kündigungsfrist."
     explanation="Bis 2 Jahre: 2 Wochen, nach 2 Jahren: 1 Monat, nach 5 Jahren: 2 Monate, nach 8 Jahren: 3 Monate."
+    faqs={[
+      { q: "Wie lange ist die Kündigungsfrist für Arbeitnehmer?", a: "Grundregel: 4 Wochen zum 15. oder zum Ende eines Kalendermonats. Bei weniger als 2 Jahren Betriebszugehörigkeit: 2 Wochen. Das ist in § 622 BGB festgelegt. Befristete Verträge enden automatisch." },
+      { q: "Wie lange ist die Kündigungsfrist für Arbeitgeber?", a: "Arbeitgeber müssen länger kündigen: 4 Wochen zum 15. oder Ende eines Kalendermonats (erste 2 Jahre), dann 1 Monat zum Ende eines Kalendermonats (ab 2 Jahren), dann 2 Monate (ab 5 Jahren), dann 3 Monate (ab 8 Jahren)." },
+      { q: "Was bedeutet 'zum Ende eines Kalendermonats'?", a: "Das Kündigungsdatum muss auf den letzten Tag eines Monats fallen. Beispiel: Kündigung am 15.3. gilt zum 30.4. (Ende April = 4 Wochen + zum Ende eines Monats). Am 1.4. gekündigt = zum 31.5. (zum Ende eines Kalendermonats nach 4 Wochen)." },
+      { q: "Können Arbeitsverträge kürzere Fristen festlegen?", a: "Ja, aber NICHT für den Arbeitnehmer! Eine kürzere Kündigungsfrist für den AN ist nicht erlaubt (außer in der Probezeit: 2 Wochen). Aber: Der AG darf längere Fristen im Vertrag festlegen, und der AN kann akzeptieren." },
+      { q: "Was ist die Probezeit-Kündigungsfrist?", a: "In der Probezeit (max. 6 Monate) können beide Seiten mit nur 2 Wochen zum beliebigen Tag kündigen. Nach der Probezeit gelten die längeren Fristen." },
+      { q: "Was ist mit außerordentlicher Kündigung?", a: "Ohne Grund brauchst du die normale Frist. Mit wichtigem Grund (Mobbing, unverschuldete finanzielle Notlage, etc.) kannst du sofort (außerordentlich) kündigen. Das FA prüft, ob der Grund berechtigt ist." }
+    ]}
   >
     <div class="calc-form">
       <div class="calc-grid">
@@ -52,6 +61,31 @@ const dreiJahreHer = new Date(Date.now() - 3*365*24*3600*1000).toISOString().spl
       <div id="details" style="margin-top:0.75rem;font-size:0.88rem;color:#888;display:flex;flex-direction:column;gap:0.4rem;"></div>
     </div>
   </CalculatorShell>
+
+  <CalculatorGuide
+    title="So funktionieren gesetzliche Kündigungsfristen"
+    content={`<p><strong>Kündigungsfristen in Deutschland sind gestaffelt</strong> und hängen von der Betriebszugehörigkeit ab. Die Faustregel: Je länger du da bist, desto länger ist die Kündigungsfrist für den Arbeitgeber (aber nicht für dich).</p>
+
+<p><strong>Für Arbeitnehmer (alle Zeiten):</strong>
+<ul>
+  <li>Probezeit: 2 Wochen zum beliebigen Tag</li>
+  <li>Nach Probezeit: 4 Wochen zum 15. oder zum Ende eines Kalendermonats</li>
+</ul>
+
+<strong>Für Arbeitgeber:</strong>
+<ul>
+  <li>Erste 2 Jahre: 4 Wochen zum 15. oder zum Ende eines Kalendermonats</li>
+  <li>Nach 2 Jahren: 1 Monat zum Ende eines Kalendermonats</li>
+  <li>Nach 5 Jahren: 2 Monate zum Ende eines Kalendermonats</li>
+  <li>Nach 8 Jahren: 3 Monate zum Ende eines Kalendermonats</li>
+</ul>
+</p>
+
+<p><strong>Wichtig: "Zum Ende eines Kalendermonats" bedeutet:</strong> Die Kündigung muss auf einen Monatsletzten fallen (z.B. 30.4., 31.5.). Eine Kündigung am 15.3. mit 4-Wochen-Frist endet nicht am 12.4., sondern am 30.4. (zum Ende des nächsten Kalendermonats).</p>
+
+<p><strong>Probezeit:</strong> Die ersten 6 Monate sind Probezeit – beide Seiten können mit nur 2 Wochen kündigen. Nach der Probezeit gelten die längeren Fristen. Die Betriebszugehörigkeit wird ab Eintritt gezählt.</p>`}
+    relatedSlugs={['abfindungsrechner', 'arbeitslosengeld-rechner', 'brutto-netto-rechner']}
+  />
 </Layout>
 
 <script type="module">
