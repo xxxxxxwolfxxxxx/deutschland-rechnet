@@ -3,12 +3,53 @@ import Layout from '../layouts/Layout.astro';
 import CategoryGrid from '../components/CategoryGrid.astro';
 
 const base = import.meta.env.BASE_URL;
+const siteUrl = import.meta.env.SITE ?? 'https://deutschland-rechnet.de';
+
+const faqSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'FAQPage',
+  'mainEntity': [
+    {
+      '@type': 'Question',
+      'name': 'Welche Rechner gibt es?',
+      'acceptedAnswer': {
+        '@type': 'Answer',
+        'text': 'Über 90 Rechner in den Bereichen Gehalt & Steuern, Familie & Soziales, Wohnen & Immobilien, Auto & Mobilität, Energie und Gesundheit. Alle Rechner berechnen nach aktuellen deutschen Gesetzen und Sätzen.'
+      }
+    },
+    {
+      '@type': 'Question',
+      'name': 'Ist die Berechnung rechtlich bindend?',
+      'acceptedAnswer': {
+        '@type': 'Answer',
+        'text': 'Nein. Die Rechner sind Orientierungshilfen für Privatpersonen. Für rechtsgültige Auskünfte konsultieren Sie einen Steuerberater oder Anwalt. Individuelle Fälle mit besonderen Umständen können abweichen.'
+      }
+    },
+    {
+      '@type': 'Question',
+      'name': 'Werden meine Daten gespeichert?',
+      'acceptedAnswer': {
+        '@type': 'Answer',
+        'text': 'Nein. Alle Berechnungen finden im Browser statt. Ihre Eingaben werden nicht an Server übertragen, nicht gespeichert und nicht weitergegeben.'
+      }
+    },
+    {
+      '@type': 'Question',
+      'name': 'Wie aktuell sind die Rechner?',
+      'acceptedAnswer': {
+        '@type': 'Answer',
+        'text': 'Alle Rechner werden regelmäßig aktualisiert. Die 2026-Version berücksichtigt Änderungen bei Steuersätzen, Sozialversicherungsbeiträgen und Gesetzen ab 1. Januar 2026.'
+      }
+    }
+  ]
+};
 ---
 <Layout
   title="Kostenlose Rechner für Deutschland"
   description="Brutto-Netto, Stromkosten, Kreditrechner und 90+ weitere kostenlose Rechner für Gehalt, Steuern, Wohnen, Energie und Familie. Kein Login, sofortiges Ergebnis."
   canonicalPath="/"
 >
+  <script type="application/ld+json" set:html={JSON.stringify(faqSchema)} />
   <div
     class="site-hero"
     style={`background-image: url('${base}images/categories/hero.png');`}
@@ -26,7 +67,7 @@ const base = import.meta.env.BASE_URL;
 
   <section class="intro-section">
     <h2>Kostenlose Online-Rechner für finanzielle Entscheidungen</h2>
-    <p>Ob Gehaltsverhandlung, Hauskauf, Energiekosten oder Steuererklärung – richtige Zahlen sind die Grundlage guter Entscheidungen. Deutschland rechnet bietet über 90 Rechner, die aktuelle Gesetze, Steuersätze und Tarife für Deutschland berücksichtigen.</p>
+    <p>Ob <a href={`${base}geld/brutto-netto-rechner/`}>Gehaltsverhandlung mit Netto-Berechnung</a>, <a href={`${base}wohnen/`}>Hauskauf und Nebenkosten</a>, <a href={`${base}energie/stromkosten-rechner/`}>Energiekosten sparen</a> oder <a href={`${base}geld/einkommensteuer-berechnung/`}>Steuererklärung</a> – richtige Zahlen sind die Grundlage guter Entscheidungen. Deutschland rechnet bietet über 90 Rechner für Gehalt, Steuern, Wohnen, Energie, Familie und mehr – alle aktuellen deutschen Gesetzen und Tarife für 2026.</p>
 
     <div class="benefits-grid">
       <div class="benefit-card">
@@ -43,7 +84,7 @@ const base = import.meta.env.BASE_URL;
       </div>
       <div class="benefit-card">
         <h3>✓ Für alle Lebenslagen</h3>
-        <p>Ob Angestellter, Selbstständiger, Familie oder Rentner – finden Sie Rechner für Ihre spezifische Situation.</p>
+        <p>Ob <a href={`${base}fuer-angestellte/`}>Angestellter</a>, <a href={`${base}fuer-selbststaendige/`}>Selbstständiger</a>, <a href={`${base}fuer-familien/`}>Familie</a> oder <a href={`${base}fuer-rentner/`}>Rentner</a> – finden Sie Rechner für Ihre spezifische Situation.</p>
       </div>
     </div>
   </section>
@@ -291,6 +332,15 @@ const base = import.meta.env.BASE_URL;
   line-height: 1.7;
   color: var(--text);
   margin-bottom: 1.5rem;
+}
+.intro-section a {
+  color: var(--red);
+  font-weight: 600;
+  text-decoration: none;
+  transition: text-decoration 0.2s;
+}
+.intro-section a:hover {
+  text-decoration: underline;
 }
 .benefits-grid {
   display: grid;
