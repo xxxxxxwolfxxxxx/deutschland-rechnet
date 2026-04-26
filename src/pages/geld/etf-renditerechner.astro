@@ -1,0 +1,126 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import CalculatorShell from '../../components/CalculatorShell.astro';
+import CalculatorGuide from '../../components/CalculatorGuide.astro';
+import { CALCULATORS, CATEGORIES } from '../../data/calculators';
+const calc = CALCULATORS.find(c => c.slug === 'etf-renditerechner')!;
+const cat = CATEGORIES[calc.category];
+const year = new Date().getFullYear();
+---
+<Layout
+  title={`ETF-Renditerechner ${year}`}
+  description="ETF-Rendite berechnen – Vermögensaufbau mit regelmäßiger Sparrate und erwarteter Rendite."
+  canonicalPath="/geld/etf-renditerechner/"
+  categoryColor={cat.color}
+  categoryLight={cat.colorLight}
+  categoryImage={cat.image}
+>
+  <div class="page-header">
+    <a href={`${import.meta.env.BASE_URL}geld/`} class="back-link">← Geld & Gehalt</a>
+    <h1>ETF-Renditerechner {year}</h1>
+  </div>
+  <CalculatorShell
+    calculator={calc}
+    intro="Mit dem ETF-Renditerechner berechnen Sie Ihr Vermögen nach regelmäßigem Sparen mit einer erwarteten jährlichen Rendite."
+    sourceNote="Berechnung basiert auf historischen Durchschnittsrenditen von Aktien-ETFs."
+    explanation="ETFs (Exchange Traded Funds) sind kostengünstige Fonds, die Indizes abbilden. Mit regelmäßigem Sparen und Zinseszins-Effekt bauen Sie langfristig Vermögen auf."
+    faqs={[
+      { q: "Was ist eine ETF?", a: "Exchange Traded Fund – ein Fonds, der einen Index (z.B. DAX, MSCI World) 1:1 abbildet. Kosten sehr niedrig (0,1-0,5% p.a.), diversifizierung breit." },
+      { q: "Welche Rendite kann ich erwarten?", a: "Aktienmärkte: 7-8% p.a. historisch, Anleihen: 2-3%. Ein ausgewogenes Portfolio: 5-6% p.a. Keine Garantie!" },
+      { q: "Wie oft sollte ich sparen?", a: "Monatlich ist ideal. Der Cost-Averaging-Effekt glättet Kursschwankungen. Kapitalerträge unterliegen Kapitalertragssteuer (26,375%)." },
+      { q: "Ist regelmäßiges Sparen besser als eine Einmalanlage?", a: "Psychologisch ja – man vermeidet schlechte Timing-Entscheidungen. Mathematisch: Eine große Einlage früher wächst mehr. Beste Strategie: Kombination." },
+      { q: "Wie lange sollte ich mindestens sparen?", a: "Mindestens 10-15 Jahre. Über 20+ Jahre ist Aktien-Sparen sehr zuverlässig. Unter 5 Jahren: eher Tagesgeld, keine Aktien." }
+    ]}
+  >
+    <div class="calc-form">
+      <div class="calc-grid">
+        <div class="calc-group">
+          <label for="anfangsinvest">Anfangskapital (€)</label>
+          <input type="number" id="anfangsinvest" min="0" max="500000" value="5000" step="1000" />
+        </div>
+        <div class="calc-group">
+          <label for="sparrate">Monatliche Sparrate (€)</label>
+          <input type="number" id="sparrate" min="0" max="50000" value="500" step="50" />
+        </div>
+        <div class="calc-group">
+          <label for="rendite">Erwartete jährliche Rendite (%)</label>
+          <input type="number" id="rendite" min="0" max="15" value="7" step="0.5" />
+        </div>
+        <div class="calc-group">
+          <label for="jahre">Zeitraum (Jahre)</label>
+          <input type="number" id="jahre" min="1" max="50" value="20" step="1" />
+        </div>
+      </div>
+
+      <div class="calc-result">
+        <div class="label">Endsumme nach Gewinnen</div>
+        <div id="endsumme">— €</div>
+      </div>
+      <div class="calc-result" style="background:#e8f5e9;">
+        <div class="label">Gewonnene Zinsen/Rendite</div>
+        <div id="gewinne">— €</div>
+      </div>
+      <div class="calc-result">
+        <div class="label">Eingezahltes Kapital</div>
+        <div id="eingezahlt">— €</div>
+      </div>
+
+      <details class="details">
+        <summary>Entwicklung (Wert pro 5-Jahres-Periode)</summary>
+        <div id="fortschritt"></div>
+      </details>
+
+      <div id="details" style="margin-top:0.75rem;font-size:0.88rem;color:#666;"></div>
+    </div>
+  </CalculatorShell>
+</Layout>
+
+<script type="module">
+function berechne() {
+  const anfang = parseFloat(document.getElementById('anfangsinvest').value)||5000;
+  const sparrate = parseFloat(document.getElementById('sparrate').value)||500;
+  const rendite = parseFloat(document.getElementById('rendite').value)||7;
+  const jahre = parseInt(document.getElementById('jahre').value)||20;
+
+  const monatrendite = rendite / 100 / 12;
+  let wert = anfang;
+  const eingezahlt = anfang + sparrate * 12 * jahre;
+
+  for (let monat = 1; monat <= jahre * 12; monat++) {
+    wert = wert * (1 + monatrendite) + sparrate;
+  }
+
+  const gewinne = wert - eingezahlt;
+
+  document.getElementById('endsumme').textContent = wert.toLocaleString('de-DE', {minimumFractionDigits:2}) + ' €';
+  document.getElementById('gewinne').textContent = gewinne.toLocaleString('de-DE', {minimumFractionDigits:2}) + ' €';
+  document.getElementById('eingezahlt').textContent = eingezahlt.toLocaleString('de-DE', {minimumFractionDigits:2}) + ' €';
+
+  // Fortschritt
+  let fortschritt = '<div style="display:grid; gap:0.5rem;">';
+  wert = anfang;
+  for (let y = 0; y <= jahre; y += 5) {
+    if (y > 0) {
+      for (let m = 0; m < 5 * 12; m++) {
+        wert = wert * (1 + monatrendite) + sparrate;
+      }
+    }
+    const eingez = anfang + sparrate * 12 * y;
+    fortschritt += `<div style="display:flex; gap:1rem;">
+      <strong style="width:60px;">Jahr ${y}:</strong>
+      <span>${wert.toLocaleString('de-DE', {maximumFractionDigits:0})} €</span>
+    </div>`;
+  }
+  fortschritt += '</div>';
+  document.getElementById('fortschritt').innerHTML = fortschritt;
+}
+
+['anfangsinvest','sparrate','rendite','jahre'].forEach(id =>
+  document.getElementById(id).addEventListener('input', berechne));
+berechne();
+</script>
+
+<style>
+.page-header { margin-bottom: 2rem; }
+</style>
+</Layout>

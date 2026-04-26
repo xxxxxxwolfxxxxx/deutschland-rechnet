@@ -1,0 +1,118 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import CalculatorShell from '../../components/CalculatorShell.astro';
+import CalculatorGuide from '../../components/CalculatorGuide.astro';
+import { CALCULATORS, CATEGORIES } from '../../data/calculators';
+const calc = CALCULATORS.find(c => c.slug === 'zahnzusatz-rechner')!;
+const cat = CATEGORIES[calc.category];
+const year = new Date().getFullYear();
+---
+<Layout
+  title={`Zahnzusatzversicherung Rechner ${year}`}
+  description="Zahnzusatzversicherung Ersparnis berechnen – Kostenvergleich für Zahnersatz und Zahnbehandlung."
+  canonicalPath="/versicherungen/zahnzusatz-rechner/"
+  categoryColor={cat.color}
+  categoryLight={cat.colorLight}
+  categoryImage={cat.image}
+>
+  <div class="page-header">
+    <a href={`${import.meta.env.BASE_URL}versicherungen/`} class="back-link">← Versicherungen</a>
+    <h1>Zahnzusatzversicherung Rechner {year}</h1>
+  </div>
+  <CalculatorShell
+    calculator={calc}
+    intro="Mit dem Zahnzusatzversicherung-Rechner berechnen Sie schnell, wie viel Sie sparen können. Vergleichen Sie die jährliche Prämie mit den durchschnittlichen Zahnkosten."
+    sourceNote="Berechnung basiert auf durchschnittlichen Leistungen und Kosten 2026."
+    explanation="Eine Zahnzusatzversicherung übernimmt Kosten für Zahnersatz (Kronen, Brücken), Zahnbehandlung und Prophylaxe, die die gesetzliche KV nicht deckt."
+    faqs={[
+      { q: "Was deckt eine Zahnzusatzversicherung?", a: "Zahnersatz (Kronen, Brücken, Implantate), Zahnbehandlung (Wurzelbehandlung), Prophylaxe und Zahnreinigung. Der Deckungsumfang liegt zwischen 50-100%." },
+      { q: "Wie hoch sind die Beiträge?", a: "Zahnzusatzversicherungen kosten zwischen 5-25€ monatlich, je nach Alter und Deckungsumfang. Jüngere zahlen weniger." },
+      { q: "Lohnt sich eine Zahnzusatzversicherung?", a: "Ja, besonders für Junge. Eine Zahnkrone kostet 400-600€, ein Implantat 1.500-2.500€. Die Versicherung spart diese Kosten schnell ein." },
+      { q: "Gibt es Wartezeiten?", a: "Ja, typischerweise 4-6 Monate für Zahnbehandlung und bis zu 8 Monate für Zahnersatz. Zahnprophylaxe hat oft keine Wartezeit." },
+      { q: "Kann ich eine Police noch mit 60 abschließen?", a: "Ja, aber der Beitrag ist höher. Mit 60+ Jahren zahlt man oft 15-25€/Monat statt 7-12€." }
+    ]}
+  >
+    <div class="calc-form">
+      <div class="calc-grid">
+        <div class="calc-group">
+          <label for="alter">Alter</label>
+          <input type="number" id="alter" min="18" max="120" value="35" step="1" />
+        </div>
+        <div class="calc-group">
+          <label for="zahngeld">Zahnstatus</label>
+          <select id="zahngeld">
+            <option value="gesund" selected>Gesund, keine fehlenden Zähne</option>
+            <option value="behandelt">Einige Behandlungen, kein Zahnersatz</option>
+            <option value="ersatz">Zahnersatz vorhanden</option>
+          </select>
+        </div>
+        <div class="calc-group">
+          <label for="deckung">Deckungsumfang</label>
+          <select id="deckung">
+            <option value="basis">Basis (50% Zahnersatz)</option>
+            <option value="standard" selected>Standard (75-80% Zahnersatz)</option>
+            <option value="premium">Premium (90-100% Zahnersatz)</option>
+          </select>
+        </div>
+        <div class="calc-group">
+          <label for="prophylaxe">Prophylaxe/Zahnreinigung</label>
+          <select id="prophylaxe">
+            <option value="keine">Keine</option>
+            <option value="basis" selected>1x jährlich</option>
+            <option value="plus">2x jährlich</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="calc-result">
+        <div class="label">Geschätzte monatliche Prämie</div>
+        <div id="praemie">— €</div>
+      </div>
+      <div class="calc-result" style="background:#e8f5e9;">
+        <div class="label">Jährliche Ersparnis bei Zahnersatz</div>
+        <div id="ersparnis">— €</div>
+      </div>
+      <div id="details" style="margin-top:0.75rem;font-size:0.88rem;color:#666;"></div>
+    </div>
+  </CalculatorShell>
+</Layout>
+
+<script type="module">
+function berechne() {
+  const alter = parseInt(document.getElementById('alter').value)||35;
+  const zahngeld = document.getElementById('zahngeld').value;
+  const deckung = document.getElementById('deckung').value;
+  const prophylaxe = document.getElementById('prophylaxe').value;
+
+  let baseBeitrag = 12;
+  if (alter < 25) baseBeitrag = 7;
+  else if (alter >= 25 && alter < 35) baseBeitrag = 9;
+  else if (alter >= 35 && alter < 50) baseBeitrag = 12;
+  else if (alter >= 50 && alter < 60) baseBeitrag = 16;
+  else baseBeitrag = 20;
+
+  const zahnZuschlag = { 'gesund': 0, 'behandelt': 1, 'ersatz': 3 }[zahngeld] || 0;
+  const deckungZuschlag = { 'basis': 0, 'standard': 2, 'premium': 5 }[deckung] || 0;
+  const prophylaxeZuschlag = { 'keine': 0, 'basis': 1, 'plus': 2 }[prophylaxe] || 0;
+
+  const praemie = baseBeitrag + zahnZuschlag + deckungZuschlag + prophylaxeZuschlag;
+  const deckungsQuote = { 'basis': 0.5, 'standard': 0.8, 'premium': 1.0 }[deckung] || 0.8;
+  const durchschnittskosten = 1200; // Jährliche Zahnkosten
+  const ersparnis = Math.round(durchschnittskosten * deckungsQuote);
+
+  document.getElementById('praemie').textContent = praemie.toLocaleString('de-DE', {minimumFractionDigits:2, maximumFractionDigits:2}) + ' €';
+  document.getElementById('ersparnis').textContent = ersparnis.toLocaleString('de-DE') + ' € (bei ' + Math.round(deckungsQuote * 100) + '% Deckung)';
+  document.getElementById('details').innerHTML = `
+    <div>Jahresbeitrag: <strong>${(praemie * 12).toLocaleString('de-DE')} €</strong></div>
+  `;
+}
+
+['alter','zahngeld','deckung','prophylaxe'].forEach(id =>
+  document.getElementById(id).addEventListener('change', berechne));
+berechne();
+</script>
+</Layout>
+
+<style>
+.page-header { margin-bottom: 2rem; }
+</style>

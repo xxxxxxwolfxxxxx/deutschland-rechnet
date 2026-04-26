@@ -1,0 +1,109 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import CalculatorShell from '../../components/CalculatorShell.astro';
+import CalculatorGuide from '../../components/CalculatorGuide.astro';
+import { CALCULATORS, CATEGORIES } from '../../data/calculators';
+const calc = CALCULATORS.find(c => c.slug === 'autofinanzierung-rechner')!;
+const cat = CATEGORIES[calc.category];
+const year = new Date().getFullYear();
+---
+<Layout
+  title={`Autofinanzierung Rechner ${year}`}
+  description="Autofinanzierung berechnen – monatliche Rate und Gesamtkosten für Autokauf auf Kredit."
+  canonicalPath="/geld/autofinanzierung-rechner/"
+  categoryColor={cat.color}
+  categoryLight={cat.colorLight}
+  categoryImage={cat.image}
+>
+  <div class="page-header">
+    <a href={`${import.meta.env.BASE_URL}geld/`} class="back-link">← Geld & Gehalt</a>
+    <h1>Autofinanzierung Rechner {year}</h1>
+  </div>
+  <CalculatorShell
+    calculator={calc}
+    intro="Mit dem Autofinanzierung-Rechner berechnen Sie die monatliche Kreditrate und die Gesamtkosten für Ihren Autokauf."
+    sourceNote="Berechnung basiert auf aktuellen Autofinanzierungs-Konditionen."
+    explanation="Die Autofinanzierung ist ein Ratenkredit speziell für den Autokauf. Das Fahrzeug dient als Sicherheit. Die Konditionen sind oft günstiger als ein normaler Kredit."
+    faqs={[
+      { q: "Was ist der Unterschied zwischen Autofinanzierung und Kredit?", a: "Bei Autofinanzierung ist das Auto die Sicherheit. Die Zinsen sind dadurch meist niedriger (3-7% statt 5-10%). Allerdings: Das Auto wird beliehen." },
+      { q: "Was kostet die Autofinanzierung insgesamt?", a: "Beispiel: 25.000€ Auto, 5.000€ Eigenkapital, 5% Zinsen, 60 Monate = 376€/Monat = 22.560€ Zinskosten + Gebühren." },
+      { q: "Wie viel Eigenkapital sollte ich mitbringen?", a: "Mindestens 10-15% (2.500-3.750€ bei 25.000€ Auto). Mit 20% bekommen Sie bessere Konditionen. Ohne Eigenkapital sind die Zinsen höher." },
+      { q: "Sollte ich lieber leasen oder finanzieren?", a: "Finanzierung: Für viele KM/Jahr, wenn Sie das Auto behalten wollen. Leasing: Für wenig KM, wenn Sie regelmäßig das Auto wechseln wollen." },
+      { q: "Kann ich vorzeitig tilgen?", a: "Ja, ohne Vorfälligkeitsentschädigung (seit 2016). Das spart Zinsen und ist empfohlen, wenn Sie Liquidität haben." }
+    ]}
+  >
+    <div class="calc-form">
+      <div class="calc-grid">
+        <div class="calc-group">
+          <label for="autopreis">Auto-Kaufpreis (€)</label>
+          <input type="number" id="autopreis" min="5000" max="250000" value="25000" step="1000" />
+        </div>
+        <div class="calc-group">
+          <label for="eigenkapital">Eigenkapital (€)</label>
+          <input type="number" id="eigenkapital" min="0" max="250000" value="5000" step="1000" />
+        </div>
+        <div class="calc-group">
+          <label for="laufzeit">Laufzeit (Monate)</label>
+          <input type="number" id="laufzeit" min="12" max="84" value="60" step="6" />
+        </div>
+        <div class="calc-group">
+          <label for="zinssatz">Effektiver Zinssatz (%)</label>
+          <input type="number" id="zinssatz" min="2" max="12" value="5.2" step="0.1" />
+        </div>
+      </div>
+
+      <div class="calc-result">
+        <div class="label">Kreditsumme</div>
+        <div id="kreditsumme">— €</div>
+      </div>
+      <div class="calc-result">
+        <div class="label">Monatliche Rate</div>
+        <div id="rate">— €</div>
+      </div>
+      <div class="calc-result" style="background:#fff3e0;">
+        <div class="label">Gesamte Zinskosten</div>
+        <div id="gesamtzinsen">— €</div>
+      </div>
+      <div class="calc-result">
+        <div class="label">Gesamter Kaufpreis (inkl. Zinsen)</div>
+        <div id="gesamtpreis">— €</div>
+      </div>
+
+      <div id="details" style="margin-top:0.75rem;font-size:0.88rem;color:#666;"></div>
+    </div>
+  </CalculatorShell>
+</Layout>
+
+<script type="module">
+function berechne() {
+  const autopreis = parseFloat(document.getElementById('autopreis').value)||25000;
+  const eigenkapital = parseFloat(document.getElementById('eigenkapital').value)||5000;
+  const laufzeit = parseInt(document.getElementById('laufzeit').value)||60;
+  const zinssatz = parseFloat(document.getElementById('zinssatz').value)||5.2;
+
+  const kreditsumme = autopreis - eigenkapital;
+  const monatszins = zinssatz / 100 / 12;
+  const rate = kreditsumme * (monatszins * Math.pow(1 + monatszins, laufzeit)) / (Math.pow(1 + monatszins, laufzeit) - 1);
+  const gesamtzinsen = rate * laufzeit - kreditsumme;
+  const gesamtpreis = eigenkapital + rate * laufzeit;
+
+  document.getElementById('kreditsumme').textContent = kreditsumme.toLocaleString('de-DE', {minimumFractionDigits:2}) + ' €';
+  document.getElementById('rate').textContent = rate.toLocaleString('de-DE', {minimumFractionDigits:2, maximumFractionDigits:2}) + ' €';
+  document.getElementById('gesamtzinsen').textContent = gesamtzinsen.toLocaleString('de-DE', {minimumFractionDigits:2}) + ' €';
+  document.getElementById('gesamtpreis').textContent = gesamtpreis.toLocaleString('de-DE', {minimumFractionDigits:2}) + ' €';
+
+  document.getElementById('details').innerHTML = `
+    <div>Eigenkapital: <strong>${eigenkapital.toLocaleString('de-DE')} €</strong> (${(eigenkapital/autopreis*100).toFixed(1)}%)</div>
+    <div>Laufzeit: <strong>${laufzeit} Monate (${(laufzeit/12).toFixed(1)} Jahre)</strong></div>
+  `;
+}
+
+['autopreis','eigenkapital','laufzeit','zinssatz'].forEach(id =>
+  document.getElementById(id).addEventListener('input', berechne));
+berechne();
+</script>
+
+<style>
+.page-header { margin-bottom: 2rem; }
+</style>
+</Layout>

@@ -1,0 +1,132 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import CalculatorShell from '../../components/CalculatorShell.astro';
+import CalculatorGuide from '../../components/CalculatorGuide.astro';
+import { CALCULATORS, CATEGORIES } from '../../data/calculators';
+const calc = CALCULATORS.find(c => c.slug === 'spritkosten-vergleich')!;
+const cat = CATEGORIES[calc.category];
+const year = new Date().getFullYear();
+---
+<Layout
+  title={`Spritkosten-Vergleich ${year}`}
+  description="Spritkosten vs. Stromkosten vergleichen – Benzin, Diesel und Strom für E-Autos."
+  canonicalPath="/auto/spritkosten-vergleich/"
+  categoryColor={cat.color}
+  categoryLight={cat.colorLight}
+  categoryImage={cat.image}
+>
+  <div class="page-header">
+    <a href={`${import.meta.env.BASE_URL}auto/`} class="back-link">← Auto & Mobilität</a>
+    <h1>Spritkosten-Vergleich {year}</h1>
+  </div>
+  <CalculatorShell
+    calculator={calc}
+    intro="Mit dem Spritkosten-Vergleich sehen Sie schnell, welcher Energieträger (Benzin, Diesel, Strom) für Ihre Fahrleistung am günstigsten ist."
+    sourceNote="Berechnung basiert auf aktuellen Energiepreisen."
+    explanation="Die Betriebskosten sind ein wesentlicher Faktor bei der Wahl des Fahrzeugs. E-Autos sind deutlich günstiger zu betreiben als Verbrenner."
+    faqs={[
+      { q: "Warum ist das E-Auto günstiger?", a: "Elektromotoren sind effizienter (90% vs. 30% bei Benzin). Weniger Energieverlust = niedrigere Kosten. Zusätzlich: kein Öl, weniger Wartung." },
+      { q: "Was ist der Verbrauch eines E-Autos?", a: "Kompaktklasse: 15-18 kWh/100km. SUV: 20-25 kWh/100km. Benziner gleiche Klasse: 6-8 Liter/100km." },
+      { q: "Wie wirken sich Strompreise aus?", a: "Bei 0,20€/kWh: sehr günstig. Bei 0,40€/kWh: immer noch günstiger als Benzin. Wichtig: Zuhause laden ist billiger als öffentliche Ladesäulen." },
+      { q: "Diesel vs. Benzin – was ist günstiger?", a: "Diesel ca. 3-10% billiger pro Liter. Aber: Diesel-Fahrzeuge sind teurer, höhere KFZ-Steuer, mehr Wartung. Ab 15.000 km/Jahr lohnt sich Diesel." },
+      { q: "Was sind Ladesäulen-Kosten?", a: "Öffentliche Ladesäulen: 0,30-0,50€/kWh (teurer als Zuhause). Schnellladung: bis 0,60€/kWh. Langfristig: Wallbox zu Hause installieren!" }
+    ]}
+  >
+    <div class="calc-form">
+      <div class="calc-grid">
+        <div class="calc-group">
+          <label for="fahrtleistung">Jährliche Fahrtleistung (km)</label>
+          <input type="number" id="fahrtleistung" min="1000" max="50000" value="12000" step="1000" />
+        </div>
+        <div class="calc-group">
+          <label for="energietraeger">Energieträger</label>
+          <select id="energietraeger">
+            <option value="benzin" selected>Benzin</option>
+            <option value="diesel">Diesel</option>
+            <option value="strom">Strom (E-Auto)</option>
+          </select>
+        </div>
+        <div class="calc-group">
+          <label for="verbrauch">Verbrauch</label>
+          <input type="number" id="verbrauch" min="3" max="30" value="7" step="0.5" />
+          <small id="verbrauch-einheit">Liter/100km</small>
+        </div>
+        <div class="calc-group">
+          <label for="preis">Preis</label>
+          <input type="number" id="preis" min="0.15" max="2.50" value="1.85" step="0.05" />
+          <small id="preis-einheit">€/Liter</small>
+        </div>
+      </div>
+
+      <div class="calc-result">
+        <div class="label">Kosten pro 100 km</div>
+        <div id="kosten_100">— €</div>
+      </div>
+      <div class="calc-result">
+        <div class="label">Monatliche Kosten (bei 1.000 km)</div>
+        <div id="kosten_monatlich">— €</div>
+      </div>
+      <div class="calc-result" style="background:#fff3e0;">
+        <div class="label">Jährliche Kosten</div>
+        <div id="kosten_jahrelich">— €</div>
+      </div>
+
+      <div id="vergleich" style="margin-top:1.5rem; padding:1rem; background:#f0f0f0; border-radius:8px; display:none;">
+        <strong>Vergleich mit anderen Energieträgern:</strong>
+        <div id="vergleich-inhalt"></div>
+      </div>
+
+      <div id="details" style="margin-top:0.75rem;font-size:0.88rem;color:#666;"></div>
+    </div>
+  </CalculatorShell>
+</Layout>
+
+<script type="module">
+function berechne() {
+  const fahrtleistung = parseFloat(document.getElementById('fahrtleistung').value)||12000;
+  const energietraeger = document.getElementById('energietraeger').value;
+  const verbrauch = parseFloat(document.getElementById('verbrauch').value)||7;
+  const preis = parseFloat(document.getElementById('preis').value)||1.85;
+
+  let kosten_100 = 0;
+  const einheiten = { 'benzin': 'Liter/100km', 'diesel': 'Liter/100km', 'strom': 'kWh/100km' };
+  document.getElementById('verbrauch-einheit').textContent = einheiten[energietraeger];
+
+  const preiseinheiten = { 'benzin': '€/Liter', 'diesel': '€/Liter', 'strom': '€/kWh' };
+  document.getElementById('preis-einheit').textContent = preiseinheiten[energietraeger];
+
+  kosten_100 = verbrauch * preis;
+
+  const kosten_monatlich = (fahrtleistung / 12 / 100) * kosten_100;
+  const kosten_jahrelich = (fahrtleistung / 100) * kosten_100;
+
+  document.getElementById('kosten_100').textContent = kosten_100.toLocaleString('de-DE', {minimumFractionDigits:2, maximumFractionDigits:2}) + ' €';
+  document.getElementById('kosten_monatlich').textContent = kosten_monatlich.toLocaleString('de-DE', {minimumFractionDigits:2}) + ' €';
+  document.getElementById('kosten_jahrelich').textContent = kosten_jahrelich.toLocaleString('de-DE', {minimumFractionDigits:2}) + ' €';
+
+  // Vergleiche
+  const benzin_100 = 7 * 1.85;
+  const diesel_100 = 6 * 1.70;
+  const strom_100 = 18 * 0.32;
+
+  document.getElementById('vergleich').style.display = 'block';
+  document.getElementById('vergleich-inhalt').innerHTML = `
+    <table style="width:100%; margin-top:0.5rem; border-collapse:collapse;">
+      <tr><td style="padding:0.5rem;">Benzin:</td><td style="padding:0.5rem;"><strong>${benzin_100.toLocaleString('de-DE', {maximumFractionDigits:2})}€ / 100km</strong></td></tr>
+      <tr><td style="padding:0.5rem;">Diesel:</td><td style="padding:0.5rem;"><strong>${diesel_100.toLocaleString('de-DE', {maximumFractionDigits:2})}€ / 100km</strong></td></tr>
+      <tr style="background:#e8f5e9;"><td style="padding:0.5rem;">Strom (E-Auto):</td><td style="padding:0.5rem;"><strong>${strom_100.toLocaleString('de-DE', {maximumFractionDigits:2})}€ / 100km</strong></td></tr>
+    </table>
+  `;
+}
+
+['fahrtleistung','energietraeger','verbrauch','preis'].forEach(id =>
+  document.getElementById(id).addEventListener('change', berechne));
+document.getElementById('verbrauch').addEventListener('input', berechne);
+document.getElementById('preis').addEventListener('input', berechne);
+berechne();
+</script>
+
+<style>
+.page-header { margin-bottom: 2rem; }
+</style>
+</Layout>

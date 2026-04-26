@@ -1,0 +1,121 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import CalculatorShell from '../../components/CalculatorShell.astro';
+import CalculatorGuide from '../../components/CalculatorGuide.astro';
+import { CALCULATORS, CATEGORIES } from '../../data/calculators';
+const calc = CALCULATORS.find(c => c.slug === 'rentenlucken-rechner')!;
+const cat = CATEGORIES[calc.category];
+const year = new Date().getFullYear();
+---
+<Layout
+  title={`Rentenlücken Rechner ${year}`}
+  description="Rentenlücke berechnen – wie viel Geld fehlt im Alter? Notwendige Sparquote ermitteln."
+  canonicalPath="/geld/rentenlucken-rechner/"
+  categoryColor={cat.color}
+  categoryLight={cat.colorLight}
+  categoryImage={cat.image}
+>
+  <div class="page-header">
+    <a href={`${import.meta.env.BASE_URL}geld/`} class="back-link">← Geld & Gehalt</a>
+    <h1>Rentenlücken Rechner {year}</h1>
+  </div>
+  <CalculatorShell
+    calculator={calc}
+    intro="Mit dem Rentenlücken-Rechner berechnen Sie, wie groß die Lücke zwischen Ihrer gesetzlichen Rente und Ihrem Lebensstandard ist – und wie viel Sie sparen müssen."
+    sourceNote="Berechnung auf Basis durchschnittlicher Rentenniveaus."
+    explanation="Die Rentenlücke ist die Differenz zwischen der erwarteten Rente und den geplanten Lebenshaltungskosten im Alter. Eine Ersparnis von 50-70% des Erwerbstätigeneinkommens ist realistisch."
+    faqs={[
+      { q: "Was ist eine Rentenlücke?", a: "Die Differenz zwischen der gesetzlichen Rente und den Lebenshaltungskosten im Alter. Wenn die Rente 2.000€ ist, aber Sie 3.000€ brauchen, beträgt die Lücke 1.000€/Monat." },
+      { q: "Wie groß ist die Rentenlücke im Schnitt?", a: "Ein Angestellter mit Nettolohn 3.000€ bekommt später ca. 60% davon (1.800€) Rente. Die Lücke beträgt ca. 40% des Einkommens." },
+      { q: "Wie viel muss ich monatlich sparen?", a: "Faustregel: 10-15% des Einkommens für zusätzliche Altersvorsorge. Bei 3.000€ Netto bedeutet das 300-450€/Monat zusätzlich." },
+      { q: "Wann sollte ich anfangen zu sparen?", a: "So früh wie möglich! Der Zinseszins-Effekt verdoppelt Ihre Ersparnisse über 30 Jahre. Mit 25 angefangen spart man leichter als mit 45." },
+      { q: "Welche Sparformen sind sinnvoll?", a: "Riester-Rente (staatliche Zulagen), betriebliche Altersvorsorge (Steuerersparnis), Sparpläne (ETF, Fondssparpläne), private Rente (flexible Beitragszahlung)." }
+    ]}
+  >
+    <div class="calc-form">
+      <div class="calc-grid">
+        <div class="calc-group">
+          <label for="aktuelles_einkommen">Aktuelles Netto-Einkommen (€)</label>
+          <input type="number" id="aktuelles_einkommen" min="1000" max="100000" value="3000" step="100" />
+        </div>
+        <div class="calc-group">
+          <label for="renteneintritt">Renteneintrittsalter</label>
+          <input type="number" id="renteneintritt" min="62" max="70" value="67" step="1" />
+        </div>
+        <div class="calc-group">
+          <label for="aktuelles_alter">Aktuelles Alter</label>
+          <input type="number" id="aktuelles_alter" min="18" max="67" value="35" step="1" />
+        </div>
+        <div class="calc-group">
+          <label for="ausgabenniveau">Geplantes Ausgabenniveau im Alter</label>
+          <select id="ausgabenniveau">
+            <option value="75">75% des heutigen Einkommens</option>
+            <option value="80" selected>80% des heutigen Einkommens</option>
+            <option value="100">100% des heutigen Einkommens</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="calc-result">
+        <div class="label">Erwartete gesetzliche Rente</div>
+        <div id="gesetzliche_rente">— €</div>
+      </div>
+      <div class="calc-result">
+        <div class="label">Geplantes Ausgabenniveau</div>
+        <div id="ausgabenniveau_wert">— €</div>
+      </div>
+      <div class="calc-result" style="background:#ffebee;">
+        <div class="label">Monatliche Rentenlücke</div>
+        <div id="luecke">— €</div>
+      </div>
+      <div class="calc-result" style="background:#e8f5e9;">
+        <div class="label">Notwendige monatliche Sparquote</div>
+        <div id="sparquote">— €</div>
+      </div>
+
+      <div id="details" style="margin-top:0.75rem;font-size:0.88rem;color:#666;"></div>
+    </div>
+  </CalculatorShell>
+</Layout>
+
+<script type="module">
+function berechne() {
+  const einkommen = parseFloat(document.getElementById('aktuelles_einkommen').value)||3000;
+  const renteneintritt = parseInt(document.getElementById('renteneintritt').value)||67;
+  const aktuelles_alter = parseInt(document.getElementById('aktuelles_alter').value)||35;
+  const ausgabenniveau = parseInt(document.getElementById('ausgabenniveau').value)||80;
+
+  // Vereinfachte Rentenschätzung: ca. 60% des durchschnittlichen Einkommens
+  const gesetzliche_rente = einkommen * 0.60;
+  const ausgabenniveau_betrag = einkommen * (ausgabenniveau / 100);
+  const luecke = Math.max(0, ausgabenniveau_betrag - gesetzliche_rente);
+
+  const jahre_bis_rente = Math.max(0, renteneintritt - aktuelles_alter);
+  const jahre_in_rente = 30; // Durchschnittliche Rentendauer
+  const verdienst_faktor = 1.02; // 2% jährliches Einkomenswachstum
+
+  // Stark vereinfacht: Benötigte Sparquote
+  const luecke_total = luecke * 12 * jahre_in_rente;
+  const sparquote = jahre_bis_rente > 0 ? luecke_total / (jahre_bis_rente * 12 * 20) : 0;
+
+  document.getElementById('gesetzliche_rente').textContent = gesetzliche_rente.toLocaleString('de-DE', {minimumFractionDigits:2}) + ' € / Monat';
+  document.getElementById('ausgabenniveau_wert').textContent = ausgabenniveau_betrag.toLocaleString('de-DE', {minimumFractionDigits:2}) + ' € / Monat';
+  document.getElementById('luecke').textContent = luecke.toLocaleString('de-DE', {minimumFractionDigits:2}) + ' € / Monat';
+  document.getElementById('sparquote').textContent = Math.max(0, sparquote).toLocaleString('de-DE', {minimumFractionDigits:2}) + ' €';
+
+  document.getElementById('details').innerHTML = `
+    <div>Jahre bis Renteneintritt: <strong>${jahre_bis_rente}</strong></div>
+    <div>Geschätzte Rentendauer: <strong>${jahre_in_rente} Jahre</strong></div>
+    <div>Jährliche Lücke: <strong>${(luecke * 12).toLocaleString('de-DE')} €</strong></div>
+  `;
+}
+
+['aktuelles_einkommen','renteneintritt','aktuelles_alter','ausgabenniveau'].forEach(id =>
+  document.getElementById(id).addEventListener('input', berechne));
+berechne();
+</script>
+
+<style>
+.page-header { margin-bottom: 2rem; }
+</style>
+</Layout>
