@@ -1,5 +1,5 @@
 ---
-import Layout from '../../layouts/Layout.astro';
+import CalculatorLayout from '../../layouts/CalculatorLayout.astro';
 import CalculatorShell from '../../components/CalculatorShell.astro';
 import CalculatorGuide from '../../components/CalculatorGuide.astro';
 import { CALCULATORS, CATEGORIES } from '../../data/calculators';
@@ -7,13 +7,15 @@ const calc = CALCULATORS.find(c => c.slug === 'heizkosten-rechner')!;
 const cat = CATEGORIES[calc.category];
 const year = new Date().getFullYear();
 ---
-<Layout
+<CalculatorLayout
   title={`Heizkosten-Rechner ${year}`}
   description="Heizkosten für Gas, Öl, Fernwärme und Pellets kostenlos berechnen. Richtwerte für verschiedene Wohnungsgrößen inklusive."
   canonicalPath="/energie/heizkosten-rechner/"
   categoryColor={cat.color}
   categoryLight={cat.colorLight}
   categoryImage={cat.image}
+  calculatorName="Heizkosten-Rechner"
+  resultValue="Heizkosten berechnet"
 >
   <div class="page-header">
     <a href={`${import.meta.env.BASE_URL}energie/`} class="back-link">← Energie</a>
@@ -86,7 +88,7 @@ const year = new Date().getFullYear();
 <p><strong>Zukunftssicher planen:</strong> Neue Heizungen sollten mindestens 15-20 Jahre halten. Gasheizungen sind eine riskante Langzeitinvestition bei Klimaziele und steigenden CO₂-Abgaben. Wärmepumpen werden durch sinkende Strompreise (Energiewende) langfristig günstiger und sind zukunftssicher.</p>"
     relatedSlugs={['waermepumpe-rechner', 'jahresenergieverbrauch', 'energieausweis-vorberechnung']}
   />
-</Layout>
+</CalculatorLayout>
 
 <style>
 .presets {
