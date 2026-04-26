@@ -1,0 +1,43 @@
+---
+import Layout from './Layout.astro';
+import ShareButtons from '../components/ShareButtons.astro';
+
+interface Props {
+  title: string;
+  description: string;
+  canonicalPath: string;
+  categoryColor?: string;
+  categoryLight?: string;
+  categoryImage?: string;
+  calculatorName?: string;
+  resultValue?: string;
+}
+
+const {
+  title,
+  description,
+  canonicalPath,
+  categoryColor,
+  categoryLight,
+  categoryImage,
+  calculatorName = title,
+  resultValue = 'Ergebnis'
+} = Astro.props;
+---
+
+<Layout
+  title={title}
+  description={description}
+  canonicalPath={canonicalPath}
+  categoryColor={categoryColor}
+  categoryLight={categoryLight}
+  categoryImage={categoryImage}
+>
+  <slot />
+
+  <ShareButtons
+    calculatorName={calculatorName}
+    resultValue={resultValue}
+    pageUrl={canonicalPath}
+  />
+</Layout>
