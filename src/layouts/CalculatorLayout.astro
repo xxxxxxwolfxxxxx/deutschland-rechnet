@@ -1,6 +1,7 @@
 ---
 import Layout from './Layout.astro';
 import ShareButtons from '../components/ShareButtons.astro';
+import RelatedSites from '../components/RelatedSites.astro';
 
 interface Props {
   title: string;
@@ -40,4 +41,6 @@ const {
     resultValue={resultValue}
     pageUrl={canonicalPath}
   />
+
+  <RelatedSites />
 </Layout>
