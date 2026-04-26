@@ -1,0 +1,178 @@
+---
+interface Props {
+  calculatorName: string;
+  resultValue: string;
+  pageUrl: string;
+}
+
+const { calculatorName, resultValue, pageUrl } = Astro.props;
+const baseUrl = import.meta.env.SITE ?? 'https://deutschland-rechnet.de';
+const fullUrl = `${baseUrl}${pageUrl}`;
+
+// Share text template
+const shareText = `Mein ${calculatorName}: ${resultValue} 📊\nBerechne deins: ${fullUrl}`;
+const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(shareText)}`;
+const telegramUrl = `https://t.me/share/url?url=${encodeURIComponent(fullUrl)}&text=${encodeURIComponent(shareText)}`;
+const emailSubject = `${calculatorName} – Deutschland rechnet`;
+const emailBody = `Mein ${calculatorName}: ${resultValue}\n\nBerechne deins hier: ${fullUrl}`;
+---
+
+<div class="share-buttons">
+  <h3>Ergebnis teilen</h3>
+
+  <div class="button-group">
+    <a href={whatsappUrl} target="_blank" rel="noopener" class="share-btn whatsapp">
+      <span class="icon">💬</span>
+      <span class="label">WhatsApp</span>
+    </a>
+
+    <a href={telegramUrl} target="_blank" rel="noopener" class="share-btn telegram">
+      <span class="icon">✈️</span>
+      <span class="label">Telegram</span>
+    </a>
+
+    <a href={`mailto:?subject=${encodeURIComponent(emailSubject)}&body=${encodeURIComponent(emailBody)}`} class="share-btn email">
+      <span class="icon">✉️</span>
+      <span class="label">Email</span>
+    </a>
+
+    <button class="share-btn copy-link" id="copyLinkBtn">
+      <span class="icon">🔗</span>
+      <span class="label">Link kopieren</span>
+    </button>
+  </div>
+</div>
+
+<style>
+.share-buttons {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1.5rem;
+  margin: 1.5rem 0;
+}
+
+.share-buttons h3 {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text);
+  margin: 0 0 1rem 0;
+}
+
+.button-group {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 0.75rem;
+}
+
+@media (max-width: 640px) {
+  .button-group {
+    grid-template-columns: 1fr;
+  }
+}
+
+.share-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg);
+  color: var(--text);
+  text-decoration: none;
+  cursor: pointer;
+  font-weight: 500;
+  font-size: 0.9rem;
+  transition: all 0.2s ease;
+}
+
+.share-btn:hover {
+  background: var(--red);
+  color: white;
+  border-color: var(--red);
+  transform: translateY(-2px);
+}
+
+.share-btn.copy-link {
+  border: none;
+  background: var(--red);
+  color: white;
+}
+
+.share-btn.copy-link:hover {
+  background: #c0392b;
+  opacity: 0.9;
+}
+
+.icon {
+  font-size: 1.2rem;
+}
+
+.label {
+  white-space: nowrap;
+}
+
+.toast {
+  position: fixed;
+  bottom: 1rem;
+  right: 1rem;
+  background: var(--dark);
+  color: white;
+  padding: 1rem 1.5rem;
+  border-radius: var(--radius-sm);
+  font-size: 0.9rem;
+  z-index: 1000;
+  animation: slideUp 0.3s ease;
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.toast.hide {
+  animation: slideDown 0.3s ease forwards;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+}
+</style>
+
+<script define:vars={{ fullUrl }}>
+document.getElementById('copyLinkBtn').addEventListener('click', function() {
+  // Copy URL to clipboard
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(fullUrl).then(() => {
+      // Show toast
+      const toast = document.createElement('div');
+      toast.className = 'toast';
+      toast.textContent = 'Link kopiert!';
+      document.body.appendChild(toast);
+
+      setTimeout(() => {
+        toast.classList.add('hide');
+        setTimeout(() => toast.remove(), 300);
+      }, 1500);
+    });
+  } else {
+    // Fallback for older browsers
+    alert('Link zum Teilen: ' + fullUrl);
+  }
+});
+</script>
