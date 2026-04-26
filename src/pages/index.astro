@@ -46,7 +46,7 @@ const faqSchema = {
 ---
 <Layout
   title="Kostenlose Rechner für Deutschland"
-  description="Brutto-Netto, Stromkosten, Kreditrechner und 90+ weitere kostenlose Rechner für Gehalt, Steuern, Wohnen, Energie und Familie. Kein Login, sofortiges Ergebnis."
+  description="105+ kostenlose Online-Rechner: Brutto-Netto, Steuern, Kredit, Energie, Versicherungen, Familie. Sofortiges Ergebnis, keine Anmeldung nötig."
   canonicalPath="/"
 >
   <script type="application/ld+json" set:html={JSON.stringify(faqSchema)} />
@@ -59,11 +59,53 @@ const faqSchema = {
       <p class="site-hero-label">Dein kostenloses Rechner-Portal</p>
       <h1>Deutschland <em>rechnet</em></h1>
       <p class="site-hero-sub">
-        Gehalt, Steuern, Kredit, Energie, Familie – über 90 Rechner,
-        sofort im Browser, ohne Anmeldung.
+        105+ kostenlose Rechner: Gehalt, Steuern, Kredit, Versicherungen, Energie.
+        Sofort im Browser, ohne Anmeldung.
       </p>
     </div>
   </div>
+
+  <section class="featured-section">
+    <h2>Die beliebtesten Rechner</h2>
+    <div class="featured-grid">
+      <a href={`${base}geld/brutto-netto-rechner/`} class="featured-card">
+        <div class="featured-icon">💰</div>
+        <h3>Brutto-Netto Rechner</h3>
+        <p>Berechne dein Netto-Einkommen aus dem Brutto-Gehalt</p>
+        <span class="featured-cta">Berechnen →</span>
+      </a>
+      <a href={`${base}energie/stromkosten-rechner/`} class="featured-card">
+        <div class="featured-icon">⚡</div>
+        <h3>Stromkosten Rechner</h3>
+        <p>Finde heraus, wie viel deine Stromrechnung kostet</p>
+        <span class="featured-cta">Berechnen →</span>
+      </a>
+      <a href={`${base}geld/kreditrechner/`} class="featured-card">
+        <div class="featured-icon">🏦</div>
+        <h3>Kreditrechner</h3>
+        <p>Kalkuliere deine monatliche Rate und Gesamtzinsen</p>
+        <span class="featured-cta">Berechnen →</span>
+      </a>
+      <a href={`${base}geld/rentenrechner/`} class="featured-card">
+        <div class="featured-icon">🏖️</div>
+        <h3>Rentenrechner</h3>
+        <p>Berechne deine zukünftige Altersrente</p>
+        <span class="featured-cta">Berechnen →</span>
+      </a>
+      <a href={`${base}geld/einkommensteuer-berechnung/`} class="featured-card">
+        <div class="featured-icon">📋</div>
+        <h3>Einkommensteuer Rechner</h3>
+        <p>Ermittle deine zu zahlende oder zu erstattende Steuer</p>
+        <span class="featured-cta">Berechnen →</span>
+      </a>
+      <a href={`${base}versicherungen/rechtsschutz-rechner/`} class="featured-card">
+        <div class="featured-icon">🛡️</div>
+        <h3>Versicherungs-Rechner</h3>
+        <p>Berechne deine Versicherungskosten und Prämien</p>
+        <span class="featured-cta">Berechnen →</span>
+      </a>
+    </div>
+  </section>
 
   <section class="intro-section">
     <h2>Kostenlose Online-Rechner für finanzielle Entscheidungen</h2>
@@ -404,5 +446,70 @@ const faqSchema = {
   line-height: 1.6;
   color: var(--text-light);
   margin: 0;
+}
+
+/* Featured Section */
+.featured-section {
+  margin: 2.5rem 0 3rem 0;
+}
+.featured-section h2 {
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 1.5rem;
+  text-align: center;
+}
+.featured-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1rem;
+}
+@media (min-width: 640px) {
+  .featured-grid { grid-template-columns: repeat(2, 1fr); }
+}
+@media (min-width: 900px) {
+  .featured-grid { grid-template-columns: repeat(3, 1fr); }
+}
+.featured-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 1.5rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  text-decoration: none;
+  color: inherit;
+  transition: all 0.2s ease;
+}
+.featured-card:hover {
+  box-shadow: 0 8px 20px rgba(0,0,0,0.1);
+  transform: translateY(-2px);
+  border-color: var(--red);
+}
+.featured-icon {
+  font-size: 2rem;
+  line-height: 1;
+}
+.featured-card h3 {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text);
+  margin: 0;
+}
+.featured-card p {
+  font-size: 0.85rem;
+  color: var(--text-light);
+  margin: 0;
+  flex-grow: 1;
+}
+.featured-cta {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--red);
+  transition: color 0.2s;
+}
+.featured-card:hover .featured-cta {
+  color: #c0392b;
 }
 </style>
