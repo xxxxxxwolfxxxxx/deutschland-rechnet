@@ -1,0 +1,118 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import CalculatorShell from '../../components/CalculatorShell.astro';
+import CalculatorGuide from '../../components/CalculatorGuide.astro';
+import { CALCULATORS, CATEGORIES } from '../../data/calculators';
+const calc = CALCULATORS.find(c => c.slug === 'ratenkredit-detailrechner')!;
+const cat = CATEGORIES[calc.category];
+const year = new Date().getFullYear();
+---
+<Layout
+  title={`Ratenkredit-Detailrechner ${year}`}
+  description="Ratenkredit berechnen – monatliche Rate, Gesamtzinsen und Tilgungsplan mit Tabelle."
+  canonicalPath="/geld/ratenkredit-detailrechner/"
+  categoryColor={cat.color}
+  categoryLight={cat.colorLight}
+  categoryImage={cat.image}
+>
+  <div class="page-header">
+    <a href={`${import.meta.env.BASE_URL}geld/`} class="back-link">← Geld & Gehalt</a>
+    <h1>Ratenkredit-Detailrechner {year}</h1>
+  </div>
+  <CalculatorShell
+    calculator={calc}
+    intro="Mit dem Ratenkredit-Detailrechner berechnen Sie die monatliche Rate, Gesamtzinsen und erhalten einen detaillierten Tilgungsplan."
+    sourceNote="Berechnung nach aktuellen Bankgebühren."
+    explanation="Ein Ratenkredit ist ein festgesicherter Kredit mit festem Zinssatz und gleichbleibenden Raten. Die monatliche Rate setzt sich aus Tilgung und Zinsen zusammen."
+    faqs={[
+      { q: "Was ist ein Ratenkredit?", a: "Ein Kredit mit festem Zinssatz, fester Laufzeit und gleichbleibenden monatlichen Raten. Der Kreditnehmer zahlt kontinuierlich Zinsen und Tilgung." },
+      { q: "Wie funktioniert die Tilgung?", a: "Mit jeder Rate sinkt der Restkreditbetrag, die Zinsen werden auf die verbleibende Schuld berechnet. Am Ende der Laufzeit ist der Kredit vollständig getilgt." },
+      { q: "Effektiver Zins vs. Sollzins – was ist der Unterschied?", a: "Der Sollzins ist der reine Zinssatz. Der effektive Zins berücksichtigt auch Gebühren und wird nach PAngV berechnet. Immer den effektiven Zins vergleichen!" },
+      { q: "Kann ich den Kredit früher zurückzahlen?", a: "Ja, fast alle Ratenkredite erlauben Sondertilgungen ohne Vorfälligkeitsentschädigung (ab 200€ monatliche Rückzahlung)." },
+      { q: "Wie viel Kredit kann ich bekommen?", a: "Das hängt vom Einkommen, Bonität und bestehenden Schulden ab. Banken vergeben typischerweise 1-5x das monatliche Nettoeinkommen." }
+    ]}
+  >
+    <div class="calc-form">
+      <div class="calc-grid">
+        <div class="calc-group">
+          <label for="kreditsumme">Kreditsumme (€)</label>
+          <input type="number" id="kreditsumme" min="1000" max="500000" value="10000" step="1000" />
+        </div>
+        <div class="calc-group">
+          <label for="laufzeit">Laufzeit (Monate)</label>
+          <input type="number" id="laufzeit" min="6" max="240" value="60" step="1" />
+        </div>
+        <div class="calc-group">
+          <label for="zinssatz">Effektiver Zinssatz (%)</label>
+          <input type="number" id="zinssatz" min="0.5" max="15" value="5.5" step="0.1" />
+        </div>
+      </div>
+
+      <div class="calc-result">
+        <div class="label">Monatliche Rate</div>
+        <div id="rate">— €</div>
+      </div>
+      <div class="calc-result" style="background:#fff3e0;">
+        <div class="label">Gesamtzinsen</div>
+        <div id="gesamt_zinsen">— €</div>
+      </div>
+      <div class="calc-result">
+        <div class="label">Gesamtbetrag (Kredit + Zinsen)</div>
+        <div id="gesamtbetrag">— €</div>
+      </div>
+
+      <details class="details">
+        <summary>Tilgungsplan (erste 12 Monate)</summary>
+        <table id="tilgungsplan">
+          <thead>
+            <tr><th>Monat</th><th>Rate</th><th>Tilgung</th><th>Zinsen</th><th>Restschuld</th></tr>
+          </thead>
+          <tbody id="plan-body"></tbody>
+        </table>
+      </details>
+
+      <div id="details" style="margin-top:0.75rem;font-size:0.88rem;color:#666;"></div>
+    </div>
+  </CalculatorShell>
+</Layout>
+
+<script type="module">
+function berechne() {
+  const kreditsumme = parseFloat(document.getElementById('kreditsumme').value)||10000;
+  const laufzeit = parseInt(document.getElementById('laufzeit').value)||60;
+  const zinssatz = parseFloat(document.getElementById('zinssatz').value)||5.5;
+
+  const monatszins = zinssatz / 100 / 12;
+  const rate = kreditsumme * (monatszins * Math.pow(1 + monatszins, laufzeit)) / (Math.pow(1 + monatszins, laufzeit) - 1);
+  const gesamtzinsen = rate * laufzeit - kreditsumme;
+  const gesamtbetrag = kreditsumme + gesamtzinsen;
+
+  document.getElementById('rate').textContent = rate.toLocaleString('de-DE', {minimumFractionDigits:2, maximumFractionDigits:2}) + ' €';
+  document.getElementById('gesamt_zinsen').textContent = gesamtzinsen.toLocaleString('de-DE', {minimumFractionDigits:2}) + ' €';
+  document.getElementById('gesamtbetrag').textContent = gesamtbetrag.toLocaleString('de-DE', {minimumFractionDigits:2}) + ' €';
+
+  // Tilgungsplan
+  let restschuld = kreditsumme;
+  let planHTML = '';
+  for (let monat = 1; monat <= Math.min(12, laufzeit); monat++) {
+    const zinsen = restschuld * monatszins;
+    const tilgung = rate - zinsen;
+    restschuld -= tilgung;
+    planHTML += `<tr><td>${monat}</td><td>${rate.toLocaleString('de-DE', {minimumFractionDigits:2})}</td><td>${tilgung.toLocaleString('de-DE', {minimumFractionDigits:2})}</td><td>${zinsen.toLocaleString('de-DE', {minimumFractionDigits:2})}</td><td>${Math.max(0, restschuld).toLocaleString('de-DE', {minimumFractionDigits:2})}</td></tr>`;
+  }
+  document.getElementById('plan-body').innerHTML = planHTML;
+}
+
+['kreditsumme','laufzeit','zinssatz'].forEach(id =>
+  document.getElementById(id).addEventListener('input', berechne));
+berechne();
+</script>
+
+<style>
+.page-header { margin-bottom: 2rem; }
+#tilgungsplan { width: 100%; border-collapse: collapse; margin-top: 1rem; }
+#tilgungsplan th, #tilgungsplan td { border: 1px solid #ddd; padding: 0.5rem; text-align: right; }
+#tilgungsplan th { background: var(--dark); color: white; }
+#tilgungsplan tbody tr:nth-child(odd) { background: #f9f9f9; }
+</style>
+</Layout>

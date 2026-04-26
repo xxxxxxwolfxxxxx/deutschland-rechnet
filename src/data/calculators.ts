@@ -6,6 +6,7 @@ export type Category =
   | 'auto'
   | 'familie'
   | 'gesundheit'
+  | 'versicherungen'
   | 'einheiten';
 
 export interface Calculator {
@@ -24,6 +25,7 @@ export const CATEGORIES: Record<Category, { label: string; emoji: string; descri
   auto:      { label: 'Auto & Mobilität',     emoji: '🚗', description: 'Kfz-Steuer, Sprit, Fahrtkosten',          color: '#b71c1c', colorLight: '#ffcdd2', image: 'images/categories/auto.png' },
   familie:   { label: 'Familie & Soziales',   emoji: '👨‍👩‍👧', description: 'Elterngeld, Kindergeld, Rente',      color: '#e65100', colorLight: '#ffccbc', image: 'images/categories/familie.png' },
   gesundheit:{ label: 'Gesheit & Fitness', emoji: '🏃', description: 'BMI, Kalorien, Promille',                  color: '#00796b', colorLight: '#b2dfdb', image: 'images/categories/gesundheit.png' },
+  versicherungen: { label: 'Versicherungen', emoji: '🛡️', description: 'Rechtsschutz, Zahnzusatz, Pflege, Elementarschutz', color: '#e65100', colorLight: '#fff3e0', image: 'images/categories/versicherungen.png' },
   einheiten: { label: 'Einheiten & Mathe',    emoji: '📐', description: 'Länge, Gewicht, Temperatur, Inflation',  color: '#6a1b9a', colorLight: '#e1bee7', image: 'images/categories/einheiten.png' },
 };
 
@@ -55,6 +57,10 @@ export const CALCULATORS: Calculator[] = [
   { slug: 'krypto-steuern-rechner',    title: 'Krypto-Steuern-Rechner',  description: 'Steuerfreiheit und Freibeträge für Krypto-Gewinne prüfen.',                     category: 'geld',      featured: false, live: true },
   { slug: 'homeoffice-pauschale',      title: 'Homeoffice-Pauschale',    description: 'Steuervorteil der Homeoffice-Pauschale berechnen.',                                category: 'geld',      featured: false, live: true },
   { slug: 'risikoprofil-rechner',      title: 'Risikoprofil-Rechner',    description: 'Persönliches Anlegerprofil ermitteln und passende Strategie finden.',             category: 'geld',      featured: false, live: true },
+  { slug: 'ratenkredit-detailrechner', title: 'Ratenkredit-Detailrechner', description: 'Kreditsumme, Laufzeit und Zinsen mit Tilgungsplan berechnen.',                    category: 'geld',      featured: false, live: true },
+  { slug: 'autofinanzierung-rechner',  title: 'Autofinanzierung-Rechner',  description: 'Monatliche Rate und Gesamtkosten der Autofinanzierung berechnen.',              category: 'geld',      featured: false, live: true },
+  { slug: 'rentenlucken-rechner',      title: 'Rentenlücken-Rechner',      description: 'Monatliche Rentenlücke und notwendige Sparquote berechnen.',                   category: 'geld',      featured: false, live: true },
+  { slug: 'etf-renditerechner',        title: 'ETF-Renditerechner',        description: 'Vermögensaufbau und Renditeentwicklung von ETF-Sparplan berechnen.',           category: 'geld',      featured: false, live: true },
   // WOHNEN
   { slug: 'tilgungs-kreditrechner',      title: 'Kreditrechner',               description: 'Monatliche Rate, Zinsen und Tilgung berechnen.',                               category: 'wohnen',    featured: true,  live: true },
   { slug: 'grunderwerbsteuer-rechner',   title: 'Grunderwerbsteuer-Rechner',   description: 'Grunderwerbsteuer nach Bundesland berechnen.',                                  category: 'wohnen',    featured: true,  live: true },
@@ -85,6 +91,13 @@ export const CALCULATORS: Calculator[] = [
   { slug: 'anfahrtskosten-rechner',      title: 'Anfahrtskosten-Rechner',       description: 'Anfahrtskosten für Umzug berechnen.',                                      category: 'auto',      featured: false, live: true },
   { slug: 'kfz-steuer-co2',           title: 'Kfz-Steuer nach CO²',       description: 'Kfz-Steuer für Benziner und Diesel nach CO²-Ausstoß berechnen.',            category: 'auto',      featured: false, live: true },
   { slug: 'fuehrerschein-kosten',     title: 'Führerschein-Kosten',       description: 'Kosten für Auto- oder Motorradführerschein schätzen.',                       category: 'auto',      featured: false, live: true },
+  { slug: 'elektroauto-tco-rechner',   title: 'Elektroauto TCO-Rechner',   description: 'Gesamtkosten E-Auto vs. Benziner über 5-10 Jahre berechnen.',                 category: 'auto',      featured: false, live: true },
+  { slug: 'spritkosten-vergleich',     title: 'Spritkosten-Vergleich',     description: 'Kosten für Benzin vs. Strom vergleichen.',                                   category: 'auto',      featured: false, live: true },
+  // VERSICHERUNGEN
+  { slug: 'rechtsschutz-rechner',      title: 'Rechtsschutzversicherung',  description: 'Monatliche Prämie für Rechtsschutzversicherung berechnen.',                  category: 'versicherungen', featured: false, live: true },
+  { slug: 'zahnzusatz-rechner',        title: 'Zahnzusatzversicherung',    description: 'Kostenersparnis durch Zahnzusatzversicherung berechnen.',                   category: 'versicherungen', featured: false, live: true },
+  { slug: 'pflege-rechner',            title: 'Pflegeversicherung',        description: 'Monatlicher Pflegeversicherungsbeitrag berechnen.',                         category: 'versicherungen', featured: false, live: true },
+  { slug: 'elementar-rechner',         title: 'Elementarversicherung',     description: 'Risiko-Bewertung und Prämie für Elementarschäden berechnen.',               category: 'versicherungen', featured: false, live: true },
   // FAMILIE
   { slug: 'kindergeld-rechner',          title: 'Kindergeld-Rechner',           description: 'Kindergeld nach Anzahl der Kinder berechnen.',                               category: 'familie',   featured: false, live: true },
   { slug: 'unterhaltsrechner',           title: 'Unterhaltsrechner',           description: 'Kindesunterhalt nach Düsseldorfer Tabelle berechnen.',                           category: 'familie',   featured: true,  live: true },

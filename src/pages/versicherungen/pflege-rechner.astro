@@ -1,0 +1,122 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import CalculatorShell from '../../components/CalculatorShell.astro';
+import CalculatorGuide from '../../components/CalculatorGuide.astro';
+import { CALCULATORS, CATEGORIES } from '../../data/calculators';
+const calc = CALCULATORS.find(c => c.slug === 'pflege-rechner')!;
+const cat = CATEGORIES[calc.category];
+const year = new Date().getFullYear();
+---
+<Layout
+  title={`Pflegeversicherung Rechner ${year}`}
+  description="Pflegeversicherung Beitrag berechnen – monatliche Prämie für private Pflegezusatzversicherung."
+  canonicalPath="/versicherungen/pflege-rechner/"
+  categoryColor={cat.color}
+  categoryLight={cat.colorLight}
+  categoryImage={cat.image}
+>
+  <div class="page-header">
+    <a href={`${import.meta.env.BASE_URL}versicherungen/`} class="back-link">← Versicherungen</a>
+    <h1>Pflegeversicherung Rechner {year}</h1>
+  </div>
+  <CalculatorShell
+    calculator={calc}
+    intro="Mit dem Pflegeversicherung-Rechner berechnen Sie Ihren monatlichen Pflegeversicherungsbeitrag. Die gesetzliche Pflegeversicherung ist Pflicht, private Zusatzversicherung ist optional."
+    sourceNote="Berechnung basiert auf den Beitragssätzen 2026."
+    explanation="Die Pflegeversicherung ist eine Versicherung gegen das Risiko der Pflegebedürftigkeit. Sie zahlt Leistungen bei Bestätigung einer Pflegestufe."
+    faqs={[
+      { q: "Wie hoch sind die Beiträge zur Pflegeversicherung?", a: "2026 beträgt der Beitragssatz 3,40% (regulär) bzw. 4,0% für Kinderlose ab 23 Jahren. Der Arbeitgeber zahlt die Hälfte." },
+      { q: "Was ist der Unterschied zwischen gesetzlich und privat?", a: "Gesetzliche Pflege ist Pflicht für alle Versicherten und die Leistungen sind begrenzt. Private Zusatzversicherung ergänzt die Leistungen." },
+      { q: "Lohnt sich eine Pflegezusatzversicherung?", a: "Ja, besonders für Selbstständige und Privatversicherte. Die gesetzliche Leistung deckt oft nur 30-50% der realen Pflegekosten." },
+      { q: "Ab wann zahlt die Pflegeversicherung?", a: "Bei anerkannter Pflegebedürftigkeit, die von einem MDK (Medizinischer Dienst) bewertet werden muss." },
+      { q: "Gibt es Wartezeiten?", a: "Ja, bei privaten Zusatzversicherungen typischerweise 5 Jahre. Bei Bestätigung von Vorerkrankungen kann es Ausschlüsse geben." }
+    ]}
+  >
+    <div class="calc-form">
+      <div class="calc-grid">
+        <div class="calc-group">
+          <label for="bruttogehalt">Bruttogehalt (monatlich, €)</label>
+          <input type="number" id="bruttogehalt" min="0" max="100000" value="3000" step="100" />
+        </div>
+        <div class="calc-group">
+          <label for="versichertenstatus">Versichertenstatus</label>
+          <select id="versichertenstatus">
+            <option value="angestellt" selected>Angestellt (gesetzlich)</option>
+            <option value="selbst">Selbstständig/Privat</option>
+            <option value="beamter">Beamter</option>
+          </select>
+        </div>
+        <div class="calc-group">
+          <label for="kinderlos">
+            <input type="checkbox" id="kinderlos" /> Kinderlos (Zuschlag 0,6%)?
+          </label>
+        </div>
+        <div class="calc-group">
+          <label for="zusatzversicherung">Private Pflegezusatzversicherung</label>
+          <select id="zusatzversicherung">
+            <option value="keine" selected>Keine</option>
+            <option value="standard">Standard (Basis-Schutz)</option>
+            <option value="premium">Premium (80%+ Deckung)</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="calc-result">
+        <div class="label">Gesetzlicher Pflegbeitrag (monatlich)</div>
+        <div id="gesetzlich">— €</div>
+      </div>
+      <div class="calc-result">
+        <div class="label">Private Zusatzversicherung</div>
+        <div id="zusatz">— €</div>
+      </div>
+      <div class="calc-result" style="background:#e3f2fd;">
+        <div class="label">Gesamtbeitrag monatlich</div>
+        <div id="gesamt">— €</div>
+      </div>
+      <div id="details" style="margin-top:0.75rem;font-size:0.88rem;color:#666;"></div>
+    </div>
+  </CalculatorShell>
+</Layout>
+
+<script type="module">
+function berechne() {
+  const bruttogehalt = parseFloat(document.getElementById('bruttogehalt').value)||3000;
+  const status = document.getElementById('versichertenstatus').value;
+  const kinderlos = document.getElementById('kinderlos').checked;
+  const zusatz = document.getElementById('zusatzversicherung').value;
+
+  let beitragssatz = 0.034; // 3,4%
+  if (kinderlos) beitragssatz += 0.006; // Zusatz für kinderlos
+
+  // Beamte und Selbstständige zahlen vollständig
+  const anteil = (status === 'beamter') ? 1.0 : 0.5; // Arbeitnehmer zahlen 50%
+
+  const gesetzlich = bruttogehalt * beitragssatz * anteil;
+
+  let zusatzBeitrag = 0;
+  if (zusatz === 'standard') zusatzBeitrag = 15;
+  else if (zusatz === 'premium') zusatzBeitrag = 30;
+
+  const gesamt = gesetzlich + zusatzBeitrag;
+
+  document.getElementById('gesetzlich').textContent = gesetzlich.toLocaleString('de-DE', {minimumFractionDigits:2, maximumFractionDigits:2}) + ' €';
+  document.getElementById('zusatz').textContent = zusatzBeitrag.toLocaleString('de-DE', {minimumFractionDigits:2}) + ' €';
+  document.getElementById('gesamt').textContent = gesamt.toLocaleString('de-DE', {minimumFractionDigits:2, maximumFractionDigits:2}) + ' €';
+  document.getElementById('details').innerHTML = `
+    <div>Jahresbeitrag (gesetzlich): <strong>${(gesetzlich * 12).toLocaleString('de-DE', {minimumFractionDigits:2})} €</strong></div>
+    ${zusatzBeitrag > 0 ? `<div>Jahresbeitrag (zusätzlich): <strong>${(zusatzBeitrag * 12).toLocaleString('de-DE')} €</strong></div>` : ''}
+  `;
+}
+
+['bruttogehalt','versichertenstatus','kinderlos','zusatzversicherung'].forEach(id => {
+  const el = document.getElementById(id);
+  if (el.type === 'checkbox') el.addEventListener('change', berechne);
+  else el.addEventListener('input', berechne);
+});
+berechne();
+</script>
+</Layout>
+
+<style>
+.page-header { margin-bottom: 2rem; }
+</style>
