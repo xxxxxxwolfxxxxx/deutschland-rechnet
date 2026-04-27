@@ -1,0 +1,178 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import CalculatorShell from '../../components/CalculatorShell.astro';
+import CalculatorGuide from '../../components/CalculatorGuide.astro';
+import { CALCULATORS, CATEGORIES } from '../../data/calculators';
+const calc = CALCULATORS.find(c => c.slug === 'e-auto-leasing-kostenrechner')!;
+const cat = CATEGORIES[calc.category];
+const year = new Date().getFullYear();
+---
+<Layout
+  title={`E-Auto Leasing Kostenrechner ${year}`}
+  description="E-Auto Leasing Kostenrechner – Gesamtkosten, monatliche Leasingrate und Stromkosten berechnen."
+  canonicalPath="/auto/e-auto-leasing-kostenrechner/"
+  categoryColor={cat.color}
+  categoryLight={cat.colorLight}
+  categoryImage={cat.image}
+>
+  <div class="page-header">
+    <a href={`${import.meta.env.BASE_URL}auto/`} class="back-link">← Auto & Mobilität</a>
+    <h1>E-Auto Leasing Kostenrechner {year}</h1>
+  </div>
+  <CalculatorShell
+    calculator={calc}
+    intro="Mit dem E-Auto Leasing Kostenrechner berechnen Sie schnell die Gesamtkosten, monatliche Leasingrate, Stromkosten und Kosten pro Kilometer für Ihr Wunsch-E-Auto."
+    sourceNote="Berechnung basiert auf gängigen Leasingfaktoren und aktuellen Strompreisen."
+    explanation="E-Auto-Leasing ist oft die günstigere Alternative zum Kauf, besonders bei niedriger Jahresfahrleistung (< 20.000 km). Die Leasingrate ist stabil, Wartung ist meist inklusive, und Sie profitieren von moderner Batterietechnik ohne Verschleiß."
+    faqs={[
+      { q: "Wie wird die Leasingrate berechnet?", a: "Leasingrate = (Auto-Kaufpreis × Leasingfaktor %) ÷ 12 Monate. Der Leasingfaktor liegt typisch zwischen 2-5% des Kaufpreises pro Jahr und hängt ab von Fahrzeugtypklasse, Restwert und Hersteller." },
+      { q: "Was ist der Leasingfaktor?", a: "Der Leasingfaktor ist ein prozentualer Satz des Kaufpreises, der die monatliche Rate bestimmt. Beispiel: 45.000€ Auto × 3,5% = 1.575€/Jahr = 131,25€/Monat. Beliebte E-Autos haben Faktoren von 2,5-4,5%." },
+      { q: "Sind Wartung und Reparatur inklusive?", a: "Ja, meist inbegriffen. E-Autos haben deutlich weniger Verschleiß (keine Ölwechsel, weniger Bremsenverschleiß durch Rekuperation). Wartungskosten sind 30-40% niedriger als bei Verbrennern." },
+      { q: "Wie wirken sich Kilometerüberschreitungen aus?", a: "Leasing-Verträge haben Kilometergrenzen (z.B. 15.000/Jahr). Überschreitungen kosten 0,10-0,20€/km extra. Unser Rechner zeigt, ob Ihre geplante Jahresfahrleistung passt." },
+      { q: "Ist E-Auto-Leasing günstiger als Kauf?", a: "Ja, wenn Sie < 20.000 km/Jahr fahren und das Auto regelmäßig wechseln wollen. Bei > 30.000 km/Jahr lohnt sich Kauf mehr. E-Auto-Leasing hat auch Steuervergünstigungen." },
+      { q: "Wie berechne ich den Stromverbrauch?", a: "Typische E-Autos verbrauchen 15-20 kWh/100km. Tesla Model 3: 16 kWh/100km, VW ID.4: 18 kWh/100km, Nissan Leaf: 17 kWh/100km. Sommerbetrieb ist effizienter als Winter." }
+    ]}
+  >
+    <div class="calc-form">
+      <div class="calc-grid">
+        <div class="calc-group">
+          <label for="carPrice">Auto-Kaufpreis (€)</label>
+          <input type="number" id="carPrice" min="20000" max="200000" value="45000" step="1000" />
+        </div>
+        <div class="calc-group">
+          <label for="duration">Leasingdauer (Monate)</label>
+          <select id="duration">
+            <option value="24">24 Monate</option>
+            <option value="36" selected>36 Monate</option>
+            <option value="48">48 Monate</option>
+            <option value="60">60 Monate</option>
+          </select>
+        </div>
+        <div class="calc-group">
+          <label for="annualKm">Jährliche Kilometerleistung</label>
+          <input type="number" id="annualKm" min="5000" max="50000" value="15000" step="1000" />
+        </div>
+        <div class="calc-group">
+          <label for="leasingFactor">Leasingfaktor (% des Kaufpreises)</label>
+          <input type="number" id="leasingFactor" min="2" max="5" value="3.5" step="0.1" />
+        </div>
+        <div class="calc-group">
+          <label for="electricityPrice">Strompreis (€/kWh)</label>
+          <input type="number" id="electricityPrice" min="0.1" max="1.0" value="0.35" step="0.01" />
+        </div>
+        <div class="calc-group">
+          <label for="consumption">Verbrauch (kWh/100km)</label>
+          <input type="number" id="consumption" min="12" max="30" value="18" step="0.5" />
+        </div>
+      </div>
+
+      <div class="calc-result" style="background:#fff3e0;">
+        <div class="label">Gesamtkosten</div>
+        <div id="totalCost">— €</div>
+      </div>
+
+      <div style="margin-top: 1.5rem; display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem;">
+        <div class="calc-result">
+          <div class="label">Monatliche Leasingrate</div>
+          <div id="monthlyRate">— €</div>
+        </div>
+        <div class="calc-result">
+          <div class="label">Monatliche Stromkosten</div>
+          <div id="monthlyElectricity">— €</div>
+        </div>
+        <div class="calc-result">
+          <div class="label">Monatliche Gesamtkosten</div>
+          <div id="monthlyTotal">— €</div>
+        </div>
+        <div class="calc-result">
+          <div class="label">Kosten pro km</div>
+          <div id="costPerKm">— €</div>
+        </div>
+        <div class="calc-result">
+          <div class="label">Jährliche Stromkosten</div>
+          <div id="yearlyElectricity">— €</div>
+        </div>
+        <div class="calc-result">
+          <div class="label">Gesamtkilometer</div>
+          <div id="totalKm">— km</div>
+        </div>
+      </div>
+
+      <div id="details" style="margin-top:0.75rem;font-size:0.88rem;color:#666;"></div>
+    </div>
+  </CalculatorShell>
+
+  <CalculatorGuide
+    title="E-Auto Leasing verstehen und sparen"
+    content="
+    <p>E-Auto-Leasing ist eine attraktive Alternative zum Autokauf, besonders für Berufstätige mit regelmäßiger Kilometerleistung. Im Gegensatz zum Kauf zahlen Sie monatlich eine Leasingrate und erhalten dafür ein modernes Auto mit Garantie, Versicherung (oft inklusive) und Wartung.</p>
+
+    <p><strong>Wie funktioniert E-Auto-Leasing?</strong> Der Autohersteller oder ein Leasing-Unternehmen bleibt Eigentümer des Fahrzeugs. Sie zahlen eine monatliche Rate, die aus mehreren Komponenten besteht: (1) Abschreibung des Fahrzeugs über die Laufzeit, (2) Finanzierungskosten (Zinsen), (3) Versicherung und Verschleißschutz, (4) Wartungskosten. Nach Ablauf geben Sie das Auto zurück – keine Sorge um Restwert oder Verkauf!</p>
+
+    <p><strong>Der Leasingfaktor erklärt:</strong> Der Leasingfaktor ist der Schlüssel zur Berechnung. Er wird als Prozentsatz des Kaufpreises pro Jahr angegeben und liegt typisch zwischen 2-5%. Beispiel: Ein VW ID.4 mit 45.000€ Kaufpreis und 3,5% Leasingfaktor kostet monatlich (45.000 × 0,035) ÷ 12 = 131,25€. Der Faktor variiert je nach Hersteller, Fahrzeugklasse und Restwert-Vorhersage. Premium-Hersteller (BMW, Mercedes) haben oft höhere Faktoren (4-5%), während Volkswagen und Hyundai günstiger sind (2,5-3,5%).</p>
+
+    <p><strong>Leasen vs. Kaufen – wann lohnt sich Leasing?</strong> Leasing ist sinnvoll, wenn Sie (1) < 20.000 km/Jahr fahren, (2) das Auto regelmäßig austauschen möchten (alle 3-4 Jahre), (3) keine Lust auf Reparaturen und Verschleiß haben, und (4) ein modernes Auto mit aktueller Batterie-Technik fahren wollen. Kaufen ist günstiger, wenn Sie > 30.000 km/Jahr fahren oder das Auto 8+ Jahre halten. Bei E-Autos ist Leasing oft billiger, weil die Batterieentwicklung schnell vorangeht und große Reparaturen teuer sind.</p>
+
+    <p><strong>Stromkosten beim E-Auto-Leasing:</strong> Der größte Vorteil gegenüber Verbrennern! Ein durchschnittliches E-Auto (18 kWh/100km) kostet bei 0,35€/kWh etwa 6,30€ pro 100 km Strom. Ein Benziner (7 Liter/100km) bei 1,85€/Liter kostet 12,95€ pro 100 km – fast doppelt so viel! Über 3 Jahre und 45.000 km sparen Sie mit dem E-Auto etwa 3.000€ an Energiekosten.</p>
+
+    <p><strong>Kilometer-Klauseln und Strafgebühren:</strong> Leasing-Verträge haben Kilometerbudgets – oft 10.000, 15.000 oder 20.000 km/Jahr. Überschreitungen kosten 0,10-0,20€/km extra (durchschnittlich 0,15€/km). Wenn Sie über das Budget gehen, addieren sich die Kosten schnell: 5.000 km × 0,15€ = 750€ extra! Deshalb ist es wichtig, Ihre typische Jahresfahrleistung realistisch einzuschätzen. Unser Rechner zeigt, ob Ihre geplante Kilometerleistung kostenoptimal ist.</p>
+
+    <p><strong>Wartung und Reparaturen:</strong> E-Autos haben deutlich weniger Verschleiß als Verbrenner. Keine Ölwechsel, weniger Bremsenverschleiß (durch Rekuperation), keine Getriebe-Reparaturen. Wartungskosten sind 30-40% niedriger. Bei Leasing ist Wartung meist inklusive – Sie sparen einen weiteren Kostenvorteil ein.</p>
+
+    <p><strong>Versicherung und Steuern:</strong> E-Autos sind versicherungstechnisch günstiger (Kasko oft 10-20% günstiger). Die Kfz-Steuer fällt für reine E-Autos ab Erstzulassung vor 2026 komplett weg. Nach 2026 beträgt die Steuer nur 2€ pro 100 cm³ (statt 3€ für Benziner). Bei Leasingverträgen ist die Versicherung oft inklusive – achten Sie auf die Vertragsbedingungen!</p>
+
+    <p><strong>Tipp für E-Auto-Leasing:</strong> Vergleichen Sie verschiedene Leasingfaktoren über Online-Broker wie LeasingMarkt.de, Arval oder Sixt Leasing. Die Faktoren schwanken je nach Marktlage und Ausstattung des Autos. Ein Auto mit kleinerer Batterie ist günstiger zu leasen, hat aber weniger Reichweite – ein guter Kompromiss ist oft 50-60 kWh Batteriekapazität. Laden Sie zu Hause (Wallbox), nicht an öffentlichen Säulen – das spart 30-40% Stromkosten!</p>
+    "
+    relatedSlugs={['spritkosten-vergleich', 'elektroauto-tco-rechner', 'leasing-rechner']}
+  />
+</Layout>
+
+<script type="module">
+function berechne() {
+  const carPrice = parseFloat(document.getElementById('carPrice').value) || 45000;
+  const duration = parseInt(document.getElementById('duration').value) || 36;
+  const annualKm = parseFloat(document.getElementById('annualKm').value) || 15000;
+  const leasingFactor = parseFloat(document.getElementById('leasingFactor').value) || 3.5;
+  const electricityPrice = parseFloat(document.getElementById('electricityPrice').value) || 0.35;
+  const consumption = parseFloat(document.getElementById('consumption').value) || 18;
+
+  // Berechnung
+  const monthlyLeasingRate = (carPrice * (leasingFactor / 100)) / 12;
+  const monthlyKm = annualKm / 12;
+  const monthlyElectricityCost = (monthlyKm * (consumption / 100)) * electricityPrice;
+  const monthlyTotalCost = monthlyLeasingRate + monthlyElectricityCost;
+  const totalKm = annualKm * (duration / 12);
+  const totalCost = monthlyTotalCost * duration;
+  const costPerKm = totalKm > 0 ? totalCost / totalKm : 0;
+  const yearlyElectricityCost = (annualKm * (consumption / 100)) * electricityPrice;
+
+  // Anzeige formatieren
+  const fmt = (n) => n.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
+  const fmtKm = (n) => n.toLocaleString('de-DE', { maximumFractionDigits: 0 }) + ' km';
+
+  document.getElementById('totalCost').textContent = fmt(totalCost);
+  document.getElementById('monthlyRate').textContent = fmt(monthlyLeasingRate);
+  document.getElementById('monthlyElectricity').textContent = fmt(monthlyElectricityCost);
+  document.getElementById('monthlyTotal').textContent = fmt(monthlyTotalCost);
+  document.getElementById('costPerKm').textContent = costPerKm.toLocaleString('de-DE', { minimumFractionDigits: 3, maximumFractionDigits: 3 }) + ' €';
+  document.getElementById('yearlyElectricity').textContent = fmt(yearlyElectricityCost);
+  document.getElementById('totalKm').textContent = fmtKm(totalKm);
+
+  document.getElementById('details').innerHTML = `
+    <div>Leasingfaktor p.a.: <strong>${leasingFactor.toFixed(1)}%</strong> (${fmt(carPrice * (leasingFactor / 100))} pro Jahr)</div>
+    <div>Stromverbrauch: <strong>${consumption.toFixed(1)} kWh/100km</strong> | Strompreis: <strong>${electricityPrice.toFixed(2)}€/kWh</strong></div>
+    <div>Gesamtleasingdauer: <strong>${duration} Monate (${(duration / 12).toFixed(1)} Jahre)</strong> | Gesamtfahrleistung: <strong>${fmtKm(totalKm)}</strong></div>
+  `;
+}
+
+['carPrice', 'duration', 'annualKm', 'leasingFactor', 'electricityPrice', 'consumption'].forEach(id =>
+  document.getElementById(id).addEventListener('change', berechne));
+['carPrice', 'annualKm', 'leasingFactor', 'electricityPrice', 'consumption'].forEach(id =>
+  document.getElementById(id).addEventListener('input', berechne));
+berechne();
+</script>
+
+<style>
+.page-header { margin-bottom: 2rem; }
+</style>
+</Layout>
