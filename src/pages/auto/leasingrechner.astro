@@ -1,0 +1,279 @@
+---
+import CalculatorLayout from '../../layouts/CalculatorLayout.astro';
+
+const base = import.meta.env.BASE_URL;
+---
+
+<CalculatorLayout
+  title="Leasingrechner - Monatliche Rate berechnen"
+  description="Berechne die monatliche Leasingrate für Autos. Vergleiche Kosten für verschiedene Fahrzeuge und Laufzeiten."
+  canonicalPath="/auto/leasingrechner/"
+  categoryColor="#b71c1c"
+>
+  <div class="calculator">
+    <form id="leasingForm">
+      <div class="form-group">
+        <label for="carPrice">Auto-Kaufpreis (€)</label>
+        <input 
+          type="number" 
+          id="carPrice" 
+          name="carPrice" 
+          placeholder="25000"
+          min="0"
+          step="100"
+          required
+        />
+      </div>
+      
+      <div class="form-group">
+        <label for="duration">Leasingdauer (Monate)</label>
+        <select id="duration" name="duration">
+          <option value="24">24 Monate</option>
+          <option value="36">36 Monate</option>
+          <option value="48">48 Monate</option>
+          <option value="60">60 Monate</option>
+        </select>
+      </div>
+      
+      <div class="form-group">
+        <label for="yearlyKm">Jährliche Kilometerleistung</label>
+        <select id="yearlyKm" name="yearlyKm">
+          <option value="10000">10.000 km/Jahr (niedrig)</option>
+          <option value="15000">15.000 km/Jahr (normal)</option>
+          <option value="20000">20.000 km/Jahr (hoch)</option>
+          <option value="25000">25.000 km/Jahr (sehr hoch)</option>
+        </select>
+      </div>
+      
+      <div class="form-group">
+        <label for="leasingFactor">Leasingfaktor (%)</label>
+        <input 
+          type="number" 
+          id="leasingFactor" 
+          name="leasingFactor" 
+          placeholder="3.5"
+          min="0"
+          max="10"
+          step="0.1"
+          value="3.5"
+          required
+        />
+        <small>Typisch: 2.5-4.0% des Kaufpreises. Frag deinen Dealer für den genauen Faktor.</small>
+      </div>
+      
+      <button type="submit" class="calc-button">Berechnen</button>
+    </form>
+    
+    <div id="result" style="display: none;">
+      <div class="result-box">
+        <h2>Monatliche Leasingrate</h2>
+        <div class="result-value">
+          <span id="monthlyRate">€0,00</span>
+          <span class="period">/Monat</span>
+        </div>
+      </div>
+      
+      <div class="result-boxes">
+        <div class="result-card">
+          <h3>Gesamtkosten</h3>
+          <div class="value">€<span id="totalCost">0</span></div>
+        </div>
+        
+        <div class="result-card">
+          <h3>Kosten pro km</h3>
+          <div class="value">€<span id="costPerKm">0.00</span></div>
+        </div>
+        
+        <div class="result-card">
+          <h3>Gesamtkilometer</h3>
+          <div class="value"><span id="totalKm">0</span> km</div>
+        </div>
+      </div>
+      
+      <div class="info-box">
+        <h3>Was kostet Leasing?</h3>
+        <ul>
+          <li><strong>Leasingfaktor:</strong> Prozentsatz des Kaufpreises (meist 2.5-4.0%)</li>
+          <li><strong>Abhängig von:</strong> Auto-Modell, Leasingdauer, vereinbarte Kilometerleistung</li>
+          <li><strong>Im Leasing enthalten:</strong> Versicherung, Wartung, Reparaturen (je nach Vertrag)</li>
+          <li><strong>Vorteil:</strong> Kein Verschleißrisiko, keine Wertverluste, ständig neue Autos</li>
+          <li><strong>Nachteil:</strong> Mileage-Limits, Verschleißgebühren, höhere Gesamtkosten vs. Kauf</li>
+          <li><strong>Tipp:</strong> Vergleiche mit Finanzierung und Barkauf für die beste Option</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</CalculatorLayout>
+
+<style>
+.calculator {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 2rem;
+  margin: 2rem 0;
+}
+
+.form-group {
+  margin-bottom: 1.5rem;
+}
+
+.form-group label {
+  display: block;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+  color: var(--text);
+}
+
+.form-group input,
+.form-group select {
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: 1rem;
+  background: var(--bg);
+  color: var(--text);
+}
+
+.form-group small {
+  display: block;
+  font-size: 0.8rem;
+  color: var(--text-light);
+  margin-top: 0.3rem;
+}
+
+.calc-button {
+  background: var(--red);
+  color: white;
+  border: none;
+  padding: 0.75rem 2rem;
+  border-radius: var(--radius-sm);
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  width: 100%;
+  transition: background 0.2s;
+}
+
+.calc-button:hover {
+  background: #c0392b;
+}
+
+.result-box {
+  background: linear-gradient(135deg, var(--red) 0%, #c0392b 100%);
+  color: white;
+  padding: 2rem;
+  border-radius: var(--radius);
+  margin-bottom: 2rem;
+  text-align: center;
+}
+
+.result-box h2 {
+  font-size: 0.95rem;
+  font-weight: 600;
+  margin: 0 0 1rem 0;
+  opacity: 0.9;
+}
+
+.result-value {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+#monthlyRate {
+  font-size: 2.5rem;
+  font-weight: 700;
+}
+
+.period {
+  font-size: 1rem;
+  opacity: 0.9;
+}
+
+.result-boxes {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+
+.result-card {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 1.5rem;
+  text-align: center;
+}
+
+.result-card h3 {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text-light);
+  margin: 0 0 0.75rem 0;
+}
+
+.result-card .value {
+  font-size: 1.6rem;
+  font-weight: 700;
+  color: var(--red);
+}
+
+.info-box {
+  background: var(--bg);
+  padding: 1.5rem;
+  border-radius: var(--radius);
+  border-left: 4px solid var(--red);
+}
+
+.info-box h3 {
+  font-size: 1rem;
+  margin: 0 0 1rem 0;
+  color: var(--text);
+}
+
+.info-box ul {
+  margin: 0;
+  padding-left: 1.5rem;
+}
+
+.info-box li {
+  margin: 0.75rem 0;
+  color: var(--text-light);
+  line-height: 1.6;
+}
+</style>
+
+<script define:vars={{}}>
+document.getElementById('leasingForm').addEventListener('submit', function(e) {
+  e.preventDefault();
+  
+  const carPrice = parseFloat(document.getElementById('carPrice').value);
+  const duration = parseInt(document.getElementById('duration').value);
+  const yearlyKm = parseInt(document.getElementById('yearlyKm').value);
+  const leasingFactor = parseFloat(document.getElementById('leasingFactor').value) / 100;
+  
+  // Calculate monthly rate
+  const monthlyRate = (carPrice * leasingFactor) / 12;
+  
+  // Calculate total costs
+  const totalCost = monthlyRate * duration;
+  
+  // Calculate total kilometers
+  const totalKm = yearlyKm * (duration / 12);
+  
+  // Cost per km
+  const costPerKm = totalCost / totalKm;
+  
+  // Update results
+  document.getElementById('monthlyRate').textContent = monthlyRate.toFixed(2);
+  document.getElementById('totalCost').textContent = totalCost.toFixed(0);
+  document.getElementById('costPerKm').textContent = costPerKm.toFixed(2);
+  document.getElementById('totalKm').textContent = totalKm.toLocaleString('de-DE');
+  
+  document.getElementById('result').style.display = 'block';
+  document.getElementById('result').scrollIntoView({ behavior: 'smooth' });
+});
+</script>
