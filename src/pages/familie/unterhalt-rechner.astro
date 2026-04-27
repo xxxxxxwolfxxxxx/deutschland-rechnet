@@ -1,0 +1,305 @@
+---
+import CalculatorLayout from '../../layouts/CalculatorLayout.astro';
+
+const base = import.meta.env.BASE_URL;
+---
+
+<CalculatorLayout
+  title="Unterhalt-Rechner - Ehegattenunterhalt berechnen"
+  description="Berechne den Ehegattenunterhalt basierend auf Nettoeinkommen, Familienstand und Ehe-Dauer. Orientierungshilfe für Trennungsunterhalt und Geschiedenenunterhalt."
+  canonicalPath="/familie/unterhalt-rechner/"
+  categoryColor="#d32f2f"
+  categoryLight="#ffebee"
+>
+  <div class="calculator">
+    <form id="maintenanceForm" class="calc-form">
+      <div class="form-group">
+        <label for="netIncome">Nettoeinkommen (€/Monat)</label>
+        <input
+          type="number"
+          id="netIncome"
+          name="netIncome"
+          placeholder="3500"
+          min="0"
+          max="20000"
+          step="100"
+          value="3500"
+          required
+        />
+        <small>Monatliches Nettoeinkommen des Unterhaltspflichtigen</small>
+      </div>
+
+      <div class="form-group">
+        <label for="familienstand">Familienstand</label>
+        <select id="familienstand" name="familienstand" required>
+          <option value="trennung" selected>Trennung / Getrenntleben</option>
+          <option value="geschieden">Geschieden</option>
+        </select>
+        <small>Beziehungsstatus bestimmt die Berechnungsbasis</small>
+      </div>
+
+      <div class="form-group">
+        <label for="duration">Dauer der Ehe (Jahre)</label>
+        <input
+          type="number"
+          id="duration"
+          name="duration"
+          placeholder="10"
+          min="0"
+          max="60"
+          step="0.5"
+          value="10"
+          required
+        />
+        <small>Kurze Ehen (unter 5 Jahren) reduzieren den Unterhalt graduell</small>
+      </div>
+
+      <button type="submit" class="calc-button">Berechnen</button>
+    </form>
+
+    <div id="result" style="display: none;">
+      <div class="result-box">
+        <h2>Monatlicher Unterhalt (ca.)</h2>
+        <div class="result-value">
+          <span id="maintenanceAmount">€0,00</span>
+          <span class="period">/Monat</span>
+        </div>
+      </div>
+
+      <div class="result-boxes">
+        <div class="result-card">
+          <h3>Berechnungsbasis</h3>
+          <div class="value"><span id="basis">50%</span></div>
+        </div>
+
+        <div class="result-card">
+          <h3>Jährlich</h3>
+          <div class="value">€<span id="yearly">0,00</span></div>
+        </div>
+
+        <div class="result-card">
+          <h3>Ehe-Dauer-Faktor</h3>
+          <div class="value"><span id="durationFactor">1.0x</span></div>
+        </div>
+      </div>
+
+      <div class="info-box">
+        <h3>ℹ️ Wichtige Informationen zur Unterhaltsberechnung</h3>
+        <ul>
+          <li><strong>Berechnung:</strong> Basis sind 50% des Nettoeinkommens bei Trennung oder 55% bei Geschiedenen. Der Betrag wird mit dem Ehe-Dauer-Faktor multipliziert.</li>
+          <li><strong>Ehe-Dauer:</strong> Kurze Ehen unter 5 Jahren reduzieren den Unterhalt graduell von 0% bis 100% der Basis.</li>
+          <li><strong>Trennungsunterhalt:</strong> Wird während der Trennung oder des Getrenntlebens gezahlt, wenn der Unterhaltsberechtigte bedürftig ist.</li>
+          <li><strong>Geschiedenenunterhalt:</strong> Wird nach rechtskräftiger Scheidung gezahlt, hat aber zeitliche Grenzen und unterliegt neuen Bedingungen.</li>
+          <li><strong>Bedürftigkeit:</strong> Der Unterhaltsberechtigte muss bedürftig sein, also ein Einkommen unterhalb des Bedarfs haben.</li>
+        </ul>
+        <div class="warning-note">
+          ⚠️ <strong>Rechtlicher Hinweis:</strong> Diese Berechnung ist eine Orientierungshilfe und ersetzt keine Rechtsberatung. Konsultieren Sie einen Rechtsanwalt für konkrete Fälle.
+        </div>
+      </div>
+    </div>
+  </div>
+</CalculatorLayout>
+
+<style>
+.calculator {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 2rem;
+  margin: 2rem 0;
+}
+
+.calc-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.form-group {
+  margin-bottom: 0.5rem;
+}
+
+.form-group label {
+  display: block;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+  color: var(--text);
+}
+
+.form-group input,
+.form-group select {
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: 1rem;
+  background: var(--bg);
+  color: var(--text);
+}
+
+.form-group small {
+  display: block;
+  font-size: 0.8rem;
+  color: var(--text-light);
+  margin-top: 0.3rem;
+}
+
+.calc-button {
+  background: #d32f2f;
+  color: white;
+  border: none;
+  padding: 0.75rem 2rem;
+  border-radius: var(--radius-sm);
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+  margin-top: 0.5rem;
+}
+
+.calc-button:hover {
+  background: #b71c1c;
+}
+
+.result-box {
+  background: linear-gradient(135deg, #d32f2f 0%, #f57c00 100%);
+  color: white;
+  padding: 2rem;
+  border-radius: var(--radius);
+  margin-bottom: 2rem;
+  text-align: center;
+}
+
+.result-box h2 {
+  font-size: 0.95rem;
+  font-weight: 600;
+  margin: 0 0 1rem 0;
+  opacity: 0.9;
+}
+
+.result-value {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+#maintenanceAmount {
+  font-size: 2.5rem;
+  font-weight: 700;
+}
+
+.period {
+  font-size: 1rem;
+  opacity: 0.9;
+}
+
+.result-boxes {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+
+.result-card {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 1.5rem;
+  text-align: center;
+}
+
+.result-card h3 {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text-light);
+  margin: 0 0 0.75rem 0;
+}
+
+.result-card .value {
+  font-size: 1.6rem;
+  font-weight: 700;
+  color: #d32f2f;
+}
+
+.info-box {
+  background: var(--bg);
+  padding: 1.5rem;
+  border-radius: var(--radius);
+  border-left: 4px solid #d32f2f;
+}
+
+.info-box h3 {
+  font-size: 1rem;
+  margin: 0 0 1rem 0;
+  color: #d32f2f;
+  font-weight: 600;
+}
+
+.info-box ul {
+  margin: 0 0 1rem 0;
+  padding-left: 1.5rem;
+}
+
+.info-box li {
+  margin: 0.75rem 0;
+  color: var(--text-light);
+  line-height: 1.6;
+}
+
+.warning-note {
+  background: #ffebee;
+  border: 1px solid #ef5350;
+  border-radius: var(--radius-sm);
+  padding: 1rem;
+  margin-top: 1rem;
+  color: #d32f2f;
+  font-weight: 500;
+}
+
+@media (max-width: 640px) {
+  .calculator {
+    padding: 1.5rem;
+  }
+
+  #maintenanceAmount {
+    font-size: 2rem;
+  }
+
+  .result-boxes {
+    grid-template-columns: 1fr;
+  }
+}
+</style>
+
+<script define:vars={{}}>
+document.getElementById('maintenanceForm').addEventListener('submit', function(e) {
+  e.preventDefault();
+
+  const netIncome = parseFloat(document.getElementById('netIncome').value);
+  const familienstand = document.getElementById('familienstand').value;
+  const duration = parseFloat(document.getElementById('duration').value);
+
+  // Basis: 50% bei Trennung, 55% bei Geschiedenen
+  const basis = familienstand === 'trennung' ? 0.5 : 0.55;
+
+  // Ehe-Dauer-Faktor: < 5 Jahre = linear von 0-100%, sonst 1.0
+  let durationFactor = 1.0;
+  if (duration < 5) {
+    durationFactor = duration / 5;
+  }
+
+  // Berechnung
+  const maintenanceAmount = Math.max(0, netIncome * basis * durationFactor);
+  const yearly = maintenanceAmount * 12;
+
+  // Update results
+  document.getElementById('maintenanceAmount').textContent = maintenanceAmount.toFixed(2) + ' €';
+  document.getElementById('basis').textContent = (basis * 100).toFixed(0) + '%';
+  document.getElementById('yearly').textContent = yearly.toFixed(2);
+  document.getElementById('durationFactor').textContent = durationFactor.toFixed(2) + 'x';
+
+  document.getElementById('result').style.display = 'block';
+  document.getElementById('result').scrollIntoView({ behavior: 'smooth' });
+});
+</script>
