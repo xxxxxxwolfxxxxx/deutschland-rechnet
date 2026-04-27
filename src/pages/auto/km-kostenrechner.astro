@@ -1,0 +1,280 @@
+---
+import CalculatorLayout from '../../layouts/CalculatorLayout.astro';
+
+const base = import.meta.env.BASE_URL;
+---
+
+<CalculatorLayout
+  title="KM-Kostenrechner - Fahrtkosten pro Kilometer berechnen"
+  description="Berechne die Kosten pro Kilometer für dein Auto. Erfahre monatliche Fahrtkosten und Kosten für verschiedene Entfernungen."
+  canonicalPath="/auto/km-kostenrechner/"
+  categoryColor="#1565c0"
+  categoryLight="#e3f2fd"
+>
+  <div class="calculator">
+    <form id="kmKostenForm" class="calc-form">
+      <div class="form-group">
+        <label for="annualBudget">Jährliche Gesamtkosten (€)</label>
+        <input
+          type="number"
+          id="annualBudget"
+          name="annualBudget"
+          placeholder="4800"
+          min="100"
+          max="50000"
+          step="100"
+          value="4800"
+          required
+        />
+        <small>Sprit, Versicherung, Wartung, Kfz-Steuer, Abnutzung</small>
+      </div>
+
+      <div class="form-group">
+        <label for="annualKm">Jährliche Kilometerleistung</label>
+        <input
+          type="number"
+          id="annualKm"
+          name="annualKm"
+          placeholder="15000"
+          min="1000"
+          max="100000"
+          step="1000"
+          value="15000"
+          required
+        />
+        <small>Durchschnittliche Jahresfahrleistung in km</small>
+      </div>
+
+      <button type="submit" class="calc-button">Berechnen</button>
+    </form>
+
+    <div id="result" style="display: none;">
+      <div class="result-box">
+        <h2>Kosten pro Kilometer</h2>
+        <div class="result-value">
+          <span id="costPerKm">€0,00</span>
+          <span class="period">/km</span>
+        </div>
+      </div>
+
+      <div class="result-boxes">
+        <div class="result-card">
+          <h3>Monatliche Kosten</h3>
+          <div class="value">€<span id="monthlyCosts">0,00</span></div>
+        </div>
+
+        <div class="result-card">
+          <h3>Kosten für 100 km</h3>
+          <div class="value">€<span id="cost100km">0,00</span></div>
+        </div>
+
+        <div class="result-card">
+          <h3>Kosten für 1.000 km</h3>
+          <div class="value">€<span id="cost1000km">0,00</span></div>
+        </div>
+      </div>
+
+      <div class="info-box">
+        <h3>Was gehört zu den Fahrtkosten?</h3>
+        <ul>
+          <li><strong>Sprit:</strong> Kosten für Benzin, Diesel oder Strom</li>
+          <li><strong>Versicherung:</strong> Kfz-Haftpflicht, Kaskoversicherung</li>
+          <li><strong>Wartung:</strong> Ölwechsel, Filter, Inspektion, Reparaturen</li>
+          <li><strong>Kfz-Steuer:</strong> Jährliche Steuer je nach Emissionsgruppe</li>
+          <li><strong>Abnutzung:</strong> Verschleiß von Reifen, Bremsbelägen, Batterie (bei E-Autos)</li>
+          <li><strong>Tipp:</strong> Rechne deine echten Kosten für ein genaues Ergebnis</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</CalculatorLayout>
+
+<style>
+.calculator {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 2rem;
+  margin: 2rem 0;
+}
+
+.calc-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.form-group {
+  margin-bottom: 0.5rem;
+}
+
+.form-group label {
+  display: block;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+  color: var(--text);
+}
+
+.form-group input {
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: 1rem;
+  background: var(--bg);
+  color: var(--text);
+}
+
+.form-group small {
+  display: block;
+  font-size: 0.8rem;
+  color: var(--text-light);
+  margin-top: 0.3rem;
+}
+
+.calc-button {
+  background: #1565c0;
+  color: white;
+  border: none;
+  padding: 0.75rem 2rem;
+  border-radius: var(--radius-sm);
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+  margin-top: 0.5rem;
+}
+
+.calc-button:hover {
+  background: #1e53e5;
+}
+
+.result-box {
+  background: linear-gradient(135deg, #1565c0 0%, #1e53e5 100%);
+  color: white;
+  padding: 2rem;
+  border-radius: var(--radius);
+  margin-bottom: 2rem;
+  text-align: center;
+}
+
+.result-box h2 {
+  font-size: 0.95rem;
+  font-weight: 600;
+  margin: 0 0 1rem 0;
+  opacity: 0.9;
+}
+
+.result-value {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+#costPerKm {
+  font-size: 2.5rem;
+  font-weight: 700;
+}
+
+.period {
+  font-size: 1rem;
+  opacity: 0.9;
+}
+
+.result-boxes {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+
+.result-card {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 1.5rem;
+  text-align: center;
+}
+
+.result-card h3 {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text-light);
+  margin: 0 0 0.75rem 0;
+}
+
+.result-card .value {
+  font-size: 1.6rem;
+  font-weight: 700;
+  color: #1565c0;
+}
+
+.info-box {
+  background: var(--bg);
+  padding: 1.5rem;
+  border-radius: var(--radius);
+  border-left: 4px solid #1565c0;
+}
+
+.info-box h3 {
+  font-size: 1rem;
+  margin: 0 0 1rem 0;
+  color: var(--text);
+}
+
+.info-box ul {
+  margin: 0;
+  padding-left: 1.5rem;
+}
+
+.info-box li {
+  margin: 0.75rem 0;
+  color: var(--text-light);
+  line-height: 1.6;
+}
+
+@media (max-width: 640px) {
+  .calculator {
+    padding: 1.5rem;
+  }
+
+  #costPerKm {
+    font-size: 2rem;
+  }
+
+  .result-boxes {
+    grid-template-columns: 1fr;
+  }
+}
+</style>
+
+<script define:vars={{}}>
+document.getElementById('kmKostenForm').addEventListener('submit', function(e) {
+  e.preventDefault();
+
+  const annualBudget = parseFloat(document.getElementById('annualBudget').value);
+  const annualKm = parseInt(document.getElementById('annualKm').value);
+
+  // Berechne Kosten pro km
+  const costPerKm = annualBudget / annualKm;
+
+  // Monatliche Kosten
+  const monthlyCosts = annualBudget / 12;
+
+  // Kosten für 100 km
+  const cost100km = costPerKm * 100;
+
+  // Kosten für 1.000 km
+  const cost1000km = costPerKm * 1000;
+
+  // Update results
+  document.getElementById('costPerKm').textContent = costPerKm.toFixed(2);
+  document.getElementById('monthlyCosts').textContent = monthlyCosts.toFixed(2);
+  document.getElementById('cost100km').textContent = cost100km.toFixed(2);
+  document.getElementById('cost1000km').textContent = cost1000km.toFixed(2);
+
+  document.getElementById('result').style.display = 'block';
+  document.getElementById('result').scrollIntoView({ behavior: 'smooth' });
+});
+</script>
