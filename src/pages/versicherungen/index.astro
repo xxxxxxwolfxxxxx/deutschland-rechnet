@@ -3,10 +3,12 @@ import Layout from '../../layouts/Layout.astro';
 import CalculatorCard from '../../components/CalculatorCard.astro';
 import CategoryHero from '../../components/CategoryHero.astro';
 import { getByCategory, CATEGORIES } from '../../data/calculators';
+import { loadCategoryContent } from '../../utils/loadCategoryContent';
 
 const cat = CATEGORIES['versicherungen'];
 const calcs = getByCategory('versicherungen');
 const base = import.meta.env.BASE_URL;
+const content = await loadCategoryContent('versicherungen');
 ---
 <Layout
   title={cat.label}
@@ -25,6 +27,11 @@ const base = import.meta.env.BASE_URL;
     backHref={`${base}`}
     backLabel="← Alle Kategorien"
   />
+  {content && (
+    <article class="category-content">
+      <Fragment set:html={content.content} />
+    </article>
+  )}
   <div class="grid">
     {calcs.map(c => (
       <CalculatorCard title={c.title} description={c.description} href={`${base}${c.category}/${c.slug}/`} accentColor={cat.color} />
@@ -34,4 +41,41 @@ const base = import.meta.env.BASE_URL;
 <style>
 .grid { display: grid; gap: 0.75rem; }
 @media (min-width: 640px) { .grid { grid-template-columns: 1fr 1fr; } }
+
+.category-content {
+  margin-bottom: 2rem;
+  line-height: 1.6;
+}
+
+.category-content :global(h2) {
+  font-size: 1.5rem;
+  font-weight: 600;
+  margin-top: 1.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.category-content :global(h3) {
+  font-size: 1.2rem;
+  font-weight: 500;
+  margin-top: 1rem;
+  margin-bottom: 0.5rem;
+}
+
+.category-content :global(p) {
+  margin-bottom: 1rem;
+  max-width: 800px;
+}
+
+.category-content :global(ul) {
+  margin-left: 1.5rem;
+  margin-bottom: 1rem;
+}
+
+.category-content :global(li) {
+  margin-bottom: 0.5rem;
+}
+
+.category-content :global(strong) {
+  font-weight: 600;
+}
 </style>

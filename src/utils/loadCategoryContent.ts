@@ -1,4 +1,6 @@
 // src/utils/loadCategoryContent.ts
+import fs from 'fs';
+import path from 'path';
 
 // Allowed category slugs - prevents path traversal attacks
 const ALLOWED_CATEGORIES = ['geld', 'wohnen', 'energie', 'auto', 'familie', 'gesundheit', 'versicherungen'];
@@ -24,9 +26,22 @@ export async function loadCategoryContent(slug: string): Promise<CategoryContent
       return null;
     }
 
-    // Import the markdown file dynamically
-    const module = await import(`../content/categories/${slug}.md`);
-    const { frontmatter, default: content } = module;
+    // Construct absolute path to the markdown file
+    // Walk up from wherever we are to find the project root, then go into src
+    let projectRoot = process.cwd();
+
+    // Make sure we're at the project root (one with package.json)
+    while (!fs.existsSync(path.join(projectRoot, 'package.json')) && projectRoot !== '/') {
+      projectRoot = path.dirname(projectRoot);
+    }
+
+    const filePath = path.join(projectRoot, 'src', 'content', 'categories', `${slug}.md`);
+
+    // Read the raw markdown file
+    const fileContent = fs.readFileSync(filePath, 'utf-8');
+
+    // Parse the markdown file with frontmatter manually
+    const { frontmatter, content } = parseFrontmatter(fileContent);
 
     // Validate frontmatter structure before accessing properties
     if (!frontmatter || typeof frontmatter.title !== 'string' || typeof frontmatter.slug !== 'string') {
@@ -53,6 +68,40 @@ export async function loadCategoryContent(slug: string): Promise<CategoryContent
     console.error(`Failed to load category content for ${slug}:`, error instanceof Error ? error.message : String(error));
     return null;
   }
+}
+
+function parseFrontmatter(fileContent: string): { frontmatter: Record<string, unknown>; content: string } {
+  // Match YAML frontmatter block at the beginning of the file
+  const match = fileContent.match(/^---\n([\s\S]*?)\n---\n([\s\S]*)$/);
+
+  if (!match) {
+    return { frontmatter: {}, content: fileContent };
+  }
+
+  const yamlContent = match[1];
+  const content = match[2];
+
+  // Simple YAML parser for our use case (only strings and simple values)
+  const frontmatter: Record<string, unknown> = {};
+  const lines = yamlContent.split('\n');
+
+  for (const line of lines) {
+    if (!line.trim()) continue;
+    const colonIndex = line.indexOf(':');
+    if (colonIndex === -1) continue;
+
+    const key = line.substring(0, colonIndex).trim();
+    let value = line.substring(colonIndex + 1).trim();
+
+    // Remove quotes if present
+    if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) {
+      value = value.slice(1, -1);
+    }
+
+    frontmatter[key] = value;
+  }
+
+  return { frontmatter, content };
 }
 
 function extractSection(content: string, sectionTitle: string): string {
