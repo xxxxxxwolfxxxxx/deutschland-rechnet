@@ -146,3 +146,39 @@ p  { margin-bottom: 1rem; }
 @media (min-width: 768px) {
   .calc-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
 }
+
+/* Print styles */
+.print-footer {
+  display: none;
+}
+@media print {
+  header, footer, .hamburger, .mobile-overlay, .cookie-banner,
+  .back-link, .hero-back, .btn-pdf, .up-download-area,
+  .btn-add, .btn-remove, .raum-actions, .qr-download-btn,
+  .result-actions, ins.adsbygoogle, .guide-section .related-section {
+    display: none !important;
+  }
+  body {
+    font-size: 11pt;
+    color: #000;
+    background: #fff;
+  }
+  .main-content {
+    padding-top: 0.5rem;
+  }
+  .print-footer {
+    display: block;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    text-align: center;
+    font-size: 8pt;
+    color: #999;
+    padding: 4mm 0;
+    border-top: 0.5pt solid #ddd;
+  }
+  @page {
+    margin: 15mm 15mm 20mm 15mm;
+  }
+}

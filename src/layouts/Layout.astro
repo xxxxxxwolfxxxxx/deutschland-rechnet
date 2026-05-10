@@ -110,6 +110,9 @@ const navLinks = [
   <main class="container main-content">
     <slot />
   </main>
+  <div class="print-footer" aria-hidden="true">
+    {canonicalPath === '/' ? title : `${title} | Deutschland rechnet`} &mdash; deutschland-rechnet.de
+  </div>
 
   <footer>
     <div class="container footer-inner">
