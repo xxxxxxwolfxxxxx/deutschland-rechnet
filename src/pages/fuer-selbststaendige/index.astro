@@ -37,7 +37,7 @@ const bySlug = Object.fromEntries(CALCULATORS.map(c => [c.slug, c]));
 >
   <div
     class="persona-hero"
-    style={`background-image: url('${base}images/categories/selbststaendige.png');`}
+    style={`background-image: url('${base}images/categories/selbstständige.png');`}
   >
     <div class="persona-hero-overlay"></div>
     <div class="persona-hero-content">
@@ -46,6 +46,37 @@ const bySlug = Object.fromEntries(CALCULATORS.map(c => [c.slug, c]));
       <h1>Deine Rechner als Unternehmer</h1>
       <p>Gewerbesteuer, GmbH-Vergleich, Homeoffice-Pauschale und Altersvorsorge – alle wichtigen Rechner für Selbstständige und Freiberufler.</p>
     </div>
+  </div>
+
+  <div class="persona-intro">
+    <h2>Finanzwissen für Selbstständige: Steuern, Rechtsform und Vorsorge</h2>
+    <p>Als Selbstständiger oder Freiberufler bist du für deine Finanzen selbst verantwortlich -- von der Steuerklaerung bis zur Altersvorsorge. Das bietet Freiheiten, erfordert aber auch mehr Planung als im Angestelltenverhaeltnis. Unsere Rechner helfen dir, den überblick über Steuerlast, Betriebsausgaben und Vorsorge zu behalten.</p>
+
+    <h3>Steuerarten: Einkommensteuer, Umsatzsteuer und Gewerbesteuer</h3>
+    <p>Selbstständige zahlen Einkommensteuer auf ihren Gewinn. Hinzu kommt die Umsatzsteuer (19 Prozent bzw. 7 Prozent), die du auf deine Rechnungen aufschlaegst und ans Finanzamt abführst. Kleinunternehmer mit einem Umsatz unter 22.000 Euro im Vorjahr können die Kleinunternehmerregelung nutzen und auf die Umsatzsteuer verzichten. Gewerbetreibende zahlen zusaetzlich Gewerbesteuer -- Freiberufler sind davon befreit. Der Freibetrag liegt bei 24.500 Euro Gewerbeertrag. Nutze unseren Gewerbesteuer-Rechner und Umsatzsteuer-Rechner, um deine tatsaechliche Steuerlast zu ermitteln.</p>
+
+    <h3>Rechtsformwahl: Einzelunternehmen oder GmbH?</h3>
+    <p>Die Wahl der Rechtsform hat erhebliche steuerliche und rechtliche Auswirkungen. Ein Einzelunternehmen ist schnell und kostengünstig gegründet, birgt aber das Risiko der persoenlichen Haftung. Die GmbH bietet Haftungsbeschraenkung, erfordert jedoch ein Stammkapital von 25.000 Euro und verursacht höhere laufende Kosten durch Buchführungspflichten. Steuerlich wird es ab einem Gewinn von etwa 60.000 bis 80.000 Euro interessant, über eine GmbH nachzudenken -- dank des koerpersperlichen Steuersatzes von rund 30 Prozent gegenüber dem progressiven Einkommensteuertarif. Unser GmbH-vs-Einzelunternehmen-Rechner vergleicht beide Varianten für deine Situation.</p>
+
+    <h3>Vorsorge: Keine Pflicht, aber unverzichtbar</h3>
+    <p>Anders als Angestellte bist du als Selbstständiger in der Regel nicht gesetzlich rentenversichert. Das bedeutet mehr Freiheit, aber auch die volle Verantwortung für deine Altersvorsorge. Private Rentenversicherungen, ETF-Sparplaene oder die freiwillige gesetzliche Rentenversicherung sind gaengige Optionen. Experten empfehlen, mindestens 15 bis 20 Prozent des Nettoeinkommens für die Vorsorge zurückzulegen. Auch ein Notgroschen von drei bis sechs Monatsumsaetzen ist für Selbstständige besonders wichtig, um Auftragsflauten zu überbrücken.</p>
+
+    <h3>Betriebsausgaben richtig absetzen</h3>
+    <p>Betriebsausgaben mindern deinen Gewinn und damit deine Steuerlast. Absetzbar sind alle Ausgaben, die betrieblich veranlasst sind: Bueroäußtattung, Software, Telefon- und Internetkosten, Fortbildungen, Geschaeftsreisen und Fachliteratur. Ein haeusliches Arbeitszimmer kann abgesetzt werden, wenn es den Mittelpunkt deiner beruflichen Taetigkeit darstellt. Alternativ steht dir die Homeoffice-Pauschale zu. Bewirtungskosten sind zu 70 Prozent absetzbar, wenn sie geschaeftlich veranlasst sind. Führe sorgfaeltig Buch und bewahre alle Belege auf -- das Finanzamt kann Nachweise verlangen.</p>
+
+    <h3>Häufige Fragen</h3>
+    <details>
+      <summary>Muss ich Gewerbesteuer zahlen?</summary>
+      <p>Gewerbesteuer faellt nur für Gewerbetreibende an, nicht für Freiberufler. Freie Berufe wie aerzte, Rechtsanwaelte, Ingenieure, Journalisten oder Kuenstler sind befreit. Gewerbetreibende zahlen Gewerbesteuer erst ab einem Freibetrag von 24.500 Euro Gewerbeertrag. Die Höhe haengt vom Hebesatz deiner Gemeinde ab und liegt typischerweise zwischen 7 und 17 Prozent des Gewerbeertrags. Die Gewerbesteuer wird allerdings teilweise auf die Einkommensteuer angerechnet.</p>
+    </details>
+    <details>
+      <summary>GmbH oder Einzelunternehmen -- was ist besser?</summary>
+      <p>Das haengt von deinem Gewinn, deinem Haftungsrisiko und deinen Wachstumsplaenen ab. Ein Einzelunternehmen eignet sich für den Start: keine Gründungskosten, einfache Buchführung (EueR), volle Kontrolle. Die GmbH lohnt sich steuerlich ab etwa 60.000 bis 80.000 Euro Gewinn, bietet Haftungsschutz und wirkt professioneller. Allerdings bringt sie Pflichten mit: doppelte Buchführung, Jahresabschluss und Veröffentlichung im Bundesanzeiger.</p>
+    </details>
+    <details>
+      <summary>Wie viel Steuern zahle ich als Selbstständiger?</summary>
+      <p>Das haengt von deinem Gewinn ab. Auf den Gewinn (Einnahmen minus Betriebsausgaben) zahlst du Einkommensteuer nach dem progressiven Steuertarif (14 bis 45 Prozent). Hinzu kommen ggf. Solidaritaetszuschlag und Kirchensteuer. Gewerbetreibende zahlen zusaetzlich Gewerbesteuer. Als Faustregel solltest du etwa 30 bis 40 Prozent deines Gewinns für Steuern zurücklegen. Unser Steuernachzahlungs-Rechner hilft dir, die voräußichtliche Steuerlast zu schätzen.</p>
+    </details>
   </div>
 
   <div class="sections">
@@ -154,4 +185,39 @@ const bySlug = Object.fromEntries(CALCULATORS.map(c => [c.slug, c]));
 }
 .grid { display: grid; gap: 0.75rem; }
 @media (min-width: 640px) { .grid { grid-template-columns: 1fr 1fr; } }
+.persona-intro {
+  margin-bottom: 2rem;
+  line-height: 1.7;
+  color: var(--text);
+}
+.persona-intro h2 {
+  font-size: 1.4rem;
+  margin-bottom: 0.75rem;
+  color: var(--dark);
+}
+.persona-intro h3 {
+  font-size: 1.1rem;
+  margin-top: 1.5rem;
+  margin-bottom: 0.5rem;
+  color: var(--dark);
+}
+.persona-intro p {
+  margin-bottom: 0.75rem;
+  font-size: 0.92rem;
+}
+.persona-intro details {
+  margin-bottom: 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0.75rem 1rem;
+}
+.persona-intro summary {
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+.persona-intro details p {
+  margin-top: 0.5rem;
+  margin-bottom: 0;
+}
 </style>

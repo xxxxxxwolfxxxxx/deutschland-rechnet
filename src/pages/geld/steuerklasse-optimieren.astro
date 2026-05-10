@@ -23,7 +23,13 @@ const year = new Date().getFullYear();
     calculator={calc}
     intro="Mit dem Steuerklasse-optimieren-Rechner finden Sie heraus, welche Steuerklassen-Kombination für Sie als Paar am günstigsten ist."
     sourceNote="III/V, IV/IV oder IV/IV mit Faktor."
-    explanation="III/V führt oft zu höherem Gesamtnetto, muss aber durch Einkommensteuererklärung ausgeglichen werden." faqs={[{ q: "Wichtige Frage?", a: "Siehe Erklärung unten für Details." }]}
+    explanation="III/V führt oft zu höherem Gesamtnetto, muss aber durch Einkommensteuererklärung ausgeglichen werden." faqs={[
+      { q: "Welche Steuerklassen-Kombinationen gibt es für Ehepaare?", a: "Verheiratete und eingetragene Lebenspartner haben drei Möglichkeiten: IV/IV (Standard, gleiche Abzüge für beide), III/V (Partner mit höherem Einkommen bekommt III mit weniger Abzügen, der andere V mit höheren Abzügen) und IV/IV mit Faktor (seit 2010, berücksichtigt das tatsächliche Einkommensverhältnis und vermeidet hohe Nachzahlungen). Unverheiratete Paare können keine gemeinsame Steuerklassenwahl treffen." },
+      { q: "Wann lohnt sich die Kombination III/V?", a: "Die Kombination III/V lohnt sich, wenn ein Partner deutlich mehr verdient als der andere (mindestens 60/40-Verhältnis). Der Besserverdienende in Klasse III profitiert vom doppelten Grundfreibetrag, während der Geringerverdienende in Klasse V höhere Abzüge hat. Vorsicht: Bei III/V ist die Einkommensteuererklärung Pflicht, und es kann zu Nachzahlungen kommen, weil im Laufe des Jahres insgesamt zu wenig Lohnsteuer einbehalten wurde." },
+      { q: "Wie wechsle ich die Steuerklasse?", a: "Den Steuerklassenwechsel beantragen Sie beim zuständigen Finanzamt mit dem amtlichen Vordruck 'Antrag auf Steuerklassenwechsel bei Ehegatten/Lebenspartnern'. Seit 2020 ist ein Wechsel mehrmals im Jahr möglich (vorher nur einmal). Sie können den Antrag auch über ELSTER online einreichen. Der Wechsel gilt ab dem Folgemonat nach der Bearbeitung." },
+      { q: "Was ist die Steuerklasse IV mit Faktor?", a: "Bei IV mit Faktor berechnet das Finanzamt einen individuellen Faktor, der das Einkommensverhältnis beider Partner berücksichtigt. So wird die Lohnsteuer bereits im Laufe des Jahres möglichst genau einbehalten. Der Vorteil gegenüber III/V: kaum Nachzahlungen bei der Steuererklärung. Der Vorteil gegenüber IV/IV: Bei ungleichen Einkommen wird die Steuerlast gerechter verteilt. Der Faktor muss jährlich neu beantragt werden." },
+      { q: "Beeinflusst die Steuerklasse mein Elterngeld oder Arbeitslosengeld?", a: "Ja, und das ist ein wichtiger Aspekt bei der Wahl. Elterngeld, Arbeitslosengeld, Krankengeld und Kurzarbeitergeld werden auf Basis des Nettoeinkommens berechnet. Wer plant, diese Leistungen in Anspruch zu nehmen, sollte rechtzeitig (mindestens 7 Monate vorher) in eine günstigere Steuerklasse wechseln. Bei geplantem Elterngeld kann der Wechsel in Klasse III mehrere Hundert Euro monatlich mehr Elterngeld bedeuten." }
+    ]}
   >
     <div class="calc-form">
       <div class="calc-grid">
@@ -61,7 +67,21 @@ const year = new Date().getFullYear();
     </div>
   </CalculatorShell>
 
-  <CalculatorGuide title='Weitere Informationen' content={`<p>Nutzen Sie den Rechner oben für Ihre Analyse.</p>`} relatedSlugs={['brutto-netto-rechner', 'gehaltserhoehung-rechner']} />
+  <CalculatorGuide
+    title="Steuerklassen-Optimierung: So holen Paare das Maximum heraus"
+    content="<p>Die richtige Steuerklassenkombination kann für Ehepaare und eingetragene Lebenspartner einen erheblichen Unterschied beim monatlichen Nettoeinkommen ausmachen. Dabei geht es nicht um die tatsächliche Steuerlast im Jahr (die bleibt gleich), sondern um die Verteilung der Lohnsteuerabzüge über das Jahr und deren Auswirkung auf Lohnersatzleistungen wie Elterngeld oder Arbeitslosengeld.</p>
+
+<p><strong>Die drei Optionen im Überblick:</strong> Bei IV/IV (Standard) werden beide Partner gleich besteuert. Diese Kombination passt, wenn beide ähnlich viel verdienen. Bei III/V erhält der Besserverdienende deutlich weniger Abzüge (Klasse III), während der Geringerverdienende entsprechend mehr zahlt (Klasse V). Das erhöht das monatliche Gesamtnetto, führt aber fast immer zu einer Nachzahlung bei der Steuererklärung. Bei IV/IV mit Faktor wird das tatsächliche Einkommensverhältnis bereits bei der monatlichen Besteuerung berücksichtigt.</p>
+
+<p><strong>Rechenbeispiel:</strong> Partner A verdient 50.000 Euro brutto im Jahr, Partner B 25.000 Euro. Bei der Kombination IV/IV zahlen beide zusammen etwa 7.800 Euro Lohnsteuer im Jahr. Bei III/V (A in III, B in V) sind es monatlich weniger Abzüge, allerdings wird bei der Steuererklärung nachberechnet. Die tatsächliche Jahressteuer nach Splittingtarif beträgt für das Paar identische ca. 6.200 Euro. Der Unterschied liegt im Cashflow: Bei III/V haben Sie unterjährig mehr Geld verfügbar.</p>
+
+<p><strong>Strategischer Wechsel vor Lohnersatzleistungen:</strong> Besonders wichtig wird die Steuerklassenwahl vor dem Bezug von Elterngeld, Arbeitslosengeld I, Krankengeld oder Kurzarbeitergeld. Diese Leistungen berechnen sich aus dem Nettoeinkommen. Wer in Klasse III ist, hat ein höheres Netto und bekommt entsprechend mehr Lohnersatzleistung. Planen Sie einen Wechsel mindestens 7 Monate vor Beginn des Mutterschutzes, damit das Finanzamt die neue Klasse für die Berechnung anerkennt.</p>
+
+<p><strong>So beantragen Sie den Wechsel:</strong> Seit 2020 können Sie die Steuerklasse mehrfach pro Jahr ändern. Den Antrag stellen beide Partner gemeinsam beim Wohnsitz-Finanzamt (Vordruck oder über ELSTER). Die Änderung gilt ab dem Folgemonat. Seit 2023 werden Steuerklassen III und V schrittweise durch IV/IV mit Faktor ersetzt, aber aktuell stehen noch alle Kombinationen zur Verfügung.</p>
+
+<p><strong>Praxistipp:</strong> Machen Sie bei der Kombination III/V unbedingt eine Einkommensteuererklärung (ist ohnehin Pflicht). Legen Sie die monatliche Steuerersparnis zur Seite, um eine eventuelle Nachzahlung problemlos begleichen zu können. Nutzen Sie den Rechner oben, um verschiedene Szenarien durchzuspielen.</p>"
+    relatedSlugs={['steuerklassen-vergleich', 'steuernachzahlung-rechner', 'brutto-netto-rechner']}
+  />
 </Layout>
 
 <script type="module">

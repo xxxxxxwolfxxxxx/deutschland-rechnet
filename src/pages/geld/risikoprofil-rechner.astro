@@ -23,7 +23,13 @@ const year = new Date().getFullYear();
     calculator={calc}
     intro="Mit dem Risikoprofil-Rechner ermitteln Sie Ihr persönliches Anlegerprofil."
     sourceNote="Konservativ bis aggressiv."
-    explanation="Das Profil wird aus Anlagehorizont, Risikobereitschaft und finanzieller Situation berechnet." faqs={[{ q: "Wichtige Frage?", a: "Siehe Erklärung unten für Details." }]}
+    explanation="Das Profil wird aus Anlagehorizont, Risikobereitschaft und finanzieller Situation berechnet." faqs={[
+      { q: "Was ist ein Risikoprofil und warum brauche ich eines?", a: "Ein Risikoprofil beschreibt Ihre persönliche Bereitschaft und Fähigkeit, finanzielle Verluste zu tragen. Es hilft Ihnen, eine Anlagestrategie zu wählen, die zu Ihrer Lebenssituation passt. Banken und Finanzberater sind nach dem Wertpapierhandelsgesetz (WpHG) sogar verpflichtet, vor der Anlageberatung Ihr Risikoprofil zu ermitteln." },
+      { q: "Welche Risikoprofile gibt es?", a: "Typisch sind vier Stufen: Konservativ (Fokus auf Kapitalerhalt, hauptsächlich Anleihen und Festgeld), Ausgewogen (Mischung aus Aktien und Anleihen), Wachstumsorientiert (hoher Aktienanteil für langfristigen Vermögensaufbau) und Aggressiv (fast äußchließlich Aktien und risikoreiche Anlagen für maximale Rendite bei hohem Verlustrisiko)." },
+      { q: "Kann sich mein Risikoprofil im Laufe der Zeit ändern?", a: "Ja, und das ist sogar normal. Mit zunehmendem Alter, Veränderungen in der Einkommenssituation oder wenn größere Ausgaben wie ein Immobilienkauf anstehen, sollten Sie Ihr Risikoprofil neu bewerten. Faustregel: Je näher der Zeitpunkt rückt, an dem Sie das Geld benötigen, desto konservativer sollte die Anlage sein." },
+      { q: "Wie viel Aktienanteil ist für mein Alter sinnvoll?", a: "Eine verbreitete Faustformel lautet: 100 minus Alter = Aktienanteil in Prozent. Ein 30-Jähriger könnte demnach 70 % in Aktien investieren. Diese Regel ist jedoch nur ein grober Anhaltspunkt. Entscheidend sind auch Ihre finanzielle Situation, Ihr Anlagehorizont und Ihre persönliche Verlusttoleranz." },
+      { q: "Ist dieses Ergebnis eine Anlageberatung?", a: "Nein. Der Rechner gibt eine erste Orientierung auf Basis Ihrer Angaben. Er ersetzt keine professionelle Anlageberatung. Für eine individuelle Empfehlung sollten Sie einen unabhängigen Finanzberater oder Ihre Bank konsultieren, die Ihre gesamte finanzielle Situation berücksichtigen." }
+    ]}
   >
     <div class="calc-form">
       <div class="calc-grid">
@@ -67,7 +73,19 @@ const year = new Date().getFullYear();
     </div>
   </CalculatorShell>
 
-  <CalculatorGuide title='Weitere Informationen' content={`<p>Nutzen Sie den Rechner oben für Ihre Analyse.</p>`} relatedSlugs={['brutto-netto-rechner', 'gehaltserhoehung-rechner']} />
+  <CalculatorGuide
+    title="Risikoprofil verstehen: So finden Sie Ihre passende Anlagestrategie"
+    content="<p>Bevor Sie Geld anlegen, sollten Sie Ihr persönliches Risikoprofil kennen. Es beschreibt, wie viel Schwankung und möglichen Verlust Sie bei Ihrer Geldanlage verkraften können und wollen. Banken und Finanzdienstleister sind nach dem Wertpapierhandelsgesetz (WpHG, §§ 63 ff.) verpflichtet, vor einer Anlageberatung die Risikobereitschaft ihrer Kunden zu ermitteln.</p>
+
+<p><strong>Die vier Anlegerprofile im Detail:</strong> Der konservative Anleger setzt auf Sicherheit und akzeptiert dafür niedrigere Renditen. Typische Anlagen sind Tagesgeld, Festgeld und Staatsanleihen mit hoher Bonität. Der ausgewogene Anleger mischt Aktien und Anleihen zu etwa gleichen Teilen und akzeptiert moderate Schwankungen. Der wachstumsorientierte Anleger investiert 70-80 % in Aktien und nimmt stärkere Kursschwankungen in Kauf, um langfristig eine höhere Rendite zu erzielen. Der aggressive Anleger setzt fast äußchließlich auf Aktien und Risikokapital und muss temporäre Verluste von 30 % oder mehr verkraften können.</p>
+
+<p><strong>Welche Faktoren bestimmen das Risikoprofil?</strong> Drei Hauptfaktoren spielen eine Rolle: Der Anlagehorizont (je länger, desto mehr Risiko ist möglich, weil Kursschwankungen über die Zeit ausgeglichen werden), die persönliche Verlusttoleranz (wie reagieren Sie, wenn Ihr Depot 20 % im Minus ist?) und die finanzielle Gesamtsituation (sicheres Einkommen, Notgroschen vorhanden, keine Schulden). Ein Beamter mit 30 Jahren Anlagehorizont kann deutlich mehr Risiko eingehen als ein Selbstständiger, der in 3 Jahren eine Immobilie kaufen möchte.</p>
+
+<p><strong>Zahlenbeispiel:</strong> Angenommen, Sie sind 30 Jahre alt, haben einen sicheren Job und einen Anlagehorizont von 25 Jahren. Bei einem wachstumsorientierten Profil mit 80 % Aktienanteil hätten Sie historisch betrachtet im Schnitt etwa 7-8 % Rendite pro Jahr erzielt. Aus einer monatlichen Sparrate von 300 Euro können so in 25 Jahren etwa 240.000 Euro werden. Bei einem konservativen Profil mit 3 % Rendite wären es dagegen nur rund 130.000 Euro.</p>
+
+<p><strong>Praxistipp:</strong> Überprüfen Sie Ihr Risikoprofil mindestens alle 2-3 Jahre oder bei großen Veränderungen in Ihrem Leben (Heirat, Kinder, Jobwechsel, Immobilienkauf). Was mit 25 Jahren die richtige Strategie war, muss mit 50 Jahren nicht mehr passen. Ein ETF-Portfolio lässt sich leicht anpassen, indem Sie bei Neuanlagen die Gewichtung verschieben.</p>"
+    relatedSlugs={['etf-sparplan-rechner', 'fire-rechner', 'notgroschen-rechner']}
+  />
 </Layout>
 
 <script type="module">

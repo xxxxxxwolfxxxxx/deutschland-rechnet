@@ -23,7 +23,13 @@ const year = new Date().getFullYear();
     calculator={calc}
     intro="Mit dem Überstunden-Rechner berechnen Sie Ihre Vergütung für geleistete Überstunden inklusive Zuschläge."
     sourceNote="Mindestens 25% Zuschlag."
-    explanation="Überstunden werden mit mindestens 25% Zuschlag vergütet. Nachtarbeit +25%, Sonntagsarbeit +50%, Feiertagsarbeit +100%." faqs={[{ q: "Wichtige Frage?", a: "Siehe Erklärung unten für Details." }]}
+    explanation="Überstunden werden mit mindestens 25% Zuschlag vergütet. Nachtarbeit +25%, Sonntagsarbeit +50%, Feiertagsarbeit +100%." faqs={[
+      { q: "Muss mein Arbeitgeber Überstunden bezahlen?", a: "Grundsätzlich ja, es sei denn, der Arbeits- oder Tarifvertrag regelt etwas anderes. In vielen Arbeitsverträgen sind pauschale Abgeltungsklauseln wie 'mit dem Gehalt abgegolten' üblich. Solche Klauseln sind nur wirksam, wenn sie eine klare Obergrenze enthalten (z. B. 'bis zu 10 Überstunden monatlich'). Pauschale Formulierungen ohne Limit sind laut Rechtsprechung des BAG unwirksam. Alternativ kann der Arbeitgeber Freizeitausgleich gewähren." },
+      { q: "Gibt es einen gesetzlichen Anspruch auf Überstundenzuschläge?", a: "Nein, es gibt in Deutschland keinen allgemeinen gesetzlichen Anspruch auf Überstundenzuschläge. Zuschläge können sich aus Tarifvertrag, Betriebsvereinbarung oder individuellem Arbeitsvertrag ergeben. Nur für Nachtarbeit schreibt das Arbeitszeitgesetz (§ 6 Abs. 5 ArbZG) einen angemessenen Zuschlag oder bezahlte freie Tage vor. Üblich sind 25 % für Nachtarbeit, 50 % für Sonntagsarbeit und 100 % für Feiertagsarbeit." },
+      { q: "Wie viele Überstunden darf ich maximal leisten?", a: "Das Arbeitszeitgesetz erlaubt maximal 8 Stunden tägliche Arbeitszeit, die auf bis zu 10 Stunden verlängert werden kann, wenn innerhalb von 6 Monaten (oder 24 Wochen) ein Durchschnitt von 8 Stunden eingehalten wird. Bei einer 5-Tage-Woche mit 40 Stunden sind also maximal 10 Überstunden pro Woche möglich, müssen aber innerhalb von 6 Monaten ausgeglichen werden. Zwischen zwei Arbeitstagen müssen mindestens 11 Stunden Ruhezeit liegen." },
+      { q: "Wie berechne ich meinen Stundenlohn aus dem Monatsgehalt?", a: "Die Formel lautet: Monatsgehalt geteilt durch die durchschnittliche Monatsstundenzahl. Bei einer 40-Stunden-Woche ergibt sich die Monatsstundenzahl aus: 40 Stunden x 4,348 Wochen = 173,9 Stunden pro Monat (der Faktor 4,348 berücksichtigt, dass ein Monat durchschnittlich mehr als 4 Wochen hat: 52 Wochen / 12 Monate). Bei 3.000 Euro brutto ergibt das einen Stundenlohn von etwa 17,25 Euro." },
+      { q: "Muss ich Überstunden leisten, wenn der Chef es verlangt?", a: "Nur wenn dies im Arbeitsvertrag, Tarifvertrag oder einer Betriebsvereinbarung geregelt ist. Ohne vertragliche Grundlage können Überstunden nur in Notfällen angeordnet werden (z. B. Naturkatastrophen, plötzlicher Personalausfall). Der Betriebsrat hat bei der Anordnung von Überstunden ein Mitbestimmungsrecht (§ 87 Abs. 1 Nr. 3 BetrVG). Schwangere und stillende Mütter dürfen laut Mutterschutzgesetz keine Überstunden leisten." }
+    ]}
   >
     <div class="calc-form">
       <div class="calc-grid">
@@ -36,8 +42,8 @@ const year = new Date().getFullYear();
           <input type="number" id="wochenstunden" min="1" max="60" value="40" step="0.5" />
         </div>
         <div class="calc-group">
-          <label for="ueberstunden">Anzahl Überstunden</label>
-          <input type="number" id="ueberstunden" min="0" max="500" value="10" step="1" />
+          <label for="überstunden">Anzahl Überstunden</label>
+          <input type="number" id="überstunden" min="0" max="500" value="10" step="1" />
         </div>
         <div class="calc-group">
           <label for="zuschlag">Überstundenzuschlag (%)</label>
@@ -57,21 +63,35 @@ const year = new Date().getFullYear();
     </div>
   </CalculatorShell>
 
-  <CalculatorGuide title='Weitere Informationen' content={`<p>Nutzen Sie den Rechner oben für Ihre Analyse.</p>`} relatedSlugs={['brutto-netto-rechner', 'gehaltserhoehung-rechner']} />
+  <CalculatorGuide
+    title="Überstunden in Deutschland: Rechte, Vergütung und Grenzen"
+    content="<p>Überstunden gehören für viele Arbeitnehmer in Deutschland zum Alltag. Laut Statistischem Bundesamt leisten Vollzeitbeschäftigte im Durchschnitt etwa 3-4 Überstunden pro Woche. Doch wie werden Überstunden berechnet, welche Zuschläge stehen Ihnen zu und welche gesetzlichen Grenzen gelten?</p>
+
+<p><strong>Stundenlohn berechnen:</strong> Um den Wert einer Überstunde zu ermitteln, teilen Sie Ihr monatliches Bruttogehalt durch die durchschnittliche Monatsstundenzahl. Bei einer 40-Stunden-Woche berechnet sich diese als: 40 Stunden x 52 Wochen / 12 Monate = 173,33 Stunden. Bei einem Bruttogehalt von 3.500 Euro ergibt das einen Stundenlohn von rund 20,19 Euro. Mit 25 % Zuschlag wäre jede Überstunde 25,24 Euro wert.</p>
+
+<p><strong>Zuschläge nach Art der Mehrarbeit:</strong> Es gibt keinen allgemeinen gesetzlichen Überstundenzuschlag, aber viele Tarifverträge und Betriebsvereinbarungen sehen Zuschläge vor. Üblich sind 25 % für normale Überstunden, 25-40 % für Nachtarbeit (zwischen 23 und 6 Uhr), 50 % für Sonntagsarbeit und 100-150 % für Arbeit an gesetzlichen Feiertagen. Steuerlich begünstigt sind Zuschläge für Sonntags-, Feiertags- und Nachtarbeit: Sie sind nach § 3b EStG unter bestimmten Grenzen steuerfrei.</p>
+
+<p><strong>Gesetzliche Grenzen der Arbeitszeit:</strong> Das Arbeitszeitgesetz (ArbZG) begrenzt die werktägliche Arbeitszeit auf maximal 8 Stunden, die auf 10 Stunden verlängert werden kann, wenn innerhalb von 6 Monaten ein Durchschnitt von 8 Stunden nicht überschritten wird. Zwischen zwei Arbeitstagen müssen mindestens 11 Stunden Ruhezeit liegen. Verstöße des Arbeitgebers gegen das ArbZG können mit Bußgeldern bis 30.000 Euro oder bei Vorsatz sogar mit Freiheitsstrafe geahndet werden.</p>
+
+<p><strong>Wann verfallen Überstunden?</strong> Überstundenansprüche unterliegen grundsätzlich der dreijährigen Verjährungsfrist (§ 195 BGB). Viele Arbeits- und Tarifverträge enthalten jedoch kürzere Äußchlussfristen von 3-6 Monaten. Prüfen Sie Ihren Vertrag und machen Sie Ansprüche rechtzeitig schriftlich geltend. Dokumentieren Sie Ihre Arbeitszeiten sorgfältig. Seit dem EuGH-Urteil von 2019 sind Arbeitgeber verpflichtet, ein System zur Arbeitszeiterfassung einzurichten.</p>
+
+<p><strong>Praxistipp:</strong> Führen Sie ein persönliches Arbeitszeitprotokoll mit Beginn, Ende und Pausen. Lassen Sie es idealerweise regelmäßig vom Vorgesetzten gegenzeichnen. Das schafft Beweissicherheit, falls es zum Streit über die Vergütung kommt. Bei Teilzeitkräften gelten Stunden über der vereinbarten Arbeitszeit bereits als Überstunden, auch wenn die Vollzeitgrenze noch nicht erreicht ist.</p>"
+    relatedSlugs={['brutto-netto-rechner', 'mindestlohn-rechner', 'gehaltserhoehung-rechner']}
+  />
 </Layout>
 
 <script type="module">
-const { berechneUeberstunden } = await import(window.__base + 'scripts/ueberstunden.js');
+const { berechneÜberstunden } = await import(window.__base + 'scripts/überstunden.js');
 function fmt(n) { return n.toLocaleString('de-DE', {minimumFractionDigits:2, maximumFractionDigits:2}) + ' €'; }
 function berechne() {
   const bruttoMonat = parseFloat(document.getElementById('gehalt').value)||0;
   const stundenProWoche = parseFloat(document.getElementById('wochenstunden').value)||40;
-  const ueberstunden = parseFloat(document.getElementById('ueberstunden').value)||0;
+  const überstunden = parseFloat(document.getElementById('überstunden').value)||0;
   const zuschlagProzent = parseFloat(document.getElementById('zuschlag').value)||0;
-  const r = berechneUeberstunden({ bruttoMonat, stundenProWoche, ueberstunden, zuschlagProzent });
+  const r = berechneÜberstunden({ bruttoMonat, stundenProWoche, überstunden, zuschlagProzent });
   document.getElementById('vergütung').textContent = fmt(r.vergütung);
   document.getElementById('info').textContent = `Stundenlohn: ${fmt(r.stundenlohn)} · Stunden/Monat: ${r.stundenProMonat.toLocaleString('de-DE')}`;
 }
-['gehalt','wochenstunden','ueberstunden','zuschlag'].forEach(id => document.getElementById(id).addEventListener('input', berechne));
+['gehalt','wochenstunden','überstunden','zuschlag'].forEach(id => document.getElementById(id).addEventListener('input', berechne));
 berechne();
 </script>

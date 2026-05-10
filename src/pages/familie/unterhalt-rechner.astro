@@ -1,5 +1,6 @@
 ---
 import CalculatorLayout from '../../layouts/CalculatorLayout.astro';
+import CalculatorGuide from '../../components/CalculatorGuide.astro';
 
 const base = import.meta.env.BASE_URL;
 ---
@@ -98,6 +99,22 @@ const base = import.meta.env.BASE_URL;
       </div>
     </div>
   </div>
+
+  <CalculatorGuide
+    title="Ehegattenunterhalt in Deutschland: Rechtliche Grundlagen und Berechnung"
+    content={`<p>Der <strong>Ehegattenunterhalt</strong> ist eine finanzielle Verpflichtung, die sich aus der ehelichen Solidarität ergibt. Er soll den wirtschaftlich schwächeren Partner nach einer Trennung oder Scheidung absichern. Die rechtliche Grundlage bilden die Paragraphen 1361 (Trennungsunterhalt) und 1569-1586b BGB (nachehelicher Unterhalt).</p>
+
+<p><strong>Trennungsunterhalt vs. Geschiedenenunterhalt:</strong> Während der Trennungsphase (vom Auszug bis zur rechtskräftigen Scheidung) besteht Anspruch auf Trennungsunterhalt nach § 1361 BGB. Er soll den bisherigen Lebensstandard sichern. Nach der Scheidung gelten strengere Voraussetzungen: Der Geschiedenenunterhalt nach § 1569 BGB setzt voraus, dass der Berechtigte seinen Lebensunterhalt nicht selbst bestreiten kann, etwa wegen Kinderbetreuung, Alter, Krankheit oder fehlender Erwerbsmöglichkeit.</p>
+
+<p><strong>Berechnung nach der Differenzmethode:</strong> Die Gerichte berechnen den Unterhalt meist nach der Differenzmethode: Das bereinigte Nettoeinkommen beider Ehegatten wird ermittelt, die Differenz berechnet und davon erhält der Berechtigte in der Regel 3/7 (ca. 43 Prozent). Vom Einkommen des Unterhaltspflichtigen wird zudem ein Erwerbstätigenbonus von 1/7 abgezogen. Der Selbstbehalt des Pflichtigen beträgt mindestens 1.510 Euro monatlich (Stand 2024, Düsseldorfer Tabelle).</p>
+
+<p><strong>Bereinigtes Nettoeinkommen:</strong> Nicht das Bruttoeinkommen zählt, sondern das bereinigte Netto. Abgezogen werden: Steuern, Sozialabgaben, berufsbedingte Aufwendungen (pauschal 5 Prozent), Kindesunterhalt, Krankenversicherung, Altersvorsorge (bis 4 Prozent des Bruttos) und ehebedingte Schulden. Auch Einkünfte aus Vermietung, Kapitalerträge und Sachbezüge werden einbezogen.</p>
+
+<p><strong>Zeitliche Begrenzung:</strong> Seit der Unterhaltsrechtsreform 2008 gilt der Grundsatz der Eigenverantwortung. Geschiedenenunterhalt ist zeitlich zu befristen, wenn keine ehebedingten Nachteile bestehen. Die Dauer richtet sich nach der Ehedauer, dem Alter, der beruflichen Situation und der Betreuung gemeinsamer Kinder. Bei kurzen Ehen (unter 3 Jahren) ohne Kinder wird meist kein oder nur kurzzeitig Unterhalt zugesprochen.</p>
+
+<p><strong>Praxistipp:</strong> Dokumentieren Sie Ihre Einkommensverhältnisse sorgfältig und lassen Sie sich anwaltlich beraten. Der Unterhalt kann durch eine notarielle Vereinbarung oder einen gerichtlichen Vergleich geregelt werden. Eine einvernehmliche Lösung spart beiden Seiten erhebliche Anwalts- und Gerichtskosten. Beachten Sie: Unterhaltszahlungen können als Sonderausgaben steuerlich abgesetzt werden (Realsplitting nach § 10 Abs. 1a EStG, max. 13.805 Euro/Jahr).</p>`}
+    relatedSlugs={['ehegattenunterhalt-rechner', 'unterhaltsrechner', 'scheidungskosten-rechner', 'kindergeld-rechner']}
+  />
 </CalculatorLayout>
 
 <style>

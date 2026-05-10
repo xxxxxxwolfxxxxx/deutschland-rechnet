@@ -1,5 +1,6 @@
 ---
 import CalculatorLayout from '../../layouts/CalculatorLayout.astro';
+import CalculatorGuide from '../../components/CalculatorGuide.astro';
 
 const base = import.meta.env.BASE_URL;
 ---
@@ -103,6 +104,24 @@ const base = import.meta.env.BASE_URL;
       </div>
     </div>
   </div>
+
+  <CalculatorGuide
+    title="Auto-Leasing in Deutschland: Leasingrate, Vertrag und versteckte Kosten"
+    content={`<p>Leasing ist neben dem Kauf und der Finanzierung die dritte Möglichkeit, ein neues Auto zu fahren. In Deutschland werden mittlerweile über 40 Prozent aller Neuwagen geleast, bei Firmenwagen sogar deutlich mehr. Doch was steckt hinter der monatlichen Rate, und worauf sollte man achten?</p>
+
+<p><strong>Wie wird die Leasingrate berechnet?</strong> Die monatliche Rate ergibt sich aus dem Leasingfaktor, der auf den Bruttolistenpreis des Fahrzeugs angewandt wird. Der Leasingfaktor liegt typischerweise zwischen 0,5 und 1,2 Prozent des Listenpreises pro Monat. Ein niedriger Leasingfaktor bedeutet ein gutes Angebot. Bei einem Fahrzeug mit 40.000 Euro Listenpreis und einem Faktor von 0,8 Prozent ergibt sich eine Rate von 320 Euro monatlich. Zusätzlich beeinflusst eine eventuelle Sonderzahlung (Anzahlung) die Monatsrate.</p>
+
+<p><strong>Kilometerleasing vs. Restwertleasing:</strong> Beim Kilometerleasing vereinbaren Sie eine jährliche Fahrleistung (z. B. 10.000 oder 15.000 km). Am Ende wird der Tachostand abgelesen: Mehrkilometer kosten ca. 5-15 Cent/km, Minderkilometer werden teilweise erstattet. Beim Restwertleasing tragen Sie das Risiko des Fahrzeugwertes bei Rückgabe. Experten empfehlen klar das Kilometerleasing, da es kalkulierbarer ist.</p>
+
+<p><strong>Versteckte Kosten beachten:</strong> Die Leasingrate deckt nur die reine Fahrzeugnutzung ab. Zusätzlich fallen an: Kfz-Versicherung (Vollkasko ist beim Leasing Pflicht), Kfz-Steuer, Wartung und Verschleißreparaturen, Reifenwechsel sowie eventuelle GAP-Versicherung. Bei Rückgabe kann es zu Nachforderungen für übermäßigen Verschleiß kommen, etwa Kratzer, Dellen oder abgefahrene Reifen. Lassen Sie vor der Rückgabe ein unabhängiges Gutachten erstellen.</p>
+
+<p><strong>Leasing für Privatpersonen vs. Gewerbetreibende:</strong> Für Gewerbetreibende ist Leasing steuerlich besonders attraktiv: Die Leasingraten können als Betriebsausgabe abgesetzt werden, und die Mehrwertsteuer wird als Vorsteuer erstattet. Privatpersonen haben diesen Vorteil nicht, können aber von Aktionsangeboten der Hersteller profitieren, die regelmäßig subventionierte Leasingraten anbieten.</p>
+
+<p><strong>Laufzeit und Flexibilität:</strong> Die gängigsten Laufzeiten sind 24, 36 und 48 Monate. Kürzere Laufzeiten bedeuten höhere Raten, aber mehr Flexibilität. Eine vorzeitige Kündigung ist beim Leasing in der Regel nicht vorgesehen oder mit hohen Kosten verbunden. Überlegen Sie daher genau, welche Laufzeit und Kilometerleistung zu Ihrem Fahrprofil passt.</p>
+
+<p><strong>Praxistipp:</strong> Vergleichen Sie immer den Leasingfaktor verschiedener Angebote, nicht nur die absolute Monatsrate. Achten Sie auf versteckte Kosten wie Überführung, Zulassung und Bereitstellungsgebühren. Bei E-Autos gibt es oft besonders günstige Leasingangebote mit Faktoren unter 0,5 Prozent dank Herstellersubventionen.</p>`}
+    relatedSlugs={['leasing-rechner', 'e-auto-leasing-kostenrechner', 'kfz-versicherung-rechner', 'kfz-steuer-rechner']}
+  />
 </CalculatorLayout>
 
 <style>
