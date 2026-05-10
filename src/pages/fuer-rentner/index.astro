@@ -48,6 +48,37 @@ const bySlug = Object.fromEntries(CALCULATORS.map(c => [c.slug, c]));
     </div>
   </div>
 
+  <div class="persona-intro">
+    <h2>Finanzwissen für Rentner: Rente, Steuern und Vorsorge im Ruhestand</h2>
+    <p>Der übergang in den Ruhestand bringt viele finanzielle Veränderungen mit sich. Wie hoch wird meine Rente? Muss ich Steuern zahlen? Darf ich hinzuverdienen? Unsere Rechner helfen dir, die wichtigsten Fragen rund um Rente und Finanzen im Alter zu beantworten -- einfach, schnell und kostenlos.</p>
+
+    <h3>Rentenberechnung und Rentenpunkte</h3>
+    <p>Die gesetzliche Rente basiert auf einem Punktesystem: Für jedes Jahr, in dem du das Durchschnittseinkommen aller Versicherten verdienst, erhaeltst du einen Rentenpunkt. Der aktuelle Rentenwert liegt bei über 39 Euro pro Punkt (Stand 2025). Deine monatliche Rente ergibt sich aus der Multiplikation deiner gesammelten Rentenpunkte mit dem aktuellen Rentenwert, dem Zugangsfaktor (Abschlaege bei Fruehrente) und dem Rentenartfaktor. Unser Rentenpunkte-Rechner zeigt dir, wie viele Punkte du bereits gesammelt hast und was das für deine kuenftige Rente bedeutet.</p>
+
+    <h3>Rentenbesteuerung: Nachgelagerte Besteuerung verstehen</h3>
+    <p>Seit 2005 gilt die nachgelagerte Besteuerung: Renteneinnahmen werden zunehmend steuerpflichtig. Wer 2025 in Rente geht, muss 83,5 Prozent seiner Rente versteuern. Der steuerfreie Anteil wird im ersten Rentenjahr festgelegt und bleibt dann als fester Eurobetrag bestehen. Ob du tatsaechlich Steuern zahlst, haengt von deiner Gesamtrente und dem Grundfreibetrag ab. Für Alleinstehende liegt dieser 2025 bei rund 12.084 Euro jährlich. Unser Brutto-Netto-Rechner hilft dir, deine tatsaechliche Steuerlast im Ruhestand zu ermitteln.</p>
+
+    <h3>Hinzuverdienst in der Rente</h3>
+    <p>Seit 2023 gibt es für die regulaere Altersrente keine Hinzuverdienstgrenze mehr -- du kannst unbegrenzt dazuverdienen, ohne Rentenabzuege befuerchten zu müssen. Bei der Erwerbsminderungsrente und bei vorgezogenen Altersrenten gelten jedoch weiterhin Grenzen. Wer vor dem regulaeren Rentenalter eine Altersrente bezieht, darf jährlich bis zu 19.661 Euro hinzuverdienen, ohne dass die Rente gekuerzt wird. Auf den Hinzuverdienst fallen allerdings Steuern und ggf. Sozialabgaben an.</p>
+
+    <h3>Grundrente und Wohngeld im Alter</h3>
+    <p>Die Grundrente ist ein Zuschlag für Rentner mit kleinen Renten, die mindestens 33 Jahre an Beitragszeiten vorweisen können. Der Zuschlag wird automatisch von der Rentenversicherung berechnet und kann bis zu 418 Euro monatlich betragen. Zusaetzlich haben Rentner mit geringem Einkommen Anspruch auf Wohngeld -- einen staatlichen Zuschuss zur Miete. Die Höhe haengt von Einkommen, Miete und Wohnort ab. Unser Wohngeld-Rechner gibt dir eine erste Einschätzung, ob und wie viel Wohngeld dir zusteht.</p>
+
+    <h3>Häufige Fragen</h3>
+    <details>
+      <summary>Wie wird meine Rente berechnet?</summary>
+      <p>Deine monatliche Bruttorente ergibt sich aus der Formel: Rentenpunkte mal Zugangsfaktor mal aktueller Rentenwert mal Rentenartfaktor. Ein Rentenpunkt entspricht einem Jahr mit Durchschnittsverdienst. Der aktuelle Rentenwert wird jährlich angepasst. Bei einem frueheren Renteneintritt werden Abschlaege von 0,3 Prozent pro Monat faellig. Nutze unseren Renten-Rechner für eine individuelle Berechnung.</p>
+    </details>
+    <details>
+      <summary>Muss ich Steuern auf meine Rente zahlen?</summary>
+      <p>Das haengt von der Höhe deiner Rente und dem Jahr deines Renteneintritts ab. Der steuerpflichtige Anteil steigt mit jedem Rentnerjahrgang. Wer 2025 in Rente geht, muss 83,5 Prozent versteuern. Ob tatsaechlich Steuern anfallen, haengt davon ab, ob dein zu versteuerndes Einkommen den Grundfreibetrag übersteigt. Viele Rentner mit einer durchschnittlichen gesetzlichen Rente bleiben unter dem Freibetrag und zahlen keine Steuern.</p>
+    </details>
+    <details>
+      <summary>Was ist die Grundrente?</summary>
+      <p>Die Grundrente ist ein Zuschlag zur gesetzlichen Rente für Menschen, die lange gearbeitet, aber unterdurchschnittlich verdient haben. Voräußetzung sind mindestens 33 Jahre an Grundrentenzeiten (Pflichtbeiträge, Kindererziehung oder Pflege). Der Zuschlag wird automatisch berechnet und ausgezahlt -- ein Antrag ist nicht erforderlich. Allerdings wird das Einkommen geprüft: Für Alleinstehende gilt eine Einkommensgrenze von 1.375 Euro monatlich, darüber wird der Zuschlag reduziert.</p>
+    </details>
+  </div>
+
   <div class="sections">
     {sections.map(section => {
       const calcs = section.slugs.map(s => bySlug[s]).filter(Boolean);
@@ -153,4 +184,39 @@ const bySlug = Object.fromEntries(CALCULATORS.map(c => [c.slug, c]));
 }
 .grid { display: grid; gap: 0.75rem; }
 @media (min-width: 640px) { .grid { grid-template-columns: 1fr 1fr; } }
+.persona-intro {
+  margin-bottom: 2rem;
+  line-height: 1.7;
+  color: var(--text);
+}
+.persona-intro h2 {
+  font-size: 1.4rem;
+  margin-bottom: 0.75rem;
+  color: var(--dark);
+}
+.persona-intro h3 {
+  font-size: 1.1rem;
+  margin-top: 1.5rem;
+  margin-bottom: 0.5rem;
+  color: var(--dark);
+}
+.persona-intro p {
+  margin-bottom: 0.75rem;
+  font-size: 0.92rem;
+}
+.persona-intro details {
+  margin-bottom: 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0.75rem 1rem;
+}
+.persona-intro summary {
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+.persona-intro details p {
+  margin-top: 0.5rem;
+  margin-bottom: 0;
+}
 </style>

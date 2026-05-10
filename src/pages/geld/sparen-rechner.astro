@@ -23,7 +23,13 @@ const year = new Date().getFullYear();
     calculator={calc}
     intro="Mit dem Sparen-Rechner berechnen Sie, wie Ihr Erspartes mit Zinseszins über die Jahre wächst."
     sourceNote="Zinseszins-Effekt berücksichtigt."
-    explanation="Bei 5% Zins verdoppelt sich das Kapital in etwa alle 14 Jahre." faqs={[{ q: "Wichtige Frage?", a: "Siehe Erklärung unten für Details." }]}
+    explanation="Bei 5% Zins verdoppelt sich das Kapital in etwa alle 14 Jahre." faqs={[
+      { q: "Was ist der Zinseszinseffekt und warum ist er so wichtig?", a: "Beim Zinseszins werden die Zinserträge nicht ausgezahlt, sondern dem Kapital zugeschlagen und in der nächsten Periode mitverzinst. Dadurch wächst Ihr Vermögen exponentiell statt linear. Albert Einstein soll den Zinseszins als das achte Weltwunder bezeichnet haben. Bei 5 % Zinsen verdoppelt sich Ihr Kapital etwa alle 14 Jahre (72er-Regel: 72 geteilt durch Zinssatz = Verdoppelungszeit in Jahren)." },
+      { q: "Wie werden Kapitalerträge in Deutschland besteuert?", a: "Auf Zinserträge fällt die Abgeltungsteuer von 25 % an, plus 5,5 % Solidaritätszuschlag darauf und ggf. Kirchensteuer. Effektiv beträgt die Steuerbelastung ohne Kirchensteuer 26,375 %. Jeder Sparer hat einen Sparerpauschbetrag von 1.000 Euro pro Jahr (2.000 Euro für Ehepaare), bis zu dem Kapitalerträge steuerfrei sind. Richten Sie bei Ihrer Bank einen Freistellungsauftrag ein." },
+      { q: "Tagesgeld, Festgeld oder ETF-Sparplan: Was ist besser?", a: "Das hängt vom Anlagehorizont ab. Tagesgeld eignet sich für den Notgroschen (jederzeit verfügbar, aber niedrige Zinsen). Festgeld bietet etwas höhere Zinsen bei fester Laufzeit (1-10 Jahre). Für langfristiges Sparen ab 10 Jahren sind ETF-Sparpläne oft die bessere Wahl, weil die historische Rendite von breit gestreuten Aktien-ETFs bei 7-8 % pro Jahr liegt, deutlich über den Sparzinsen." },
+      { q: "Wie viel sollte ich monatlich sparen?", a: "Finanzexperten empfehlen die 50-30-20-Regel: 50 % des Nettoeinkommens für Grundbedürfnisse, 30 % für Freizeit und Wünsche, 20 % zum Sparen und für Schuldentilgung. Bei einem Nettoeinkommen von 2.500 Euro wären das 500 Euro pro Monat. Wichtig: Starten Sie lieber mit einem kleinen Betrag als gar nicht. Selbst 50 Euro monatlich ergeben bei 5 % Rendite nach 30 Jahren über 40.000 Euro." },
+      { q: "Wird die Inflation beim Rechner berücksichtigt?", a: "Der Rechner zeigt den nominalen Endwert. Die Inflation (durchschnittlich 2 % in der Eurozone als Ziel der EZB) reduziert die reale Kaufkraft. Um die reale Rendite zu schätzen, ziehen Sie die erwartete Inflationsrate vom Zinssatz ab. Bei 5 % Zins und 2 % Inflation beträgt die reale Rendite etwa 3 %." }
+    ]}
   >
     <div class="calc-form">
       <div class="calc-grid">
@@ -57,7 +63,21 @@ const year = new Date().getFullYear();
     </div>
   </CalculatorShell>
 
-  <CalculatorGuide title='Weitere Informationen' content={`<p>Nutzen Sie den Rechner oben für Ihre Analyse.</p>`} relatedSlugs={['brutto-netto-rechner', 'gehaltserhoehung-rechner']} />
+  <CalculatorGuide
+    title="Sparen mit Zinseszins: So wächst Ihr Vermögen langfristig"
+    content="<p>Der Sparen-Rechner zeigt Ihnen, wie sich Ihr Vermögen durch regelmäßige Einzahlungen und den Zinseszinseffekt über die Jahre entwickelt. Dieser Effekt ist der wichtigste Verbündete beim langfristigen Vermögensaufbau: Die erwirtschafteten Zinsen werden dem Kapital zugeschlagen und in den Folgeperioden mitverzinst. Je länger der Anlagezeitraum, desto stärker wirkt dieser Effekt.</p>
+
+<p><strong>Die 72er-Regel zur schnellen Einschätzung:</strong> Teilen Sie 72 durch den Zinssatz, und Sie erhalten die ungefähre Verdoppelungszeit Ihres Kapitals. Bei 3 % dauert es 24 Jahre, bei 6 % nur 12 Jahre, bei 8 % sogar nur 9 Jahre. Diese einfache Faustformel zeigt, warum selbst kleine Unterschiede im Zinssatz langfristig enorme Auswirkungen haben.</p>
+
+<p><strong>Steuern auf Kapitalerträge in Deutschland:</strong> Zinserträge unterliegen der Abgeltungsteuer von 25 % zuzüglich Solidaritätszuschlag (insgesamt 26,375 % ohne Kirchensteuer). Jeder Sparer hat einen jährlichen Sparerpauschbetrag von 1.000 Euro (Ehepaare: 2.000 Euro). Bis zu dieser Grenze bleiben Kapitalerträge steuerfrei. Vergessen Sie nicht, bei Ihrer Bank einen Freistellungsauftrag einzurichten, um die automatische Steuerabführung zu vermeiden.</p>
+
+<p><strong>Konkretes Rechenbeispiel:</strong> Sie starten mit 10.000 Euro Startkapital und sparen monatlich 200 Euro bei 4 % Zinsen. Nach 10 Jahren haben Sie 24.000 Euro eingezahlt und besitzen durch den Zinseszinseffekt rund 39.500 Euro vor Steuern. Nach 20 Jahren sind es 48.000 Euro Einzahlungen und etwa 83.000 Euro Gesamtwert. Nach 30 Jahren haben Sie 72.000 Euro eingezahlt, besitzen aber bereits über 145.000 Euro. Mehr als die Hälfte des Endvermögens stammt aus Zinserträgen.</p>
+
+<p><strong>Sparprodukte im Vergleich:</strong> Tagesgeld bietet aktuell etwa 2-3 % Zinsen bei täglicher Verfügbarkeit und eignet sich für den Notgroschen. Festgeld liegt je nach Laufzeit bei 2,5-3,5 % und eignet sich für mittelfristige Ziele. Für langfristiges Sparen (ab 10 Jahre) empfehlen viele Finanzexperten breit gestreute ETF-Sparpläne, die historisch 7-8 % Rendite pro Jahr erzielt haben, allerdings mit Schwankungsrisiko.</p>
+
+<p><strong>Praxistipp:</strong> Richten Sie einen Dauerauftrag ein, der am Tag nach dem Gehaltseingang automatisch den Sparbetrag überweist. So bezahlen Sie sich selbst zuerst. Erhöhen Sie die Sparrate bei jeder Gehaltserhöhung um mindestens die Hälfte des Nettozuwachses. Selbst kleine Beträge wirken durch den Zinseszinseffekt über Jahrzehnte enorm.</p>"
+    relatedSlugs={['etf-sparplan-rechner', 'abgeltungsteuer-rechner', 'notgroschen-rechner']}
+  />
 </Layout>
 
 <script type="module">

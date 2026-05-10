@@ -29,7 +29,7 @@ const year = new Date().getFullYear();
       { q: "Wie viel kostet eine Elementarversicherung?", a: "Die Kosten hängen vom Risiko ab. In risikoarmen Gebieten 50-150€/Jahr, in Risikogebieten 300-1000€/Jahr." },
       { q: "Ist eine Elementarversicherung notwendig?", a: "Ja, besonders in Risikogebieten (Nähe zu Flüssen, Küste, Gebirge). In anderen Gebieten optional aber empfohlen." },
       { q: "Wie wird das Risiko ermittelt?", a: "Anhand der Postleitzahl und des Gebäudetyps. Postleitzahl bestimmt Hochwasser- und Naturgefahrenrisiko." },
-      { q: "Kann ich eine Police mit Hochwasserschaden bekommen?", a: "Nein, bekannte Hochwasserschäden führen zu Ausschlüssen. Manchmal gibt es Tarife mit 'Grauer Liste' für umstrittene Gebäude." }
+      { q: "Kann ich eine Police mit Hochwasserschaden bekommen?", a: "Nein, bekannte Hochwasserschäden führen zu Äußchlüssen. Manchmal gibt es Tarife mit 'Grauer Liste' für umstrittene Gebäude." }
     ]}
   >
     <div class="calc-form">
@@ -76,6 +76,20 @@ const year = new Date().getFullYear();
       <div id="details" style="margin-top:0.75rem;font-size:0.88rem;color:#666;"></div>
     </div>
   </CalculatorShell>
+
+  <CalculatorGuide
+    title="Elementarversicherung: Schutz vor Naturgewalten"
+    content="<p>Eine Elementarversicherung schuetzt Ihr Eigenheim und Ihren Hausrat vor Schäden durch Naturereignisse, die weder die Wohngebaeude- noch die Hausratversicherung standardmaessig abdecken. Dazu zaehlen Hochwasser, Starkregen, Überschwemmung, Erdrutsch, Erdsenkung, Schneedruck, Lawinen und Erdbeben. Seit der verheerenden Ahrtal-Flut im Juli 2021 mit über 180 Todesopfern und Schäden in Milliardenhöhe ist das Thema Elementarversicherungspflicht in Deutschland intensiv diskutiert worden.</p>
+
+<p><strong>Warum ist die Elementarversicherung so wichtig?</strong> Die Klimakrise führt zu immer häufigeren Extremwetterereignissen. Starkregen kann überall auftreten, nicht nur in klassischen Überschwemmungsgebieten. Laut dem Gesamtverband der Deutschen Versicherungswirtschaft (GDV) sind nur rund 50 Prozent aller Wohngebaeude in Deutschland gegen Elementarschäden versichert. Eine einzige Überschwemmung kann Schäden von 50.000 Euro und mehr verursachen, die ohne Versicherung komplett selbst getragen werden müssen.</p>
+
+<p><strong>Was kostet eine Elementarversicherung?</strong> Die jährlichen Kosten liegen in risikoarmen Gebieten (ZUERS-Zone 1) bei etwa 50 bis 200 Euro pro Jahr. In Risikogebieten (Zone 3 und 4) steigen die Praemien auf 300 bis über 1.000 Euro jährlich. Die Einstufung erfolgt nach dem Zonierungssystem ZUERS Geo, das jede Adresse in Deutschland einer von vier Gefährdungsklassen zuordnet. Etwa 92 Prozent aller Adressen liegen in der günstigsten Zone 1.</p>
+
+<p><strong>Wann ist eine Elementarversicherung besonders sinnvoll?</strong> Eigentuemer sollten grundsaetzlich eine Elementarversicherung abschliessen. Besonders dringend ist der Schutz bei Immobilien in Flussnaehe, in Hanglagen, in Gebieten mit hohem Grundwasserspiegel oder in Regionen mit bekannter Starkregengefährdung. Auch Kellergeschosse mit Wohnraeumen oder teurer Äußtattung erhöhen das Risiko erheblich.</p>
+
+<p><strong>Praxistipp:</strong> Prüfen Sie Ihre bestehende Wohngebaeude- und Hausratversicherung auf Elementarschutz. Viele Policen bieten die Möglichkeit, Elementarschäden als Zusatzbaustein einzuschliessen. Achten Sie dabei auf die Selbstbeteiligung und eventuelle Wartezeiten von meist ein bis drei Monaten nach Vertragsabschluss. Dokumentieren Sie den Zustand Ihres Gebaeudes mit Fotos, um im Schadensfall die Regulierung zu beschleunigen.</p>"
+    relatedSlugs={['pflege-rechner', 'rechtsschutz-rechner', 'zahnzusatz-rechner']}
+  />
 </Layout>
 
 <script type="module">
@@ -126,7 +140,6 @@ function berechne() {
   document.getElementById(id).addEventListener('change', berechne));
 berechne();
 </script>
-</Layout>
 
 <style>
 .page-header { margin-bottom: 2rem; }

@@ -23,7 +23,13 @@ const year = new Date().getFullYear();
     calculator={calc}
     intro="Mit dem Schuldentilgungs-Rechner vergleichen Sie verschiedene Tilgungsstrategien."
     sourceNote="Schneeball vs. Lawinenmethode."
-    explanation="Lawinen-Methode spart Zinsen, Schneeball-Methode ist motivational oft erfolgreicher." faqs={[{ q: "Wichtige Frage?", a: "Siehe Erklärung unten für Details." }]}
+    explanation="Lawinen-Methode spart Zinsen, Schneeball-Methode ist motivational oft erfolgreicher." faqs={[
+      { q: "Was ist der Unterschied zwischen Schneeball- und Lawinenmethode?", a: "Bei der Schneeball-Methode tilgen Sie zuerst die kleinste Schuld, um schnell Erfolgserlebnisse zu erzielen. Sobald eine Schuld abbezahlt ist, fließt die frei gewordene Rate in die nächstkleinere. Bei der Lawinenmethode zahlen Sie zuerst die Schuld mit dem höchsten Zinssatz ab. Mathematisch spart die Lawinenmethode mehr Zinsen, aber die Schneeball-Methode motiviert viele Menschen stärker durchzuhalten." },
+      { q: "Welche Methode spart mehr Geld?", a: "Die Lawinenmethode spart fast immer mehr Zinsen, weil die teuersten Schulden zuerst getilgt werden. Je größer die Zinsdifferenz zwischen Ihren Schulden, desto größer ist der Vorteil. Bei einem Dispo mit 12 % und einem Autokredit mit 4 % sollten Sie unbedingt den Dispo zuerst tilgen. Die Ersparnis kann mehrere Hundert bis Tausend Euro betragen." },
+      { q: "Soll ich sparen oder Schulden tilgen?", a: "Als Faustregel gilt: Schulden tilgen geht fast immer vor Sparen. Wenn Sie 8 % Dispozinsen zahlen, aber nur 3 % Sparzinsen bekommen, verlieren Sie netto 5 % pro Jahr. Ausnahme: Bauen Sie zunächst einen kleinen Notgroschen von 1.000-2.000 Euro auf, damit Sie bei unerwarteten Ausgaben nicht erneut in den Dispo rutschen." },
+      { q: "Wie hoch sollte meine Tilgungsrate sein?", a: "Experten empfehlen, mindestens 20 % des Nettoeinkommens für die Schuldentilgung einzusetzen. Bei einem Nettoeinkommen von 2.500 Euro wären das 500 Euro monatlich. Nutzen Sie jede Sonderzahlung (Weihnachtsgeld, Steuererstattung) für Extra-Tilgungen. Achten Sie aber darauf, dass Ihre Grundbedürfnisse gedeckt bleiben." },
+      { q: "Kann ich bei Schulden eine kostenlose Beratung bekommen?", a: "Ja. Die Schuldnerberatungen der Caritas, Diakonie und Verbraucherzentralen bieten kostenlose Hilfe an. Bei drohender Zahlungsunfähigkeit können sie auch bei einem Insolvenzverfahren unterstützen. Die Privatinsolvenz dauert in Deutschland seit 2020 nur noch 3 Jahre statt vorher 6 Jahre." }
+    ]}
   >
     <div class="calc-form">
       <div class="calc-grid">
@@ -64,7 +70,21 @@ const year = new Date().getFullYear();
     </div>
   </CalculatorShell>
 
-  <CalculatorGuide title='Weitere Informationen' content={`<p>Nutzen Sie den Rechner oben für Ihre Analyse.</p>`} relatedSlugs={['brutto-netto-rechner', 'gehaltserhoehung-rechner']} />
+  <CalculatorGuide
+    title="Schulden strategisch tilgen: Schneeball vs. Lawine im Vergleich"
+    content="<p>Wer mehrere Schulden gleichzeitig bedient, steht vor der Frage: Welche Schuld soll zuerst getilgt werden? Die Antwort kann Hunderte oder sogar Tausende Euro Unterschied ausmachen. Die zwei bekanntesten Strategien sind die Schneeball- und die Lawinenmethode, die beide auf dem gleichen Prinzip basieren: Mindestrate für alle Schulden zahlen und die verfügbare Extra-Rate gezielt auf eine Schuld konzentrieren.</p>
+
+<p><strong>Die Schneeball-Methode (Debt Snowball):</strong> Sie ordnen Ihre Schulden nach Restbetrag, beginnend mit der kleinsten. Die gesamte verfügbare Extra-Rate fließt in die kleinste Schuld. Sobald diese abbezahlt ist, kommt die frei gewordene Rate zur nächsten Schuld dazu. Der Vorteil: Schnelle Erfolgserlebnisse, weil kleine Schulden rasch verschwinden. Studien zeigen, dass Menschen mit dieser Methode häufiger durchhalten und ihre Schulden tatsächlich komplett tilgen.</p>
+
+<p><strong>Die Lawinen-Methode (Debt Avalanche):</strong> Hier tilgen Sie zuerst die Schuld mit dem höchsten Zinssatz. Mathematisch ist das immer die günstigste Variante, weil Sie insgesamt weniger Zinsen zahlen. Der Nachteil: Wenn die teuerste Schuld auch die größte ist, dauert es lange, bis der erste Posten verschwindet. Das kann demotivierend wirken.</p>
+
+<p><strong>Rechenbeispiel:</strong> Angenommen, Sie haben drei Schulden: 2.000 Euro (Versandhaus, 0 % Zins), 8.000 Euro (Autokredit, 5 %) und 3.000 Euro (Dispo, 11 %). Bei 500 Euro monatlicher Gesamtrate spart die Lawinenmethode (Dispo zuerst) gegenüber der Schneeball-Methode (Versandhaus zuerst) etwa 400 Euro an Zinsen. Bei höheren Beträgen oder größeren Zinsdifferenzen kann die Ersparnis deutlich höher ausfallen.</p>
+
+<p><strong>Wichtige Tipps zur Schuldentilgung:</strong> Kündigen Sie den Dispokredit, sobald er abbezahlt ist, damit Sie nicht erneut hineinrutschen. Prüfen Sie bei Ratenkrediten, ob Sondertilgungen möglich sind, ohne Vorfälligkeitsentschädigung zu zahlen. Seit 2010 ist die Vorfälligkeitsentschädigung bei Verbraucherdarlehen auf maximal 1 % der Restschuld begrenzt (§ 502 BGB). Bei Schulden über 50.000 Euro oder mehreren Gläubigern lohnt sich eine kostenlose Schuldnerberatung.</p>
+
+<p><strong>Praxistipp:</strong> Kombinieren Sie beide Methoden. Tilgen Sie zuerst einen kleinen Posten (unter 500 Euro), um Motivation aufzubauen, und wechseln Sie dann zur Lawinenmethode für die verbleibenden größeren Schulden. So profitieren Sie von der psychologischen Wirkung und der mathematischen Effizienz.</p>"
+    relatedSlugs={['kreditvergleich', 'pfaendungsfreigrenze-rechner', 'notgroschen-rechner']}
+  />
 </Layout>
 
 <script type="module">
@@ -74,16 +94,16 @@ function berechneSchneeball(schulden, rate) {
   let monate = 0;
   while (schuldenCopy.some(s => s.rest > 0) && monate < 600) {
     schuldenCopy.sort((a, b) => a.rest - b.rest);
-    let verfuegbar = rate;
+    let verfügbar = rate;
     for (let s of schuldenCopy) {
       if (s.rest <= 0) continue;
       const zins = s.rest * (s.zins / 100 / 12);
       gesamtZinsen += zins;
       s.rest += zins;
-      const zahlung = Math.min(verfuegbar, s.rest);
+      const zahlung = Math.min(verfügbar, s.rest);
       s.rest -= zahlung;
-      verfuegbar -= zahlung;
-      if (verfuegbar <= 0) break;
+      verfügbar -= zahlung;
+      if (verfügbar <= 0) break;
     }
     monate++;
   }
@@ -96,16 +116,16 @@ function berechneLawine(schulden, rate) {
   let monate = 0;
   while (schuldenCopy.some(s => s.rest > 0) && monate < 600) {
     schuldenCopy.sort((a, b) => b.zins - a.zins);
-    let verfuegbar = rate;
+    let verfügbar = rate;
     for (let s of schuldenCopy) {
       if (s.rest <= 0) continue;
       const zins = s.rest * (s.zins / 100 / 12);
       gesamtZinsen += zins;
       s.rest += zins;
-      const zahlung = Math.min(verfuegbar, s.rest);
+      const zahlung = Math.min(verfügbar, s.rest);
       s.rest -= zahlung;
-      verfuegbar -= zahlung;
-      if (verfuegbar <= 0) break;
+      verfügbar -= zahlung;
+      if (verfügbar <= 0) break;
     }
     monate++;
   }

@@ -23,7 +23,13 @@ const year = new Date().getFullYear();
     calculator={calc}
     intro="Mit dem Steuernachzahlung-Rechner schätzen Sie, ob Sie mit einer Steuernachzahlung oder Erstattung rechnen können."
     sourceNote="Schätzung basierend auf Grundtarif."
-    explanation="Freibeträge mindern die Steuer. Eine exakte Berechnung ist nur mit der Steuererklärung möglich." faqs={[{ q: "Wichtige Frage?", a: "Siehe Erklärung unten für Details." }]}
+    explanation="Freibeträge mindern die Steuer. Eine exakte Berechnung ist nur mit der Steuererklärung möglich." faqs={[
+      { q: "Wann muss ich mit einer Steuernachzahlung rechnen?", a: "Nachzahlungen entstehen, wenn im Laufe des Jahres zu wenig Lohnsteuer einbehalten wurde. Typische Fälle sind: Steuerklassenkombination III/V, Einkünfte aus Nebenjobs oder Selbstständigkeit, Abfindungen, Mieteinnahmen oder andere Einkünfte neben dem Gehalt. Auch bei Lohnersatzleistungen wie Kurzarbeitergeld oder Elterngeld kann der Progressionsvorbehalt zu Nachzahlungen führen." },
+      { q: "Wie kann ich eine Steuernachzahlung vermeiden?", a: "Sie können beim Finanzamt die Eintragung eines Freibetrags oder eine Erhöhung der Vorauszahlungen beantragen, um die Steuerlast besser über das Jahr zu verteilen. Bei der Kombination III/V empfiehlt sich der Wechsel zu IV/IV mit Faktor. Legen Sie zudem jeden Monat einen Teil des Nettoeinkommens zur Seite, wenn Sie mit einer Nachzahlung rechnen." },
+      { q: "Welche Freibeträge kann ich geltend machen?", a: "Die wichtigsten Freibeträge sind: Grundfreibetrag (12.096 Euro in 2025), Arbeitnehmerpauschbetrag (1.230 Euro Werbungskosten), Sonderausgabenpauschale (36 Euro), Sparerpauschbetrag (1.000 Euro), Kinderfreibetrag (6.672 Euro pro Kind, alternativ zum Kindergeld). Zusätzlich können Sie tatsächliche Werbungskosten, Fahrtkosten (0,30 Euro/km, ab 21. km 0,38 Euro/km) und Homeoffice-Pauschale (6 Euro/Tag, max. 1.260 Euro) absetzen." },
+      { q: "Bis wann muss ich meine Steuererklärung abgeben?", a: "Für die Steuererklärung 2025 gilt als Abgabefrist der 31. Juli 2026 (bei Pflichtveranlagung). Wer einen Steuerberater oder Lohnsteuerhilfeverein beauftragt, hat Zeit bis Ende Februar 2027. Bei freiwilliger Abgabe haben Sie vier Jahre Zeit (für 2025 also bis Ende 2029). Wer die Frist bei Pflichtabgabe versäumt, riskiert einen Verspätungszuschlag von mindestens 25 Euro pro angefangenem Monat." },
+      { q: "Lohnt sich eine freiwillige Steuererklärung?", a: "Ja, in den meisten Fällen. Arbeitnehmer erhalten laut Statistischem Bundesamt im Durchschnitt etwa 1.095 Euro zurück. Besonders lohnend ist die Abgabe bei hohen Fahrtkosten, Homeoffice-Nutzung, außergewöhnlichen Belastungen (Krankheitskosten, Pflegekosten), Handwerkerleistungen oder haushaltsnahen Dienstleistungen. Eine freiwillige Erklärung kann rückwirkend bis zu vier Jahre eingereicht werden." }
+    ]}
   >
     <div class="calc-form">
       <div class="calc-grid">
@@ -74,7 +80,21 @@ const year = new Date().getFullYear();
     </div>
   </CalculatorShell>
 
-  <CalculatorGuide title='Weitere Informationen' content={`<p>Nutzen Sie den Rechner oben für Ihre Analyse.</p>`} relatedSlugs={['brutto-netto-rechner', 'gehaltserhoehung-rechner']} />
+  <CalculatorGuide
+    title="Steuernachzahlung oder Erstattung: Was Sie erwartet"
+    content="<p>Nach der Einkommensteuererklärung kommt der Steuerbescheid, und damit die Frage: Muss ich nachzahlen oder bekomme ich Geld zurück? Der Steuernachzahlung-Rechner gibt Ihnen eine erste Einschätzung, ob Sie eher mit einer Nachzahlung oder einer Erstattung rechnen können.</p>
+
+<p><strong>Wie entsteht eine Steuernachzahlung?</strong> Während des Jahres behält Ihr Arbeitgeber Lohnsteuer ein, die auf Basis Ihrer Steuerklasse und Ihres monatlichen Gehalts berechnet wird. Stimmt die einbehaltene Steuer nicht mit der tatsächlichen Jahressteuer überein, ergibt sich eine Differenz. Häufigste Gründe für Nachzahlungen sind: die Steuerklassenkombination III/V, Einkünfte aus Vermietung oder Nebentätigkeit, der Progressionsvorbehalt bei Lohnersatzleistungen (Kurzarbeitergeld, Elterngeld, Arbeitslosengeld) und nicht angegebene geldwerte Vorteile.</p>
+
+<p><strong>Die wichtigsten Abzugsmöglichkeiten:</strong> Werbungskosten mindern die Steuerlast direkt. Der Arbeitnehmerpauschbetrag beträgt 1.230 Euro. Erst wenn Ihre tatsächlichen Werbungskosten darüber liegen, lohnt es sich, diese einzeln nachzuweisen. Typische Werbungskosten sind Fahrtkosten zur Arbeit (Entfernungspauschale: 0,30 Euro pro km, ab dem 21. Kilometer 0,38 Euro), Arbeitsmittel wie Computer oder Fachliteratur, Fortbildungskosten und die Homeoffice-Pauschale (6 Euro pro Tag, maximal 1.260 Euro im Jahr).</p>
+
+<p><strong>Sonderausgaben und außergewöhnliche Belastungen:</strong> Absetzbar sind Vorsorgeaufwendungen (Kranken- und Pflegeversicherung, Riester-Beiträge bis 2.100 Euro), Kirchensteuer, Spenden (bis 20 % des Gesamtbetrags der Einkünfte), Kinderbetreuungskosten (2/3 der Kosten, maximal 4.000 Euro pro Kind) und außergewöhnliche Belastungen wie Krankheitskosten oberhalb der zumutbaren Eigenbelastung.</p>
+
+<p><strong>Steuerliche Vorteile für Familien:</strong> Für jedes Kind wird entweder Kindergeld (250 Euro monatlich) oder der Kinderfreibetrag (6.672 Euro pro Kind in 2025) berücksichtigt, je nachdem was günstiger ist. Das Finanzamt prüft automatisch die günstigere Variante (Günstigerprüfung). Alleinerziehende erhalten zusätzlich den Entlastungsbetrag von 4.260 Euro für das erste Kind.</p>
+
+<p><strong>Praxistipp:</strong> Sammeln Sie alle Belege über das Jahr: Fahrtkosten, Arbeitsmittel, Handwerkerrechnungen, Spendenbescheinigungen. Nutzen Sie ELSTER für die elektronische Abgabe. Und wichtig: Prüfen Sie Ihren Steuerbescheid sorgfältig. Laut Bund der Steuerzahler ist etwa jeder dritte Bescheid fehlerhaft. Einspruch ist innerhalb von einem Monat nach Zustellung kostenfrei möglich.</p>"
+    relatedSlugs={['steuerklassen-vergleich', 'kirchensteuer-rechner', 'homeoffice-pauschale']}
+  />
 </Layout>
 
 <script type="module">
@@ -102,7 +122,7 @@ function berechne() {
   document.getElementById('details').innerHTML =
     `<span>Jahressteuer: <strong>${fmt(r.jahresSteuer)}</strong></span>` +
     `<span>Abgaben: <strong>${fmt(r.abgaben)}</strong></span>` +
-    `<span>Freibeträge: <strong>${fmt(r.freibetraege)}</strong></span>` +
+    `<span>Freibeträge: <strong>${fmt(r.freibeträge)}</strong></span>` +
     `<span>Arbeitnehmer-Pauschbetrag: <strong>${fmt(r.pauschbetrag)}</strong></span>`;
 }
 ['brutto','werbung','sonder','kinder'].forEach(id =>

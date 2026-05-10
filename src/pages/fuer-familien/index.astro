@@ -53,6 +53,37 @@ const bySlug = Object.fromEntries(CALCULATORS.map(c => [c.slug, c]));
     </div>
   </div>
 
+  <div class="persona-intro">
+    <h2>Finanzratgeber für Familien: Förderungen, Steuern und Absicherung</h2>
+    <p>Familien haben in Deutschland Anspruch auf zahlreiche staatliche Leistungen und Steuervorteile. Ob Kindergeld, Elterngeld oder Kinderfreibetrag -- wer seine Rechte kennt, kann mehrere tausend Euro im Jahr sparen. Unsere Rechner helfen dir, den überblick über alle Fördermöglichkeiten zu behalten und die besten Entscheidungen für deine Familie zu treffen.</p>
+
+    <h3>Finanzielle Unterstützung: Kindergeld, Elterngeld und Kinderzuschlag</h3>
+    <p>Das Kindergeld beträgt seit 2025 pro Kind 255 Euro monatlich und wird bis zum 18. Lebensjahr gezahlt -- bei Ausbildung oder Studium bis zum 25. Geburtstag. Ergänzend gibt es den Kinderzuschlag für Familien mit geringem Einkommen: bis zu 292 Euro pro Kind und Monat. Das Elterngeld sichert Eltern nach der Geburt finanziell ab. Basiselterngeld wird bis zu 14 Monate gezahlt (mindestens 300 Euro, maximal 1.800 Euro monatlich). Elterngeld Plus ermöglicht eine längere Bezugsdauer bei halbem Betrag und ist ideal für Eltern, die in Teilzeit zurückkehren moechten.</p>
+
+    <h3>Steuervorteile für Familien</h3>
+    <p>Der Kinderfreibetrag bietet Familien mit höherem Einkommen eine Alternative zum Kindergeld. Das Finanzamt prüft automatisch, welche Variante günstiger ist. Alleinerziehende profitieren vom Entlastungsbetrag von 4.260 Euro jährlich für das erste Kind, plus 240 Euro für jedes weitere. Verheiratete Paare sollten zudem ihre Steuerklassenkombination prüfen: Die Wahl zwischen III/V und IV/IV kann mehrere hundert Euro monatlich ausmachen. Nutze unseren Steuerklassen-Vergleich für eine individuelle Berechnung.</p>
+
+    <h3>Betreuungskosten und steuerliche Absetzbarkeit</h3>
+    <p>Kosten für Kita, Tagesmutter, Hort oder Babysitter sind als Sonderausgaben absetzbar -- zwei Drittel der Aufwendungen, maximal 4.000 Euro pro Kind und Jahr. Dabei zaehlen Kinder bis zum 14. Lebensjahr. Auch Schulgeld für anerkannte Privatschulen kann zu 30 Prozent (maximal 5.000 Euro) steuerlich geltend gemacht werden. Unser Betreuungskosten-Rechner zeigt dir, wie viel du tatsaechlich sparst.</p>
+
+    <h3>Unterhaltsrecht bei Trennung</h3>
+    <p>Bei einer Trennung haben Kinder Anspruch auf Unterhalt vom nicht betreuenden Elternteil. Die Höhe richtet sich nach der Duesseldorfer Tabelle und haengt vom Einkommen des Unterhaltspflichtigen sowie dem Alter des Kindes ab. Zusaetzlich kann Ehegattenunterhalt faellig werden -- während der Trennung als Trennungsunterhalt und nach der Scheidung als nachehelicher Unterhalt. Mit unseren Unterhalts-Rechnern bekommst du eine erste Orientierung über die zu erwartenden Beträge.</p>
+
+    <h3>Häufige Fragen</h3>
+    <details>
+      <summary>Wie viel Kindergeld gibt es 2025?</summary>
+      <p>Seit Januar 2025 beträgt das Kindergeld 255 Euro pro Monat und Kind. Es wird unabhängig vom Einkommen der Eltern gezahlt. Den Antrag stellst du bei der Familienkasse der Bundesagentur für Arbeit. Kindergeld wird in der Regel bis zum 18. Geburtstag gezahlt, bei Ausbildung oder Studium bis zum 25. Lebensjahr.</p>
+    </details>
+    <details>
+      <summary>Was ist Elterngeld Plus?</summary>
+      <p>Elterngeld Plus ist eine Variante des Elterngelds für Eltern, die während des Bezugszeitraums in Teilzeit arbeiten moechten. Der monatliche Betrag ist halb so hoch wie das Basiselterngeld, wird dafür aber doppelt so lange gezahlt. So kannst du bis zu 28 Monate (statt 14 Monate) Elterngeld beziehen. Besonders lohnend ist der Partnerschaftsbonus: vier zusaetzliche Monate Elterngeld Plus, wenn beide Elternteile gleichzeitig 24 bis 32 Stunden pro Woche arbeiten.</p>
+    </details>
+    <details>
+      <summary>Welche Betreuungskosten kann ich von der Steuer absetzen?</summary>
+      <p>Absetzbar sind Kosten für die Betreuung von Kindern unter 14 Jahren: Kita-Gebühren, Tagesmutter, Hort, Babysitter oder Au-pair. Zwei Drittel der Kosten werden anerkannt, maximal 4.000 Euro pro Kind und Jahr. Nicht absetzbar sind dagegen Kosten für Nachhilfe, Sportvereine oder Verpflegung. Bewahre alle Rechnungen und überweisungsbelege gut auf -- Barzahlungen werden vom Finanzamt nicht anerkannt.</p>
+    </details>
+  </div>
+
   <div class="sections">
     {sections.map(section => {
       const calcs = section.slugs.map(s => bySlug[s]).filter(Boolean);
@@ -159,4 +190,39 @@ const bySlug = Object.fromEntries(CALCULATORS.map(c => [c.slug, c]));
 }
 .grid { display: grid; gap: 0.75rem; }
 @media (min-width: 640px) { .grid { grid-template-columns: 1fr 1fr; } }
+.persona-intro {
+  margin-bottom: 2rem;
+  line-height: 1.7;
+  color: var(--text);
+}
+.persona-intro h2 {
+  font-size: 1.4rem;
+  margin-bottom: 0.75rem;
+  color: var(--dark);
+}
+.persona-intro h3 {
+  font-size: 1.1rem;
+  margin-top: 1.5rem;
+  margin-bottom: 0.5rem;
+  color: var(--dark);
+}
+.persona-intro p {
+  margin-bottom: 0.75rem;
+  font-size: 0.92rem;
+}
+.persona-intro details {
+  margin-bottom: 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0.75rem 1rem;
+}
+.persona-intro summary {
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+.persona-intro details p {
+  margin-top: 0.5rem;
+  margin-bottom: 0;
+}
 </style>

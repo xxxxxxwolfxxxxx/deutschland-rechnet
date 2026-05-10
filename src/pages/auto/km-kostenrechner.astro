@@ -1,5 +1,6 @@
 ---
 import CalculatorLayout from '../../layouts/CalculatorLayout.astro';
+import CalculatorGuide from '../../components/CalculatorGuide.astro';
 
 const base = import.meta.env.BASE_URL;
 ---
@@ -87,6 +88,22 @@ const base = import.meta.env.BASE_URL;
       </div>
     </div>
   </div>
+
+  <CalculatorGuide
+    title="Kilometerkosten verstehen und richtig berechnen"
+    content={`<p>Die <strong>Kosten pro Kilometer</strong> sind eine der wichtigsten Kennzahlen für Autobesitzer. Sie zeigen, was jeder gefahrene Kilometer tatsächlich kostet, wenn alle Ausgaben berücksichtigt werden. Diese Information ist unverzichtbar für Pendler, Vielfahrer und alle, die ihre Mobilitätskosten optimieren wollen.</p>
+
+<p><strong>Vollkostenrechnung vs. reine Spritkosten:</strong> Viele Autofahrer kennen nur ihre Tankkosten und unterschätzen die wahren Kilometerskosten erheblich. Zu einer ehrlichen Vollkostenrechnung gehören: Kraftstoff oder Strom, Kfz-Versicherung (Haftpflicht und ggf. Kasko), Kfz-Steuer, Wartung und Reparaturen, TÜV/HU, Reifenverschleiß, Parkgebühren und der Wertverlust des Fahrzeugs. Letzterer ist oft der größte Einzelposten: Ein Neuwagen verliert im ersten Jahr durchschnittlich 20-25 Prozent seines Wertes.</p>
+
+<p><strong>Durchschnittliche Kosten in Deutschland:</strong> Laut ADAC liegen die Gesamtkosten pro Kilometer für einen Kleinwagen bei ca. 0,30-0,40 Euro, für die Kompaktklasse bei 0,40-0,55 Euro und für einen Mittelklassewagen bei 0,55-0,75 Euro. Diese Werte beinhalten den Wertverlust. Wer einen älteren Gebrauchtwagen fährt, hat zwar keinen hohen Wertverlust mehr, dafür aber oft höhere Reparaturkosten.</p>
+
+<p><strong>Steuerliche Relevanz:</strong> Die Kilometerpauschale (Entfernungspauschale) für den Arbeitsweg beträgt 0,30 Euro für die ersten 20 Kilometer und 0,38 Euro ab dem 21. Kilometer (Stand 2024). Diese kann in der Einkommensteuererklärung als Werbungskosten geltend gemacht werden, unabhängig vom genutzten Verkehrsmittel. Bei Dienstreisen können die tatsächlichen Kosten oder 0,30 Euro/km angesetzt werden.</p>
+
+<p><strong>Fahrgemeinschaften und Mitfahrgelegenheiten:</strong> Wer regelmäßig die gleiche Strecke fährt, kann durch Fahrgemeinschaften die Kosten pro Person deutlich senken. Bei vier Mitfahrern reduzieren sich die individuellen Kosten auf ein Viertel. Auch Mitfahrplattformen nutzen Kilometerkostensätze als Orientierung für faire Preise.</p>
+
+<p><strong>Praxistipp:</strong> Führen Sie ein Haushaltsbuch oder nutzen Sie eine App, um alle Autokosten über ein Jahr zu erfassen. Teilen Sie die Jahresgesamtkosten durch die gefahrenen Kilometer, um Ihren persönlichen Kilometersatz zu ermitteln. So erkennen Sie, ob ein Jobwechsel mit längerem Arbeitsweg wirklich lohnt oder ob ein Umstieg auf den ÖPNV günstiger wäre.</p>`}
+    relatedSlugs={['fahrtkosten-rechner', 'spritkosten-rechner', 'spritkosten-vergleich', 'kfz-steuer-rechner']}
+  />
 </CalculatorLayout>
 
 <style>
