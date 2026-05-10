@@ -1,0 +1,1234 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import CalculatorShell from '../../components/CalculatorShell.astro';
+import CalculatorGuide from '../../components/CalculatorGuide.astro';
+import { CALCULATORS, CATEGORIES } from '../../data/calculators';
+const calc = CALCULATORS.find(c => c.slug === 'protokoll-generator')!;
+const cat = CATEGORIES[calc.category];
+const year = new Date().getFullYear();
+---
+<Layout
+  title={`Protokoll-Generator ${year}`}
+  description="Kostenloser Protokoll-Generator: Wohnungsübergabe, Fahrzeugübergabe, Geräteübergabe, Besprechung, Abnahme – als PDF herunterladen."
+  canonicalPath="/vorlagen/protokoll-generator/"
+  categoryColor={cat.color}
+  categoryLight={cat.colorLight}
+  categoryImage={cat.image}
+>
+  <div class="page-header">
+    <a href={`${import.meta.env.BASE_URL}vorlagen/`} class="back-link">&larr; Vorlagen &amp; Tools</a>
+    <h1>Protokoll-Generator {year}</h1>
+  </div>
+  <CalculatorShell
+    calculator={calc}
+    intro="Erstellen Sie professionelle Protokolle als PDF – kostenlos und direkt im Browser. Wählen Sie den Protokolltyp und füllen Sie die relevanten Felder aus."
+    sourceNote="Alle Daten werden ausschließlich in Ihrem Browser verarbeitet. Es werden keine Daten an einen Server übertragen."
+    faqs={[
+      { q: "Welche Protokolle kann ich erstellen?", a: "Sie können fünf verschiedene Protokolltypen erstellen: Wohnungsübergabeprotokoll (für Einzug/Auszug), Fahrzeugübergabeprotokoll (für Kauf/Leasing), Geräteübergabeprotokoll (für IT- und Firmengeräte), Besprechungsprotokoll (Meeting-Minutes) und Abnahmeprotokoll (für Bau- und Renovierungsarbeiten). Jeder Typ enthält die typischen Felder und wird als professionelles PDF generiert." },
+      { q: "Ist ein Übergabeprotokoll Pflicht?", a: "Nein, Übergabeprotokolle sind gesetzlich nicht vorgeschrieben. Sie sind jedoch dringend empfohlen, da sie als wichtiges Beweismittel dienen. Ohne Protokoll kann es bei Streitigkeiten über den Zustand von Wohnungen, Fahrzeugen oder Geräten schwierig werden, Schäden nachzuweisen. Die meisten Vermieter, Leasinggesellschaften und Unternehmen bestehen daher auf einem Übergabeprotokoll." },
+      { q: "Was passiert mit meinen Daten?", a: "Ihre Daten bleiben ausschließlich in Ihrem Browser. Das PDF wird lokal auf Ihrem Gerät erzeugt – es werden keinerlei Daten an einen Server übertragen. Sie können die Seite auch offline nutzen, nachdem sie einmal geladen wurde. Wir speichern keine Formulardaten, keine Cookies und keine personenbezogenen Informationen." },
+      { q: "Muss das Protokoll unterschrieben werden?", a: "Für die Beweiskraft ist eine beidseitige Unterschrift wichtig. Das PDF enthält vorgefertigte Unterschriftenfelder. Drucken Sie das Protokoll aus und lassen Sie es vor Ort von allen Beteiligten unterschreiben. Jede Partei sollte ein Exemplar erhalten. Alternativ kann eine qualifizierte elektronische Signatur verwendet werden." },
+      { q: "Kann ich das Protokoll nachträglich bearbeiten?", a: "Das PDF ist ein fertiges Dokument und kann nicht direkt bearbeitet werden. Sie können jedoch jederzeit ein neues Protokoll mit geänderten Angaben erstellen. Tipp: Füllen Sie das Formular vor der Übergabe mit den bekannten Daten aus und ergänzen Sie die restlichen Felder vor Ort. Drucken Sie dann das fertige PDF." }
+    ]}
+  >
+    <div class="calc-form">
+      <!-- Protokolltyp-Auswahl -->
+      <div class="proto-type-selector">
+        <label for="proto-type"><strong>Protokolltyp wählen:</strong></label>
+        <select id="proto-type">
+          <option value="wohnung">Wohnungsübergabe</option>
+          <option value="fahrzeug">Fahrzeugübergabe</option>
+          <option value="geraet">Geräteübergabe</option>
+          <option value="besprechung">Besprechungsprotokoll</option>
+          <option value="abnahme">Abnahmeprotokoll</option>
+        </select>
+      </div>
+
+      <!-- ============================================ -->
+      <!-- WOHNUNGSÜBERGABE -->
+      <!-- ============================================ -->
+      <div data-proto="wohnung">
+        <fieldset class="up-section">
+          <legend class="up-legend"><span class="up-legend-icon">&#9662;</span> Allgemeine Angaben</legend>
+          <div class="up-section-body">
+            <div class="calc-grid">
+              <div class="calc-group">
+                <label for="w-datum">Datum der Übergabe</label>
+                <input type="date" id="w-datum" class="auto-date" />
+              </div>
+              <div class="calc-group">
+                <label for="w-art">Art der Übergabe</label>
+                <select id="w-art">
+                  <option value="Einzug">Einzug</option>
+                  <option value="Auszug">Auszug</option>
+                </select>
+              </div>
+            </div>
+          </div>
+        </fieldset>
+
+        <fieldset class="up-section">
+          <legend class="up-legend"><span class="up-legend-icon">&#9662;</span> Objekt</legend>
+          <div class="up-section-body">
+            <div class="calc-grid">
+              <div class="calc-group" style="grid-column:1/-1;"><label for="w-strasse">Straße + Hausnummer</label><input type="text" id="w-strasse" placeholder="Musterstraße 12" /></div>
+              <div class="calc-group"><label for="w-plz">PLZ</label><input type="text" id="w-plz" placeholder="10115" maxlength="5" /></div>
+              <div class="calc-group"><label for="w-ort">Ort</label><input type="text" id="w-ort" placeholder="Berlin" /></div>
+              <div class="calc-group"><label for="w-etage">Etage / Lage</label><input type="text" id="w-etage" placeholder="3. OG links" /></div>
+              <div class="calc-group"><label for="w-zimmer">Anzahl Zimmer</label><input type="number" id="w-zimmer" min="1" max="20" value="3" /></div>
+            </div>
+          </div>
+        </fieldset>
+
+        <fieldset class="up-section">
+          <legend class="up-legend"><span class="up-legend-icon">&#9662;</span> Vermieter</legend>
+          <div class="up-section-body">
+            <div class="calc-grid">
+              <div class="calc-group"><label for="w-vm-name">Name</label><input type="text" id="w-vm-name" placeholder="Max Mustermann" /></div>
+              <div class="calc-group"><label for="w-vm-adresse">Adresse (optional)</label><input type="text" id="w-vm-adresse" placeholder="Beispielweg 5, 10115 Berlin" /></div>
+            </div>
+          </div>
+        </fieldset>
+
+        <fieldset class="up-section">
+          <legend class="up-legend"><span class="up-legend-icon">&#9662;</span> Mieter</legend>
+          <div class="up-section-body">
+            <div class="calc-grid">
+              <div class="calc-group"><label for="w-mi-name">Name</label><input type="text" id="w-mi-name" placeholder="Erika Musterfrau" /></div>
+              <div class="calc-group"><label for="w-mi-adresse">Neue Adresse (optional)</label><input type="text" id="w-mi-adresse" placeholder="Neue Straße 1, 20095 Hamburg" /></div>
+            </div>
+          </div>
+        </fieldset>
+
+        <fieldset class="up-section">
+          <legend class="up-legend"><span class="up-legend-icon">&#9662;</span> Zählerstände</legend>
+          <div class="up-section-body">
+            <div class="zaehler-grid">
+              <div class="zaehler-row"><strong>Strom</strong><input type="text" id="w-strom-nr" placeholder="Zählernummer" /><input type="text" id="w-strom-stand" placeholder="Stand (kWh)" /></div>
+              <div class="zaehler-row"><strong>Gas</strong><input type="text" id="w-gas-nr" placeholder="Zählernummer" /><input type="text" id="w-gas-stand" placeholder="Stand (m³)" /></div>
+              <div class="zaehler-row"><strong>Wasser</strong><input type="text" id="w-wasser-nr" placeholder="Zählernummer" /><input type="text" id="w-wasser-stand" placeholder="Stand (m³)" /></div>
+              <div class="zaehler-row"><strong>Heizung</strong><input type="text" id="w-heizung-nr" placeholder="Zählernummer" /><input type="text" id="w-heizung-stand" placeholder="Stand" /></div>
+            </div>
+          </div>
+        </fieldset>
+
+        <fieldset class="up-section">
+          <legend class="up-legend"><span class="up-legend-icon">&#9662;</span> Schlüssel</legend>
+          <div class="up-section-body">
+            <div class="calc-grid schluessel-grid">
+              <div class="calc-group"><label for="w-haus-schluessel">Hausschlüssel</label><input type="number" id="w-haus-schluessel" min="0" max="20" value="0" /></div>
+              <div class="calc-group"><label for="w-wohnung-schluessel">Wohnungsschlüssel</label><input type="number" id="w-wohnung-schluessel" min="0" max="20" value="0" /></div>
+              <div class="calc-group"><label for="w-brief-schluessel">Briefkastenschlüssel</label><input type="number" id="w-brief-schluessel" min="0" max="20" value="0" /></div>
+              <div class="calc-group"><label for="w-keller-schluessel">Kellerschlüssel</label><input type="number" id="w-keller-schluessel" min="0" max="20" value="0" /></div>
+            </div>
+          </div>
+        </fieldset>
+
+        <fieldset class="up-section">
+          <legend class="up-legend"><span class="up-legend-icon">&#9662;</span> Raumzustand</legend>
+          <div class="up-section-body">
+            <div id="w-raeume-container"></div>
+            <div class="raum-actions">
+              <select id="w-raum-vorlage">
+                <option value="Wohnzimmer">Wohnzimmer</option>
+                <option value="Schlafzimmer">Schlafzimmer</option>
+                <option value="Küche">Küche</option>
+                <option value="Bad">Bad</option>
+                <option value="Flur">Flur</option>
+                <option value="Keller">Keller</option>
+                <option value="Balkon">Balkon</option>
+                <option value="Abstellraum">Abstellraum</option>
+                <option value="">Eigener Name...</option>
+              </select>
+              <input type="text" id="w-raum-freitext" placeholder="Raumname eingeben" style="display:none;" />
+              <button type="button" id="w-raum-add" class="btn-add">+ Raum hinzufügen</button>
+            </div>
+          </div>
+        </fieldset>
+
+        <fieldset class="up-section">
+          <legend class="up-legend"><span class="up-legend-icon">&#9662;</span> Sonstige Bemerkungen</legend>
+          <div class="up-section-body">
+            <textarea id="w-bemerkungen" rows="4" class="up-textarea" placeholder="Weitere Anmerkungen, Vereinbarungen oder Mängel..."></textarea>
+          </div>
+        </fieldset>
+      </div>
+
+      <!-- ============================================ -->
+      <!-- FAHRZEUGÜBERGABE -->
+      <!-- ============================================ -->
+      <div data-proto="fahrzeug" style="display:none;">
+        <fieldset class="up-section">
+          <legend class="up-legend"><span class="up-legend-icon">&#9662;</span> Allgemeine Angaben</legend>
+          <div class="up-section-body">
+            <div class="calc-grid">
+              <div class="calc-group"><label for="f-datum">Datum</label><input type="date" id="f-datum" class="auto-date" /></div>
+              <div class="calc-group"><label for="f-anlass">Anlass</label>
+                <select id="f-anlass">
+                  <option value="Verkauf/Kauf">Verkauf / Kauf</option>
+                  <option value="Leasing-Rückgabe">Leasing-Rückgabe</option>
+                  <option value="Firmenwagen">Firmenwagen-Übergabe</option>
+                  <option value="Sonstiges">Sonstiges</option>
+                </select>
+              </div>
+            </div>
+          </div>
+        </fieldset>
+
+        <fieldset class="up-section">
+          <legend class="up-legend"><span class="up-legend-icon">&#9662;</span> Fahrzeugdaten</legend>
+          <div class="up-section-body">
+            <div class="calc-grid">
+              <div class="calc-group"><label for="f-marke">Marke</label><input type="text" id="f-marke" placeholder="VW" /></div>
+              <div class="calc-group"><label for="f-modell">Modell</label><input type="text" id="f-modell" placeholder="Golf 8" /></div>
+              <div class="calc-group"><label for="f-baujahr">Baujahr</label><input type="number" id="f-baujahr" min="1950" max="2030" placeholder="2022" /></div>
+              <div class="calc-group"><label for="f-kennzeichen">Kennzeichen</label><input type="text" id="f-kennzeichen" placeholder="B-AB 1234" /></div>
+              <div class="calc-group"><label for="f-fin">FIN (Fahrzeug-Ident-Nr.)</label><input type="text" id="f-fin" placeholder="WVWZZZ..." /></div>
+              <div class="calc-group"><label for="f-km">Kilometerstand</label><input type="number" id="f-km" min="0" placeholder="45000" /></div>
+              <div class="calc-group"><label for="f-tuev">TÜV bis</label><input type="text" id="f-tuev" placeholder="03/2027" /></div>
+              <div class="calc-group"><label for="f-farbe">Farbe</label><input type="text" id="f-farbe" placeholder="Schwarz Metallic" /></div>
+            </div>
+          </div>
+        </fieldset>
+
+        <fieldset class="up-section">
+          <legend class="up-legend"><span class="up-legend-icon">&#9662;</span> Übergeber</legend>
+          <div class="up-section-body">
+            <div class="calc-grid">
+              <div class="calc-group"><label for="f-ug-name">Name</label><input type="text" id="f-ug-name" /></div>
+              <div class="calc-group"><label for="f-ug-adresse">Adresse</label><input type="text" id="f-ug-adresse" /></div>
+            </div>
+          </div>
+        </fieldset>
+
+        <fieldset class="up-section">
+          <legend class="up-legend"><span class="up-legend-icon">&#9662;</span> Übernehmer</legend>
+          <div class="up-section-body">
+            <div class="calc-grid">
+              <div class="calc-group"><label for="f-un-name">Name</label><input type="text" id="f-un-name" /></div>
+              <div class="calc-group"><label for="f-un-adresse">Adresse</label><input type="text" id="f-un-adresse" /></div>
+            </div>
+          </div>
+        </fieldset>
+
+        <fieldset class="up-section">
+          <legend class="up-legend"><span class="up-legend-icon">&#9662;</span> Zustand</legend>
+          <div class="up-section-body">
+            <div id="f-zustand-container"></div>
+          </div>
+        </fieldset>
+
+        <fieldset class="up-section">
+          <legend class="up-legend"><span class="up-legend-icon">&#9662;</span> Zubehör &amp; Dokumente</legend>
+          <div class="up-section-body">
+            <div id="f-zubehoer-container"></div>
+          </div>
+        </fieldset>
+
+        <fieldset class="up-section">
+          <legend class="up-legend"><span class="up-legend-icon">&#9662;</span> Bemerkungen</legend>
+          <div class="up-section-body">
+            <textarea id="f-bemerkungen" rows="4" class="up-textarea" placeholder="Sonstige Vereinbarungen, bekannte Mängel..."></textarea>
+          </div>
+        </fieldset>
+      </div>
+
+      <!-- ============================================ -->
+      <!-- GERÄTEÜBERGABE -->
+      <!-- ============================================ -->
+      <div data-proto="geraet" style="display:none;">
+        <fieldset class="up-section">
+          <legend class="up-legend"><span class="up-legend-icon">&#9662;</span> Allgemeine Angaben</legend>
+          <div class="up-section-body">
+            <div class="calc-grid">
+              <div class="calc-group"><label for="g-datum">Datum</label><input type="date" id="g-datum" class="auto-date" /></div>
+              <div class="calc-group"><label for="g-anlass">Anlass</label>
+                <select id="g-anlass">
+                  <option value="Ausgabe">Ausgabe an Mitarbeiter</option>
+                  <option value="Rückgabe">Rückgabe</option>
+                  <option value="Tausch">Gerätetausch</option>
+                </select>
+              </div>
+            </div>
+          </div>
+        </fieldset>
+
+        <fieldset class="up-section">
+          <legend class="up-legend"><span class="up-legend-icon">&#9662;</span> Gerätedaten</legend>
+          <div class="up-section-body">
+            <div id="g-geraete-container"></div>
+            <button type="button" id="g-geraet-add" class="btn-add" style="margin-top:0.5rem;">+ Gerät hinzufügen</button>
+          </div>
+        </fieldset>
+
+        <fieldset class="up-section">
+          <legend class="up-legend"><span class="up-legend-icon">&#9662;</span> Übergeber</legend>
+          <div class="up-section-body">
+            <div class="calc-grid">
+              <div class="calc-group"><label for="g-ug-name">Name</label><input type="text" id="g-ug-name" /></div>
+              <div class="calc-group"><label for="g-ug-abteilung">Abteilung / Firma</label><input type="text" id="g-ug-abteilung" /></div>
+            </div>
+          </div>
+        </fieldset>
+
+        <fieldset class="up-section">
+          <legend class="up-legend"><span class="up-legend-icon">&#9662;</span> Übernehmer</legend>
+          <div class="up-section-body">
+            <div class="calc-grid">
+              <div class="calc-group"><label for="g-un-name">Name</label><input type="text" id="g-un-name" /></div>
+              <div class="calc-group"><label for="g-un-abteilung">Abteilung / Firma</label><input type="text" id="g-un-abteilung" /></div>
+            </div>
+          </div>
+        </fieldset>
+
+        <fieldset class="up-section">
+          <legend class="up-legend"><span class="up-legend-icon">&#9662;</span> Bemerkungen</legend>
+          <div class="up-section-body">
+            <textarea id="g-bemerkungen" rows="4" class="up-textarea" placeholder="Passwörter übergeben, Software-Lizenzen, besondere Hinweise..."></textarea>
+          </div>
+        </fieldset>
+      </div>
+
+      <!-- ============================================ -->
+      <!-- BESPRECHUNGSPROTOKOLL -->
+      <!-- ============================================ -->
+      <div data-proto="besprechung" style="display:none;">
+        <fieldset class="up-section">
+          <legend class="up-legend"><span class="up-legend-icon">&#9662;</span> Allgemeine Angaben</legend>
+          <div class="up-section-body">
+            <div class="calc-grid">
+              <div class="calc-group"><label for="b-datum">Datum</label><input type="date" id="b-datum" class="auto-date" /></div>
+              <div class="calc-group"><label for="b-uhrzeit">Uhrzeit</label><input type="time" id="b-uhrzeit" /></div>
+              <div class="calc-group"><label for="b-ort">Ort / Raum</label><input type="text" id="b-ort" placeholder="Konferenzraum A3" /></div>
+              <div class="calc-group"><label for="b-protokollfuehrer">Protokollführer</label><input type="text" id="b-protokollfuehrer" /></div>
+              <div class="calc-group" style="grid-column:1/-1;"><label for="b-thema">Thema / Betreff</label><input type="text" id="b-thema" placeholder="Projekt-Statusmeeting Q2" /></div>
+            </div>
+          </div>
+        </fieldset>
+
+        <fieldset class="up-section">
+          <legend class="up-legend"><span class="up-legend-icon">&#9662;</span> Teilnehmer</legend>
+          <div class="up-section-body">
+            <div id="b-teilnehmer-container"></div>
+            <button type="button" id="b-teilnehmer-add" class="btn-add">+ Teilnehmer hinzufügen</button>
+          </div>
+        </fieldset>
+
+        <fieldset class="up-section">
+          <legend class="up-legend"><span class="up-legend-icon">&#9662;</span> Tagesordnungspunkte</legend>
+          <div class="up-section-body">
+            <div id="b-tops-container"></div>
+            <button type="button" id="b-top-add" class="btn-add">+ TOP hinzufügen</button>
+          </div>
+        </fieldset>
+
+        <fieldset class="up-section">
+          <legend class="up-legend"><span class="up-legend-icon">&#9662;</span> Aufgaben / To-Dos</legend>
+          <div class="up-section-body">
+            <div id="b-aufgaben-container"></div>
+            <button type="button" id="b-aufgabe-add" class="btn-add">+ Aufgabe hinzufügen</button>
+          </div>
+        </fieldset>
+
+        <fieldset class="up-section">
+          <legend class="up-legend"><span class="up-legend-icon">&#9662;</span> Nächster Termin / Bemerkungen</legend>
+          <div class="up-section-body">
+            <div class="calc-grid">
+              <div class="calc-group"><label for="b-naechster-termin">Nächster Termin</label><input type="date" id="b-naechster-termin" /></div>
+              <div class="calc-group"><label for="b-naechster-uhrzeit">Uhrzeit</label><input type="time" id="b-naechster-uhrzeit" /></div>
+            </div>
+            <textarea id="b-bemerkungen" rows="3" class="up-textarea" style="margin-top:0.75rem;" placeholder="Allgemeine Bemerkungen..."></textarea>
+          </div>
+        </fieldset>
+      </div>
+
+      <!-- ============================================ -->
+      <!-- ABNAHMEPROTOKOLL -->
+      <!-- ============================================ -->
+      <div data-proto="abnahme" style="display:none;">
+        <fieldset class="up-section">
+          <legend class="up-legend"><span class="up-legend-icon">&#9662;</span> Allgemeine Angaben</legend>
+          <div class="up-section-body">
+            <div class="calc-grid">
+              <div class="calc-group"><label for="a-datum">Datum</label><input type="date" id="a-datum" class="auto-date" /></div>
+              <div class="calc-group"><label for="a-projekt">Projekt / Bauvorhaben</label><input type="text" id="a-projekt" placeholder="Dachsanierung Musterstr. 5" /></div>
+              <div class="calc-group" style="grid-column:1/-1;"><label for="a-adresse">Objekt-Adresse</label><input type="text" id="a-adresse" placeholder="Musterstraße 5, 10115 Berlin" /></div>
+            </div>
+          </div>
+        </fieldset>
+
+        <fieldset class="up-section">
+          <legend class="up-legend"><span class="up-legend-icon">&#9662;</span> Auftraggeber</legend>
+          <div class="up-section-body">
+            <div class="calc-grid">
+              <div class="calc-group"><label for="a-ag-name">Name / Firma</label><input type="text" id="a-ag-name" /></div>
+              <div class="calc-group"><label for="a-ag-adresse">Adresse</label><input type="text" id="a-ag-adresse" /></div>
+            </div>
+          </div>
+        </fieldset>
+
+        <fieldset class="up-section">
+          <legend class="up-legend"><span class="up-legend-icon">&#9662;</span> Auftragnehmer</legend>
+          <div class="up-section-body">
+            <div class="calc-grid">
+              <div class="calc-group"><label for="a-an-name">Name / Firma</label><input type="text" id="a-an-name" /></div>
+              <div class="calc-group"><label for="a-an-adresse">Adresse</label><input type="text" id="a-an-adresse" /></div>
+            </div>
+          </div>
+        </fieldset>
+
+        <fieldset class="up-section">
+          <legend class="up-legend"><span class="up-legend-icon">&#9662;</span> Leistungen</legend>
+          <div class="up-section-body">
+            <div id="a-leistungen-container"></div>
+            <button type="button" id="a-leistung-add" class="btn-add">+ Leistung hinzufügen</button>
+          </div>
+        </fieldset>
+
+        <fieldset class="up-section">
+          <legend class="up-legend"><span class="up-legend-icon">&#9662;</span> Mängelliste</legend>
+          <div class="up-section-body">
+            <div id="a-maengel-container"></div>
+            <button type="button" id="a-mangel-add" class="btn-add">+ Mangel hinzufügen</button>
+          </div>
+        </fieldset>
+
+        <fieldset class="up-section">
+          <legend class="up-legend"><span class="up-legend-icon">&#9662;</span> Ergebnis</legend>
+          <div class="up-section-body">
+            <div class="calc-grid">
+              <div class="calc-group">
+                <label for="a-ergebnis">Abnahmeergebnis</label>
+                <select id="a-ergebnis">
+                  <option value="Abgenommen">Abgenommen ohne Mängel</option>
+                  <option value="Abgenommen mit Mängeln">Abgenommen mit Mängeln</option>
+                  <option value="Nicht abgenommen">Nicht abgenommen</option>
+                </select>
+              </div>
+              <div class="calc-group"><label for="a-frist">Frist zur Mängelbeseitigung</label><input type="date" id="a-frist" /></div>
+            </div>
+            <textarea id="a-bemerkungen" rows="3" class="up-textarea" style="margin-top:0.75rem;" placeholder="Ergänzende Bemerkungen, Vorbehalte..."></textarea>
+          </div>
+        </fieldset>
+      </div>
+
+      <!-- PDF Download Button -->
+      <div class="up-download-area">
+        <button type="button" id="btn-pdf" class="btn-pdf">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:0.4rem;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          PDF erstellen &amp; herunterladen
+        </button>
+        <p class="up-download-hint">Das PDF wird direkt in Ihrem Browser erzeugt. Keine Daten werden übertragen.</p>
+      </div>
+    </div>
+  </CalculatorShell>
+
+  <CalculatorGuide title="Protokolle richtig erstellen: Typen, Tipps und rechtliche Hinweise" content={`<p>Ein sorgfältig erstelltes Protokoll dient als Beweismittel, schafft Klarheit und verhindert spätere Streitigkeiten. Ob Wohnungsübergabe, Fahrzeugkauf oder Projektabnahme – die richtige Dokumentation schützt alle Beteiligten. Unser Generator erstellt professionelle PDF-Protokolle für die häufigsten Anwendungsfälle.</p>
+
+<p><strong>Wohnungsübergabeprotokoll:</strong> Bei Einzug und Auszug unverzichtbar. Dokumentieren Sie den Zustand aller Räume, Zählerstände und übergebene Schlüssel. Führen Sie die Begehung bei Tageslicht durch und machen Sie ergänzend Fotos. Nach § 548 BGB verjähren Schadensersatzansprüche des Vermieters 6 Monate nach Rückgabe – ohne Protokoll ist die Beweislage schwierig.</p>
+
+<p><strong>Fahrzeugübergabeprotokoll:</strong> Beim Gebrauchtwagenkauf oder der Leasing-Rückgabe sollten Sie Kilometerstand, Zustand (außen und innen), vorhandenes Zubehör und bekannte Mängel festhalten. Prüfen Sie Lack, Reifen, Scheiben und den Innenraum systematisch. Notieren Sie die Fahrzeug-Identifizierungsnummer (FIN) und den nächsten TÜV-Termin. Bei Leasing-Rückgaben gelten oft strenge Rückgabestandards.</p>
+
+<p><strong>Geräteübergabeprotokoll:</strong> In Unternehmen Standard bei der Ausgabe von Laptops, Smartphones oder Werkzeugen. Erfassen Sie Seriennummer, Inventarnummer, Zustand und mitgeliefertes Zubehör. Bei IT-Geräten sollten auch Softwarelizenzen und Zugangsdaten dokumentiert werden. Das Protokoll schützt sowohl das Unternehmen als auch den Mitarbeiter.</p>
+
+<p><strong>Besprechungsprotokoll:</strong> Halten Sie Datum, Teilnehmer, besprochene Themen, Beschlüsse und offene Aufgaben fest. Jede Aufgabe sollte einen Verantwortlichen und eine Frist haben. Versenden Sie das Protokoll zeitnah nach der Besprechung an alle Teilnehmer. In formalen Kontexten (Eigentümerversammlungen, Vereinssitzungen) ist ein Protokoll oft gesetzlich vorgeschrieben.</p>
+
+<p><strong>Abnahmeprotokoll:</strong> Bei Bau- und Renovierungsarbeiten dokumentiert die Abnahme, ob die vereinbarten Leistungen vertragsgemäß erbracht wurden. Mängel werden mit Beschreibung und Frist zur Behebung aufgenommen. Die Abnahme hat nach § 640 BGB erhebliche rechtliche Folgen: Mit ihr beginnt die Gewährleistungsfrist (in der Regel 5 Jahre bei Bauwerken) und die Beweislast für Mängel kehrt sich um.</p>
+
+<p><strong>Allgemeine Tipps:</strong> Lassen Sie jedes Protokoll von allen Beteiligten unterschreiben und geben Sie jedem ein Exemplar. Bei Unstimmigkeiten können Zeugen hinzugezogen werden. Digitale Fotos mit Zeitstempel ergänzen das Protokoll optimal. Bewahren Sie Protokolle mindestens für die Dauer der jeweiligen Verjährungsfrist auf.</p>`} relatedSlugs={['qr-code-generator', 'nebenkosten-rechner', 'mietrechner']} />
+</Layout>
+
+<style>
+/* Protocol type selector */
+.proto-type-selector {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  margin-bottom: 1.25rem;
+  padding-bottom: 1.25rem;
+  border-bottom: 2px solid var(--border);
+}
+.proto-type-selector select {
+  font-size: 1rem;
+  padding: 0.6rem 0.8rem;
+  border: 2px solid var(--accent, #37474f);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  font-weight: 600;
+  color: var(--text);
+  font-family: var(--font-ui);
+}
+
+/* Fieldset / Accordion sections */
+.up-section {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  margin-bottom: 0.75rem;
+  padding: 0;
+  background: var(--bg);
+}
+.up-legend {
+  font-weight: 600;
+  font-size: 0.95rem;
+  cursor: pointer;
+  padding: 0.75rem 1rem;
+  margin: 0;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  user-select: none;
+  color: var(--text);
+  font-family: var(--font-ui);
+}
+.up-legend:hover { color: var(--accent); }
+.up-legend-icon {
+  font-size: 0.7rem;
+  transition: transform 0.2s;
+  display: inline-block;
+}
+.up-section.collapsed .up-legend-icon { transform: rotate(-90deg); }
+.up-section-body { padding: 0 1rem 1rem; }
+.up-section.collapsed .up-section-body { display: none; }
+
+/* Zähler grid */
+.zaehler-grid { display: grid; gap: 0.6rem; }
+.zaehler-row {
+  display: grid;
+  grid-template-columns: 80px 1fr 1fr;
+  gap: 0.5rem;
+  align-items: center;
+  font-size: 0.9rem;
+}
+@media (max-width: 480px) {
+  .zaehler-row { grid-template-columns: 1fr; }
+  .zaehler-row strong { padding-top: 0.5rem; }
+}
+
+/* Schlüssel grid */
+.schluessel-grid { grid-template-columns: repeat(4, 1fr); }
+@media (max-width: 600px) { .schluessel-grid { grid-template-columns: repeat(2, 1fr); } }
+
+/* Raum / checklist cards */
+.item-card {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 1rem;
+  margin-bottom: 0.75rem;
+  background: var(--surface);
+}
+.item-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.75rem;
+}
+.item-card-header h4 {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text);
+}
+.btn-remove {
+  background: none;
+  border: none;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 1.1rem;
+  padding: 0.2rem 0.4rem;
+  border-radius: 4px;
+  line-height: 1;
+}
+.btn-remove:hover { background: #fee; color: #c00; }
+
+/* Tables inside cards */
+.check-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+.check-table th {
+  text-align: left;
+  font-weight: 600;
+  padding: 0.4rem 0.5rem;
+  border-bottom: 2px solid var(--border);
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+.check-table td {
+  padding: 0.4rem 0.5rem;
+  border-bottom: 1px solid var(--border);
+  vertical-align: middle;
+}
+.check-table tr:last-child td { border-bottom: none; }
+.check-table select, .check-table input[type="text"], .check-table input[type="date"] {
+  font-size: 0.82rem;
+  padding: 0.25rem 0.4rem;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--bg);
+  width: 100%;
+  min-width: 0;
+}
+
+/* Dynamic list items (Teilnehmer, TOPs, Aufgaben etc.) */
+.dyn-row {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  margin-bottom: 0.5rem;
+  flex-wrap: wrap;
+}
+.dyn-row input, .dyn-row select {
+  font-size: 0.85rem;
+  padding: 0.4rem 0.6rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  flex: 1;
+  min-width: 100px;
+}
+.dyn-row textarea {
+  font-size: 0.85rem;
+  padding: 0.4rem 0.6rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  flex: 2;
+  min-width: 150px;
+  resize: vertical;
+  font-family: var(--font-body, sans-serif);
+}
+
+/* TOP cards (Besprechung) */
+.top-card {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 0.75rem;
+  margin-bottom: 0.75rem;
+  background: var(--surface);
+}
+.top-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+.top-card-header strong { font-size: 0.9rem; color: var(--text); }
+.top-card label { display: block; font-size: 0.8rem; color: var(--muted); margin-bottom: 0.2rem; margin-top: 0.4rem; }
+.top-card textarea {
+  width: 100%;
+  font-size: 0.85rem;
+  padding: 0.4rem 0.6rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg);
+  resize: vertical;
+  font-family: var(--font-body, sans-serif);
+}
+
+/* Raum actions */
+.raum-actions {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-top: 0.5rem;
+}
+.raum-actions select, .raum-actions input[type="text"] {
+  font-size: 0.85rem;
+  padding: 0.4rem 0.6rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+}
+
+/* Add buttons */
+.btn-add {
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  border-radius: var(--radius-sm);
+  padding: 0.4rem 0.9rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: var(--font-ui);
+  transition: opacity 0.15s;
+}
+.btn-add:hover { opacity: 0.85; }
+
+/* Textarea */
+.up-textarea {
+  width: 100%;
+  font-family: var(--font-body, sans-serif);
+  font-size: 0.9rem;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  resize: vertical;
+}
+
+/* PDF Download */
+.up-download-area {
+  text-align: center;
+  margin-top: 1.5rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border);
+}
+.btn-pdf {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: #16a34a;
+  color: #fff;
+  border: none;
+  border-radius: var(--radius-sm);
+  padding: 0.85rem 2rem;
+  font-size: 1rem;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: var(--font-ui);
+  transition: background 0.15s, transform 0.1s;
+  box-shadow: 0 2px 8px rgba(22,163,74,0.25);
+}
+.btn-pdf:hover { background: #15803d; }
+.btn-pdf:active { transform: scale(0.97); }
+.up-download-hint { font-size: 0.78rem; color: var(--muted); margin-top: 0.5rem; }
+
+/* Hidden PDF render area */
+#pdf-render {
+  position: absolute;
+  left: -9999px;
+  top: 0;
+  width: 210mm;
+  background: #fff;
+  color: #000;
+  font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  font-size: 11pt;
+  line-height: 1.5;
+  padding: 15mm 20mm;
+}
+#pdf-render h1 { font-size: 18pt; text-align: center; margin-bottom: 2mm; color: #111; }
+#pdf-render .pdf-subtitle { text-align: center; font-size: 10pt; color: #555; margin-bottom: 8mm; }
+#pdf-render h2 { font-size: 12pt; border-bottom: 1px solid #ccc; padding-bottom: 2mm; margin-top: 7mm; margin-bottom: 3mm; color: #222; }
+#pdf-render h3 { font-size: 11pt; margin: 4mm 0 2mm; color: #333; }
+#pdf-render table { width: 100%; border-collapse: collapse; margin-bottom: 4mm; }
+#pdf-render table th, #pdf-render table td { border: 1px solid #ccc; padding: 2mm 3mm; font-size: 10pt; text-align: left; }
+#pdf-render table th { background: #f0f0f0; font-weight: 600; }
+#pdf-render .pdf-row { display: flex; gap: 10mm; margin-bottom: 2mm; font-size: 10pt; }
+#pdf-render .pdf-row .pdf-label { font-weight: 600; min-width: 45mm; }
+#pdf-render .pdf-signatures { display: flex; justify-content: space-between; margin-top: 15mm; gap: 10mm; }
+#pdf-render .pdf-sig-block { flex: 1; text-align: center; }
+#pdf-render .pdf-sig-line { border-top: 1px solid #333; margin-top: 20mm; padding-top: 2mm; font-size: 9pt; color: #555; }
+</style>
+
+<script src="https://cdn.jsdelivr.net/npm/html2pdf.js@0.10.2/dist/html2pdf.bundle.min.js" is:inline></script>
+
+<script is:inline>
+document.addEventListener('DOMContentLoaded', function() {
+  var E = function(s) { var d = document.createElement('div'); d.textContent = s; return d.innerHTML; };
+  var V = function(id) { var el = document.getElementById(id); return el ? (el.value || '') : ''; };
+  var fmtDate = function(d) { if (!d) return '-'; var p = d.split('-'); return p[2] + '.' + p[1] + '.' + p[0]; };
+
+  // === Set default dates ===
+  var today = new Date().toISOString().split('T')[0];
+  document.querySelectorAll('.auto-date').forEach(function(el) { if (!el.value) el.value = today; });
+
+  // === Accordion toggle ===
+  document.querySelectorAll('.up-legend').forEach(function(legend) {
+    legend.addEventListener('click', function() { this.closest('.up-section').classList.toggle('collapsed'); });
+  });
+
+  // === Protocol type switching ===
+  var typeSelect = document.getElementById('proto-type');
+  function switchProto() {
+    var type = typeSelect.value;
+    document.querySelectorAll('[data-proto]').forEach(function(el) {
+      el.style.display = el.dataset.proto === type ? '' : 'none';
+    });
+  }
+  typeSelect.addEventListener('change', switchProto);
+
+  // =============================================
+  // WOHNUNG: Room cards
+  // =============================================
+  var wRaumContainer = document.getElementById('w-raeume-container');
+  var wVorlage = document.getElementById('w-raum-vorlage');
+  var wFreitext = document.getElementById('w-raum-freitext');
+  wVorlage.addEventListener('change', function() { wFreitext.style.display = this.value === '' ? 'block' : 'none'; });
+
+  function addWohnungRaum(name) {
+    var card = document.createElement('div');
+    card.className = 'item-card';
+    var parts = ['Wände', 'Boden', 'Fenster', 'Türen'];
+    var html = '<div class="item-card-header"><h4>' + E(name) + '</h4><button type="button" class="btn-remove" title="Entfernen">&times;</button></div>';
+    html += '<table class="check-table"><thead><tr><th>Bereich</th><th>Zustand</th><th>Kommentar</th></tr></thead><tbody>';
+    parts.forEach(function(p) {
+      html += '<tr><td>' + p + '</td><td><select data-part="' + p + '"><option value="gut">gut</option><option value="Mängel">Mängel</option></select></td>';
+      html += '<td><input type="text" data-part="' + p + '" placeholder="optional" /></td></tr>';
+    });
+    html += '</tbody></table>';
+    card.innerHTML = html;
+    wRaumContainer.appendChild(card);
+    card.querySelector('.btn-remove').addEventListener('click', function() { card.remove(); });
+  }
+
+  document.getElementById('w-raum-add').addEventListener('click', function() {
+    var name = wVorlage.value || wFreitext.value.trim();
+    if (!name) { wFreitext.focus(); return; }
+    addWohnungRaum(name);
+    if (!wVorlage.value) wFreitext.value = '';
+  });
+  ['Wohnzimmer', 'Schlafzimmer', 'Küche', 'Bad', 'Flur'].forEach(addWohnungRaum);
+
+  // =============================================
+  // FAHRZEUG: Zustand checklist + Zubehör
+  // =============================================
+  var fZustandContainer = document.getElementById('f-zustand-container');
+  var fZubehoerContainer = document.getElementById('f-zubehoer-container');
+
+  var fZustandItems = [
+    { gruppe: 'Außen', punkte: ['Karosserie / Lack', 'Windschutzscheibe', 'Seitenscheiben', 'Heckscheibe', 'Scheinwerfer / Rückleuchten', 'Reifen vorne links', 'Reifen vorne rechts', 'Reifen hinten links', 'Reifen hinten rechts', 'Felgen', 'Spiegel', 'Kennzeichen'] },
+    { gruppe: 'Innen', punkte: ['Fahrersitz', 'Beifahrersitz', 'Rücksitze', 'Armaturenbrett', 'Lenkrad', 'Mittelkonsole', 'Kofferraum', 'Himmel / Verkleidung', 'Sauberkeit'] }
+  ];
+
+  fZustandItems.forEach(function(g) {
+    var card = document.createElement('div');
+    card.className = 'item-card';
+    var html = '<div class="item-card-header"><h4>' + E(g.gruppe) + '</h4></div>';
+    html += '<table class="check-table"><thead><tr><th>Prüfpunkt</th><th>Zustand</th><th>Kommentar</th></tr></thead><tbody>';
+    g.punkte.forEach(function(p) {
+      html += '<tr><td>' + E(p) + '</td><td><select><option value="i.O.">i.O.</option><option value="Mängel">Mängel</option><option value="Beschädigt">Beschädigt</option></select></td>';
+      html += '<td><input type="text" placeholder="optional" /></td></tr>';
+    });
+    html += '</tbody></table>';
+    card.innerHTML = html;
+    fZustandContainer.appendChild(card);
+  });
+
+  var fZubehoerItems = ['Fahrzeugbrief (Zulassungsbescheinigung Teil II)', 'Fahrzeugschein (Zulassungsbescheinigung Teil I)', 'Serviceheft / Scheckheft', 'Bedienungsanleitung', 'Zweitschlüssel', 'Reserverad / Pannenset', 'Warndreieck', 'Verbandskasten', 'Warnweste', 'Wagenheber', 'Bordwerkzeug', 'Ladekabel (E-Auto)'];
+
+  var fzHtml = '<table class="check-table"><thead><tr><th>Zubehör / Dokument</th><th>Vorhanden</th><th>Kommentar</th></tr></thead><tbody>';
+  fZubehoerItems.forEach(function(item) {
+    fzHtml += '<tr><td>' + E(item) + '</td><td><select><option value="Ja">Ja</option><option value="Nein">Nein</option><option value="k.A.">k.A.</option></select></td>';
+    fzHtml += '<td><input type="text" placeholder="optional" /></td></tr>';
+  });
+  fzHtml += '</tbody></table>';
+  fZubehoerContainer.innerHTML = fzHtml;
+
+  // =============================================
+  // GERÄTE: Dynamic device list
+  // =============================================
+  var gContainer = document.getElementById('g-geraete-container');
+  var gCounter = 0;
+
+  function addGeraet() {
+    gCounter++;
+    var card = document.createElement('div');
+    card.className = 'item-card';
+    var n = gCounter;
+    var html = '<div class="item-card-header"><h4>Gerät ' + n + '</h4><button type="button" class="btn-remove" title="Entfernen">&times;</button></div>';
+    html += '<div class="calc-grid">';
+    html += '<div class="calc-group"><label>Bezeichnung</label><input type="text" data-field="bezeichnung" placeholder="z.B. MacBook Pro 14" /></div>';
+    html += '<div class="calc-group"><label>Hersteller</label><input type="text" data-field="hersteller" placeholder="Apple" /></div>';
+    html += '<div class="calc-group"><label>Seriennummer</label><input type="text" data-field="seriennummer" /></div>';
+    html += '<div class="calc-group"><label>Inventarnummer</label><input type="text" data-field="inventarnummer" /></div>';
+    html += '<div class="calc-group"><label>Zustand</label><select data-field="zustand"><option value="Neuwertig">Neuwertig</option><option value="Gut">Gut</option><option value="Gebrauchsspuren">Gebrauchsspuren</option><option value="Beschädigt">Beschädigt</option></select></div>';
+    html += '<div class="calc-group"><label>Zubehör</label><input type="text" data-field="zubehoer" placeholder="Ladekabel, Tasche, Maus..." /></div>';
+    html += '</div>';
+    card.innerHTML = html;
+    gContainer.appendChild(card);
+    card.querySelector('.btn-remove').addEventListener('click', function() { card.remove(); });
+  }
+
+  document.getElementById('g-geraet-add').addEventListener('click', addGeraet);
+  addGeraet();
+
+  // =============================================
+  // BESPRECHUNG: Teilnehmer, TOPs, Aufgaben
+  // =============================================
+  var bTeilnehmerContainer = document.getElementById('b-teilnehmer-container');
+  var bTopsContainer = document.getElementById('b-tops-container');
+  var bAufgabenContainer = document.getElementById('b-aufgaben-container');
+  var topCounter = 0;
+
+  function addTeilnehmer(name, funktion) {
+    var row = document.createElement('div');
+    row.className = 'dyn-row';
+    row.innerHTML = '<input type="text" placeholder="Name" value="' + E(name || '') + '" data-field="name" />'
+      + '<input type="text" placeholder="Funktion / Abteilung" value="' + E(funktion || '') + '" data-field="funktion" />'
+      + '<button type="button" class="btn-remove" title="Entfernen">&times;</button>';
+    bTeilnehmerContainer.appendChild(row);
+    row.querySelector('.btn-remove').addEventListener('click', function() { row.remove(); });
+  }
+
+  function addTOP() {
+    topCounter++;
+    var card = document.createElement('div');
+    card.className = 'top-card';
+    card.innerHTML = '<div class="top-card-header"><strong>TOP ' + topCounter + '</strong><button type="button" class="btn-remove" title="Entfernen">&times;</button></div>'
+      + '<label>Thema</label><input type="text" data-field="thema" placeholder="Thema des Tagesordnungspunkts" style="width:100%;font-size:0.85rem;padding:0.4rem 0.6rem;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--bg);" />'
+      + '<label>Diskussion / Ergebnis</label><textarea data-field="ergebnis" rows="3" placeholder="Zusammenfassung der Diskussion und Beschlüsse..."></textarea>';
+    bTopsContainer.appendChild(card);
+    card.querySelector('.btn-remove').addEventListener('click', function() { card.remove(); });
+  }
+
+  function addAufgabe() {
+    var row = document.createElement('div');
+    row.className = 'dyn-row';
+    row.innerHTML = '<input type="text" placeholder="Aufgabe" data-field="aufgabe" style="flex:2;" />'
+      + '<input type="text" placeholder="Verantwortlich" data-field="verantwortlich" />'
+      + '<input type="date" data-field="frist" title="Frist" />'
+      + '<button type="button" class="btn-remove" title="Entfernen">&times;</button>';
+    bAufgabenContainer.appendChild(row);
+    row.querySelector('.btn-remove').addEventListener('click', function() { row.remove(); });
+  }
+
+  document.getElementById('b-teilnehmer-add').addEventListener('click', function() { addTeilnehmer('', ''); });
+  document.getElementById('b-top-add').addEventListener('click', addTOP);
+  document.getElementById('b-aufgabe-add').addEventListener('click', addAufgabe);
+  addTeilnehmer('', ''); addTeilnehmer('', '');
+  addTOP();
+
+  // =============================================
+  // ABNAHME: Leistungen + Mängel
+  // =============================================
+  var aLeistungenContainer = document.getElementById('a-leistungen-container');
+  var aMaengelContainer = document.getElementById('a-maengel-container');
+
+  function addLeistung() {
+    var row = document.createElement('div');
+    row.className = 'dyn-row';
+    row.innerHTML = '<input type="text" placeholder="Beschreibung der Leistung" data-field="beschreibung" style="flex:2;" />'
+      + '<select data-field="status"><option value="Abgenommen">Abgenommen</option><option value="Mit Mängeln">Mit Mängeln</option><option value="Nicht abgenommen">Nicht abgenommen</option></select>'
+      + '<button type="button" class="btn-remove" title="Entfernen">&times;</button>';
+    aLeistungenContainer.appendChild(row);
+    row.querySelector('.btn-remove').addEventListener('click', function() { row.remove(); });
+  }
+
+  function addMangel() {
+    var row = document.createElement('div');
+    row.className = 'dyn-row';
+    row.innerHTML = '<input type="text" placeholder="Beschreibung des Mangels" data-field="beschreibung" style="flex:2;" />'
+      + '<input type="date" data-field="frist" title="Frist zur Behebung" />'
+      + '<button type="button" class="btn-remove" title="Entfernen">&times;</button>';
+    aMaengelContainer.appendChild(row);
+    row.querySelector('.btn-remove').addEventListener('click', function() { row.remove(); });
+  }
+
+  document.getElementById('a-leistung-add').addEventListener('click', addLeistung);
+  document.getElementById('a-mangel-add').addEventListener('click', addMangel);
+  addLeistung();
+
+  // =============================================
+  // PDF GENERATION
+  // =============================================
+  var pdfTitles = {
+    wohnung: 'Wohnungsübergabeprotokoll',
+    fahrzeug: 'Fahrzeugübergabeprotokoll',
+    geraet: 'Geräteübergabeprotokoll',
+    besprechung: 'Besprechungsprotokoll',
+    abnahme: 'Abnahmeprotokoll'
+  };
+
+  function buildPdfWohnung() {
+    var datum = fmtDate(V('w-datum'));
+    var art = V('w-art');
+    var html = '<h1>Wohnungsübergabeprotokoll</h1>';
+    html += '<div class="pdf-subtitle">' + E(art) + ' am ' + E(datum) + '</div>';
+
+    html += '<h2>Objekt</h2>';
+    html += '<div class="pdf-row"><span class="pdf-label">Adresse:</span><span>' + E(V('w-strasse') || '-') + ', ' + E((V('w-plz') + ' ' + V('w-ort')).trim() || '-') + '</span></div>';
+    html += '<div class="pdf-row"><span class="pdf-label">Etage / Lage:</span><span>' + E(V('w-etage') || '-') + '</span></div>';
+    html += '<div class="pdf-row"><span class="pdf-label">Zimmer:</span><span>' + E(V('w-zimmer') || '-') + '</span></div>';
+
+    html += '<h2>Vermieter</h2>';
+    html += '<div class="pdf-row"><span class="pdf-label">Name:</span><span>' + E(V('w-vm-name') || '-') + '</span></div>';
+    if (V('w-vm-adresse')) html += '<div class="pdf-row"><span class="pdf-label">Adresse:</span><span>' + E(V('w-vm-adresse')) + '</span></div>';
+
+    html += '<h2>Mieter</h2>';
+    html += '<div class="pdf-row"><span class="pdf-label">Name:</span><span>' + E(V('w-mi-name') || '-') + '</span></div>';
+    if (V('w-mi-adresse')) html += '<div class="pdf-row"><span class="pdf-label">Neue Adresse:</span><span>' + E(V('w-mi-adresse')) + '</span></div>';
+
+    var zaehler = [
+      { l: 'Strom', nr: V('w-strom-nr'), s: V('w-strom-stand') },
+      { l: 'Gas', nr: V('w-gas-nr'), s: V('w-gas-stand') },
+      { l: 'Wasser', nr: V('w-wasser-nr'), s: V('w-wasser-stand') },
+      { l: 'Heizung', nr: V('w-heizung-nr'), s: V('w-heizung-stand') }
+    ];
+    if (zaehler.some(function(z) { return z.nr || z.s; })) {
+      html += '<h2>Zählerstände</h2><table><thead><tr><th>Zähler</th><th>Nummer</th><th>Stand</th></tr></thead><tbody>';
+      zaehler.forEach(function(z) {
+        if (z.nr || z.s) html += '<tr><td>' + E(z.l) + '</td><td>' + E(z.nr || '-') + '</td><td>' + E(z.s || '-') + '</td></tr>';
+      });
+      html += '</tbody></table>';
+    }
+
+    html += '<h2>Schlüssel</h2><table><thead><tr><th>Art</th><th>Anzahl</th></tr></thead><tbody>';
+    ['haus', 'wohnung', 'brief', 'keller'].forEach(function(k) {
+      var labels = { haus: 'Hausschlüssel', wohnung: 'Wohnungsschlüssel', brief: 'Briefkastenschlüssel', keller: 'Kellerschlüssel' };
+      html += '<tr><td>' + labels[k] + '</td><td>' + E(V('w-' + k + '-schluessel') || '0') + '</td></tr>';
+    });
+    html += '</tbody></table>';
+
+    var raumCards = wRaumContainer.querySelectorAll('.item-card');
+    if (raumCards.length > 0) {
+      html += '<h2>Raumzustand</h2>';
+      raumCards.forEach(function(card) {
+        html += '<h3>' + E(card.querySelector('h4').textContent) + '</h3>';
+        html += '<table><thead><tr><th>Bereich</th><th>Zustand</th><th>Kommentar</th></tr></thead><tbody>';
+        card.querySelectorAll('tbody tr').forEach(function(tr) {
+          var cells = tr.querySelectorAll('td');
+          html += '<tr><td>' + E(cells[0].textContent) + '</td><td>' + E(cells[1].querySelector('select').value) + '</td><td>' + E(cells[2].querySelector('input').value || '-') + '</td></tr>';
+        });
+        html += '</tbody></table>';
+      });
+    }
+
+    if (V('w-bemerkungen')) {
+      html += '<h2>Sonstige Bemerkungen</h2><p style="font-size:10pt;white-space:pre-wrap;">' + E(V('w-bemerkungen')) + '</p>';
+    }
+
+    html += '<div class="pdf-signatures"><div class="pdf-sig-block"><div class="pdf-sig-line">Ort, Datum</div></div><div class="pdf-sig-block"><div class="pdf-sig-line">Unterschrift Vermieter</div></div><div class="pdf-sig-block"><div class="pdf-sig-line">Unterschrift Mieter</div></div></div>';
+    return { html: html, filename: 'Uebergabeprotokoll_Wohnung_' + V('w-datum') + '.pdf' };
+  }
+
+  function buildPdfFahrzeug() {
+    var datum = fmtDate(V('f-datum'));
+    var html = '<h1>Fahrzeugübergabeprotokoll</h1>';
+    html += '<div class="pdf-subtitle">' + E(V('f-anlass')) + ' am ' + E(datum) + '</div>';
+
+    html += '<h2>Fahrzeugdaten</h2>';
+    [['Marke', 'f-marke'], ['Modell', 'f-modell'], ['Baujahr', 'f-baujahr'], ['Kennzeichen', 'f-kennzeichen'], ['FIN', 'f-fin'], ['Kilometerstand', 'f-km'], ['TÜV bis', 'f-tuev'], ['Farbe', 'f-farbe']].forEach(function(r) {
+      html += '<div class="pdf-row"><span class="pdf-label">' + r[0] + ':</span><span>' + E(V(r[1]) || '-') + '</span></div>';
+    });
+
+    html += '<h2>Übergeber</h2>';
+    html += '<div class="pdf-row"><span class="pdf-label">Name:</span><span>' + E(V('f-ug-name') || '-') + '</span></div>';
+    if (V('f-ug-adresse')) html += '<div class="pdf-row"><span class="pdf-label">Adresse:</span><span>' + E(V('f-ug-adresse')) + '</span></div>';
+
+    html += '<h2>Übernehmer</h2>';
+    html += '<div class="pdf-row"><span class="pdf-label">Name:</span><span>' + E(V('f-un-name') || '-') + '</span></div>';
+    if (V('f-un-adresse')) html += '<div class="pdf-row"><span class="pdf-label">Adresse:</span><span>' + E(V('f-un-adresse')) + '</span></div>';
+
+    fZustandContainer.querySelectorAll('.item-card').forEach(function(card) {
+      html += '<h2>Zustand ' + E(card.querySelector('h4').textContent) + '</h2>';
+      html += '<table><thead><tr><th>Prüfpunkt</th><th>Zustand</th><th>Kommentar</th></tr></thead><tbody>';
+      card.querySelectorAll('tbody tr').forEach(function(tr) {
+        var cells = tr.querySelectorAll('td');
+        html += '<tr><td>' + E(cells[0].textContent) + '</td><td>' + E(cells[1].querySelector('select').value) + '</td><td>' + E(cells[2].querySelector('input').value || '-') + '</td></tr>';
+      });
+      html += '</tbody></table>';
+    });
+
+    html += '<h2>Zubehör &amp; Dokumente</h2>';
+    html += '<table><thead><tr><th>Gegenstand</th><th>Vorhanden</th><th>Kommentar</th></tr></thead><tbody>';
+    fZubehoerContainer.querySelectorAll('tbody tr').forEach(function(tr) {
+      var cells = tr.querySelectorAll('td');
+      html += '<tr><td>' + E(cells[0].textContent) + '</td><td>' + E(cells[1].querySelector('select').value) + '</td><td>' + E(cells[2].querySelector('input').value || '-') + '</td></tr>';
+    });
+    html += '</tbody></table>';
+
+    if (V('f-bemerkungen')) {
+      html += '<h2>Bemerkungen</h2><p style="font-size:10pt;white-space:pre-wrap;">' + E(V('f-bemerkungen')) + '</p>';
+    }
+
+    html += '<div class="pdf-signatures"><div class="pdf-sig-block"><div class="pdf-sig-line">Ort, Datum</div></div><div class="pdf-sig-block"><div class="pdf-sig-line">Unterschrift Übergeber</div></div><div class="pdf-sig-block"><div class="pdf-sig-line">Unterschrift Übernehmer</div></div></div>';
+    return { html: html, filename: 'Uebergabeprotokoll_Fahrzeug_' + V('f-datum') + '.pdf' };
+  }
+
+  function buildPdfGeraet() {
+    var datum = fmtDate(V('g-datum'));
+    var html = '<h1>Geräteübergabeprotokoll</h1>';
+    html += '<div class="pdf-subtitle">' + E(V('g-anlass')) + ' am ' + E(datum) + '</div>';
+
+    html += '<h2>Übergeber</h2>';
+    html += '<div class="pdf-row"><span class="pdf-label">Name:</span><span>' + E(V('g-ug-name') || '-') + '</span></div>';
+    if (V('g-ug-abteilung')) html += '<div class="pdf-row"><span class="pdf-label">Abteilung / Firma:</span><span>' + E(V('g-ug-abteilung')) + '</span></div>';
+
+    html += '<h2>Übernehmer</h2>';
+    html += '<div class="pdf-row"><span class="pdf-label">Name:</span><span>' + E(V('g-un-name') || '-') + '</span></div>';
+    if (V('g-un-abteilung')) html += '<div class="pdf-row"><span class="pdf-label">Abteilung / Firma:</span><span>' + E(V('g-un-abteilung')) + '</span></div>';
+
+    html += '<h2>Geräte</h2>';
+    html += '<table><thead><tr><th>Bezeichnung</th><th>Hersteller</th><th>Seriennr.</th><th>Inventarnr.</th><th>Zustand</th><th>Zubehör</th></tr></thead><tbody>';
+    gContainer.querySelectorAll('.item-card').forEach(function(card) {
+      var fields = {};
+      card.querySelectorAll('[data-field]').forEach(function(el) { fields[el.dataset.field] = el.value || '-'; });
+      html += '<tr><td>' + E(fields.bezeichnung) + '</td><td>' + E(fields.hersteller) + '</td><td>' + E(fields.seriennummer) + '</td><td>' + E(fields.inventarnummer) + '</td><td>' + E(fields.zustand) + '</td><td>' + E(fields.zubehoer) + '</td></tr>';
+    });
+    html += '</tbody></table>';
+
+    if (V('g-bemerkungen')) {
+      html += '<h2>Bemerkungen</h2><p style="font-size:10pt;white-space:pre-wrap;">' + E(V('g-bemerkungen')) + '</p>';
+    }
+
+    html += '<div class="pdf-signatures"><div class="pdf-sig-block"><div class="pdf-sig-line">Ort, Datum</div></div><div class="pdf-sig-block"><div class="pdf-sig-line">Unterschrift Übergeber</div></div><div class="pdf-sig-block"><div class="pdf-sig-line">Unterschrift Übernehmer</div></div></div>';
+    return { html: html, filename: 'Uebergabeprotokoll_Geraete_' + V('g-datum') + '.pdf' };
+  }
+
+  function buildPdfBesprechung() {
+    var datum = fmtDate(V('b-datum'));
+    var html = '<h1>Besprechungsprotokoll</h1>';
+    html += '<div class="pdf-subtitle">' + E(datum) + (V('b-uhrzeit') ? ' um ' + E(V('b-uhrzeit')) + ' Uhr' : '') + '</div>';
+
+    html += '<h2>Allgemeine Angaben</h2>';
+    if (V('b-thema')) html += '<div class="pdf-row"><span class="pdf-label">Thema:</span><span>' + E(V('b-thema')) + '</span></div>';
+    if (V('b-ort')) html += '<div class="pdf-row"><span class="pdf-label">Ort / Raum:</span><span>' + E(V('b-ort')) + '</span></div>';
+    if (V('b-protokollfuehrer')) html += '<div class="pdf-row"><span class="pdf-label">Protokollführer:</span><span>' + E(V('b-protokollfuehrer')) + '</span></div>';
+
+    var teilnehmer = [];
+    bTeilnehmerContainer.querySelectorAll('.dyn-row').forEach(function(row) {
+      var n = row.querySelector('[data-field="name"]').value;
+      var f = row.querySelector('[data-field="funktion"]').value;
+      if (n) teilnehmer.push({ name: n, funktion: f });
+    });
+    if (teilnehmer.length > 0) {
+      html += '<h2>Teilnehmer</h2><table><thead><tr><th>Name</th><th>Funktion / Abteilung</th></tr></thead><tbody>';
+      teilnehmer.forEach(function(t) { html += '<tr><td>' + E(t.name) + '</td><td>' + E(t.funktion || '-') + '</td></tr>'; });
+      html += '</tbody></table>';
+    }
+
+    var tops = [];
+    bTopsContainer.querySelectorAll('.top-card').forEach(function(card, i) {
+      var thema = card.querySelector('[data-field="thema"]').value;
+      var ergebnis = card.querySelector('[data-field="ergebnis"]').value;
+      if (thema || ergebnis) tops.push({ nr: i + 1, thema: thema, ergebnis: ergebnis });
+    });
+    if (tops.length > 0) {
+      html += '<h2>Tagesordnung</h2>';
+      tops.forEach(function(t) {
+        html += '<h3>TOP ' + t.nr + ': ' + E(t.thema || 'Ohne Titel') + '</h3>';
+        if (t.ergebnis) html += '<p style="font-size:10pt;white-space:pre-wrap;">' + E(t.ergebnis) + '</p>';
+      });
+    }
+
+    var aufgaben = [];
+    bAufgabenContainer.querySelectorAll('.dyn-row').forEach(function(row) {
+      var a = row.querySelector('[data-field="aufgabe"]').value;
+      var v = row.querySelector('[data-field="verantwortlich"]').value;
+      var f = row.querySelector('[data-field="frist"]').value;
+      if (a) aufgaben.push({ aufgabe: a, verantwortlich: v, frist: f });
+    });
+    if (aufgaben.length > 0) {
+      html += '<h2>Offene Aufgaben</h2><table><thead><tr><th>Aufgabe</th><th>Verantwortlich</th><th>Frist</th></tr></thead><tbody>';
+      aufgaben.forEach(function(a) { html += '<tr><td>' + E(a.aufgabe) + '</td><td>' + E(a.verantwortlich || '-') + '</td><td>' + E(fmtDate(a.frist)) + '</td></tr>'; });
+      html += '</tbody></table>';
+    }
+
+    if (V('b-naechster-termin')) {
+      html += '<h2>Nächster Termin</h2>';
+      html += '<div class="pdf-row"><span class="pdf-label">Datum:</span><span>' + E(fmtDate(V('b-naechster-termin'))) + (V('b-naechster-uhrzeit') ? ' um ' + E(V('b-naechster-uhrzeit')) + ' Uhr' : '') + '</span></div>';
+    }
+
+    if (V('b-bemerkungen')) {
+      html += '<h2>Bemerkungen</h2><p style="font-size:10pt;white-space:pre-wrap;">' + E(V('b-bemerkungen')) + '</p>';
+    }
+
+    html += '<div class="pdf-signatures"><div class="pdf-sig-block"><div class="pdf-sig-line">Protokollführer</div></div><div class="pdf-sig-block"><div class="pdf-sig-line">Genehmigt</div></div></div>';
+    return { html: html, filename: 'Besprechungsprotokoll_' + V('b-datum') + '.pdf' };
+  }
+
+  function buildPdfAbnahme() {
+    var datum = fmtDate(V('a-datum'));
+    var html = '<h1>Abnahmeprotokoll</h1>';
+    html += '<div class="pdf-subtitle">' + E(datum) + '</div>';
+
+    html += '<h2>Projekt</h2>';
+    if (V('a-projekt')) html += '<div class="pdf-row"><span class="pdf-label">Bauvorhaben:</span><span>' + E(V('a-projekt')) + '</span></div>';
+    if (V('a-adresse')) html += '<div class="pdf-row"><span class="pdf-label">Adresse:</span><span>' + E(V('a-adresse')) + '</span></div>';
+
+    html += '<h2>Auftraggeber</h2>';
+    html += '<div class="pdf-row"><span class="pdf-label">Name / Firma:</span><span>' + E(V('a-ag-name') || '-') + '</span></div>';
+    if (V('a-ag-adresse')) html += '<div class="pdf-row"><span class="pdf-label">Adresse:</span><span>' + E(V('a-ag-adresse')) + '</span></div>';
+
+    html += '<h2>Auftragnehmer</h2>';
+    html += '<div class="pdf-row"><span class="pdf-label">Name / Firma:</span><span>' + E(V('a-an-name') || '-') + '</span></div>';
+    if (V('a-an-adresse')) html += '<div class="pdf-row"><span class="pdf-label">Adresse:</span><span>' + E(V('a-an-adresse')) + '</span></div>';
+
+    var leistungen = [];
+    aLeistungenContainer.querySelectorAll('.dyn-row').forEach(function(row) {
+      var b = row.querySelector('[data-field="beschreibung"]').value;
+      var s = row.querySelector('[data-field="status"]').value;
+      if (b) leistungen.push({ beschreibung: b, status: s });
+    });
+    if (leistungen.length > 0) {
+      html += '<h2>Leistungen</h2><table><thead><tr><th>Beschreibung</th><th>Status</th></tr></thead><tbody>';
+      leistungen.forEach(function(l) { html += '<tr><td>' + E(l.beschreibung) + '</td><td>' + E(l.status) + '</td></tr>'; });
+      html += '</tbody></table>';
+    }
+
+    var maengel = [];
+    aMaengelContainer.querySelectorAll('.dyn-row').forEach(function(row) {
+      var b = row.querySelector('[data-field="beschreibung"]').value;
+      var f = row.querySelector('[data-field="frist"]').value;
+      if (b) maengel.push({ beschreibung: b, frist: f });
+    });
+    if (maengel.length > 0) {
+      html += '<h2>Mängelliste</h2><table><thead><tr><th>Nr.</th><th>Beschreibung</th><th>Frist</th></tr></thead><tbody>';
+      maengel.forEach(function(m, i) { html += '<tr><td>' + (i + 1) + '</td><td>' + E(m.beschreibung) + '</td><td>' + E(fmtDate(m.frist)) + '</td></tr>'; });
+      html += '</tbody></table>';
+    }
+
+    html += '<h2>Ergebnis</h2>';
+    html += '<div class="pdf-row"><span class="pdf-label">Abnahmeergebnis:</span><span><strong>' + E(V('a-ergebnis')) + '</strong></span></div>';
+    if (V('a-frist')) html += '<div class="pdf-row"><span class="pdf-label">Frist Mängelbeseitigung:</span><span>' + E(fmtDate(V('a-frist'))) + '</span></div>';
+
+    if (V('a-bemerkungen')) {
+      html += '<h2>Bemerkungen</h2><p style="font-size:10pt;white-space:pre-wrap;">' + E(V('a-bemerkungen')) + '</p>';
+    }
+
+    html += '<div class="pdf-signatures"><div class="pdf-sig-block"><div class="pdf-sig-line">Ort, Datum</div></div><div class="pdf-sig-block"><div class="pdf-sig-line">Unterschrift Auftraggeber</div></div><div class="pdf-sig-block"><div class="pdf-sig-line">Unterschrift Auftragnehmer</div></div></div>';
+    return { html: html, filename: 'Abnahmeprotokoll_' + V('a-datum') + '.pdf' };
+  }
+
+  var builders = {
+    wohnung: buildPdfWohnung,
+    fahrzeug: buildPdfFahrzeug,
+    geraet: buildPdfGeraet,
+    besprechung: buildPdfBesprechung,
+    abnahme: buildPdfAbnahme
+  };
+
+  var btnPdf = document.getElementById('btn-pdf');
+  var btnPdfHtml = btnPdf.innerHTML;
+
+  btnPdf.addEventListener('click', function() {
+    var type = typeSelect.value;
+    var builder = builders[type];
+    if (!builder) return;
+
+    btnPdf.disabled = true;
+    btnPdf.textContent = 'PDF wird erstellt...';
+
+    var result = builder();
+    var renderDiv = document.getElementById('pdf-render');
+    if (!renderDiv) {
+      renderDiv = document.createElement('div');
+      renderDiv.id = 'pdf-render';
+      document.body.appendChild(renderDiv);
+    }
+    renderDiv.innerHTML = result.html;
+
+    var opt = {
+      margin: [10, 10, 15, 10],
+      filename: result.filename,
+      image: { type: 'jpeg', quality: 0.98 },
+      html2canvas: { scale: 2, useCORS: true, letterRendering: true },
+      jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+      pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
+    };
+
+    html2pdf().set(opt).from(renderDiv).save().then(function() {
+      btnPdf.disabled = false;
+      btnPdf.innerHTML = btnPdfHtml;
+      renderDiv.innerHTML = '';
+    }).catch(function() {
+      btnPdf.disabled = false;
+      btnPdf.textContent = 'Fehler – bitte erneut versuchen';
+    });
+  });
+});
+</script>
