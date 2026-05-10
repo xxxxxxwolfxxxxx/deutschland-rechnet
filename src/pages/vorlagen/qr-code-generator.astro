@@ -127,10 +127,16 @@ const year = new Date().getFullYear();
     relatedSlugs={['protokoll-generator']}
   />
 
-  <script is:inline src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js"></script>
   <script is:inline>
 (function() {
   'use strict';
+
+  var s = document.createElement('script');
+  s.src = 'https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js';
+  s.onload = init;
+  document.head.appendChild(s);
+
+  function init() {
 
   var textEl    = document.getElementById('qr-text');
   var logoInput = document.getElementById('qr-logo');
@@ -148,8 +154,6 @@ const year = new Date().getFullYear();
 
   var logoImage = null; // Loaded Image object
 
-  // ECL mapping for qrcode-generator library (numeric constants)
-  var eclMap = { 'L': 1, 'M': 0, 'Q': 3, 'H': 2 };
 
   // --- Logo handling ---
   logoInput.addEventListener('change', function(e) {
@@ -219,14 +223,14 @@ const year = new Date().getFullYear();
     // Determine type number (0 = auto)
     var qr;
     try {
-      qr = qrcode(0, eclMap[ecl]);
+      qr = qrcode(0, ecl);
       qr.addData(text);
       qr.make();
     } catch (e) {
       // If auto fails, try higher type numbers
       for (var t = 1; t <= 40; t++) {
         try {
-          qr = qrcode(t, eclMap[ecl]);
+          qr = qrcode(t, ecl);
           qr.addData(text);
           qr.make();
           break;
@@ -320,12 +324,10 @@ const year = new Date().getFullYear();
     link.click();
   });
 
-  // Initial render — ensure qrcode lib is loaded
-  if (typeof qrcode === 'function') {
-    generate();
-  } else {
-    window.addEventListener('load', generate);
-  }
+  // Initial render
+  generate();
+
+  } // end init()
 })();
 </script>
 
