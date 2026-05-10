@@ -1,0 +1,778 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import CalculatorShell from '../../components/CalculatorShell.astro';
+import CalculatorGuide from '../../components/CalculatorGuide.astro';
+import { CALCULATORS, CATEGORIES } from '../../data/calculators';
+const calc = CALCULATORS.find(c => c.slug === 'uebergabeprotokoll')!;
+const cat = CATEGORIES[calc.category];
+const year = new Date().getFullYear();
+---
+<Layout
+  title={`Übergabeprotokoll ${year}`}
+  description="Wohnungsübergabeprotokoll als PDF erstellen – kostenlos, rechtssicher und mit allen relevanten Feldern. Ideal für Einzug und Auszug."
+  canonicalPath="/vorlagen/uebergabeprotokoll/"
+  categoryColor={cat.color}
+  categoryLight={cat.colorLight}
+  categoryImage={cat.image}
+>
+  <div class="page-header">
+    <a href={`${import.meta.env.BASE_URL}vorlagen/`} class="back-link">&larr; Vorlagen &amp; Tools</a>
+    <h1>Übergabeprotokoll {year}</h1>
+  </div>
+  <CalculatorShell
+    calculator={calc}
+    intro="Erstellen Sie ein professionelles Wohnungsübergabeprotokoll als PDF – kostenlos und direkt im Browser."
+    sourceNote="Alle Daten werden ausschließlich in Ihrem Browser verarbeitet. Es werden keine Daten an einen Server übertragen."
+    faqs={[
+      { q: "Ist ein Übergabeprotokoll Pflicht?", a: "Nein, ein Übergabeprotokoll ist gesetzlich nicht vorgeschrieben. Es ist jedoch dringend empfohlen, da es als wichtiges Beweismittel dient. Ohne Protokoll kann es bei Streitigkeiten über den Zustand der Wohnung schwierig werden, Schäden oder Mängel nachzuweisen. Die meisten Vermieter und Hausverwaltungen bestehen daher auf einem Übergabeprotokoll." },
+      { q: "Was passiert ohne Übergabeprotokoll?", a: "Ohne Übergabeprotokoll haben beide Parteien im Streitfall Beweisprobleme. Der Vermieter kann Schäden schwerer nachweisen und riskiert, dass Kautionseinbehalte vor Gericht keinen Bestand haben. Der Mieter kann nicht belegen, dass Mängel bereits bei Einzug bestanden. Gerichte werten das Fehlen eines Protokolls oft zulasten desjenigen, der sich auf bestimmte Zustände beruft." },
+      { q: "Wer muss das Protokoll unterschreiben?", a: "Das Übergabeprotokoll sollte von beiden Parteien unterschrieben werden – also vom Vermieter (oder dessen Vertreter/Hausverwaltung) und vom Mieter. Beide Seiten erhalten jeweils ein Exemplar. Eine einseitige Unterschrift mindert die Beweiskraft erheblich. Auch Zeugen können hinzugezogen werden, um die Beweiskraft zu stärken." },
+      { q: "Muss der Vermieter beim Auszug dabei sein?", a: "Der Vermieter ist nicht verpflichtet, an der Wohnungsübergabe teilzunehmen. Erscheint er trotz rechtzeitiger Einladung nicht, sollte der Mieter die Übergabe mit einem Zeugen dokumentieren und das Protokoll dem Vermieter zusenden. Der Mieter sollte die Einladung zur Übergabe nachweisbar (z.B. per Einschreiben) verschicken." },
+      { q: "Kann ich Mängel nachträglich reklamieren?", a: "Ja, Mängel können auch nach der Übergabe reklamiert werden, wenn sie bei der Begehung nicht erkennbar waren (versteckte Mängel). Offensichtliche Mängel, die im Protokoll nicht vermerkt wurden, sind jedoch schwer durchzusetzen. Daher ist eine sorgfältige Begehung bei Tageslicht besonders wichtig. Die Verjährungsfrist für Schadensersatzansprüche des Vermieters beträgt 6 Monate ab Rückgabe (§ 548 BGB)." },
+      { q: "Welche Zählerstände müssen dokumentiert werden?", a: "Es sollten alle vorhandenen Zähler dokumentiert werden: Strom, Gas, Wasser und Heizung. Notieren Sie jeweils die Zählernummer und den aktuellen Stand. Diese Werte sind wichtig für die korrekte Abrechnung der Verbrauchskosten. Informieren Sie zusätzlich die jeweiligen Versorger über den Mieterwechsel und die Zählerstände." }
+    ]}
+  >
+    <div class="calc-form">
+      <!-- Abschnitt 1: Allgemeine Angaben -->
+      <fieldset class="up-section">
+        <legend class="up-legend" data-section="allgemein">
+          <span class="up-legend-icon">&#9662;</span> Allgemeine Angaben
+        </legend>
+        <div class="up-section-body" id="sec-allgemein">
+          <div class="calc-grid">
+            <div class="calc-group">
+              <label for="up-datum">Datum der Übergabe</label>
+              <input type="date" id="up-datum" />
+            </div>
+            <div class="calc-group">
+              <label for="up-art">Art der Übergabe</label>
+              <select id="up-art">
+                <option value="Einzug">Einzug</option>
+                <option value="Auszug">Auszug</option>
+              </select>
+            </div>
+          </div>
+        </div>
+      </fieldset>
+
+      <!-- Abschnitt 2: Objekt -->
+      <fieldset class="up-section">
+        <legend class="up-legend" data-section="objekt">
+          <span class="up-legend-icon">&#9662;</span> Objekt
+        </legend>
+        <div class="up-section-body" id="sec-objekt">
+          <div class="calc-grid">
+            <div class="calc-group" style="grid-column: 1 / -1;">
+              <label for="up-strasse">Straße + Hausnummer</label>
+              <input type="text" id="up-strasse" placeholder="Musterstraße 12" />
+            </div>
+            <div class="calc-group">
+              <label for="up-plz">PLZ</label>
+              <input type="text" id="up-plz" placeholder="10115" maxlength="5" />
+            </div>
+            <div class="calc-group">
+              <label for="up-ort">Ort</label>
+              <input type="text" id="up-ort" placeholder="Berlin" />
+            </div>
+            <div class="calc-group">
+              <label for="up-etage">Etage / Lage</label>
+              <input type="text" id="up-etage" placeholder="3. OG links" />
+            </div>
+            <div class="calc-group">
+              <label for="up-zimmer">Anzahl Zimmer</label>
+              <input type="number" id="up-zimmer" min="1" max="20" value="3" />
+            </div>
+          </div>
+        </div>
+      </fieldset>
+
+      <!-- Abschnitt 3: Vermieter -->
+      <fieldset class="up-section">
+        <legend class="up-legend" data-section="vermieter">
+          <span class="up-legend-icon">&#9662;</span> Vermieter
+        </legend>
+        <div class="up-section-body" id="sec-vermieter">
+          <div class="calc-grid">
+            <div class="calc-group">
+              <label for="up-vm-name">Name</label>
+              <input type="text" id="up-vm-name" placeholder="Max Mustermann" />
+            </div>
+            <div class="calc-group">
+              <label for="up-vm-adresse">Adresse (optional)</label>
+              <input type="text" id="up-vm-adresse" placeholder="Beispielweg 5, 10115 Berlin" />
+            </div>
+          </div>
+        </div>
+      </fieldset>
+
+      <!-- Abschnitt 4: Mieter -->
+      <fieldset class="up-section">
+        <legend class="up-legend" data-section="mieter">
+          <span class="up-legend-icon">&#9662;</span> Mieter
+        </legend>
+        <div class="up-section-body" id="sec-mieter">
+          <div class="calc-grid">
+            <div class="calc-group">
+              <label for="up-mi-name">Name</label>
+              <input type="text" id="up-mi-name" placeholder="Erika Musterfrau" />
+            </div>
+            <div class="calc-group">
+              <label for="up-mi-adresse">Neue Adresse (optional)</label>
+              <input type="text" id="up-mi-adresse" placeholder="Neue Straße 1, 20095 Hamburg" />
+            </div>
+          </div>
+        </div>
+      </fieldset>
+
+      <!-- Abschnitt 5: Zählerstände -->
+      <fieldset class="up-section">
+        <legend class="up-legend" data-section="zaehler">
+          <span class="up-legend-icon">&#9662;</span> Zählerstände
+        </legend>
+        <div class="up-section-body" id="sec-zaehler">
+          <div class="zaehler-grid">
+            <div class="zaehler-row">
+              <strong>Strom</strong>
+              <input type="text" id="up-strom-nr" placeholder="Zählernummer" />
+              <input type="text" id="up-strom-stand" placeholder="Stand (kWh)" />
+            </div>
+            <div class="zaehler-row">
+              <strong>Gas</strong>
+              <input type="text" id="up-gas-nr" placeholder="Zählernummer" />
+              <input type="text" id="up-gas-stand" placeholder="Stand (m³)" />
+            </div>
+            <div class="zaehler-row">
+              <strong>Wasser</strong>
+              <input type="text" id="up-wasser-nr" placeholder="Zählernummer" />
+              <input type="text" id="up-wasser-stand" placeholder="Stand (m³)" />
+            </div>
+            <div class="zaehler-row">
+              <strong>Heizung</strong>
+              <input type="text" id="up-heizung-nr" placeholder="Zählernummer" />
+              <input type="text" id="up-heizung-stand" placeholder="Stand" />
+            </div>
+          </div>
+        </div>
+      </fieldset>
+
+      <!-- Abschnitt 6: Schlüssel -->
+      <fieldset class="up-section">
+        <legend class="up-legend" data-section="schluessel">
+          <span class="up-legend-icon">&#9662;</span> Schlüssel
+        </legend>
+        <div class="up-section-body" id="sec-schluessel">
+          <div class="calc-grid schluessel-grid">
+            <div class="calc-group">
+              <label for="up-haus-schluessel">Hausschlüssel</label>
+              <input type="number" id="up-haus-schluessel" min="0" max="20" value="0" />
+            </div>
+            <div class="calc-group">
+              <label for="up-wohnung-schluessel">Wohnungsschlüssel</label>
+              <input type="number" id="up-wohnung-schluessel" min="0" max="20" value="0" />
+            </div>
+            <div class="calc-group">
+              <label for="up-brief-schluessel">Briefkastenschlüssel</label>
+              <input type="number" id="up-brief-schluessel" min="0" max="20" value="0" />
+            </div>
+            <div class="calc-group">
+              <label for="up-keller-schluessel">Kellerschlüssel</label>
+              <input type="number" id="up-keller-schluessel" min="0" max="20" value="0" />
+            </div>
+          </div>
+        </div>
+      </fieldset>
+
+      <!-- Abschnitt 7: Raumzustand -->
+      <fieldset class="up-section">
+        <legend class="up-legend" data-section="raeume">
+          <span class="up-legend-icon">&#9662;</span> Raumzustand
+        </legend>
+        <div class="up-section-body" id="sec-raeume">
+          <div id="raeume-container"></div>
+          <div class="raum-actions">
+            <select id="raum-vorlage">
+              <option value="Wohnzimmer">Wohnzimmer</option>
+              <option value="Schlafzimmer">Schlafzimmer</option>
+              <option value="Küche">Küche</option>
+              <option value="Bad">Bad</option>
+              <option value="Flur">Flur</option>
+              <option value="Keller">Keller</option>
+              <option value="Balkon">Balkon</option>
+              <option value="Abstellraum">Abstellraum</option>
+              <option value="">Eigener Name...</option>
+            </select>
+            <input type="text" id="raum-freitext" placeholder="Raumname eingeben" style="display:none;" />
+            <button type="button" id="raum-hinzufuegen" class="btn-add-raum">+ Raum hinzufügen</button>
+          </div>
+        </div>
+      </fieldset>
+
+      <!-- Abschnitt 8: Sonstiges -->
+      <fieldset class="up-section">
+        <legend class="up-legend" data-section="sonstiges">
+          <span class="up-legend-icon">&#9662;</span> Sonstige Bemerkungen
+        </legend>
+        <div class="up-section-body" id="sec-sonstiges">
+          <textarea id="up-bemerkungen" rows="4" placeholder="Weitere Anmerkungen, Vereinbarungen oder Mängel..."></textarea>
+        </div>
+      </fieldset>
+
+      <!-- PDF Download Button -->
+      <div class="up-download-area">
+        <button type="button" id="btn-pdf" class="btn-pdf">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:0.4rem;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          PDF erstellen &amp; herunterladen
+        </button>
+        <p class="up-download-hint">Das PDF wird direkt in Ihrem Browser erzeugt. Keine Daten werden übertragen.</p>
+      </div>
+    </div>
+  </CalculatorShell>
+
+  <CalculatorGuide title="Wohnungsübergabeprotokoll: Warum es unverzichtbar ist" content={`<p>Ein Wohnungsübergabeprotokoll dokumentiert den Zustand einer Mietwohnung zum Zeitpunkt des Ein- oder Auszugs. Es ist eines der wichtigsten Dokumente im Mietverhältnis, da es als Beweismittel bei Streitigkeiten über Schäden, Mängel oder die Rückzahlung der Kaution dient. Ohne ein solches Protokoll stehen beide Parteien im Ernstfall ohne Nachweis da.</p>
+<p><strong>Rechtliche Grundlage:</strong> Das Übergabeprotokoll ist im deutschen Mietrecht zwar nicht ausdrücklich vorgeschrieben, ergibt sich aber aus der allgemeinen Beweislastverteilung. Nach den §§ 535 ff. BGB ist der Mieter verpflichtet, die Wohnung in vertragsgemäßem Zustand zurückzugeben. Der Vermieter muss Schäden nachweisen, die über die normale Abnutzung hinausgehen. Ein beidseitig unterschriebenes Übergabeprotokoll hat vor Gericht eine hohe Beweiskraft und wird von den meisten Gerichten als maßgeblich anerkannt.</p>
+<p><strong>Was dokumentiert werden sollte:</strong> Ein vollständiges Protokoll erfasst den Zustand aller Räume mit Angaben zu Wänden, Böden, Fenstern und Türen. Jeder Mangel sollte möglichst genau beschrieben werden, idealerweise mit Angabe von Ort und Art des Schadens. Zusätzlich gehören Zählerstände von Strom, Gas, Wasser und Heizung ins Protokoll, ebenso wie die Anzahl der übergebenen Schlüssel. Besondere Vereinbarungen, etwa über noch durchzuführende Arbeiten, sollten ebenfalls festgehalten werden.</p>
+<p><strong>Praktische Tipps für die Übergabe:</strong> Führen Sie die Begehung immer bei Tageslicht durch, um Mängel besser erkennen zu können. Machen Sie zusätzlich Fotos mit Datum von allen Räumen und Auffälligkeiten. Prüfen Sie systematisch alle Wasser- und Stromanschlüsse, Fenster, Türen, Rollläden und Heizkörper. Beide Parteien sollten das Protokoll vor Ort unterschreiben und je ein Exemplar erhalten. Bei Unstimmigkeiten können Sie einen Zeugen hinzuziehen.</p>
+<p><strong>Wann erstellen:</strong> Ein Übergabeprotokoll sollte bei jedem Ein- und Auszug erstellt werden. Beim Einzug schützt es den Mieter vor unberechtigten Forderungen bei einem späteren Auszug. Beim Auszug dokumentiert es den ordnungsgemäßen Zustand der Wohnung und bildet die Grundlage für die Kautionsrückgabe, die der Vermieter innerhalb einer angemessenen Frist (in der Regel 3 bis 6 Monate) vornehmen muss.</p>`} relatedSlugs={['nebenkosten-rechner', 'mietrechner', 'mietpreisbremse-rechner']} />
+</Layout>
+
+<style>
+/* Fieldset / Accordion sections */
+.up-section {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  margin-bottom: 0.75rem;
+  padding: 0;
+  background: var(--bg);
+}
+.up-legend {
+  font-weight: 600;
+  font-size: 0.95rem;
+  cursor: pointer;
+  padding: 0.75rem 1rem;
+  margin: 0;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  user-select: none;
+  color: var(--text);
+  font-family: var(--font-ui);
+}
+.up-legend:hover {
+  color: var(--accent);
+}
+.up-legend-icon {
+  font-size: 0.7rem;
+  transition: transform 0.2s;
+  display: inline-block;
+}
+.up-section.collapsed .up-legend-icon {
+  transform: rotate(-90deg);
+}
+.up-section-body {
+  padding: 0 1rem 1rem;
+}
+.up-section.collapsed .up-section-body {
+  display: none;
+}
+
+/* Zähler grid */
+.zaehler-grid {
+  display: grid;
+  gap: 0.6rem;
+}
+.zaehler-row {
+  display: grid;
+  grid-template-columns: 80px 1fr 1fr;
+  gap: 0.5rem;
+  align-items: center;
+  font-size: 0.9rem;
+}
+@media (max-width: 480px) {
+  .zaehler-row {
+    grid-template-columns: 1fr;
+  }
+  .zaehler-row strong {
+    padding-top: 0.5rem;
+  }
+}
+
+/* Schlüssel grid */
+.schluessel-grid {
+  grid-template-columns: repeat(4, 1fr);
+}
+@media (max-width: 600px) {
+  .schluessel-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+/* Raum-Zustand */
+.raum-card {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 1rem;
+  margin-bottom: 0.75rem;
+  background: var(--surface);
+  position: relative;
+}
+.raum-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.75rem;
+}
+.raum-card-header h4 {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text);
+}
+.btn-remove-raum {
+  background: none;
+  border: none;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 1.1rem;
+  padding: 0.2rem 0.4rem;
+  border-radius: 4px;
+  line-height: 1;
+}
+.btn-remove-raum:hover {
+  background: #fee;
+  color: #c00;
+}
+.raum-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+.raum-table th {
+  text-align: left;
+  font-weight: 600;
+  padding: 0.4rem 0.5rem;
+  border-bottom: 2px solid var(--border);
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+.raum-table td {
+  padding: 0.4rem 0.5rem;
+  border-bottom: 1px solid var(--border);
+  vertical-align: middle;
+}
+.raum-table tr:last-child td {
+  border-bottom: none;
+}
+.raum-table select {
+  font-size: 0.82rem;
+  padding: 0.25rem 0.4rem;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--bg);
+}
+.raum-table input[type="text"] {
+  font-size: 0.82rem;
+  padding: 0.25rem 0.4rem;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  width: 100%;
+  min-width: 0;
+  background: var(--bg);
+}
+
+/* Raum actions */
+.raum-actions {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-top: 0.5rem;
+}
+.raum-actions select,
+.raum-actions input[type="text"] {
+  font-size: 0.85rem;
+  padding: 0.4rem 0.6rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+}
+.btn-add-raum {
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  border-radius: var(--radius-sm);
+  padding: 0.4rem 0.9rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: var(--font-ui);
+  transition: opacity 0.15s;
+}
+.btn-add-raum:hover {
+  opacity: 0.85;
+}
+
+/* Textarea */
+#up-bemerkungen {
+  width: 100%;
+  font-family: var(--font-body, sans-serif);
+  font-size: 0.9rem;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  resize: vertical;
+}
+
+/* PDF Download */
+.up-download-area {
+  text-align: center;
+  margin-top: 1.5rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border);
+}
+.btn-pdf {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: #16a34a;
+  color: #fff;
+  border: none;
+  border-radius: var(--radius-sm);
+  padding: 0.85rem 2rem;
+  font-size: 1rem;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: var(--font-ui);
+  transition: background 0.15s, transform 0.1s;
+  box-shadow: 0 2px 8px rgba(22,163,74,0.25);
+}
+.btn-pdf:hover {
+  background: #15803d;
+}
+.btn-pdf:active {
+  transform: scale(0.97);
+}
+.up-download-hint {
+  font-size: 0.78rem;
+  color: var(--muted);
+  margin-top: 0.5rem;
+}
+
+/* Hidden PDF render area */
+#pdf-render {
+  position: absolute;
+  left: -9999px;
+  top: 0;
+  width: 210mm;
+  background: #fff;
+  color: #000;
+  font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  font-size: 11pt;
+  line-height: 1.5;
+  padding: 15mm 20mm;
+}
+#pdf-render h1 {
+  font-size: 18pt;
+  text-align: center;
+  margin-bottom: 2mm;
+  color: #111;
+}
+#pdf-render .pdf-subtitle {
+  text-align: center;
+  font-size: 10pt;
+  color: #555;
+  margin-bottom: 8mm;
+}
+#pdf-render h2 {
+  font-size: 12pt;
+  border-bottom: 1px solid #ccc;
+  padding-bottom: 2mm;
+  margin-top: 7mm;
+  margin-bottom: 3mm;
+  color: #222;
+}
+#pdf-render table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 4mm;
+}
+#pdf-render table th,
+#pdf-render table td {
+  border: 1px solid #ccc;
+  padding: 2mm 3mm;
+  font-size: 10pt;
+  text-align: left;
+}
+#pdf-render table th {
+  background: #f0f0f0;
+  font-weight: 600;
+}
+#pdf-render .pdf-row {
+  display: flex;
+  gap: 10mm;
+  margin-bottom: 2mm;
+  font-size: 10pt;
+}
+#pdf-render .pdf-row .pdf-label {
+  font-weight: 600;
+  min-width: 40mm;
+}
+#pdf-render .pdf-signatures {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 15mm;
+  gap: 10mm;
+}
+#pdf-render .pdf-sig-block {
+  flex: 1;
+  text-align: center;
+}
+#pdf-render .pdf-sig-line {
+  border-top: 1px solid #333;
+  margin-top: 20mm;
+  padding-top: 2mm;
+  font-size: 9pt;
+  color: #555;
+}
+</style>
+
+<script src="https://cdn.jsdelivr.net/npm/html2pdf.js@0.10.2/dist/html2pdf.bundle.min.js" is:inline></script>
+
+<script is:inline>
+document.addEventListener('DOMContentLoaded', function() {
+  // === Accordion toggle ===
+  document.querySelectorAll('.up-legend').forEach(function(legend) {
+    legend.addEventListener('click', function() {
+      var section = this.closest('.up-section');
+      section.classList.toggle('collapsed');
+    });
+  });
+
+  // === Raum-Vorlagen Freitext toggle ===
+  var vorlageSelect = document.getElementById('raum-vorlage');
+  var freitextInput = document.getElementById('raum-freitext');
+  vorlageSelect.addEventListener('change', function() {
+    freitextInput.style.display = this.value === '' ? 'block' : 'none';
+  });
+
+  // === Set default date ===
+  var datumInput = document.getElementById('up-datum');
+  if (datumInput && !datumInput.value) {
+    datumInput.value = new Date().toISOString().split('T')[0];
+  }
+
+  // === Raum hinzufügen ===
+  var raumCounter = 0;
+  var container = document.getElementById('raeume-container');
+
+  function addRaum(name) {
+    raumCounter++;
+    var id = 'raum-' + raumCounter;
+    var parts = ['Wände', 'Boden', 'Fenster', 'Türen'];
+
+    var card = document.createElement('div');
+    card.className = 'raum-card';
+    card.id = id;
+
+    var header = '<div class="raum-card-header"><h4>' + escHtml(name) + '</h4>'
+      + '<button type="button" class="btn-remove-raum" data-raum="' + id + '" title="Raum entfernen">&times;</button></div>';
+
+    var table = '<table class="raum-table"><thead><tr><th>Bereich</th><th>Zustand</th><th>Kommentar</th></tr></thead><tbody>';
+    for (var i = 0; i < parts.length; i++) {
+      var p = parts[i];
+      table += '<tr>'
+        + '<td>' + p + '</td>'
+        + '<td><select data-raum-name="' + escHtml(name) + '" data-part="' + p + '" data-field="zustand">'
+        + '<option value="gut">gut</option><option value="Mängel">Mängel</option></select></td>'
+        + '<td><input type="text" data-raum-name="' + escHtml(name) + '" data-part="' + p + '" data-field="kommentar" placeholder="optional" /></td>'
+        + '</tr>';
+    }
+    table += '</tbody></table>';
+
+    card.innerHTML = header + table;
+    container.appendChild(card);
+
+    card.querySelector('.btn-remove-raum').addEventListener('click', function() {
+      card.remove();
+    });
+  }
+
+  function escHtml(s) {
+    var d = document.createElement('div');
+    d.textContent = s;
+    return d.innerHTML;
+  }
+
+  document.getElementById('raum-hinzufuegen').addEventListener('click', function() {
+    var name = vorlageSelect.value || freitextInput.value.trim();
+    if (!name) { freitextInput.focus(); return; }
+    addRaum(name);
+    if (!vorlageSelect.value) freitextInput.value = '';
+  });
+
+  // Add default rooms
+  ['Wohnzimmer', 'Schlafzimmer', 'Küche', 'Bad', 'Flur'].forEach(addRaum);
+
+  // === PDF generation ===
+  document.getElementById('btn-pdf').addEventListener('click', function() {
+    var btn = this;
+    btn.disabled = true;
+    btn.textContent = 'PDF wird erstellt...';
+
+    var datum = document.getElementById('up-datum').value || '-';
+    var art = document.getElementById('up-art').value;
+    // Format date for display
+    var datumFormatted = datum;
+    if (datum && datum !== '-') {
+      var parts = datum.split('-');
+      datumFormatted = parts[2] + '.' + parts[1] + '.' + parts[0];
+    }
+
+    var strasse = document.getElementById('up-strasse').value || '-';
+    var plz = document.getElementById('up-plz').value || '';
+    var ort = document.getElementById('up-ort').value || '';
+    var plzOrt = (plz + ' ' + ort).trim() || '-';
+    var etage = document.getElementById('up-etage').value || '-';
+    var zimmer = document.getElementById('up-zimmer').value || '-';
+
+    var vmName = document.getElementById('up-vm-name').value || '-';
+    var vmAdresse = document.getElementById('up-vm-adresse').value || '';
+
+    var miName = document.getElementById('up-mi-name').value || '-';
+    var miAdresse = document.getElementById('up-mi-adresse').value || '';
+
+    // Zähler
+    var zaehlerData = [
+      { label: 'Strom', nr: document.getElementById('up-strom-nr').value, stand: document.getElementById('up-strom-stand').value },
+      { label: 'Gas', nr: document.getElementById('up-gas-nr').value, stand: document.getElementById('up-gas-stand').value },
+      { label: 'Wasser', nr: document.getElementById('up-wasser-nr').value, stand: document.getElementById('up-wasser-stand').value },
+      { label: 'Heizung', nr: document.getElementById('up-heizung-nr').value, stand: document.getElementById('up-heizung-stand').value }
+    ];
+
+    // Schlüssel
+    var schluesselData = [
+      { label: 'Hausschlüssel', count: document.getElementById('up-haus-schluessel').value || '0' },
+      { label: 'Wohnungsschlüssel', count: document.getElementById('up-wohnung-schluessel').value || '0' },
+      { label: 'Briefkastenschlüssel', count: document.getElementById('up-brief-schluessel').value || '0' },
+      { label: 'Kellerschlüssel', count: document.getElementById('up-keller-schluessel').value || '0' }
+    ];
+
+    // Räume
+    var raumCards = container.querySelectorAll('.raum-card');
+    var raeume = [];
+    raumCards.forEach(function(card) {
+      var raumName = card.querySelector('h4').textContent;
+      var bereiche = [];
+      card.querySelectorAll('tbody tr').forEach(function(tr) {
+        var sel = tr.querySelector('select');
+        var inp = tr.querySelector('input');
+        bereiche.push({
+          name: sel.getAttribute('data-part'),
+          zustand: sel.value,
+          kommentar: inp.value
+        });
+      });
+      raeume.push({ name: raumName, bereiche: bereiche });
+    });
+
+    var bemerkungen = document.getElementById('up-bemerkungen').value || '';
+
+    // Build PDF HTML
+    var html = '';
+    html += '<h1>Wohnungsübergabeprotokoll</h1>';
+    html += '<div class="pdf-subtitle">' + escHtml(art) + ' am ' + escHtml(datumFormatted) + '</div>';
+
+    // Objekt
+    html += '<h2>Objekt</h2>';
+    html += '<div class="pdf-row"><span class="pdf-label">Adresse:</span><span>' + escHtml(strasse) + ', ' + escHtml(plzOrt) + '</span></div>';
+    html += '<div class="pdf-row"><span class="pdf-label">Etage / Lage:</span><span>' + escHtml(etage) + '</span></div>';
+    html += '<div class="pdf-row"><span class="pdf-label">Zimmer:</span><span>' + escHtml(zimmer) + '</span></div>';
+
+    // Vermieter
+    html += '<h2>Vermieter</h2>';
+    html += '<div class="pdf-row"><span class="pdf-label">Name:</span><span>' + escHtml(vmName) + '</span></div>';
+    if (vmAdresse) html += '<div class="pdf-row"><span class="pdf-label">Adresse:</span><span>' + escHtml(vmAdresse) + '</span></div>';
+
+    // Mieter
+    html += '<h2>Mieter</h2>';
+    html += '<div class="pdf-row"><span class="pdf-label">Name:</span><span>' + escHtml(miName) + '</span></div>';
+    if (miAdresse) html += '<div class="pdf-row"><span class="pdf-label">Neue Adresse:</span><span>' + escHtml(miAdresse) + '</span></div>';
+
+    // Zähler
+    var hasZaehler = zaehlerData.some(function(z) { return z.nr || z.stand; });
+    if (hasZaehler) {
+      html += '<h2>Zählerstände</h2>';
+      html += '<table><thead><tr><th>Zähler</th><th>Zählernummer</th><th>Stand</th></tr></thead><tbody>';
+      zaehlerData.forEach(function(z) {
+        if (z.nr || z.stand) {
+          html += '<tr><td>' + escHtml(z.label) + '</td><td>' + escHtml(z.nr || '-') + '</td><td>' + escHtml(z.stand || '-') + '</td></tr>';
+        }
+      });
+      html += '</tbody></table>';
+    }
+
+    // Schlüssel
+    html += '<h2>Schlüssel</h2>';
+    html += '<table><thead><tr><th>Art</th><th>Anzahl</th></tr></thead><tbody>';
+    schluesselData.forEach(function(s) {
+      html += '<tr><td>' + escHtml(s.label) + '</td><td>' + escHtml(s.count) + '</td></tr>';
+    });
+    html += '</tbody></table>';
+
+    // Raumzustand
+    if (raeume.length > 0) {
+      html += '<h2>Raumzustand</h2>';
+      raeume.forEach(function(raum) {
+        html += '<h3 style="font-size:11pt;margin:4mm 0 2mm;">' + escHtml(raum.name) + '</h3>';
+        html += '<table><thead><tr><th>Bereich</th><th>Zustand</th><th>Kommentar</th></tr></thead><tbody>';
+        raum.bereiche.forEach(function(b) {
+          html += '<tr><td>' + escHtml(b.name) + '</td><td>' + escHtml(b.zustand) + '</td><td>' + escHtml(b.kommentar || '-') + '</td></tr>';
+        });
+        html += '</tbody></table>';
+      });
+    }
+
+    // Bemerkungen
+    if (bemerkungen) {
+      html += '<h2>Sonstige Bemerkungen</h2>';
+      html += '<p style="font-size:10pt;white-space:pre-wrap;">' + escHtml(bemerkungen) + '</p>';
+    }
+
+    // Unterschriften
+    html += '<div class="pdf-signatures">';
+    html += '<div class="pdf-sig-block"><div class="pdf-sig-line">Ort, Datum</div></div>';
+    html += '<div class="pdf-sig-block"><div class="pdf-sig-line">Unterschrift Vermieter</div></div>';
+    html += '<div class="pdf-sig-block"><div class="pdf-sig-line">Unterschrift Mieter</div></div>';
+    html += '</div>';
+
+    // Create render container
+    var renderDiv = document.getElementById('pdf-render');
+    if (!renderDiv) {
+      renderDiv = document.createElement('div');
+      renderDiv.id = 'pdf-render';
+      document.body.appendChild(renderDiv);
+    }
+    renderDiv.innerHTML = html;
+
+    // Generate PDF
+    var opt = {
+      margin: [10, 10, 15, 10],
+      filename: 'Uebergabeprotokoll_' + datum + '.pdf',
+      image: { type: 'jpeg', quality: 0.98 },
+      html2canvas: { scale: 2, useCORS: true, letterRendering: true },
+      jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+      pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
+    };
+
+    html2pdf().set(opt).from(renderDiv).save().then(function() {
+      btn.disabled = false;
+      btn.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:0.4rem;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>PDF erstellen &amp; herunterladen';
+      renderDiv.innerHTML = '';
+    }).catch(function() {
+      btn.disabled = false;
+      btn.textContent = 'Fehler – bitte erneut versuchen';
+    });
+  });
+});
+</script>

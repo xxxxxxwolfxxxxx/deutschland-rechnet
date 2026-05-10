@@ -1,0 +1,56 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import CalculatorCard from '../../components/CalculatorCard.astro';
+import CategoryHero from '../../components/CategoryHero.astro';
+import { getByCategory, CATEGORIES } from '../../data/calculators';
+
+const cat = CATEGORIES['vorlagen'];
+const calcs = getByCategory('vorlagen');
+const base = import.meta.env.BASE_URL;
+---
+<Layout
+  title={cat.label}
+  description="Kostenlose Online-Tools: QR-Code Generator mit Logo, Übergabeprotokoll als PDF, Formulare und Vorlagen für den Alltag."
+  canonicalPath="/vorlagen/"
+  categoryColor={cat.color}
+  categoryLight={cat.colorLight}
+  categoryImage={cat.image}
+>
+  <CategoryHero
+    color={cat.color}
+    image={cat.image}
+    label={cat.label}
+    text={cat.description}
+    base={base}
+    backHref={`${base}`}
+    backLabel="← Alle Kategorien"
+  />
+
+  <div class="intro">
+    <h2>Praktische Online-Tools und Vorlagen</h2>
+    <p>Neben unseren Rechnern bieten wir kostenlose Generatoren für den Alltag: QR-Codes mit eigenem Logo erstellen, Übergabeprotokolle als PDF herunterladen und vieles mehr. Alle Tools funktionieren direkt im Browser – keine Anmeldung, keine Datenübertragung.</p>
+  </div>
+
+  <div class="grid">
+    {calcs.map(c => (
+      <CalculatorCard title={c.title} description={c.description} href={`${base}${c.category}/${c.slug}/`} accentColor={cat.color} />
+    ))}
+  </div>
+</Layout>
+<style>
+.intro {
+  margin-bottom: 1.5rem;
+  line-height: 1.7;
+}
+.intro h2 {
+  font-size: 1.3rem;
+  margin-bottom: 0.5rem;
+  color: var(--dark);
+}
+.intro p {
+  font-size: 0.92rem;
+  color: var(--text);
+}
+.grid { display: grid; gap: 0.75rem; }
+@media (min-width: 640px) { .grid { grid-template-columns: 1fr 1fr; } }
+</style>

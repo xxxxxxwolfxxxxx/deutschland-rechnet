@@ -1,0 +1,490 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import CalculatorShell from '../../components/CalculatorShell.astro';
+import CalculatorGuide from '../../components/CalculatorGuide.astro';
+import { CALCULATORS, CATEGORIES } from '../../data/calculators';
+const calc = CALCULATORS.find(c => c.slug === 'qr-code-generator')!;
+const cat = CATEGORIES[calc.category];
+const year = new Date().getFullYear();
+---
+<Layout
+  title={`QR-Code Generator ${year}`}
+  description="Kostenloser QR-Code Generator mit eigenem Logo. URL oder Text eingeben, Farben anpassen, als PNG herunterladen. Komplett im Browser – keine Daten werden hochgeladen."
+  canonicalPath="/vorlagen/qr-code-generator/"
+  categoryColor={cat.color}
+  categoryLight={cat.colorLight}
+  categoryImage={cat.image}
+>
+  <div class="page-header">
+    <a href={`${import.meta.env.BASE_URL}vorlagen/`} class="back-link">&larr; Vorlagen & Tools</a>
+    <h1>QR-Code Generator {year} – mit Logo</h1>
+  </div>
+  <CalculatorShell
+    calculator={calc}
+    intro="Erstellen Sie kostenlos individuelle QR-Codes mit eigenem Logo. Geben Sie einfach eine URL oder einen beliebigen Text ein, passen Sie Farben und Groesse an und laden Sie Ihren QR-Code als PNG herunter. Alles funktioniert direkt im Browser – Ihre Daten werden nicht an einen Server gesendet."
+    sourceNote="Die QR-Code-Generierung erfolgt komplett client-seitig im Browser. Es werden keine Daten an externe Server uebertragen."
+    faqs={[
+      { q: "Was kann ich in einen QR-Code packen?", a: "Sie koennen beliebige Texte, URLs, E-Mail-Adressen, Telefonnummern, WLAN-Zugangsdaten oder vCard-Kontaktdaten in einen QR-Code kodieren. Die maximale Kapazitaet haengt vom Fehlerkorrektur-Level ab – bei Level L sind bis zu 4.296 Zeichen moeglich." },
+      { q: "Wie gross sollte ein QR-Code gedruckt werden?", a: "Fuer zuverlaessiges Scannen sollte ein QR-Code mindestens 2 x 2 cm gross gedruckt werden. Auf Plakaten oder Bannern empfiehlt sich eine Groesse von mindestens 3 x 3 cm. Testen Sie den Code vor dem Druck immer mit verschiedenen Smartphones." },
+      { q: "Warum funktioniert der QR-Code mit Logo?", a: "QR-Codes enthalten eingebaute Fehlerkorrektur (Reed-Solomon-Codes). Bei Level H koennen bis zu 30% der Daten beschaedigt sein und der Code bleibt trotzdem lesbar. Das Logo ueberdeckt einen Teil der Daten, der durch die Fehlerkorrektur wiederhergestellt wird." },
+      { q: "Ist der Generator wirklich kostenlos?", a: "Ja, der QR-Code Generator ist vollstaendig kostenlos und ohne Einschraenkungen nutzbar. Es gibt keine Wasserzeichen, keine Registrierung und kein Limit fuer die Anzahl der generierten Codes." },
+      { q: "Kann ich den QR-Code kommerziell nutzen?", a: "Ja. Die mit diesem Generator erstellten QR-Codes koennen uneingeschraenkt fuer private und kommerzielle Zwecke verwendet werden – auf Visitenkarten, Flyern, Verpackungen, Speisekarten oder in der Werbung." },
+      { q: "Was bedeuten die Fehlerkorrektur-Level?", a: "Level L korrigiert ca. 7% Fehler (kleinster Code), Level M ca. 15%, Level Q ca. 25% und Level H ca. 30% (groesster Code). Fuer QR-Codes mit Logo sollte immer Level H gewaehlt werden, damit der Code trotz der Logo-Ueberdeckung lesbar bleibt." },
+      { q: "Welches Dateiformat wird erzeugt?", a: "Der QR-Code wird als PNG-Datei heruntergeladen. PNG eignet sich ideal fuer den Druck und die Verwendung auf Webseiten, da es verlustfreie Komprimierung bietet und transparente Hintergruende unterstuetzt." }
+    ]}
+  >
+    <div class="calc-form">
+      <div class="calc-grid">
+        <!-- URL / Text eingeben -->
+        <div class="calc-group full-width">
+          <label for="qr-text">URL oder Text</label>
+          <textarea id="qr-text" rows="3" placeholder="https://beispiel.de oder beliebiger Text">https://deutschland-rechnet.de</textarea>
+        </div>
+
+        <!-- Logo hochladen -->
+        <div class="calc-group full-width">
+          <label for="qr-logo">Logo (optional, wird zentriert eingesetzt)</label>
+          <div class="logo-upload-area">
+            <input type="file" id="qr-logo" accept="image/*" />
+            <div id="logo-preview-wrap" class="logo-preview-wrap hidden">
+              <img id="logo-preview" alt="Logo-Vorschau" />
+              <button type="button" id="logo-remove" class="logo-remove" title="Logo entfernen">&times;</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Farben -->
+        <div class="calc-group">
+          <label for="qr-fg">Vordergrundfarbe</label>
+          <div class="color-pick">
+            <input type="color" id="qr-fg" value="#000000" />
+            <span id="qr-fg-hex">#000000</span>
+          </div>
+        </div>
+        <div class="calc-group">
+          <label for="qr-bg">Hintergrundfarbe</label>
+          <div class="color-pick">
+            <input type="color" id="qr-bg" value="#ffffff" />
+            <span id="qr-bg-hex">#ffffff</span>
+          </div>
+        </div>
+
+        <!-- Groesse -->
+        <div class="calc-group">
+          <label for="qr-size">Groesse (Pixel)</label>
+          <select id="qr-size">
+            <option value="256">256 &times; 256</option>
+            <option value="512" selected>512 &times; 512</option>
+            <option value="1024">1024 &times; 1024</option>
+          </select>
+        </div>
+
+        <!-- Fehlerkorrektur -->
+        <div class="calc-group">
+          <label for="qr-ecl">Fehlerkorrektur</label>
+          <select id="qr-ecl">
+            <option value="L">L – 7 % (klein)</option>
+            <option value="M" selected>M – 15 %</option>
+            <option value="Q">Q – 25 %</option>
+            <option value="H">H – 30 % (Logo-geeignet)</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Vorschau -->
+      <div class="qr-preview-section">
+        <h3>Vorschau</h3>
+        <div class="qr-canvas-wrap">
+          <canvas id="qr-canvas" width="512" height="512"></canvas>
+        </div>
+        <button type="button" id="qr-download" class="qr-download-btn">PNG herunterladen</button>
+      </div>
+    </div>
+  </CalculatorShell>
+
+  <CalculatorGuide
+    title="QR-Codes verstehen und richtig einsetzen"
+    content={`
+      <p><strong>QR-Codes</strong> (Quick Response Codes) sind zweidimensionale Barcodes, die 1994 von der japanischen Firma Denso Wave fuer die Automobilindustrie entwickelt wurden. Heute begegnen sie uns ueberall im Alltag: auf Speisekarten in Restaurants, auf Visitenkarten, Produktverpackungen, Plakaten und in der Werbung. Ein grosser Vorteil gegenueber klassischen Barcodes ist die deutlich hoehere Datenkapazitaet und die Moeglichkeit, sie aus verschiedenen Winkeln und bei teilweiser Beschaedigung zu lesen.</p>
+
+      <p><strong>Wie funktionieren QR-Codes?</strong> Ein QR-Code besteht aus einem quadratischen Muster schwarzer und weisser Module (Punkte). Drei grosse Quadrate in den Ecken dienen als Positionsmarkierungen, damit Scanner den Code unabhaengig von der Ausrichtung erkennen. Die eigentlichen Daten werden als Binaermuster zwischen diesen Markierungen gespeichert. Zusaetzlich enthaelt jeder QR-Code sogenannte Reed-Solomon-Codes fuer die Fehlerkorrektur.</p>
+
+      <p><strong>Fehlerkorrektur-Level erklaert:</strong> Jeder QR-Code wird mit einem von vier Fehlerkorrektur-Leveln erstellt. Level L (Low) kann etwa 7 % beschaedigte Daten wiederherstellen und erzeugt den kompaktesten Code. Level M (Medium) korrigiert ca. 15 %, Level Q (Quartile) ca. 25 % und Level H (High) bis zu 30 %. Je hoeher die Fehlerkorrektur, desto groesser wird der Code – er enthaelt mehr redundante Daten.</p>
+
+      <p><strong>Warum ein Logo im QR-Code funktioniert:</strong> Dank der eingebauten Fehlerkorrektur koennen Teile des Codes ueberdeckt werden, ohne dass die Lesbarkeit verloren geht. Wenn Sie ein Logo in der Mitte platzieren, ueberdecken Sie einen Teil der Module. Solange der ueberdeckte Bereich innerhalb der Fehlerkorrektur-Kapazitaet liegt, bleibt der Code vollstaendig lesbar. Deshalb wird bei Logos automatisch Level H (30 %) empfohlen – so bleibt genuegend Redundanz fuer die Wiederherstellung.</p>
+
+      <p><strong>Einsatzbereiche fuer QR-Codes:</strong></p>
+      <ul>
+        <li><strong>Visitenkarten:</strong> Kontaktdaten als vCard hinterlegen, damit Empfaenger sie direkt ins Adressbuch uebernehmen koennen.</li>
+        <li><strong>Flyer und Plakate:</strong> Direkte Verlinkung zu Webseiten, Anmeldeformularen oder Social-Media-Profilen.</li>
+        <li><strong>Restaurants:</strong> Digitale Speisekarten auf dem Smartphone statt gedruckter Karten.</li>
+        <li><strong>Verpackungen:</strong> Zusaetzliche Produktinformationen, Anleitungen oder Herkunftsnachweise hinterlegen.</li>
+        <li><strong>Veranstaltungen:</strong> Tickets als QR-Code fuer kontaktlosen Einlass.</li>
+      </ul>
+
+      <p><strong>Tipps fuer den optimalen QR-Code:</strong> Drucken Sie QR-Codes nicht kleiner als 2 x 2 cm, um die Lesbarkeit sicherzustellen. Auf groesseren Flaechen (Plakate, Banner) sollten es mindestens 3 x 3 cm sein. Testen Sie den Code vor dem Druck immer mit verschiedenen Smartphones und Scanner-Apps. Achten Sie auf ausreichenden Kontrast zwischen Vordergrund- und Hintergrundfarbe – dunkle Module auf hellem Grund funktionieren am zuverlaessigsten. Vermeiden Sie invertierte Farbschemata (helle Module auf dunklem Grund), da einige aeltere Scanner damit Probleme haben.</p>
+    `}
+    relatedSlugs={['uebergabeprotokoll']}
+  />
+</Layout>
+
+<!-- QR-Code Generator Library -->
+<script is:inline src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js"></script>
+
+<script is:inline>
+(function() {
+  'use strict';
+
+  var textEl    = document.getElementById('qr-text');
+  var logoInput = document.getElementById('qr-logo');
+  var logoPreviewWrap = document.getElementById('logo-preview-wrap');
+  var logoPreview     = document.getElementById('logo-preview');
+  var logoRemoveBtn   = document.getElementById('logo-remove');
+  var fgInput   = document.getElementById('qr-fg');
+  var bgInput   = document.getElementById('qr-bg');
+  var fgHex     = document.getElementById('qr-fg-hex');
+  var bgHex     = document.getElementById('qr-bg-hex');
+  var sizeSelect = document.getElementById('qr-size');
+  var eclSelect  = document.getElementById('qr-ecl');
+  var canvas     = document.getElementById('qr-canvas');
+  var downloadBtn = document.getElementById('qr-download');
+
+  var logoImage = null; // Loaded Image object
+
+  // ECL mapping for qrcode-generator library (numeric constants)
+  var eclMap = { 'L': 1, 'M': 0, 'Q': 3, 'H': 2 };
+
+  // --- Logo handling ---
+  logoInput.addEventListener('change', function(e) {
+    var file = e.target.files[0];
+    if (!file) return;
+    var reader = new FileReader();
+    reader.onload = function(ev) {
+      var img = new Image();
+      img.onload = function() {
+        logoImage = img;
+        logoPreview.src = ev.target.result;
+        logoPreviewWrap.classList.remove('hidden');
+        // Auto-switch to ECL H when logo is uploaded
+        eclSelect.value = 'H';
+        generate();
+      };
+      img.src = ev.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
+
+  logoRemoveBtn.addEventListener('click', function() {
+    logoImage = null;
+    logoInput.value = '';
+    logoPreviewWrap.classList.add('hidden');
+    logoPreview.src = '';
+    generate();
+  });
+
+  // --- Color hex display ---
+  fgInput.addEventListener('input', function() { fgHex.textContent = fgInput.value; generate(); });
+  bgInput.addEventListener('input', function() { bgHex.textContent = bgInput.value; generate(); });
+
+  // --- Live update on all inputs ---
+  textEl.addEventListener('input', debounce(generate, 200));
+  sizeSelect.addEventListener('change', generate);
+  eclSelect.addEventListener('change', generate);
+
+  // --- Debounce helper ---
+  function debounce(fn, ms) {
+    var timer;
+    return function() {
+      clearTimeout(timer);
+      timer = setTimeout(fn, ms);
+    };
+  }
+
+  // --- Main generation ---
+  function generate() {
+    var text = textEl.value.trim();
+    if (!text) {
+      clearCanvas();
+      return;
+    }
+
+    var size = parseInt(sizeSelect.value, 10);
+    var fg   = fgInput.value;
+    var bg   = bgInput.value;
+    var ecl  = eclSelect.value;
+
+    // If logo is present, force H
+    if (logoImage && ecl !== 'H') {
+      eclSelect.value = 'H';
+      ecl = 'H';
+    }
+
+    // Determine type number (0 = auto)
+    var qr;
+    try {
+      qr = qrcode(0, eclMap[ecl]);
+      qr.addData(text);
+      qr.make();
+    } catch (e) {
+      // If auto fails, try higher type numbers
+      for (var t = 1; t <= 40; t++) {
+        try {
+          qr = qrcode(t, eclMap[ecl]);
+          qr.addData(text);
+          qr.make();
+          break;
+        } catch (e2) {
+          qr = null;
+        }
+      }
+    }
+
+    if (!qr) {
+      clearCanvas();
+      return;
+    }
+
+    var moduleCount = qr.getModuleCount();
+    canvas.width = size;
+    canvas.height = size;
+    var ctx = canvas.getContext('2d');
+
+    // Quiet zone (4 modules)
+    var quietZone = 4;
+    var totalModules = moduleCount + quietZone * 2;
+    var cellSize = size / totalModules;
+
+    // Fill background
+    ctx.fillStyle = bg;
+    ctx.fillRect(0, 0, size, size);
+
+    // Draw modules
+    ctx.fillStyle = fg;
+    for (var row = 0; row < moduleCount; row++) {
+      for (var col = 0; col < moduleCount; col++) {
+        if (qr.isDark(row, col)) {
+          ctx.fillRect(
+            Math.round((col + quietZone) * cellSize),
+            Math.round((row + quietZone) * cellSize),
+            Math.ceil(cellSize),
+            Math.ceil(cellSize)
+          );
+        }
+      }
+    }
+
+    // Draw logo if present
+    if (logoImage) {
+      drawLogo(ctx, size);
+    }
+  }
+
+  function drawLogo(ctx, size) {
+    // Logo takes up ~20% of the QR code area
+    var logoSize = Math.floor(size * 0.2);
+    var logoX = Math.floor((size - logoSize) / 2);
+    var logoY = Math.floor((size - logoSize) / 2);
+    var padding = Math.floor(logoSize * 0.12);
+
+    // White background behind logo (with padding)
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(
+      logoX - padding,
+      logoY - padding,
+      logoSize + padding * 2,
+      logoSize + padding * 2
+    );
+
+    // Draw logo image
+    ctx.drawImage(logoImage, logoX, logoY, logoSize, logoSize);
+  }
+
+  function clearCanvas() {
+    var size = parseInt(sizeSelect.value, 10);
+    canvas.width = size;
+    canvas.height = size;
+    var ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#f5f5f5';
+    ctx.fillRect(0, 0, size, size);
+    ctx.fillStyle = '#999';
+    ctx.font = '16px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('Text eingeben...', size / 2, size / 2);
+  }
+
+  // --- Download ---
+  downloadBtn.addEventListener('click', function() {
+    var text = textEl.value.trim();
+    if (!text) return;
+    var link = document.createElement('a');
+    link.download = 'qr-code.png';
+    link.href = canvas.toDataURL('image/png');
+    link.click();
+  });
+
+  // Initial render
+  generate();
+})();
+</script>
+
+<style>
+/* --- Form layout --- */
+.calc-form { margin: 0; }
+
+.calc-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+.calc-grid .full-width { grid-column: 1 / -1; }
+
+.calc-group label {
+  display: block;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 0.35rem;
+}
+
+.calc-group textarea,
+.calc-group select,
+.calc-group input[type="number"] {
+  width: 100%;
+  padding: 0.6rem 0.75rem;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: 0.95rem;
+  background: var(--bg);
+  color: var(--text);
+  font-family: inherit;
+  box-sizing: border-box;
+}
+.calc-group textarea:focus,
+.calc-group select:focus {
+  outline: none;
+  border-color: var(--accent, #37474f);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent, #37474f) 15%, transparent);
+}
+.calc-group textarea {
+  resize: vertical;
+  min-height: 70px;
+}
+
+/* --- Color picker --- */
+.color-pick {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+.color-pick input[type="color"] {
+  width: 44px;
+  height: 38px;
+  padding: 2px;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  background: var(--bg);
+}
+.color-pick span {
+  font-family: 'Courier New', monospace;
+  font-size: 0.9rem;
+  color: var(--text-light);
+}
+
+/* --- Logo upload --- */
+.logo-upload-area input[type="file"] {
+  font-size: 0.9rem;
+  color: var(--text);
+}
+.logo-preview-wrap {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+.logo-preview-wrap.hidden { display: none; }
+.logo-preview-wrap img {
+  width: 48px;
+  height: 48px;
+  object-fit: contain;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: #fff;
+}
+.logo-remove {
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  width: 28px;
+  height: 28px;
+  font-size: 1.1rem;
+  line-height: 1;
+  cursor: pointer;
+  color: var(--text-light);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+}
+.logo-remove:hover {
+  background: #fee;
+  border-color: #c00;
+  color: #c00;
+}
+
+/* --- QR preview section --- */
+.qr-preview-section {
+  margin-top: 1.5rem;
+  text-align: center;
+}
+.qr-preview-section h3 {
+  font-size: 1rem;
+  font-weight: 600;
+  margin-bottom: 0.75rem;
+  color: var(--text);
+}
+.qr-canvas-wrap {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 1rem;
+}
+.qr-canvas-wrap canvas {
+  max-width: 100%;
+  height: auto;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: #fff;
+}
+
+/* --- Download button --- */
+.qr-download-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.7rem 2rem;
+  background: #1e7e34;
+  color: #fff;
+  border: none;
+  border-radius: var(--radius-sm);
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.qr-download-btn:hover {
+  background: #166b2b;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(30, 126, 52, 0.3);
+}
+.qr-download-btn:active {
+  transform: translateY(0);
+}
+
+/* --- Responsive --- */
+@media (max-width: 640px) {
+  .calc-grid {
+    grid-template-columns: 1fr;
+  }
+}
+</style>

@@ -7,7 +7,8 @@ export type Category =
   | 'familie'
   | 'gesundheit'
   | 'versicherungen'
-  | 'einheiten';
+  | 'einheiten'
+  | 'vorlagen';
 
 export interface Calculator {
   slug: string;         // URL-Segment: 'brutto-netto-rechner'
@@ -27,6 +28,7 @@ export const CATEGORIES: Record<Category, { label: string; emoji: string; descri
   gesundheit:{ label: 'Gesheit & Fitness', emoji: '🏃', description: 'BMI, Kalorien, Promille',                  color: '#00796b', colorLight: '#b2dfdb', image: 'images/categories/gesundheit.png' },
   versicherungen: { label: 'Versicherungen', emoji: '🛡️', description: 'Rechtsschutz, Zahnzusatz, Pflege, Elementarschutz', color: '#e65100', colorLight: '#fff3e0', image: 'images/categories/versicherungen.png' },
   einheiten: { label: 'Einheiten & Mathe',    emoji: '📐', description: 'Länge, Gewicht, Temperatur, Inflation',  color: '#6a1b9a', colorLight: '#e1bee7', image: 'images/categories/einheiten.png' },
+  vorlagen:  { label: 'Vorlagen & Tools',     emoji: '📋', description: 'QR-Codes, Protokolle, Formulare als PDF',  color: '#37474f', colorLight: '#cfd8dc', image: 'images/categories/vorlagen.png' },
 };
 
 export const CALCULATORS: Calculator[] = [
@@ -143,7 +145,10 @@ export const CALCULATORS: Calculator[] = [
   { slug: 'wartungskosten-auto',          title: 'Wartungskosten Auto',            description: 'Voraussichtliche Instandhaltungskosten nach Alter und Laufleistung.',  category: 'auto',      featured: false, live: true },
   { slug: 'familienzuschuss-rechner',     title: 'Familienzuschuss-Rechner',       description: 'Zulässige Höhe des Familienzuschusses beim Finanzamt prüfen.',       category: 'familie',   featured: false, live: true },
   { slug: 'unterhaltsvorschuss-rechner',  title: 'Unterhaltsvorschuss-Rechner',    description: 'Höhe des staatlichen Unterhaltsvorschusses für Alleinerziehende.',     category: 'familie',   featured: false, live: true },
-  { slug: 'schwangerengeld-rechner',      title: 'Schwangerengeld-Rechner',        description: 'Zuschuss zum Mutterschaftsgeld bei freiwilliger Versicherung berechnen.',category: 'familie',   featured: false, live: true }
+  { slug: 'schwangerengeld-rechner',      title: 'Schwangerengeld-Rechner',        description: 'Zuschuss zum Mutterschaftsgeld bei freiwilliger Versicherung berechnen.',category: 'familie',   featured: false, live: true },
+  // VORLAGEN & TOOLS
+  { slug: 'qr-code-generator',           title: 'QR-Code Generator',              description: 'QR-Codes erstellen – mit eigenem Logo in der Mitte. Kostenlos als PNG.',     category: 'vorlagen',  featured: true,  live: true },
+  { slug: 'uebergabeprotokoll',          title: 'Übergabeprotokoll',              description: 'Wohnungsübergabeprotokoll als PDF erstellen – kostenlos und rechtssicher.',  category: 'vorlagen',  featured: true,  live: true },
 ];
 export function getByCategory(category: Category): Calculator[] {
   return CALCULATORS.filter(c => c.category === category && c.live);
