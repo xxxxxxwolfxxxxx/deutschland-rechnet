@@ -148,7 +148,7 @@ export const CALCULATORS: Calculator[] = [
   { slug: 'schwangerengeld-rechner',      title: 'Schwangerengeld-Rechner',        description: 'Zuschuss zum Mutterschaftsgeld bei freiwilliger Versicherung berechnen.',category: 'familie',   featured: false, live: true },
   // VORLAGEN & TOOLS
   { slug: 'qr-code-generator',           title: 'QR-Code Generator',              description: 'QR-Codes erstellen – mit eigenem Logo in der Mitte. Kostenlos als PNG.',     category: 'vorlagen',  featured: true,  live: true },
-  { slug: 'uebergabeprotokoll',          title: 'Übergabeprotokoll',              description: 'Wohnungsübergabeprotokoll als PDF erstellen – kostenlos und rechtssicher.',  category: 'vorlagen',  featured: true,  live: true },
+  { slug: 'protokoll-generator',          title: 'Protokoll-Generator',            description: 'Übergabe-, Abnahme-, Besprechungsprotokolle als PDF – kostenlos und rechtssicher.',  category: 'vorlagen',  featured: true,  live: true },
 ];
 export function getByCategory(category: Category): Calculator[] {
   return CALCULATORS.filter(c => c.category === category && c.live);
