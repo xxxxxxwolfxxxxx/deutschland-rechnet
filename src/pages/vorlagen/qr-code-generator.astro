@@ -124,14 +124,11 @@ const year = new Date().getFullYear();
 
       <p><strong>Tipps fuer den optimalen QR-Code:</strong> Drucken Sie QR-Codes nicht kleiner als 2 x 2 cm, um die Lesbarkeit sicherzustellen. Auf groesseren Flaechen (Plakate, Banner) sollten es mindestens 3 x 3 cm sein. Testen Sie den Code vor dem Druck immer mit verschiedenen Smartphones und Scanner-Apps. Achten Sie auf ausreichenden Kontrast zwischen Vordergrund- und Hintergrundfarbe – dunkle Module auf hellem Grund funktionieren am zuverlaessigsten. Vermeiden Sie invertierte Farbschemata (helle Module auf dunklem Grund), da einige aeltere Scanner damit Probleme haben.</p>
     `}
-    relatedSlugs={['uebergabeprotokoll']}
+    relatedSlugs={['protokoll-generator']}
   />
-</Layout>
 
-<!-- QR-Code Generator Library -->
-<script is:inline src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js"></script>
-
-<script is:inline>
+  <script is:inline src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js"></script>
+  <script is:inline>
 (function() {
   'use strict';
 
@@ -323,8 +320,12 @@ const year = new Date().getFullYear();
     link.click();
   });
 
-  // Initial render
-  generate();
+  // Initial render — ensure qrcode lib is loaded
+  if (typeof qrcode === 'function') {
+    generate();
+  } else {
+    window.addEventListener('load', generate);
+  }
 })();
 </script>
 
@@ -488,3 +489,4 @@ const year = new Date().getFullYear();
   }
 }
 </style>
+</Layout>
