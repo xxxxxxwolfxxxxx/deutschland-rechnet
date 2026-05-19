@@ -21,9 +21,9 @@ const year = new Date().getFullYear();
   </div>
   <CalculatorShell
     calculator={calc}
-    intro="Mit dem Sparen-Rechner berechnen Sie, wie Ihr Erspartes mit Zinseszins über die Jahre wächst."
+    intro="Mit dem Sparen-Rechner berechnen Sie, wie Ihr Erspartes mit Zinseszins über die Jahre wächst. Vergleichen Sie Einmalanlage und monatliche Sparraten, um Ihren optimalen Vermögensaufbau zu planen."
     sourceNote="Zinseszins-Effekt berücksichtigt."
-    explanation="Bei 5% Zins verdoppelt sich das Kapital in etwa alle 14 Jahre." faqs={[
+    explanation="Die Berechnung nutzt den Zinseszins-Effekt: Bei 5% Zins verdoppelt sich das Kapital etwa alle 14 Jahre (72er-Regel). Kapitalerträge über dem Sparerpauschbetrag von 1.000 Euro unterliegen der Abgeltungsteuer von 25% zzgl. Solidaritätszuschlag." faqs={[
       { q: "Was ist der Zinseszinseffekt und warum ist er so wichtig?", a: "Beim Zinseszins werden die Zinserträge nicht ausgezahlt, sondern dem Kapital zugeschlagen und in der nächsten Periode mitverzinst. Dadurch wächst Ihr Vermögen exponentiell statt linear. Albert Einstein soll den Zinseszins als das achte Weltwunder bezeichnet haben. Bei 5 % Zinsen verdoppelt sich Ihr Kapital etwa alle 14 Jahre (72er-Regel: 72 geteilt durch Zinssatz = Verdoppelungszeit in Jahren)." },
       { q: "Wie werden Kapitalerträge in Deutschland besteuert?", a: "Auf Zinserträge fällt die Abgeltungsteuer von 25 % an, plus 5,5 % Solidaritätszuschlag darauf und ggf. Kirchensteuer. Effektiv beträgt die Steuerbelastung ohne Kirchensteuer 26,375 %. Jeder Sparer hat einen Sparerpauschbetrag von 1.000 Euro pro Jahr (2.000 Euro für Ehepaare), bis zu dem Kapitalerträge steuerfrei sind. Richten Sie bei Ihrer Bank einen Freistellungsauftrag ein." },
       { q: "Tagesgeld, Festgeld oder ETF-Sparplan: Was ist besser?", a: "Das hängt vom Anlagehorizont ab. Tagesgeld eignet sich für den Notgroschen (jederzeit verfügbar, aber niedrige Zinsen). Festgeld bietet etwas höhere Zinsen bei fester Laufzeit (1-10 Jahre). Für langfristiges Sparen ab 10 Jahren sind ETF-Sparpläne oft die bessere Wahl, weil die historische Rendite von breit gestreuten Aktien-ETFs bei 7-8 % pro Jahr liegt, deutlich über den Sparzinsen." },

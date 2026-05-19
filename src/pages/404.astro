@@ -1,0 +1,113 @@
+---
+import Layout from '../layouts/Layout.astro';
+const base = import.meta.env.BASE_URL;
+
+const categories = [
+  { href: `${base}geld/`, label: 'Geld' },
+  { href: `${base}wohnen/`, label: 'Wohnen' },
+  { href: `${base}auto/`, label: 'Auto' },
+  { href: `${base}energie/`, label: 'Energie' },
+  { href: `${base}familie/`, label: 'Familie' },
+  { href: `${base}gesundheit/`, label: 'Gesundheit' },
+  { href: `${base}versicherungen/`, label: 'Versicherungen' },
+  { href: `${base}einheiten/`, label: 'Einheiten' },
+];
+---
+<Layout
+  title="Seite nicht gefunden"
+  description="Die angeforderte Seite konnte leider nicht gefunden werden."
+  canonicalPath="/404/"
+>
+  <div class="error-page">
+    <p class="error-code">404</p>
+    <h1>Seite nicht gefunden</h1>
+    <p class="error-text">
+      Die angeforderte Seite existiert leider nicht oder wurde verschoben.
+      Vielleicht finden Sie, was Sie suchen, auf der Startseite oder in einer unserer Kategorien.
+    </p>
+    <a href={`${base}`} class="home-link">Zur Startseite</a>
+
+    <div class="categories">
+      <h2>Beliebte Kategorien</h2>
+      <div class="category-grid">
+        {categories.map((cat) => (
+          <a href={cat.href} class="category-link">{cat.label}</a>
+        ))}
+      </div>
+    </div>
+  </div>
+</Layout>
+
+<style>
+.error-page {
+  text-align: center;
+  max-width: 600px;
+  margin: 2rem auto;
+  padding: 2rem 1rem;
+}
+.error-code {
+  font-size: 5rem;
+  font-weight: 800;
+  color: var(--red);
+  margin: 0;
+  line-height: 1;
+}
+.error-page h1 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--text);
+  margin: 0.5rem 0 1rem;
+}
+.error-text {
+  font-size: 0.95rem;
+  line-height: 1.7;
+  color: var(--text-light, var(--text));
+  margin-bottom: 1.5rem;
+}
+.home-link {
+  display: inline-block;
+  background: var(--red);
+  color: #fff;
+  padding: 0.75rem 1.75rem;
+  border-radius: var(--radius-sm, 6px);
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 0.95rem;
+  transition: opacity 0.15s;
+}
+.home-link:hover {
+  opacity: 0.9;
+}
+.categories {
+  margin-top: 2.5rem;
+  padding-top: 2rem;
+  border-top: 1px solid var(--border);
+}
+.categories h2 {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 1rem;
+}
+.category-grid {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.5rem;
+}
+.category-link {
+  display: inline-block;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm, 6px);
+  padding: 0.5rem 1rem;
+  font-size: 0.85rem;
+  color: var(--text);
+  text-decoration: none;
+  transition: border-color 0.15s;
+}
+.category-link:hover {
+  border-color: var(--red);
+  color: var(--red);
+}
+</style>

@@ -1,0 +1,121 @@
+---
+import Layout from '../layouts/Layout.astro';
+const base = import.meta.env.BASE_URL;
+---
+<Layout
+  title="Über uns"
+  description="Über Deutschland rechnet – wer wir sind, was uns antreibt und warum wir kostenlose Rechner für Deutschland entwickeln."
+  canonicalPath="/ueber-uns/"
+>
+  <a href={`${base}`}>← Startseite</a>
+  <h1>Über Deutschland rechnet</h1>
+
+  <div class="about-content">
+    <section class="about-section">
+      <h2>Unsere Mission</h2>
+      <p>
+        Deutschland rechnet entstand aus einer einfachen Beobachtung: Viele finanzielle Entscheidungen in Deutschland – von der Gehaltsverhandlung über den Hauskauf bis zur Steuererklärung – scheitern an fehlender Transparenz. Wer sein Nettogehalt nicht kennt, verhandelt blind. Wer Nebenkosten beim Immobilienkauf nicht einplant, erlebt böse Überraschungen.
+      </p>
+      <p>
+        Wir bieten über 100 kostenlose Rechner, die komplexe deutsche Regelungen verständlich machen. Jeder Rechner erklärt nicht nur das Ergebnis, sondern auch den Hintergrund: Welche Gesetze gelten, wie die Berechnung funktioniert und was Sie beachten sollten.
+      </p>
+    </section>
+
+    <section class="about-section">
+      <h2>Unsere Grundsätze</h2>
+      <div class="principles">
+        <div class="principle">
+          <h3>Kostenlos und werbefinanziert</h3>
+          <p>Alle Rechner sind und bleiben kostenlos. Die Website finanziert sich ausschließlich über Werbeanzeigen. Wir verkaufen keine Daten und bieten keine kostenpflichtigen Premiumfunktionen an.</p>
+        </div>
+        <div class="principle">
+          <h3>Datenschutz zuerst</h3>
+          <p>Alle Berechnungen finden lokal in Ihrem Browser statt. Ihre Eingaben – ob Gehalt, Steuerklasse oder Gesundheitsdaten – werden nicht an Server übertragen, nicht gespeichert und nicht weitergegeben.</p>
+        </div>
+        <div class="principle">
+          <h3>Aktuell und korrekt</h3>
+          <p>Unsere Rechner werden regelmäßig aktualisiert und berücksichtigen aktuelle Gesetzesänderungen, Steuersätze und Sozialversicherungsbeiträge. Quellenangaben zu Gesetzen und Verordnungen finden Sie bei jedem Rechner.</p>
+        </div>
+        <div class="principle">
+          <h3>Verständlich erklärt</h3>
+          <p>Jeder Rechner enthält Erklärungen, Hintergrundinformationen und häufig gestellte Fragen. Wir möchten, dass Sie nicht nur ein Ergebnis erhalten, sondern die Zusammenhänge verstehen.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="about-section">
+      <h2>Wer steht dahinter?</h2>
+      <p>
+        Deutschland rechnet wird von Matthias Dührkop betrieben – Softwareentwickler mit langjähriger Erfahrung in der Webentwicklung und einem persönlichen Interesse an Finanzthemen und verständlicher Wissensvermittlung. Die Rechner werden mit besonderer Sorgfalt auf fachliche Korrektheit geprüft und regelmäßig an gesetzliche Änderungen angepasst.
+      </p>
+      <p>
+        Standort: Boizenburg/Elbe, Deutschland.
+      </p>
+    </section>
+
+    <section class="about-section">
+      <h2>Hinweis</h2>
+      <p>
+        Die Rechner auf dieser Website dienen als Orientierungshilfe und ersetzen keine professionelle Beratung. Für steuerliche, rechtliche oder medizinische Fragen konsultieren Sie bitte einen Steuerberater, Rechtsanwalt oder Arzt. Individuelle Situationen können von den berechneten Ergebnissen abweichen.
+      </p>
+    </section>
+
+    <section class="about-section">
+      <h2>Kontakt</h2>
+      <p>
+        Haben Sie Fragen, Anregungen oder einen Fehler entdeckt? Schreiben Sie uns gerne eine E-Mail an <a href="mailto:xxxxwolfxxxx@me.com">xxxxwolfxxxx@me.com</a>. Wir freuen uns über Feedback und Verbesserungsvorschläge.
+      </p>
+    </section>
+  </div>
+</Layout>
+
+<style>
+.about-content {
+  max-width: 750px;
+  margin-top: 1.5rem;
+}
+.about-section {
+  margin-bottom: 2rem;
+}
+.about-section h2 {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 0.75rem;
+}
+.about-section p {
+  font-size: 0.95rem;
+  line-height: 1.75;
+  color: var(--text);
+  margin-bottom: 0.75rem;
+}
+.about-section a {
+  color: var(--red);
+}
+.principles {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1rem;
+}
+@media (min-width: 640px) {
+  .principles { grid-template-columns: 1fr 1fr; }
+}
+.principle {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 1.25rem;
+}
+.principle h3 {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 0.4rem;
+}
+.principle p {
+  font-size: 0.85rem;
+  line-height: 1.6;
+  color: var(--text-light);
+  margin: 0;
+}
+</style>
