@@ -21,9 +21,9 @@ const year = new Date().getFullYear();
   </div>
   <CalculatorShell
     calculator={calc}
-    intro="Mit dem Gehaltserhöhung-Rechner sehen Sie, wie viel von einer Brutto-Erhöhung tatsächlich netto übrig bleibt."
+    intro="Mit dem Gehaltserhöhung-Rechner sehen Sie, wie viel von einer Brutto-Erhöhung tatsächlich netto übrig bleibt. Ideal zur Vorbereitung auf Gehaltsverhandlungen oder um den realen Wert einer Gehaltsanpassung einzuschätzen."
     sourceNote="Grenzsteuersatz berücksichtigt."
-    explanation="Der Grenzsteuersatz kann bei 42% oder 45% liegen. Die Sozialabgaben sinken anteilig."
+    explanation="Die Netto-Erhöhung wird durch den Grenzsteuersatz bestimmt, der bei 42% (ab ca. 67.000 Euro) bzw. 45% (ab ca. 278.000 Euro) liegen kann. Sozialabgaben fallen oberhalb der Beitragsbemessungsgrenze nicht mehr an, was den Nettoeffekt bei hohen Gehältern verbessert."
     faqs={[
       { q: "Warum ist die Netto-Erhöhung viel kleiner als die Brutto-Erhöhung?", a: "Das ist der Grenzsteuersatz! Auf Ihre Gehaltserhöhung zahlen Sie die höchsten Steuern und Sozialabgaben, die Sie insgesamt zahlen – nicht den Durchschnitt. Mit Einkommen über 60.000€ sind das leicht 40-50% Abgaben. Bei 500€ Brutto-Plus bleiben also nur 250-300€ netto übrig." },
       { q: "Was ist der Grenzsteuersatz?", a: "Der Grenzsteuersatz ist die Steuer auf den letzten verdientem Euro. Nicht auf das ganze Gehalt. Beispiel: Mit 50.000€ Einkommen (Steuerklasse IV) zahlen Sie ca. 42% Grenzsteuersatz. Das bedeutet: Jeder zusätzlich verdiente Euro kostet Sie 42 Cent Steuern." },
