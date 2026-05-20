@@ -21,9 +21,9 @@ const year = new Date().getFullYear();
   </div>
   <CalculatorShell
     calculator={calc}
-    intro="Mit dem Kfz-Steuer-Rechner berechnen Sie die jährliche Kfz-Steuer für Ihr Fahrzeug."
+    intro="Mit dem Kfz-Steuer-Rechner berechnen Sie die jährliche Kfz-Steuer für Ihr Fahrzeug. Erfahren Sie, wie Hubraum, Kraftstoffart und CO₂-Ausstoß die Steuerlast bestimmen -- hilfreich beim Autokauf oder Halterwechsel."
     sourceNote="Benziner: 2€/100 cm³, Diesel: 9,50€/100 cm³."
-    explanation="Benziner: 2€ pro 100 cm³ + CO₂-Komponente. Diesel: 9,50€ + CO₂. Elektro: 0€ bis 2030."
+    explanation="Nach dem Kraftfahrzeugsteuergesetz (KraftStG) setzt sich die Steuer aus Hubraum- und CO₂-Komponente zusammen: Benziner zahlen 2 € pro 100 cm³, Diesel 9,50 €. Elektrofahrzeuge sind nach § 3d KraftStG bis 2030 vollständig befreit."
     faqs={[
       { q: "Wie setzt sich die Kfz-Steuer zusammen?", a: "Die Grundsteuer ist nach Hubraum gestaffelt (Benzin 2€, Diesel 9,50€ pro 100 cm³). Hinzu kommt die CO₂-Komponente: 2€ pro g/km über 95 g/km (Benzin) oder 120 g/km (Diesel). Für Elektrofahrzeuge gilt Steuerbefreiung bis 31.12.2030." },
       { q: "Warum kostet Diesel mehr?", a: "Diesel stößt mehr CO₂ und Stickoxide aus. Deshalb wird Diesel mit 9,50€ pro 100 cm³ besteuert, während Benziner 2€ zahlen. Der Kostenvorteil wird durch die höhere Steuer aufgezehrt." },

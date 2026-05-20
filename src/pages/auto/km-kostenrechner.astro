@@ -11,6 +11,13 @@ const base = import.meta.env.BASE_URL;
   canonicalPath="/auto/km-kostenrechner/"
   categoryColor="#1565c0"
   categoryLight="#e3f2fd"
+  faqs={[
+    { q: "Was zählt alles zu den Fixkosten beim Auto?", a: "Zu den Fixkosten gehören Kfz-Versicherung, Kfz-Steuer, Hauptuntersuchung (TÜV), Stellplatz bzw. Garagenmiete sowie der Wertverlust des Fahrzeugs. Diese Kosten fallen unabhängig davon an, wie viel Sie fahren." },
+    { q: "Wie berechne ich den Wertverlust meines Autos?", a: "Ziehen Sie den aktuellen Marktwert (z. B. über DAT oder Schwacke) vom Kaufpreis ab und teilen Sie durch die bisherige Haltedauer in Monaten. Neuwagen verlieren im ersten Jahr ca. 20-25 % an Wert, danach sinkt der jährliche Wertverlust auf ca. 5-10 %." },
+    { q: "Wie hoch sind die durchschnittlichen Autokosten laut ADAC?", a: "Laut ADAC liegen die Gesamtkosten pro Kilometer bei Kleinwagen bei ca. 30-40 Cent, in der Kompaktklasse bei 40-55 Cent und in der Mittelklasse bei 55-75 Cent. Diese Werte beinhalten alle Kosten inklusive Wertverlust." },
+    { q: "Ist ein E-Auto pro Kilometer günstiger als ein Verbrenner?", a: "Die reinen Energiekosten sind beim E-Auto meist niedriger (ca. 5-7 Euro pro 100 km vs. 8-14 Euro beim Verbrenner). Hinzu kommen niedrigere Wartungskosten. Allerdings ist der höhere Anschaffungspreis zu berücksichtigen, der sich erst ab ca. 15.000 km/Jahr amortisiert." },
+    { q: "Ab welcher Kilometerleistung lohnt sich ein eigenes Auto?", a: "Unter ca. 5.000 km pro Jahr sind Carsharing oder Mietwagen oft günstiger, da die Fixkosten pro Kilometer dann sehr hoch ausfallen. Ab ca. 10.000 km/Jahr sinken die Kosten pro Kilometer deutlich, und ein eigenes Auto wird wirtschaftlicher." }
+  ]}
 >
   <div class="calculator">
     <form id="kmKostenForm" class="calc-form">

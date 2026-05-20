@@ -21,9 +21,9 @@ const year = new Date().getFullYear();
   </div>
   <CalculatorShell
     calculator={calc}
-    intro="Mit dem Rabatt-Rechner berechnen Sie den Endpreis nach Rabatt."
+    intro="Mit dem Rabatt-Rechner berechnen Sie den Endpreis nach Rabatt, auch bei bis zu drei kombinierten Rabatten. Erfahren Sie, wie viel Sie tatsächlich sparen und warum sich mehrere Rabatte nicht einfach addieren lassen. Besonders nützlich für Schnäppchentage wie Black Friday, Schlussverkauf oder Mengenrabatte."
     sourceNote="Endpreis = Originalpreis × (100 - Rabatt) / 100."
-    explanation="100€ mit 20% Rabatt = 20€ Ersparnis, Endpreis = 80€."
+    explanation="Bei einem einfachen Rabatt gilt die Formel Endpreis = Originalpreis mal (1 minus Rabatt/100), bei mehreren Rabatten werden diese nacheinander multipliziert. Mathematisch bedeutet das: 50% plus 20% Rabatt ergeben nicht 70%, sondern nur 60% Gesamtrabatt, da der zweite Rabatt auf den bereits reduzierten Preis angewendet wird. Dieses Prinzip der multiplikativen Verkettung ist ein häufiges Missverständnis, das der Rechner transparent auflöst."
     faqs={[
       { q: "Wie berechne ich einen Rabatt schnell im Kopf?", a: "Teilen Sie den Originalpreis durch 10 und multiplizieren Sie mit der Rabatthälfte. Beispiel: 150€ mit 20% = 150÷10=15, 15×2=30€ Rabatt. Oder nutzen Sie Dezimalzahlen: 150 × 0,8 = 120€ Endpreis." },
       { q: "Was ist der Unterschied zwischen Rabatt und Skonto?", a: "Rabatt ist ein sofort gewährter Preisnachlass (z.B. Black Friday-Aktion). Skonto ist ein Zahlungszinsvorteil für schnelle Bezahlung (z.B. 2% Skonto bei sofortiger Bezahlung)." },

@@ -21,9 +21,9 @@ const year = new Date().getFullYear();
   </div>
   <CalculatorShell
     calculator={calc}
-    intro="Mit dem Inflationsrechner berechnen Sie den Kaufkraftverlust durch Inflation."
+    intro="Mit dem Inflationsrechner berechnen Sie den Kaufkraftverlust durch Inflation über beliebige Zeiträume. Erfahren Sie, wie viel Ihre Ersparnisse in der Zukunft noch wert sein werden und welchen realen Wertverlust Inflation verursacht. Dieses Wissen ist essenziell für Altersvorsorge, Sparplanung und Investitionsentscheidungen."
     sourceNote="2-3% pro Jahr."
-    explanation="100€ heute sind in 10 Jahren bei 2% Inflation nur noch ca. 82€ wert."
+    explanation="Die Berechnung nutzt die Formel Kaufkraft = Betrag / (1 + Inflationsrate) hoch Zeitraum, die den exponentiellen Effekt der Geldentwertung abbildet. Die Europäische Zentralbank strebt eine Inflationsrate von 2% an, was als preisstabil gilt. Über längere Zeiträume wirkt der Zinseszinseffekt jedoch erheblich: Bei 2% jährlicher Inflation verliert Geld in 35 Jahren die Hälfte seiner Kaufkraft."
     faqs={[
       { q: "Was ist Inflation und wie beeinflusst sie meine Ersparnisse?", a: "Inflation ist der kontinuierliche Anstieg der Preise für Waren und Dienstleistungen. Sie führt dazu, dass die gleiche Menge Geld mit der Zeit weniger wert wird. Wenn Sie 10.000€ sparen und die Inflation beträgt 2% pro Jahr, sind diese 10.000€ nächstes Jahr nur noch etwa 9.800€ wert." },
       { q: "Wie unterscheiden sich Nominalzins und Realzins?", a: "Der Nominalzins ist der Zinssatz, den Sie von Ihrer Bank erhalten. Der Realzins berücksichtigt die Inflation. Wenn Ihr Sparkonto 1% Nominalzins bietet, aber die Inflation 2% beträgt, ist Ihr Realzins negativ: Sie verlieren Kaufkraft." },

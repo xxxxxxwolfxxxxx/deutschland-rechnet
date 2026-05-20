@@ -21,16 +21,16 @@ const year = new Date().getFullYear();
   </div>
   <CalculatorShell
     calculator={calc}
-    intro="Erstellen Sie kostenlos individuelle QR-Codes mit eigenem Logo. Geben Sie einfach eine URL oder einen beliebigen Text ein, passen Sie Farben und Groesse an und laden Sie Ihren QR-Code als PNG herunter. Alles funktioniert direkt im Browser – Ihre Daten werden nicht an einen Server gesendet."
-    sourceNote="Die QR-Code-Generierung erfolgt komplett client-seitig im Browser. Es werden keine Daten an externe Server uebertragen."
+    intro="Erstellen Sie kostenlos individuelle QR-Codes mit eigenem Logo. Geben Sie einfach eine URL oder einen beliebigen Text ein, passen Sie Farben und Größe an und laden Sie Ihren QR-Code als PNG herunter. Alles funktioniert direkt im Browser – Ihre Daten werden nicht an einen Server gesendet."
+    sourceNote="Die QR-Code-Generierung erfolgt komplett client-seitig im Browser. Es werden keine Daten an externe Server übertragen."
     faqs={[
-      { q: "Was kann ich in einen QR-Code packen?", a: "Sie koennen beliebige Texte, URLs, E-Mail-Adressen, Telefonnummern, WLAN-Zugangsdaten oder vCard-Kontaktdaten in einen QR-Code kodieren. Die maximale Kapazitaet haengt vom Fehlerkorrektur-Level ab – bei Level L sind bis zu 4.296 Zeichen moeglich." },
-      { q: "Wie gross sollte ein QR-Code gedruckt werden?", a: "Fuer zuverlaessiges Scannen sollte ein QR-Code mindestens 2 x 2 cm gross gedruckt werden. Auf Plakaten oder Bannern empfiehlt sich eine Groesse von mindestens 3 x 3 cm. Testen Sie den Code vor dem Druck immer mit verschiedenen Smartphones." },
-      { q: "Warum funktioniert der QR-Code mit Logo?", a: "QR-Codes enthalten eingebaute Fehlerkorrektur (Reed-Solomon-Codes). Bei Level H koennen bis zu 30% der Daten beschaedigt sein und der Code bleibt trotzdem lesbar. Das Logo ueberdeckt einen Teil der Daten, der durch die Fehlerkorrektur wiederhergestellt wird." },
-      { q: "Ist der Generator wirklich kostenlos?", a: "Ja, der QR-Code Generator ist vollstaendig kostenlos und ohne Einschraenkungen nutzbar. Es gibt keine Wasserzeichen, keine Registrierung und kein Limit fuer die Anzahl der generierten Codes." },
-      { q: "Kann ich den QR-Code kommerziell nutzen?", a: "Ja. Die mit diesem Generator erstellten QR-Codes koennen uneingeschraenkt fuer private und kommerzielle Zwecke verwendet werden – auf Visitenkarten, Flyern, Verpackungen, Speisekarten oder in der Werbung." },
-      { q: "Was bedeuten die Fehlerkorrektur-Level?", a: "Level L korrigiert ca. 7% Fehler (kleinster Code), Level M ca. 15%, Level Q ca. 25% und Level H ca. 30% (groesster Code). Fuer QR-Codes mit Logo sollte immer Level H gewaehlt werden, damit der Code trotz der Logo-Ueberdeckung lesbar bleibt." },
-      { q: "Welches Dateiformat wird erzeugt?", a: "Der QR-Code wird als PNG-Datei heruntergeladen. PNG eignet sich ideal fuer den Druck und die Verwendung auf Webseiten, da es verlustfreie Komprimierung bietet und transparente Hintergruende unterstuetzt." }
+      { q: "Was kann ich in einen QR-Code packen?", a: "Sie können beliebige Texte, URLs, E-Mail-Adressen, Telefonnummern, WLAN-Zugangsdaten oder vCard-Kontaktdaten in einen QR-Code kodieren. Die maximale Kapazität hängt vom Fehlerkorrektur-Level ab – bei Level L sind bis zu 4.296 Zeichen möglich." },
+      { q: "Wie groß sollte ein QR-Code gedruckt werden?", a: "Für zuverlässiges Scannen sollte ein QR-Code mindestens 2 x 2 cm groß gedruckt werden. Auf Plakaten oder Bannern empfiehlt sich eine Größe von mindestens 3 x 3 cm. Testen Sie den Code vor dem Druck immer mit verschiedenen Smartphones." },
+      { q: "Warum funktioniert der QR-Code mit Logo?", a: "QR-Codes enthalten eingebaute Fehlerkorrektur (Reed-Solomon-Codes). Bei Level H können bis zu 30% der Daten beschädigt sein und der Code bleibt trotzdem lesbar. Das Logo überdeckt einen Teil der Daten, der durch die Fehlerkorrektur wiederhergestellt wird." },
+      { q: "Ist der Generator wirklich kostenlos?", a: "Ja, der QR-Code Generator ist vollständig kostenlos und ohne Einschränkungen nutzbar. Es gibt keine Wasserzeichen, keine Registrierung und kein Limit für die Anzahl der generierten Codes." },
+      { q: "Kann ich den QR-Code kommerziell nutzen?", a: "Ja. Die mit diesem Generator erstellten QR-Codes können uneingeschränkt für private und kommerzielle Zwecke verwendet werden – auf Visitenkarten, Flyern, Verpackungen, Speisekarten oder in der Werbung." },
+      { q: "Was bedeuten die Fehlerkorrektur-Level?", a: "Level L korrigiert ca. 7% Fehler (kleinster Code), Level M ca. 15%, Level Q ca. 25% und Level H ca. 30% (größter Code). Für QR-Codes mit Logo sollte immer Level H gewählt werden, damit der Code trotz der Logo-Überdeckung lesbar bleibt." },
+      { q: "Welches Dateiformat wird erzeugt?", a: "Der QR-Code wird als PNG-Datei heruntergeladen. PNG eignet sich ideal für den Druck und die Verwendung auf Webseiten, da es verlustfreie Komprimierung bietet und transparente Hintergründe unterstützt." }
     ]}
   >
     <div class="calc-form">
@@ -71,7 +71,7 @@ const year = new Date().getFullYear();
 
         <!-- Groesse -->
         <div class="calc-group">
-          <label for="qr-size">Groesse (Pixel)</label>
+          <label for="qr-size">Größe (Pixel)</label>
           <select id="qr-size">
             <option value="256">256 &times; 256</option>
             <option value="512" selected>512 &times; 512</option>
@@ -105,24 +105,24 @@ const year = new Date().getFullYear();
   <CalculatorGuide
     title="QR-Codes verstehen und richtig einsetzen"
     content={`
-      <p><strong>QR-Codes</strong> (Quick Response Codes) sind zweidimensionale Barcodes, die 1994 von der japanischen Firma Denso Wave fuer die Automobilindustrie entwickelt wurden. Heute begegnen sie uns ueberall im Alltag: auf Speisekarten in Restaurants, auf Visitenkarten, Produktverpackungen, Plakaten und in der Werbung. Ein grosser Vorteil gegenueber klassischen Barcodes ist die deutlich hoehere Datenkapazitaet und die Moeglichkeit, sie aus verschiedenen Winkeln und bei teilweiser Beschaedigung zu lesen.</p>
+      <p><strong>QR-Codes</strong> (Quick Response Codes) sind zweidimensionale Barcodes, die 1994 von der japanischen Firma Denso Wave für die Automobilindustrie entwickelt wurden. Heute begegnen sie uns überall im Alltag: auf Speisekarten in Restaurants, auf Visitenkarten, Produktverpackungen, Plakaten und in der Werbung. Ein großer Vorteil gegenüber klassischen Barcodes ist die deutlich höhere Datenkapazität und die Möglichkeit, sie aus verschiedenen Winkeln und bei teilweiser Beschädigung zu lesen.</p>
 
-      <p><strong>Wie funktionieren QR-Codes?</strong> Ein QR-Code besteht aus einem quadratischen Muster schwarzer und weisser Module (Punkte). Drei grosse Quadrate in den Ecken dienen als Positionsmarkierungen, damit Scanner den Code unabhaengig von der Ausrichtung erkennen. Die eigentlichen Daten werden als Binaermuster zwischen diesen Markierungen gespeichert. Zusaetzlich enthaelt jeder QR-Code sogenannte Reed-Solomon-Codes fuer die Fehlerkorrektur.</p>
+      <p><strong>Wie funktionieren QR-Codes?</strong> Ein QR-Code besteht aus einem quadratischen Muster schwarzer und weißer Module (Punkte). Drei große Quadrate in den Ecken dienen als Positionsmarkierungen, damit Scanner den Code unabhängig von der Ausrichtung erkennen. Die eigentlichen Daten werden als Binärmuster zwischen diesen Markierungen gespeichert. Zusätzlich enthält jeder QR-Code sogenannte Reed-Solomon-Codes für die Fehlerkorrektur.</p>
 
-      <p><strong>Fehlerkorrektur-Level erklaert:</strong> Jeder QR-Code wird mit einem von vier Fehlerkorrektur-Leveln erstellt. Level L (Low) kann etwa 7 % beschaedigte Daten wiederherstellen und erzeugt den kompaktesten Code. Level M (Medium) korrigiert ca. 15 %, Level Q (Quartile) ca. 25 % und Level H (High) bis zu 30 %. Je hoeher die Fehlerkorrektur, desto groesser wird der Code – er enthaelt mehr redundante Daten.</p>
+      <p><strong>Fehlerkorrektur-Level erklärt:</strong> Jeder QR-Code wird mit einem von vier Fehlerkorrektur-Leveln erstellt. Level L (Low) kann etwa 7 % beschädigte Daten wiederherstellen und erzeugt den kompaktesten Code. Level M (Medium) korrigiert ca. 15 %, Level Q (Quartile) ca. 25 % und Level H (High) bis zu 30 %. Je höher die Fehlerkorrektur, desto größer wird der Code – er enthält mehr redundante Daten.</p>
 
-      <p><strong>Warum ein Logo im QR-Code funktioniert:</strong> Dank der eingebauten Fehlerkorrektur koennen Teile des Codes ueberdeckt werden, ohne dass die Lesbarkeit verloren geht. Wenn Sie ein Logo in der Mitte platzieren, ueberdecken Sie einen Teil der Module. Solange der ueberdeckte Bereich innerhalb der Fehlerkorrektur-Kapazitaet liegt, bleibt der Code vollstaendig lesbar. Deshalb wird bei Logos automatisch Level H (30 %) empfohlen – so bleibt genuegend Redundanz fuer die Wiederherstellung.</p>
+      <p><strong>Warum ein Logo im QR-Code funktioniert:</strong> Dank der eingebauten Fehlerkorrektur können Teile des Codes überdeckt werden, ohne dass die Lesbarkeit verloren geht. Wenn Sie ein Logo in der Mitte platzieren, überdecken Sie einen Teil der Module. Solange der überdeckte Bereich innerhalb der Fehlerkorrektur-Kapazität liegt, bleibt der Code vollständig lesbar. Deshalb wird bei Logos automatisch Level H (30 %) empfohlen – so bleibt genügend Redundanz für die Wiederherstellung.</p>
 
-      <p><strong>Einsatzbereiche fuer QR-Codes:</strong></p>
+      <p><strong>Einsatzbereiche für QR-Codes:</strong></p>
       <ul>
-        <li><strong>Visitenkarten:</strong> Kontaktdaten als vCard hinterlegen, damit Empfaenger sie direkt ins Adressbuch uebernehmen koennen.</li>
+        <li><strong>Visitenkarten:</strong> Kontaktdaten als vCard hinterlegen, damit Empfänger sie direkt ins Adressbuch übernehmen können.</li>
         <li><strong>Flyer und Plakate:</strong> Direkte Verlinkung zu Webseiten, Anmeldeformularen oder Social-Media-Profilen.</li>
         <li><strong>Restaurants:</strong> Digitale Speisekarten auf dem Smartphone statt gedruckter Karten.</li>
-        <li><strong>Verpackungen:</strong> Zusaetzliche Produktinformationen, Anleitungen oder Herkunftsnachweise hinterlegen.</li>
-        <li><strong>Veranstaltungen:</strong> Tickets als QR-Code fuer kontaktlosen Einlass.</li>
+        <li><strong>Verpackungen:</strong> Zusätzliche Produktinformationen, Anleitungen oder Herkunftsnachweise hinterlegen.</li>
+        <li><strong>Veranstaltungen:</strong> Tickets als QR-Code für kontaktlosen Einlass.</li>
       </ul>
 
-      <p><strong>Tipps fuer den optimalen QR-Code:</strong> Drucken Sie QR-Codes nicht kleiner als 2 x 2 cm, um die Lesbarkeit sicherzustellen. Auf groesseren Flaechen (Plakate, Banner) sollten es mindestens 3 x 3 cm sein. Testen Sie den Code vor dem Druck immer mit verschiedenen Smartphones und Scanner-Apps. Achten Sie auf ausreichenden Kontrast zwischen Vordergrund- und Hintergrundfarbe – dunkle Module auf hellem Grund funktionieren am zuverlaessigsten. Vermeiden Sie invertierte Farbschemata (helle Module auf dunklem Grund), da einige aeltere Scanner damit Probleme haben.</p>
+      <p><strong>Tipps für den optimalen QR-Code:</strong> Drucken Sie QR-Codes nicht kleiner als 2 x 2 cm, um die Lesbarkeit sicherzustellen. Auf größeren Flächen (Plakate, Banner) sollten es mindestens 3 x 3 cm sein. Testen Sie den Code vor dem Druck immer mit verschiedenen Smartphones und Scanner-Apps. Achten Sie auf ausreichenden Kontrast zwischen Vordergrund- und Hintergrundfarbe – dunkle Module auf hellem Grund funktionieren am zuverlässigsten. Vermeiden Sie invertierte Farbschemata (helle Module auf dunklem Grund), da einige ältere Scanner damit Probleme haben.</p>
     `}
     relatedSlugs={['protokoll-generator']}
   />

@@ -21,9 +21,9 @@ const year = new Date().getFullYear();
   </div>
   <CalculatorShell
     calculator={calc}
-    intro="Mit dem Wärmepumpe-Rechner vergleichen Sie die Heizkosten einer Wärmepumpe mit einer Gasheizung."
+    intro="Vergleichen Sie die Heizkosten einer Wärmepumpe mit Ihrer aktuellen Gas- oder Ölheizung. So sehen Sie, ob sich der Umstieg für Ihr Gebäude wirtschaftlich rechnet."
     sourceNote="COP 3-4."
-    explanation="Eine Wärmepumpe hat einen COP von 3-4. Das bedeutet: 1 kWh Strom → 3-4 kWh Wärme."
+    explanation="Eine Wärmepumpe erzeugt aus 1 kWh Strom 3-4 kWh Wärme (COP 3-4). Das GEG fordert ab 2024 bei neuen Heizungen 65% erneuerbare Energien, und die KfW fördert Wärmepumpen mit bis zu 70%."
     faqs={[
       { q: "Wann rechnet sich ein Wärmepumpentausch wirtschaftlich?", a: "Mit moderaten Strompreisen (30-35ct/kWh) und JAZ 3.5: Ersparnis ~1.500-2.000€/a. Investition 15.000€ (nach 30% Förderung), Amortisationszeit 9-11 Jahre. Mit höherem Strompreis (50ct/kWh) oder besserer JAZ (4.0+): 6-8 Jahre. KfW-Förderung ist entscheidend!" },
       { q: "Was ist der Unterschied zwischen COP, JAZ und SCOP?", a: "COP = Kennzahl im Labor, optimale Bedingungen. JAZ = reale Jahresarbeitszahl mit echtem Wetter und Betrieb (15-30% niedriger als COP). SCOP = standardisierter Europawert. Rechnen Sie mit JAZ 3.0-4.0, nicht mit Hersteller-COP 4-5!" },
@@ -101,7 +101,7 @@ berechne();
 
 <CalculatorGuide
   title="Wärmepumpen verstehen und wirtschaftlich bewerten"
-  content="<p>Wärmepumpen sind die zukunftsweisende Heizlösung für klimafreundliches Wohnen. Sie nutzen umweltfreie Wärme aus Luft, Erde oder Wasser und wandeln sie mit nur 25-35% Stromverbrauch in Heizwärme um. Das macht sie langfristig günstiger und CO₂-freier als Gas- oder Ölheizungen.</p>
+  content="<p>Wärmepumpen sind die zukunftsweisende Heizlösung für klimafreundliches Wohnen. Sie nutzen kostenlose Umweltwärme aus Luft, Erde oder Wasser und wandeln sie mit nur 25-35% Stromverbrauch in Heizwärme um. Das macht sie langfristig günstiger und CO₂-freier als Gas- oder Ölheizungen.</p>
 
 <p><strong>Funktionsweise und Effizienzmaßstäbe:</strong> Eine Wärmepumpe nutzt einen Wärme-Transportprozess ähnlich wie ein Kühlschrank. 1 kWh Strom erzeugt 3-4 kWh Wärmeleistung (Kennzahl JAZ = Jahresarbeitszahl). Der COP-Wert der Hersteller ist meist höher (4-5), weil er unter optimalen Laborbedingungen gemessen wird. Mit echtem Wetter rechnen Sie mit JAZ 2.8-4.0. Modern Luft-Wärmepumpen funktionieren auch bei -25°C, sind aber am effizientesten zwischen 0°C und +15°C.</p>
 

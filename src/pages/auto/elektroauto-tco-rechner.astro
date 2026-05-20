@@ -28,7 +28,7 @@ const year = new Date().getFullYear();
       { q: "Wann lohnt sich ein Elektroauto wirtschaftlich?", a: "Ab 10.000-15.000 km/Jahr ist ein E-Auto meist günstiger als ein Benziner über 8+ Jahre. Bei 5.000 km/Jahr rechnet es sich nicht." },
       { q: "Was kostet der Strom vs. Benzin?", a: "E-Auto: ca. 3-5€ pro 100 km (bei 20€/kWh). Benziner: ca. 8-10€ pro 100 km (bei 1,80€/Liter). E-Auto ist ca. 50% günstiger beim Betrieb." },
       { q: "Ist die Batterie ein Kostenfaktor?", a: "Batterien halten heute 10+ Jahre. Garantie meist 8 Jahre oder 160.000 km. Austausch kostet 5.000-10.000€, aber sehr selten nötig." },
-      { q: "Wartverfassungskosten E-Auto vs. Benziner?", a: "E-Auto: 100-150€/Jahr (Reifen, Inspektion). Benziner: 400-600€/Jahr (Öl, Filter, Zündkerzen, TÜV)." },
+      { q: "Wartungskosten E-Auto vs. Benziner?", a: "E-Auto: 100-150€/Jahr (Reifen, Inspektion). Benziner: 400-600€/Jahr (Öl, Filter, Zündkerzen, TÜV)." },
       { q: "Gibt es noch Förderungen?", a: "2026: Kaufprämie bis 4.500€ in manchen Bundesländern. Steuerliche Vorteile sinken. Hauptersparnis: niedriger Betrieb." }
     ]}
   >
@@ -94,7 +94,7 @@ const year = new Date().getFullYear();
 <p><strong>Versicherung und Restwert:</strong> Die Versicherungskosten für E-Autos sind oft niedriger, da viele Versicherer Sondertarife anbieten. Der Restwert ist fahrzeugabhängig: Beliebte E-Auto-Modelle halten ihren Wert gut, während ältere Modelle mit kleiner Batterie stärker an Wert verlieren. Bei der Kalkulation sollten Sie realistische Restwerte für Ihr konkretes Modell ansetzen.</p>
 
 <p><strong>Praxistipp:</strong> Wer zu Hause laden kann (eigene Wallbox), spart am meisten. Nutzen Sie außerdem dynamische Stromtarife, um nachts günstig zu laden. Ab einer Jahresfahrleistung von ca. 10.000 km amortisiert sich ein E-Auto in der Regel innerhalb von 6-8 Jahren gegenüber einem vergleichbaren Benziner.</p>`}
-    relatedSlugs={['spritkosten-vergleich', 'kfz-steuer-rechner', 'km-kostenrechner', 'e-auto-leasing-kostenrechner']}
+    relatedSlugs={['spritkosten-vergleich', 'kfz-steuer-rechner', 'fahrtkosten-rechner', 'e-auto-leasing-kostenrechner']}
   />
 </Layout>
 
@@ -113,7 +113,7 @@ function berechne() {
   const ev_betrieb = gesamtKm * ev_verbrauch * strompreis / 100;
   const benziner_betrieb = gesamtKm * benziner_verbrauch * benzinpreis / 100;
 
-  const ev_wert = ev_preis * 0.50; // 50% Restwernt nach zeitraum
+  const ev_wert = ev_preis * 0.50; // 50% Restwert nach zeitraum
   const benziner_wert = benziner_preis * 0.45; // 45% Restwert
 
   const ev_versicherung = 120 * zeitraum; // 120€/Jahr

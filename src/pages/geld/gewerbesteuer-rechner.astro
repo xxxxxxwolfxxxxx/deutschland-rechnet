@@ -21,9 +21,9 @@ const year = new Date().getFullYear();
   </div>
   <CalculatorShell
     calculator={calc}
-    intro="Mit dem Gewerbesteuer-Rechner berechnen Sie die Gewerbesteuer basierend auf Ihrem Gewinn und dem kommunalen Hebesatz."
+    intro="Mit dem Gewerbesteuer-Rechner berechnen Sie die Gewerbesteuer basierend auf Ihrem Gewinn und dem Hebesatz Ihrer Gemeinde. Geben Sie Ihren Gewerbeertrag und den lokalen Hebesatz ein, um Ihre genaue Steuerlast zu ermitteln."
     sourceNote="Hebesatz 300-500% je nach Gemeinde."
-    explanation="Freibetrag 24.000€. Steuersatz ca. 14% bei Hebesatz 400%."
+    explanation="Der Freibetrag beträgt 24.500 Euro für Einzelunternehmen und Personengesellschaften (§ 11 GewStG). Die Steuermesszahl liegt bei 3,5%, multipliziert mit dem kommunalen Hebesatz (typisch 300-500%). Einzelunternehmer können die Gewerbesteuer auf die Einkommensteuer anrechnen."
     faqs={[
       { q: "Wer muss Gewerbesteuer zahlen?", a: "Alle Freiberufler und Gewerbetreibenden, wenn ihr Gewerbeertrag über 24.500€/Jahr liegt (Freibetrag). Freiberufler (Ärzte, Anwälte, Architekten) sind befreit. Privatvermögen wird nicht besteuert, nur echte Geschäftstätigkeit." },
       { q: "Was ist der Hebesatz?", a: "Der Hebesatz ist ein Multiplikator, den jede Gemeinde selbst festlegt (300-900%). Er wird auf einen Messbetrag (3,5%) angewendet. Beispiel: Messbetrag 3.500€ × Hebesatz 410% = 14.350€ Gewerbesteuer. Großstädte haben oft höhere Hebesätze." },
