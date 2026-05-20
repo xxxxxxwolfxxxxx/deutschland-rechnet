@@ -21,9 +21,9 @@ const year = new Date().getFullYear();
   </div>
   <CalculatorShell
     calculator={calc}
-    intro="Mit dem Tilgungsplan-Rechner erstellen Sie einen detaillierten Tilgungsplan für Ihr Baudarlehen."
+    intro="Mit dem Tilgungsplan-Rechner erstellen Sie einen detaillierten Tilgungsplan für Ihr Baudarlehen. So sehen Sie für jedes Jahr die Aufteilung in Zins und Tilgung sowie die verbleibende Restschuld. Der Plan hilft Ihnen, die Anschlussfinanzierung rechtzeitig zu planen und die Wirkung von Sondertilgungen einzuschätzen."
     sourceNote="Annuitätendarlehen."
-    explanation="Bei gleichbleibender Rate bleibt die Zahlung konstant. Der Tilgungsanteil steigt mit jeder Zahlung."
+    explanation="Bei einem Annuitätendarlehen bleibt die Rate konstant, während der Tilgungsanteil mit jeder Zahlung steigt, da die Zinsen auf die sinkende Restschuld berechnet werden. Nach § 489 Abs. 1 Nr. 2 BGB haben Darlehensnehmer nach 10 Jahren Zinsbindung ein Sonderkündigungsrecht mit 6 Monaten Frist. Die meisten Kreditverträge erlauben zusätzlich jährliche Sondertilgungen von 5-10 % der Darlehenssumme."
     faqs={[
       { q: "Was ist ein Tilgungsplan und wozu brauche ich ihn?", a: "Ein Tilgungsplan zeigt die vollständige Rückzahlung eines Darlehens: Für jeden Monat oder jedes Jahr sehen Sie die Gesamtrate, den Zinsanteil, den Tilgungsanteil und die verbleibende Restschuld. Er hilft bei der Planung der Anschlussfinanzierung, da Sie genau wissen, wie hoch die Restschuld am Ende der Zinsbindung ist." },
       { q: "Warum steigt der Tilgungsanteil über die Laufzeit?", a: "Bei einem Annuitätendarlehen bleibt die monatliche Rate konstant. Da die Zinsen aber auf die sinkende Restschuld berechnet werden, sinkt der Zinsanteil mit jeder Zahlung. Die frei werdende Differenz fließt automatisch in die Tilgung. Bei 300.000 € Darlehen, 3,5% Zins und 2% Anfangstilgung beträgt der Tilgungsanteil im ersten Monat 500 €, nach 10 Jahren bereits rund 700 €." },

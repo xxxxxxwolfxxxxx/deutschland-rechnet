@@ -1,5 +1,6 @@
 ---
 import '../styles/global.css';
+import { relatedSites } from '../data/relatedSites';
 
 interface Props {
   title: string;
@@ -37,7 +38,25 @@ const navLinks = [
   <link rel="canonical" href={canonical} />
   <link rel="icon" type="image/svg+xml" href={`${base}favicon.svg`} />
   <link rel="sitemap" href={`${base}sitemap-index.xml`} />
-  <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-8687929894744033" crossorigin="anonymous"></script>
+  <script is:inline>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    var consentState = localStorage.getItem('cookie-consent');
+    if (consentState === 'granted') {
+      gtag('consent', 'default', { ad_storage: 'granted', ad_user_data: 'granted', ad_personalization: 'granted', analytics_storage: 'granted' });
+    } else {
+      gtag('consent', 'default', { ad_storage: 'denied', ad_user_data: 'denied', ad_personalization: 'denied', analytics_storage: 'denied' });
+    }
+  </script>
+  <script is:inline>
+    if (localStorage.getItem('cookie-consent') === 'granted') {
+      var s = document.createElement('script');
+      s.src = 'https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-8687929894744033';
+      s.async = true;
+      s.crossOrigin = 'anonymous';
+      document.head.appendChild(s);
+    }
+  </script>
 
   <script type="application/ld+json" set:html={JSON.stringify({
     '@context': 'https://schema.org',
@@ -125,10 +144,26 @@ const navLinks = [
       </div>
       <div class="footer-legal">
         <p>© {year} Deutschland rechnet</p>
-        <p><a href={`${base}impressum/`}>Impressum</a> · <a href={`${base}agb/`}>AGB</a></p>
+        <p><a href={`${base}impressum/`}>Impressum</a> · <a href={`${base}datenschutz/`}>Datenschutz</a> · <a href={`${base}agb/`}>AGB</a> · <a href={`${base}ueber-uns/`}>Über uns</a></p>
       </div>
     </div>
+    <div class="container footer-partners">
+      <span>Weitere Rechner:</span>
+      {relatedSites.map((site) => (
+        <a href={site.url} target="_blank" rel="noopener">{site.name}</a>
+      ))}
+    </div>
   </footer>
+
+  <div id="cookie-banner" class="cookie-banner" style="display:none;" role="dialog" aria-label="Cookie-Einstellungen">
+    <div class="cookie-inner">
+      <p>Wir verwenden Cookies, um Werbeanzeigen über Google AdSense anzuzeigen. Ihre Rechnerdaten werden niemals übertragen. <a href={`${base}datenschutz/`}>Mehr erfahren</a></p>
+      <div class="cookie-buttons">
+        <button id="cookie-accept" class="cookie-btn cookie-accept">Akzeptieren</button>
+        <button id="cookie-reject" class="cookie-btn cookie-reject">Nur notwendige</button>
+      </div>
+    </div>
+  </div>
 
   <noscript>
     <style>.calc-form { display: none; }</style>
@@ -161,6 +196,28 @@ const navLinks = [
     btn.addEventListener('click', openMenu);
     closeBtn.addEventListener('click', closeMenu);
     overlay.addEventListener('click', e => { if (e.target === overlay) closeMenu(); });
+  </script>
+
+  <script is:inline>
+    (function() {
+      var banner = document.getElementById('cookie-banner');
+      var consent = localStorage.getItem('cookie-consent');
+      if (!consent) { banner.style.display = 'flex'; }
+      document.getElementById('cookie-accept').addEventListener('click', function() {
+        localStorage.setItem('cookie-consent', 'granted');
+        banner.style.display = 'none';
+        gtag('consent', 'update', { ad_storage: 'granted', ad_user_data: 'granted', ad_personalization: 'granted', analytics_storage: 'granted' });
+        var s = document.createElement('script');
+        s.src = 'https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-8687929894744033';
+        s.async = true;
+        s.crossOrigin = 'anonymous';
+        document.head.appendChild(s);
+      });
+      document.getElementById('cookie-reject').addEventListener('click', function() {
+        localStorage.setItem('cookie-consent', 'denied');
+        banner.style.display = 'none';
+      });
+    })();
   </script>
 </body>
 </html>
@@ -350,7 +407,82 @@ footer::before {
 .footer-legal p { margin: 0.25rem 0; }
 .footer-legal a { color: rgba(255,255,255,0.4); text-decoration: none; }
 .footer-legal a:hover { color: white; }
+.footer-partners {
+  margin-top: 1.5rem;
+  padding-top: 1rem;
+  border-top: 1px solid rgba(255,255,255,0.1);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem 1rem;
+  align-items: center;
+  font-size: 0.8rem;
+}
+.footer-partners span { color: rgba(255,255,255,0.4); }
+.footer-partners a { color: rgba(255,255,255,0.5); text-decoration: none; }
+.footer-partners a:hover { color: var(--gold); }
 @media (min-width: 768px) {
   .footer-inner { grid-template-columns: 1.2fr 2fr 1fr; align-items: start; }
+}
+
+/* Cookie Banner */
+.cookie-banner {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 300;
+  background: var(--dark);
+  border-top: 3px solid var(--red);
+  padding: 1rem;
+  display: flex;
+  justify-content: center;
+  box-shadow: 0 -4px 20px rgba(0,0,0,0.3);
+}
+.cookie-inner {
+  max-width: 800px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  align-items: center;
+  text-align: center;
+}
+.cookie-inner p {
+  color: rgba(255,255,255,0.85);
+  font-size: 0.85rem;
+  line-height: 1.55;
+  margin: 0;
+}
+.cookie-inner a {
+  color: var(--gold);
+  text-decoration: underline;
+}
+.cookie-buttons {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+.cookie-btn {
+  border: none;
+  padding: 0.55rem 1.25rem;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+.cookie-btn:hover { opacity: 0.9; }
+.cookie-accept {
+  background: var(--red);
+  color: white;
+}
+.cookie-reject {
+  background: rgba(255,255,255,0.15);
+  color: rgba(255,255,255,0.8);
+  border: 1px solid rgba(255,255,255,0.2);
+}
+@media (min-width: 640px) {
+  .cookie-inner { flex-direction: row; text-align: left; }
+  .cookie-buttons { flex-shrink: 0; }
 }
 </style>

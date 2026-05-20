@@ -30,9 +30,9 @@ const faqs = [
   </div>
   <CalculatorShell
     calculator={calc}
-    intro="Mit dem Ehegattenunterhalt-Rechner berechnen Sie den Trennungsunterhalt und den nachehelichen Unterhalt."
+    intro="Mit dem Ehegattenunterhalt-Rechner berechnen Sie den Trennungsunterhalt und den nachehelichen Unterhalt. So erfahren Sie, welcher Betrag Ihnen zusteht oder was Sie zahlen müssen."
     sourceNote="50% des gemeinsamen Einkommens."
-    explanation="Der Trennungsunterhalt richtet sich nach dem eheangemessenen Bedarf. Der nacheheliche ist zeitlich begrenzt."
+    explanation="Der Trennungsunterhalt richtet sich nach dem eheangemessenen Bedarf (§ 1361 BGB). Der nacheheliche Unterhalt ist nach § 1569 BGB zeitlich begrenzt und erfordert einen Unterhaltstatbestand wie Kinderbetreuung, Alter oder Krankheit."
     faqs={faqs}
   >
     <div class="calc-form">
@@ -94,7 +94,7 @@ function berechne() {
   
   let unterhalt = 0;
   if (einkommen1 > selbstbehalt) {
-    unterhalt = Math.max(0, Math.min(betrag1 - einkommen2, restEinkommen * 0.5));
+    unterhalt = Math.max(0, Math.min(bedarf1 - einkommen2, restEinkommen * 0.5));
   }
   
   const pruefBetrag = einkommen1 - selbstbehalt - unterhalt;

@@ -12,6 +12,7 @@ interface Props {
   categoryImage?: string;
   calculatorName?: string;
   resultValue?: string;
+  faqs?: Array<{ q: string; a: string }>;
 }
 
 const {
@@ -22,8 +23,22 @@ const {
   categoryLight,
   categoryImage,
   calculatorName = title,
-  resultValue = 'Ergebnis'
+  resultValue = 'Ergebnis',
+  faqs
 } = Astro.props;
+
+const faqSchema = faqs && faqs.length > 0 ? {
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": faqs.map(faq => ({
+    "@type": "Question",
+    "name": faq.q,
+    "acceptedAnswer": {
+      "@type": "Answer",
+      "text": faq.a
+    }
+  }))
+} : null;
 ---
 
 <Layout
@@ -34,7 +49,23 @@ const {
   categoryLight={categoryLight}
   categoryImage={categoryImage}
 >
+  {faqSchema && <script type="application/ld+json" set:html={JSON.stringify(faqSchema)} />}
+
   <slot />
+
+  {faqs && faqs.length > 0 && (
+    <div class="faq-section">
+      <h3>Häufige Fragen</h3>
+      <div class="faq-items">
+        {faqs.map((faq) => (
+          <div class="faq-item">
+            <h4 class="faq-question">{faq.q}</h4>
+            <div class="faq-answer">{faq.a}</div>
+          </div>
+        ))}
+      </div>
+    </div>
+  )}
 
   <ShareButtons
     calculatorName={calculatorName}
@@ -44,3 +75,41 @@ const {
 
   <RelatedSites />
 </Layout>
+
+<style>
+.faq-section {
+  margin: 2rem 0 1.5rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1.75rem;
+}
+.faq-section h3 {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 1rem;
+}
+.faq-items {
+  display: grid;
+  gap: 0.75rem;
+}
+.faq-item {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 1rem;
+  background: var(--bg);
+}
+.faq-question {
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 0.4rem;
+  font-size: 0.95rem;
+}
+.faq-answer {
+  color: var(--text-light);
+  line-height: 1.5;
+  font-size: 0.9rem;
+  margin: 0;
+}
+</style>
