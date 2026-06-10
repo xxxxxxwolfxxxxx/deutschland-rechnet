@@ -21,9 +21,9 @@ const year = new Date().getFullYear();
   </div>
   <CalculatorShell
     calculator={calc}
-    intro="Mit dem Kfz-Steuer nach CO₂-Rechner berechnen Sie die Kfz-Steuer basierend auf dem CO₂-Ausstoß Ihres Fahrzeugs. So erfahren Sie, wie stark die Emissionswerte den Steuerbetrag beeinflussen und ob sich ein sparsameres Modell lohnt."
-    sourceNote="CO₂-abhängig seit 2024."
-    explanation="Grundlage ist das Kraftfahrzeugsteuergesetz (KraftStG). Seit 2024 gilt eine progressive CO₂-Staffelung: 2 € pro g/km über dem Freibetrag von 95 g/km (Benziner) bzw. 115 g/km (Diesel). E-Fahrzeuge bleiben bis 2030 steuerbefreit."
+    intro="Berechnen Sie die jährliche Kfz-Steuer Ihres Fahrzeugs anhand des CO₂-Ausstoßes, Hubraums und Erstzulassungsdatums. Der Rechner berücksichtigt die aktuelle Steuerreform: Für Neufahrzeuge ab 2024 zählt ausschließlich der CO₂-Wert aus dem Fahrzeugschein (Feld V.7), während ältere Fahrzeuge weiterhin nach Hubraum und Emissionen besteuert werden. Vergleichen Sie verschiedene Szenarien, um die Steuerersparnis eines sparsameren Modells oder eines Elektrofahrzeugs konkret in Euro zu sehen."
+    sourceNote="Rechtsgrundlage: Kraftfahrzeugsteuergesetz (KraftStG) in der Fassung vom 26.09.2002, zuletzt geändert durch das Siebte Gesetz zur Änderung des Kraftfahrzeugsteuergesetzes (7. KraftStGÄndG). CO₂-Freibeträge und Steuersätze gemäß § 9 Abs. 1 Nr. 2 KraftStG."
+    explanation="Die Kfz-Steuer für Pkw mit Erstzulassung ab 2012 setzt sich aus zwei Komponenten zusammen: einem hubraumbezogenen Sockelbetrag (2,00 Euro je angefangene 100 cm³ bei Ottomotoren, 9,50 Euro bei Dieselmotoren) und einem CO₂-abhängigen Betrag von 2,00 Euro je Gramm CO₂ pro Kilometer über dem Freibetrag von 95 g/km. Für Fahrzeuge mit Erstzulassung ab 2024 entfällt die Hubraumkomponente vollständig – hier bestimmt allein der CO₂-Ausstoß die Steuerhöhe. Rein elektrische Fahrzeuge sind bei Erstzulassung bis Ende 2025 für zehn Jahre von der Steuer befreit (§ 3d KraftStG). Plug-in-Hybride erhalten keine gesonderte Vergünstigung, profitieren aber von ihrem niedrigeren kombinierten CO₂-Wert nach WLTP-Messverfahren."
     faqs={[
       {
         q: "Wie hat sich die Kfz-Steuer 2024 verändert?",
