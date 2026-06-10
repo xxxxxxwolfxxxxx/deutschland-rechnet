@@ -9,7 +9,7 @@ const year = new Date().getFullYear();
 ---
 <Layout
   title={`Gewerbesteuer-Rechner ${year}`}
-  description="Gewerbesteuer nach Hebesatz und Rechtsform berechnen – kostenlos und aktuell."
+  description="Gewerbesteuer berechnen mit Hebesatz, Freibetrag und Rechtsform – Messbetrag, ESt-Anrechnung nach § 35 EStG und effektiver Steuersatz für Einzelunternehmen, Personengesellschaften und GmbH."
   canonicalPath="/geld/gewerbesteuer-rechner/"
   categoryColor={cat.color}
   categoryLight={cat.colorLight}
@@ -21,15 +21,15 @@ const year = new Date().getFullYear();
   </div>
   <CalculatorShell
     calculator={calc}
-    intro="Mit dem Gewerbesteuer-Rechner berechnen Sie die Gewerbesteuer basierend auf Ihrem Gewinn und dem Hebesatz Ihrer Gemeinde. Geben Sie Ihren Gewerbeertrag und den lokalen Hebesatz ein, um Ihre genaue Steuerlast zu ermitteln."
-    sourceNote="Hebesatz 300-500% je nach Gemeinde."
-    explanation="Der Freibetrag beträgt 24.500 Euro für Einzelunternehmen und Personengesellschaften (§ 11 GewStG). Die Steuermesszahl liegt bei 3,5%, multipliziert mit dem kommunalen Hebesatz (typisch 300-500%). Einzelunternehmer können die Gewerbesteuer auf die Einkommensteuer anrechnen."
+    intro="Die Gewerbesteuer ist eine kommunale Steuer auf gewerbliche Einkünfte, deren Höhe maßgeblich vom Hebesatz der jeweiligen Gemeinde abhängt. Einzelunternehmen und Personengesellschaften profitieren von einem Freibetrag von 24.500 €, während Kapitalgesellschaften (GmbH, AG) ab dem ersten Euro Gewerbeertrag steuerpflichtig sind. Dieser Rechner berechnet Ihre Gewerbesteuer in drei Schritten – Messbetrag, Hebesatz-Multiplikation und mögliche Anrechnung auf die Einkommensteuer – und zeigt die effektive Steuerbelastung Ihres Gewerbebetriebs."
+    sourceNote="Rechtsgrundlage: Gewerbesteuergesetz (GewStG). Der Freibetrag ergibt sich aus § 11 Abs. 1 Nr. 1 GewStG, die Steuermesszahl von 3,5 % aus § 11 Abs. 2 GewStG, der Hebesatz aus § 16 GewStG (Mindesthebesatz 200 %). Die Anrechnung auf die Einkommensteuer ist in § 35 EStG geregelt (Anrechnungsfaktor 4,0 seit 2020, bis 2019: 3,8)."
+    explanation="Die Gewerbesteuer wird in drei Schritten berechnet: Im ersten Schritt wird der Gewerbeertrag ermittelt – das ist der Gewinn aus Gewerbebetrieb, korrigiert um Hinzurechnungen (§ 8 GewStG, z. B. 25 % der Finanzierungsanteile über 200.000 € Freibetrag) und Kürzungen (§ 9 GewStG, z. B. 1,2 % des Einheitswerts des Betriebsgrundstücks). Im zweiten Schritt wird nach Abzug des Freibetrags (24.500 € für Einzelunternehmen und Personengesellschaften, entfällt bei Kapitalgesellschaften) der Steuermessbetrag berechnet: steuerpflichtiger Ertrag × 3,5 % Steuermesszahl. Im dritten Schritt multipliziert die Gemeinde den Messbetrag mit ihrem individuellen Hebesatz – dieser liegt typisch zwischen 200 % (Mindesthebesatz) und über 900 % (z. B. in einigen Gemeinden nahe Frankfurt). Einzelunternehmer und Personengesellschafter können gemäß § 35 EStG das 4,0-Fache des Gewerbesteuermessbetrags auf ihre Einkommensteuer anrechnen, was bei Hebesätzen bis etwa 400 % zu einer weitgehenden Neutralisierung der Gewerbesteuer führt."
     faqs={[
       { q: "Wer muss Gewerbesteuer zahlen?", a: "Alle Freiberufler und Gewerbetreibenden, wenn ihr Gewerbeertrag über 24.500€/Jahr liegt (Freibetrag). Freiberufler (Ärzte, Anwälte, Architekten) sind befreit. Privatvermögen wird nicht besteuert, nur echte Geschäftstätigkeit." },
       { q: "Was ist der Hebesatz?", a: "Der Hebesatz ist ein Multiplikator, den jede Gemeinde selbst festlegt (300-900%). Er wird auf einen Messbetrag (3,5%) angewendet. Beispiel: Messbetrag 3.500€ × Hebesatz 410% = 14.350€ Gewerbesteuer. Großstädte haben oft höhere Hebesätze." },
       { q: "Wie unterscheiden sich Einzelunternehmen und GmbH?", a: "Einzelunternehmen & Personengesellschaften: Freibetrag 24.500€, anrechnung auf Einkommensteuer möglich. GmbH: Kein Freibetrag, Gewerbesteuer nicht auf ESt anrechenbar. Dafür: GmbH zahlt nur 30% Körperschaftsteuer + 5,5% Soli auf Gewinne (vs. bis 45% bei Einzelunternehmen)." },
       { q: "Kann ich Gewerbesteuer sparen?", a: "Bedingt. Standortwahl: Gemeinden mit niedrigerem Hebesatz (ländlich ca. 300-350% vs. Großstädte 400%+) sparen 10-15%. GmbH-Gründung ab hohen Gewinnen (>50k€/Jahr) kann rentabel sein. Optimale Rechtsformwahl nach Steuerlast mit Berater." },
-      { q: "Ist Gewerbesteuer auf Einkommensteuer anrechenbar?", a: "Ja! Einzelunternehmen und Personengesellschaften können das 3,8-fache der Gewerbesteuer auf die Einkommensteuer anrechnen (max. die ESt-Schuld). GmbH kann nicht anrechnen, weil sie zwar Gewerbesteuer, aber keine ESt zahlt." },
+      { q: "Ist Gewerbesteuer auf Einkommensteuer anrechenbar?", a: "Ja! Einzelunternehmen und Personengesellschaften können gemäß § 35 EStG das 4,0-Fache des Gewerbesteuermessbetrags auf die Einkommensteuer anrechnen (max. die tatsächliche ESt-Schuld). Bei Hebesätzen bis ca. 400 % wird die Gewerbesteuer dadurch nahezu vollständig kompensiert. GmbHs können nicht anrechnen, da sie Körperschaftsteuer statt Einkommensteuer zahlen." },
       { q: "Muss ich Gewerbesteuer zahlen, wenn ich Verlust mache?", a: "Nein. Gewerbesteuer wird nur auf positive Gewinne berechnet. Ein Verlust führt zu keiner Steuer. Allerdings: Minderungen durch Verluste können mit zukünftigen Gewinnen verrechnet werden (Verlustvor-/rücktrag)." }
     ]}
   >
@@ -93,14 +93,14 @@ function berechne() {
   const messbetrag = steuerpflichtig * 0.035;
   const gewerbesteuer = messbetrag * (hebesatz / 100);
   const effektiverSatz = gewerbeertrag > 0 ? (gewerbesteuer / gewerbeertrag * 100) : 0;
-  const anrechnungESt = gewerbesteuer * 3.8;
+  const anrechnungESt = messbetrag * 4.0;
   document.getElementById('ergebnis').textContent = gewerbesteuer.toLocaleString('de-DE', {minimumFractionDigits:2, maximumFractionDigits:2}) + ' €';
   document.getElementById('details').innerHTML =
     `<span>Freibetrag: <strong>${freibetrag.toLocaleString('de-DE')} €</strong></span>` +
     `<span>Steuerpflichtiger Ertrag: <strong>${steuerpflichtig.toLocaleString('de-DE')} €</strong></span>` +
     `<span>Messbetrag (3,5%): <strong>${messbetrag.toLocaleString('de-DE', {minimumFractionDigits:2, maximumFractionDigits:2})} €</strong></span>` +
     `<span>Effektiver Steuersatz: <strong>${effektiverSatz.toFixed(2)} %</strong></span>` +
-    `<span>Mögliche ESt-Anrechnung (3,8×): <strong>${anrechnungESt.toLocaleString('de-DE', {minimumFractionDigits:2, maximumFractionDigits:2})} €</strong></span>`;
+    `<span>Mögliche ESt-Anrechnung (4,0× Messbetrag): <strong>${anrechnungESt.toLocaleString('de-DE', {minimumFractionDigits:2, maximumFractionDigits:2})} €</strong></span>`;
 }
 ['gewerbeertrag','hebesatz'].forEach(id =>
   document.getElementById(id).addEventListener('input', berechne));
