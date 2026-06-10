@@ -9,7 +9,7 @@ const year = new Date().getFullYear();
 
 const faqs = [
   { q: 'Wer hat Anspruch auf Kindergeld?', a: 'Eltern, deren Kinder unter 18 Jahren sind, oder unter 25 Jahren wenn das Kind in Ausbildung oder Studium ist.' },
-  { q: 'Wie hoch ist das Kindergeld?', a: 'Das Kindergeld beträgt monatlich 250€ für das erste Kind, 250€ für das zweite, 250€ für das dritte und 300€ ab dem vierten Kind.' },
+  { q: 'Wie hoch ist das Kindergeld?', a: 'Das Kindergeld beträgt seit 2025 einheitlich 255 € pro Kind und Monat – unabhängig von der Reihenfolge der Kinder. Die frühere Staffelung (mehr ab dem dritten oder vierten Kind) wurde abgeschafft.' },
   { q: 'Wird mein Einkommen berücksichtigt?', a: 'Nein, Kindergeld ist grundsätzlich einkommensunabhängig. Es gibt aber Grenzen beim Kinderfreibetrag.' },
   { q: 'Wann endet der Kindergeldanspruch?', a: 'Entweder wenn das Kind 18 wird, bei Ausbildung mit 25 Jahren oder wenn das Kind eine Erwerbstätigkeit beginnt.' },
   { q: 'Kann Kindergeld gepfändet werden?', a: 'Nein, Kindergeld ist (teilweise) gepfändungsfrei bis zur Höhe der Unterhaltsansprüche.' },
@@ -30,9 +30,9 @@ const faqs = [
   </div>
   <CalculatorShell
     calculator={calc}
-    intro="Mit dem Kindergeld-Rechner berechnen Sie das Kindergeld für Ihre Kinder. Erfahren Sie den monatlichen und jährlichen Gesamtanspruch und ob der Kinderfreibetrag für Sie günstiger wäre."
-    sourceNote="250€/Kind."
-    explanation="Das Kindergeld wird nach § 66 EStG bzw. § 6 BKGG gezahlt. Der Anspruch besteht bis zum 18. Lebensjahr, bei Ausbildung bis 25. Das Finanzamt prüft automatisch, ob Kindergeld oder Kinderfreibetrag (§ 32 Abs. 6 EStG) günstiger ist."
+    intro="Mit dem Kindergeld-Rechner berechnen Sie den monatlichen und jährlichen Kindergeldanspruch für Ihre Familie. Seit Januar 2025 beträgt das Kindergeld einheitlich 255 € pro Kind und Monat (§ 66 EStG). Der Rechner zeigt Ihnen außerdem, ob der Kinderfreibetrag nach § 32 Abs. 6 EStG für Sie steuerlich günstiger wäre – das lohnt sich in der Regel ab einem zu versteuernden Einkommen von ca. 75.000 € (Zusammenveranlagung)."
+    sourceNote="255 €/Kind (2026, § 66 EStG). Kinderfreibetrag 2026: 6.672 € je Kind (§ 32 Abs. 6 EStG). Quelle: Bundesministerium für Familie, Senioren, Frauen und Jugend."
+    explanation="Das Kindergeld wird nach § 66 EStG bzw. § 6 BKGG gezahlt und beträgt seit 2025 einheitlich 255 € pro Kind und Monat. Der Anspruch besteht bis zum 18. Lebensjahr, bei Ausbildung oder Studium bis zum 25. Lebensjahr. Das Finanzamt führt bei der Steuererklärung automatisch eine Günstigerprüfung durch: Es vergleicht das ausgezahlte Kindergeld mit der Steuerersparnis durch den Kinderfreibetrag (2026: 6.672 € je Kind) und wendet die für Sie vorteilhaftere Variante an."
     faqs={faqs}
   >
     <div class="calc-form">
@@ -57,16 +57,20 @@ const faqs = [
   </CalculatorShell>
 
   <CalculatorGuide
-    title="Kindergeld – Finanzielle Unterstützung für Familien"
-    content="Kindergeld ist eine der wichtigsten Familienleistungen in Deutschland. Es wird nicht einkommensabhängig gezahlt, sondern als pauschale Unterstützung für jedes Kind.
+    title="Kindergeld 2026 – Anspruch, Antrag und Kinderfreibetrag im Vergleich"
+    content={`
+    <p><strong>Kindergeld</strong> ist eine der wichtigsten Familienleistungen in Deutschland und steht grundsätzlich allen Eltern zu – unabhängig vom Einkommen. Seit Januar 2025 beträgt es einheitlich <strong>255 € pro Kind und Monat</strong> (§ 66 EStG). Die frühere Staffelung, bei der ab dem dritten Kind höhere Beträge gezahlt wurden, ist entfallen.</p>
 
-Das Kindergeld wird monatlich auf Antrag bei der Familienkasse (gehört zur Agentur für Arbeit) gezahlt. Wichtig: Der Antrag muss aktiv gestellt werden, das Kindergeld wird nicht automatisch gewährt. Für neugeborene Kinder sollte der Antrag schnell nach der Geburt gestellt werden.
+    <p><strong>Antragstellung bei der Familienkasse:</strong> Kindergeld wird nicht automatisch ausgezahlt, sondern muss bei der Familienkasse der Bundesagentur für Arbeit beantragt werden. Der Antrag kann seit 2024 vollständig digital über das Portal <em>Familienkasse Digital</em> gestellt werden. Für Neugeborene empfiehlt sich der Antrag innerhalb der ersten sechs Monate nach Geburt – eine rückwirkende Zahlung ist nur für maximal sechs Monate möglich (§ 66 Abs. 3 EStG).</p>
 
-Ein häufiges Missverständnis: Kindergeld und Kinderfreibetrag sind zwei verschiedene Systeme. Die Finanzbehörden vergleichen automatisch beide und gewähren die günstigere Variante. In der Regel ist für Normalverdiener das Kindergeld vorteilhafter.
+    <p><strong>Kindergeld vs. Kinderfreibetrag – die Günstigerprüfung:</strong> Das Finanzamt vergleicht bei der Einkommensteuererklärung automatisch, ob das ausgezahlte Kindergeld (255 € × 12 = 3.060 € pro Kind und Jahr) oder der Kinderfreibetrag (2026: 6.672 € je Kind nach § 32 Abs. 6 EStG, zzgl. Betreuungsfreibetrag von 2.928 €) steuerlich vorteilhafter ist. Bei zusammenveranlagten Ehepaaren lohnt sich der Kinderfreibetrag in der Regel ab einem zu versteuernden Einkommen von etwa 75.000 € – bei Alleinerziehenden bereits ab ca. 40.000 €. Sie müssen sich nicht vorab entscheiden: Die günstigere Variante wird automatisch angewendet.</p>
 
-Besonderheit: Für Kinder in Ausbildung oder Studium wird Kindergeld bis zum 25. Lebensjahr gezahlt, sofern sie nicht selbst genug verdienen. Arbeitet das Kind neben der Ausbildung, können Einkommensgrenzen greifen.
+    <p><strong>Anspruchsdauer und Verlängerung:</strong> Kindergeld wird grundsätzlich bis zum 18. Geburtstag gezahlt. Bei Kindern in Ausbildung, Studium oder einem anerkannten Freiwilligendienst (FSJ, BFD) verlängert sich der Anspruch bis zum 25. Lebensjahr (§ 32 Abs. 4 EStG). Zwischen zwei Ausbildungsabschnitten besteht der Anspruch für bis zu vier Monate weiter. Bei Kindern mit Behinderung, die sich nicht selbst unterhalten können, entfällt die Altersgrenze vollständig.</p>
 
-Finanzierungstipp: Nutzen Sie das Kindergeld als zuverlässige Einnahmequelle in der Familie. Es kann nicht gepfändet werden (mit Ausnahme für Unterhaltsrückstände). Machen Sie keinen Fehler bei der Registerung von Bankkonten – Kindergeld braucht ein gültiges Konto für die Auszahlung."
+    <p><strong>Was hat sich 2025/2026 geändert?</strong> Die Erhöhung auf 255 € (zuvor 250 €) gilt seit Januar 2025. Der Kinderfreibetrag wurde ebenfalls angehoben, um die kalte Progression auszugleichen. Zudem wurde der Sofortzuschlag von 20 € monatlich für Kinder in Familien mit geringem Einkommen (SGB II, Kinderzuschlag, Asylbewerberleistungen) beibehalten.</p>
+
+    <p><strong>Praktische Hinweise:</strong> Kindergeld wird in der Regel am Anfang oder Mitte des Monats ausgezahlt – der genaue Termin richtet sich nach der letzten Ziffer Ihrer Kindergeldnummer. Ein Kontoauszug mit dem Verwendungszweck „FK" + Kindergeldnummer bestätigt den Eingang. Kindergeld ist bis zur Höhe des Unterhaltsanspruchs pfändungsgeschützt (§ 76a EStG). Bei getrennt lebenden Eltern erhält derjenige Elternteil das Kindergeld, bei dem das Kind überwiegend lebt.</p>
+    `}
     relatedSlugs={['elterngeld-rechner', 'betreuungskosten-rechner']}
   />
 </Layout>

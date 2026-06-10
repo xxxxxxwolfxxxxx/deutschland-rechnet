@@ -21,9 +21,9 @@ const year = new Date().getFullYear();
   </div>
   <CalculatorShell
     calculator={calc}
-    intro="Mit dem Grundumsatz-Rechner berechnen Sie Ihren Grundumsatz (BMR) nach der Harris-Benedict-Formel. Der Grundumsatz zeigt Ihnen, wie viele Kalorien Ihr Körper täglich allein für lebenswichtige Funktionen wie Atmung, Herzschlag und Zellerneuerung verbraucht. Dieses Wissen ist die Basis für jede fundierte Ernährungsplanung und Diät."
-    sourceNote="Kalorien im Ruhezustand."
-    explanation="Die Harris-Benedict-Formel berücksichtigt Gewicht, Größe, Alter und Geschlecht zur Berechnung des Ruheenergieverbrauchs. Sie wurde 1919 entwickelt und 1984 von Roza und Shizgal revidiert, um moderne Körperzusammensetzungen besser abzubilden. Der Grundumsatz macht etwa 60-75% des täglichen Gesamtenergieverbrauchs aus und sinkt mit zunehmendem Alter um etwa 2-3% pro Jahrzehnt."
+    intro="Berechnen Sie Ihren individuellen Grundumsatz (BMR) nach der wissenschaftlich fundierten Harris-Benedict-Formel. Der Grundumsatz gibt an, wie viele Kilokalorien Ihr Körper pro Tag im absoluten Ruhezustand verbraucht – allein fuer Atmung, Herzschlag, Gehirnfunktion und Zellerneuerung. Dieses Wissen bildet die Grundlage jeder seriösen Ernährungsplanung: Ob Muskelaufbau, Gewichtsreduktion oder Gesundheitsvorsorge – ohne Ihren BMR fehlt der wichtigste Referenzwert."
+    sourceNote="Formeln: Harris-Benedict (1919, revidiert 1984) und Mifflin-St Jeor (1990). Empfohlen von der Deutschen Gesellschaft für Ernährung (DGE)."
+    explanation="Dieser Rechner verwendet die revidierte Harris-Benedict-Formel (Roza & Shizgal, 1984), die Gewicht, Körpergröße, Alter und Geschlecht berücksichtigt. Die Originalformel stammt von J. Arthur Harris und Francis G. Benedict aus dem Jahr 1919 und wurde an der Carnegie Institution entwickelt. Die Mifflin-St Jeor-Formel (1990) gilt als etwas genauer für übergewichtige Personen und liefert im Durchschnitt 5 % niedrigere Werte. Der Grundumsatz macht 60–75 % des täglichen Gesamtenergieverbrauchs (TDEE) aus und sinkt mit zunehmendem Alter um etwa 2–3 % pro Lebensjahrzehnt, vor allem durch den natürlichen Verlust an Muskelmasse (Sarkopenie)."
     faqs={[
       {
         q: "Was ist der Grundumsatz (BMR)?",
@@ -83,13 +83,19 @@ const year = new Date().getFullYear();
   </CalculatorShell>
   <CalculatorGuide
     title="Grundumsatz verstehen und nutzen"
-    content="Der Grundumsatz (Basal Metabolic Rate, BMR) ist die Mindestmenge an Energie, die Ihr Körper täglich benötigt, um lebenswichtige Funktionen zu erfüllen – Atemzüge, Herzschlag, Nervenfunktion, Organarbeit und Zellerhalt. Selbst wenn Sie im Bett liegen und nichts tun, verbrauchen Sie diese Kalorien.
+    content={`
+    <p>Der Grundumsatz (englisch: Basal Metabolic Rate, BMR) beschreibt die Energiemenge, die Ihr Körper in 24 Stunden im absoluten Ruhezustand verbraucht – bei Zimmertemperatur, nüchtern und ohne körperliche oder geistige Anstrengung. Diese Energie fließt in lebenswichtige Prozesse: Herzschlag, Atmung, Aufrechterhaltung der Körpertemperatur, Gehirnaktivität, Nierenfunktion und die ständige Erneuerung von Zellen. Selbst im Schlaf verbraucht ein erwachsener Mensch zwischen 1.200 und 2.000 kcal pro Tag allein für diese Basisfunktionen.</p>
 
-**Warum der Grundumsatz für Diäten wichtig ist:** Wenn Sie wissen, wie viele Kalorien Sie grundlegend benötigen, können Sie realistische Diätziele setzen. Eine Reduktion um nur 10-15% unter Ihrem Grundumsatz ist daher potenziell unsicher – Ihr Körper bräuchte diese Energie für Basisfunktionen. Gewichtsabnahme funktioniert am besten durch ein moderates Defizit von 300-500 kcal unter Ihrem Gesamtverbrauch.
+    <p><strong>Harris-Benedict vs. Mifflin-St Jeor – zwei Formeln im Vergleich:</strong> Die Harris-Benedict-Formel wurde 1919 an der Carnegie Institution of Washington entwickelt und 1984 von Roza und Shizgal an modernen Messdaten revidiert. Sie berücksichtigt Körpergewicht, Größe, Alter und Geschlecht. Die neuere Mifflin-St Jeor-Formel (1990) verwendet dieselben Variablen, liefert aber im Schnitt etwas niedrigere Werte und gilt laut der American Dietetic Association als genauer für normalgewichtige und übergewichtige Personen. Für Sportler mit hohem Muskelanteil kann die Katch-McArdle-Formel, die den Körperfettanteil einbezieht, noch präziser sein.</p>
 
-**Praktische Anwendung:** Multiplizieren Sie Ihren Grundumsatz mit einem Aktivitätsfaktor (1,2 für sedentär, 1,5 für moderat aktiv, 1,8+ für sehr aktiv), um Ihren täglichen Energiebedarf zu schätzen. Dies ist die Basis für ausgewogene Ernährungsplanung und professionelle Fitness-Coaching.
+    <p><strong>Warum der Grundumsatz für Ernährungsplanung entscheidend ist:</strong> Ihr BMR ist die absolute Untergrenze Ihres Kalorienbedarfs. Eine dauerhafte Kalorienaufnahme unter dem Grundumsatz zwingt den Körper, Muskelgewebe als Energiequelle abzubauen – das senkt langfristig den Stoffwechsel und führt zum gefürchteten Jo-Jo-Effekt. Die Deutsche Gesellschaft für Ernährung (DGE) empfiehlt ein moderates Kaloriendefizit von 300–500 kcal unter dem Gesamtenergieverbrauch (nicht unter dem Grundumsatz), um gesund und nachhaltig Gewicht zu verlieren.</p>
 
-**Häufige Mythen entlarven:** Der Grundumsatz lässt sich nicht durch einzelne Mahlzeiten oder Supplements ankurbeln – nur durch längerfristiges Muskeltraining. Auch sehr restriktive Diäten verlangsamen ihn nicht sofort, führen aber langfristig zu Muskelabbau und damit zu einem gesunken Grundumsatz, was den Jo-Jo-Effekt erklärt."
+    <p><strong>Vom Grundumsatz zum Gesamtverbrauch (TDEE):</strong> Der Gesamtenergieverbrauch ergibt sich aus dem Grundumsatz multipliziert mit einem Aktivitätsfaktor (PAL-Wert). Büroangestellte ohne Sport liegen bei PAL 1,2–1,4, moderat Aktive bei 1,5–1,7 und Leistungssportler bei 1,8–2,2. Beispiel: Bei einem BMR von 1.700 kcal und PAL 1,5 beträgt der TDEE rund 2.550 kcal – das ist Ihre tägliche Kalorienmenge zum Gewichthalten.</p>
+
+    <p><strong>Was den Grundumsatz beeinflusst:</strong> Muskelmasse ist der wichtigste Faktor – ein Kilogramm Muskelgewebe verbraucht in Ruhe etwa 13 kcal pro Tag, Fettgewebe nur rund 4,5 kcal. Deshalb haben Männer durchschnittlich einen 5–10 % höheren BMR als Frauen gleichen Gewichts. Weitere Einflussfaktoren sind Schilddrüsenhormone (Hypothyreose senkt den Grundumsatz um bis zu 15 %), Körpertemperatur (Fieber erhöht ihn um ca. 13 % pro Grad Celsius) und genetische Veranlagung, die bis zu 200 kcal Unterschied ausmachen kann.</p>
+
+    <p><strong>Praktische Tipps zur Optimierung:</strong> Krafttraining ist die effektivste Methode, den Grundumsatz dauerhaft zu steigern. Bereits 2–3 Einheiten pro Woche mit Grundübungen wie Kniebeugen und Kreuzheben können über Monate den BMR um 50–100 kcal pro Tag erhöhen. Auch ausreichend Schlaf (7–9 Stunden), eine proteinreiche Ernährung (Thermic Effect of Food: Protein verbraucht 20–30 % seiner Kalorien bei der Verdauung) und das Vermeiden von Crash-Diäten helfen, den Stoffwechsel auf einem gesunden Niveau zu halten.</p>
+    `}
     relatedSlugs={['kalorien-rechner', 'idealgewicht-rechner', 'makronaehrstoff-rechner']}
   />
 </Layout>
