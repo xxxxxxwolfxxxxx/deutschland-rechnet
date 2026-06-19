@@ -127,6 +127,11 @@ export const CALCULATORS: Calculator[] = [
   { slug: 'blutdruck-bewerter',        title: 'Blutdruck-Bewerter',          description: 'Blutdruckwerte nach WHO-Klassifikation einordnen.',                            category: 'gesundheit',featured: false, live: true },
   // EINHEITEN
   { slug: 'einheitenrechner',             title: 'Einheitenrechner',               description: 'Länge, Gewicht, Temperatur umrechnen.',                                  category: 'einheiten', featured: true,  live: true },
+  { slug: 'laengen-umrechner',            title: 'Längen-Umrechner',               description: 'Meter, Kilometer, Meilen, Yards, Fuß und Zoll umrechnen.',                category: 'einheiten', featured: false, live: true },
+  { slug: 'gewicht-umrechner',            title: 'Gewicht-Umrechner',              description: 'Kilogramm, Pfund, Unzen, Tonnen, Stone und Karat umrechnen.',             category: 'einheiten', featured: false, live: true },
+  { slug: 'temperatur-umrechner',         title: 'Temperatur-Umrechner',           description: 'Celsius, Fahrenheit, Kelvin und Réaumur umrechnen.',                      category: 'einheiten', featured: false, live: true },
+  { slug: 'volumen-umrechner',            title: 'Volumen-Umrechner',              description: 'Liter, Gallonen, Cups, Fluid Ounces und Esslöffel umrechnen.',            category: 'einheiten', featured: false, live: true },
+  { slug: 'flaechen-umrechner',           title: 'Flächen-Umrechner',              description: 'm², Hektar, Ar, Acre, Quadratfuß und Quadratmeile umrechnen.',            category: 'einheiten', featured: false, live: true },
   { slug: 'inflationsrechner',            title: 'Inflationsrechner',              description: 'Kaufkraftverlust durch Inflation berechnen.',                             category: 'einheiten', featured: false, live: true },
   { slug: 'prozent-rechner',              title: 'Prozent-Rechner',                description: 'Prozentwerte, Grundwerte und prozentuale Veränderungen berechnen.',       category: 'einheiten', featured: false, live: true },
   { slug: 'mwst-rechner',                 title: 'MwSt-Rechner',                   description: 'Netto und Brutto mit 19% oder 7% MwSt umrechnen.',                      category: 'einheiten', featured: false, live: true },

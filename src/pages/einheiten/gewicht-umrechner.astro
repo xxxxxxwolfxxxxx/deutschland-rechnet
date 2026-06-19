@@ -1,0 +1,143 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import CalculatorShell from '../../components/CalculatorShell.astro';
+import CalculatorGuide from '../../components/CalculatorGuide.astro';
+import { CALCULATORS, CATEGORIES } from '../../data/calculators';
+const calc = CALCULATORS.find(c => c.slug === 'gewicht-umrechner')!;
+const cat = CATEGORIES[calc.category];
+const year = new Date().getFullYear();
+---
+<Layout
+  title={`Gewicht-Umrechner ${year}`}
+  description="Gewichts-Einheiten kostenlos umrechnen: Kilogramm, Gramm, Milligramm, Tonnen, Pfund, Unzen, Stone und Karat. Präzise Umrechnungsfaktoren."
+  canonicalPath="/einheiten/gewicht-umrechner/"
+  categoryColor={cat.color}
+  categoryLight={cat.colorLight}
+  categoryImage={cat.image}
+>
+  <div class="page-header">
+    <a href={`${import.meta.env.BASE_URL}einheiten/`} class="back-link">← Einheiten & Mathe</a>
+    <h1>Gewicht-Umrechner {year} – Kilogramm, Pfund, Unzen & mehr</h1>
+  </div>
+  <CalculatorShell
+    calculator={calc}
+    intro="Mit dem Gewicht-Umrechner rechnen Sie zwischen metrischen Einheiten (Kilogramm, Gramm, Milligramm, Tonnen) und anglo-amerikanischen Einheiten (Pfund, Unzen, Stone) sowie der Edelstein-Einheit Karat um. Praktisch für Rezepte mit US-Mengenangaben, Versandkosten ins Ausland, Gewichtsangaben beim Reisen (Gepäck in Pfund) oder bei Edelmetallen und Schmuck (Karat für Diamanten, Feinunzen für Gold)."
+    sourceNote="Umrechnungsfaktoren nach Internationalem Einheitensystem (SI) und dem International Yard and Pound Agreement von 1959. Karat-Definition gemäß CIPM-Beschluss 1907."
+    explanation="Das Kilogramm war bis 2019 als physikalisches Urkilogramm in Sèvres definiert, ist seitdem über die Planck-Konstante festgelegt und damit für alle Zeiten reproduzierbar. Anglo-amerikanische Gewichtseinheiten basieren seit 1959 auf 1 Pfund (avoirdupois pound) = exakt 0,45359237 kg. 1 Unze = 1/16 Pfund = 28,3495 g. Ein Stone (in UK üblich für Körpergewicht) entspricht 14 Pfund oder 6,35029 kg. Karat (Edelsteine) ist exakt 200 Milligramm – nicht zu verwechseln mit Karat (Goldlegierung)."
+    faqs={[
+      { q: "Wie viele Kilogramm sind ein Pfund?", a: "1 Pfund (englisch pound, lb) entspricht exakt 0,45359237 Kilogramm bzw. 453,59 Gramm. Für eine schnelle Schätzung: Pfund × 0,45 ≈ Kilogramm. Umgekehrt: 1 kg = 2,205 Pfund, oder als Faustregel kg × 2,2." },
+      { q: "Was ist der Unterschied zwischen Pfund und deutschem Pfund?", a: "Das deutsche Pfund ist eine veraltete (aber umgangssprachlich noch übliche) Einheit von 500 Gramm. Das englische Pfund (avoirdupois pound, lb) wiegt nur 453,59 Gramm. Der Unterschied: deutsches Pfund ist 46,4 g schwerer. Wenn ein US-Rezept '1 lb' angibt, ist das nicht das halbe Kilo!" },
+      { q: "Wie viel sind 200 Pfund Körpergewicht in Kilo?", a: "200 lb × 0,45359 = 90,72 kg. In den USA werden Körpergewichte in Pfund angegeben (z.B. NBA-Spieler, Boxer). 150 lb = 68 kg, 180 lb = 82 kg, 220 lb = 100 kg." },
+      { q: "Was bedeutet Karat bei Diamanten?", a: "1 Karat (ct, im Edelsteinhandel) = 200 Milligramm = 0,2 Gramm. Diese Karat-Definition gilt seit 1907 international. Ein 1-Karat-Diamant wiegt 0,2 g, ein 2-Karat-Diamant 0,4 g. Achtung: Bei Gold ist 'Karat' (k) eine Reinheitsangabe (24 k = 100% Gold), kein Gewicht." },
+      { q: "Wie viel sind eine Tonne und wie viele Pfund?", a: "1 metrische Tonne (t) = 1.000 kg = 2.204,62 Pfund. In den USA gibt es zusätzlich die 'short ton' (2.000 lb = 907,18 kg) und in UK die 'long ton' (2.240 lb = 1.016 kg). Wenn ein US-Pickup '1/2 Ton' Nutzlast hat, sind das 454 kg – nicht 500 kg." },
+      { q: "Wie viel sind 1 oz Gold wert?", a: "1 Feinunze (troy ounce, oz t) wiegt 31,1035 g – nicht zu verwechseln mit der Standard-Unze (28,3495 g). Bei Gold-/Silberpreisen ist immer die Feinunze gemeint. Beim Kochen und im Versand gilt die avoirdupois-Unze. Der Unterschied: ca. 10%." }
+    ]}
+  >
+    <div class="calc-form">
+      <div class="calc-grid">
+        <div class="calc-group">
+          <label for="wert">Wert</label>
+          <input type="number" id="wert" value="1" step="any" />
+        </div>
+        <div class="calc-group">
+          <label for="von">Von Einheit</label>
+          <select id="von">
+            <option value="kg">Kilogramm (kg)</option>
+            <option value="g">Gramm (g)</option>
+            <option value="mg">Milligramm (mg)</option>
+            <option value="t">Tonne (t)</option>
+            <option value="lb">Pfund (lb)</option>
+            <option value="oz">Unze (oz)</option>
+            <option value="st">Stone (st)</option>
+            <option value="ct">Karat (ct)</option>
+          </select>
+        </div>
+      </div>
+      <div id="ergebnis-liste" class="ergebnis-liste"></div>
+    </div>
+  </CalculatorShell>
+
+  <CalculatorGuide
+    title="Gewichtseinheiten – Übersicht und praktische Anwendungen"
+    content={`<p>Während Deutschland und der Großteil der Welt mit Kilogramm und Gramm arbeitet, sind in den USA und teilweise in Großbritannien <strong>Pfund (lb), Unzen (oz) und Stone (st)</strong> Standard. Der Gewicht-Umrechner schließt diese Lücke – ob beim Kochen mit US-Rezepten, beim Edelmetallhandel oder beim Versand ins Ausland.</p>
+
+<h4>Metrische Einheiten – das SI-System</h4>
+<ul>
+  <li><strong>Kilogramm (kg)</strong> – Basiseinheit, seit 2019 definiert über die Planck-Konstante</li>
+  <li><strong>Gramm (g)</strong> = 0,001 kg – Alltagseinheit für Lebensmittel, Kochrezepte</li>
+  <li><strong>Milligramm (mg)</strong> = 0,000001 kg – Medikamentendosierung, Vitamine</li>
+  <li><strong>Tonne (t)</strong> = 1.000 kg – LKW-Last, Schiffsfracht, Bauindustrie</li>
+</ul>
+
+<h4>Anglo-amerikanische Einheiten</h4>
+<ul>
+  <li><strong>Pfund (pound, lb)</strong> = 453,59 g – Körpergewicht (USA), Lebensmittel</li>
+  <li><strong>Unze (ounce, oz)</strong> = 28,35 g – Kleinmengen, Kochen, Verpackungen</li>
+  <li><strong>Stone (st)</strong> = 6,35 kg = 14 lb – Körpergewicht (UK)</li>
+  <li><strong>Feinunze (troy ounce)</strong> = 31,10 g – Edelmetalle (Gold, Silber, Platin)</li>
+</ul>
+
+<h4>Edelstein- und Schmuckeinheiten</h4>
+<ul>
+  <li><strong>Karat (ct)</strong> = 200 mg = 0,2 g – Gewicht von Edelsteinen (Diamanten, Saphire)</li>
+  <li><strong>Punkt</strong> = 0,01 ct = 2 mg – Feinere Unterteilung von Karat</li>
+</ul>
+
+<h4>Praktische Umrechnungs-Faustregeln</h4>
+<ul>
+  <li>1 kg ≈ 2,2 Pfund (für schnelles Schätzen: kg × 2,2)</li>
+  <li>100 g ≈ 3,5 Unzen</li>
+  <li>1 lb ≈ 454 g (knapp ein halbes Kilo, aber 46 g leichter als deutsches Pfund)</li>
+  <li>1 oz ≈ 28 g (oft als Standardgröße für Käseaufschnitt, USA)</li>
+  <li>1 Stone ≈ 6,35 kg – ein UK-Bürger mit "12 stone" wiegt 76 kg</li>
+</ul>
+
+<h4>Typische Anwendungssituationen</h4>
+<p><strong>Kochen mit US-Rezepten:</strong> "1 lb of butter" = 454 g Butter. "8 oz cream cheese" = 227 g Frischkäse. "1 stick of butter" = 113 g. Bei US-Rezepten ist die genaue Umrechnung kritisch fürs Backen.</p>
+<p><strong>Reisen und Gepäck:</strong> US-Airlines geben Gepäckgrenzen oft in Pfund an. "50 lb checked bag" = 22,7 kg Aufgabegepäck. "22 lb carry-on" = 10 kg Handgepäck.</p>
+<p><strong>Edelmetalle und Anlagen:</strong> Goldpreise werden pro Feinunze (31,1 g) gehandelt. Wenn 1 oz Gold = 2.000 €, dann kostet 1 g Gold = 64,30 €. Ein 100-g-Goldbarren entspricht ca. 3,2 Feinunzen.</p>
+<p><strong>Schmuck und Diamanten:</strong> Ein typischer Verlobungsring hat 0,5–1 Karat (100–200 mg). Berühmte Diamanten: Hope-Diamant 45,52 ct = 9,1 g. Cullinan I 530 ct = 106 g.</p>
+<p><strong>Versand ins Ausland:</strong> US-Versanddienste wie USPS, FedEx, UPS arbeiten mit Pfund. 5 lb Paket = 2,27 kg. Wichtig für Tarifberechnung!</p>`}
+    relatedSlugs={['laengen-umrechner', 'temperatur-umrechner', 'volumen-umrechner', 'flaechen-umrechner']}
+  />
+</Layout>
+
+<script>
+const EINHEITEN = {
+  kg: { faktor: 1, label: 'Kilogramm (kg)' },
+  g: { faktor: 0.001, label: 'Gramm (g)' },
+  mg: { faktor: 0.000001, label: 'Milligramm (mg)' },
+  t: { faktor: 1000, label: 'Tonne (t)' },
+  lb: { faktor: 0.45359237, label: 'Pfund (lb)' },
+  oz: { faktor: 0.0283495231, label: 'Unze (oz)' },
+  st: { faktor: 6.35029318, label: 'Stone (st)' },
+  ct: { faktor: 0.0002, label: 'Karat (ct)' },
+};
+
+function berechne() {
+  const wert = parseFloat((document.getElementById('wert') as HTMLInputElement).value) || 0;
+  const von = (document.getElementById('von') as HTMLSelectElement).value;
+  const liste = document.getElementById('ergebnis-liste')!;
+  liste.innerHTML = '';
+  const inKg = wert * EINHEITEN[von].faktor;
+  Object.keys(EINHEITEN).forEach(k => {
+    if (k === von) return;
+    const ergebnis = inKg / EINHEITEN[k].faktor;
+    const formatiert = ergebnis.toLocaleString('de-DE', { maximumFractionDigits: 6 });
+    liste.innerHTML += `<div class="conv-row"><span>${EINHEITEN[k].label}</span><strong>${formatiert}</strong></div>`;
+  });
+}
+
+document.getElementById('von')!.addEventListener('change', berechne);
+document.getElementById('wert')!.addEventListener('input', berechne);
+berechne();
+</script>
+
+<style>
+.ergebnis-liste { margin-top: 1rem; display: grid; gap: 0.5rem; }
+.conv-row { display: flex; justify-content: space-between; padding: 0.65rem 0.9rem; background: white; border-radius: var(--radius-sm); border: 1px solid var(--border); }
+.conv-row span { color: var(--muted); font-size: 0.9rem; }
+.conv-row strong { font-family: var(--font-display); font-size: 1.05rem; color: var(--text); }
+</style>
+</content>
+</invoke>
