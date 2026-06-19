@@ -1,0 +1,155 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import CalculatorShell from '../../components/CalculatorShell.astro';
+import CalculatorGuide from '../../components/CalculatorGuide.astro';
+import { CALCULATORS, CATEGORIES } from '../../data/calculators';
+const calc = CALCULATORS.find(c => c.slug === 'volumen-umrechner')!;
+const cat = CATEGORIES[calc.category];
+const year = new Date().getFullYear();
+---
+<Layout
+  title={`Volumen-Umrechner ${year}`}
+  description="Volumen-Einheiten kostenlos umrechnen: Liter, Milliliter, Kubikmeter, Gallonen (US/UK), Fluid Ounces, Cups und Esslöffel. Mit Beispielen für Kochrezepte und Tanken in USA."
+  canonicalPath="/einheiten/volumen-umrechner/"
+  categoryColor={cat.color}
+  categoryLight={cat.colorLight}
+  categoryImage={cat.image}
+>
+  <div class="page-header">
+    <a href={`${import.meta.env.BASE_URL}einheiten/`} class="back-link">← Einheiten & Mathe</a>
+    <h1>Volumen-Umrechner {year} – Liter, Gallonen, Cups & mehr</h1>
+  </div>
+  <CalculatorShell
+    calculator={calc}
+    intro="Mit dem Volumen-Umrechner rechnen Sie zwischen metrischen Einheiten (Liter, Milliliter, Kubikmeter, Zentiliter) und anglo-amerikanischen Einheiten (US-Gallone, UK-Gallone, Fluid Ounce, Cup, Esslöffel, Teelöffel) um. Besonders wichtig beim Kochen mit US-Rezepten (1 cup = 237 ml), beim Tanken in den USA (Gallonen statt Liter) oder bei der Mischung von Cocktails (Fluid Ounce statt Milliliter)."
+    sourceNote="Volumenumrechnungen nach Internationalem Einheitensystem (SI). US-Gallone = exakt 3,785411784 Liter (US gallon, liquid). UK-Gallone = 4,54609 Liter (imperial gallon, seit 1985)."
+    explanation="Der Liter ist als 1 Kubikdezimeter (1 dm³) bzw. 0,001 Kubikmeter definiert und seit 1964 die international anerkannte Volumeneinheit. Die US-Gallone (US gal liquid) und die UK-Gallone (imp gal) unterscheiden sich erheblich: 1 US-Gallone = 3,785 Liter, 1 UK-Gallone = 4,546 Liter (ca. 20% größer). 1 Cup (US) entspricht 236,6 ml, 1 Tablespoon (Esslöffel, tbsp) = 14,79 ml, 1 Teaspoon (Teelöffel, tsp) = 4,93 ml. Fluid Ounce: 1 fl oz US = 29,57 ml, 1 fl oz UK = 28,41 ml. Wichtig: Volumen und Gewicht sind verschiedene Größen – 1 Cup Mehl wiegt nicht dasselbe wie 1 Cup Zucker!"
+    faqs={[
+      { q: "Wie viele Liter sind eine US-Gallone?", a: "1 US-Gallone (US gal) entspricht exakt 3,785411784 Litern. Beispiel: Eine typische US-Tankfüllung 'fill up 15 gallons' = 56,8 Liter. Wenn ein US-Auto 30 mpg (miles per gallon) hat, sind das 7,84 Liter pro 100 km Verbrauch." },
+      { q: "Was ist der Unterschied zwischen US-Gallone und UK-Gallone?", a: "Die UK-Gallone (imperial gallon) ist deutlich größer: 4,54609 Liter vs. 3,7854 Liter für die US-Gallone (20,1% größer). Wer in Großbritannien tankt, sollte aufpassen: Eine '4 gallon fill' sind 18,2 Liter (UK) oder nur 15,1 Liter (US). Heute zählt in UK aber meist der Liter." },
+      { q: "Wie viele Milliliter sind 1 Cup?", a: "1 US-Cup entspricht 236,59 ml (oft als 240 ml gerundet). Wichtige US-Kochmaße: 1/4 Cup = 59 ml, 1/3 Cup = 79 ml, 1/2 Cup = 118 ml, 2/3 Cup = 158 ml, 3/4 Cup = 177 ml. Bei Backrezepten Genauigkeit wichtig: lieber mit Waage arbeiten." },
+      { q: "Wie rechne ich Esslöffel und Teelöffel um?", a: "1 US-Tablespoon (tbsp) = 14,79 ml (oft als 15 ml gerundet). 1 US-Teaspoon (tsp) = 4,93 ml (oft als 5 ml gerundet). 1 Tablespoon = 3 Teaspoons. Deutsche Esslöffel-Maße: 1 EL = 15 ml, 1 TL = 5 ml (gleich)." },
+      { q: "Wie viele Liter sind 1 Fluid Ounce?", a: "1 US Fluid Ounce (fl oz) = 29,5735 ml. Wichtig: Das ist eine Volumeneinheit, nicht die Gewichtsunze (28,35 g)! Cocktail-Rezepte: 'shot' = 1,5 fl oz = 44 ml. Eine US-Dose Bier hat meist 12 fl oz = 355 ml. UK Fluid Ounce ist kleiner: 28,41 ml." },
+      { q: "Wie groß ist ein US-Pint?", a: "1 US-Pint (pt) = 16 fl oz = 473 ml. Ein UK-Pint hingegen ist 568 ml (20 imperial fl oz). Wenn Sie ein britisches Pub-Bier bestellen, bekommen Sie also fast 100 ml mehr als bei einem US-Pint. Halbliter-Glas in Deutschland: 500 ml = 0,88 UK-Pints." }
+    ]}
+  >
+    <div class="calc-form">
+      <div class="calc-grid">
+        <div class="calc-group">
+          <label for="wert">Wert</label>
+          <input type="number" id="wert" value="1" step="any" />
+        </div>
+        <div class="calc-group">
+          <label for="von">Von Einheit</label>
+          <select id="von">
+            <option value="l">Liter (l)</option>
+            <option value="ml">Milliliter (ml)</option>
+            <option value="cl">Zentiliter (cl)</option>
+            <option value="m3">Kubikmeter (m³)</option>
+            <option value="gal_us">US-Gallone (gal)</option>
+            <option value="gal_uk">UK-Gallone (imp gal)</option>
+            <option value="floz_us">Fluid Ounce US (fl oz)</option>
+            <option value="cup">Cup US (c)</option>
+            <option value="tbsp">Esslöffel US (tbsp)</option>
+            <option value="tsp">Teelöffel US (tsp)</option>
+          </select>
+        </div>
+      </div>
+      <div id="ergebnis-liste" class="ergebnis-liste"></div>
+    </div>
+  </CalculatorShell>
+
+  <CalculatorGuide
+    title="Volumeneinheiten – Übersicht für Kochen, Tanken, Mischen"
+    content={`<p>Während Deutschland und der größte Teil der Welt mit Litern und Millilitern arbeiten, dominieren in den USA <strong>Gallonen, Cups, Fluid Ounces, Esslöffel und Teelöffel</strong>. Beim Kochen mit US-Rezepten, beim Tanken in den USA oder beim Mixen von Cocktails ist die exakte Umrechnung entscheidend.</p>
+
+<h4>Metrische Volumeneinheiten</h4>
+<ul>
+  <li><strong>Liter (l)</strong> – Basiseinheit, 1 dm³, weltweit Standard für Flüssigkeiten</li>
+  <li><strong>Milliliter (ml)</strong> = 0,001 l = 1 cm³ – Alltag, Medikamente, Kochen</li>
+  <li><strong>Zentiliter (cl)</strong> = 0,01 l = 10 ml – Getränke-Etiketten in EU (z.B. 33 cl)</li>
+  <li><strong>Kubikmeter (m³)</strong> = 1.000 l – Wasserverbrauch, Tankgrößen, Erdaushub</li>
+</ul>
+
+<h4>Anglo-amerikanische Volumeneinheiten</h4>
+<ul>
+  <li><strong>US-Gallone (gallon, gal)</strong> = 3,785 l – Tanken, Milchpacks, Limonade</li>
+  <li><strong>UK-Gallone (imp gal)</strong> = 4,546 l – größer als US-Gallone! In UK fast nur noch im KFZ-Bereich</li>
+  <li><strong>Quart</strong> = 1/4 Gallone = 0,946 l (US) oder 1,136 l (UK)</li>
+  <li><strong>Pint</strong> = 1/2 Quart = 0,473 l (US) oder 0,568 l (UK)</li>
+  <li><strong>Cup</strong> = 0,237 l = 237 ml (US) – Kochmaß</li>
+  <li><strong>Fluid Ounce (fl oz)</strong> = 29,57 ml (US) oder 28,41 ml (UK)</li>
+  <li><strong>Tablespoon (tbsp)</strong> = 14,79 ml – Esslöffel</li>
+  <li><strong>Teaspoon (tsp)</strong> = 4,93 ml – Teelöffel</li>
+</ul>
+
+<h4>US-Kochmaß-Hierarchie</h4>
+<p>In US-Rezepten erscheinen diese Maße sehr oft, hier die Beziehungen:</p>
+<ul>
+  <li>1 Cup = 16 Tablespoons = 48 Teaspoons = 8 Fluid Ounces</li>
+  <li>1 Tablespoon (tbsp) = 3 Teaspoons (tsp)</li>
+  <li>1 Pint = 2 Cups = 16 Fluid Ounces</li>
+  <li>1 Quart = 2 Pints = 4 Cups</li>
+  <li>1 Gallon = 4 Quarts = 16 Cups = 128 Fluid Ounces</li>
+</ul>
+
+<h4>Praktische Umrechnungs-Faustregeln</h4>
+<ul>
+  <li>1 Cup ≈ 240 ml (gerundet, leicht zu merken)</li>
+  <li>1 tbsp ≈ 15 ml, 1 tsp ≈ 5 ml (gerundet)</li>
+  <li>1 fl oz ≈ 30 ml (gerundet)</li>
+  <li>1 US-Gallone ≈ 3,8 l, 1 UK-Gallone ≈ 4,5 l</li>
+  <li>10 mpg ≈ 23,5 l/100 km (US-Verbrauch umrechnen)</li>
+</ul>
+
+<h4>Typische Anwendungssituationen</h4>
+<p><strong>Kochen mit US-Rezepten:</strong> "2 cups flour" = 480 ml Mehl (Volumen). Aber Achtung: Mehl wird in den USA volumetrisch gemessen, in Deutschland nach Gewicht – 1 Cup Mehl wiegt nur etwa 120 g (locker gesiebt). "1 tsp vanilla extract" = 5 ml. "1/2 cup butter" = 118 ml = ca. 113 g Butter (1 stick).</p>
+<p><strong>Tanken in USA:</strong> US-Tankstellen zeigen Preise pro Gallone. $4/gal ≈ $1,06/Liter. Ein typischer US-PKW mit 30 mpg verbraucht 7,84 l/100 km. Ein Pickup-Truck mit 18 mpg = 13,1 l/100 km.</p>
+<p><strong>Cocktails und Bar-Maße:</strong> "1 shot" = 1,5 fl oz US = 44 ml. "Double" = 3 fl oz = 89 ml. "Highball" = 8 fl oz = 237 ml. Rezepte oft in "parts" angegeben: "1 part vodka, 2 parts juice" = 1:2-Verhältnis, Einheit beliebig.</p>
+<p><strong>Getränke und Verpackungen:</strong> US-Cola-Dose: 12 fl oz = 355 ml (in EU: 330 ml). US-Wasserflasche: 16,9 fl oz = 500 ml. US-Milchpack: 1/2 Gallone = 1,89 l. Wenn ein Hotelzimmer "12 oz coffee maker" hat, sind das nur 355 ml – knapp zwei deutsche Tassen.</p>
+<p><strong>Auto und Motorrad:</strong> Motoröl in US-Quarts (1 qt = 946 ml). Ein 5-Quart-Ölwechsel = 4,73 l. Kühlflüssigkeit-Reservoir oft in Pints angegeben.</p>`}
+    relatedSlugs={['laengen-umrechner', 'gewicht-umrechner', 'temperatur-umrechner', 'flaechen-umrechner']}
+  />
+</Layout>
+
+<script>
+const EINHEITEN = {
+  l: { faktor: 1, label: 'Liter (l)' },
+  ml: { faktor: 0.001, label: 'Milliliter (ml)' },
+  cl: { faktor: 0.01, label: 'Zentiliter (cl)' },
+  m3: { faktor: 1000, label: 'Kubikmeter (m³)' },
+  gal_us: { faktor: 3.785411784, label: 'US-Gallone (gal)' },
+  gal_uk: { faktor: 4.54609, label: 'UK-Gallone (imp gal)' },
+  floz_us: { faktor: 0.0295735296, label: 'Fluid Ounce US (fl oz)' },
+  cup: { faktor: 0.2365882365, label: 'Cup US (c)' },
+  tbsp: { faktor: 0.01478676478, label: 'Esslöffel US (tbsp)' },
+  tsp: { faktor: 0.004928921594, label: 'Teelöffel US (tsp)' },
+};
+
+function berechne() {
+  const wert = parseFloat((document.getElementById('wert') as HTMLInputElement).value) || 0;
+  const von = (document.getElementById('von') as HTMLSelectElement).value;
+  const liste = document.getElementById('ergebnis-liste')!;
+  liste.innerHTML = '';
+  const inLiter = wert * EINHEITEN[von].faktor;
+  Object.keys(EINHEITEN).forEach(k => {
+    if (k === von) return;
+    const ergebnis = inLiter / EINHEITEN[k].faktor;
+    const formatiert = ergebnis.toLocaleString('de-DE', { maximumFractionDigits: 6 });
+    liste.innerHTML += `<div class="conv-row"><span>${EINHEITEN[k].label}</span><strong>${formatiert}</strong></div>`;
+  });
+}
+
+document.getElementById('von')!.addEventListener('change', berechne);
+document.getElementById('wert')!.addEventListener('input', berechne);
+berechne();
+</script>
+
+<style>
+.ergebnis-liste { margin-top: 1rem; display: grid; gap: 0.5rem; }
+.conv-row { display: flex; justify-content: space-between; padding: 0.65rem 0.9rem; background: white; border-radius: var(--radius-sm); border: 1px solid var(--border); }
+.conv-row span { color: var(--muted); font-size: 0.9rem; }
+.conv-row strong { font-family: var(--font-display); font-size: 1.05rem; color: var(--text); }
+</style>
+</content>
+</invoke>

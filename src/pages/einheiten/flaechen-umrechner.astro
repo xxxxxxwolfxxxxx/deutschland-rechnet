@@ -1,0 +1,159 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import CalculatorShell from '../../components/CalculatorShell.astro';
+import CalculatorGuide from '../../components/CalculatorGuide.astro';
+import { CALCULATORS, CATEGORIES } from '../../data/calculators';
+const calc = CALCULATORS.find(c => c.slug === 'flaechen-umrechner')!;
+const cat = CATEGORIES[calc.category];
+const year = new Date().getFullYear();
+---
+<Layout
+  title={`Flächen-Umrechner ${year}`}
+  description="Flächen-Einheiten kostenlos umrechnen: Quadratmeter, Quadratkilometer, Hektar, Ar, Acre, Quadratfuß, Quadratzoll und Quadratmeile. Für Immobilien, Garten und Bauwesen."
+  canonicalPath="/einheiten/flaechen-umrechner/"
+  categoryColor={cat.color}
+  categoryLight={cat.colorLight}
+  categoryImage={cat.image}
+>
+  <div class="page-header">
+    <a href={`${import.meta.env.BASE_URL}einheiten/`} class="back-link">← Einheiten & Mathe</a>
+    <h1>Flächen-Umrechner {year} – m², Hektar, Acre & mehr</h1>
+  </div>
+  <CalculatorShell
+    calculator={calc}
+    intro="Mit dem Flächen-Umrechner rechnen Sie zwischen metrischen Einheiten (Quadratmeter, Quadratkilometer, Hektar, Ar, Quadratzentimeter) und anglo-amerikanischen Einheiten (Quadratfuß, Quadratzoll, Acre, Quadratmeile) um. Besonders nützlich bei Immobilien-Vergleichen (Grundstücksgrößen US-Häuser in Acres), bei Bauvorhaben mit US-Plänen (Square Feet), bei Gartenarbeit (Quadratmeter und Ar) oder zur Landfläche (Hektar)."
+    sourceNote="Flächeneinheiten abgeleitet aus Längeneinheiten (SI). Hektar offiziell anerkannt seit 1879 in Frankreich (1 ha = 10.000 m²). Acre als britische Einheit: 1 Acre = 4.046,8564224 m² (gerundete Definition seit 1959)."
+    explanation="Flächeneinheiten sind quadrierte Längeneinheiten: 1 m² ist die Fläche eines Quadrats mit 1 m Seitenlänge. Wichtige Beziehungen: 1 Ar (a) = 100 m² = Fläche von 10×10 m, 1 Hektar (ha) = 100 Ar = 10.000 m² (entspricht einem Fußballfeld). 1 km² = 100 Hektar = 1 Million m². Anglo-amerikanische Flächeneinheiten basieren auf den imperialen Längen: 1 Quadratfuß (sq ft, ft²) = 929,03 cm² ≈ 0,0929 m², 1 Quadratzoll (sq in, in²) = 6,4516 cm². Der Acre ist ursprünglich die Fläche, die ein Ochse an einem Tag pflügen konnte (40 × 4 Ruten = 4.046,86 m²). 1 Quadratmeile = 640 Acres = 2,59 km²."
+    faqs={[
+      { q: "Wie viele Quadratmeter sind ein Hektar?", a: "1 Hektar (ha) entspricht exakt 10.000 Quadratmetern (m²) – das ist eine Fläche von 100 × 100 Metern. Zur Veranschaulichung: Ein Fußballfeld ist ungefähr 0,7–0,8 Hektar groß (je nach Maßen). 1 km² = 100 Hektar." },
+      { q: "Was ist ein Acre und wie viel Quadratmeter sind das?", a: "1 Acre = 4.046,86 m² ≈ 0,4047 Hektar. Der Acre ist eine historische britische Flächeneinheit, die heute vor allem in den USA für Grundstücksgrößen verwendet wird. Praktisch: '1 Acre lot' ist ein typisch großes Vorstadt-Grundstück in den USA. Umrechnung: 1 ha = 2,47 acres." },
+      { q: "Wie rechne ich Quadratfuß in Quadratmeter um?", a: "1 Quadratfuß (sq ft, ft²) = 0,0929 m² – etwa ein Zehntel Quadratmeter. Schnelle Formel: ft² × 0,093 = m², oder m² × 10,76 = ft². Beispiel: Ein US-Haus mit '2.000 sq ft' Wohnfläche hat 186 m² – komfortable Größe für eine Familie." },
+      { q: "Was ist der Unterschied zwischen Ar und Hektar?", a: "1 Ar (a) = 100 m² = Fläche eines Quadrats mit 10 m Seitenlänge. 1 Hektar (ha) = 100 Ar = 10.000 m². Beide Einheiten werden in der Land- und Forstwirtschaft sowie im Grundbuch verwendet. 'Ar' ist heute selten, oft nur in offiziellen Dokumenten. Ein typisches Einfamilienhausgrundstück ist 5–8 Ar (500–800 m²)." },
+      { q: "Wie groß ist eine Quadratmeile?", a: "1 Quadratmeile (sq mi, mi²) = 2,5899 km² = 259 Hektar = 640 Acres. Die Einheit wird in den USA für Stadtflächen, Naturparks und Bezirke verwendet. Beispiel: Manhattan ist 22,83 sq mi = 59,13 km². Das Saarland (2.570 km²) entspricht etwa 992 sq mi." },
+      { q: "Welche Flächeneinheit verwende ich für mein Grundstück?", a: "In Deutschland und EU: Quadratmeter (m²) für Häuser/Wohnungen, Ar für mittlere Grundstücke und Hektar für landwirtschaftliche Flächen. In den USA: Square feet (sq ft) für Häuser/Wohnungen, Acres für Grundstücke. Im Grundbuch steht meist die Fläche in m² (oder ar/ha bei größeren Flurstücken)." }
+    ]}
+  >
+    <div class="calc-form">
+      <div class="calc-grid">
+        <div class="calc-group">
+          <label for="wert">Wert</label>
+          <input type="number" id="wert" value="1" step="any" />
+        </div>
+        <div class="calc-group">
+          <label for="von">Von Einheit</label>
+          <select id="von">
+            <option value="m2">Quadratmeter (m²)</option>
+            <option value="km2">Quadratkilometer (km²)</option>
+            <option value="ha">Hektar (ha)</option>
+            <option value="ar">Ar (a)</option>
+            <option value="cm2">Quadratzentimeter (cm²)</option>
+            <option value="mm2">Quadratmillimeter (mm²)</option>
+            <option value="acre">Acre (ac)</option>
+            <option value="ft2">Quadratfuß (ft²)</option>
+            <option value="in2">Quadratzoll (in²)</option>
+            <option value="mi2">Quadratmeile (mi²)</option>
+          </select>
+        </div>
+      </div>
+      <div id="ergebnis-liste" class="ergebnis-liste"></div>
+    </div>
+  </CalculatorShell>
+
+  <CalculatorGuide
+    title="Flächeneinheiten – Übersicht für Immobilien, Garten und Bauwesen"
+    content={`<p>Bei Flächen kommt es oft auf den Verwendungskontext an: Wohnfläche, Grundstücksgröße, landwirtschaftliche Nutzfläche oder städtische Gebiete. Während Deutschland mit <strong>Quadratmetern, Ar und Hektar</strong> arbeitet, nutzen die USA <strong>Square Feet und Acres</strong>. Der Flächen-Umrechner schließt diese Lücke schnell und präzise.</p>
+
+<h4>Metrische Flächeneinheiten</h4>
+<ul>
+  <li><strong>Quadratmeter (m²)</strong> – Basiseinheit, Wohnfläche, Innenräume</li>
+  <li><strong>Quadratkilometer (km²)</strong> = 1.000.000 m² – Stadtgrößen, Länderflächen</li>
+  <li><strong>Hektar (ha)</strong> = 10.000 m² = 100 Ar – Landwirtschaft, Waldflächen, Naturschutzgebiete</li>
+  <li><strong>Ar (a)</strong> = 100 m² – Grundstücke, Gartenparzellen</li>
+  <li><strong>Quadratzentimeter (cm²)</strong> = 0,0001 m² – kleine Flächen, Querschnitte</li>
+  <li><strong>Quadratmillimeter (mm²)</strong> = 0,000001 m² – technische Zeichnungen, Querschnitte (z.B. Kabel)</li>
+</ul>
+
+<h4>Anglo-amerikanische Flächeneinheiten</h4>
+<ul>
+  <li><strong>Square Foot (ft²)</strong> = 0,0929 m² – Wohnfläche USA, Wohnungspreise pro sq ft</li>
+  <li><strong>Square Inch (in²)</strong> = 6,4516 cm² – kleine Flächen, Querschnitte</li>
+  <li><strong>Square Yard (yd²)</strong> = 0,836 m² – Teppich, Stoff</li>
+  <li><strong>Acre (ac)</strong> = 4.046,86 m² ≈ 0,4047 ha – Grundstücke, Farmen</li>
+  <li><strong>Square Mile (mi²)</strong> = 2,59 km² – Stadt- und Bezirksgrößen USA</li>
+</ul>
+
+<h4>Praktische Vergleichswerte (Veranschaulichung)</h4>
+<ul>
+  <li>Standard-Parkplatz: ca. 12,5 m² (135 sq ft)</li>
+  <li>Kleines Stadt-Apartment: 30–50 m² (320–540 sq ft)</li>
+  <li>Familien-Wohnung: 80–120 m² (860–1.290 sq ft)</li>
+  <li>Einfamilienhaus-Grundstück: 500–800 m² = 5–8 Ar</li>
+  <li>Fußballfeld (FIFA): 7.140 m² ≈ 0,71 ha ≈ 1,77 Acres</li>
+  <li>Tennisplatz: 261 m² (2.812 sq ft)</li>
+  <li>1 Hektar Wald = 1 Fußballfeld plus etwas Reserve</li>
+  <li>Vatikanstadt: 0,49 km² = 49 Hektar = 121 Acres</li>
+  <li>Manhattan: 59,13 km² = 5.913 ha = 22,83 sq mi</li>
+  <li>Berlin: 891,68 km² = 89.168 ha</li>
+</ul>
+
+<h4>Praktische Umrechnungs-Faustregeln</h4>
+<ul>
+  <li>1 m² ≈ 10,76 sq ft (für schnelles Schätzen: m² × 11)</li>
+  <li>100 m² ≈ 1.076 sq ft (typische Wohnungsgröße)</li>
+  <li>1 ha ≈ 2,47 Acres</li>
+  <li>1 Acre ≈ 4.000 m² (für grobe Schätzung)</li>
+  <li>1 km² = 100 ha</li>
+  <li>1 sq mi ≈ 2,6 km²</li>
+</ul>
+
+<h4>Typische Anwendungssituationen</h4>
+<p><strong>Immobilien-Vergleich USA und Deutschland:</strong> "House for sale: 2.400 sq ft, 0,5 acre lot" = 223 m² Wohnfläche auf 2.023 m² Grundstück. Ein typisches US-Vorstadthaus hat doppelte Grundstücksgröße im Vergleich zu Deutschland. Mietpreise in Manhattan: $80/sq ft/Jahr ≈ $861/m²/Jahr ≈ $72/m²/Monat.</p>
+<p><strong>Garten und Landwirtschaft:</strong> Ein Kleingarten ist meist 200–400 m² (2–4 Ar). Eine landwirtschaftliche Schrebergartenanlage in Deutschland kann 50–500 Hektar groß sein. Ein typischer Bauernhof: 50–200 ha. Eine Weinbergsparzelle in Burgund: oft nur 1 Ar.</p>
+<p><strong>Bau und Renovierung:</strong> Bodenbelag-Berechnung: Ein Wohnzimmer 4 × 5 m = 20 m². Bei US-Bodenbelägen: Square Feet rechnen, dann teilen durch 10,76. Wandfläche: Höhe × Länge − Türen/Fenster.</p>
+<p><strong>Solar-Anlagen und Dächer:</strong> Photovoltaik-Module: 1,7 m² je Modul ≈ 18 sq ft. Für 10 kWp Anlage: ca. 50 m² Dachfläche. Energieerträge pro m² entscheiden über Wirtschaftlichkeit.</p>
+<p><strong>Stadt- und Geografie-Quiz:</strong> Welt-Hauptstädte und ihre Flächen vergleichen lässt sich am einfachsten in km². Wenn eine Stadt "100 square miles" hat, sind das 259 km².</p>`}
+    relatedSlugs={['laengen-umrechner', 'gewicht-umrechner', 'temperatur-umrechner', 'volumen-umrechner']}
+  />
+</Layout>
+
+<script>
+const EINHEITEN = {
+  m2: { faktor: 1, label: 'Quadratmeter (m²)' },
+  km2: { faktor: 1000000, label: 'Quadratkilometer (km²)' },
+  ha: { faktor: 10000, label: 'Hektar (ha)' },
+  ar: { faktor: 100, label: 'Ar (a)' },
+  cm2: { faktor: 0.0001, label: 'Quadratzentimeter (cm²)' },
+  mm2: { faktor: 0.000001, label: 'Quadratmillimeter (mm²)' },
+  acre: { faktor: 4046.8564224, label: 'Acre (ac)' },
+  ft2: { faktor: 0.09290304, label: 'Quadratfuß (ft²)' },
+  in2: { faktor: 0.00064516, label: 'Quadratzoll (in²)' },
+  mi2: { faktor: 2589988.110336, label: 'Quadratmeile (mi²)' },
+};
+
+function berechne() {
+  const wert = parseFloat((document.getElementById('wert') as HTMLInputElement).value) || 0;
+  const von = (document.getElementById('von') as HTMLSelectElement).value;
+  const liste = document.getElementById('ergebnis-liste')!;
+  liste.innerHTML = '';
+  const inM2 = wert * EINHEITEN[von].faktor;
+  Object.keys(EINHEITEN).forEach(k => {
+    if (k === von) return;
+    const ergebnis = inM2 / EINHEITEN[k].faktor;
+    const formatiert = ergebnis.toLocaleString('de-DE', { maximumFractionDigits: 6 });
+    liste.innerHTML += `<div class="conv-row"><span>${EINHEITEN[k].label}</span><strong>${formatiert}</strong></div>`;
+  });
+}
+
+document.getElementById('von')!.addEventListener('change', berechne);
+document.getElementById('wert')!.addEventListener('input', berechne);
+berechne();
+</script>
+
+<style>
+.ergebnis-liste { margin-top: 1rem; display: grid; gap: 0.5rem; }
+.conv-row { display: flex; justify-content: space-between; padding: 0.65rem 0.9rem; background: white; border-radius: var(--radius-sm); border: 1px solid var(--border); }
+.conv-row span { color: var(--muted); font-size: 0.9rem; }
+.conv-row strong { font-family: var(--font-display); font-size: 1.05rem; color: var(--text); }
+</style>
+</content>
+</invoke>
