@@ -1,0 +1,147 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import CalculatorShell from '../../components/CalculatorShell.astro';
+import CalculatorGuide from '../../components/CalculatorGuide.astro';
+import { CALCULATORS, CATEGORIES } from '../../data/calculators';
+const calc = CALCULATORS.find(c => c.slug === 'laengen-umrechner')!;
+const cat = CATEGORIES[calc.category];
+const year = new Date().getFullYear();
+---
+<Layout
+  title={`Längen-Umrechner ${year}`}
+  description="Längen-Einheiten kostenlos umrechnen: Meter, Kilometer, Zentimeter, Millimeter, Meilen, Yards, Fuß, Zoll und Seemeilen. Präzise Umrechnungsfaktoren nach SI-Standard."
+  canonicalPath="/einheiten/laengen-umrechner/"
+  categoryColor={cat.color}
+  categoryLight={cat.colorLight}
+  categoryImage={cat.image}
+>
+  <div class="page-header">
+    <a href={`${import.meta.env.BASE_URL}einheiten/`} class="back-link">← Einheiten & Mathe</a>
+    <h1>Längen-Umrechner {year} – Meter, Meilen, Zoll & mehr</h1>
+  </div>
+  <CalculatorShell
+    calculator={calc}
+    intro="Mit dem Längen-Umrechner rechnen Sie zwischen metrischen Einheiten (Meter, Kilometer, Zentimeter, Millimeter) und anglo-amerikanischen Einheiten (Zoll, Fuß, Yards, Meilen) sowie Seemeilen um. Geben Sie einfach Wert und Ausgangseinheit ein, und Sie erhalten sofort alle Umrechnungen in einer übersichtlichen Liste. Besonders nützlich für internationale Reisen (Meilen ↔ Kilometer), Heimwerker-Projekte mit US-Maßen (Zoll ↔ Zentimeter) oder die Schifffahrt (Seemeilen)."
+    sourceNote="Umrechnungsfaktoren nach Internationalem Einheitensystem (SI) und dem International Yard and Pound Agreement von 1959."
+    explanation="Der Längen-Umrechner verwendet den Meter als Basiseinheit, von dem alle anderen Längeneinheiten exakt abgeleitet sind. Der Meter ist seit 1983 über die Lichtgeschwindigkeit definiert (Strecke, die Licht im Vakuum in 1/299.792.458 Sekunde zurücklegt). Die anglo-amerikanischen Einheiten basieren seit 1959 auf der internationalen Vereinbarung: 1 Zoll = 2,54 cm exakt, 1 Fuß = 12 Zoll = 30,48 cm, 1 Yard = 3 Fuß = 0,9144 m, 1 Meile = 1.760 Yards = 1.609,344 m. Die Seemeile (nautische Meile) ist mit 1.852 Metern als 1/60 Grad eines Breitenkreises definiert und wird in der Schifffahrt und Luftfahrt verwendet."
+    faqs={[
+      { q: "Wie rechne ich Meilen in Kilometer um?", a: "1 Meile entspricht exakt 1,609344 Kilometern. Für eine schnelle Schätzung: Meilen × 1,6 ergibt Kilometer (z.B. 60 Meilen × 1,6 = 96 km). Umgekehrt: Kilometer ÷ 1,609 = Meilen, oder als Faustregel Kilometer × 0,62." },
+      { q: "Wie viele Zentimeter sind ein Zoll?", a: "1 Zoll (englisch inch, Zeichen ″) entspricht exakt 2,54 Zentimetern. Diese Definition gilt seit dem International Yard and Pound Agreement von 1959. Für Bildschirmgrößen (z.B. 55 Zoll TV) bedeutet das eine Diagonale von 139,7 cm." },
+      { q: "Was ist der Unterschied zwischen einer Meile und einer Seemeile?", a: "Die Landmeile (statute mile) misst 1.609,344 Meter und wird in den USA und UK für Entfernungen auf dem Land verwendet. Die Seemeile (nautische Meile, Symbol nm oder NM) misst 1.852 Meter und entspricht der Länge eines Bogenminutengrades auf der Erdoberfläche. In der Schifffahrt und Luftfahrt international Standard." },
+      { q: "Wie rechne ich Fuß in Meter um?", a: "1 Fuß (foot, Symbol ft oder ′) entspricht exakt 0,3048 Metern bzw. 30,48 Zentimetern. Ein 6-Fuß-Mann ist also 1,83 m groß. Umgekehrt: Meter × 3,281 = Fuß." },
+      { q: "Was bedeutet die Schreibweise 5'10\"?", a: "Diese Schreibweise wird im englischsprachigen Raum für Körpergrößen verwendet: 5 Fuß und 10 Zoll. Das einfache Anführungszeichen (′) steht für Fuß, das doppelte (″) für Zoll. 5'10\" entspricht (5 × 30,48) + (10 × 2,54) = 152,4 + 25,4 = 177,8 cm." },
+      { q: "Welche Einheit nutzen Architekten und Handwerker?", a: "In Deutschland und EU werden Meter, Zentimeter und Millimeter genutzt – bei Bauplänen meist in Zentimetern oder Millimetern. In den USA dagegen sind Fuß und Zoll Standard, oft in der Form 8'4\" (8 Fuß 4 Zoll). Bei US-Bauteilen (z.B. Sanitärbedarf, Holz, Schrauben) sind Zoll-Maße üblich." }
+    ]}
+  >
+    <div class="calc-form">
+      <div class="calc-grid">
+        <div class="calc-group">
+          <label for="wert">Wert</label>
+          <input type="number" id="wert" value="1" step="any" />
+        </div>
+        <div class="calc-group">
+          <label for="von">Von Einheit</label>
+          <select id="von">
+            <option value="m">Meter (m)</option>
+            <option value="km">Kilometer (km)</option>
+            <option value="cm">Zentimeter (cm)</option>
+            <option value="mm">Millimeter (mm)</option>
+            <option value="mi">Meile (mi)</option>
+            <option value="yd">Yard (yd)</option>
+            <option value="ft">Fuß (ft)</option>
+            <option value="in">Zoll (in)</option>
+            <option value="nm">Seemeile (nm)</option>
+          </select>
+        </div>
+      </div>
+      <div id="ergebnis-liste" class="ergebnis-liste"></div>
+    </div>
+  </CalculatorShell>
+
+  <CalculatorGuide
+    title="Längeneinheiten – Übersicht und praktische Anwendungen"
+    content={`<p>Die Geschichte der Längeneinheiten ist eine Reise durch die Zivilisation. Während Deutschland und der größte Teil der Welt das <strong>metrische System (SI)</strong> nutzen, halten die USA und Großbritannien (bei Verkehrsschildern) am <strong>imperialen System</strong> fest. Der Längen-Umrechner schließt diese Lücke.</p>
+
+<h4>Metrische Einheiten – das SI-System</h4>
+<p>Das metrische System wurde 1791 in Frankreich definiert und ist heute weltweit standardisiert:</p>
+<ul>
+  <li><strong>Meter (m)</strong> – Basiseinheit, definiert über die Lichtgeschwindigkeit</li>
+  <li><strong>Kilometer (km)</strong> = 1.000 Meter – für große Distanzen, Geschwindigkeit (km/h)</li>
+  <li><strong>Zentimeter (cm)</strong> = 0,01 Meter – Alltagseinheit für Körpergrößen, Möbel</li>
+  <li><strong>Millimeter (mm)</strong> = 0,001 Meter – Präzisionsangaben, technische Zeichnungen</li>
+</ul>
+
+<h4>Anglo-amerikanische Einheiten – das Imperial-System</h4>
+<p>In den USA werden für nahezu alle Alltagsmaße imperiale Einheiten verwendet:</p>
+<ul>
+  <li><strong>Zoll (inch, in oder ″)</strong> = 2,54 cm – Bildschirmdiagonalen, Schrauben, Rohre</li>
+  <li><strong>Fuß (foot, ft oder ′)</strong> = 12 Zoll = 30,48 cm – Körpergröße, Höhen, Raumgrößen</li>
+  <li><strong>Yard (yd)</strong> = 3 Fuß = 91,44 cm – American Football, Stoff, Garten</li>
+  <li><strong>Meile (mile, mi)</strong> = 1.760 Yards = 1,609 km – Straßenentfernungen in USA, UK</li>
+</ul>
+
+<h4>Spezialeinheiten</h4>
+<ul>
+  <li><strong>Seemeile (nautische Meile, nm)</strong> = 1.852 m – Schifffahrt, Luftfahrt</li>
+  <li><strong>Knoten</strong> = 1 Seemeile/Stunde = 1,852 km/h – Geschwindigkeit auf See</li>
+  <li><strong>Lichtjahr</strong> ≈ 9,46 Billionen km – astronomische Distanzen</li>
+</ul>
+
+<h4>Praktische Umrechnungs-Faustregeln</h4>
+<ul>
+  <li>1 m ≈ 3,3 Fuß (für schnelles Schätzen: Meter × 3,3)</li>
+  <li>1 m ≈ 1,1 Yards</li>
+  <li>1 km ≈ 0,62 Meilen (oder 5 Meilen = ca. 8 km)</li>
+  <li>1 cm ≈ 0,4 Zoll (oder 2,5 cm = ca. 1 Zoll)</li>
+  <li>30 cm ≈ 1 Fuß (gute Merkhilfe!)</li>
+</ul>
+
+<h4>Typische Anwendungssituationen</h4>
+<p><strong>Reisen in die USA:</strong> Speed Limit 65 mph = 105 km/h. Tankfüllung 50 Gallonen klingt viel, sind aber nur 189 Liter. Ein Hotelzimmer mit 12 ft Decke ist 3,66 m hoch.</p>
+<p><strong>Heimwerker mit US-Bauteilen:</strong> Eine 1/2"-Schraube ist 1,27 cm dick. Ein 2x4-Brett (Standard-Bauholz USA) hat 5,08 × 10,16 cm Querschnitt (nominal, real meist kleiner).</p>
+<p><strong>Sport:</strong> Im American Football sind die Spielfelder 100 Yards (91,44 m) lang. Marathon: 26,2 Meilen = 42,195 km. Eine Bowlingbahn ist 60 Fuß = 18,29 m lang.</p>
+<p><strong>Mode und Größen:</strong> US-Hosen werden in Zoll angegeben (Bundweite/Beinlänge), z.B. 32/34 = 81 cm Bund, 86 cm Bein.</p>`}
+    relatedSlugs={['gewicht-umrechner', 'temperatur-umrechner', 'volumen-umrechner', 'flaechen-umrechner']}
+  />
+</Layout>
+
+<script>
+const EINHEITEN = {
+  m: { faktor: 1, label: 'Meter (m)' },
+  km: { faktor: 1000, label: 'Kilometer (km)' },
+  cm: { faktor: 0.01, label: 'Zentimeter (cm)' },
+  mm: { faktor: 0.001, label: 'Millimeter (mm)' },
+  mi: { faktor: 1609.344, label: 'Meile (mi)' },
+  yd: { faktor: 0.9144, label: 'Yard (yd)' },
+  ft: { faktor: 0.3048, label: 'Fuß (ft)' },
+  in: { faktor: 0.0254, label: 'Zoll (in)' },
+  nm: { faktor: 1852, label: 'Seemeile (nm)' },
+};
+
+function berechne() {
+  const wert = parseFloat((document.getElementById('wert') as HTMLInputElement).value) || 0;
+  const von = (document.getElementById('von') as HTMLSelectElement).value;
+  const liste = document.getElementById('ergebnis-liste')!;
+  liste.innerHTML = '';
+  const inMeter = wert * EINHEITEN[von].faktor;
+  Object.keys(EINHEITEN).forEach(k => {
+    if (k === von) return;
+    const ergebnis = inMeter / EINHEITEN[k].faktor;
+    const formatiert = ergebnis.toLocaleString('de-DE', { maximumFractionDigits: 6 });
+    liste.innerHTML += `<div class="conv-row"><span>${EINHEITEN[k].label}</span><strong>${formatiert}</strong></div>`;
+  });
+}
+
+document.getElementById('von')!.addEventListener('change', berechne);
+document.getElementById('wert')!.addEventListener('input', berechne);
+berechne();
+</script>
+
+<style>
+.ergebnis-liste { margin-top: 1rem; display: grid; gap: 0.5rem; }
+.conv-row { display: flex; justify-content: space-between; padding: 0.65rem 0.9rem; background: white; border-radius: var(--radius-sm); border: 1px solid var(--border); }
+.conv-row span { color: var(--muted); font-size: 0.9rem; }
+.conv-row strong { font-family: var(--font-display); font-size: 1.05rem; color: var(--text); }
+</style>
+</content>
+</invoke>
