@@ -1,0 +1,157 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import CalculatorShell from '../../components/CalculatorShell.astro';
+import CalculatorGuide from '../../components/CalculatorGuide.astro';
+import { CALCULATORS, CATEGORIES } from '../../data/calculators';
+const calc = CALCULATORS.find(c => c.slug === 'temperatur-umrechner')!;
+const cat = CATEGORIES[calc.category];
+const year = new Date().getFullYear();
+---
+<Layout
+  title={`Temperatur-Umrechner ${year}`}
+  description="Temperatur-Einheiten kostenlos umrechnen: Celsius, Fahrenheit, Kelvin und Réaumur. Mit exakten Formeln, Beispielen und Anwendungstipps für Reisen, Kochen und Wissenschaft."
+  canonicalPath="/einheiten/temperatur-umrechner/"
+  categoryColor={cat.color}
+  categoryLight={cat.colorLight}
+  categoryImage={cat.image}
+>
+  <div class="page-header">
+    <a href={`${import.meta.env.BASE_URL}einheiten/`} class="back-link">← Einheiten & Mathe</a>
+    <h1>Temperatur-Umrechner {year} – Celsius, Fahrenheit, Kelvin</h1>
+  </div>
+  <CalculatorShell
+    calculator={calc}
+    intro="Mit dem Temperatur-Umrechner rechnen Sie zwischen Celsius (°C), Fahrenheit (°F), Kelvin (K) und Réaumur (°Ré) um. Im Gegensatz zu Längen oder Gewichten erfolgt die Umrechnung nicht durch einfache Multiplikation, sondern über lineare Formeln mit Verschiebung und Skalierung. Besonders nützlich beim Reisen in die USA (Wetter in Fahrenheit), beim Backen mit US-Rezepten (Ofentemperatur in °F) oder in der Wissenschaft (Physik nutzt Kelvin als absolute Temperatur)."
+    sourceNote="Definitionen nach Internationalem Einheitensystem (SI): Kelvin seit 2019 über die Boltzmann-Konstante. Fahrenheit-Skala nach der Anders-Celsius/Daniel-Gabriel-Fahrenheit-Definition. Réaumur historisch (in einigen Quellen und Frankreich noch erwähnt)."
+    explanation="Die drei wichtigsten Temperaturskalen unterscheiden sich in Nullpunkt und Skalenteilung. Celsius (°C) setzt den Wasser-Gefrierpunkt auf 0 °C und den Siedepunkt auf 100 °C (Normaldruck). Fahrenheit (°F) setzt den Gefrierpunkt auf 32 °F und den Siedepunkt auf 212 °F – die Skala wurde 1724 von Daniel Gabriel Fahrenheit definiert. Kelvin (K) ist die absolute Temperaturskala mit Nullpunkt am absoluten Nullpunkt (-273,15 °C), wo theoretisch alle thermische Bewegung aufhört. Die Réaumur-Skala (°Ré) war früher in Frankreich verbreitet, setzt 0 °Ré als Gefrierpunkt und 80 °Ré als Siedepunkt. Umrechnungsformeln: °F = °C × 9/5 + 32; K = °C + 273,15; °Ré = °C × 4/5."
+    faqs={[
+      { q: "Wie rechne ich Fahrenheit in Celsius um?", a: "Formel: °C = (°F − 32) × 5/9. Beispiel: 100 °F → (100−32) × 5/9 = 37,8 °C. Schnelle Schätzung: Fahrenheit minus 30, dann halbieren ergibt ungefähr Celsius (z.B. 80 °F → (80−30)/2 = 25 °C, real 26,7 °C)." },
+      { q: "Wie rechne ich Celsius in Fahrenheit um?", a: "Formel: °F = °C × 9/5 + 32, oder vereinfacht °C × 1,8 + 32. Beispiel: 20 °C → 20 × 1,8 + 32 = 68 °F. Faustregel: Celsius verdoppeln und 30 dazu addieren ergibt ungefähr Fahrenheit (z.B. 20 °C → 40+30 = 70 °F, real 68 °F)." },
+      { q: "Was ist der absolute Nullpunkt?", a: "Der absolute Nullpunkt liegt bei 0 K = −273,15 °C = −459,67 °F. Hier hört theoretisch jede thermische Bewegung der Atome auf. Erreicht wird er nie ganz, aber Forscher kommen bis auf wenige Milliardstel Kelvin heran (z.B. bei Bose-Einstein-Kondensaten)." },
+      { q: "Welche Ofentemperatur entspricht US-Rezepten?", a: "US-Rezepte geben Ofentemperaturen meist in Fahrenheit an. Wichtige Werte: 350 °F = 175 °C (typisch für Kuchen), 375 °F = 190 °C, 400 °F = 205 °C (Pizza, Brot), 425 °F = 220 °C, 450 °F = 230 °C (heiße Grillanwendung). Faustregel: °F × 5/9 − 17,8 ≈ °C." },
+      { q: "Bei welcher Temperatur ist es \"warm\" in den USA?", a: "Wetterangaben in den USA sind oft in Fahrenheit. Wichtige Merkpunkte: 32 °F = 0 °C (Gefrieren), 50 °F = 10 °C (kühl), 68 °F = 20 °C (angenehm), 86 °F = 30 °C (heiß), 100 °F = 38 °C (sehr heiß), 104 °F = 40 °C (extrem). Tipp: 70er Fahrenheit ist Wohlfühltemperatur." },
+      { q: "Was bedeutet \"Körpertemperatur 98,6 °F\"?", a: "98,6 °F ist die normale menschliche Körpertemperatur in den USA – entspricht 37,0 °C. Fieber beginnt etwa bei 100,4 °F = 38,0 °C. Hohes Fieber bei 103 °F = 39,4 °C. Achtung: In den USA werden Thermometer in Fahrenheit anzeigen!" }
+    ]}
+  >
+    <div class="calc-form">
+      <div class="calc-grid">
+        <div class="calc-group">
+          <label for="wert">Wert</label>
+          <input type="number" id="wert" value="20" step="any" />
+        </div>
+        <div class="calc-group">
+          <label for="von">Von Einheit</label>
+          <select id="von">
+            <option value="c">Celsius (°C)</option>
+            <option value="f">Fahrenheit (°F)</option>
+            <option value="k">Kelvin (K)</option>
+            <option value="re">Réaumur (°Ré)</option>
+          </select>
+        </div>
+      </div>
+      <div id="ergebnis-liste" class="ergebnis-liste"></div>
+    </div>
+  </CalculatorShell>
+
+  <CalculatorGuide
+    title="Temperaturskalen – Übersicht, Formeln, Anwendungen"
+    content={`<p>Anders als bei Längen oder Gewichten lassen sich Temperaturen nicht durch einen einzigen Faktor umrechnen, da die Skalen unterschiedliche <strong>Nullpunkte und Schrittweiten</strong> haben. Der Temperatur-Umrechner deckt die vier praktisch wichtigsten Skalen ab.</p>
+
+<h4>Die vier Temperaturskalen im Vergleich</h4>
+<p><strong>Celsius (°C)</strong> – weltweit (außer USA, Liberia, Myanmar) Standard. 0 °C = Gefrierpunkt Wasser, 100 °C = Siedepunkt bei Normaldruck. Entwickelt 1742 vom Schweden Anders Celsius.</p>
+<p><strong>Fahrenheit (°F)</strong> – Standard in USA, Bahamas, Belize. 32 °F = Gefrierpunkt Wasser, 212 °F = Siedepunkt. Eingeführt 1724 von Daniel Gabriel Fahrenheit (Danzig). Nullpunkt war ursprünglich die kälteste damals erreichbare Temperatur (Eis-Salz-Mischung).</p>
+<p><strong>Kelvin (K)</strong> – wissenschaftliche Basiseinheit, kein Gradzeichen. 0 K = absoluter Nullpunkt, 273,15 K = Gefrierpunkt Wasser. Lord Kelvin (William Thomson) 1848. Wird in Physik und Astronomie verwendet.</p>
+<p><strong>Réaumur (°Ré)</strong> – historische Skala, in alten Kochbüchern und Romanen anzutreffen. 0 °Ré = Gefrierpunkt, 80 °Ré = Siedepunkt. René-Antoine Ferchault de Réaumur, 1731. In Russland und Osteuropa noch vereinzelt verwendet.</p>
+
+<h4>Die Umrechnungsformeln</h4>
+<ul>
+  <li><strong>°C → °F:</strong> °F = °C × 9/5 + 32 = °C × 1,8 + 32</li>
+  <li><strong>°F → °C:</strong> °C = (°F − 32) × 5/9 = (°F − 32) ÷ 1,8</li>
+  <li><strong>°C → K:</strong> K = °C + 273,15</li>
+  <li><strong>K → °C:</strong> °C = K − 273,15</li>
+  <li><strong>°C → °Ré:</strong> °Ré = °C × 4/5 = °C × 0,8</li>
+  <li><strong>°Ré → °C:</strong> °C = °Ré × 5/4 = °Ré × 1,25</li>
+  <li><strong>°F → K:</strong> K = (°F − 32) × 5/9 + 273,15</li>
+</ul>
+
+<h4>Wichtige Vergleichspunkte (Merktabelle)</h4>
+<ul>
+  <li>Absoluter Nullpunkt: 0 K = −273,15 °C = −459,67 °F</li>
+  <li>Eis und Salz mischt sich: ca. −18 °C = 0 °F</li>
+  <li>Sehr kalter Winter: −40 °C = −40 °F (einzige Übereinstimmung!)</li>
+  <li>Gefrierpunkt Wasser: 0 °C = 32 °F = 273,15 K</li>
+  <li>Kühlschrank: 4 °C = 39 °F</li>
+  <li>Raumtemperatur: 20 °C = 68 °F</li>
+  <li>Körpertemperatur: 37 °C = 98,6 °F</li>
+  <li>Fiebergrenze: 38 °C = 100,4 °F</li>
+  <li>Heißer Sommertag: 30 °C = 86 °F</li>
+  <li>Backofen mittel: 175 °C = 350 °F</li>
+  <li>Pizza-Stein: 250 °C = 482 °F</li>
+  <li>Siedepunkt Wasser: 100 °C = 212 °F = 373,15 K</li>
+</ul>
+
+<h4>Praktische Faustregeln</h4>
+<p><strong>Schnell von Fahrenheit zu Celsius:</strong> "Minus 30, dann halbieren". 80 °F → (80−30)/2 = 25 °C. Real: 26,7 °C. Genug für Wetter-Smalltalk.</p>
+<p><strong>Schnell von Celsius zu Fahrenheit:</strong> "Verdoppeln und 30 dazu". 25 °C → 50+30 = 80 °F. Real: 77 °F. Akzeptable Schätzung.</p>
+
+<h4>Typische Anwendungssituationen</h4>
+<p><strong>USA-Reise und Wetterapps:</strong> Wenn die US-App "75 degrees" anzeigt, sind das angenehme 24 °C. "Heat advisory" ab 95 °F = 35 °C. "Wind chill" -10 °F = −23 °C ist gefährlich kalt.</p>
+<p><strong>Backen mit US-Rezepten:</strong> Standard-Kuchentemperatur 350 °F = 175 °C, Brot bei 400 °F = 205 °C, Pizza bei 450 °F = 230 °C. Niedertemperatur-Garen: 200 °F = 95 °C.</p>
+<p><strong>Wissenschaft und Schule:</strong> Physikformeln (Gasgesetze, Wärmeleitung) verlangen Kelvin. Beispiel: Idealgas-Gleichung pV = nRT erfordert T in Kelvin, sonst kommen unsinnige Ergebnisse heraus.</p>
+<p><strong>Sauna und Thermalbad:</strong> Finnische Sauna 80–90 °C = 176–194 °F, Dampfbad 45–55 °C = 113–131 °F. Beim Saunaaufguss steigt die gefühlte Temperatur erheblich (Wärmeübergang Wasser → Haut).</p>
+<p><strong>Klimaanlage und Heizung:</strong> US-Thermostate sind in Fahrenheit. Empfohlene Wohnraum-Temperatur 68–72 °F = 20–22 °C. Schlafzimmer kühler: 65 °F = 18 °C.</p>`}
+    relatedSlugs={['laengen-umrechner', 'gewicht-umrechner', 'volumen-umrechner', 'flaechen-umrechner']}
+  />
+</Layout>
+
+<script>
+function toC(wert: number, von: string): number {
+  if (von === 'c') return wert;
+  if (von === 'f') return (wert - 32) * 5 / 9;
+  if (von === 'k') return wert - 273.15;
+  if (von === 're') return wert * 5 / 4;
+  return wert;
+}
+
+function fromC(c: number, zu: string): number {
+  if (zu === 'c') return c;
+  if (zu === 'f') return c * 9 / 5 + 32;
+  if (zu === 'k') return c + 273.15;
+  if (zu === 're') return c * 4 / 5;
+  return c;
+}
+
+const LABELS: Record<string, string> = {
+  c: 'Celsius (°C)',
+  f: 'Fahrenheit (°F)',
+  k: 'Kelvin (K)',
+  re: 'Réaumur (°Ré)',
+};
+
+function berechne() {
+  const wert = parseFloat((document.getElementById('wert') as HTMLInputElement).value) || 0;
+  const von = (document.getElementById('von') as HTMLSelectElement).value;
+  const liste = document.getElementById('ergebnis-liste')!;
+  liste.innerHTML = '';
+  const celsius = toC(wert, von);
+  Object.keys(LABELS).forEach(k => {
+    if (k === von) return;
+    const ergebnis = fromC(celsius, k);
+    const formatiert = ergebnis.toLocaleString('de-DE', { maximumFractionDigits: 4 });
+    liste.innerHTML += `<div class="conv-row"><span>${LABELS[k]}</span><strong>${formatiert}</strong></div>`;
+  });
+}
+
+document.getElementById('von')!.addEventListener('change', berechne);
+document.getElementById('wert')!.addEventListener('input', berechne);
+berechne();
+</script>
+
+<style>
+.ergebnis-liste { margin-top: 1rem; display: grid; gap: 0.5rem; }
+.conv-row { display: flex; justify-content: space-between; padding: 0.65rem 0.9rem; background: white; border-radius: var(--radius-sm); border: 1px solid var(--border); }
+.conv-row span { color: var(--muted); font-size: 0.9rem; }
+.conv-row strong { font-family: var(--font-display); font-size: 1.05rem; color: var(--text); }
+</style>
+</content>
+</invoke>
