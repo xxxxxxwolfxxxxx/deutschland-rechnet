@@ -9,7 +9,7 @@ const year = new Date().getFullYear();
 ---
 <Layout
   title={`Kalorien verbrennen ${year}`}
-  description="Kalorienverbrauch beim Sport berechnen."
+  description="Kalorienverbrauch beim Sport berechnen: MET-Tabelle für 30+ Sportarten, Vergleich Joggen vs. Schwimmen vs. Radfahren. Kalorien pro Stunde nach Körpergewicht mit wissenschaftlichen MET-Werten."
   canonicalPath="/gesundheit/kalorien-verbrennen/"
   categoryColor={cat.color}
   categoryLight={cat.colorLight}
@@ -46,8 +46,16 @@ const year = new Date().getFullYear();
         a: "Sprinten und HIIT-Training führen (bis 14,5 MET), gefolgt von Treppensteigen und intensivem Radfahren. Langsamere Sportarten wie Yoga verbrauchen weniger, sind aber für Ausdauer und Flexibilität wertvoll."
       },
       {
-        q: "Gilbt es einen Nachbrenn-Effekt?",
+        q: "Gibt es einen Nachbrenn-Effekt?",
         a: "Ja, der sogenannte EPOC-Effekt (Excess Post-Exercise Oxygen Consumption) führt zu erhöhtem Energieverbrauch nach dem Training. Dieser ist aber meist kleiner als angenommen (5-10% des Trainingskalorienverbrauchs)."
+      },
+      {
+        q: "Wie viele Kalorien muss ich verbrennen, um 1 kg Fett abzunehmen?",
+        a: "1 kg Körperfett entspricht etwa 7.000 kcal. Um 0,5 kg pro Woche abzunehmen, brauchen Sie ein tägliches Defizit von ca. 500 kcal – durch Ernährung und Bewegung kombiniert. Reines Laufen ohne Ernährungsumstellung erfordert dafür ca. 7–8 Stunden Joggen pro Woche."
+      },
+      {
+        q: "Verbrennt Krafttraining oder Ausdauertraining mehr Kalorien?",
+        a: "Ausdauertraining verbrennt pro Minute mehr Kalorien (Joggen: ~8 MET vs. Krafttraining: ~5 MET). Krafttraining erhöht aber langfristig den Grundumsatz durch Muskelaufbau. 1 kg zusätzliche Muskelmasse verbrennt ca. 13 kcal pro Tag extra – in Ruhe. Die Kombination beider Trainingsarten ist am effektivsten."
       }
     ]}
   >
@@ -87,13 +95,31 @@ const year = new Date().getFullYear();
   </CalculatorShell>
   <CalculatorGuide
     title="Kalorienverbrauch beim Sport richtig einordnen"
-    content="Der Kalorienverbrauch beim Sport wird mit MET-Werten (Metabolic Equivalent) berechnet – einem wissenschaftlichen Standard, der die Intensität von Aktivitäten vergleichbar macht. Eine 1-Stunde-Joggen-Einheit verbraucht tatsächlich weniger Kalorien, als viele denken.
+    content="Der Kalorienverbrauch beim Sport wird mit MET-Werten (Metabolic Equivalent of Task) berechnet – einem wissenschaftlichen Standard des American College of Sports Medicine, der die Intensität von Aktivitäten vergleichbar macht. Die Formel lautet: <strong>Kalorien = MET × Körpergewicht (kg) × Dauer (Stunden)</strong>.
 
-**Das Snickers-Problem:** Ein häufiger Motivationsfehler ist, dass Menschen denken: Ich jogge 1 Stunde = ich kann ein Snickers essen. Tatsächlich verbraucht eine 75 kg Person beim Joggen etwa 300-400 kcal – deutlich weniger als ein Snickers (250 kcal). Das zeigt, warum Sport allein für Gewichtsabnahme unzureichend ist.
+<h3>MET-Werte und Kalorienverbrauch: Die große Vergleichstabelle</h3>
+<p>Die folgende Tabelle zeigt den Kalorienverbrauch pro 30 und 60 Minuten für eine Person mit 70 kg und 85 kg Körpergewicht:</p>
+<table><thead><tr><th>Sportart</th><th>MET-Wert</th><th>30 Min (70 kg)</th><th>60 Min (70 kg)</th><th>30 Min (85 kg)</th><th>60 Min (85 kg)</th></tr></thead><tbody><tr><td>Spazieren (4 km/h)</td><td>2,5</td><td>88 kcal</td><td>175 kcal</td><td>106 kcal</td><td>213 kcal</td></tr><tr><td>Power Walking</td><td>4,3</td><td>151 kcal</td><td>301 kcal</td><td>183 kcal</td><td>366 kcal</td></tr><tr><td>Yoga (Hatha)</td><td>2,5</td><td>88 kcal</td><td>175 kcal</td><td>106 kcal</td><td>213 kcal</td></tr><tr><td>Tanzen (moderat)</td><td>4,5</td><td>158 kcal</td><td>315 kcal</td><td>191 kcal</td><td>383 kcal</td></tr><tr><td>Krafttraining</td><td>5,0</td><td>175 kcal</td><td>350 kcal</td><td>213 kcal</td><td>425 kcal</td></tr><tr><td>Schwimmen (moderat)</td><td>7,0</td><td>245 kcal</td><td>490 kcal</td><td>298 kcal</td><td>595 kcal</td></tr><tr><td>Tennis (Einzel)</td><td>7,3</td><td>256 kcal</td><td>511 kcal</td><td>311 kcal</td><td>621 kcal</td></tr><tr><td>Radfahren (20 km/h)</td><td>8,0</td><td>280 kcal</td><td>560 kcal</td><td>340 kcal</td><td>680 kcal</td></tr><tr><td>Joggen (8 km/h)</td><td>8,3</td><td>291 kcal</td><td>581 kcal</td><td>353 kcal</td><td>706 kcal</td></tr><tr><td>Treppensteigen</td><td>8,8</td><td>308 kcal</td><td>616 kcal</td><td>374 kcal</td><td>748 kcal</td></tr><tr><td>Seilspringen</td><td>11,0</td><td>385 kcal</td><td>770 kcal</td><td>468 kcal</td><td>935 kcal</td></tr><tr><td>Laufen (12 km/h)</td><td>11,5</td><td>403 kcal</td><td>805 kcal</td><td>489 kcal</td><td>978 kcal</td></tr><tr><td>Sprinten</td><td>14,5</td><td>508 kcal</td><td>1.015 kcal</td><td>616 kcal</td><td>1.233 kcal</td></tr></tbody></table>
+<p><em>Werte gerundet. Der tatsächliche Verbrauch variiert je nach Fitness-Level, Geschwindigkeit, Gelände und individuellem Stoffwechsel um 15–25 %.</em></p>
 
-**Sport und Ernährung sind Partner, nicht Gegner:** Die effektivste Strategie kombiniert moderates Ausdauertraining (Kalorienverbrauch) mit Krafttraining (Muskelaufbau) und einem bewussten Kaloriendefizit über die Ernährung (größerer Hebel). Abnehmen entsteht zu 70% durch Ernährung, zu 30% durch Bewegung.
+<h3>Das Snickers-Problem: Warum Sport allein nicht reicht</h3>
+Ein häufiger Motivationsfehler ist die Annahme, dass 1 Stunde Joggen eine Tafel Schokolade oder ein Fast-Food-Menü ausgleicht. Die Realität sieht anders aus:
+<table><thead><tr><th>Lebensmittel</th><th>Kalorien</th><th>Joggen nötig (75 kg)</th><th>Radfahren nötig (75 kg)</th></tr></thead><tbody><tr><td>1 Snickers (52 g)</td><td>250 kcal</td><td>26 Min</td><td>27 Min</td></tr><tr><td>1 Portion Pommes</td><td>310 kcal</td><td>32 Min</td><td>33 Min</td></tr><tr><td>1 Stück Sahnetorte</td><td>450 kcal</td><td>46 Min</td><td>48 Min</td></tr><tr><td>1 Döner</td><td>650 kcal</td><td>67 Min</td><td>70 Min</td></tr><tr><td>1 Pizza Margherita</td><td>800 kcal</td><td>82 Min</td><td>86 Min</td></tr><tr><td>Fast-Food-Menü (Burger+Pommes+Cola)</td><td>1.100 kcal</td><td>113 Min</td><td>118 Min</td></tr></tbody></table>
+<p>Das zeigt: <strong>Abnehmen entsteht zu 70 % durch Ernährung, zu 30 % durch Bewegung.</strong> Sport ist trotzdem unverzichtbar – er verbessert die kardiovaskuläre Gesundheit, stärkt das Immunsystem und erhöht langfristig den Grundumsatz.</p>
 
-**Langfristige Perspektive:** Regelmäßiges Training erhöht Ihren Grundumsatz durch Muskelaufbau und verbessert Ihre kardiovaskuläre Gesundheit, unabhängig vom Gewicht. Dies ist für Langzeitgesundheit wichtiger als kurzfristiger Gewichtsverlust."
+<h3>Die WHO-Empfehlung: So viel Bewegung brauchen Sie wirklich</h3>
+Die Weltgesundheitsorganisation empfiehlt für Erwachsene (18–64 Jahre) pro Woche:
+<ul><li><strong>Mindestens 150–300 Minuten</strong> moderate Aktivität (3–6 MET: zügiges Gehen, Radfahren, Schwimmen)</li><li><strong>Oder 75–150 Minuten</strong> intensive Aktivität (über 6 MET: Joggen, HIIT, schnelles Radfahren)</li><li><strong>Plus mindestens 2 Tage</strong> Krafttraining für alle großen Muskelgruppen</li></ul>
+<p>Bereits 15 Minuten tägliche moderate Bewegung senkt das Sterblichkeitsrisiko um ca. 14 % (Studie: Wen et al., The Lancet, 2011). Jede weitere 15 Minuten bringen nochmals 4 % Reduktion – bis zu einem Plateau bei ca. 100 Minuten/Tag.</p>
+
+<h3>Trainingsplan-Optimierung: Maximaler Kalorienverbrauch pro Zeiteinheit</h3>
+Wer wenig Zeit hat, sollte auf Sportarten mit hohem MET-Wert setzen. Die effizientesten Trainingsmethoden:
+<ul><li><strong>HIIT (High Intensity Interval Training):</strong> 20–30 Minuten Intervalltraining verbrennen durch den EPOC-Effekt (Nachbrenneffekt) bis zu 25 % mehr Kalorien als gleichlanges Steady-State-Training</li><li><strong>Tabata-Protokoll:</strong> 4 Minuten (8 × 20s Vollgas / 10s Pause) – extrem zeiteffizient, aber nur für Fortgeschrittene</li><li><strong>Supersatz-Krafttraining:</strong> Zwei Übungen ohne Pause hintereinander erhöhen den Kalorienverbrauch im Vergleich zu klassischem Satztraining um ca. 35 %</li><li><strong>Laufen auf Steigungen:</strong> Bereits 5 % Steigung erhöht den MET-Wert von 8,3 auf ca. 10,5 – deutlich mehr Verbrauch bei gleicher Geschwindigkeit</li></ul>
+
+<h3>Häufige Fehler bei der Kalorienberechnung</h3>
+<ul><li><strong>Fitness-Tracker überschätzen:</strong> Studien (Stanford University, 2017) zeigen, dass Fitness-Uhren den Kalorienverbrauch um 27–93 % überschätzen. MET-basierte Berechnungen sind oft genauer als Handgelenk-Sensoren.</li><li><strong>Netto- vs. Brutto-Kalorien:</strong> Der hier berechnete Wert ist der Brutto-Kalorienverbrauch. Ihr Körper verbraucht auch in Ruhe Kalorien (Grundumsatz). Die tatsächlich zusätzlich verbrannten Kalorien durch Sport sind ca. 15–20 % niedriger.</li><li><strong>Kompensationseffekt:</strong> Viele Menschen bewegen sich nach intensivem Training unbewusst weniger (weniger Treppen, mehr Sitzen). Dieser Kompensationseffekt kann bis zu 50 % des Trainingseffekts zunichtemachen.</li><li><strong>Übertraining ignorieren:</strong> Mehr Training bedeutet nicht automatisch mehr Kalorienverbrauch. Ab ca. 300–400 Minuten intensiver Aktivität pro Woche stagniert der Zusatzverbrauch (Pontzer et al., Current Biology, 2016).</li></ul>
+
+<strong>Langfristige Perspektive:</strong> Regelmäßiges Training erhöht Ihren Grundumsatz durch Muskelaufbau und verbessert Ihre kardiovaskuläre Gesundheit, unabhängig vom Gewicht. 1 kg zusätzliche Muskelmasse steigert den täglichen Grundumsatz um ca. 13 kcal – das summiert sich über Monate und Jahre erheblich. Für die Langzeitgesundheit ist konsistente Bewegung wichtiger als kurzfristiger Gewichtsverlust."
     relatedSlugs={['kalorien-rechner', 'grundumsatz-rechner', 'idealgewicht-rechner']}
   />
 </Layout>

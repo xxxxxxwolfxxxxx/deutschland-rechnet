@@ -9,7 +9,7 @@ const year = new Date().getFullYear();
 ---
 <Layout
   title={`Stromkosten-Rechner ${year}`}
-  description="Stromkosten aus Verbrauch (kWh) und Strompreis berechnen – kostenlos. Richtwerte für 1-4-Personen-Haushalte inklusive."
+  description="Stromkosten 2026 berechnen: Jahresverbrauch in Euro umrechnen mit aktuellem Strompreis (36-40 ct/kWh). Vergleichstabelle für 1-5-Personen-Haushalte und konkrete Spartipps."
   canonicalPath="/energie/stromkosten-rechner/"
   categoryColor={cat.color}
   categoryLight={cat.colorLight}
@@ -29,7 +29,9 @@ const year = new Date().getFullYear();
       { q: "Wie hoch ist ein durchschnittlicher Stromverbrauch?", a: "1-Person-Haushalt: 1.500 kWh/Jahr, 2-Person: 2.500 kWh, 3-Person: 3.500 kWh, 4-Person: 4.500 kWh. Mit elektrischer Heizung oder Wärmepumpe kann der Verbrauch verdoppeln sich." },
       { q: "Warum sind meine Stromkosten höher als berechnet?", a: "Der Grundpreis! Der Rechner zeigt nur die Stromkosten (kWh × Preis). Der Gesamtpreis in der Rechnung enthält auch die monatliche Grundgebühr (ca. 10-20€/Monat). Zusätzlich kommt Mehrwertsteuer hinzu." },
       { q: "Wie kann ich Strom sparen?", a: "LED-Lampen statt Glühbirnen, Geräte ausschalten (nicht nur Stand-by), Kühlschrank nicht neben Herd stellen, duschen statt baden (falls Boiler), Waschamaschine nur voll laden, bei neuen Geräten auf Effizienzklasse achten." },
-      { q: "Lohnt sich eine Wärmepumpe wirtschaftlich?", a: "Bei hohen Strompreisen und altér Heizung: Ja. Wärmepumpen brauchen ca. 3x weniger Energie als Heizöl/Gas-Heizungen (COP 3-4). Mit Solaranlage noch besser. Kosten: 10.000-30.000€, amortisiert sich in 10-15 Jahren." }
+      { q: "Lohnt sich eine Wärmepumpe wirtschaftlich?", a: "Bei hohen Strompreisen und altér Heizung: Ja. Wärmepumpen brauchen ca. 3x weniger Energie als Heizöl/Gas-Heizungen (COP 3-4). Mit Solaranlage noch besser. Kosten: 10.000-30.000€, amortisiert sich in 10-15 Jahren." },
+      { q: "Wie hat sich der Strompreis in Deutschland entwickelt?", a: "2020: ca. 31 ct/kWh, 2022 (Energiekrise): bis 50 ct/kWh, 2023: 38-42 ct/kWh, 2024: 35-40 ct/kWh, 2025: 34-38 ct/kWh, 2026: 36-40 ct/kWh. Der Preisanstieg kommt vor allem durch steigende Netzentgelte und den Ausbau der Stromnetze. Langfristig könnten Erneuerbare den Preis stabilisieren." },
+      { q: "Welche Haushaltsgeräte verbrauchen am meisten Strom?", a: "Die größten Stromfresser: 1. Warmwasserboiler (800-1.500 kWh/a), 2. Kühl-Gefrierkombination (200-400 kWh/a), 3. Waschmaschine + Trockner (300-500 kWh/a), 4. Geschirrspüler (200-300 kWh/a), 5. Beleuchtung (200-400 kWh/a). Ein alter Kühlschrank (Klasse D) verbraucht bis 3x mehr als ein neues A-Gerät." }
     ]}
   >
     <div class="calc-form">
@@ -83,7 +85,46 @@ const year = new Date().getFullYear();
 </ul>
 </p>
 
-<p><strong>Energiewende-Komponenten:</strong> Die EEG-Umlage (seit 2023 abgebaut) finanzierte den Ausbau erneuerbarer Energien. Heute kommt der Strom zu ca. 45% aus Erneuerbaren (Wind, Solar, Wasser) und 48% aus Kohle/Gas (Stand 2024). Erneuerbare Energien werden immer günstiger, Gas-/Kohlepreise aber schwankender.</p>`}
+<p><strong>Energiewende-Komponenten:</strong> Die EEG-Umlage (seit 2023 abgebaut) finanzierte den Ausbau erneuerbarer Energien. Heute kommt der Strom zu ca. 50% aus Erneuerbaren (Wind, Solar, Wasser) und der Rest aus Gas, Kohle und Kernkraft-Restlaufzeiten (Stand 2025/2026). Erneuerbare Energien werden immer günstiger, die Netzentgelte steigen jedoch durch den notwendigen Netzausbau.</p>
+
+<h3>Stromkosten nach Haushaltsgröße im Vergleich (Stand 2026)</h3>
+<table>
+<thead><tr><th>Haushalt</th><th>Verbrauch (kWh/a)</th><th>Kosten bei 36 ct/kWh</th><th>Kosten bei 40 ct/kWh</th><th>+ Grundpreis (180 €/a)</th></tr></thead>
+<tbody>
+<tr><td>1 Person</td><td>1.500</td><td>540 €</td><td>600 €</td><td>720 – 780 €</td></tr>
+<tr><td>2 Personen</td><td>2.500</td><td>900 €</td><td>1.000 €</td><td>1.080 – 1.180 €</td></tr>
+<tr><td>3 Personen</td><td>3.500</td><td>1.260 €</td><td>1.400 €</td><td>1.440 – 1.580 €</td></tr>
+<tr><td>4 Personen</td><td>4.500</td><td>1.620 €</td><td>1.800 €</td><td>1.800 – 1.980 €</td></tr>
+<tr><td>5+ Personen</td><td>5.500</td><td>1.980 €</td><td>2.200 €</td><td>2.160 – 2.380 €</td></tr>
+</tbody>
+</table>
+<p><small>Grundpreis variiert je nach Anbieter zwischen 120 und 240 Euro pro Jahr. In der Tabelle wurde ein Mittelwert von 180 Euro angesetzt.</small></p>
+
+<h3>Strompreisentwicklung in Deutschland (2019–2026)</h3>
+<table>
+<thead><tr><th>Jahr</th><th>Durchschnittspreis (ct/kWh brutto)</th><th>Veränderung zum Vorjahr</th></tr></thead>
+<tbody>
+<tr><td>2019</td><td>30,5</td><td>—</td></tr>
+<tr><td>2020</td><td>31,4</td><td>+3,0 %</td></tr>
+<tr><td>2021</td><td>31,9</td><td>+1,6 %</td></tr>
+<tr><td>2022</td><td>42,0</td><td>+31,7 % (Energiekrise)</td></tr>
+<tr><td>2023</td><td>38,5</td><td>-8,3 %</td></tr>
+<tr><td>2024</td><td>36,5</td><td>-5,2 %</td></tr>
+<tr><td>2025</td><td>35,8</td><td>-1,9 %</td></tr>
+<tr><td>2026</td><td>37,5 (Prognose)</td><td>+4,7 % (Netzentgelte)</td></tr>
+</tbody>
+</table>
+<p>Der leichte Anstieg 2026 erklärt sich vor allem durch steigende Netzentgelte: Der Ausbau der Stromnetze für die Energiewende (Süd-Nord-Trassen, Offshore-Anbindungen) wird über die Netznutzungsgebühren auf die Verbraucher umgelegt. Die reinen Erzeugungskosten sinken dagegen weiter, insbesondere bei Solar- und Windstrom.</p>
+
+<h3>Regionale Preisunterschiede in Deutschland</h3>
+<p>Strompreise variieren in Deutschland je nach Bundesland um bis zu 20 %. In Schleswig-Holstein und Mecklenburg-Vorpommern zahlen Verbraucher durchschnittlich 39-42 ct/kWh, da die Region viel Windstrom produziert, aber die Netzentgelte für den Abtransport nach Süden hoch sind. In Bayern und Baden-Württemberg liegen die Preise bei 35-38 ct/kWh, im Ruhrgebiet und Rheinland teils bei 33-36 ct/kWh (mehr Wettbewerb, dichteres Netz). Großstädte haben in der Regel günstigere Grundversorger als ländliche Regionen.</p>
+
+<h3>Die 5 wirksamsten Strom-Spartipps mit konkreter Ersparnis</h3>
+<p><strong>1. Alte Kühl-Gefrierkombination ersetzen:</strong> Ein 15 Jahre alter Kühlschrank verbraucht 350-450 kWh/a, ein neues A-Gerät nur 100-150 kWh/a. Ersparnis: 80-120 Euro pro Jahr bei 38 ct/kWh. Die Investition (400-600 Euro) amortisiert sich in 4-6 Jahren.</p>
+<p><strong>2. LED-Beleuchtung komplett umstellen:</strong> 10 Halogenspots (je 50W, 3h/Tag) verbrauchen 548 kWh/a (208 Euro). Ersetzt durch LED (je 5W): 55 kWh/a (21 Euro). Ersparnis: 187 Euro pro Jahr.</p>
+<p><strong>3. Stand-by konsequent abschalten:</strong> TV, Konsole, PC-Monitor, Router-Zweitgerät und Kaffeevollautomat im Stand-by verbrauchen zusammen 200-350 kWh/a. Mit Steckdosenleisten (schaltbar, 5-10 Euro) sparen Sie 75-130 Euro pro Jahr.</p>
+<p><strong>4. Waschmaschine bei 30 statt 60 Grad:</strong> Ein 60-Grad-Waschgang verbraucht ca. 1,2 kWh, bei 30 Grad nur 0,4 kWh. Bei 200 Waschgängen pro Jahr: Ersparnis 160 kWh = ca. 60 Euro.</p>
+<p><strong>5. Stromanbieter wechseln:</strong> Der Grundversorger ist fast immer teurer. Durch einen Wechsel zu einem günstigen Tarif sparen Sie oft 2-5 ct/kWh, bei 3.500 kWh also 70-175 Euro pro Jahr. Vergleichsportale zeigen aktuelle Angebote.</p>`}
     relatedSlugs={['heizkosten-rechner', 'photovoltaik-rechner', 'waermepumpe-rechner']}
   />
 </Layout>
