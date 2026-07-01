@@ -9,7 +9,7 @@ const year = new Date().getFullYear();
 ---
 <Layout
   title={`Solarspeicher-Dimensionierung ${year}`}
-  description="Optimale Batteriegröße für deine PV-Anlage berechnen – Speicherbedarf anhand deines Verbrauchsprofils."
+  description="Solarspeicher-Größe 2026 berechnen: Optimale Batterie für Ihre PV-Anlage nach Verbrauchsprofil. Mit Kosten-Vergleich LiFePO4 vs. Blei, Amortisationsrechnung und Praxistipps."
   canonicalPath="/energie/solarspeicher-dimensionierung/"
   categoryColor={cat.color}
   categoryLight={cat.colorLight}
@@ -30,7 +30,9 @@ const year = new Date().getFullYear();
         { q: "Ist ein Stromspeicher immer wirtschaftlich sinnvoll?", a: "Nicht immer. Ohne Speicher: Mit 30% Eigenverbrauch kostet PV-Strom nichts. Mit Speicher: Amortisationszeit 15-20 Jahre. Nur lohnenswert bei hohem Strompreis (>40ct/kWh) oder hohem Eigenverbrauch-Potential (Home Office, Wärmepumpe)." },
         { q: "Welche Batterietechnologie soll ich wählen?", a: "Lithium-Ionen ist Standard, sicher und langlebig (10-15 Jahre). Kosten: ~1.000-1.500€ pro nutzbarer kWh. Blei-Gel ist günstiger (500€/kWh) aber schwächer (weniger Zyklen, kürzere Lebensdauer). Salzwasser-Batterien sind neu, preiswerter und recycelbar, aber noch wenig Langzeit-Daten." },
         { q: "Kann ich den Speicher mit Notstromfunktion bekommen?", a: "Ja, AC-gekoppelte Systeme mit USV (Unterbrechungsfreie Stromversorgung) können bei Netzausfall automatisch auf Batterie umschalten. Kostet ~500-1.000€ extra. Wichtig: Nur für einzelne Stromkreise möglich, nicht das ganze Haus." },
-        { q: "Wie oft kann eine Batterie geladen/entladen werden?", a: "Moderne LiFePO4-Batterien: 4.000-6.000 vollständige Zyklen (10-15 Jahre bei täglichem Betrieb). Das bedeutet ~60.000-120.000 kWh Durchsatz über die Lebensdauer – oft mehr als der Speicher kostet." }
+        { q: "Wie oft kann eine Batterie geladen/entladen werden?", a: "Moderne LiFePO4-Batterien: 4.000-6.000 vollständige Zyklen (10-15 Jahre bei täglichem Betrieb). Das bedeutet ~60.000-120.000 kWh Durchsatz über die Lebensdauer – oft mehr als der Speicher kostet." },
+        { q: "Lohnt sich ein Speicher eher im Sommer oder im Winter?", a: "Im Sommer eindeutig mehr: Die PV-Anlage produziert 3-5x so viel wie im Winter, der Überschuss ist größer. Ein 5-kWh-Speicher wird im Sommer fast täglich voll geladen, im Winter nur an sonnigen Tagen auf 30-50%. Über das Jahr gesehen kommen 70-80% der Speicher-Ersparnis aus den Monaten April bis September." },
+        { q: "Welche Förderung gibt es 2026 für Stromspeicher?", a: "Die KfW bietet zinsgünstige Kredite (Programm 270) für PV mit Speicher. Einige Bundesländer haben zusätzliche Zuschüsse: Bayern (bis 1.100 €), NRW (150 €/kWh, max. 1.500 €) und Berlin (300 €/kWh, max. 3.000 €). Kommunale Programme variieren stark – bei der Stadt oder dem Landkreis nachfragen. Wichtig: Antrag vor Kaufvertrag stellen!" }
       ]}
    >
     <div class="calc-form">
@@ -162,7 +164,7 @@ berechne();
 
 <CalculatorGuide
   title="Stromspeicher optimal dimensionieren"
-  content="<p>Ein Stromspeicher (Batterie) erhöht die Unabhängigkeit von externem Stromversorgern deutlich. Statt den Überschuss-PV-Strom tagsüber ins Netz einzuspeisen (8-10ct/kWh), nutzen Sie ihn nachts selbst (spart 40-50ct/kWh Stromkosten). Die richtige Speichergröße ist ein Kompromiss zwischen Unabhängigkeit und Wirtschaftlichkeit.</p>
+  content={`<p>Ein Stromspeicher (Batterie) erhöht die Unabhängigkeit von externem Stromversorgern deutlich. Statt den Überschuss-PV-Strom tagsüber ins Netz einzuspeisen (8-10ct/kWh), nutzen Sie ihn nachts selbst (spart 40-50ct/kWh Stromkosten). Die richtige Speichergröße ist ein Kompromiss zwischen Unabhängigkeit und Wirtschaftlichkeit.</p>
 
 <p><strong>Speichergröße richtig wählen:</strong> Ein Haushalt mit 4.000 kWh/a Jahresverbrauch verbraucht nachts etwa 1.200-1.500 kWh (spät abends + Nacht + früh morgens). Eine 4-5 kWh nutzbare Speichergröße deckt das für ~3-4 Nächte. Größere Speicher (10+ kWh) nutzen kaum mehr, da die PV-Anlage nicht genug Überschuss hat. Die Faustregel: 1 kWh nutzbarer Speicher pro 1.000-1.500 kWh Jahresverbrauch ist ein wirtschaftliches Optimum.</p>
 
@@ -172,6 +174,38 @@ berechne();
 
 <p><strong>Batterietechnologie und Kosten:</strong> Lithium-Ionen (LiFePO4) ist heute Standard: ~1.000-1.500€ pro nutzbarer kWh, 10-15 Jahre Lebensdauer, 4.000-6.000 Ladezyklen. Beispiel 5 kWh: ~6.000-7.500€. Blei-Gel ist billiger (500€/kWh) aber kurzlebiger (5-8 Jahre). Salzwasser-Batterien sind neu, recycelbar und günstiger, aber Langzeit-Daten fehlen.</p>
 
-<p><strong>Notstromfunktion und Autarkie:</strong> Mit einer isolierten Notstromschaltung (USV) können Sie bei Netzausfall 1-2 Tage autark leben. Kostet ~500-1.000€ extra. Volle Autarkie (365 Tage ohne Netz) ist mit realistischen Speichergrößen unmöglich – schon ein paar wolkige Wochen im Winter braucht dann Netzstrom oder teuer Reservekapazität.</p>"
+<p><strong>Notstromfunktion und Autarkie:</strong> Mit einer isolierten Notstromschaltung (USV) können Sie bei Netzausfall 1-2 Tage autark leben. Kostet ~500-1.000€ extra. Volle Autarkie (365 Tage ohne Netz) ist mit realistischen Speichergrößen unmöglich – schon ein paar wolkige Wochen im Winter braucht dann Netzstrom oder teuer Reservekapazität.</p>
+
+<h3>Speichergröße und Kosten im Vergleich (Stand 2026)</h3>
+<table>
+<thead><tr><th>Nutzbare Kapazität</th><th>LiFePO4 Kosten</th><th>Passend für</th><th>Eigenverbrauch mit 10 kWp PV</th><th>Jährl. Ersparnis*</th></tr></thead>
+<tbody>
+<tr><td>3 kWh</td><td>2.500 – 3.500 €</td><td>1-2 Personen, 2.500 kWh/a</td><td>ca. 45-55 %</td><td>180 – 250 €</td></tr>
+<tr><td>5 kWh</td><td>4.000 – 6.000 €</td><td>2-3 Personen, 4.000 kWh/a</td><td>ca. 55-65 %</td><td>280 – 380 €</td></tr>
+<tr><td>7 kWh</td><td>5.500 – 8.000 €</td><td>3-4 Personen, 5.000 kWh/a</td><td>ca. 60-70 %</td><td>340 – 450 €</td></tr>
+<tr><td>10 kWh</td><td>7.500 – 11.000 €</td><td>4+ Personen oder Wärmepumpe</td><td>ca. 65-75 %</td><td>400 – 530 €</td></tr>
+<tr><td>15 kWh</td><td>11.000 – 16.000 €</td><td>Gewerbe oder Vollautarkie-Ziel</td><td>ca. 70-80 %</td><td>450 – 580 €</td></tr>
+</tbody>
+</table>
+<p><small>* Ersparnis berechnet als Differenz zwischen Netzstrompreis (38 ct/kWh) und Einspeisevergütung (8,1 ct/kWh) auf die zusätzlich selbst genutzte Energiemenge. Tatsächliche Ersparnis hängt von Verbrauchsprofil, Standort und Sonnenstunden ab.</small></p>
+
+<h3>Amortisationsbeispiel: Lohnt sich der Speicher?</h3>
+<p>Konkretes Rechenbeispiel für einen 4-Personen-Haushalt mit 5.000 kWh Jahresverbrauch und 10 kWp PV-Anlage:</p>
+<table>
+<thead><tr><th>Szenario</th><th>Eigenverbrauch</th><th>Netzstrombezug</th><th>Stromkosten/Jahr</th></tr></thead>
+<tbody>
+<tr><td>Ohne PV</td><td>0 %</td><td>5.000 kWh</td><td>1.900 € (38 ct/kWh)</td></tr>
+<tr><td>PV ohne Speicher</td><td>30 % (1.500 kWh)</td><td>3.500 kWh</td><td>1.330 € + Einspeisung 570 €</td></tr>
+<tr><td>PV + 5 kWh Speicher</td><td>60 % (3.000 kWh)</td><td>2.000 kWh</td><td>760 € + Einspeisung 410 €</td></tr>
+<tr><td>PV + 10 kWh Speicher</td><td>72 % (3.600 kWh)</td><td>1.400 kWh</td><td>532 € + Einspeisung 370 €</td></tr>
+</tbody>
+</table>
+<p>Der 5-kWh-Speicher spart hier rund 330 Euro pro Jahr gegenüber PV ohne Speicher. Bei Anschaffungskosten von 5.000 Euro ergibt sich eine Amortisation in etwa 15 Jahren. Mit steigenden Strompreisen verkürzt sich dieser Zeitraum: Steigt der Netzstrom auf 42 ct/kWh, sind es nur noch 12 Jahre.</p>
+
+<h3>Saisonale Leistung: Was der Speicher wirklich bringt</h3>
+<p>Ein häufiger Denkfehler: Der Speicher wird als Ganzjahres-Lösung betrachtet. In der Praxis leistet er im Sommerhalbjahr (April–September) deutlich mehr als im Winter. Eine 10-kWp-Anlage in Süddeutschland erzeugt im Juni etwa 40-45 kWh pro Tag, im Dezember nur 5-10 kWh. Ein 5-kWh-Speicher wird im Sommer täglich komplett gefüllt und entladen, im Winter dagegen nur an sonnigen Tagen auf 30-50% geladen. Das bedeutet: Rund 75% der jährlichen Speicher-Ersparnis entstehen zwischen April und September. Wer den Speicher vor allem für Winterautarkie kauft, wird enttäuscht.</p>
+
+<h3>Praxistipp: Den Eigenverbrauch auch ohne größeren Speicher steigern</h3>
+<p>Bevor Sie einen teureren Speicher kaufen, optimieren Sie Ihren Eigenverbrauch über das Verbrauchsprofil: Waschmaschine und Geschirrspüler mittags laufen lassen (Zeitschaltuhr: 5 Euro), E-Auto tagsüber laden, Warmwasserboiler mit PV-Überschuss betreiben (Heizstab-Steuerung: 200-400 Euro). Mit diesen Maßnahmen steigt der Eigenverbrauch ohne Speicher von 30% auf 40-50%, und ein kleinerer (günstigerer) Speicher reicht für 65-75% Eigenverbrauch aus.</p>`}
   relatedSlugs={['photovoltaik-rechner', 'stromspeicher-rechner', 'jahresenergieverbrauch']}
 />

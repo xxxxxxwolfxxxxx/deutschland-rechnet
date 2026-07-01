@@ -13,11 +13,13 @@ const faqs = [
   { q: 'Wer kann Kosten absetzen?', a: 'Eltern können Kosten absetzen, wenn mindestens ein Elternteil berufstätig oder in Ausbildung ist. Arbeitssuchende können teilweise auch absetzen.' },
   { q: 'Welche Kosten sind nicht abzugsfähig?', a: 'Verpflegung, Unterricht (Musik, Sprachen), Übernachtung und Betreuung durch Verwandte sind nicht abzugsfähig.' },
   { q: 'Wird das Kindergeld angerechnet?', a: 'Nein, Kindergeld wird nicht auf den Abzug von Betreuungskosten angerechnet.' },
+  { q: 'Kann ich den Arbeitgeberzuschuss zur Kita steuerlich nutzen?', a: 'Der Arbeitgeberzuschuss nach § 3 Nr. 33 EStG ist steuerfrei und sozialabgabenfrei, wird aber von den absetzbaren Betreuungskosten abgezogen. Beispiel: Bei 6.000 € Kita-Kosten und 1.200 € Arbeitgeberzuschuss können Sie nur 4.800 € (davon 2/3 = 3.200 €) als Sonderausgaben absetzen.' },
+  { q: 'Was passiert mit den Kita-Kosten bei Trennung oder Scheidung?', a: 'Kita-Kosten gehören zum Mehrbedarf des Kindes und werden zwischen den Eltern nach dem Verhältnis ihrer Einkommen aufgeteilt (§ 1606 Abs. 3 BGB). Der betreuende Elternteil kann seinen Anteil der Kosten steuerlich absetzen.' },
 ];
 ---
 <Layout
   title={`Betreuungskosten-Rechner ${year}`}
-  description="Kita-Gebühren und Betreuungskosten nach Einkommen und Gemeinde berechnen."
+  description="Kita-Gebühren und Betreuungskosten berechnen: Beiträge nach Einkommen, Bundesland und Betreuungszeit. Steuerlich absetzbar bis 4.000 €/Kind/Jahr. Mit Vergleichstabelle aller Bundesländer."
   canonicalPath="/familie/betreuungskosten-rechner/"
   categoryColor={cat.color}
   categoryLight={cat.colorLight}
@@ -80,15 +82,29 @@ const faqs = [
 
   <CalculatorGuide
     title="Betreuungskosten – Gebühren verstehen und optimieren"
-    content="Kinderbetreuung ist in Deutschland regional sehr unterschiedlich geregelt. Während manche Bundesländer kostenlose Betreuung ab dem dritten Lebensjahr anbieten, zahlen Eltern anderswo erhebliche Gebühren.
+    content="Kinderbetreuung ist in Deutschland regional sehr unterschiedlich geregelt. Während manche Bundesländer kostenlose Betreuung ab dem dritten Lebensjahr anbieten, zahlen Eltern anderswo erhebliche Gebühren. Die Unterschiede können mehrere Hundert Euro pro Monat betragen.
 
-Die Betreuungskosten werden von den Kommunen oder Bundesländern festgelegt und richten sich nach dem Einkommen der Eltern, der Anzahl der Kinder und der täglichen Betreuungszeit. Eine wichtige Unterscheidung: U3-Betreuung (unter 3 Jahren) ist in der Regel teurer als Kindergartenbetreuung ab 3 Jahren.
+<h3>Kita-Gebühren im Bundesländervergleich</h3>
+Die folgende Tabelle zeigt die durchschnittlichen monatlichen Elternbeiträge für eine Ganztagsbetreuung (8 Stunden) bei einem Haushaltseinkommen von 50.000 € brutto/Jahr:
+<table><thead><tr><th>Bundesland</th><th>Krippe (U3)</th><th>Kita (Ü3)</th><th>Besonderheiten</th></tr></thead><tbody><tr><td>Berlin</td><td>0 €</td><td>0 €</td><td>Komplett beitragsfrei seit 2018</td></tr><tr><td>Hamburg</td><td>0 €</td><td>0 €</td><td>5 Stunden Grundbetreuung kostenlos, darüber einkommensabhängig</td></tr><tr><td>Mecklenburg-Vorpommern</td><td>ca. 180 €</td><td>0 €</td><td>Letztes Kita-Jahr beitragsfrei</td></tr><tr><td>Niedersachsen</td><td>ca. 250 €</td><td>0 €</td><td>Ü3 beitragsfrei seit 2018</td></tr><tr><td>Rheinland-Pfalz</td><td>ca. 270 €</td><td>0 €</td><td>Ü2 beitragsfrei</td></tr><tr><td>Hessen</td><td>ca. 300 €</td><td>0 €</td><td>6 Stunden Ü3 beitragsfrei</td></tr><tr><td>NRW</td><td>ca. 250–400 €</td><td>0–200 €</td><td>Letztes Kita-Jahr beitragsfrei, sonst kommunal</td></tr><tr><td>Bayern</td><td>ca. 300–450 €</td><td>ca. 100–250 €</td><td>100 € Zuschuss/Monat ab dem 1. Geburtstag</td></tr><tr><td>Baden-Württemberg</td><td>ca. 300–500 €</td><td>ca. 120–280 €</td><td>Stark kommunal unterschiedlich</td></tr><tr><td>Sachsen</td><td>ca. 200–350 €</td><td>ca. 150–250 €</td><td>Elternbeitrag gedeckelt</td></tr></tbody></table>
+<p><em>Richtwerte; die tatsächlichen Gebühren variieren je nach Kommune, Träger und Betreuungsumfang erheblich.</em></p>
 
-Steuerlich können bis zu 6.000€ pro Jahr und Kind als Kinderbetreuungskosten abgesetzt werden – aber nur wenn mindestens ein Elternteil arbeitet. Entscheidend ist dabei die Abgrenzung: Lediglich die Betreuung ist absetzbar, nicht aber Verpflegung oder Bildungsangebote wie Musikunterricht.
+<h3>Steuerliche Absetzbarkeit: So holen Sie bis zu 4.000 € zurück</h3>
+Die steuerliche Regelung (§ 10 Abs. 1 Nr. 5 EStG) erlaubt den Abzug von <strong>zwei Dritteln der Betreuungskosten, maximal 4.000 € pro Kind und Jahr</strong>. Das bedeutet: Kosten bis 6.000 € pro Kind werden zu 2/3 berücksichtigt.
+<table><thead><tr><th>Tatsächliche Kosten/Jahr</th><th>Absetzbar (2/3)</th><th>Steuerersparnis (30 % Grenzsteuersatz)</th><th>Steuerersparnis (42 %)</th></tr></thead><tbody><tr><td>3.000 €</td><td>2.000 €</td><td>600 €</td><td>840 €</td></tr><tr><td>4.500 €</td><td>3.000 €</td><td>900 €</td><td>1.260 €</td></tr><tr><td>6.000 €</td><td>4.000 €</td><td>1.200 €</td><td>1.680 €</td></tr><tr><td>8.000 €</td><td>4.000 € (Deckel)</td><td>1.200 €</td><td>1.680 €</td></tr></tbody></table>
+<p><strong>Voraussetzungen:</strong> Das Kind muss zum Haushalt gehören und darf das 14. Lebensjahr noch nicht vollendet haben (Ausnahme: Kinder mit Behinderung). Die Kosten müssen per Rechnung nachgewiesen und unbar bezahlt werden (Überweisung, Lastschrift).</p>
 
-Ein häufiger Fehler: Eltern vergessen, dass Geschwister die Gesamtkosten senken können. Viele Kommunen haben Geschwisterkindregelungen, die die Gebühr für das zweite oder weitere Kind reduzieren. Auch Zuschüsse durch Arbeitgeber oder Wohngeldberücksichtigung sollten geprüft werden.
+<h3>Was ist absetzbar – und was nicht?</h3>
+<table><thead><tr><th>Absetzbar</th><th>Nicht absetzbar</th></tr></thead><tbody><tr><td>Kita- und Krippengebühren</td><td>Verpflegungskosten (Essensgeld)</td></tr><tr><td>Tagesmutter/Tagesvater</td><td>Musikunterricht, Sportverein</td></tr><tr><td>Hort und Nachmittagsbetreuung</td><td>Nachhilfe und Förderunterricht</td></tr><tr><td>Au-pair (anteilig für Betreuung)</td><td>Übernachtungskosten (z.B. Internat)</td></tr><tr><td>Babysitter (mit Rechnung)</td><td>Betreuung durch Großeltern ohne Vertrag</td></tr><tr><td>Ferienbetreuung</td><td>Fahrtkosten zur Betreuung</td></tr></tbody></table>
 
-Finanzierungstipps: Prüfen Sie Zuschüsse der Jugendämter, Wohngeldanträge und steuerliche Absetzbarkeit genau. In einigen Bundesländern gibt es Krippengutscheine oder landesfinanzierte Plätze, die Elternbeiträge senken."
+<h3>Häufige Fehler bei Betreuungskosten</h3>
+<ul><li><strong>Barzahlung:</strong> Wer die Tagesmutter bar bezahlt, kann die Kosten nicht absetzen. Das Finanzamt akzeptiert nur unbare Zahlungen mit Kontonachweis.</li><li><strong>Essensgeld nicht trennen:</strong> Viele Kitas weisen eine Gesamtrechnung aus. Fordern Sie eine Aufschlüsselung an – der Betreuungsanteil muss separat erkennbar sein.</li><li><strong>Großeltern-Modell falsch aufgesetzt:</strong> Großeltern können als Babysitter abgerechnet werden, aber nur mit schriftlichem Vertrag, regelmäßiger Überweisung und zu einem marktüblichen Stundensatz. Das Modell wird vom Finanzamt streng geprüft.</li><li><strong>Arbeitgeberzuschuss vergessen:</strong> Arbeitgeber können nach § 3 Nr. 33 EStG steuer- und sozialversicherungsfrei Zuschüsse zur Kinderbetreuung zahlen – zusätzlich zum Gehalt. Viele Eltern wissen nicht, dass sie das ansprechen können.</li></ul>
+
+<h3>Geschwisterermäßigung und weitere Entlastungen</h3>
+Die meisten Kommunen gewähren Geschwisterermäßigungen von 25 % bis 100 % für das zweite und weitere Kind. Zusätzliche Entlastungsmöglichkeiten:
+<ul><li><strong>Jugendamtszuschuss:</strong> Bei geringem Einkommen übernimmt das Jugendamt die Kita-Kosten ganz oder teilweise (§ 90 SGB VIII)</li><li><strong>Bildungs- und Teilhabepaket:</strong> Familien mit Bürgergeld, Kinderzuschlag oder Wohngeld können zusätzliche Leistungen für Ausflüge und Mittagessen erhalten</li><li><strong>Betriebskita:</strong> Betriebliche Betreuungsplätze sind oft günstiger und werden vom Arbeitgeber bezuschusst</li></ul>
+
+Finanzierungstipps: Prüfen Sie Zuschüsse der Jugendämter, Wohngeldanträge und steuerliche Absetzbarkeit genau. In einigen Bundesländern gibt es Krippengutscheine oder landesfinanzierte Plätze, die Elternbeiträge deutlich senken. Lassen Sie sich vom Jugendamt beraten – die Antragsstellung lohnt sich häufiger, als Eltern vermuten."
     relatedSlugs={['kindergeld-rechner', 'elterngeld-rechner']}
   />
 </Layout>

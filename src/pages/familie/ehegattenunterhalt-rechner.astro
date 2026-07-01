@@ -14,11 +14,13 @@ const faqs = [
   { q: 'Gilt eine Gehaltsgrenze?', a: 'Nein, es gibt keine Gehaltsgrenze für Unterhaltsansprüche. Der Anteil steigt aber, je höher das Einkommen wird.' },
   { q: 'Wie lange wird Unterhalt gezahlt?', a: 'Ehegattenunterhalt wird in der Regel bis zur Wiederheirat oder zum Tode gezahlt. Es gibt aber Ausnahmen bei Unbilligkeit.' },
   { q: 'Kann Unterhalt reduziert werden?', a: 'Ja, bei Einkommensminderung oder wenn es unbillig wäre. Eine Reduktion braucht einen Antrag beim Gericht.' },
+  { q: 'Was ist die 3/7-Regelung beim Ehegattenunterhalt?', a: 'Die 3/7-Methode teilt die Einkommensdifferenz: Der Unterhaltspflichtige behält 4/7 (ca. 57 %), der Berechtigte erhält 3/7 (ca. 43 %) der Differenz. Beispiel: Bei 2.500 € Differenz stehen dem Berechtigten rund 1.071 € zu.' },
+  { q: 'Wird der Kindesunterhalt vor dem Ehegattenunterhalt abgezogen?', a: 'Ja, Kindesunterhalt hat Vorrang. Erst wird der Kindesunterhalt nach Düsseldorfer Tabelle vom bereinigten Einkommen abgezogen, dann wird der Ehegattenunterhalt aus dem verbleibenden Betrag berechnet.' },
 ];
 ---
 <Layout
   title={`Ehegattenunterhalt-Rechner ${year}`}
-  description="Trennungsunterhalt und nachehelichen Unterhalt berechnen."
+  description="Ehegattenunterhalt berechnen: Trennungsunterhalt und nachehelichen Unterhalt nach der 3/7-Regelung mit Düsseldorfer Tabelle. Selbstbehalt, Einkommensbereinigung und Beispielrechnungen."
   canonicalPath="/familie/ehegattenunterhalt-rechner/"
   categoryColor={cat.color}
   categoryLight={cat.colorLight}
@@ -70,13 +72,34 @@ const faqs = [
     title="Ehegattenunterhalt – Ansprüche und Berechnungen"
     content="Ehegattenunterhalt (Trennungsunterhalt und Unterhaltsleistungen nach Scheidung) ist ein wichtiges Thema beim Zusammenleben, bei Trennung oder Scheidung. Der Anspruch hängt von mehreren Faktoren ab: Ehedauer, Vermögensverhältnisse und wirtschaftliche Lage beider Partner.
 
-Die Berechnung erfolgt nach der Düsseldorf-Tabelle, die regelmäßig aktualisiert wird. Besonderheit: Ab einem gewissen Einkommen gelten abweichende Sätze, die individuell verhandelt werden können. Der Anspruch ist nicht automatisch gleich für beide Partner.
+<h3>Die 3/7-Regelung: So wird der Ehegattenunterhalt berechnet</h3>
+Die gängigste Berechnungsmethode ist die sogenannte <strong>3/7-Methode</strong> (auch Differenzmethode genannt). Der Grundgedanke: Die Einkommensdifferenz beider Ehepartner wird im Verhältnis 3/7 zu 4/7 aufgeteilt. Der Unterhaltspflichtige behält 4/7 (ca. 57 %), der Berechtigte erhält 3/7 (ca. 43 %) der Differenz. Dieses Verhältnis enthält bereits den sogenannten Erwerbstätigenbonus von 1/7, der dem Arbeitenden als Anreiz zur Berufstätigkeit zusteht.
 
-Ein häufiges Missverständnis: Ehegattenunterhalt unterscheidet sich vom Kindesunterhalt. Elternteile, die Kinder betreuen, haben separate Ansprüche. Auch die Einrechnung von Einkommen ist unterschiedlich (Bruttoabzüge vs. Nettoabzüge).
+<h3>Konkrete Berechnungsbeispiele nach der 3/7-Methode</h3>
+<table><thead><tr><th>Einkommen Pflichtiger</th><th>Einkommen Berechtigter</th><th>Differenz</th><th>Unterhalt (3/7)</th><th>Verbleib Pflichtiger</th></tr></thead><tbody><tr><td>3.000 €</td><td>0 €</td><td>3.000 €</td><td>1.286 €</td><td>1.714 €</td></tr><tr><td>3.500 €</td><td>800 €</td><td>2.700 €</td><td>1.157 €</td><td>2.343 €</td></tr><tr><td>4.000 €</td><td>1.500 €</td><td>2.500 €</td><td>1.071 €</td><td>2.929 €</td></tr><tr><td>5.000 €</td><td>1.800 €</td><td>3.200 €</td><td>1.371 €</td><td>3.629 €</td></tr><tr><td>6.000 €</td><td>2.500 €</td><td>3.500 €</td><td>1.500 €</td><td>4.500 €</td></tr><tr><td>8.000 €</td><td>0 €</td><td>8.000 €</td><td>3.429 €</td><td>4.571 €</td></tr></tbody></table>
+<p><em>Bereinigtes Nettoeinkommen; ohne Kindesunterhalt. Selbstbehalt (1.510 € seit 2025) muss zusätzlich geprüft werden.</em></p>
 
-Bei Vereinbarungen über Unterhalt ist es wichtig, diese notariell zu beurkunden – mündliche Absprachen sind nicht bindend. Rückzahlungen oder Unterhaltskürzungen brauchen schriftliche Vereinbarungen.
+<h3>Selbstbehalte und Rangfolge der Unterhaltsansprüche</h3>
+Der Unterhaltspflichtige muss nicht alles zahlen – der <strong>Selbstbehalt</strong> sichert das Existenzminimum:
+<table><thead><tr><th>Situation</th><th>Selbstbehalt (Stand 2025)</th></tr></thead><tbody><tr><td>Gegenüber minderjährigen Kindern</td><td>1.450 €</td></tr><tr><td>Gegenüber volljährigen Kindern</td><td>1.750 €</td></tr><tr><td>Gegenüber Ehegatten (erwerbstätig)</td><td>1.510 €</td></tr><tr><td>Gegenüber Ehegatten (nicht erwerbstätig)</td><td>1.385 €</td></tr></tbody></table>
+<p>Wichtig: <strong>Kindesunterhalt hat Vorrang</strong> vor dem Ehegattenunterhalt (§ 1609 BGB). Erst wird der Kindesunterhalt nach der Düsseldorfer Tabelle vom bereinigten Nettoeinkommen abgezogen, dann wird aus dem Rest der Ehegattenunterhalt berechnet.</p>
 
-Tipp: Bei Verhandlungen sollten aktuelle Einkommensnachweise vorliegen. Steuerliche Gestaltungen können die Unterhaltszahlungen erheblich beeinflussen."
+<h3>Einkommensbereinigung: Was wird abgezogen?</h3>
+Vor der Unterhaltsberechnung wird das Einkommen bereinigt. Folgende Posten werden vom Bruttoeinkommen abgezogen:
+<ul><li>Steuern und Sozialversicherungsbeiträge</li><li>Berufsbedingte Aufwendungen (pauschal 5 % oder Nachweis)</li><li>Ehebedingte Schulden und Ratenzahlungen</li><li>Kindesunterhalt nach Düsseldorfer Tabelle</li><li>Altersvorsorge (bis zu 4 % des Bruttoeinkommens zusätzlich zur gesetzlichen Rente)</li><li>Kranken- und Pflegeversicherung bei Selbstständigen</li></ul>
+<p>Nicht abgezogen werden: freiwillige Überstunden (nur bei Überobligationsmäßigkeit), Mieteinnahmen ohne Abzüge und fiktives Einkommen bei absichtlicher Arbeitsreduzierung.</p>
+
+<h3>Trennungsunterhalt vs. nachehelicher Unterhalt</h3>
+Ein häufiges Missverständnis: Ehegattenunterhalt ist nicht gleich Ehegattenunterhalt. Es gibt zwei grundlegend verschiedene Ansprüche:
+<table><thead><tr><th>Merkmal</th><th>Trennungsunterhalt</th><th>Nachehelicher Unterhalt</th></tr></thead><tbody><tr><td>Zeitraum</td><td>Ab Trennung bis Scheidung</td><td>Ab Rechtskraft der Scheidung</td></tr><tr><td>Rechtsgrundlage</td><td>§ 1361 BGB</td><td>§§ 1569 ff. BGB</td></tr><tr><td>Erwerbsobliegenheit</td><td>Im 1. Trennungsjahr gering</td><td>Grundsätzlich volle Erwerbspflicht</td></tr><tr><td>Verzicht möglich?</td><td>Nein (unwirksam)</td><td>Ja, per Ehevertrag oder Vereinbarung</td></tr><tr><td>Befristung</td><td>Endet mit Scheidung</td><td>Häufig zeitlich begrenzt</td></tr></tbody></table>
+
+<h3>Häufige Fehler bei der Unterhaltsberechnung</h3>
+<ul><li><strong>Brutto statt Netto:</strong> Unterhalt wird immer vom bereinigten Nettoeinkommen berechnet, nicht vom Bruttogehalt.</li><li><strong>Bonus und Sonderzahlungen vergessen:</strong> Weihnachtsgeld, Urlaubsgeld und Boni werden anteilig auf 12 Monate umgelegt und erhöhen das unterhaltsrelevante Einkommen.</li><li><strong>Wohnvorteil nicht berücksichtigt:</strong> Wer in der gemeinsamen Immobilie wohnt, hat einen geldwerten Vorteil, der als Einkommen angerechnet wird.</li><li><strong>Steuerklassenwechsel unterlassen:</strong> Nach der Trennung müssen die Steuerklassen zum 1. Januar des Folgejahres gewechselt werden (von III/V auf IV/IV oder I).</li><li><strong>Mündliche Vereinbarungen:</strong> Unterhaltsvereinbarungen müssen notariell beurkundet werden – mündliche Absprachen sind nicht vollstreckbar.</li></ul>
+
+<h3>Steuerliche Aspekte des Ehegattenunterhalts</h3>
+Unterhaltszahlungen können steuerlich geltend gemacht werden – über das sogenannte <strong>Realsplitting</strong> (§ 10 Abs. 1a Nr. 1 EStG). Der Pflichtige kann bis zu 13.805 € jährlich als Sonderausgaben absetzen. Voraussetzung: Der Empfänger muss dem zustimmen (Anlage U) und die Zahlungen als sonstige Einkünfte versteuern. Alternativ können Unterhaltsleistungen als außergewöhnliche Belastungen nach § 33a EStG abgesetzt werden (maximal 11.604 € für 2024).
+
+Tipp: Bei Verhandlungen sollten aktuelle Einkommensnachweise der letzten 12 Monate vorliegen. Eine steuerliche Beratung kann die Gesamtbelastung für beide Seiten erheblich optimieren."
     relatedSlugs={['scheidungskosten-rechner', 'unterhaltsrechner']}
   />
 </Layout>

@@ -9,7 +9,7 @@ const year = new Date().getFullYear();
 ---
 <Layout
   title={`Steuerklasse optimieren ${year}`}
-  description="Optimalen Zeitpunkt für Steuerklassenwechsel berechnen."
+  description="Steuerklassen-Rechner 2026 für Ehepaare: III/V, IV/IV oder IV/IV mit Faktor vergleichen. Monatliches Netto, Nachzahlung und Auswirkung auf Elterngeld berechnen. Mit konkreten Rechenbeispielen."
   canonicalPath="/geld/steuerklasse-optimieren/"
   categoryColor={cat.color}
   categoryLight={cat.colorLight}
@@ -28,7 +28,9 @@ const year = new Date().getFullYear();
       { q: "Wann lohnt sich die Kombination III/V?", a: "Die Kombination III/V lohnt sich, wenn ein Partner deutlich mehr verdient als der andere (mindestens 60/40-Verhältnis). Der Besserverdienende in Klasse III profitiert vom doppelten Grundfreibetrag, während der Geringerverdienende in Klasse V höhere Abzüge hat. Vorsicht: Bei III/V ist die Einkommensteuererklärung Pflicht, und es kann zu Nachzahlungen kommen, weil im Laufe des Jahres insgesamt zu wenig Lohnsteuer einbehalten wurde." },
       { q: "Wie wechsle ich die Steuerklasse?", a: "Den Steuerklassenwechsel beantragen Sie beim zuständigen Finanzamt mit dem amtlichen Vordruck 'Antrag auf Steuerklassenwechsel bei Ehegatten/Lebenspartnern'. Seit 2020 ist ein Wechsel mehrmals im Jahr möglich (vorher nur einmal). Sie können den Antrag auch über ELSTER online einreichen. Der Wechsel gilt ab dem Folgemonat nach der Bearbeitung." },
       { q: "Was ist die Steuerklasse IV mit Faktor?", a: "Bei IV mit Faktor berechnet das Finanzamt einen individuellen Faktor, der das Einkommensverhältnis beider Partner berücksichtigt. So wird die Lohnsteuer bereits im Laufe des Jahres möglichst genau einbehalten. Der Vorteil gegenüber III/V: kaum Nachzahlungen bei der Steuererklärung. Der Vorteil gegenüber IV/IV: Bei ungleichen Einkommen wird die Steuerlast gerechter verteilt. Der Faktor muss jährlich neu beantragt werden." },
-      { q: "Beeinflusst die Steuerklasse mein Elterngeld oder Arbeitslosengeld?", a: "Ja, und das ist ein wichtiger Aspekt bei der Wahl. Elterngeld, Arbeitslosengeld, Krankengeld und Kurzarbeitergeld werden auf Basis des Nettoeinkommens berechnet. Wer plant, diese Leistungen in Anspruch zu nehmen, sollte rechtzeitig (mindestens 7 Monate vorher) in eine günstigere Steuerklasse wechseln. Bei geplantem Elterngeld kann der Wechsel in Klasse III mehrere Hundert Euro monatlich mehr Elterngeld bedeuten." }
+      { q: "Beeinflusst die Steuerklasse mein Elterngeld oder Arbeitslosengeld?", a: "Ja, und das ist ein wichtiger Aspekt bei der Wahl. Elterngeld, Arbeitslosengeld, Krankengeld und Kurzarbeitergeld werden auf Basis des Nettoeinkommens berechnet. Wer plant, diese Leistungen in Anspruch zu nehmen, sollte rechtzeitig (mindestens 7 Monate vorher) in eine günstigere Steuerklasse wechseln. Bei geplantem Elterngeld kann der Wechsel in Klasse III mehrere Hundert Euro monatlich mehr Elterngeld bedeuten." },
+      { q: "Was passiert mit der Steuerklasse bei Trennung oder Scheidung?", a: "Im Trennungsjahr behalten Sie Ihre Steuerklasse und können weiterhin die gemeinsame Veranlagung nutzen. Ab dem 1. Januar nach der Trennung werden beide Partner automatisch in Steuerklasse I (oder II bei Alleinerziehenden mit Kind) eingestuft. Wichtig: Das Trennungsjahr beginnt mit dem tatsächlichen Auszug, nicht mit dem Scheidungsantrag. Im Trennungsjahr lohnt sich oft noch ein strategischer Wechsel." },
+      { q: "Wird die Steuerklassenkombination III/V abgeschafft?", a: "Es gibt seit 2023 Pläne, III/V durch IV/IV mit Faktor als Standard zu ersetzen. Bisher wurde die Abschaffung jedoch nicht umgesetzt. Stand 2026 stehen weiterhin alle drei Kombinationen zur Verfügung. Die Reform soll die Steuerbelastung gerechter auf beide Partner verteilen und Nachzahlungen vermeiden. Beobachten Sie die Gesetzgebung – ein Wechsel könnte ab 2027 oder 2028 kommen." }
     ]}
   >
     <div class="calc-form">
@@ -69,17 +71,53 @@ const year = new Date().getFullYear();
 
   <CalculatorGuide
     title="Steuerklassen-Optimierung: So holen Paare das Maximum heraus"
-    content="<p>Die richtige Steuerklassenkombination kann für Ehepaare und eingetragene Lebenspartner einen erheblichen Unterschied beim monatlichen Nettoeinkommen ausmachen. Dabei geht es nicht um die tatsächliche Steuerlast im Jahr (die bleibt gleich), sondern um die Verteilung der Lohnsteuerabzüge über das Jahr und deren Auswirkung auf Lohnersatzleistungen wie Elterngeld oder Arbeitslosengeld.</p>
+    content={`<p>Die richtige Steuerklassenkombination kann für Ehepaare und eingetragene Lebenspartner einen erheblichen Unterschied beim monatlichen Nettoeinkommen ausmachen. Dabei geht es nicht um die tatsächliche Jahressteuerlast (die bleibt bei gleicher Veranlagung identisch), sondern um die <strong>Verteilung der monatlichen Lohnsteuerabzüge</strong> und deren Auswirkung auf Lohnersatzleistungen wie Elterngeld, Arbeitslosengeld I, Krankengeld oder Kurzarbeitergeld.</p>
 
-<p><strong>Die drei Optionen im Überblick:</strong> Bei IV/IV (Standard) werden beide Partner gleich besteuert. Diese Kombination passt, wenn beide ähnlich viel verdienen. Bei III/V erhält der Besserverdienende deutlich weniger Abzüge (Klasse III), während der Geringerverdienende entsprechend mehr zahlt (Klasse V). Das erhöht das monatliche Gesamtnetto, führt aber fast immer zu einer Nachzahlung bei der Steuererklärung. Bei IV/IV mit Faktor wird das tatsächliche Einkommensverhältnis bereits bei der monatlichen Besteuerung berücksichtigt.</p>
+<p><strong>Die drei Optionen im Überblick:</strong> Bei IV/IV (Standard) werden beide Partner gleich besteuert – jeder erhält einen Grundfreibetrag von 12.084 € (2026). Diese Kombination passt, wenn beide ähnlich viel verdienen. Bei III/V erhält der Besserverdienende den doppelten Grundfreibetrag (24.168 €) und zahlt deutlich weniger Lohnsteuer, während der Geringerverdienende bereits ab dem ersten Euro Lohnsteuer zahlt. Bei IV/IV mit Faktor wird das tatsächliche Einkommensverhältnis durch einen individuellen Multiplikator bereits monatlich berücksichtigt.</p>
 
-<p><strong>Rechenbeispiel:</strong> Partner A verdient 50.000 Euro brutto im Jahr, Partner B 25.000 Euro. Bei der Kombination IV/IV zahlen beide zusammen etwa 7.800 Euro Lohnsteuer im Jahr. Bei III/V (A in III, B in V) sind es monatlich weniger Abzüge, allerdings wird bei der Steuererklärung nachberechnet. Die tatsächliche Jahressteuer nach Splittingtarif beträgt für das Paar identische ca. 6.200 Euro. Der Unterschied liegt im Cashflow: Bei III/V haben Sie unterjährig mehr Geld verfügbar.</p>
+<h3>Rechenbeispiel: Monatliches Netto bei verschiedenen Kombinationen (2026)</h3>
+<table>
+<thead><tr><th>Kombination</th><th>Partner A (50.000 €/J.)</th><th>Partner B (25.000 €/J.)</th><th>Netto gesamt/Monat</th><th>Nachzahlung ca.</th></tr></thead>
+<tbody>
+<tr><td>IV / IV</td><td>2.680 €</td><td>1.620 €</td><td>4.300 €</td><td>Erstattung ca. 500 €</td></tr>
+<tr><td>III / V (A in III)</td><td>2.950 €</td><td>1.380 €</td><td>4.330 €</td><td>Nachzahlung ca. 800 €</td></tr>
+<tr><td>IV/IV mit Faktor</td><td>2.780 €</td><td>1.540 €</td><td>4.320 €</td><td>ca. 0 € (Idealfall)</td></tr>
+</tbody>
+</table>
+<p><em>Vereinfachte Werte, Steuerklasse I, keine Kinder, keine Kirchensteuer. Tatsächliche Beträge hängen von Sozialversicherungsbeiträgen und individuellen Freibeträgen ab.</em></p>
 
-<p><strong>Strategischer Wechsel vor Lohnersatzleistungen:</strong> Besonders wichtig wird die Steuerklassenwahl vor dem Bezug von Elterngeld, Arbeitslosengeld I, Krankengeld oder Kurzarbeitergeld. Diese Leistungen berechnen sich aus dem Nettoeinkommen. Wer in Klasse III ist, hat ein höheres Netto und bekommt entsprechend mehr Lohnersatzleistung. Planen Sie einen Wechsel mindestens 7 Monate vor Beginn des Mutterschutzes, damit das Finanzamt die neue Klasse für die Berechnung anerkennt.</p>
+<h3>Wann welche Kombination wählen?</h3>
+<table>
+<thead><tr><th>Situation</th><th>Empfohlene Kombination</th><th>Begründung</th></tr></thead>
+<tbody>
+<tr><td>Beide verdienen ähnlich (40/60 bis 50/50)</td><td>IV / IV</td><td>Gerechte Verteilung, kaum Nachzahlung</td></tr>
+<tr><td>Ein Partner verdient deutlich mehr (70/30 oder mehr)</td><td>III / V</td><td>Mehr monatliches Netto, aber Pflicht zur Steuererklärung</td></tr>
+<tr><td>Ungleiches Einkommen, Nachzahlung vermeiden</td><td>IV/IV mit Faktor</td><td>Berücksichtigt Einkommensverhältnis, kaum Überraschungen</td></tr>
+<tr><td>Elterngeld geplant (Partner B)</td><td>III für Partner B</td><td>Höheres Netto = höheres Elterngeld (mind. 7 Monate vorher wechseln)</td></tr>
+<tr><td>Ein Partner arbeitslos / krank</td><td>III für betroffenen Partner</td><td>ALG I und Krankengeld steigen mit höherem Netto</td></tr>
+</tbody>
+</table>
 
-<p><strong>So beantragen Sie den Wechsel:</strong> Seit 2020 können Sie die Steuerklasse mehrfach pro Jahr ändern. Den Antrag stellen beide Partner gemeinsam beim Wohnsitz-Finanzamt (Vordruck oder über ELSTER). Die Änderung gilt ab dem Folgemonat. Seit 2023 werden Steuerklassen III und V schrittweise durch IV/IV mit Faktor ersetzt, aber aktuell stehen noch alle Kombinationen zur Verfügung.</p>
+<p><strong>Strategischer Wechsel vor Lohnersatzleistungen:</strong> Besonders wichtig wird die Steuerklassenwahl vor dem Bezug von Elterngeld, Arbeitslosengeld I, Krankengeld oder Kurzarbeitergeld. Diese Leistungen berechnen sich aus dem Nettoeinkommen. Wer in Klasse III ist, hat ein höheres Netto und bekommt entsprechend mehr Lohnersatzleistung. Beim Elterngeld gilt: Das Finanzamt betrachtet die Steuerklasse der <strong>letzten 12 Monate vor dem Mutterschutz</strong>. Ein Wechsel muss mindestens 7 Monate vor dem Mutterschutz wirksam sein, damit er in die Berechnung einfließt. Konkret kann der Unterschied beim Elterngeld zwischen Klasse V und III bis zu 500 Euro monatlich betragen.</p>
 
-<p><strong>Praxistipp:</strong> Machen Sie bei der Kombination III/V unbedingt eine Einkommensteuererklärung (ist ohnehin Pflicht). Legen Sie die monatliche Steuerersparnis zur Seite, um eine eventuelle Nachzahlung problemlos begleichen zu können. Nutzen Sie den Rechner oben, um verschiedene Szenarien durchzuspielen.</p>"
+<h3>Auswirkung der Steuerklasse auf das Elterngeld (Beispiel)</h3>
+<table>
+<thead><tr><th>Bruttoeinkommen Partner B</th><th>Steuerklasse V</th><th>Steuerklasse III</th><th>Differenz Elterngeld/Monat</th></tr></thead>
+<tbody>
+<tr><td>25.000 €/Jahr</td><td>ca. 870 €</td><td>ca. 1.180 €</td><td>+310 €</td></tr>
+<tr><td>35.000 €/Jahr</td><td>ca. 1.050 €</td><td>ca. 1.420 €</td><td>+370 €</td></tr>
+<tr><td>45.000 €/Jahr</td><td>ca. 1.230 €</td><td>ca. 1.640 €</td><td>+410 €</td></tr>
+</tbody>
+</table>
+<p><em>Elterngeld = 65–67 % des durchschnittlichen Nettoeinkommens der letzten 12 Monate. Maximalbetrag: 1.800 €/Monat.</em></p>
+
+<p><strong>So beantragen Sie den Wechsel:</strong> Seit 2020 können Sie die Steuerklasse mehrfach pro Jahr ändern. Den Antrag stellen beide Partner gemeinsam beim Wohnsitz-Finanzamt mit dem amtlichen Vordruck "Antrag auf Steuerklassenwechsel bei Ehegatten/Lebenspartnern" oder digital über <strong>ELSTER</strong> (Mein ELSTER > Formulare > Anträge). Die Änderung gilt ab dem Folgemonat nach Bearbeitung. Bearbeitungszeit: meist 2–4 Wochen.</p>
+
+<p><strong>Praxistipp – Nachzahlung bei III/V einplanen:</strong> Bei der Kombination III/V wird unterjährig insgesamt zu wenig Lohnsteuer einbehalten. Die Nachzahlung bei der Steuererklärung beträgt je nach Einkommenskonstellation zwischen 500 € und 3.000 €. Legen Sie die monatliche Steuerersparnis gegenüber IV/IV konsequent zur Seite. Alternativ können Sie beim Finanzamt eine <strong>freiwillige Vorauszahlung</strong> beantragen, um die Nachzahlung zu vermeiden.</p>
+
+<p><strong>Praxistipp – IV/IV mit Faktor jährlich erneuern:</strong> Der Faktor wird vom Finanzamt individuell berechnet und gilt jeweils für ein Kalenderjahr. Er muss <strong>jedes Jahr neu beantragt</strong> werden. Vergessen Sie den Antrag, fallen Sie automatisch auf IV/IV ohne Faktor zurück. Stellen Sie sich eine Erinnerung für November, damit der neue Faktor ab Januar gilt.</p>
+
+<p><strong>Zukunftsausblick:</strong> Die Bundesregierung plant seit 2023 die schrittweise Abschaffung der Kombination III/V zugunsten von IV/IV mit Faktor als Standard. Bisher wurde die Reform nicht umgesetzt. Stand 2026 stehen weiterhin alle drei Kombinationen zur Verfügung. Die Reform würde vor allem Ehefrauen in Klasse V entlasten, die bisher überproportional hohe monatliche Abzüge tragen. Beobachten Sie die Gesetzgebung – eine Umsetzung könnte ab 2027 oder 2028 erfolgen.</p>`}
     relatedSlugs={['steuerklassen-vergleich', 'steuernachzahlung-rechner', 'brutto-netto-rechner']}
   />
 </Layout>

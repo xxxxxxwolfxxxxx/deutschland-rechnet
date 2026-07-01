@@ -9,7 +9,7 @@ const year = new Date().getFullYear();
 ---
 <Layout
   title={`Homeoffice-Pauschale ${year}`}
-  description="Steuervorteil der Homeoffice-Pauschale berechnen – bis zu 1.260 € im Jahr absetzen."
+  description="Homeoffice-Pauschale 2026 berechnen: 6 €/Tag, max. 1.260 €/Jahr. Steuervorteil je Steuersatz ermitteln. Mit Vergleich Pauschale vs. Arbeitszimmer und Praxistipps zur Kombination mit Pendlerpauschale."
   canonicalPath="/geld/homeoffice-pauschale/"
   categoryColor={cat.color}
   categoryLight={cat.colorLight}
@@ -30,7 +30,9 @@ const year = new Date().getFullYear();
       { q: "Kann ich trotzdem teurere Ausgaben absetzen?", a: "Ja! Wenn Sie echte Nebenkosten haben (Möbel, Beleuchtung, Software, Telefon) UND diese nachweisen können, können Sie alternativ die HÖHEREN KOSTEN absetzen (statt der Pauschale). Das lohnt sich aber meist erst ab echtem Heimarbeitszimmer." },
       { q: "Wer kann die Pauschale nutzen?", a: "Nur Angestellte, die sich im Homeoffice Kosten selbst tragen. Selbstständige und Freiberufler mit eigenem Arbeitszimmer können das Arbeitszimmer (bis 1.250€/Jahr) absetzen – das ist ähnlich, aber eine andere Regel." },
       { q: "Gilt das auch für Mischarbeit (hybrid)?", a: "Ja! Jeder Tag, an dem Sie zu Hause arbeiten (auch 4h/Tag zählt), ist ein Homeoffice-Tag. 2 Tage/Woche = ca. 100 Tage/Jahr. 3 Tage/Woche = ca. 150 Tage/Jahr." },
-      { q: "Was ist mit Pendlerpauschale und Homeoffice-Pauschale?", a: "Beide können kombiniert werden! Wenn Sie an Bürotagen pendeln und an Homeoffice-Tagen nicht, schreiben Sie sowohl Pendlerpauschale (1,30€/km für Hin+Rückweg) als auch Homeoffice ab. Das addiert sich." }
+      { q: "Was ist mit Pendlerpauschale und Homeoffice-Pauschale?", a: "Beide können kombiniert werden! Wenn Sie an Bürotagen pendeln und an Homeoffice-Tagen nicht, schreiben Sie sowohl Pendlerpauschale (1,30€/km für Hin+Rückweg) als auch Homeoffice ab. Das addiert sich." },
+      { q: "Kann ich die Homeoffice-Pauschale nutzen, wenn ich keinen eigenen Raum habe?", a: "Ja, genau dafür wurde sie geschaffen. Sie brauchen kein separates Arbeitszimmer und keinen eigenen Schreibtisch. Selbst wer am Küchentisch arbeitet, kann die 6 €/Tag geltend machen. Der einzige Nachweis: Sie haben an dem Tag überwiegend von zu Hause gearbeitet." },
+      { q: "Lohnt sich die Pauschale auch unter dem Werbungskosten-Pauschbetrag?", a: "Der Werbungskosten-Pauschbetrag beträgt 1.230 € (2026). Die Homeoffice-Pauschale zählt als Werbungskosten. Haben Sie sonst keine weiteren Werbungskosten, lohnt sich die Homeoffice-Pauschale erst ab ca. 205 Tagen (1.230 €), weil der Pauschbetrag ohnehin gewährt wird. Haben Sie aber andere Werbungskosten (Fachliteratur, Fortbildung, Berufskleidung), addiert sich alles und überschreitet den Pauschbetrag schneller." }
     ]}
   >
     <div class="calc-form">
@@ -58,15 +60,54 @@ const year = new Date().getFullYear();
 
   <CalculatorGuide
     title="So funktioniert die Homeoffice-Pauschale"
-    content={`<p><strong>Die Homeoffice-Pauschale</strong> ist ein vereinfachter Abzug für Arbeitnehmer, die von zu Hause aus arbeiten. Sie beträgt <strong>6€ pro Arbeitstag</strong>, maximal 1.260€ pro Jahr (= 210 Tage). Das ist eine echte Steuervergünstigung, die während der Pandemie eingeführt wurde – ohne dass Sie Belege sammeln müssen.</p>
+    content={`<p><strong>Die Homeoffice-Pauschale</strong> ist ein vereinfachter Steuerabzug für alle Arbeitnehmer, die ganz oder teilweise von zu Hause aus arbeiten. Sie beträgt <strong>6 Euro pro Arbeitstag</strong>, maximal 1.260 Euro pro Jahr (= 210 Tage). Ursprünglich als Corona-Maßnahme eingeführt, wurde sie 2023 dauerhaft ins Einkommensteuergesetz (§ 4 Abs. 5 Nr. 6c EStG) aufgenommen. Es werden keine Belege benötigt.</p>
 
-<p><strong>Wie funktioniert es?</strong> Sie tragen die Zahl Ihrer Homeoffice-Tage in der Anlage N Ihrer Steuererklärung ein. Das Finanzamt rechnet automatisch: Tage × 6€. Diese Summe wird als Werbungskosten von Ihrem zu versteuernden Einkommen abgezogen. Ergebnis: Geringeres Einkommen → weniger Steuern.</p>
+<p><strong>Wie funktioniert es?</strong> Sie tragen die Anzahl Ihrer Homeoffice-Tage in der <strong>Anlage N</strong> Ihrer Steuererklärung ein (Zeile 45). Das Finanzamt rechnet automatisch: Tage × 6 €. Diese Summe wird als Werbungskosten von Ihrem zu versteuernden Einkommen abgezogen. Ergebnis: Geringeres Einkommen, weniger Steuern.</p>
 
-<p><strong>Praktisches Beispiel:</strong> Sie arbeiten 150 Tage im Homeoffice pro Jahr. Das sind 150 × 6€ = 900€. Bei Ihrem persönlichen Steuersatz von 30% sparen Sie: 900€ × 30% = 270€ Steuern. Das ist ein direkter Vorteil ohne Nachweise.</p>
+<h3>Steuervorteil nach Homeoffice-Tagen und Steuersatz</h3>
+<table>
+<thead><tr><th>Homeoffice-Tage/Jahr</th><th>Pauschale</th><th>Vorteil bei 25 %</th><th>Vorteil bei 30 %</th><th>Vorteil bei 35 %</th><th>Vorteil bei 42 %</th></tr></thead>
+<tbody>
+<tr><td>50 Tage (1 Tag/Woche)</td><td>300 €</td><td>75 €</td><td>90 €</td><td>105 €</td><td>126 €</td></tr>
+<tr><td>100 Tage (2 Tage/Woche)</td><td>600 €</td><td>150 €</td><td>180 €</td><td>210 €</td><td>252 €</td></tr>
+<tr><td>150 Tage (3 Tage/Woche)</td><td>900 €</td><td>225 €</td><td>270 €</td><td>315 €</td><td>378 €</td></tr>
+<tr><td>200 Tage (4 Tage/Woche)</td><td>1.200 €</td><td>300 €</td><td>360 €</td><td>420 €</td><td>504 €</td></tr>
+<tr><td>210 Tage (Maximum)</td><td>1.260 €</td><td>315 €</td><td>378 €</td><td>441 €</td><td>529 €</td></tr>
+</tbody>
+</table>
 
-<p><strong>Wenn Sie ein echtes Arbeitszimmer haben:</strong> Berufstätige mit eigenem Arbeitszimmer können alternativ bis zu 1.250€/Jahr für Miete/Nebenkosten absetzen (1/5 des Zimmers = z.B. 20m² bei 100m² Wohnung). Das ist oft höher als die Pauschale – aber Sie brauchen Belege.</p>
+<h3>Vergleich: Homeoffice-Pauschale vs. häusliches Arbeitszimmer</h3>
+<table>
+<thead><tr><th>Kriterium</th><th>Homeoffice-Pauschale</th><th>Häusliches Arbeitszimmer</th></tr></thead>
+<tbody>
+<tr><td>Maximaler Abzug</td><td>1.260 €/Jahr</td><td>1.260 €/Jahr (Pauschale) oder unbegrenzt (Mittelpunkt)</td></tr>
+<tr><td>Eigener Raum nötig?</td><td>Nein</td><td>Ja, abgeschlossener Raum</td></tr>
+<tr><td>Belege erforderlich?</td><td>Nein</td><td>Ja (Miete, Nebenkosten, Ausstattung)</td></tr>
+<tr><td>Berechnung</td><td>Pauschal 6 €/Tag</td><td>Anteilige tatsächliche Kosten (qm-Anteil)</td></tr>
+<tr><td>Geeignet für</td><td>Küchentisch, Wohnzimmer-Ecke, Co-Working</td><td>Separates Zimmer, das fast nur beruflich genutzt wird</td></tr>
+<tr><td>Kombination möglich?</td><td>Nicht mit Arbeitszimmer</td><td>Nicht mit Pauschale</td></tr>
+</tbody>
+</table>
 
-<p><strong>Kombination mit Pendlerpauschale:</strong> Diese zwei Abzüge sind komplementär! An Tagen, wo Sie pendeln (ins Büro fahren), schreiben Sie Pendlerpauschale (1,30€/km einfache Entfernung). An Tagen, wo Sie daheim arbeiten, schreiben Sie die 6€ Homeoffice ab. Zusammen addiert das auf.</p>`}
+<p><strong>Wann lohnt sich das Arbeitszimmer statt der Pauschale?</strong> Rechnen Sie nach: Wenn Ihre Wohnung 80 m² hat und das Arbeitszimmer 15 m² misst, beträgt der anteilige Flächenanteil 18,75 %. Bei einer Warmmiete von 1.200 €/Monat wären das 225 €/Monat bzw. 2.700 €/Jahr an absetzbaren Kosten. Das übersteigt die Pauschale von 1.260 € deutlich. Allerdings gilt der unbegrenzte Abzug nur, wenn das Arbeitszimmer den <strong>Mittelpunkt Ihrer beruflichen Tätigkeit</strong> bildet. Fahren Sie regelmäßig ins Büro, ist der Abzug auf 1.260 € gedeckelt – dann bietet das Arbeitszimmer keinen Vorteil gegenüber der Pauschale.</p>
+
+<p><strong>Praxistipp – Werbungskosten-Pauschbetrag beachten:</strong> Der allgemeine Werbungskosten-Pauschbetrag beträgt 2026 voraussichtlich 1.230 €. Die Homeoffice-Pauschale ist Teil Ihrer Werbungskosten. Wenn Sie keine weiteren Werbungskosten haben, bringt die Homeoffice-Pauschale erst dann zusätzliche Steuerersparnis, wenn sie zusammen mit anderen Werbungskosten den Pauschbetrag übersteigt. Sammeln Sie deshalb alle weiteren Werbungskosten: Fachliteratur, Fortbildungen, Arbeitsmittel (Laptop, Monitor, Schreibtisch), Telefon- und Internetkosten (pauschal 20 % der Rechnung, max. 20 €/Monat).</p>
+
+<p><strong>Kombination mit Pendlerpauschale – so maximieren Sie den Abzug:</strong> Homeoffice-Pauschale und Pendlerpauschale schließen sich nicht aus, aber sie gelten nie für denselben Tag. An Bürotagen setzen Sie die Entfernungspauschale ab (0,30 €/km für die ersten 20 km, 0,38 €/km ab dem 21. km). An Homeoffice-Tagen die 6 €. Ein Beispiel: Bei 25 km einfachem Arbeitsweg und einem Hybrid-Modell mit 3 Tagen Büro und 2 Tagen Homeoffice ergeben sich pro Woche: 3 × 8,50 € Pendlerpauschale + 2 × 6 € Homeoffice = 37,50 €/Woche. Aufs Jahr gerechnet (46 Arbeitswochen): 1.725 € Werbungskosten – das übersteigt den Pauschbetrag deutlich.</p>
+
+<h3>Entwicklung der Homeoffice-Regelung</h3>
+<table>
+<thead><tr><th>Jahr</th><th>Regelung</th><th>Betrag pro Tag</th><th>Maximum pro Jahr</th></tr></thead>
+<tbody>
+<tr><td>2020</td><td>Erstmals eingeführt (Corona-Maßnahme)</td><td>5 €</td><td>600 € (120 Tage)</td></tr>
+<tr><td>2021</td><td>Verlängerung</td><td>5 €</td><td>600 € (120 Tage)</td></tr>
+<tr><td>2022</td><td>Verlängerung</td><td>5 €</td><td>600 € (120 Tage)</td></tr>
+<tr><td>2023</td><td>Dauerhaft ins EStG aufgenommen, Erhöhung</td><td>6 €</td><td>1.260 € (210 Tage)</td></tr>
+<tr><td>2024–2026</td><td>Fortgeltung</td><td>6 €</td><td>1.260 € (210 Tage)</td></tr>
+</tbody>
+</table>
+
+<p><strong>Insider-Tipp für Selbstständige:</strong> Die Homeoffice-Pauschale gilt auch für Selbstständige und Freiberufler, die kein separates Arbeitszimmer haben. Sie wird als Betriebsausgabe abgezogen. Selbstständige mit eigenem Arbeitszimmer sollten allerdings prüfen, ob die anteiligen Raumkosten die 1.260 € übersteigen – dann ist der Einzelnachweis günstiger.</p>`}
     relatedSlugs={['brutto-netto-rechner', 'gehaltserhoehung-rechner', 'arbeitslosengeld-rechner']}
   />
 </Layout>
