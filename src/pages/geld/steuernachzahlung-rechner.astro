@@ -9,7 +9,7 @@ const year = new Date().getFullYear();
 ---
 <Layout
   title={`Steuernachzahlung-Rechner ${year}`}
-  description="Steuernachzahlung oder Steuererstattung schätzen. Sofortiges Ergebnis – ohne Anmeldung."
+  description="Steuernachzahlung oder Erstattung 2025 berechnen: Steuerklasse, Werbungskosten und Freibetraege eingeben und sofort sehen, ob Sie nachzahlen oder Geld zurueckbekommen."
   canonicalPath="/geld/steuernachzahlung-rechner/"
   categoryColor={cat.color}
   categoryLight={cat.colorLight}
@@ -28,7 +28,10 @@ const year = new Date().getFullYear();
       { q: "Wie kann ich eine Steuernachzahlung vermeiden?", a: "Sie können beim Finanzamt die Eintragung eines Freibetrags oder eine Erhöhung der Vorauszahlungen beantragen, um die Steuerlast besser über das Jahr zu verteilen. Bei der Kombination III/V empfiehlt sich der Wechsel zu IV/IV mit Faktor. Legen Sie zudem jeden Monat einen Teil des Nettoeinkommens zur Seite, wenn Sie mit einer Nachzahlung rechnen." },
       { q: "Welche Freibeträge kann ich geltend machen?", a: "Die wichtigsten Freibeträge sind: Grundfreibetrag (12.096 Euro in 2025), Arbeitnehmerpauschbetrag (1.230 Euro Werbungskosten), Sonderausgabenpauschale (36 Euro), Sparerpauschbetrag (1.000 Euro), Kinderfreibetrag (6.672 Euro pro Kind, alternativ zum Kindergeld). Zusätzlich können Sie tatsächliche Werbungskosten, Fahrtkosten (0,30 Euro/km, ab 21. km 0,38 Euro/km) und Homeoffice-Pauschale (6 Euro/Tag, max. 1.260 Euro) absetzen." },
       { q: "Bis wann muss ich meine Steuererklärung abgeben?", a: "Für die Steuererklärung 2025 gilt als Abgabefrist der 31. Juli 2026 (bei Pflichtveranlagung). Wer einen Steuerberater oder Lohnsteuerhilfeverein beauftragt, hat Zeit bis Ende Februar 2027. Bei freiwilliger Abgabe haben Sie vier Jahre Zeit (für 2025 also bis Ende 2029). Wer die Frist bei Pflichtabgabe versäumt, riskiert einen Verspätungszuschlag von mindestens 25 Euro pro angefangenem Monat." },
-      { q: "Lohnt sich eine freiwillige Steuererklärung?", a: "Ja, in den meisten Fällen. Arbeitnehmer erhalten laut Statistischem Bundesamt im Durchschnitt etwa 1.095 Euro zurück. Besonders lohnend ist die Abgabe bei hohen Fahrtkosten, Homeoffice-Nutzung, außergewöhnlichen Belastungen (Krankheitskosten, Pflegekosten), Handwerkerleistungen oder haushaltsnahen Dienstleistungen. Eine freiwillige Erklärung kann rückwirkend bis zu vier Jahre eingereicht werden." }
+      { q: "Lohnt sich eine freiwillige Steuererklärung?", a: "Ja, in den meisten Fällen. Arbeitnehmer erhalten laut Statistischem Bundesamt im Durchschnitt etwa 1.095 Euro zurück. Besonders lohnend ist die Abgabe bei hohen Fahrtkosten, Homeoffice-Nutzung, außergewöhnlichen Belastungen (Krankheitskosten, Pflegekosten), Handwerkerleistungen oder haushaltsnahen Dienstleistungen. Eine freiwillige Erklärung kann rückwirkend bis zu vier Jahre eingereicht werden." },
+      { q: "Wie hoch sind die Nachzahlungszinsen vom Finanzamt?", a: "Das Finanzamt berechnet ab dem 16. Monat nach Ablauf des Steuerjahres Zinsen von 0,15 % pro Monat (1,8 % pro Jahr) auf Nachzahlungen und Erstattungen. Fuer das Steuerjahr 2024 beginnt die Verzinsung ab dem 1. Mai 2026. Bei einer Nachzahlung von 3.000 Euro waeren das 4,50 Euro pro Monat. Vorauszahlungen koennen beim Finanzamt beantragt werden, um Nachzahlungszinsen zu vermeiden." },
+      { q: "Was ist der Progressionsvorbehalt?", a: "Lohnersatzleistungen wie Elterngeld, Kurzarbeitergeld, Arbeitslosengeld I oder Krankengeld sind zwar steuerfrei, erhoehen aber den Steuersatz auf das uebrige Einkommen (Progressionsvorbehalt nach Paragraph 32b EStG). Beispiel: Bei 40.000 Euro Gehalt und 10.000 Euro Elterngeld wird die Steuer so berechnet, als haetten Sie 50.000 Euro verdient – der hoehere Steuersatz wird dann auf die 40.000 Euro angewandt. Das fuehrt haeufig zu Nachzahlungen von 1.000-3.000 Euro." },
+      { q: "Welche Steuerklassenkombination verursacht Nachzahlungen?", a: "Die Kombination III/V fuehrt fast immer zu Nachzahlungen, weil bei Steuerklasse III zu wenig und bei V zu viel Lohnsteuer einbehalten wird – aber in Summe reicht es nicht. Seit 2010 gibt es die Alternative IV/IV mit Faktor, die das Einkommen beider Partner beruecksichtigt und Nachzahlungen minimiert. Den Faktorwechsel koennen Sie jederzeit beim Finanzamt beantragen." }
     ]}
   >
     <div class="calc-form">
@@ -82,17 +85,44 @@ const year = new Date().getFullYear();
 
   <CalculatorGuide
     title="Steuernachzahlung oder Erstattung: Was Sie erwartet"
-    content="<p>Nach der Einkommensteuererklärung kommt der Steuerbescheid, und damit die Frage: Muss ich nachzahlen oder bekomme ich Geld zurück? Der Steuernachzahlung-Rechner gibt Ihnen eine erste Einschätzung, ob Sie eher mit einer Nachzahlung oder einer Erstattung rechnen können.</p>
+    content={`<p>Nach der Einkommensteuererklaerung kommt der Steuerbescheid, und damit die Frage: Muss ich nachzahlen oder bekomme ich Geld zurueck? Der Steuernachzahlung-Rechner gibt Ihnen eine erste Einschaetzung, ob Sie eher mit einer Nachzahlung oder einer Erstattung rechnen koennen.</p>
 
-<p><strong>Wie entsteht eine Steuernachzahlung?</strong> Während des Jahres behält Ihr Arbeitgeber Lohnsteuer ein, die auf Basis Ihrer Steuerklasse und Ihres monatlichen Gehalts berechnet wird. Stimmt die einbehaltene Steuer nicht mit der tatsächlichen Jahressteuer überein, ergibt sich eine Differenz. Häufigste Gründe für Nachzahlungen sind: die Steuerklassenkombination III/V, Einkünfte aus Vermietung oder Nebentätigkeit, der Progressionsvorbehalt bei Lohnersatzleistungen (Kurzarbeitergeld, Elterngeld, Arbeitslosengeld) und nicht angegebene geldwerte Vorteile.</p>
+<p><strong>Wie entsteht eine Steuernachzahlung?</strong> Waehrend des Jahres behaelt Ihr Arbeitgeber Lohnsteuer ein, die auf Basis Ihrer Steuerklasse und Ihres monatlichen Gehalts berechnet wird. Stimmt die einbehaltene Steuer nicht mit der tatsaechlichen Jahressteuer ueberein, ergibt sich eine Differenz. Haeufigste Gruende fuer Nachzahlungen sind: die Steuerklassenkombination III/V, Einkuenfte aus Vermietung oder Nebentaetigkeit, der Progressionsvorbehalt bei Lohnersatzleistungen und nicht angegebene geldwerte Vorteile.</p>
 
-<p><strong>Die wichtigsten Abzugsmöglichkeiten:</strong> Werbungskosten mindern die Steuerlast direkt. Der Arbeitnehmerpauschbetrag beträgt 1.230 Euro. Erst wenn Ihre tatsächlichen Werbungskosten darüber liegen, lohnt es sich, diese einzeln nachzuweisen. Typische Werbungskosten sind Fahrtkosten zur Arbeit (Entfernungspauschale: 0,30 Euro pro km, ab dem 21. Kilometer 0,38 Euro), Arbeitsmittel wie Computer oder Fachliteratur, Fortbildungskosten und die Homeoffice-Pauschale (6 Euro pro Tag, maximal 1.260 Euro im Jahr).</p>
+<h3>Einkommensteuertarif 2025: Grenzsteuersaetze</h3>
+<table>
+<thead><tr><th>Zu versteuerndes Einkommen</th><th>Grenzsteuersatz</th><th>Steuer auf Gesamtbetrag</th><th>Durchschnittssteuersatz</th></tr></thead>
+<tbody>
+<tr><td>bis 12.096 EUR</td><td>0 %</td><td>0 EUR</td><td>0 %</td></tr>
+<tr><td>12.097 - 17.443 EUR</td><td>14 - 24 %</td><td>bis 940 EUR</td><td>ca. 5,4 %</td></tr>
+<tr><td>17.444 - 66.760 EUR</td><td>24 - 42 %</td><td>bis 15.696 EUR</td><td>ca. 23,5 %</td></tr>
+<tr><td>66.761 - 277.825 EUR</td><td>42 %</td><td>bis 104.343 EUR</td><td>ca. 37,6 %</td></tr>
+<tr><td>ab 277.826 EUR</td><td>45 %</td><td>ab 104.343 EUR</td><td>ab 37,6 %</td></tr>
+</tbody>
+</table>
 
-<p><strong>Sonderausgaben und außergewöhnliche Belastungen:</strong> Absetzbar sind Vorsorgeaufwendungen (Kranken- und Pflegeversicherung, Riester-Beiträge bis 2.100 Euro), Kirchensteuer, Spenden (bis 20 % des Gesamtbetrags der Einkünfte), Kinderbetreuungskosten (2/3 der Kosten, maximal 4.000 Euro pro Kind) und außergewöhnliche Belastungen wie Krankheitskosten oberhalb der zumutbaren Eigenbelastung.</p>
+<p><strong>Die wichtigsten Abzugsmoeglichkeiten:</strong> Werbungskosten mindern die Steuerlast direkt. Der Arbeitnehmerpauschbetrag betraegt 1.230 Euro. Erst wenn Ihre tatsaechlichen Werbungskosten darueber liegen, lohnt es sich, diese einzeln nachzuweisen. Typische Werbungskosten sind Fahrtkosten zur Arbeit (Entfernungspauschale: 0,30 Euro pro km, ab dem 21. Kilometer 0,38 Euro), Arbeitsmittel wie Computer oder Fachliteratur, Fortbildungskosten und die Homeoffice-Pauschale (6 Euro pro Tag, maximal 1.260 Euro im Jahr).</p>
 
-<p><strong>Steuerliche Vorteile für Familien:</strong> Für jedes Kind wird entweder Kindergeld (250 Euro monatlich) oder der Kinderfreibetrag (6.672 Euro pro Kind in 2025) berücksichtigt, je nachdem was günstiger ist. Das Finanzamt prüft automatisch die günstigere Variante (Günstigerprüfung). Alleinerziehende erhalten zusätzlich den Entlastungsbetrag von 4.260 Euro für das erste Kind.</p>
+<h3>Wichtige Freibetraege und Pauschalen 2025</h3>
+<table>
+<thead><tr><th>Freibetrag / Pauschale</th><th>Betrag 2025</th><th>Gilt fuer</th></tr></thead>
+<tbody>
+<tr><td>Grundfreibetrag</td><td>12.096 EUR</td><td>Alle Steuerpflichtigen</td></tr>
+<tr><td>Arbeitnehmerpauschbetrag</td><td>1.230 EUR</td><td>Arbeitnehmer (Werbungskosten)</td></tr>
+<tr><td>Sparerpauschbetrag</td><td>1.000 EUR / 2.000 EUR (Ehepaar)</td><td>Kapitalertraege</td></tr>
+<tr><td>Kinderfreibetrag</td><td>6.672 EUR pro Kind</td><td>Eltern (alternativ zu Kindergeld)</td></tr>
+<tr><td>Entlastungsbetrag Alleinerziehende</td><td>4.260 EUR</td><td>Steuerklasse II</td></tr>
+<tr><td>Homeoffice-Pauschale</td><td>6 EUR/Tag, max. 1.260 EUR</td><td>Arbeitnehmer im Homeoffice</td></tr>
+<tr><td>Entfernungspauschale</td><td>0,30 EUR/km (ab 21. km: 0,38 EUR)</td><td>Pendler</td></tr>
+<tr><td>Sonderausgabenpauschale</td><td>36 EUR / 72 EUR (Ehepaar)</td><td>Alle Steuerpflichtigen</td></tr>
+</tbody>
+</table>
 
-<p><strong>Praxistipp:</strong> Sammeln Sie alle Belege über das Jahr: Fahrtkosten, Arbeitsmittel, Handwerkerrechnungen, Spendenbescheinigungen. Nutzen Sie ELSTER für die elektronische Abgabe. Und wichtig: Prüfen Sie Ihren Steuerbescheid sorgfältig. Laut Bund der Steuerzahler ist etwa jeder dritte Bescheid fehlerhaft. Einspruch ist innerhalb von einem Monat nach Zustellung kostenfrei möglich.</p>"
+<p><strong>Sonderausgaben und aussergewoehnliche Belastungen:</strong> Absetzbar sind Vorsorgeaufwendungen (Kranken- und Pflegeversicherung, Riester-Beitraege bis 2.100 Euro), Kirchensteuer, Spenden (bis 20 % des Gesamtbetrags der Einkuenfte), Kinderbetreuungskosten (2/3 der Kosten, maximal 4.000 Euro pro Kind) und aussergewoehnliche Belastungen wie Krankheitskosten oberhalb der zumutbaren Eigenbelastung.</p>
+
+<p><strong>Steuerliche Vorteile fuer Familien:</strong> Fuer jedes Kind wird entweder Kindergeld (250 Euro monatlich) oder der Kinderfreibetrag (6.672 Euro pro Kind in 2025) beruecksichtigt, je nachdem was guenstiger ist. Das Finanzamt prueft automatisch die guenstigere Variante (Guenstigerpruefung). Alleinerziehende erhalten zusaetzlich den Entlastungsbetrag von 4.260 Euro fuer das erste Kind.</p>
+
+<p><strong>Praxistipp:</strong> Sammeln Sie alle Belege ueber das Jahr: Fahrtkosten, Arbeitsmittel, Handwerkerrechnungen, Spendenbescheinigungen. Nutzen Sie ELSTER fuer die elektronische Abgabe. Und wichtig: Pruefen Sie Ihren Steuerbescheid sorgfaeltig. Laut Bund der Steuerzahler ist etwa jeder dritte Bescheid fehlerhaft. Einspruch ist innerhalb von einem Monat nach Zustellung kostenfrei moeglich.</p>`}
     relatedSlugs={['steuerklassen-vergleich', 'kirchensteuer-rechner', 'homeoffice-pauschale']}
   />
 </Layout>

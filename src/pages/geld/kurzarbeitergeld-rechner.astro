@@ -9,7 +9,7 @@ const year = new Date().getFullYear();
 ---
 <Layout
   title={`Kurzarbeitergeld-Rechner ${year}`}
-  description="Kurzarbeitergeld berechnen – 60% bzw. 67% (mit Kind) des Nettolohnausfalls nach § 95 SGB III."
+  description="Kurzarbeitergeld 2025 berechnen: 60 % (ohne Kind) oder 67 % (mit Kind) des Netto-Entgeltausfalls nach SGB III. Rechner mit Steuerklasse, Arbeitsausfall und Gesamtnetto-Vorschau."
   canonicalPath="/geld/kurzarbeitergeld-rechner/"
   categoryColor={cat.color}
   categoryLight={cat.colorLight}
@@ -29,9 +29,11 @@ const year = new Date().getFullYear();
       { q: "Wann habe ich Anspruch auf Kurzarbeitergeld?", a: "Bei mindestens 10% Arbeitsausfall und wenn die Betriebsorganisation der Arbeitsagentur das anzeigt." },
       { q: "Wird Kurzarbeitergeld auf Hartz IV angerechnet?", a: "Ja, es wird als Einkommen angerechnet. Allerdings gibt es Freibeträge, sodass eine vollständige Anrechnung oft nicht erfolgt." },
       { q: "Wie berechnet sich das Kurzarbeitergeld genau?", a: "60% des Netto-Entgeltverlusters (67% mit Kindern). Der Entgeltausfall ist der Unterschied zwischen dem Netto ohne und mit Kurzarbeit. Steuerklasse und Kinderlose beeinflussen die Nettocalculation." },
-      { q: "Muss der Arbeitgeber weiterhin Sozialversicherungsbeiträge zahlen?", a: "Ja, der Arbeitgeber zahlt weiterhin Sozialversicherungsbeiträge (Krankenversicherung, Rentenversicherung, etc.) auf Ihr Kurzarbeitergeld. Das ist ein Vorteil gegenüber Arbeitslosigkeit." }
+      { q: "Muss der Arbeitgeber weiterhin Sozialversicherungsbeiträge zahlen?", a: "Ja, der Arbeitgeber zahlt weiterhin Sozialversicherungsbeiträge (Krankenversicherung, Rentenversicherung, etc.) auf Ihr Kurzarbeitergeld. Das ist ein Vorteil gegenüber Arbeitslosigkeit." },
+      { q: "Muss ich Kurzarbeitergeld in der Steuererklärung angeben?", a: "Ja. Kurzarbeitergeld ist zwar steuerfrei, unterliegt aber dem Progressionsvorbehalt. Das bedeutet: Es erhöht den Steuersatz auf Ihr übriges Einkommen. Ab 410 Euro KuG im Jahr sind Sie zur Abgabe einer Steuererklärung verpflichtet. Oft kommt es zu einer Nachzahlung von einigen hundert Euro." },
+      { q: "Darf ich während der Kurzarbeit einen Nebenjob annehmen?", a: "Ja, unter bestimmten Bedingungen. Ein Nebenjob, der bereits vor der Kurzarbeit bestand, wird nicht angerechnet. Ein neuer Nebenjob wird auf das KuG angerechnet, sofern das Gesamteinkommen (Kurzarbeits-Entgelt + Nebenverdienst) das frühere Netto übersteigt. Der Arbeitgeber muss dem Nebenjob zustimmen." },
+      { q: "Was passiert nach Ende der Kurzarbeit?", a: "Nach Ende der Kurzarbeit kehren Sie zu Ihrer regulären Arbeitszeit und Ihrem vollen Gehalt zurück. Der Arbeitgeber darf während der Kurzarbeit grundsätzlich nicht betriebsbedingt kündigen. Wird die Kurzarbeit jedoch dauerhaft und eine wirtschaftliche Erholung ist nicht absehbar, kann nach Ablauf betriebsbedingt gekündigt werden." }
     ]}
-  >
   >
     <div class="calc-form">
       <div class="calc-grid">
@@ -134,45 +136,64 @@ berechne();
   <CalculatorGuide
     title="Kurzarbeitergeld-Rechner – So sichern Sie Ihr Einkommen"
     content={`
-      <p><strong>Kurzarbeitergeld (KuG)</strong> ist eine Sozialleistung der Bundesagentur für Arbeit (BA) in Deutschland. Es schützt Arbeitnehmer, wenn der Arbeitgeber aus wirtschaftlichen oder unvorhergesehenen Gründen die Arbeitszeit reduzieren muss. Statt Kündigung bekommen Sie einen Leistungszuschuss.</p>
+      <p><strong>Kurzarbeitergeld (KuG)</strong> ist eine Sozialleistung der Bundesagentur für Arbeit in Deutschland. Es schützt Arbeitnehmer, wenn der Arbeitgeber aus wirtschaftlichen oder unvorhergesehenen Gründen die Arbeitszeit reduzieren muss. Statt Kündigung erhalten Sie einen Leistungszuschuss, der einen Teil des Einkommensverlusts auffängt.</p>
 
-      <p>Besonders während Wirtschaftskrisen, Naturkatastrophen oder Pandemien (wie 2020/2021) ist Kurzarbeitergeld ein Rettungsanker für Millionen von Arbeitnehmern. Mit unserem Rechner können Sie berechnen, <strong>wie viel Kurzarbeitergeld Sie erhalten würden</strong> und wie sehr Ihr Nettoeinkommen sinken würde.</p>
+      <h4>Kurzarbeitergeld auf einen Blick (2025)</h4>
+      <table>
+        <thead>
+          <tr><th>Merkmal</th><th>Regelung</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Leistungssatz ohne Kind</td><td>60 % des Netto-Entgeltausfalls</td></tr>
+          <tr><td>Leistungssatz mit Kind</td><td>67 % des Netto-Entgeltausfalls</td></tr>
+          <tr><td>Maximale Bezugsdauer</td><td>12 Monate (bis 24 Monate bei Verordnung)</td></tr>
+          <tr><td>Mindest-Arbeitsausfall</td><td>10 % der Belegschaft betroffen</td></tr>
+          <tr><td>Beitragsbemessungsgrenze (West)</td><td>7.550 Euro/Monat (2025)</td></tr>
+          <tr><td>Beitragsbemessungsgrenze (Ost)</td><td>7.550 Euro/Monat (2025, angeglichen)</td></tr>
+          <tr><td>Progressionsvorbehalt</td><td>Ja (Steuererklärung Pflicht ab 410 Euro/Jahr)</td></tr>
+          <tr><td>Sozialversicherung</td><td>Läuft weiter (AG zahlt Beiträge)</td></tr>
+        </tbody>
+      </table>
 
-      <p><strong>Wichtig:</strong> Das Kurzarbeitergeld ersetzt nicht 100% des Verlusts – es sichert nur 60% ab (bzw. 67% wenn Sie Kinder haben). Das ist ein wichtiger Unterschied zur Arbeitslosigkeit.</p>
+      <h4>Berechnungsbeispiele nach Bruttoeinkommen (100 % Arbeitsausfall, Steuerklasse I)</h4>
+      <table>
+        <thead>
+          <tr><th>Brutto/Monat</th><th>Netto (ca.)</th><th>KuG ohne Kind (60 %)</th><th>KuG mit Kind (67 %)</th><th>Einkommensverlust</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>2.500 Euro</td><td>1.750 Euro</td><td>1.050 Euro</td><td>1.173 Euro</td><td>700-577 Euro</td></tr>
+          <tr><td>3.500 Euro</td><td>2.350 Euro</td><td>1.410 Euro</td><td>1.575 Euro</td><td>940-775 Euro</td></tr>
+          <tr><td>5.000 Euro</td><td>3.150 Euro</td><td>1.890 Euro</td><td>2.111 Euro</td><td>1.260-1.039 Euro</td></tr>
+          <tr><td>7.000 Euro</td><td>4.100 Euro</td><td>2.460 Euro</td><td>2.747 Euro</td><td>1.640-1.353 Euro</td></tr>
+        </tbody>
+      </table>
+      <p><em>Werte gerundet, abhängig von Steuerklasse, Kirchensteuer und Bundesland. Nutzen Sie den Rechner oben für Ihre individuelle Berechnung.</em></p>
 
       <h4>Voraussetzungen für Kurzarbeitergeld</h4>
       <ul>
         <li><strong>Arbeitsausfall:</strong> Der Arbeitgeber muss einen wirtschaftlichen Grund vorweisen (Absatzrückgang, Produktionsstörung, Rohstoffmangel, etc.).</li>
-        <li><strong>Anzeige:</strong> Der Arbeitgeber muss die Kurzarbeit der Arbeitsagentur anzeigen.</li>
-        <li><strong>Mindestausfallquote:</strong> Mindestens 10% der regulären Arbeitszeit muss ausfallen.</li>
-        <li><strong>Sozialversicherungsbeitrag:</strong> Sie müssen dem Arbeitgeber zugeordnet sein.</li>
+        <li><strong>Anzeige:</strong> Der Arbeitgeber muss die Kurzarbeit bei der Agentur für Arbeit anzeigen.</li>
+        <li><strong>Mindestausfallquote:</strong> Mindestens 10 % der Beschäftigten müssen von einem Entgeltausfall von mehr als 10 % betroffen sein.</li>
+        <li><strong>Sozialversicherungspflicht:</strong> Sie müssen sozialversicherungspflichtig beschäftigt sein (Minijobber sind ausgeschlossen).</li>
       </ul>
 
       <h4>Wie wird Kurzarbeitergeld berechnet?</h4>
-      <p>Die Berechnung berücksichtigt:</p>
+      <p>Die Berechnung folgt der pauschalierten Nettoentgelttabelle der Bundesagentur für Arbeit:</p>
       <ul>
-        <li><strong>Ihr Bruttoeinkommen</strong> im Bezugsmonat</li>
-        <li><strong>Ihre Steuerklasse</strong> (beeinflusst die Nettocalculation)</li>
-        <li><strong>Ob Sie Kinder haben</strong> (67% Satz statt 60%)</li>
-        <li><strong>Den Arbeitsausfall in Prozent</strong> (10%, 25%, 50%, 75%, 100%?)</li>
+        <li><strong>Schritt 1:</strong> Pauschaliertes Netto aus dem Soll-Entgelt (volles Brutto) ermitteln</li>
+        <li><strong>Schritt 2:</strong> Pauschaliertes Netto aus dem Ist-Entgelt (reduziertes Brutto) ermitteln</li>
+        <li><strong>Schritt 3:</strong> Differenz = Netto-Entgeltausfall</li>
+        <li><strong>Schritt 4:</strong> KuG = Netto-Entgeltausfall x 60 % (bzw. 67 % mit Kind)</li>
       </ul>
 
-      <p>Formel: <strong>KuG = Netto-Entgeltausfall × Leistungssatz (60% oder 67%)</strong></p>
-
-      <p>Beispiel: Sie verdienen brutto 3.500€, Steuerklasse IV, keine Kinder. Ihr Nettogehalt ist etwa 2.300€. Bei 100% Arbeitsausfall erhalten Sie 60% von Ihrem Nettoentgeltausfall, also ca. 1.380€ KuG.</p>
-
-      <h4>Dauer und Grenzen</h4>
-      <ul>
-        <li><strong>Normal:</strong> Bis zu 12 Monate</li>
-        <li><strong>Bei besonderem Bedarf:</strong> Bis zu 24 Monate möglich (seit Corona auch 28 Monate)</li>
-        <li><strong>Nach Enddatum:</strong> Sie können wieder Arbeitslosengeld beantragen, wenn Sie gekündigt werden</li>
-      </ul>
+      <p><strong>Formel:</strong> KuG = (Pauschal-Netto Soll - Pauschal-Netto Ist) x Leistungssatz</p>
 
       <h4>Wichtige Hinweise</h4>
       <ul>
-        <li><strong>Sozialversicherung läuft weiter:</strong> Der Arbeitgeber zahlt auch während Kurzarbeit Ihre Beiträge zur Kranken-, Renten- und Pflegeversicherung. Das ist ein großer Vorteil!</li>
-        <li><strong>Steuerpflichtig:</strong> Kurzarbeitergeld ist Einkommen und muss in der Steuererklärung angegeben werden.</li>
-        <li><strong>Hinzuverdienstmöglichkeit:</strong> Sie dürfen in der Zeit nebenberuflich dazuverdienen, ohne das KuG zu gefährden (Grenzen beachten).</li>
+        <li><strong>Sozialversicherung läuft weiter:</strong> Der Arbeitgeber zahlt auch während Kurzarbeit Ihre Beiträge zur Kranken-, Renten- und Pflegeversicherung.</li>
+        <li><strong>Progressionsvorbehalt:</strong> Kurzarbeitergeld ist steuerfrei, erhöht aber den Steuersatz auf das übrige Einkommen. Eine Steuererklärung ist Pflicht.</li>
+        <li><strong>Nebenjob möglich:</strong> Ein vor der Kurzarbeit bestehender Nebenjob wird nicht angerechnet. Ein neuer Nebenjob wird auf das KuG angerechnet, wenn das Gesamteinkommen das frühere Netto übersteigt.</li>
+        <li><strong>Kein Kündigungsschutz:</strong> Kurzarbeit schützt nicht absolut vor Kündigung, macht betriebsbedingte Kündigungen aber schwieriger durchsetzbar.</li>
       </ul>
     `}
     relatedSlugs={['kreditvergleich', 'trinkgeld-rechner']}

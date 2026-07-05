@@ -9,7 +9,7 @@ const year = new Date().getFullYear();
 ---
 <Layout
   title={`Schuldentilgungs-Rechner ${year}`}
-  description="Schneeball- vs. Lawinenmethode: Finde die beste Strategie zum Schulden tilgen."
+  description="Schulden tilgen mit Schneeball- oder Lawinenmethode: Vergleichen Sie Tilgungsdauer und Zinsersparnis fuer bis zu 3 Schulden und finden Sie 2025 die optimale Strategie."
   canonicalPath="/geld/schuldentilgungs-rechner/"
   categoryColor={cat.color}
   categoryLight={cat.colorLight}
@@ -28,7 +28,10 @@ const year = new Date().getFullYear();
       { q: "Welche Methode spart mehr Geld?", a: "Die Lawinenmethode spart fast immer mehr Zinsen, weil die teuersten Schulden zuerst getilgt werden. Je größer die Zinsdifferenz zwischen Ihren Schulden, desto größer ist der Vorteil. Bei einem Dispo mit 12 % und einem Autokredit mit 4 % sollten Sie unbedingt den Dispo zuerst tilgen. Die Ersparnis kann mehrere Hundert bis Tausend Euro betragen." },
       { q: "Soll ich sparen oder Schulden tilgen?", a: "Als Faustregel gilt: Schulden tilgen geht fast immer vor Sparen. Wenn Sie 8 % Dispozinsen zahlen, aber nur 3 % Sparzinsen bekommen, verlieren Sie netto 5 % pro Jahr. Ausnahme: Bauen Sie zunächst einen kleinen Notgroschen von 1.000-2.000 Euro auf, damit Sie bei unerwarteten Ausgaben nicht erneut in den Dispo rutschen." },
       { q: "Wie hoch sollte meine Tilgungsrate sein?", a: "Experten empfehlen, mindestens 20 % des Nettoeinkommens für die Schuldentilgung einzusetzen. Bei einem Nettoeinkommen von 2.500 Euro wären das 500 Euro monatlich. Nutzen Sie jede Sonderzahlung (Weihnachtsgeld, Steuererstattung) für Extra-Tilgungen. Achten Sie aber darauf, dass Ihre Grundbedürfnisse gedeckt bleiben." },
-      { q: "Kann ich bei Schulden eine kostenlose Beratung bekommen?", a: "Ja. Die Schuldnerberatungen der Caritas, Diakonie und Verbraucherzentralen bieten kostenlose Hilfe an. Bei drohender Zahlungsunfähigkeit können sie auch bei einem Insolvenzverfahren unterstützen. Die Privatinsolvenz dauert in Deutschland seit 2020 nur noch 3 Jahre statt vorher 6 Jahre." }
+      { q: "Kann ich bei Schulden eine kostenlose Beratung bekommen?", a: "Ja. Die Schuldnerberatungen der Caritas, Diakonie und Verbraucherzentralen bieten kostenlose Hilfe an. Bei drohender Zahlungsunfähigkeit können sie auch bei einem Insolvenzverfahren unterstützen. Die Privatinsolvenz dauert in Deutschland seit 2020 nur noch 3 Jahre statt vorher 6 Jahre." },
+      { q: "Wie hoch sind typische Zinssaetze bei verschiedenen Schuldenarten?", a: "Dispokredite kosten 2025 zwischen 9,5 und 14,5 % (Durchschnitt ca. 11,5 %), Kreditkartenschulden 12-20 %, Ratenkredite 4-10 % und Autokredite 3-6 %. Tilgen Sie immer zuerst die Schuld mit dem hoechsten Zinssatz. Ein Dispo mit 12 % kostet Sie bei 5.000 EUR Schulden allein 600 EUR Zinsen pro Jahr." },
+      { q: "Was ist die 50-30-20-Regel fuer die Schuldentilgung?", a: "Die 50-30-20-Regel teilt das Nettoeinkommen auf: 50 % fuer Grundbeduerfnisse (Miete, Essen, Versicherungen), 30 % fuer persoenliche Wuensche und 20 % fuer Sparen oder Schuldentilgung. Bei Schulden sollten Sie die 30 % fuer Wuensche voruebergehend auf 10-15 % reduzieren und den Rest zusaetzlich in die Tilgung stecken. Bei 2.500 EUR netto waeren das 500-750 EUR monatlich fuer Schuldenabbau." },
+      { q: "Wann ist eine Umschuldung sinnvoll?", a: "Eine Umschuldung lohnt sich, wenn Sie teure Schulden (Dispo, Kreditkarte) durch einen guenstigeren Ratenkredit ersetzen koennen. Beispiel: 8.000 EUR Dispo zu 12 % kosten 960 EUR Zinsen pro Jahr. Ein Ratenkredit zu 5,5 % kostet nur 440 EUR Zinsen – Ersparnis 520 EUR im ersten Jahr. Wichtig: Nach der Umschuldung den Disporahmen kuendigen oder drastisch reduzieren, damit Sie nicht erneut in die Falle tappen." }
     ]}
   >
     <div class="calc-form">
@@ -72,17 +75,40 @@ const year = new Date().getFullYear();
 
   <CalculatorGuide
     title="Schulden strategisch tilgen: Schneeball vs. Lawine im Vergleich"
-    content="<p>Wer mehrere Schulden gleichzeitig bedient, steht vor der Frage: Welche Schuld soll zuerst getilgt werden? Die Antwort kann Hunderte oder sogar Tausende Euro Unterschied ausmachen. Die zwei bekanntesten Strategien sind die Schneeball- und die Lawinenmethode, die beide auf dem gleichen Prinzip basieren: Mindestrate für alle Schulden zahlen und die verfügbare Extra-Rate gezielt auf eine Schuld konzentrieren.</p>
+    content={`<p>Wer mehrere Schulden gleichzeitig bedient, steht vor der Frage: Welche Schuld soll zuerst getilgt werden? Die Antwort kann Hunderte oder sogar Tausende Euro Unterschied ausmachen. Die zwei bekanntesten Strategien sind die Schneeball- und die Lawinenmethode, die beide auf dem gleichen Prinzip basieren: Mindestrate fuer alle Schulden zahlen und die verfuegbare Extra-Rate gezielt auf eine Schuld konzentrieren.</p>
 
-<p><strong>Die Schneeball-Methode (Debt Snowball):</strong> Sie ordnen Ihre Schulden nach Restbetrag, beginnend mit der kleinsten. Die gesamte verfügbare Extra-Rate fließt in die kleinste Schuld. Sobald diese abbezahlt ist, kommt die frei gewordene Rate zur nächsten Schuld dazu. Der Vorteil: Schnelle Erfolgserlebnisse, weil kleine Schulden rasch verschwinden. Studien zeigen, dass Menschen mit dieser Methode häufiger durchhalten und ihre Schulden tatsächlich komplett tilgen.</p>
+<h3>Schneeball vs. Lawine: Methodenvergleich</h3>
+<table>
+<thead><tr><th>Kriterium</th><th>Schneeball-Methode</th><th>Lawinen-Methode</th></tr></thead>
+<tbody>
+<tr><td>Reihenfolge</td><td>Kleinste Schuld zuerst</td><td>Hoechster Zinssatz zuerst</td></tr>
+<tr><td>Zinsersparnis</td><td>Geringer</td><td>Maximal</td></tr>
+<tr><td>Motivation</td><td>Hoch (schnelle Erfolge)</td><td>Geringer (laengere Wartezeit)</td></tr>
+<tr><td>Mathematisch optimal</td><td>Nein</td><td>Ja</td></tr>
+<tr><td>Empfohlen bei</td><td>Vielen kleinen Schulden</td><td>Hohen Zinsdifferenzen</td></tr>
+<tr><td>Abbruchquote (Studien)</td><td>Niedriger</td><td>Hoeher</td></tr>
+</tbody>
+</table>
 
-<p><strong>Die Lawinen-Methode (Debt Avalanche):</strong> Hier tilgen Sie zuerst die Schuld mit dem höchsten Zinssatz. Mathematisch ist das immer die günstigste Variante, weil Sie insgesamt weniger Zinsen zahlen. Der Nachteil: Wenn die teuerste Schuld auch die größte ist, dauert es lange, bis der erste Posten verschwindet. Das kann demotivierend wirken.</p>
+<p><strong>Die Schneeball-Methode (Debt Snowball):</strong> Sie ordnen Ihre Schulden nach Restbetrag, beginnend mit der kleinsten. Die gesamte verfuegbare Extra-Rate fliesst in die kleinste Schuld. Sobald diese abbezahlt ist, kommt die frei gewordene Rate zur naechsten Schuld dazu. Studien der Harvard Business School zeigen, dass Menschen mit dieser Methode haeufiger durchhalten und ihre Schulden tatsaechlich komplett tilgen.</p>
 
-<p><strong>Rechenbeispiel:</strong> Angenommen, Sie haben drei Schulden: 2.000 Euro (Versandhaus, 0 % Zins), 8.000 Euro (Autokredit, 5 %) und 3.000 Euro (Dispo, 11 %). Bei 500 Euro monatlicher Gesamtrate spart die Lawinenmethode (Dispo zuerst) gegenüber der Schneeball-Methode (Versandhaus zuerst) etwa 400 Euro an Zinsen. Bei höheren Beträgen oder größeren Zinsdifferenzen kann die Ersparnis deutlich höher ausfallen.</p>
+<p><strong>Die Lawinen-Methode (Debt Avalanche):</strong> Hier tilgen Sie zuerst die Schuld mit dem hoechsten Zinssatz. Mathematisch ist das immer die guenstigste Variante, weil Sie insgesamt weniger Zinsen zahlen. Der Nachteil: Wenn die teuerste Schuld auch die groesste ist, dauert es lange, bis der erste Posten verschwindet.</p>
 
-<p><strong>Wichtige Tipps zur Schuldentilgung:</strong> Kündigen Sie den Dispokredit, sobald er abbezahlt ist, damit Sie nicht erneut hineinrutschen. Prüfen Sie bei Ratenkrediten, ob Sondertilgungen möglich sind, ohne Vorfälligkeitsentschädigung zu zahlen. Seit 2010 ist die Vorfälligkeitsentschädigung bei Verbraucherdarlehen auf maximal 1 % der Restschuld begrenzt (§ 502 BGB). Bei Schulden über 50.000 Euro oder mehreren Gläubigern lohnt sich eine kostenlose Schuldnerberatung.</p>
+<h3>Rechenbeispiel: 3 Schulden mit 500 EUR Monatsrate</h3>
+<table>
+<thead><tr><th>Schuld</th><th>Betrag</th><th>Zinssatz</th><th>Schneeball: Tilgung in</th><th>Lawine: Tilgung in</th></tr></thead>
+<tbody>
+<tr><td>Versandhaus</td><td>2.000 EUR</td><td>0 %</td><td>4 Monate (1. Prioritaet)</td><td>26 Monate (3. Prioritaet)</td></tr>
+<tr><td>Dispo</td><td>3.000 EUR</td><td>11,5 %</td><td>14 Monate (2. Prioritaet)</td><td>7 Monate (1. Prioritaet)</td></tr>
+<tr><td>Autokredit</td><td>8.000 EUR</td><td>5 %</td><td>26 Monate (3. Prioritaet)</td><td>26 Monate (2. Prioritaet)</td></tr>
+<tr><td colspan="3"><strong>Gesamtergebnis</strong></td><td><strong>26 Monate, 1.180 EUR Zinsen</strong></td><td><strong>26 Monate, 820 EUR Zinsen</strong></td></tr>
+</tbody>
+</table>
+<p><em>Die Lawinenmethode spart in diesem Beispiel 360 EUR an Zinsen bei gleicher Tilgungsdauer.</em></p>
 
-<p><strong>Praxistipp:</strong> Kombinieren Sie beide Methoden. Tilgen Sie zuerst einen kleinen Posten (unter 500 Euro), um Motivation aufzubauen, und wechseln Sie dann zur Lawinenmethode für die verbleibenden größeren Schulden. So profitieren Sie von der psychologischen Wirkung und der mathematischen Effizienz.</p>"
+<p><strong>Wichtige Tipps zur Schuldentilgung:</strong> Kuendigen Sie den Dispokredit, sobald er abbezahlt ist, damit Sie nicht erneut hineinrutschen. Pruefen Sie bei Ratenkrediten, ob Sondertilgungen moeglich sind, ohne Vorfaelligkeitsentschaedigung zu zahlen. Seit 2010 ist die Vorfaelligkeitsentschaedigung bei Verbraucherdarlehen auf maximal 1 % der Restschuld begrenzt (Paragraph 502 BGB). Bei Schulden ueber 50.000 Euro oder mehreren Glaeubigern lohnt sich eine kostenlose Schuldnerberatung.</p>
+
+<p><strong>Praxistipp:</strong> Kombinieren Sie beide Methoden. Tilgen Sie zuerst einen kleinen Posten (unter 500 Euro), um Motivation aufzubauen, und wechseln Sie dann zur Lawinenmethode fuer die verbleibenden groesseren Schulden. So profitieren Sie von der psychologischen Wirkung und der mathematischen Effizienz.</p>`}
     relatedSlugs={['kreditvergleich', 'pfaendungsfreigrenze-rechner', 'notgroschen-rechner']}
   />
 </Layout>

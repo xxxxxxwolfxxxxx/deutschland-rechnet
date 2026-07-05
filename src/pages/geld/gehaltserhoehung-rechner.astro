@@ -9,7 +9,7 @@ const year = new Date().getFullYear();
 ---
 <Layout
   title={`Gehaltserhöhung-Rechner ${year}`}
-  description="Nettoeffekt einer Gehaltserhöhung berechnen – was bleibt mehr übrig?"
+  description="Gehaltserhöhung-Rechner 2025: Berechnen Sie den Netto-Gewinn Ihrer Brutto-Erhöhung inkl. Grenzsteuersatz, Sozialabgaben und Steuerklasse. Mit Beispielrechnungen für 3.000-6.000 Euro Gehalt."
   canonicalPath="/geld/gehaltserhoehung-rechner/"
   categoryColor={cat.color}
   categoryLight={cat.colorLight}
@@ -30,7 +30,10 @@ const year = new Date().getFullYear();
       { q: "Wie viel Netto ist realistisch?", a: "Faustregel: Bei moderaten Einkommen (30-60k€) sind ca. 60-70% Netto üblich. Bei höheren Einkommen (60-100k€) sinkt das auf 50-60% Netto. Über 100k€ können es nur noch 40-50% sein. Die Sozialabgaben sinken ab einem bestimmten Einkommen (Beitragssatz-Grenze bei ca. 90k€)." },
       { q: "Kann ich mit Werbungskosten die Netto-Erhöhung erhöhen?", a: "Indirekt ja. Höhere Werbungskosten (Homeoffice, Fahrtkosten) senken das zu versteuernde Einkommen. Aber das beeinflusst weniger die aktuelle Gehaltserhöhung, sondern eher Ihre gesamte Steuerlast." },
       { q: "Macht eine Steuerklassenwahl einen Unterschied?", a: "Ja! Steuerklasse III hat niedrigere Steuersätze als Klasse V. Alleinerziehende sollten Klasse II wählen (Entlastungsbetrag). Verheiratete können mit III/V mehr Netto aus einer Gehaltserhöhung herausholen, wenn einer deutlich mehr verdient." },
-      { q: "Kann ich mit einer Gehaltserhöhung in eine höhere Steuerklasse rutschen?", a: "Nein. Die Steuerklasse richtet sich nach Familienstand und Kinderfreibeträgen, nicht nach Einkommen. Aber: Das zu versteuernde Einkommen steigt, und damit der Grenzsteuersatz." }
+      { q: "Kann ich mit einer Gehaltserhöhung in eine höhere Steuerklasse rutschen?", a: "Nein. Die Steuerklasse richtet sich nach Familienstand und Kinderfreibeträgen, nicht nach Einkommen. Aber: Das zu versteuernde Einkommen steigt, und damit der Grenzsteuersatz." },
+      { q: "Lohnt sich eine Gehaltserhöhung von 200 Euro brutto?", a: "Bei einem Gehalt von 3.500 Euro brutto (Steuerklasse I) bleiben von 200 Euro Erhöhung ca. 110-120 Euro netto. Das sind rund 1.320-1.440 Euro mehr pro Jahr. Lohnt sich also definitiv, auch wenn der Nettoanteil nur bei 55-60% liegt." },
+      { q: "Wie verhandle ich eine Gehaltserhöhung richtig?", a: "Bereiten Sie konkrete Argumente vor: Marktvergleich (Gehalt.de, StepStone Gehaltsreport), eigene Leistungen der letzten 12 Monate, zusätzliche Verantwortungen. Fordern Sie 10-15% mehr als Ihr aktuelles Gehalt. Typische Erhöhungen liegen bei 3-7% jahrlich, bei Beförderung 10-15%." },
+      { q: "Was sind Alternativen zur klassischen Gehaltserhöhung?", a: "Steuerfreie oder begünstigte Alternativen: Jobticket (bis 2.394 Euro/Jahr steuerfrei), Sachbezug (50 Euro/Monat steuerfrei), betriebliche Altersvorsorge, Dienstfahrrad-Leasing, Essenszuschuss (bis 7,23 Euro/Tag). Diese Extras können netto mehr bringen als eine Brutto-Erhöhung." }
     ]}
   >
     <div class="calc-form">
@@ -71,20 +74,45 @@ const year = new Date().getFullYear();
 
   <CalculatorGuide
     title="So funktioniert die Netto-Berechnung bei Gehaltserhöhung"
-    content={`<p><strong>Der Grenzsteuersatz ist der Schlüssel:</strong> Wenn Sie eine Gehaltserhöhung erhalten, zahlen Sie nicht Ihre durchschnittliche Steuerlast, sondern den <strong>Grenzsteuersatz</strong> – die Steuer auf den letzten Euro Einkommen. Bei einem Einkommen über 60.000€ kann dieser 42% oder sogar 45% betragen. Das ist, warum eine Brutto-Erhöhung von 500€ oft nur 250€ netto bringt.</p>
+    content={`<p><strong>Der Grenzsteuersatz ist der Schlüssel:</strong> Wenn Sie eine Gehaltserhöhung erhalten, zahlen Sie nicht Ihre durchschnittliche Steuerlast, sondern den <strong>Grenzsteuersatz</strong> – die Steuer auf den letzten Euro Einkommen. Bei einem Einkommen über 62.810 Euro (2025) kann dieser 42% oder sogar 45% (ab 277.826 Euro) betragen. Deshalb bringt eine Brutto-Erhöhung von 500 Euro oft nur 250-300 Euro netto.</p>
 
-<p><strong>Wie der Grenzsteuersatz funktioniert:</strong> Deutschland hat ein progressives Steuersystem. Die ersten 10.000€ (2026) sind steuerfrei, dann zahlst du 19%, dann 42%, dann 45%. Wenn du schon bei 50.000€ verdienst und bekommst 500€ mehr, zahlst du auf diese 500€ die 42% (dein Grenzsteuersatz) – nicht den Durchschnitt aller Steuern, die du zahlst.</p>
+<h4>Beispielrechnungen: Was bleibt netto von einer Gehaltserhöhung?</h4>
+<table>
+  <thead>
+    <tr><th>Aktuelles Brutto</th><th>Erhöhung brutto</th><th>Steuerklasse</th><th>Netto-Gewinn ca.</th><th>Netto-Quote</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>3.000 Euro</td><td>+200 Euro</td><td>I</td><td>~120 Euro</td><td>60%</td></tr>
+    <tr><td>3.500 Euro</td><td>+300 Euro</td><td>I</td><td>~170 Euro</td><td>57%</td></tr>
+    <tr><td>4.000 Euro</td><td>+500 Euro</td><td>IV</td><td>~265 Euro</td><td>53%</td></tr>
+    <tr><td>5.000 Euro</td><td>+500 Euro</td><td>IV</td><td>~255 Euro</td><td>51%</td></tr>
+    <tr><td>6.000 Euro</td><td>+500 Euro</td><td>I</td><td>~245 Euro</td><td>49%</td></tr>
+    <tr><td>7.500 Euro</td><td>+1.000 Euro</td><td>III</td><td>~580 Euro</td><td>58%</td></tr>
+  </tbody>
+</table>
 
-<p><strong>Sozialabgaben verstärken den Effekt:</strong> Zusätzlich zur Einkommensteuer zahlst du:
-<ul>
-  <li>Krankenversicherung: 7,3-7,7%</li>
-  <li>Pflegeversicherung: 1,525%</li>
-  <li>Arbeitslosenversicherung: 1,3%</li>
-  <li>Rentenversicherung: 8,7% (begrenzt auf Beitragssatzschwelle)</li>
-</ul>
-Zusammen mit Steuern: 40-50% Gesamtabgabensatz!</p>
+<h4>Sozialabgaben 2025 im Überblick</h4>
+<table>
+  <thead>
+    <tr><th>Beitrag</th><th>Arbeitnehmeranteil</th><th>Beitragsbemessungsgrenze (West)</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>Krankenversicherung</td><td>7,3% + Zusatzbeitrag (~0,9%)</td><td>5.512,50 Euro/Monat</td></tr>
+    <tr><td>Pflegeversicherung</td><td>1,7% (kinderlos: 2,3%)</td><td>5.512,50 Euro/Monat</td></tr>
+    <tr><td>Rentenversicherung</td><td>9,3%</td><td>7.550 Euro/Monat</td></tr>
+    <tr><td>Arbeitslosenversicherung</td><td>1,3%</td><td>7.550 Euro/Monat</td></tr>
+  </tbody>
+</table>
+<p>Gesamtbelastung Arbeitnehmer: ca. 20,5% Sozialabgaben plus Einkommensteuer. Zusammen ergibt das 40-50% Gesamtabgabenlast auf eine Gehaltserhöhung.</p>
 
-<p><strong>Wichtig: Die Beitragssatzschwelle:</strong> Die Rentenbeiträge und Arbeitslosenversicherung sind ab ca. 90.000€ Brutto gedeckelt. Menschen mit höheren Gehältern sparen also bei einer Erhöhung über diese Grenze hinaus die SV-Beiträge – ihr Netto-Gewinn wird größer prozentual.</p>`}
+<p><strong>Wie der Grenzsteuersatz funktioniert:</strong> Deutschland hat ein progressives Steuersystem. Der Grundfreibetrag liegt 2025 bei 12.096 Euro (steuerfrei). Danach steigt der Steuersatz von 14% linear auf 42% (ab 62.810 Euro zu versteuerndem Einkommen). Der Spitzensteuersatz von 45% greift ab 277.826 Euro. Wenn Sie bereits 50.000 Euro verdienen und 500 Euro mehr bekommen, zahlen Sie auf diese 500 Euro Ihren persönlichen Grenzsteuersatz von ca. 38-40%.</p>
+
+<p><strong>Beitragsbemessungsgrenzen beachten:</strong> Die Renten- und Arbeitslosenversicherung sind ab 7.550 Euro/Monat (West, 2025) gedeckelt. Wer darüber verdient, zahlt auf eine Gehaltserhöhung keine zusätzlichen RV/AV-Beiträge mehr. Das verbessert die Netto-Quote bei hohen Gehältern spürbar.</p>
+
+<h4>Tipps zur Gehaltsverhandlung</h4>
+<p><strong>Durchschnittliche Gehaltserhöhungen in Deutschland 2025:</strong> Laut Vergütungsstudien liegen reguläre Gehaltsanpassungen bei 3,5-5% pro Jahr. Bei einem Jobwechsel sind 10-20% realistisch. Die Inflationsrate lag 2024 bei 2,2%, das heisst alles unter 3% ist real ein Gehaltsverlust.</p>
+
+<p><strong>Steuerfreie Alternativen zur Gehaltserhöhung:</strong> Sachbezug (50 Euro/Monat steuerfrei), Jobticket (Deutschlandticket als Firmenticket), Essenszuschuss (bis 7,23 Euro/Arbeitstag), Erholungsbeihilfe (156 Euro/Jahr steuerfrei), Dienstfahrrad-Leasing und betriebliche Altersvorsorge. Diese Extras bringen netto oft mehr als eine vergleichbare Brutto-Erhöhung.</p>`}
     relatedSlugs={['brutto-netto-rechner', 'mindestlohn-rechner', 'ueberstunden-rechner']}
   />
 </Layout>
