@@ -12,7 +12,7 @@ const dreiJahreHer = new Date(Date.now() - 3*365*24*3600*1000).toISOString().spl
 ---
 <Layout
   title={`Kündigungsfrist-Rechner ${year}`}
-  description="Kündigungsfristen nach § 622 BGB berechnen – für Arbeitgeber und Arbeitnehmer. Mit Betriebszugehörigkeit und Enddatum."
+  description="Kuendigungsfrist berechnen nach § 622 BGB: Gesetzliche Fristen fuer Arbeitnehmer (4 Wochen) und Arbeitgeber (bis 7 Monate) mit Betriebszugehoerigkeit, Probezeit und exaktem Enddatum."
   canonicalPath="/geld/kuendigungsfrist-rechner/"
   categoryColor={cat.color}
   categoryLight={cat.colorLight}
@@ -33,7 +33,10 @@ const dreiJahreHer = new Date(Date.now() - 3*365*24*3600*1000).toISOString().spl
       { q: "Was bedeutet 'zum Ende eines Kalendermonats'?", a: "Das Kündigungsdatum muss auf den letzten Tag eines Monats fallen. Beispiel: Kündigung am 15.3. gilt zum 30.4. (Ende April = 4 Wochen + zum Ende eines Monats). Am 1.4. gekündigt = zum 31.5. (zum Ende eines Kalendermonats nach 4 Wochen)." },
       { q: "Können Arbeitsverträge kürzere Fristen festlegen?", a: "Ja, aber NICHT für den Arbeitnehmer! Eine kürzere Kündigungsfrist für den AN ist nicht erlaubt (außer in der Probezeit: 2 Wochen). Aber: Der AG darf längere Fristen im Vertrag festlegen, und der AN kann akzeptieren." },
       { q: "Was ist die Probezeit-Kündigungsfrist?", a: "In der Probezeit (max. 6 Monate) können beide Seiten mit nur 2 Wochen zum beliebigen Tag kündigen. Nach der Probezeit gelten die längeren Fristen." },
-      { q: "Was ist mit außerordentlicher Kündigung?", a: "Ohne Grund brauchst du die normale Frist. Mit wichtigem Grund (Mobbing, unverschuldete finanzielle Notlage, etc.) kannst du sofort (außerordentlich) kündigen. Das FA prüft, ob der Grund berechtigt ist." }
+      { q: "Was ist mit außerordentlicher Kündigung?", a: "Ohne Grund brauchst du die normale Frist. Mit wichtigem Grund (Mobbing, unverschuldete finanzielle Notlage, etc.) kannst du sofort (außerordentlich) kündigen. Das FA prüft, ob der Grund berechtigt ist." },
+      { q: "Gilt die gesetzliche Kündigungsfrist auch bei Tarifverträgen?", a: "Tarifverträge können von den gesetzlichen Fristen abweichen, auch zuungunsten des Arbeitnehmers. Prüfen Sie daher immer Ihren Tarifvertrag. In vielen Branchen (z.B. Bau, Gastronomie) gelten kürzere Fristen. Der Tarifvertrag geht dem Gesetz vor, sofern er anwendbar ist." },
+      { q: "Kann ich während der Kündigungsfrist freigestellt werden?", a: "Ja, der Arbeitgeber kann Sie unwiderruflich oder widerruflich freistellen. Bei unwiderruflicher Freistellung werden Resturlaub und Überstunden angerechnet. Ihr Gehalt und alle Sozialversicherungsbeiträge laufen bis zum Ende der Kündigungsfrist weiter." },
+      { q: "Zählt die Kündigungsfrist ab Zugang oder ab Versand der Kündigung?", a: "Die Frist beginnt mit dem Zugang der Kündigung beim Empfänger, nicht mit dem Versand. Bei persönlicher Übergabe gilt der Moment der Übergabe, bei Briefpost der Tag, an dem der Brief im Briefkasten des Empfängers liegt (auch wenn er nicht sofort gelesen wird)." }
     ]}
   >
     <div class="calc-form">
@@ -64,26 +67,47 @@ const dreiJahreHer = new Date(Date.now() - 3*365*24*3600*1000).toISOString().spl
 
   <CalculatorGuide
     title="So funktionieren gesetzliche Kündigungsfristen"
-    content={`<p><strong>Kündigungsfristen in Deutschland sind gestaffelt</strong> und hängen von der Betriebszugehörigkeit ab. Die Faustregel: Je länger du da bist, desto länger ist die Kündigungsfrist für den Arbeitgeber (aber nicht für dich).</p>
+    content={`<p><strong>Kündigungsfristen in Deutschland sind gestaffelt</strong> und hängen von der Betriebszugehörigkeit ab. Die Faustregel: Je länger Sie beschäftigt sind, desto länger ist die Kündigungsfrist für den Arbeitgeber (aber nicht für Sie als Arbeitnehmer).</p>
 
-<p><strong>Für Arbeitnehmer (alle Zeiten):</strong>
-<ul>
-  <li>Probezeit: 2 Wochen zum beliebigen Tag</li>
-  <li>Nach Probezeit: 4 Wochen zum 15. oder zum Ende eines Kalendermonats</li>
-</ul>
+<h4>Übersicht: Gesetzliche Kündigungsfristen nach § 622 BGB</h4>
+<table>
+  <thead>
+    <tr><th>Betriebszugehörigkeit</th><th>Frist Arbeitgeber</th><th>Frist Arbeitnehmer</th><th>Kündigungstermin</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>Probezeit (bis 6 Monate)</td><td>2 Wochen</td><td>2 Wochen</td><td>Jeder Tag</td></tr>
+    <tr><td>Bis 2 Jahre</td><td>4 Wochen</td><td>4 Wochen</td><td>Zum 15. oder Monatsende</td></tr>
+    <tr><td>Ab 2 Jahren</td><td>1 Monat</td><td>4 Wochen</td><td>Zum Monatsende</td></tr>
+    <tr><td>Ab 5 Jahren</td><td>2 Monate</td><td>4 Wochen</td><td>Zum Monatsende</td></tr>
+    <tr><td>Ab 8 Jahren</td><td>3 Monate</td><td>4 Wochen</td><td>Zum Monatsende</td></tr>
+    <tr><td>Ab 10 Jahren</td><td>4 Monate</td><td>4 Wochen</td><td>Zum Monatsende</td></tr>
+    <tr><td>Ab 12 Jahren</td><td>5 Monate</td><td>4 Wochen</td><td>Zum Monatsende</td></tr>
+    <tr><td>Ab 15 Jahren</td><td>6 Monate</td><td>4 Wochen</td><td>Zum Monatsende</td></tr>
+    <tr><td>Ab 20 Jahren</td><td>7 Monate</td><td>4 Wochen</td><td>Zum Monatsende</td></tr>
+  </tbody>
+</table>
 
-<strong>Für Arbeitgeber:</strong>
-<ul>
-  <li>Erste 2 Jahre: 4 Wochen zum 15. oder zum Ende eines Kalendermonats</li>
-  <li>Nach 2 Jahren: 1 Monat zum Ende eines Kalendermonats</li>
-  <li>Nach 5 Jahren: 2 Monate zum Ende eines Kalendermonats</li>
-  <li>Nach 8 Jahren: 3 Monate zum Ende eines Kalendermonats</li>
-</ul>
-</p>
+<h4>Praktisches Beispiel: Kündigung nach 6 Jahren Betriebszugehörigkeit</h4>
+<p>Sie arbeiten seit dem 01.03.2019 im Unternehmen und der Arbeitgeber kündigt Ihnen am 10.01.2025. Ihre Betriebszugehörigkeit beträgt knapp 6 Jahre, daher gilt eine Frist von 2 Monaten zum Ende eines Kalendermonats. Die Kündigung geht Ihnen am 10. Januar zu, also endet das Arbeitsverhältnis frühestens am 31.03.2025.</p>
 
-<p><strong>Wichtig: "Zum Ende eines Kalendermonats" bedeutet:</strong> Die Kündigung muss auf einen Monatsletzten fallen (z.B. 30.4., 31.5.). Eine Kündigung am 15.3. mit 4-Wochen-Frist endet nicht am 12.4., sondern am 30.4. (zum Ende des nächsten Kalendermonats).</p>
+<h4>Kündigungsfrist vs. Arbeitsvertrag: Was gilt?</h4>
+<table>
+  <thead>
+    <tr><th>Situation</th><th>Was gilt?</th><th>Beispiel</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>Vertrag nennt längere Frist als Gesetz</td><td>Vertrag gilt</td><td>Vertrag: 3 Monate, Gesetz: 4 Wochen → 3 Monate</td></tr>
+    <tr><td>Vertrag nennt kürzere Frist als Gesetz (AG kündigt)</td><td>Gesetz gilt</td><td>Vertrag: 2 Wochen, Gesetz: 2 Monate → 2 Monate</td></tr>
+    <tr><td>Tarifvertrag weicht ab</td><td>Tarifvertrag gilt</td><td>Bau-TV: kürzere Fristen erlaubt</td></tr>
+    <tr><td>Probezeit im Vertrag vereinbart</td><td>2 Wochen (max. 6 Monate)</td><td>Kündigung in Woche 3 → Frist: 2 Wochen</td></tr>
+  </tbody>
+</table>
 
-<p><strong>Probezeit:</strong> Die ersten 6 Monate sind Probezeit – beide Seiten können mit nur 2 Wochen kündigen. Nach der Probezeit gelten die längeren Fristen. Die Betriebszugehörigkeit wird ab Eintritt gezählt.</p>`}
+<p><strong>Wichtig: "Zum Ende eines Kalendermonats" bedeutet:</strong> Das Arbeitsverhältnis muss auf einen Monatsletzten enden (z.B. 30.04., 31.05.). Eine Kündigung am 15.03. mit 4-Wochen-Frist endet nicht am 12.04., sondern am 30.04. (zum Ende des nächsten Kalendermonats).</p>
+
+<p><strong>Probezeit:</strong> Die ersten 6 Monate können als Probezeit vereinbart werden. Beide Seiten können dann mit nur 2 Wochen kündigen, ohne an einen bestimmten Termin gebunden zu sein. Nach der Probezeit gelten die längeren gestaffelten Fristen. Die Betriebszugehörigkeit wird ab dem ersten Arbeitstag gezählt, nicht ab Ende der Probezeit.</p>
+
+<p><strong>Sonderfall Kleinbetrieb:</strong> In Betrieben mit bis zu 20 Beschäftigten dürfen laut § 622 Abs. 5 BGB kürzere Fristen vereinbart werden, jedoch nicht unter 4 Wochen. Die gestaffelten Fristen nach Betriebszugehörigkeit gelten trotzdem, sofern nichts anderes vereinbart wurde.</p>`}
     relatedSlugs={['abfindungsrechner', 'arbeitslosengeld-rechner', 'brutto-netto-rechner']}
   />
 </Layout>
