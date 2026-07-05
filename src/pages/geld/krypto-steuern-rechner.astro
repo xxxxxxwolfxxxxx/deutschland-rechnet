@@ -9,7 +9,7 @@ const year = new Date().getFullYear();
 ---
 <Layout
   title={`Krypto-Steuern-Rechner ${year}`}
-  description="Krypto-Gewinne versteuern: Steuerfreiheit nach Haltefrist und Freibeträge prüfen."
+  description="Krypto-Steuern 2025 berechnen: Haltefrist pruefen, Freibetrag 1.000 EUR nutzen und steuerpflichtigen Gewinn aus Bitcoin, Ethereum und Co. sofort ermitteln."
   canonicalPath="/geld/krypto-steuern-rechner/"
   categoryColor={cat.color}
   categoryLight={cat.colorLight}
@@ -30,7 +30,10 @@ const year = new Date().getFullYear();
       { q: "Was zählt nicht zur Haltefrist?", a: "Tausch von Krypto gegen Krypto zählt als Veräußerung und setzt die Haltefrist zurück! Beispiel: Bitcoin gekauft Jan 2023, gegen Ethereum getauscht Dez 2023 = neue Haltefrist ab Dez 2023! Mining und Staking sind eigene Einkünfte." },
       { q: "Gibt es einen Freibetrag?", a: "Ja! 1.000€ pro Jahr steuerfrei (Verheiratete: 2.000€). Erst über diesen Betrag wird besteuert. Beispiel: 5.000€ Gewinn, Freibetrag 1.000€ = 4.000€ steuerpflichtig." },
       { q: "Wie dokumentiere ich meine Trades?", a: "Pflicht: Jeder Kauf und Verkauf mit Datum, Menge, Preis und Gesamtbetrag. Bitcoin-Steuer-Tools (Bitcoin.Tax, Koinly) helfen. Das FA kann Nachzahlungen fordern, wenn Dokumentation fehlt." },
-      { q: "Was ist mit Staking und Airdrops?", a: "Staking-Erträge sind Einkünfte aus Kapitalvermögen (Abgeltungsteuer 25%). Airdrops sind steuerpflichtiges Einkommen zum Marktwert beim Erhalt. Diese Gewinne sind dann wieder der 1-Jahr-Regel unterworfen." }
+      { q: "Was ist mit Staking und Airdrops?", a: "Staking-Ertraege sind sonstige Einkuenfte nach Paragraph 22 Nr. 3 EStG und unterliegen dem persoenlichen Steuersatz (nicht der Abgeltungsteuer). Der Freibetrag betraegt 256 Euro pro Jahr. Airdrops sind steuerpflichtiges Einkommen zum Marktwert beim Erhalt. Beim spaeteren Verkauf der erhaltenen Coins gilt dann wieder die 1-Jahres-Haltefrist." },
+      { q: "Wie berechne ich den Gewinn bei mehreren Kaeufen?", a: "In Deutschland gilt die FiFo-Methode (First in, First out): Die zuerst gekauften Coins werden als zuerst verkauft behandelt. Beispiel: Sie kaufen 1 BTC im Januar fuer 30.000 EUR und 1 BTC im Juni fuer 40.000 EUR. Verkaufen Sie im Oktober 1 BTC fuer 50.000 EUR, gilt der Januar-Kauf als veraeussert – Ihr Gewinn betraegt 20.000 EUR (nicht 10.000 EUR). Dokumentieren Sie jeden Kauf mit Datum und Preis." },
+      { q: "Muss ich Verluste angeben?", a: "Verluste aus Krypto-Verkaeufen (unter 1 Jahr Haltefrist) koennen mit anderen privaten Veraeusserungsgeschaeften im gleichen Jahr verrechnet werden. Nicht verrechenbare Verluste koennen per Verlustfeststellung ins Vorjahr zurueck- oder in kuenftige Jahre vorgetragen werden. Geben Sie Verluste daher immer in der Steuererklaerung an – sie senken Ihre Steuerlast in der Zukunft." },
+      { q: "Was droht bei Nichtangabe von Krypto-Gewinnen?", a: "Krypto-Gewinne nicht anzugeben ist Steuerhinterziehung (Paragraph 370 AO). Das Finanzamt erhaelt zunehmend Daten von Krypto-Boersen (EU-weite DAC8-Meldepflicht ab 2026). Strafen reichen von Nachzahlung plus 6 % Zinsen pro Jahr bis zu Geldstrafen und Freiheitsstrafen bis zu 10 Jahren bei schwerer Steuerhinterziehung. Eine strafbefreiende Selbstanzeige ist moeglich, solange das Finanzamt noch nicht ermittelt." }
     ]}
   >
     <div class="calc-form">
@@ -68,19 +71,45 @@ const year = new Date().getFullYear();
 
   <CalculatorGuide
     title="So funktioniert die Besteuerung von Kryptowährungen"
-    content={`<p><strong>In Deutschland sind Krypto-Gewinne private Veräußerungsgeschäfte (§23 EStG).</strong> Das bedeutet: Ob Sie Steuern zahlen, hängt von der Haltefrist ab. Die gute Nachricht: Über 1 Jahr = komplett steuerfrei!</p>
+    content={`<p><strong>In Deutschland sind Krypto-Gewinne private Veraeusserungsgeschaefte (Paragraph 23 EStG).</strong> Das bedeutet: Ob Sie Steuern zahlen, haengt von der Haltefrist ab. Die gute Nachricht: Ueber 1 Jahr Haltedauer = komplett steuerfrei, unabhaengig von der Gewinnhoehe.</p>
 
-<p><strong>Die 1-Jahres-Regel:</strong>
+<h3>Steuerliche Behandlung nach Krypto-Vorgang</h3>
+<table>
+<thead><tr><th>Vorgang</th><th>Steuerart</th><th>Freibetrag</th><th>Haltefrist relevant?</th></tr></thead>
+<tbody>
+<tr><td>Kauf und Verkauf (unter 1 Jahr)</td><td>Persoenlicher ESt-Satz (14-45 %)</td><td>1.000 EUR / 2.000 EUR (Ehepaar)</td><td>Ja – unter 1 Jahr steuerpflichtig</td></tr>
+<tr><td>Kauf und Verkauf (ueber 1 Jahr)</td><td>Steuerfrei</td><td>Nicht noetig</td><td>Ja – ueber 1 Jahr steuerfrei</td></tr>
+<tr><td>Krypto-zu-Krypto-Tausch</td><td>Persoenlicher ESt-Satz</td><td>1.000 EUR</td><td>Ja – gilt als Veraeusserung</td></tr>
+<tr><td>Staking-Ertraege</td><td>Persoenlicher ESt-Satz (Paragraph 22 Nr. 3)</td><td>256 EUR</td><td>Nein – bei Zufluss steuerpflichtig</td></tr>
+<tr><td>Mining</td><td>Gewerblich oder Paragraph 22 Nr. 3</td><td>256 EUR</td><td>Nein – bei Zufluss steuerpflichtig</td></tr>
+<tr><td>Airdrops</td><td>Persoenlicher ESt-Satz</td><td>256 EUR</td><td>Nein – Marktwert bei Erhalt</td></tr>
+<tr><td>Lending-Zinsen</td><td>Persoenlicher ESt-Satz (Paragraph 22 Nr. 3)</td><td>256 EUR</td><td>Nein – bei Zufluss steuerpflichtig</td></tr>
+</tbody>
+</table>
+
+<p><strong>Die 1-Jahres-Regel:</strong></p>
 <ul>
-  <li><strong>Unter 1 Jahr Haltefrist:</strong> Volle Besteuerung mit Ihrem persönlichen Steuersatz (bis 45%)</li>
-  <li><strong>Über 1 Jahr Haltefrist:</strong> Komplett steuerfrei! Auch hohe Gewinne.</li>
-  <li><strong>Freibetrag:</strong> 1.000€ pro Jahr steuerfrei (Verheiratete: 2.000€), unabhängig von Haltefrist</li>
+  <li><strong>Unter 1 Jahr Haltefrist:</strong> Volle Besteuerung mit Ihrem persoenlichen Steuersatz (bis 45 %)</li>
+  <li><strong>Ueber 1 Jahr Haltefrist:</strong> Komplett steuerfrei – auch bei Gewinnen von mehreren Hunderttausend Euro</li>
+  <li><strong>Freibetrag:</strong> 1.000 Euro pro Jahr steuerfrei (Verheiratete: 2.000 Euro) bei Haltedauer unter 1 Jahr</li>
 </ul>
-</p>
 
-<p><strong>Wichtig: Was als Veräußerung zählt:</strong> Verkauf von Krypto gegen Euro ist klar. Aber auch: Kryptotausch (Bitcoin gegen Ethereum) ist eine Veräußerung! Das setzt die Haltefrist zurück. Staking und Mining sind separate Einkünfte (nicht die 1-Jahr-Regel).</p>
+<h3>Rechenbeispiel: Steuerbelastung nach Einkommenshoehe</h3>
+<table>
+<thead><tr><th>Krypto-Gewinn (unter 1 Jahr)</th><th>Zu versteuerndes Einkommen gesamt</th><th>Grenzsteuersatz</th><th>Steuer auf Krypto-Gewinn</th></tr></thead>
+<tbody>
+<tr><td>5.000 EUR</td><td>40.000 EUR</td><td>ca. 34 %</td><td>ca. 1.360 EUR</td></tr>
+<tr><td>10.000 EUR</td><td>55.000 EUR</td><td>ca. 38 %</td><td>ca. 3.420 EUR</td></tr>
+<tr><td>25.000 EUR</td><td>70.000 EUR</td><td>42 %</td><td>ca. 10.080 EUR</td></tr>
+<tr><td>50.000 EUR</td><td>95.000 EUR</td><td>42 %</td><td>ca. 20.580 EUR</td></tr>
+<tr><td>100.000 EUR</td><td>145.000 EUR</td><td>42 %</td><td>ca. 41.580 EUR</td></tr>
+</tbody>
+</table>
+<p><em>Hinweis: Freibetrag von 1.000 EUR bereits beruecksichtigt. Solidaritaetszuschlag und Kirchensteuer kommen ggf. hinzu.</em></p>
 
-<p><strong>Dokumentation ist Pflicht:</strong> Jeder Trade muss dokumentiert werden (Datum, Menge, Preis). Tools wie Bitcoin.Tax oder Koinly helfen. Das Finanzamt fordert diese Daten an – ohne Belege drohen Schätzungen und Strafzinsen.</p>`}
+<p><strong>Wichtig – Was als Veraeusserung zaehlt:</strong> Verkauf von Krypto gegen Euro ist eindeutig. Aber auch: Kryptotausch (Bitcoin gegen Ethereum) ist eine Veraeusserung und setzt die Haltefrist zurueck. Bezahlung mit Krypto (z. B. NFT-Kauf mit ETH) gilt ebenfalls als Veraeusserung. Staking und Mining sind separate Einkuenfte und unterliegen nicht der 1-Jahres-Regel.</p>
+
+<p><strong>Dokumentation ist Pflicht:</strong> Jeder Trade muss dokumentiert werden (Datum, Menge, Preis, Gebuehren). Tools wie Koinly, CoinTracking oder Blockpit helfen bei der automatischen Erfassung. Das Finanzamt fordert diese Daten an – ohne Belege drohen Schaetzungen zu Ihren Ungunsten und Nachzahlungszinsen von 0,15 % pro Monat. Ab 2026 muessen EU-Kryptoboersen Transaktionsdaten automatisch an Finanzbehoerden melden (DAC8-Richtlinie).</p>`}
     relatedSlugs={['abgeltungsteuer-rechner', 'sparen-rechner', 'etf-sparplan-rechner']}
   />
 </Layout>

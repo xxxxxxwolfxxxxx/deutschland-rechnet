@@ -9,7 +9,7 @@ const year = new Date().getFullYear();
 ---
 <Layout
   title={`Stromspeicher-Rechner ${year}`}
-  description="Amortisation eines Stromspeichers berechnen. Eigenverbrauch und Ersparnis mit PV + Speicher."
+  description="Stromspeicher-Rechner 2025: Amortisation, Eigenverbrauch und jaehrliche Ersparnis eines Batteriespeichers berechnen. Vergleich 5-15 kWh Speicher mit aktuellen Preisen ab 500 Euro/kWh."
   canonicalPath="/energie/stromspeicher-rechner/"
   categoryColor={cat.color}
   categoryLight={cat.colorLight}
@@ -30,7 +30,10 @@ const year = new Date().getFullYear();
       { q: "Welche Zusatzkosten fallen für einen Speicher an?", a: "Installation/Elektriker: 500-1.500€. Wechselrichter für AC-gekoppelten Speicher: 2.000-4.000€ (optional, oft im Speicher-Komplettpaket). Wartung/Versicherung: ~50-100€/a. Diese Kosten sollten bei der Amortisationszeitberechnung berücksichtigt werden." },
       { q: "Ist es billiger, einen Speicher später zu installieren?", a: "Nicht unbedingt. Speicherpreise fallen zwar, aber auch Strompreise steigen. Ein Speicher heute mit 10.000€ amortisiert sich, ein zukünftiger zu 7.000€ aber vielleicht nicht schneller – und Sie verpassen Einsparungen dazwischen. Faustregel: Kauf lohnt sich jetzt bei hohem Strompreis." },
       { q: "Wie wirkt sich Strompreisanstieg auf die Amortisation aus?", a: "Strompreisanstieg +5%/a (realistisch): Nach 10 Jahren 50% höhere Strompreise, die Amortisationszeit verkürzt sich deutlich (von 18 auf 12-14 Jahre). Deshalb sollten Speicher realistisch mit zukünftigen, höheren Strompreisen kalkuliert werden." },
-      { q: "Kann ich mit Speicher autark vom Stromnetz leben?", a: "Nicht komplett. Ein 10-kWh-Speicher + 10-kWp-PV reicht für 2-3 Tage Autarkie. Im Winter oder längeren Schlechtwetter reicht es nicht. Volle Autarkie (365 Tage) würde 50-100 kWh Speicher benötigen (500.000€+). Realistisch: 80-90% Stromversorgung mit Speicher, Rest vom Netz." }
+      { q: "Kann ich mit Speicher autark vom Stromnetz leben?", a: "Nicht komplett. Ein 10-kWh-Speicher + 10-kWp-PV reicht für 2-3 Tage Autarkie. Im Winter oder längeren Schlechtwetter reicht es nicht. Volle Autarkie (365 Tage) würde 50-100 kWh Speicher benötigen (500.000€+). Realistisch: 80-90% Stromversorgung mit Speicher, Rest vom Netz." },
+      { q: "Welche Speichergroesse brauche ich fuer meinen Haushalt?", a: "Faustregel: Speicher in kWh = Jahresverbrauch geteilt durch 1.000. Bei 4.000 kWh Verbrauch also ein 4-5 kWh Speicher. Fuer maximalen Eigenverbrauch (70%+) sollte der Speicher dem 1,5-fachen Tagesverbrauch entsprechen: bei 4.000 kWh/Jahr sind das ca. 16 kWh/Tag, also 8-10 kWh Speicher." },
+      { q: "Wie lange haelt ein Stromspeicher?", a: "Moderne Lithium-Eisenphosphat-Speicher (LFP) halten 6.000-10.000 Zyklen, was bei einem Zyklus pro Tag 15-25 Jahre Lebensdauer bedeutet. Die meisten Hersteller geben 10-15 Jahre Garantie auf mindestens 70-80% Restkapazitaet. NMC-Speicher (aeltere Technologie) schaffen 3.000-5.000 Zyklen." },
+      { q: "Gibt es Foerderung fuer Stromspeicher 2025?", a: "Eine bundesweite Foerderung gibt es seit Ende des KfW-Programms 442 nicht mehr. Regionale Programme existieren aber weiterhin: z.B. Bayern (EnergieBonusBayern), Sachsen, Berlin und mehrere Stadtwerke bieten Zuschuesse von 100-200 Euro pro kWh. Pruefen Sie die Foerderdatenbank Ihrer Gemeinde oder des Bundeslandes." }
     ]}
   >
     <div class="calc-form">
@@ -91,16 +94,45 @@ berechne();
 
 <CalculatorGuide
   title="Stromspeicher wirtschaftlich bewerten"
-  content="<p>Ein Stromspeicher (Batterie) macht Solaranlagen wirtschaftlicher, indem er Überschuss-Strom nachts nutzbar macht. Statt 8-10ct/kWh für Netzeinspeisung zu erhalten, sparen Sie damit 40-50ct/kWh Stromkosten – eine enorme Differenz. Trotzdem sind Speicher noch eine längerfristige Investition mit 15-20 Jahren Amortisationszeit.</p>
+  content={`<p>Ein Stromspeicher macht Solaranlagen wirtschaftlicher, indem er PV-Ueberschuss fuer Abend und Nacht nutzbar macht. Statt 8,1 ct/kWh Einspeiseverguetung (2025) erhalten Sie effektiv 35-42 ct/kWh Ersparnis durch Eigenverbrauch. Die Differenz von ca. 27-34 ct/kWh pro gespeicherter Kilowattstunde ist der wirtschaftliche Kern eines Speichers.</p>
 
-<p><strong>Die Rechnung: Mit vs. ohne Speicher:</strong> Annahme: 10 kWp PV-Anlage, 4.000 kWh/a Verbrauch, 35ct/kWh Strompreis, 10 kWh Speicher (10.000€). Ohne Speicher: 30% Eigenverbrauch (1.200 kWh selbst genutzt = 420€/a Ersparnis). Mit Speicher: 60% Eigenverbrauch (2.400 kWh = 840€/a Ersparnis). Zusatzertrag: ~420€/a, Amortisationszeit des Speichers: 24 Jahre (zu lange!). Erst mit höherem Strompreis (50ct/kWh) rechnet sich der Speicher in 15-16 Jahren.</p>
+<h4>Stromspeicher-Vergleich: Beliebte Modelle 2025</h4>
+<table>
+  <thead>
+    <tr><th>Modell</th><th>Kapazitaet</th><th>Technologie</th><th>Preis ca.</th><th>Garantie</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>BYD HVS 5.1</td><td>5,1 kWh</td><td>LFP</td><td>3.200 Euro</td><td>10 Jahre</td></tr>
+    <tr><td>BYD HVS 10.2</td><td>10,2 kWh</td><td>LFP</td><td>5.800 Euro</td><td>10 Jahre</td></tr>
+    <tr><td>Huawei LUNA2000 5</td><td>5 kWh</td><td>LFP</td><td>3.000 Euro</td><td>10 Jahre</td></tr>
+    <tr><td>Huawei LUNA2000 10</td><td>10 kWh</td><td>LFP</td><td>5.500 Euro</td><td>10 Jahre</td></tr>
+    <tr><td>Tesla Powerwall 3</td><td>13,5 kWh</td><td>LFP</td><td>8.500 Euro</td><td>10 Jahre</td></tr>
+    <tr><td>Senec Home 4</td><td>10 kWh</td><td>LFP</td><td>7.000 Euro</td><td>15 Jahre</td></tr>
+    <tr><td>sonnen Batterie 10</td><td>11 kWh</td><td>LFP</td><td>9.500 Euro</td><td>10 Jahre</td></tr>
+  </tbody>
+</table>
 
-<p><strong>Strompreisannahmen sind entscheidend:</strong> Mit moderaten 35ct/kWh ist Speicher noch grenzwertig. Mit zukünftigen höheren Strompreisen (45-50ct/kWh, realistisch bis 2030) oder heute schon hohen regionalen Preisen (München 50ct+, Norddeutschland 30ct) ist die Rechnung ganz anders. Ein Speicher verdient sich schneller, je höher der Strompreis ist – deshalb ist die Entscheidung zeitabhängig.</p>
+<h4>Amortisationsrechnung: Beispielszenarien</h4>
+<table>
+  <thead>
+    <tr><th>Szenario</th><th>Speicher</th><th>Investition</th><th>Zusatzersparnis/Jahr</th><th>Amortisation</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>4-Personen-Haushalt, 10 kWp PV</td><td>10 kWh</td><td>7.000 Euro</td><td>550-650 Euro</td><td>11-13 Jahre</td></tr>
+    <tr><td>2-Personen-Haushalt, 7 kWp PV</td><td>5 kWh</td><td>4.000 Euro</td><td>350-450 Euro</td><td>9-11 Jahre</td></tr>
+    <tr><td>Einfamilienhaus + Waermepumpe</td><td>15 kWh</td><td>9.500 Euro</td><td>800-1.000 Euro</td><td>10-12 Jahre</td></tr>
+    <tr><td>Kleiner Haushalt, 5 kWp PV</td><td>5 kWh</td><td>4.000 Euro</td><td>250-350 Euro</td><td>12-16 Jahre</td></tr>
+  </tbody>
+</table>
 
-<p><strong>Zusatzinvestitionen nicht vergessen:</strong> Der reine Speicher kostet 10.000€, aber Installation/Elektrik (~1.000€), eventuell Wechselrichter-Erneuerung (~3.000-4.000€) und die Notstromschaltung (~500€) kommen hinzu. Gesamtbudget: 14.500€ für das Komplettpaket. Das verändert die Amortisationsrechnung deutlich.</p>
+<p><strong>Annahmen:</strong> Strompreis 38 ct/kWh, Einspeiseverguetung 8,1 ct/kWh, Speicher-Wirkungsgrad 92%, Eigenverbrauchsquote steigt von 30% ohne auf 60-70% mit Speicher.</p>
 
-<p><strong>Speicher sinnvoll einsetzen:</strong> Ideal ist ein hoher Eigenverbrauch tagsüber (Home Office, Wärmepumpe, Warmwasserspeicher) – dann wird der Speicher am wenigsten gebraucht, da der PV-Strom direkt genutzt wird. Ein reines Nachtspeichersystem (alle Überschüsse speichern) ist weniger effizient wegen Ladeverluste (5-10%).</p>
+<p><strong>Eigenverbrauch mit und ohne Speicher:</strong> Ohne Speicher nutzen Sie typisch nur 25-35% Ihres PV-Stroms selbst (der Rest fliesst ins Netz). Mit einem passend dimensionierten Speicher steigt der Eigenverbrauch auf 60-75%. Das bedeutet: Statt 8,1 ct Einspeiseverguetung sparen Sie 38 ct Strombezugskosten. Jede zusaetzlich selbst genutzte kWh bringt ca. 30 ct Vorteil.</p>
 
-<p><strong>Zukunftsperspektive:</strong> Speicherpreise fallen weiter (2024: ~1.000€/kWh, 2027 zielwert: 600€/kWh). Strompreise werden steigen. Das bedeutet: Speicher heute mit höherem Strompreis rechnen als angenommen – eine konservative Annahme (50ct/kWh) ist realistischer als 35ct/kWh.</p>"
+<p><strong>Gesamtkosten richtig kalkulieren:</strong> Zum reinen Speicherpreis kommen hinzu: Installation und Elektriker (800-1.500 Euro), ggf. Hybrid-Wechselrichter (1.500-3.000 Euro falls nicht vorhanden), Notstromfunktion optional (500-1.000 Euro Aufpreis). Rechnen Sie mit 20-30% Aufschlag auf den reinen Speicherpreis fuer die Gesamtinstallation.</p>
+
+<p><strong>Speichertechnologien 2025:</strong> Lithium-Eisenphosphat (LFP) hat sich als Standard durchgesetzt: 6.000-10.000 Zyklen Lebensdauer, kein thermisches Durchgehen, wartungsfrei. NMC-Speicher (aeltere Technologie) bieten hoehere Energiedichte, aber kuerzere Lebensdauer (3.000-5.000 Zyklen). Salzwasserspeicher und Redox-Flow-Batterien sind Nischenprodukte fuer Gewerbe.</p>
+
+<p><strong>Wann sich ein Speicher besonders lohnt:</strong> Hoher Strompreis (ueber 35 ct/kWh), regelmaessiger Abendverbrauch (Kochen, Waschen, E-Auto laden nachts), PV-Anlage mit mindestens 7 kWp, und wenn kein dynamischer Stromtarif genutzt wird. Bei Kombination mit Waermepumpe steigt die Wirtschaftlichkeit deutlich.</p>`}
   relatedSlugs={['photovoltaik-rechner', 'solarspeicher-dimensionierung', 'waermepumpe-rechner']}
 />

@@ -9,7 +9,7 @@ const year = new Date().getFullYear();
 ---
 <Layout
   title={`Ratenkredit-Detailrechner ${year}`}
-  description="Ratenkredit berechnen – monatliche Rate, Gesamtzinsen und Tilgungsplan mit Tabelle."
+  description="Ratenkredit berechnen mit Tilgungsplan: Monatliche Rate, Gesamtzinsen und Restschuld bei 3-15 % Effektivzins sofort ermitteln. Vergleich Laufzeiten und Zinskosten 2025."
   canonicalPath="/geld/ratenkredit-detailrechner/"
   categoryColor={cat.color}
   categoryLight={cat.colorLight}
@@ -29,7 +29,10 @@ const year = new Date().getFullYear();
       { q: "Wie funktioniert die Tilgung?", a: "Mit jeder Rate sinkt der Restkreditbetrag, die Zinsen werden auf die verbleibende Schuld berechnet. Am Ende der Laufzeit ist der Kredit vollständig getilgt." },
       { q: "Effektiver Zins vs. Sollzins – was ist der Unterschied?", a: "Der Sollzins ist der reine Zinssatz. Der effektive Zins berücksichtigt auch Gebühren und wird nach PAngV berechnet. Immer den effektiven Zins vergleichen!" },
       { q: "Kann ich den Kredit früher zurückzahlen?", a: "Ja, fast alle Ratenkredite erlauben Sondertilgungen ohne Vorfälligkeitsentschädigung (ab 200€ monatliche Rückzahlung)." },
-      { q: "Wie viel Kredit kann ich bekommen?", a: "Das hängt vom Einkommen, Bonität und bestehenden Schulden ab. Banken vergeben typischerweise 1-5x das monatliche Nettoeinkommen." }
+      { q: "Wie viel Kredit kann ich bekommen?", a: "Das hängt vom Einkommen, Bonität und bestehenden Schulden ab. Banken vergeben typischerweise 1-5x das monatliche Nettoeinkommen." },
+      { q: "Welche Zinssätze sind 2025 realistisch?", a: "Im Jahr 2025 liegen die effektiven Zinssätze für Ratenkredite in Deutschland zwischen 3,5 % (sehr gute Bonität, kurze Laufzeit) und 10-12 % (schwache Bonität, lange Laufzeit). Der Median liegt bei etwa 6-7 %. Autofinanzierungen über Herstellerbanken beginnen teils bei 2,99 %. Vergleichen Sie mindestens 3-5 Anbieter, da die Spanne je nach SCHUFA-Score erheblich ist." },
+      { q: "Was passiert bei Zahlungsverzug?", a: "Bei Verzug darf die Bank Verzugszinsen von 5 Prozentpunkten über dem Basiszinssatz berechnen (2025: ca. 8,7 % Verzugszins). Nach zwei aufeinanderfolgenden ausgebliebenen Raten und mindestens 10 % der Kreditsumme oder bei mehr als 2,5 % Rückstand darf die Bank den gesamten Kredit fällig stellen. Sprechen Sie bei Zahlungsschwierigkeiten frühzeitig mit der Bank – Ratenpausen oder Laufzeitverlängerungen sind oft möglich." },
+      { q: "Lohnt sich eine Umschuldung?", a: "Eine Umschuldung lohnt sich, wenn der neue Zinssatz mindestens 1-2 Prozentpunkte unter dem alten liegt. Bei einem Restkredit von 10.000 Euro und 3 % Zinsdifferenz sparen Sie über 36 Monate rund 950 Euro. Beachten Sie die maximale Vorfälligkeitsentschädigung von 1 % der Restschuld. Viele Banken bieten spezielle Umschuldungskredite mit günstigen Konditionen an." }
     ]}
   >
     <div class="calc-form">
@@ -77,15 +80,40 @@ const year = new Date().getFullYear();
 
   <CalculatorGuide
     title="Ratenkredit: Zinsen, Tilgung und versteckte Kosten"
-    content="<p>Der Ratenkredit ist die häufigste Kreditform für Verbraucher in Deutschland. Mit festen monatlichen Raten und planbarer Laufzeit bietet er hohe Planungssicherheit. Doch die Zinsunterschiede zwischen Anbietern sind erheblich: Während bonitätsstarke Kreditnehmer Zinsen ab 3-4% erhalten, zahlen andere bis zu 10% oder mehr.</p>
+    content={`<p>Der Ratenkredit ist die haeufigste Kreditform fuer Verbraucher in Deutschland. Mit festen monatlichen Raten und planbarer Laufzeit bietet er hohe Planungssicherheit. Doch die Zinsunterschiede zwischen Anbietern sind erheblich: Waehrend bonitaetsstarke Kreditnehmer Zinsen ab 3-4 % erhalten, zahlen andere bis zu 10 % oder mehr.</p>
 
-<p><strong>Effektivzins ist Pflicht beim Vergleich:</strong> Nach der Preisangabenverordnung (PAngV) müssen Banken den effektiven Jahreszins angeben. Dieser enthält alle Kosten inklusive Bearbeitungsgebühren und Kontogebühren. Der Sollzins allein ist trügerisch - vergleichen Sie ausschließlich den Effektivzins. Bei einem 10.000-Euro-Kredit über 60 Monate bedeutet 1% Zinsunterschied etwa 270 Euro mehr oder weniger an Gesamtkosten.</p>
+<h3>Zinskosten im Vergleich: Laufzeit und Zinssatz</h3>
+<table>
+<thead><tr><th>Kreditsumme</th><th>Laufzeit</th><th>Effektivzins</th><th>Monatliche Rate</th><th>Gesamtzinsen</th></tr></thead>
+<tbody>
+<tr><td>10.000 EUR</td><td>36 Monate</td><td>4,9 %</td><td>299,66 EUR</td><td>787,76 EUR</td></tr>
+<tr><td>10.000 EUR</td><td>60 Monate</td><td>5,5 %</td><td>190,99 EUR</td><td>1.459,40 EUR</td></tr>
+<tr><td>10.000 EUR</td><td>84 Monate</td><td>6,5 %</td><td>148,59 EUR</td><td>2.481,56 EUR</td></tr>
+<tr><td>20.000 EUR</td><td>48 Monate</td><td>5,2 %</td><td>462,42 EUR</td><td>2.196,16 EUR</td></tr>
+<tr><td>20.000 EUR</td><td>72 Monate</td><td>6,0 %</td><td>331,40 EUR</td><td>3.860,80 EUR</td></tr>
+<tr><td>30.000 EUR</td><td>60 Monate</td><td>5,9 %</td><td>578,55 EUR</td><td>4.713,00 EUR</td></tr>
+</tbody>
+</table>
 
-<p><strong>Laufzeit vs. monatliche Belastung:</strong> Eine längere Laufzeit senkt die monatliche Rate, erhöht aber die Gesamtzinskosten deutlich. Beispiel: 15.000 Euro bei 5,5% Zinsen kosten über 36 Monate insgesamt 1.310 Euro Zinsen, über 72 Monate hingegen 2.690 Euro - mehr als doppelt so viel. Wählen Sie die kürzeste Laufzeit, die Ihr Budget erlaubt.</p>
+<p><strong>Effektivzins ist Pflicht beim Vergleich:</strong> Nach der Preisangabenverordnung (PAngV) muessen Banken den effektiven Jahreszins angeben. Dieser enthaelt alle Kosten inklusive Bearbeitungsgebuehren und Kontofuehrungsgebuehren. Der Sollzins allein ist truegerisch - vergleichen Sie ausschliesslich den Effektivzins. Bei einem 10.000-Euro-Kredit ueber 60 Monate bedeutet 1 % Zinsunterschied etwa 270 Euro mehr oder weniger an Gesamtkosten.</p>
 
-<p><strong>Sondertilgungsrecht prüfen:</strong> Laut BGB Paragraph 500 dürfen Verbraucher Ratenkredite jederzeit ganz oder teilweise vorzeitig zurückzahlen. Die Bank darf maximal 1% der Restschuld als Vorfälligkeitsentschädigung verlangen. Viele Online-Banken verzichten ganz auf diese Gebühr - ein wichtiges Vergleichskriterium.</p>
+<h3>Typische Zinsspannen nach Kreditart (Stand 2025)</h3>
+<table>
+<thead><tr><th>Kreditart</th><th>Zinsspanne (eff.)</th><th>Typische Laufzeit</th><th>Besonderheit</th></tr></thead>
+<tbody>
+<tr><td>Autokredit (Herstellerbank)</td><td>2,99 - 5,49 %</td><td>36 - 60 Monate</td><td>Fahrzeug als Sicherheit</td></tr>
+<tr><td>Freier Ratenkredit</td><td>4,50 - 9,90 %</td><td>12 - 84 Monate</td><td>Keine Zweckbindung</td></tr>
+<tr><td>Umschuldungskredit</td><td>3,90 - 7,50 %</td><td>24 - 72 Monate</td><td>Abloesung bestehender Kredite</td></tr>
+<tr><td>Kleinkredit (unter 3.000 EUR)</td><td>6,00 - 12,00 %</td><td>6 - 36 Monate</td><td>Hoehere Zinsen wegen geringer Summe</td></tr>
+<tr><td>Beamtenkredit</td><td>2,50 - 4,50 %</td><td>12 - 120 Monate</td><td>Unkuendbares Dienstverhaeltnis</td></tr>
+</tbody>
+</table>
 
-<p><strong>Praxistipp:</strong> Beantragen Sie nie mehr Kredit als nötig und vermeiden Sie Restschuldversicherungen. Diese kosten oft 5-10% der Kreditsumme und sind in den meisten Fällen überflüssig. Prüfen Sie stattdessen, ob Ihre bestehende Risikolebensversicherung oder Berufsunfähigkeitsversicherung den Kreditfall bereits abdeckt.</p>"
+<p><strong>Laufzeit vs. monatliche Belastung:</strong> Eine laengere Laufzeit senkt die monatliche Rate, erhoeht aber die Gesamtzinskosten deutlich. Beispiel: 15.000 Euro bei 5,5 % Zinsen kosten ueber 36 Monate insgesamt 1.310 Euro Zinsen, ueber 72 Monate hingegen 2.690 Euro - mehr als doppelt so viel. Waehlen Sie die kuerzeste Laufzeit, die Ihr Budget erlaubt.</p>
+
+<p><strong>Sondertilgungsrecht pruefen:</strong> Laut BGB Paragraph 500 duerfen Verbraucher Ratenkredite jederzeit ganz oder teilweise vorzeitig zurueckzahlen. Die Bank darf maximal 1 % der Restschuld als Vorfaelligkeitsentschaedigung verlangen. Viele Online-Banken verzichten ganz auf diese Gebuehr - ein wichtiges Vergleichskriterium.</p>
+
+<p><strong>Praxistipp:</strong> Beantragen Sie nie mehr Kredit als noetig und vermeiden Sie Restschuldversicherungen. Diese kosten oft 5-10 % der Kreditsumme und sind in den meisten Faellen ueberfluessig. Pruefen Sie stattdessen, ob Ihre bestehende Risikolebensversicherung oder Berufsunfaehigkeitsversicherung den Kreditfall bereits abdeckt.</p>`}
     relatedSlugs={['kreditvergleich', 'autofinanzierung-rechner', 'schuldentilgungs-rechner', 'sparen-rechner']}
   />
 </Layout>
