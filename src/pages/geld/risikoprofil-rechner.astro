@@ -9,7 +9,7 @@ const year = new Date().getFullYear();
 ---
 <Layout
   title={`Risikoprofil-Rechner ${year}`}
-  description="Persönliches Anlegerprofil ermitteln – Konservativ, Ausgewogen, Wachstumsorientiert oder Aggressiv."
+  description="Risikoprofil fuer Geldanlage ermitteln: Konservativ bis aggressiv mit empfohlener Aktienquote. Basierend auf Alter, Anlagehorizont und Verlusttoleranz nach WpHG-Kriterien."
   canonicalPath="/geld/risikoprofil-rechner/"
   categoryColor={cat.color}
   categoryLight={cat.colorLight}
@@ -28,7 +28,9 @@ const year = new Date().getFullYear();
       { q: "Welche Risikoprofile gibt es?", a: "Typisch sind vier Stufen: Konservativ (Fokus auf Kapitalerhalt, hauptsächlich Anleihen und Festgeld), Ausgewogen (Mischung aus Aktien und Anleihen), Wachstumsorientiert (hoher Aktienanteil für langfristigen Vermögensaufbau) und Aggressiv (fast äußchließlich Aktien und risikoreiche Anlagen für maximale Rendite bei hohem Verlustrisiko)." },
       { q: "Kann sich mein Risikoprofil im Laufe der Zeit ändern?", a: "Ja, und das ist sogar normal. Mit zunehmendem Alter, Veränderungen in der Einkommenssituation oder wenn größere Ausgaben wie ein Immobilienkauf anstehen, sollten Sie Ihr Risikoprofil neu bewerten. Faustregel: Je näher der Zeitpunkt rückt, an dem Sie das Geld benötigen, desto konservativer sollte die Anlage sein." },
       { q: "Wie viel Aktienanteil ist für mein Alter sinnvoll?", a: "Eine verbreitete Faustformel lautet: 100 minus Alter = Aktienanteil in Prozent. Ein 30-Jähriger könnte demnach 70 % in Aktien investieren. Diese Regel ist jedoch nur ein grober Anhaltspunkt. Entscheidend sind auch Ihre finanzielle Situation, Ihr Anlagehorizont und Ihre persönliche Verlusttoleranz." },
-      { q: "Ist dieses Ergebnis eine Anlageberatung?", a: "Nein. Der Rechner gibt eine erste Orientierung auf Basis Ihrer Angaben. Er ersetzt keine professionelle Anlageberatung. Für eine individuelle Empfehlung sollten Sie einen unabhängigen Finanzberater oder Ihre Bank konsultieren, die Ihre gesamte finanzielle Situation berücksichtigen." }
+      { q: "Ist dieses Ergebnis eine Anlageberatung?", a: "Nein. Der Rechner gibt eine erste Orientierung auf Basis Ihrer Angaben. Er ersetzt keine professionelle Anlageberatung. Für eine individuelle Empfehlung sollten Sie einen unabhängigen Finanzberater oder Ihre Bank konsultieren, die Ihre gesamte finanzielle Situation berücksichtigen." },
+      { q: "Wie viel Rendite kann ich je nach Risikoprofil erwarten?", a: "Historische Durchschnittsrenditen (nach Inflation): Konservativ (Festgeld/Anleihen) ca. 0-2 % p.a., Ausgewogen (Mischfonds) ca. 3-5 % p.a., Wachstumsorientiert (80 % Aktien-ETF) ca. 5-7 % p.a., Aggressiv (100 % Aktien) ca. 7-9 % p.a. Vergangene Renditen garantieren keine zukünftigen Ergebnisse." },
+      { q: "Welche ETFs passen zu meinem Risikoprofil?", a: "Konservativ: Geldmarkt-ETFs oder kurzlaufende Anleihen-ETFs. Ausgewogen: Ein MSCI World ETF kombiniert mit einem Anleihen-ETF (z.B. 50/50). Wachstumsorientiert: MSCI World oder MSCI ACWI ETF als Basis (70-80 %) plus Anleihen. Aggressiv: 100 % breit gestreuter Aktien-ETF wie MSCI World oder FTSE All-World." }
     ]}
   >
     <div class="calc-form">
@@ -75,15 +77,39 @@ const year = new Date().getFullYear();
 
   <CalculatorGuide
     title="Risikoprofil verstehen: So finden Sie Ihre passende Anlagestrategie"
-    content="<p>Bevor Sie Geld anlegen, sollten Sie Ihr persönliches Risikoprofil kennen. Es beschreibt, wie viel Schwankung und möglichen Verlust Sie bei Ihrer Geldanlage verkraften können und wollen. Banken und Finanzdienstleister sind nach dem Wertpapierhandelsgesetz (WpHG, §§ 63 ff.) verpflichtet, vor einer Anlageberatung die Risikobereitschaft ihrer Kunden zu ermitteln.</p>
+    content={`<p>Bevor Sie Geld anlegen, sollten Sie Ihr persönliches Risikoprofil kennen. Es beschreibt, wie viel Schwankung und möglichen Verlust Sie bei Ihrer Geldanlage verkraften können und wollen. Banken und Finanzdienstleister sind nach dem Wertpapierhandelsgesetz (WpHG, §§ 63 ff.) verpflichtet, vor einer Anlageberatung die Risikobereitschaft ihrer Kunden zu ermitteln.</p>
 
-<p><strong>Die vier Anlegerprofile im Detail:</strong> Der konservative Anleger setzt auf Sicherheit und akzeptiert dafür niedrigere Renditen. Typische Anlagen sind Tagesgeld, Festgeld und Staatsanleihen mit hoher Bonität. Der ausgewogene Anleger mischt Aktien und Anleihen zu etwa gleichen Teilen und akzeptiert moderate Schwankungen. Der wachstumsorientierte Anleger investiert 70-80 % in Aktien und nimmt stärkere Kursschwankungen in Kauf, um langfristig eine höhere Rendite zu erzielen. Der aggressive Anleger setzt fast äußchließlich auf Aktien und Risikokapital und muss temporäre Verluste von 30 % oder mehr verkraften können.</p>
+<h4>Die vier Anlegerprofile im Vergleich</h4>
+<table>
+  <thead>
+    <tr><th>Profil</th><th>Aktienquote</th><th>Historische Rendite (p.a.)</th><th>Max. Verlust (historisch)</th><th>Typische Anlagen</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>Konservativ</td><td>0-20 %</td><td>1-3 %</td><td>-5 %</td><td>Tagesgeld, Festgeld, Staatsanleihen</td></tr>
+    <tr><td>Ausgewogen</td><td>40-60 %</td><td>4-6 %</td><td>-20 %</td><td>Mischfonds, Anleihen-/Aktien-ETF-Mix</td></tr>
+    <tr><td>Wachstumsorientiert</td><td>70-80 %</td><td>6-8 %</td><td>-35 %</td><td>MSCI World ETF + Anleihen</td></tr>
+    <tr><td>Aggressiv</td><td>90-100 %</td><td>7-9 %</td><td>-50 %</td><td>Aktien-ETFs, Einzelaktien, Schwellenländer</td></tr>
+  </tbody>
+</table>
 
 <p><strong>Welche Faktoren bestimmen das Risikoprofil?</strong> Drei Hauptfaktoren spielen eine Rolle: Der Anlagehorizont (je länger, desto mehr Risiko ist möglich, weil Kursschwankungen über die Zeit ausgeglichen werden), die persönliche Verlusttoleranz (wie reagieren Sie, wenn Ihr Depot 20 % im Minus ist?) und die finanzielle Gesamtsituation (sicheres Einkommen, Notgroschen vorhanden, keine Schulden). Ein Beamter mit 30 Jahren Anlagehorizont kann deutlich mehr Risiko eingehen als ein Selbstständiger, der in 3 Jahren eine Immobilie kaufen möchte.</p>
 
-<p><strong>Zahlenbeispiel:</strong> Angenommen, Sie sind 30 Jahre alt, haben einen sicheren Job und einen Anlagehorizont von 25 Jahren. Bei einem wachstumsorientierten Profil mit 80 % Aktienanteil hätten Sie historisch betrachtet im Schnitt etwa 7-8 % Rendite pro Jahr erzielt. Aus einer monatlichen Sparrate von 300 Euro können so in 25 Jahren etwa 240.000 Euro werden. Bei einem konservativen Profil mit 3 % Rendite wären es dagegen nur rund 130.000 Euro.</p>
+<h4>Vermögensentwicklung nach Risikoprofil (300 Euro Sparrate/Monat)</h4>
+<table>
+  <thead>
+    <tr><th>Anlagehorizont</th><th>Konservativ (2 %)</th><th>Ausgewogen (5 %)</th><th>Wachstum (7 %)</th><th>Aggressiv (9 %)</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>10 Jahre</td><td>39.700 Euro</td><td>46.600 Euro</td><td>51.800 Euro</td><td>57.600 Euro</td></tr>
+    <tr><td>20 Jahre</td><td>88.400 Euro</td><td>123.300 Euro</td><td>156.500 Euro</td><td>200.300 Euro</td></tr>
+    <tr><td>30 Jahre</td><td>147.800 Euro</td><td>249.700 Euro</td><td>365.000 Euro</td><td>538.600 Euro</td></tr>
+  </tbody>
+</table>
+<p><em>Angaben gerundet, ohne Berücksichtigung von Steuern und Inflation. Vergangene Renditen garantieren keine zukünftigen Ergebnisse.</em></p>
 
-<p><strong>Praxistipp:</strong> Überprüfen Sie Ihr Risikoprofil mindestens alle 2-3 Jahre oder bei großen Veränderungen in Ihrem Leben (Heirat, Kinder, Jobwechsel, Immobilienkauf). Was mit 25 Jahren die richtige Strategie war, muss mit 50 Jahren nicht mehr passen. Ein ETF-Portfolio lässt sich leicht anpassen, indem Sie bei Neuanlagen die Gewichtung verschieben.</p>"
+<p><strong>Zahlenbeispiel:</strong> Angenommen, Sie sind 30 Jahre alt, haben einen sicheren Job und einen Anlagehorizont von 25 Jahren. Bei einem wachstumsorientierten Profil mit 80 % Aktienanteil hätten Sie historisch betrachtet im Schnitt etwa 7-8 % Rendite pro Jahr erzielt. Aus einer monatlichen Sparrate von 300 Euro können so in 25 Jahren etwa 240.000 Euro werden. Bei einem konservativen Profil mit 2 % Rendite wären es dagegen nur rund 115.000 Euro - ein Unterschied von über 125.000 Euro.</p>
+
+<p><strong>Praxistipp:</strong> Überprüfen Sie Ihr Risikoprofil mindestens alle 2-3 Jahre oder bei großen Veränderungen in Ihrem Leben (Heirat, Kinder, Jobwechsel, Immobilienkauf). Was mit 25 Jahren die richtige Strategie war, muss mit 50 Jahren nicht mehr passen. Ein ETF-Portfolio lässt sich leicht anpassen, indem Sie bei Neuanlagen die Gewichtung verschieben. Wichtig: Halten Sie immer 3-6 Monatsgehälter als Notgroschen auf einem Tagesgeldkonto, bevor Sie langfristig investieren.</p>`}
     relatedSlugs={['etf-sparplan-rechner', 'fire-rechner', 'notgroschen-rechner']}
   />
 </Layout>

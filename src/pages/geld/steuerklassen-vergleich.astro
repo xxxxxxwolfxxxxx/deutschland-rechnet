@@ -9,7 +9,7 @@ const year = new Date().getFullYear();
 ---
 <Layout
   title={`Steuerklassen-Vergleich ${year}`}
-  description="Steuerklassen I–VI vergleichen: Lohnsteuer, Nettolohn und Unterschiede auf einen Blick. Welche Steuerklasse lohnt sich?"
+  description="Steuerklassen I bis VI vergleichen: Nettolohn-Unterschiede bei 3.500 Euro brutto bis zu 900 Euro monatlich. Freibetraege, Lohnsteuer und optimale Kombination fuer Ehepaare 2025."
   canonicalPath="/geld/steuerklassen-vergleich/"
   categoryColor={cat.color}
   categoryLight={cat.colorLight}
@@ -28,7 +28,9 @@ const year = new Date().getFullYear();
       { q: "Warum zahle ich in Steuerklasse V so viel Lohnsteuer?", a: "Klasse V berücksichtigt keinen Grundfreibetrag, weil dieser bereits vollständig beim Partner in Klasse III angerechnet wird. Dadurch wird vom ersten Euro an Lohnsteuer einbehalten. Das führt zu deutlich höheren Abzügen, obwohl die Gesamtsteuerbelastung des Paares bei der Jahresabrechnung identisch ist. Es ist also ein reiner Verteilungseffekt über das Jahr." },
       { q: "Wie bekomme ich Steuerklasse II als Alleinerziehende/r?", a: "Steuerklasse II steht Alleinerziehenden zu, bei denen mindestens ein Kind gemeldet ist und die keinen Haushaltsgemeinschaft mit einer anderen volljährigen Person bilden. Sie erhalten einen Entlastungsbetrag von 4.260 Euro für das erste Kind und je 240 Euro für jedes weitere Kind. Den Antrag stellen Sie beim Finanzamt oder über ELSTER." },
       { q: "Bestimmt die Steuerklasse meine endgültige Steuerlast?", a: "Nein. Die Steuerklasse regelt nur, wie viel Lohnsteuer Ihr Arbeitgeber monatlich einbehält. Die tatsächliche Steuerlast wird erst mit der Einkommensteuererklärung berechnet. Wer zu viel gezahlt hat, bekommt Geld zurück; wer zu wenig gezahlt hat, muss nachzahlen. Bei der Kombination III/V ist eine Steuererklärung Pflicht." },
-      { q: "Was passiert steuerlich bei Heirat oder Scheidung?", a: "Nach der Heirat werden beide Partner automatisch in Steuerklasse IV eingestuft. Sie können dann gemeinsam eine andere Kombination (III/V oder IV mit Faktor) beantragen. Bei Scheidung oder Trennung wechseln Sie im Folgejahr zurück in Steuerklasse I (bzw. II bei Kindern). Im Trennungsjahr gilt noch die gemeinsame Veranlagung." }
+      { q: "Was passiert steuerlich bei Heirat oder Scheidung?", a: "Nach der Heirat werden beide Partner automatisch in Steuerklasse IV eingestuft. Sie können dann gemeinsam eine andere Kombination (III/V oder IV mit Faktor) beantragen. Bei Scheidung oder Trennung wechseln Sie im Folgejahr zurück in Steuerklasse I (bzw. II bei Kindern). Im Trennungsjahr gilt noch die gemeinsame Veranlagung." },
+      { q: "Wann lohnt sich die Kombination III/V statt IV/IV?", a: "Die Kombination III/V lohnt sich, wenn ein Partner deutlich mehr verdient als der andere (Faustregel: mindestens 60/40-Verhältnis). Der Besserverdiener nimmt Klasse III und profitiert vom doppelten Grundfreibetrag (24.192 Euro in 2025). Nachteil: Bei III/V ist eine Steuererklärung Pflicht und es drohen Nachzahlungen." },
+      { q: "Wie wirkt sich die Steuerklasse auf Elterngeld und Arbeitslosengeld aus?", a: "Elterngeld, Arbeitslosengeld, Krankengeld und Kurzarbeitergeld werden auf Basis des Nettogehalts berechnet. Wer vor dem Bezug in eine günstigere Steuerklasse wechselt, erhält mehr Lohnersatzleistung. Der Wechsel muss mindestens 7 Monate vor Beginn des Mutterschutzes erfolgen, damit er beim Elterngeld anerkannt wird." }
     ]}
   >
     <div class="calc-form">
@@ -50,17 +52,48 @@ const year = new Date().getFullYear();
 
   <CalculatorGuide
     title="Die sechs Steuerklassen in Deutschland: Was Sie wissen müssen"
-    content="<p>Das deutsche Lohnsteuersystem kennt sechs Steuerklassen, die bestimmen, wie viel Lohnsteuer Ihr Arbeitgeber monatlich von Ihrem Bruttogehalt einbehält. Die Steuerklasse beeinflusst nur den monatlichen Abzug, nicht die endgültige Steuerlast im Jahr. Trotzdem ist die richtige Wahl wichtig, denn sie bestimmt Ihr monatliches Nettoeinkommen und die Höhe von Lohnersatzleistungen.</p>
+    content={`<p>Das deutsche Lohnsteuersystem kennt sechs Steuerklassen, die bestimmen, wie viel Lohnsteuer Ihr Arbeitgeber monatlich von Ihrem Bruttogehalt einbehält. Die Steuerklasse beeinflusst nur den monatlichen Abzug, nicht die endgültige Steuerlast im Jahr. Trotzdem ist die richtige Wahl wichtig, denn sie bestimmt Ihr monatliches Nettoeinkommen und die Höhe von Lohnersatzleistungen wie Elterngeld oder Arbeitslosengeld.</p>
+
+<h4>Übersicht: Alle Steuerklassen auf einen Blick (2025)</h4>
+<table>
+  <thead>
+    <tr><th>Klasse</th><th>Für wen?</th><th>Grundfreibetrag</th><th>Besonderheit</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>I</td><td>Ledige, Geschiedene, Verwitwete</td><td>12.096 Euro</td><td>Standard-Steuerklasse</td></tr>
+    <tr><td>II</td><td>Alleinerziehende</td><td>12.096 Euro + 4.260 Euro Entlastung</td><td>Antrag beim Finanzamt nötig</td></tr>
+    <tr><td>III</td><td>Verheiratete (Besserverdiener)</td><td>24.192 Euro (doppelt)</td><td>Partner muss in V sein</td></tr>
+    <tr><td>IV</td><td>Verheiratete (ähnliches Einkommen)</td><td>12.096 Euro</td><td>Standard nach Heirat</td></tr>
+    <tr><td>V</td><td>Verheiratete (Geringverdiener)</td><td>0 Euro</td><td>Partner muss in III sein</td></tr>
+    <tr><td>VI</td><td>Zweit- und Nebenjobs</td><td>0 Euro</td><td>Höchste Abzüge</td></tr>
+  </tbody>
+</table>
 
 <p><strong>Steuerklasse I:</strong> Gilt für Ledige, Geschiedene und dauerhaft getrennt Lebende. Der Grundfreibetrag liegt 2025 bei 12.096 Euro. Wer weniger als diesen Betrag im Jahr verdient, zahlt keine Einkommensteuer. Steuerklasse I ist die Standardklasse und wird automatisch zugewiesen, wenn keine andere Klasse beantragt wird.</p>
 
-<p><strong>Steuerklasse II:</strong> Für Alleinerziehende, die mit mindestens einem Kind zusammenleben. Zusätzlich zum Grundfreibetrag gibt es den Entlastungsbetrag von 4.260 Euro für das erste Kind plus 240 Euro für jedes weitere Kind. Die Voräußetzung: Keine weitere volljährige Person gehört zum Haushalt (Ausnahme: volljährige Kinder, für die Kindergeld bezogen wird). Der Antrag erfolgt beim Finanzamt.</p>
+<p><strong>Steuerklasse II:</strong> Für Alleinerziehende, die mit mindestens einem Kind zusammenleben. Zusätzlich zum Grundfreibetrag gibt es den Entlastungsbetrag von 4.260 Euro für das erste Kind plus 240 Euro für jedes weitere Kind. Voraussetzung: Keine weitere volljährige Person gehört zum Haushalt (Ausnahme: volljährige Kinder, für die Kindergeld bezogen wird). Der Antrag erfolgt beim Finanzamt.</p>
 
 <p><strong>Steuerklassen III, IV und V:</strong> Diese drei Klassen stehen nur Verheirateten und eingetragenen Lebenspartnern zur Verfügung. IV/IV ist die Standardkombination. III/V eignet sich bei unterschiedlich hohen Einkommen. Der Partner in III zahlt deutlich weniger Lohnsteuer, der in V deutlich mehr. In Summe kann das monatliche Nettoeinkommen steigen, allerdings entsteht häufig eine Nachzahlungspflicht bei der Steuererklärung. Seit 2010 gibt es alternativ IV/IV mit Faktor, das die Steuerlast genauer verteilt.</p>
 
 <p><strong>Steuerklasse VI:</strong> Wird automatisch für den zweiten und jeden weiteren Job zugewiesen. Hier gibt es keinen Grundfreibetrag und keine Freibeträge, weshalb die Abzüge am höchsten sind. Bei Minijobs bis 556 Euro monatlich (2025) ist keine Steuerklasse relevant, da der Arbeitgeber pauschal versteuert.</p>
 
-<p><strong>Praxistipp:</strong> Vergleichen Sie die Nettolöhne in verschiedenen Steuerklassen mit dem Rechner oben. Denken Sie daran: Die Steuerklasse verändert nicht Ihre Gesamtsteuerlast im Jahr, sondern nur die monatliche Verteilung. Eine Steuererklärung gleicht Unterschiede aus. Besonders wichtig ist die Steuerklassenwahl vor dem Bezug von Elterngeld, Arbeitslosengeld oder Krankengeld, da diese auf dem Nettoeinkommen basieren.</p>"
+<h4>Nettolohn-Vergleich bei 3.500 Euro brutto (2025, Steuerklasse I, keine Kirchensteuer)</h4>
+<table>
+  <thead>
+    <tr><th>Abzug</th><th>Betrag/Monat</th><th>Anteil am Brutto</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>Lohnsteuer</td><td>ca. 378 Euro</td><td>10,8 %</td></tr>
+    <tr><td>Solidaritätszuschlag</td><td>0 Euro</td><td>0 % (entfällt für 90 % der Steuerzahler)</td></tr>
+    <tr><td>Krankenversicherung (inkl. Zusatzbeitrag)</td><td>ca. 289 Euro</td><td>8,25 %</td></tr>
+    <tr><td>Pflegeversicherung</td><td>ca. 67 Euro</td><td>1,7-2,3 % (je nach Kinderzahl)</td></tr>
+    <tr><td>Rentenversicherung</td><td>ca. 326 Euro</td><td>9,3 %</td></tr>
+    <tr><td>Arbeitslosenversicherung</td><td>ca. 46 Euro</td><td>1,3 %</td></tr>
+    <tr><td><strong>Netto (ca.)</strong></td><td><strong>ca. 2.394 Euro</strong></td><td><strong>68,4 %</strong></td></tr>
+  </tbody>
+</table>
+
+<p><strong>Praxistipp:</strong> Vergleichen Sie die Nettolöhne in verschiedenen Steuerklassen mit dem Rechner oben. Denken Sie daran: Die Steuerklasse verändert nicht Ihre Gesamtsteuerlast im Jahr, sondern nur die monatliche Verteilung. Eine Steuererklärung gleicht Unterschiede aus. Besonders wichtig ist die Steuerklassenwahl vor dem Bezug von Elterngeld, Arbeitslosengeld oder Krankengeld, da diese auf dem Nettoeinkommen basieren. Der Wechsel der Steuerklasse ist seit 2023 mehrfach im Jahr möglich (früher nur einmal).</p>`}
     relatedSlugs={['steuerklasse-optimieren', 'brutto-netto-rechner', 'steuernachzahlung-rechner']}
   />
 </Layout>
