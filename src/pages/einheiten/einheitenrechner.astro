@@ -29,7 +29,11 @@ const year = new Date().getFullYear();
       { q: "Warum unterscheidet sich mein Ergebnis von anderen Rechnern?", a: "Unterschiedliche Rundungen oder Approximationen. Dieser Rechner nutzt standardisierte internationale Umrechnungsfaktoren (z.B. 1 Zoll = 2,54 cm exakt)." },
       { q: "Wie rechne ich Temperaturen um?", a: "°C zu °F: (°C × 9/5) + 32. °F zu °C: (°F − 32) × 5/9. Kelvin: K = °C + 273,15. Die Umrechnung erfolgt über Celsius als Basis." },
       { q: "Was ist der Unterschied zwischen US-Gallonen und Litern?", a: "1 US-Gallone = 3,78541 Liter. 1 Liter = 0,264172 US-Gallonen. Die US-Gallone ist kleiner als die britische Gallone (4,54609 Liter)." },
-      { q: "Warum sollte ich Umrechner nutzen?", a: "Für schnelle, fehlerfreie Umrechnungen zwischen verschiedenen Einheitensystemen. Besonders praktisch bei internationalen Conversions (metrisch ↔ anglo-amerikanisch)." }
+      { q: "Warum sollte ich Umrechner nutzen?", a: "Für schnelle, fehlerfreie Umrechnungen zwischen verschiedenen Einheitensystemen. Besonders praktisch bei internationalen Umrechnungen (metrisch ↔ anglo-amerikanisch), etwa bei Rezepten, Bauplänen, Reisen oder technischen Datenblättern aus den USA." },
+      { q: "Wie rechne ich schnell im Kopf um?", a: "Nutzen Sie Näherungswerte: 1 kg ≈ 2,2 Pfund, 1 Meile ≈ 1,6 km, 1 Zoll ≈ 2,5 cm, 1 Liter ≈ 0,26 US-Gallonen. Für Fahrenheit gilt als grobe Faustformel: °C verdoppeln und 30 addieren ergibt ungefähr °F (20 °C → etwa 70 °F)." },
+      { q: "Was ist der Unterschied zwischen Masse und Gewicht?", a: "Physikalisch ist Masse (in Kilogramm) eine Materialeigenschaft, während Gewicht die Gewichtskraft (in Newton) ist, die von der Schwerkraft abhängt. Im Alltag werden beide Begriffe aber synonym verwendet, weshalb dieser Rechner Kilogramm, Gramm und Pfund als Gewichtseinheiten führt." },
+      { q: "Warum verwenden die USA nicht das metrische System?", a: "Aus historischen Gründen: Die USA haben das imperiale bzw. das davon abgeleitete US-übliche Maßsystem beibehalten. Offiziell ist das metrische System zwar zugelassen, im Alltag dominieren aber weiterhin Meilen, Fuß, Pfund und Fahrenheit. Auch Großbritannien nutzt eine Mischung aus beiden Systemen." },
+      { q: "Ist die Umrechnung immer exakt?", a: "Bei Länge, Gewicht und Volumen sind die Faktoren exakt definiert (z. B. 1 Zoll = 2,54 cm), die Anzeige wird jedoch gerundet. Temperaturumrechnungen sind über die Formeln ebenfalls exakt. Kleine Abweichungen zu anderen Rechnern entstehen nur durch unterschiedliche Rundungsstellen." }
     ]}
   >
     <div class="calc-form">
@@ -58,28 +62,54 @@ const year = new Date().getFullYear();
 
   <CalculatorGuide
     title="Internationales Einheitensystem verstehen"
-    content={`<p>Es gibt verschiedene Einheitensysteme weltweit: Das <strong>Metrische System (SI)</strong> ist international standardisiert und wird in den meisten Ländern verwendet. Die <strong>Anglo-amerikanischen Einheiten</strong> (Zoll, Fuß, Meilen, Pfund) werden vor allem in den USA, Großbritannien und einigen Commonwealth-Ländern verwendet.</p>
+    content={`<p>Weltweit sind zwei Einheitensysteme im Gebrauch. Das <strong>metrische System (SI)</strong> ist international standardisiert und wird in nahezu allen Ländern verwendet. Die <strong>anglo-amerikanischen Einheiten</strong> (Zoll, Fuß, Meile, Pfund, Fahrenheit) sind vor allem in den USA und teilweise in Großbritannien üblich. Wer Rezepte, Baupläne, Datenblätter oder Reiseangaben zwischen beiden Welten übersetzt, braucht verlässliche Umrechnungsfaktoren – dieser Rechner nutzt die exakt definierten Werte des SI (Stand 2026).</p>
 
-<p><strong>Längen-Umrechnungen:</strong>
+<h4>Metrisches und imperiales System</h4>
+<p>Das metrische System baut konsequent auf Zehnerpotenzen auf: Kilo (×1000), Zenti (÷100), Milli (÷1000). Das macht das Rechnen einfach, weil man nur das Komma verschiebt. Das imperiale System ist historisch gewachsen und arbeitet mit krummen Faktoren (12 Zoll = 1 Fuß, 3 Fuß = 1 Yard, 1760 Yards = 1 Meile). Seit 1959 sind die Umrechnungen zwischen beiden Systemen international einheitlich definiert, sodass jede Umrechnung eindeutig ist.</p>
+
+<h4>Längeneinheiten im Überblick</h4>
+<table>
+  <thead>
+    <tr><th>Einheit</th><th>Entspricht in Meter</th><th>Merkhilfe</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>1 Millimeter (mm)</td><td>0,001 m</td><td>Dicke einer Kreditkarte</td></tr>
+    <tr><td>1 Zentimeter (cm)</td><td>0,01 m</td><td>Breite eines Fingernagels</td></tr>
+    <tr><td>1 Zoll (inch)</td><td>0,0254 m (= 2,54 cm)</td><td>Daumenbreite</td></tr>
+    <tr><td>1 Fuß (foot)</td><td>0,3048 m (= 12 Zoll)</td><td>etwa eine Fußlänge</td></tr>
+    <tr><td>1 Yard</td><td>0,9144 m (= 3 Fuß)</td><td>ein großer Schritt</td></tr>
+    <tr><td>1 Meter (m)</td><td>1 m</td><td>SI-Basiseinheit</td></tr>
+    <tr><td>1 Kilometer (km)</td><td>1.000 m</td><td>ca. 12 Minuten Gehweg</td></tr>
+    <tr><td>1 Meile (mile)</td><td>1.609,344 m</td><td>= 1,609 km</td></tr>
+  </tbody>
+</table>
+
+<h4>Gewichtseinheiten im Überblick</h4>
+<table>
+  <thead>
+    <tr><th>Einheit</th><th>Entspricht in Kilogramm</th><th>Alltagsbezug</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>1 Milligramm (mg)</td><td>0,000001 kg</td><td>Dosierung von Medikamenten</td></tr>
+    <tr><td>1 Gramm (g)</td><td>0,001 kg</td><td>etwa eine Büroklammer</td></tr>
+    <tr><td>1 Unze (oz)</td><td>0,0283495 kg (= 28,35 g)</td><td>in US-Rezepten üblich</td></tr>
+    <tr><td>1 Pfund (lb)</td><td>0,453592 kg</td><td>US-Pfund (nicht das dt. 500-g-Pfund)</td></tr>
+    <tr><td>1 Kilogramm (kg)</td><td>1 kg</td><td>SI-Basiseinheit</td></tr>
+    <tr><td>1 Tonne (t)</td><td>1.000 kg</td><td>ein Kleinwagen</td></tr>
+  </tbody>
+</table>
+<p>Achtung: Das englische Pfund (pound, 453,6 g) ist nicht identisch mit dem deutschen Pfund im Alltag, das genau 500 Gramm bezeichnet.</p>
+
+<h4>Temperatur: Celsius, Fahrenheit und Kelvin</h4>
+<p>Die Celsius-Skala (°C) basiert auf dem Gefrierpunkt (0 °C) und Siedepunkt (100 °C) von Wasser. Fahrenheit (°F) setzt den Gefrierpunkt bei 32 °F und den Siedepunkt bei 212 °F an. Kelvin (K) ist die absolute Temperaturskala der Physik, deren Nullpunkt bei −273,15 °C liegt. Die Umrechnungsformeln lauten:</p>
 <ul>
-  <li>1 Zoll (inch) = 2,54 cm exakt</li>
-  <li>1 Fuß = 12 Zoll = 30,48 cm</li>
-  <li>1 Yard = 3 Fuß = 0,9144 m</li>
-  <li>1 Meile = 1,60934 km</li>
+  <li><strong>°C → °F:</strong> (°C × 9/5) + 32</li>
+  <li><strong>°F → °C:</strong> (°F − 32) × 5/9</li>
+  <li><strong>°C → K:</strong> °C + 273,15</li>
 </ul>
-</p>
 
-<p><strong>Gewichts-Umrechnungen:</strong>
-<ul>
-  <li>1 Pfund (lb) = 453,592 Gramm</li>
-  <li>1 Unze (oz) = 28,3495 Gramm</li>
-  <li>1 Tonne = 1.000 kg</li>
-</ul>
-</p>
-
-<p><strong>Temperatur-Umrechnungen:</strong> Das Celsius-System (°C) basiert auf Wasser-Gefrierpunkt (0°C) und Siedepunkt (100°C). Fahrenheit (°F) nutzt Wasser-Gefrierpunkt 32°F und Siedepunkt 212°F. Kelvin (K) ist die absolute Temperaturskala für wissenschaftliche Zwecke.</p>
-
-<p><strong>Praktischer Tipp:</strong> Merken Sie sich diese Vergleiche: 1 Zoll ≈ Daumenkuppe, 1 kg ≈ 2,2 Pfund, 0°C = 32°F, 20°C ≈ 68°F (Raumtemperatur).</p>`}
+<h4>Praktische Alltags-Umrechnungen</h4>
+<p>Für den schnellen Überschlag im Kopf helfen diese Näherungen: 1 kg ≈ 2,2 Pfund (US), 1 Meile ≈ 1,6 km, 1 Zoll ≈ 2,5 cm, 1 US-Gallone ≈ 3,79 Liter, 0 °C = 32 °F und 20 °C ≈ 68 °F (Raumtemperatur). Bei Volumen gilt: 1 US-Gallone = 3,78541 Liter und ist damit kleiner als die britische (imperiale) Gallone mit 4,54609 Litern – ein häufiger Fehler beim Umrechnen von US- und UK-Angaben.</p>`}
     relatedSlugs={['prozent-rechner', 'mwst-rechner', 'rabatt-rechner']}
   />
 </Layout>

@@ -30,7 +30,10 @@ const year = new Date().getFullYear();
         { q: "Wie zuverlässig sind die prognostizierten Verbrauchswerte?", a: "Sehr zuverlässig für den Wärmebedarf (±10-15% Unsicherheit), da dieser von Gebäudephysik bestimmt wird. Stromverbrauch hängt mehr von Nutzerverhalten ab (±20-30%). Witterung kann Jahr zu Jahr stark variieren (kalter Winter +20%)." },
         { q: "Kann ich meinen Energieverbrauch senken, ohne die Heizung zu wechseln?", a: "Ja, mit einfachen Maßnahmen: 1°C Temperatursenkung = 6-8%, Fenster abdichten (2-5%), Duschköpfe-Sparaufsätze (10-15% Wasser), alte Heizpumpe prüfen (5%). Größere Effekte: Isolierung von Heizungsrohren (10%), Heizkörper-Thermostaten (5-10%)." },
         { q: "Wie viel kostet mich eine kWh Energie durchschnittlich?", a: "2024: Strom ~35-45 ct/kWh (regional unterschiedlich), Gas ~10-15 ct/kWh, Wasser ~2-3 €/m³. Für einen Durchschnittshaushalt (2.500 kWh Strom + 15.000 kWh Gas): ~2.000-2.500 €/a. Prognose: Strom ab 2025 günstiger durch Windkraft-Ausbau." },
-        { q: "Wie schnell amortisiert sich eine Energiesparberatung?", a: "Eine professionelle Energieberatung kostet 300-500€ und führt meist zu 15-25% Einsparung = 300-500€/a. Amortisationszeit: 1-2 Jahre. Fördert wird die Beratung durch die BAFA (80% Zuschuss, kostenlos oder 50€)." }
+        { q: "Wie schnell amortisiert sich eine Energiesparberatung?", a: "Eine professionelle Energieberatung vor Ort kostet nach BAFA-Förderung (bis zu 80 % Zuschuss, gedeckelt) für Eigentümer meist nur noch 30 bis 100 Euro Eigenanteil. Sie führt oft zu 15-25 % Einsparung und amortisiert sich damit in der Regel innerhalb von 1 bis 2 Jahren." },
+        { q: "Wie viel Strom verbraucht ein Haushalt pro Person?", a: "Als Richtwert gelten rund 1.500 kWh für den ersten Haushaltsmitglied und je etwa 800-1.000 kWh für jede weitere Person, da sich Grundlasten wie Kühlschrank oder Router teilen. Ein 1-Personen-Haushalt liegt so bei ca. 1.500 kWh, ein 4-Personen-Haushalt bei rund 3.500-4.000 kWh pro Jahr." },
+        { q: "Erhöht elektrische Warmwasserbereitung meinen Stromverbrauch stark?", a: "Ja, deutlich. Wird das Warmwasser über einen elektrischen Durchlauferhitzer oder Boiler erzeugt statt über die Zentralheizung, kommen pro Person etwa 500-800 kWh Strom pro Jahr hinzu. Ein 3-Personen-Haushalt kann dadurch 1.500-2.400 kWh mehr Strom verbrauchen." },
+        { q: "Wie hoch ist der Heizenergiebedarf pro Quadratmeter?", a: "Das hängt stark vom Baustandard ab: unsanierte Altbauten (vor 1978) benötigen 150-250 kWh/m² pro Jahr, Gebäude der 1980er/90er rund 100 kWh/m², moderne Neubauten 50-70 kWh/m² und KfW-Effizienz- oder Passivhäuser nur 15-40 kWh/m². Multipliziert mit der Wohnfläche ergibt das den Jahres-Heizwärmebedarf." }
       ]}
    >
     <div class="calc-form">
@@ -85,7 +88,6 @@ const year = new Date().getFullYear();
       <div id="details" style="margin-top:0.75rem;font-size:0.88rem;color:#666;display:flex;gap:1.5rem;flex-wrap:wrap;"></div>
     </div>
   </CalculatorShell>
-</Layout>
 
 <script type="module">
 function berechne() {
@@ -160,16 +162,47 @@ berechne();
 
 <CalculatorGuide
   title="Energieverbrauch realistisch bewerten"
-  content="<p>Der Jahresenergieverbrauch setzt sich aus drei Teilen zusammen: Heizwärme (ca. 80% des Gesamtverbrauchs), Warmwasser (ca. 10%) und Strom für Geräte (ca. 10%). Die Höhe hängt stark vom Gebäudezustand, von Nutzerverhalten und von der Witterung des jeweiligen Jahres ab.</p>
+  content={`<p>Der Jahresenergieverbrauch eines Haushalts setzt sich aus drei Teilen zusammen: <strong>Heizwärme</strong> (ca. 70-80 % des Gesamtverbrauchs), <strong>Warmwasser</strong> (ca. 10-15 %) und <strong>Strom</strong> für Beleuchtung und Geräte (ca. 10 %). Wie hoch der Verbrauch ausfällt, hängt vor allem vom Gebäudezustand, vom Nutzerverhalten und von der Witterung des jeweiligen Jahres ab. Die folgenden Richtwerte (Stand 2026) helfen Ihnen, Ihren eigenen Verbrauch einzuordnen.</p>
 
-<p><strong>Typische Verbrauchswerte für Deutschland:</strong> Ein 1-Personen-Haushalt verbraucht durchschnittlich 1.500 kWh Strom und 5.000 kWh Heizwärme pro Jahr. Ein 4-Personen-Haushalt in einem 120 m² Haus verbraucht ~3.500 kWh Strom und 15.000-20.000 kWh Heizwärme (je nach Dämmstandard). Alte, unsanierte Häuser (vor 1978) brauchen bis zu 250 kWh/m²/a, moderne Effizienzhäuser nur 50-70 kWh/m²/a – das ist ein 3-5-facher Unterschied!</p>
+<h4>Stromverbrauch nach Haushaltsgröße</h4>
+<p>Der Stromverbrauch steigt mit jeder Person, aber nicht linear – Grundlasten wie Kühlschrank, Router oder Standby-Geräte teilen sich auf alle Bewohner auf. Deutlich höher liegt der Verbrauch, wenn das Warmwasser elektrisch (per Durchlauferhitzer oder Boiler) statt über die Heizung erzeugt wird.</p>
+<table>
+  <thead>
+    <tr><th>Haushaltsgröße</th><th>Ohne Warmwasser (Strom)</th><th>Mit elektr. Warmwasser</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>1 Person</td><td>ca. 1.500 kWh/a</td><td>ca. 2.300 kWh/a</td></tr>
+    <tr><td>2 Personen</td><td>ca. 2.500 kWh/a</td><td>ca. 3.600 kWh/a</td></tr>
+    <tr><td>3 Personen</td><td>ca. 3.200 kWh/a</td><td>ca. 4.700 kWh/a</td></tr>
+    <tr><td>4 Personen</td><td>ca. 3.800 kWh/a</td><td>ca. 5.500 kWh/a</td></tr>
+    <tr><td>5 Personen</td><td>ca. 4.500 kWh/a</td><td>ca. 6.500 kWh/a</td></tr>
+  </tbody>
+</table>
 
-<p><strong>Faktoren, die Verbrauch beeinflussen:</strong> Der Gebäudezustand ist dominant – Außenwanddämmung, Fenster und Heizung sind entscheidend. Auch Nutzerverhalten zählt: Raumtemperatur (1°C mehr = +6%), Lüftungsverhalten (zu viel Lüften kostet Wärme), Duschfrequenz und Geräteeffizienz. Klima und Witterung variieren Jahr zu Jahr um ±15% (warme vs. kalte Winter).</p>
+<h4>Heizenergiebedarf nach Gebäudestandard</h4>
+<p>Der Heizwärmebedarf wird in Kilowattstunden pro Quadratmeter und Jahr (kWh/m²·a) angegeben. Multipliziert mit Ihrer Wohnfläche ergibt sich der Jahres-Heizwärmebedarf. Der Unterschied zwischen einem unsanierten Altbau und einem Passivhaus ist enorm – bis zum Fünf- bis Zehnfachen.</p>
+<table>
+  <thead>
+    <tr><th>Gebäudestandard</th><th>Heizbedarf (kWh/m²·a)</th><th>Beispiel 100 m²</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>Altbau unsaniert (vor 1978)</td><td>150-250</td><td>15.000-25.000 kWh</td></tr>
+    <tr><td>Bestand 1979-1995</td><td>100-150</td><td>10.000-15.000 kWh</td></tr>
+    <tr><td>Bestand 1996-2009</td><td>70-100</td><td>7.000-10.000 kWh</td></tr>
+    <tr><td>Neubau ab 2010</td><td>50-70</td><td>5.000-7.000 kWh</td></tr>
+    <tr><td>KfW-Effizienzhaus / Neubau ab 2020</td><td>30-50</td><td>3.000-5.000 kWh</td></tr>
+    <tr><td>Passivhaus</td><td>≤ 15</td><td>≤ 1.500 kWh</td></tr>
+  </tbody>
+</table>
 
-<p><strong>Benchmark-Vergleiche richtig einordnen:</strong> Der Vergleich zum statistischen Durchschnitt ist nützlich, sollte aber realistisch interpretiert werden. Ein älteres Haus wird automatisch höhere Werte haben, ein Neubau niedrigere. Relevant ist: Wie entwickelt sich Ihr eigener Verbrauch über die Jahre? Stabile Werte sind gut, steigende Werte deuten auf Verschleiß (Heizung, Fenster).</p>
+<h4>Faktoren, die den Verbrauch beeinflussen</h4>
+<p>Der <strong>Gebäudezustand</strong> ist der dominante Faktor – Außenwanddämmung, Fensterqualität und Heizungstechnik entscheiden über den Großteil des Verbrauchs. Daneben zählt das <strong>Nutzerverhalten</strong>: Jedes Grad höhere Raumtemperatur erhöht den Heizbedarf um etwa 6 %, auch Lüftungsgewohnheiten, Duschfrequenz und die Effizienz der Elektrogeräte spielen eine Rolle. Die <strong>Witterung</strong> schwankt von Jahr zu Jahr um rund ±15 % – ein kalter Winter kann den Heizverbrauch spürbar nach oben treiben.</p>
 
-<p><strong>Sparpotenziale erkennen:</strong> Die größten Einsparungen bringt Gebäudesanierung (40-60%). Ohne Sanierung: Regelmäßige Wartung der Heizung (2-5% Ersparnis), Thermostatventile (5-10%), hydraulischer Abgleich (10-15%), Rohrdämmung (3-5%). Stromspar-Potenziale: LED-Beleuchtung (10-15%), Geräte-Austausch (10-20%), Stand-by-Geräte ausschalten (5-10%).</p>
+<h4>Verbrauch senken und Sparpotenziale erkennen</h4>
+<p>Die größten Einsparungen bringt eine <strong>Gebäudesanierung</strong> (Dämmung, neue Fenster, moderne Heizung) mit 40-60 %. Ohne bauliche Maßnahmen helfen: hydraulischer Abgleich der Heizung (10-15 %), moderne Thermostatventile (5-10 %), Dämmung freiliegender Heizungsrohre (3-5 %) und der Austausch alter Heizungspumpen. Beim Strom senken LED-Beleuchtung (10-15 %), der Austausch alter Großgeräte (10-20 %) und das konsequente Abschalten von Standby-Geräten (5-10 %) den Verbrauch.</p>
 
-<p><strong>Zuverlässigkeit von Prognosen:</strong> Die Heizwärmeberechnung ist sehr zuverlässig (±10%), da sie auf Gebäudephysik basiert. Stromverbrauch hat höhere Unsicherheit (±20-30%), da er von Nutzerverhalten abhängt. Eine professionelle Energieberatung (BAFA-gefördert) kann mit 80% Zuschuss erhalten und zeigt konkrete Sparpotenziale für Ihr Haus.</p>"
+<h4>So ordnen Sie Ihren eigenen Verbrauch ein</h4>
+<p>Der Vergleich mit dem statistischen Durchschnitt ist nützlich, sollte aber realistisch interpretiert werden: Ein älterer Bestand hat naturgemäß höhere Werte als ein Neubau. Entscheidend ist die eigene Entwicklung über die Jahre – stabile Werte sind gut, steigende deuten auf Verschleiß von Heizung oder Fenstern hin. Die Heizwärmeprognose ist mit rund ±10 % recht zuverlässig, weil sie auf der Gebäudephysik beruht; der Stromverbrauch schwankt mit ±20-30 % stärker, weil er stark vom Verhalten abhängt. Eine BAFA-geförderte Energieberatung deckt konkrete Sparpotenziale für Ihr Gebäude auf.</p>`}
   relatedSlugs={['heizkosten-rechner', 'energieausweis-vorberechnung', 'co2-einsparung-renovierung']}
 />
+</Layout>

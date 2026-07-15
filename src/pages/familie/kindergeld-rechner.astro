@@ -14,6 +14,8 @@ const faqs = [
   { q: 'Wann endet der Kindergeldanspruch?', a: 'Entweder wenn das Kind 18 wird, bei Ausbildung mit 25 Jahren oder wenn das Kind eine Erwerbstätigkeit beginnt.' },
   { q: 'Kann Kindergeld gepfändet werden?', a: 'Nein, Kindergeld ist (teilweise) gepfändungsfrei bis zur Höhe der Unterhaltsansprüche.' },
   { q: 'Kann ich Kindergeld und Kinderfreibetrag zusammen nutzen?', a: 'Nein, dies wird automatisch in der Steuererklärung verglichen. Die günstigere Variante wird angewendet.' },
+  { q: 'Wie beantrage ich Kindergeld?', a: 'Kindergeld wird nicht automatisch gezahlt, sondern muss bei der Familienkasse der Bundesagentur für Arbeit beantragt werden. Der Antrag ist seit 2024 vollständig digital über das Portal "Familienkasse Digital" möglich. Für Neugeborene wird der Antrag innerhalb der ersten sechs Monate empfohlen, da eine rückwirkende Zahlung nur für maximal sechs Monate erfolgt.' },
+  { q: 'Was ist der Kinderzuschlag?', a: 'Der Kinderzuschlag ist eine zusätzliche Leistung für Familien mit geringem Einkommen, die zwar ihren eigenen Bedarf, aber nicht den ihrer Kinder vollständig decken können. Er beträgt bis zu 297 € pro Kind und Monat und wird ebenfalls bei der Familienkasse beantragt. Er kann parallel zum Kindergeld bezogen werden.' },
 ];
 ---
 <Layout
@@ -60,6 +62,21 @@ const faqs = [
     title="Kindergeld 2026 – Anspruch, Antrag und Kinderfreibetrag im Vergleich"
     content={`
     <p><strong>Kindergeld</strong> ist eine der wichtigsten Familienleistungen in Deutschland und steht grundsätzlich allen Eltern zu – unabhängig vom Einkommen. Seit Januar 2025 beträgt es einheitlich <strong>255 € pro Kind und Monat</strong> (§ 66 EStG). Die frühere Staffelung, bei der ab dem dritten Kind höhere Beträge gezahlt wurden, ist entfallen.</p>
+
+    <h4>Kindergeld nach Kinderzahl im Überblick</h4>
+    <p>Da seit 2025 für jedes Kind der gleiche Betrag von 255 € gilt, ergibt sich der Gesamtbetrag einfach durch Multiplikation. Die folgende Tabelle zeigt den monatlichen und jährlichen Anspruch nach Anzahl der Kinder (Stand 2026).</p>
+    <table>
+      <thead>
+        <tr><th>Anzahl Kinder</th><th>Pro Monat</th><th>Pro Jahr</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>1 Kind</td><td>255 €</td><td>3.060 €</td></tr>
+        <tr><td>2 Kinder</td><td>510 €</td><td>6.120 €</td></tr>
+        <tr><td>3 Kinder</td><td>765 €</td><td>9.180 €</td></tr>
+        <tr><td>4 Kinder</td><td>1.020 €</td><td>12.240 €</td></tr>
+        <tr><td>5 Kinder</td><td>1.275 €</td><td>15.300 €</td></tr>
+      </tbody>
+    </table>
 
     <p><strong>Antragstellung bei der Familienkasse:</strong> Kindergeld wird nicht automatisch ausgezahlt, sondern muss bei der Familienkasse der Bundesagentur für Arbeit beantragt werden. Der Antrag kann seit 2024 vollständig digital über das Portal <em>Familienkasse Digital</em> gestellt werden. Für Neugeborene empfiehlt sich der Antrag innerhalb der ersten sechs Monate nach Geburt – eine rückwirkende Zahlung ist nur für maximal sechs Monate möglich (§ 66 Abs. 3 EStG).</p>
 

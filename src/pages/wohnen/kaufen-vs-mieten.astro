@@ -30,7 +30,10 @@ const year = new Date().getFullYear();
       { q: "Sollte ich den Kaufpreis oder die Miete als Basis nehmen?", a: "Miete: 100€/m² = Kaufpreis knapp 30.000-40.000€/m². Das ist aber nur Faustregel. Besser: Vergleich über 20 Jahre inkl. Zinsen, Instandhaltung, Steuern, Wertsteigerung." },
       { q: "Wie wichtig ist die Wertsteigerung beim Vergleich?", a: "Sehr wichtig auf lange Sicht. Im Schnitt steigen Immobilienpreise 2-3% p.a. (regional unterschiedlich). Das ist der Erfolgsfaktor für lange Haltefristen. Kurzfristig (5 Jahre) ist Wertsteigerung unsicher." },
       { q: "Was ist mit Reparaturen und Instandhaltung beim Kauf?", a: "Faustregel: 0,5-1% des Wertes pro Jahr für Instandhaltung + Reserve für größere Arbeiten. Ein 400.000€-Haus = 2.000-4.000€/Jahr Budget. Mieter hat diesen Vorteil – alles trägt der Vermieter." },
-      { q: "Kann ich die Immobilie noch verlassen, wenn ich kaufe?", a: "Ja, aber teuer: Verkaufsgebühren (Makler, Notar, evtl. Steuern), falls Wertverlust seit Kauf. Miete hat Flexibilität (3 Monate Kündigungsfrist). Kaufen sperrt Kapital – nur empfohlen bei Langfristplanung (10+ Jahre)." }
+      { q: "Kann ich die Immobilie noch verlassen, wenn ich kaufe?", a: "Ja, aber teuer: Beim Verkauf fallen erneut Gebühren an (Makler, Notar) und bei einem Verkauf innerhalb von zehn Jahren kann Spekulationssteuer anfallen. Miete bietet mit dreimonatiger Kündigungsfrist nach § 573c BGB deutlich mehr Flexibilität. Kaufen bindet Kapital langfristig und lohnt sich meist erst ab einer Haltedauer von zehn Jahren." },
+      { q: "Wie hoch sind die Kaufnebenkosten insgesamt?", a: "Rechnen Sie mit 9 bis 15 % des Kaufpreises: Grunderwerbsteuer (3,5–6,5 % je Bundesland), Notar (ca. 1,0–1,5 %), Grundbucheintrag (ca. 0,5 %) und gegebenenfalls Maklerprovision (bis 3,57 %). Diese Kosten müssen in der Regel aus Eigenkapital bezahlt werden und sind bei einem späteren Verkauf zunächst verloren." },
+      { q: "Was sind Opportunitätskosten des Eigenkapitals?", a: "Das eingesetzte Eigenkapital – etwa 70.000 € – steckt nach dem Kauf in der Immobilie und kann keine anderweitige Rendite mehr erwirtschaften. Diese entgangene Verzinsung am Kapitalmarkt ist ein realer, oft übersehener Kostenfaktor des Kaufens und gehört in jeden ehrlichen Vergleich mit der Mietvariante." },
+      { q: "Welche Rolle spielt die Grunderwerbsteuer bei der Standortwahl?", a: "Sie kann mehrere tausend Euro ausmachen: Bei 400.000 € Kaufpreis zahlen Sie in Bayern 14.000 €, in Nordrhein-Westfalen oder Brandenburg dagegen 26.000 €. Der Satz ist Ländersache und bewegt sich 2026 zwischen 3,5 % und 6,5 %. Bei grenznaher Lage kann sich der Blick über die Landesgrenze also finanziell lohnen." }
     ]}
   >
     <div class="calc-form">
@@ -73,8 +76,50 @@ const year = new Date().getFullYear();
   </CalculatorShell>
 
   <CalculatorGuide
-    title="Kaufen vs. Miete – Wirtschaftliche Entscheidung treffen"
-    content="<p>Die Entscheidung zwischen Kauf und Miete ist eine der größten finanziellen Entscheidungen, die Sie treffen. Unser Rechner vergleicht beide über lange Zeit und zeigt Kostendifferenzen auf. Wichtig: Dies ist eine Zahlenfrage, aber auch eine Lebensfrage (Flexibilität, Stabilität, Bindung).</p>\n\n<p><strong>Die Preisrelation verstehen:</strong> Wenn die Monatsmiete unter 1/250 des Kaufpreises liegt, ist Kaufen wirtschaftlich. Beispiel: 1.000€ Miete × 250 = 250.000€ Kaufpreis-Schwelle. Ist der Preis deutlich höher, ist Miete billiger. Ist er tiefer, Kauf. Diese Faustregel hilft zur Schnell-Einschätzung.</p>\n\n<p><strong>Wertsteigerung berücksichtigen:</strong> Der Schlüssel! Eine Immobilie, die kostet Sie als Käufer vielleicht 2-3% mehr pro Jahr als Mietäquivalent, kann durch Wertsteigerung (2-3% p.a. typisch) am Ende günstiger sein. 20 Jahre mit 2% Wertsteigerung = 149% Wertzuwachs. Das ist Kapitalbildung.</p>\n\n<p><strong>Zinsen sind kritisch:</strong> Bei 2-3% Zinsen: Kaufen ist günstiger. Bei 5-6% Zinsen: Miete wird attraktiver. Die aktuelle Zinslandschaft (Frühjahr 2024: 3-4%) ist moderat günstig zum Kaufen. Ein Zinsanstieg würde Miete attraktiver machen.</p>\n\n<p><strong>Die versteckten Kosten beim Kauf:</strong> Nicht nur Zins und Tilgung, sondern Instandhaltung (0,5-1,5% p.a.), Grundsteuer, Versicherungen, Makler, Notar, evtl. Sanierungen. Diese oft unterschätzten Posten können den Vorteil aufzehren. Rücklagen bilden ist wichtig!</p>\n\n<p><strong>Flexibilität vs. Sicherheit:</strong> Miete: 3 Monate Kündigungsfrist, kurzfristig umziehen möglich. Kauf: Verkauf dauert 3-6 Monate, Makler/Notar kosten 10%, Verlust durch Marktentwicklung möglich. Wer in 5 Jahren vielleicht umzieht: eher Mieter bleiben.</p>\n\n<p><strong>Förderungen und Steuervorteile:</strong> Käufer: KfW-Kredite mit Zinssubvention, Energieeffizienz-Bonifizierung. Mieter: gibt es wenige direkt. Aber: Mieter sparen Risiken. Der Vermieter trägt Instandhaltung und Wertverlust-Risiko.</p>\n\n<p><strong>Persönliche Faktoren zählen:</strong> Hast du stabile Situation? Willst du 20+ Jahre bleiben? Liebst du die Freiheit zu renovieren? Wertschätzung von Vermögensaufbau? Dann: Kauf. Unsicher, mobil, risikoavers? Dann: Miete. Zahlen sind nur ein Teil der Entscheidung.</p>"
+    title="Kaufen oder mieten? Die wirtschaftliche Entscheidung"
+    content={`
+      <p>Die Entscheidung zwischen <strong>Kaufen und Mieten</strong> gehört zu den folgenreichsten finanziellen Weichenstellungen im Leben. Sie ist einerseits eine reine Rechenaufgabe – Zinsen, Nebenkosten, Wertsteigerung und entgangene Rendite des Eigenkapitals lassen sich beziffern. Andererseits ist sie eine Lebensfrage: Flexibilität und Ungebundenheit sprechen für die Miete, Sicherheit und Vermögensaufbau für das Eigentum. Der Rechner vergleicht beide Wege über einen langen Zeitraum; dieser Ratgeber ordnet die wichtigsten Kostenblöcke ein.</p>
+
+      <h4>Kaufnebenkosten: der unterschätzte Brocken</h4>
+      <p>Wer kauft, zahlt weit mehr als den Kaufpreis. Die einmaligen <strong>Erwerbsnebenkosten</strong> betragen je nach Bundesland und Maklereinsatz zwischen rund 9 % und 15 % des Kaufpreises und müssen in der Regel aus Eigenkapital bezahlt werden – Banken finanzieren sie ungern mit:</p>
+      <table>
+        <thead>
+          <tr><th>Kostenart</th><th>Höhe (typisch)</th><th>Rechtsgrundlage / Hinweis</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Grunderwerbsteuer</td><td>3,5 – 6,5 %</td><td>je Bundesland (siehe Tabelle)</td></tr>
+          <tr><td>Notar</td><td>ca. 1,0 – 1,5 %</td><td>gesetzlich nach GNotKG</td></tr>
+          <tr><td>Grundbucheintrag</td><td>ca. 0,5 %</td><td>gesetzlich nach GNotKG</td></tr>
+          <tr><td>Maklerprovision</td><td>0 – 3,57 %</td><td>seit 12/2020 meist hälftig geteilt</td></tr>
+        </tbody>
+      </table>
+
+      <h4>Grunderwerbsteuer nach Bundesland (Stand 2026)</h4>
+      <p>Der größte und regional stark schwankende Posten ist die <strong>Grunderwerbsteuer</strong>. Bayern erhebt mit 3,5 % den niedrigsten, mehrere Länder mit 6,5 % den höchsten Satz. Die Beispielspalte zeigt die Steuer auf einen Kaufpreis von 400.000 €:</p>
+      <table>
+        <thead>
+          <tr><th>Bundesland</th><th>Steuersatz</th><th>Bei 400.000 € Kaufpreis</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Bayern</td><td>3,5 %</td><td>14.000 €</td></tr>
+          <tr><td>Baden-Württemberg</td><td>5,0 %</td><td>20.000 €</td></tr>
+          <tr><td>Bremen, Niedersachsen, Rheinland-Pfalz</td><td>5,0 %</td><td>20.000 €</td></tr>
+          <tr><td>Sachsen-Anhalt, Thüringen</td><td>5,0 %</td><td>20.000 €</td></tr>
+          <tr><td>Hamburg, Sachsen</td><td>5,5 %</td><td>22.000 €</td></tr>
+          <tr><td>Berlin, Hessen, Mecklenburg-Vorpommern</td><td>6,0 %</td><td>24.000 €</td></tr>
+          <tr><td>Brandenburg, NRW, Saarland, Schleswig-Holstein</td><td>6,5 %</td><td>26.000 €</td></tr>
+        </tbody>
+      </table>
+
+      <h4>Die laufenden Kosten und die entgangene Rendite</h4>
+      <p>Neben Zins und Tilgung tragen Eigentümer laufende Kosten, die Mieter nicht kennen: <strong>Instandhaltung</strong> von rund 1 % des Immobilienwerts pro Jahr (ein 400.000-€-Objekt also etwa 4.000 € jährlich), dazu Grundsteuer, Wohngebäudeversicherung und größere Sanierungen. Häufig übersehen wird die <strong>Opportunitätskosten des Eigenkapitals</strong>: Die 60.000 bis 100.000 €, die als Eigenkapital in Steine fließen, könnten alternativ am Kapitalmarkt Rendite erwirtschaften. Diese entgangene Rendite gehört auf die Kostenseite des Kaufens.</p>
+
+      <h4>Wertsteigerung, Zinsen und die Faustregel</h4>
+      <p>Der entscheidende Ausgleichsposten ist die <strong>Wertentwicklung</strong> der Immobilie. Historisch stiegen deutsche Immobilienpreise langfristig um etwa 2 bis 3 % pro Jahr – regional aber sehr unterschiedlich und keineswegs garantiert. Gleichzeitig gilt: Niedrige Zinsen (2–3 %) begünstigen den Kauf, hohe Zinsen (5–6 %) machen die Miete attraktiver. Eine grobe erste Orientierung liefert der <strong>Kaufpreisfaktor</strong>: Kostet die Immobilie weniger als das 25-Fache der Jahresnettokaltmiete (Mietrendite über 4 %), spricht das eher für den Kauf; liegt der Faktor deutlich höher – in München oder Berlin oft über 30 –, ist Mieten und die Differenz anzulegen häufig wirtschaftlicher.</p>
+
+      <h4>Wann sich Kaufen lohnt – und wann Mieten</h4>
+      <p><strong>Für den Kauf</strong> sprechen eine geplante Haltedauer von mehr als zehn Jahren, ein stabiles Einkommen, ausreichend Eigenkapital für die Nebenkosten und der Wunsch nach Gestaltungsfreiheit. <strong>Für die Miete</strong> sprechen berufliche oder private Mobilität, ein kurzer Planungshorizont und der Wert der Flexibilität: Nach § 573c BGB können Mieter mit dreimonatiger Frist kündigen, während ein Immobilienverkauf Monate dauert und erneut Nebenkosten verursacht. Gegen unkontrollierte Mietsprünge schützt zudem die Kappungsgrenze des § 558 BGB, die Erhöhungen im Bestand auf 20 % (in angespannten Märkten 15 %) in drei Jahren begrenzt.</p>
+    `}
     relatedSlugs={['mietrendite-rechner', 'hauskauf-rechner', 'mietrechner']}
   />
 </Layout>
