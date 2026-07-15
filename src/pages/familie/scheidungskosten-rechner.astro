@@ -8,12 +8,14 @@ const cat = CATEGORIES[calc.category];
 const year = new Date().getFullYear();
 
 const faqs = [
-  { q: 'Was kostet eine Scheidung?', a: 'Die Kosten setzen sich zusammen aus Anwaltsgebühren und Gerichtsgebühren. Diese richten sich nach dem Streitwert (Vermögen).' },
-  { q: 'Wie hoch sind Anwaltsgebühren?', a: 'Anwälte berechnen Gebühren nach dem Rechtsanwaltsvergütungsgesetz (RVG). Kosten: etwa 500-2000€ abhängig von Komplexität.' },
-  { q: 'Wer trägt die Kosten?', a: 'In einvernehmlicher Scheidung trägt jede Partei die Hälfte der Kosten. Im Streitfall entscheidet das Gericht.' },
-  { q: 'Kann ich auf Kostenersparnis sparen?', a: 'Ja: Einigung über Unterhalt, Vermögen und Umgang spart erhebliche Kosten. Online-Scheidungen sind günstiger.' },
-  { q: 'Was ist eine einvernehmliche Scheidung?', a: 'Beide Partner einigen sich auf Unterhalts- und Vermögensaufteilung. Dies spart Kosten und Zeit.' },
-  { q: 'Gibt es Kostenbefreiung?', a: 'Ja, bei geringem Einkommen kann Verfahrenskostenhilfe beantragt werden.' },
+  { q: 'Was kostet eine Scheidung 2026?', a: 'Eine einvernehmliche Scheidung mit nur einem Anwalt kostet in der Regel zwischen 1.000 € und 3.000 €. Streitige Scheidungen mit zwei Anwälten und mehreren Folgesachen können 4.000 € bis über 8.000 € erreichen. Die genaue Höhe hängt vom Verfahrenswert ab.' },
+  { q: 'Wie wird der Verfahrenswert berechnet?', a: 'Das Gericht setzt den Verfahrenswert nach § 43 FamGKG fest. Grundlage ist das dreifache monatliche Nettoeinkommen beider Ehegatten zusammen. Zusätzlich fließt oft ein Anteil des Vermögens ein (üblich sind 5 % über einem Freibetrag). Bei einem gemeinsamen Nettoeinkommen von 3.000 € ergibt sich so ein Verfahrenswert von rund 9.000 €.' },
+  { q: 'Wie hoch sind die Anwaltsgebühren?', a: 'Anwälte rechnen nach dem Rechtsanwaltsvergütungsgesetz (RVG) ab. Die Gebühren steigen mit dem Verfahrenswert. Bei einem Wert von 15.000 € fallen für einen Anwalt rund 1.500–1.700 € inklusive Umsatzsteuer an. Ein Rechtsanwalt darf die gesetzlichen Gebühren nicht unterschreiten.' },
+  { q: 'Wer trägt die Kosten der Scheidung?', a: 'Die Gerichtskosten werden im Regelfall geteilt: Jeder Ehegatte zahlt die Hälfte. Die Anwaltskosten trägt jeder für seinen eigenen Anwalt. Bei einer einvernehmlichen Scheidung mit nur einem Anwalt vereinbaren die Partner meist, sich diese Kosten intern zu teilen.' },
+  { q: 'Was ist eine einvernehmliche Scheidung?', a: 'Bei einer einvernehmlichen Scheidung sind sich beide Partner über die Scheidung und die Folgen (Unterhalt, Vermögen, Umgang) einig. Dann reicht ein einziger Anwalt, der den Antrag stellt; der andere Partner muss der Scheidung nur zustimmen. Das spart Zeit und oft mehr als die Hälfte der Kosten.' },
+  { q: 'Was ist der Versorgungsausgleich?', a: 'Der Versorgungsausgleich teilt die während der Ehe erworbenen Rentenanwartschaften hälftig zwischen beiden Partnern auf. Er wird im Scheidungsverfahren von Amts wegen durchgeführt und erhöht den Verfahrenswert. Bei kurzen Ehen unter drei Jahren findet er nur auf Antrag statt.' },
+  { q: 'Gibt es finanzielle Unterstützung bei geringem Einkommen?', a: 'Ja. Wer die Kosten nicht aus eigenem Einkommen oder Vermögen aufbringen kann, kann Verfahrenskostenhilfe (VKH) nach §§ 76 ff. FamFG i. V. m. §§ 114 ff. ZPO beantragen. Der Staat übernimmt dann die Kosten ganz oder in Raten. Der Antrag wird beim Familiengericht gestellt.' },
+  { q: 'Wie kann ich bei der Scheidung Kosten sparen?', a: 'Der größte Hebel ist die Einigung: Klären Sie Unterhalt, Vermögensaufteilung und Sorgerecht außergerichtlich, bevor Sie zum Gericht gehen. Jede Folgesache, die das Gericht entscheiden muss, erhöht den Verfahrenswert und damit die Gebühren. Eine einvernehmliche Scheidung mit einem gemeinsamen Anwalt ist die günstigste Variante.' },
 ];
 ---
 <Layout
@@ -67,15 +69,40 @@ const faqs = [
 
   <CalculatorGuide
     title="Scheidungskosten – Transparente Gebührenberechnung"
-    content="Scheidungskosten setzen sich aus Anwalts- und Gerichtsgebühren zusammen. Die Anwaltsgebühren werden nach dem Rechtsanwaltsvergütungsgesetz (RVG) berechnet und hängen vom Streitwert (üblicherweise das 3-fache des Jahresnettoeinkommens beider Partner) ab.
+    content={`
+      <p>Die Kosten einer Scheidung setzen sich aus zwei Blöcken zusammen: den <strong>Gerichtskosten</strong> und den <strong>Anwaltskosten</strong>. Beide richten sich nicht nach dem Aufwand, sondern nach dem sogenannten <strong>Verfahrenswert</strong> (früher Streitwert). Je höher dieser Wert, desto höher die gesetzlich festgelegten Gebühren. Der Scheidungskosten-Rechner schätzt auf dieser Basis, mit welcher Größenordnung Sie rechnen müssen.</p>
 
-In einer streitigen Scheidung muss jeder Partner einen Anwalt haben. Die Gerichtsgebühren sind gesetzlich festgelegt und können nicht verhandelt werden. Der Streitwert bestimmt die Höhe.
+      <h4>Der Verfahrenswert – Grundlage aller Gebühren</h4>
+      <p>Das Familiengericht setzt den Verfahrenswert nach <strong>§ 43 FamGKG</strong> fest. Ausgangspunkt ist das <strong>dreifache gemeinsame monatliche Nettoeinkommen</strong> beider Ehegatten. Verfügen die Partner über nennenswertes Vermögen, wird häufig ein Anteil davon (in vielen Gerichtsbezirken 5 % oberhalb eines Freibetrags) hinzugerechnet. Kommen Folgesachen wie Versorgungsausgleich, Unterhalt oder Sorgerecht hinzu, erhöht sich der Verfahrenswert und damit die Gebühr entsprechend.</p>
 
-Ein häufiges Missverständnis: Online-Scheidungen sind günstiger und schneller, wenn beide Partner sich einig sind. Eine einvernehmliche Scheidung kostet oft 1/3 der Kosten einer streitigen Scheidung.
+      <h4>Typische Gesamtkosten nach Verfahrenswert</h4>
+      <p>Die folgende Tabelle zeigt Richtwerte für 2026 (Gerichtskosten nach FamGKG, Anwaltskosten nach RVG inklusive 19 % Umsatzsteuer). Bei der einvernehmlichen Scheidung tritt nur ein Anwalt auf, bei der streitigen Scheidung beauftragt jeder Partner einen eigenen Anwalt.</p>
+      <table>
+        <thead>
+          <tr><th>Verfahrenswert</th><th>Gemeinsames Netto/Monat (Beispiel)</th><th>Gerichtskosten</th><th>Einvernehmlich (1 Anwalt)</th><th>Streitig (2 Anwälte)</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>6.000 €</td><td>ca. 2.000 €</td><td>ca. 240 €</td><td>ca. 750 €</td><td>ca. 1.260 €</td></tr>
+          <tr><td>9.000 €</td><td>ca. 3.000 €</td><td>ca. 300 €</td><td>ca. 950 €</td><td>ca. 1.610 €</td></tr>
+          <tr><td>13.000 €</td><td>ca. 4.300 €</td><td>ca. 370 €</td><td>ca. 1.200 €</td><td>ca. 2.030 €</td></tr>
+          <tr><td>26.000 €</td><td>+ Vermögensanteil</td><td>ca. 520 €</td><td>ca. 1.700 €</td><td>ca. 2.870 €</td></tr>
+          <tr><td>50.000 €</td><td>+ Vermögensanteil</td><td>ca. 730 €</td><td>ca. 2.380 €</td><td>ca. 4.030 €</td></tr>
+          <tr><td>100.000 €</td><td>+ Vermögensanteil</td><td>ca. 1.010 €</td><td>ca. 3.290 €</td><td>ca. 5.560 €</td></tr>
+        </tbody>
+      </table>
 
-Bei Kostenbefreiung (Prozesskostenhilfe): Wenn Ihr Einkommen unter bestimmten Grenzen liegt, kann das Gericht die Kosten übernehmen oder reduzieren. Der Antrag wird beim Gericht gestellt.
+      <h4>Einvernehmliche versus streitige Scheidung</h4>
+      <p>Der größte Kostenfaktor ist die Frage, ob die Ehegatten sich einig sind. Bei einer <strong>einvernehmlichen Scheidung</strong> stellt nur ein Anwalt den Scheidungsantrag; der andere Partner muss lediglich zustimmen und braucht selbst keinen Anwalt. Das halbiert die Anwaltskosten nahezu. Bei einer <strong>streitigen Scheidung</strong> muss dagegen jeder Partner anwaltlich vertreten sein, und jede gerichtlich zu klärende Folgesache (Unterhalt, Zugewinn, Umgangsrecht) treibt den Verfahrenswert nach oben. Eine streitige Scheidung kostet deshalb oft das Zwei- bis Dreifache einer einvernehmlichen.</p>
 
-Finanzierungstipp: Versuchen Sie, sich auf Unterhalt, Vermögensaufteilung und Sorgerecht zu einigen, bevor Sie zum Gericht gehen. Jeder Punkt, über den Sie sich einigen, spart Kosten und Zeit."
+      <h4>Versorgungsausgleich</h4>
+      <p>Der <strong>Versorgungsausgleich</strong> teilt die während der Ehe erworbenen Rentenanwartschaften hälftig zwischen beiden Partnern auf. Er wird bei jeder Scheidung von Amts wegen durchgeführt – außer bei kurzen Ehen unter drei Jahren, wo er nur auf Antrag stattfindet. Der Versorgungsausgleich erhöht den Verfahrenswert (pro auszugleichendes Anrecht meist um 10 % des dreifachen Monatsnettos) und damit die Kosten. Ehegatten können ihn durch eine notarielle Vereinbarung ausschließen, was aber gesondert kostet.</p>
+
+      <h4>Verfahrenskostenhilfe bei geringem Einkommen</h4>
+      <p>Wer die Scheidungskosten nicht aus eigenem Einkommen und Vermögen aufbringen kann, hat Anspruch auf <strong>Verfahrenskostenhilfe (VKH)</strong> nach §§ 76 ff. FamFG in Verbindung mit §§ 114 ff. ZPO. Der Staat übernimmt dann die Gerichts- und Anwaltskosten – je nach wirtschaftlicher Lage vollständig oder gegen Ratenzahlung. Der Antrag wird zusammen mit einer Erklärung über die persönlichen und wirtschaftlichen Verhältnisse beim Familiengericht eingereicht.</p>
+
+      <h4>So senken Sie die Kosten</h4>
+      <p>Der wirksamste Spartipp: Einigen Sie sich vor dem Gerichtstermin außergerichtlich über Unterhalt, Vermögensaufteilung und Sorgerecht. Jeder Streitpunkt, den das Gericht entscheiden muss, erhöht den Verfahrenswert und damit die Gebühren. Eine einvernehmliche Scheidung mit einem gemeinsamen Anwalt ist regelmäßig die günstigste Lösung. Anwaltsgebühren selbst sind gesetzlich fixiert und nicht verhandelbar – hier lässt sich nur über den Verfahrensumfang sparen.</p>
+    `}
     relatedSlugs={['ehegattenunterhalt-rechner', 'unterhaltsrechner']}
   />
 </Layout>

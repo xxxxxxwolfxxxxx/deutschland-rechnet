@@ -8,12 +8,14 @@ const cat = CATEGORIES[calc.category];
 const year = new Date().getFullYear();
 
 const faqs = [
-  { q: 'Wie wird das BAföG berechnet?', a: 'Das BAföG wird berechnet als Höchstsatz (992€) minus Einkommen- und Vermögensanrechnung. Es besteht aus 50% Zuschuss und 50% zinslosem Darlehen.' },
-  { q: 'Welcher Freibetrag gilt für Eltern?', a: 'Der Eltern-Freibetrag beträgt 37.350€/Jahr (zusammen) oder 24.850€/Jahr (getrennt). Zusätzlich gibt es für jedes Geschwister in Ausbildung einen Freibetrag von 8.820€/Jahr.' },
-  { q: 'Wie wird eigenes Einkommen angerechnet?', a: 'Einkommen über 55€/Monat wird zu 100% angerechnet. Unter dieser Grenze bleibt das Einkommen unberücksichtigt.' },
-  { q: 'Ist Vermögen relevant?', a: 'Ja. Ein Vermögensfreibetrag von 15.000€ gibt es. Vermögen darüber wird monatlich zu 1/12 angerechnet.' },
-  { q: 'Wie lange wird BAföG gezahlt?', a: 'BAföG wird bis zum Ende des Studiums bzw. Ausbildung gezahlt, maximal aber bis zur Regelstudienzeit zuzüglich 1 Semester.' },
-  { q: 'Muss das BAföG zurückgezahlt werden?', a: 'Der Darlehensanteil (50%) muss ab 5 Jahren nach Ende der Förderung zurückgezahlt werden, der Zuschussanteil (50%) nicht.' },
+  { q: 'Wie viel BAföG kann ich bekommen?', a: 'Der BAföG-Höchstsatz für Studierende liegt seit dem Wintersemester 2024/25 bei rund 992 € pro Monat. Er setzt sich aus dem Grundbedarf (475 €), der Wohnpauschale (380 €) für auswärts Wohnende und Zuschlägen zur Kranken- und Pflegeversicherung zusammen. Wie viel Sie tatsächlich erhalten, hängt vom Einkommen der Eltern, Ihrem eigenen Einkommen und Ihrem Vermögen ab.' },
+  { q: 'Wie wird das BAföG berechnet?', a: 'Vom Bedarfssatz werden das anrechenbare Elterneinkommen, Ihr eigenes Einkommen und Ihr Vermögen abgezogen. Übrig bleibt der Förderbetrag. Studierende erhalten diesen zur Hälfte als Zuschuss und zur Hälfte als zinsloses Staatsdarlehen; Schüler-BAföG ist ein reiner Zuschuss.' },
+  { q: 'Welcher Freibetrag gilt für das Elterneinkommen?', a: 'Der Grundfreibetrag beträgt bei zusammenlebenden Eltern rund 2.540 € netto pro Monat (etwa 30.480 € im Jahr), bei getrennt lebenden entsprechend weniger. Für jedes weitere Kind in Ausbildung erhöht sich der Freibetrag zusätzlich. Verdienen die Eltern weniger als den Freibetrag, bleibt der volle Höchstsatz erhalten.' },
+  { q: 'Wie wird eigenes Einkommen angerechnet?', a: 'Einkommen aus einem Nebenjob bleibt bis zu einem Freibetrag von rund 556 € brutto pro Monat (Minijob-Grenze 2026) anrechnungsfrei. Was darüber liegt, mindert die Förderung. Ausbildungsvergütungen, Waisenrenten und bestimmte Stipendien werden dagegen stärker angerechnet.' },
+  { q: 'Wie viel Vermögen darf ich haben?', a: 'Für BAföG-Beziehende bis 30 Jahre gilt ein Vermögensfreibetrag von rund 15.000 €, ab 30 Jahren 45.000 €. Vermögen oberhalb dieser Grenze wird auf den Bewilligungszeitraum umgelegt und mindert die monatliche Förderung. Falsche Angaben zum Vermögen führen regelmäßig zu Rückforderungen.' },
+  { q: 'Was ist elternunabhängiges BAföG?', a: 'In bestimmten Fällen wird das Elterneinkommen nicht angerechnet, etwa wenn Sie vor Ausbildungsbeginn mindestens fünf Jahre erwerbstätig waren, eine dreijährige Berufsausbildung plus drei Jahre Berufstätigkeit vorweisen können oder über 30 Jahre alt sind. Dann richtet sich die Förderung allein nach Ihrem eigenen Einkommen und Vermögen.' },
+  { q: 'Wie lange wird BAföG gezahlt?', a: 'BAföG wird grundsätzlich für die Dauer der Regelstudienzeit gezahlt (Förderungshöchstdauer). Bei wichtigen Gründen wie Krankheit, Gremientätigkeit oder Kindererziehung kann die Förderung verlängert werden. Ein Fachrichtungswechsel ist in den ersten Semestern in der Regel unschädlich.' },
+  { q: 'Wie viel muss ich zurückzahlen?', a: 'Nur der Darlehensanteil des Studierenden-BAföG (die Hälfte) muss zurückgezahlt werden – und das zinslos. Die Rückzahlung beginnt fünf Jahre nach Ende der Förderungshöchstdauer in Raten von mindestens 130 € pro Monat. Die Rückzahlung ist auf insgesamt 10.010 € gedeckelt; wer mehr Darlehen erhalten hat, muss den Rest nicht zurückzahlen.' },
 ];
 ---
 <Layout
@@ -75,15 +77,38 @@ const faqs = [
 
   <CalculatorGuide
     title="BAföG – Ausbildungsfinanzierung verstehen"
-    content="Das BAföG (Bundesausbildungsförderungsgesetz) ist eines der wichtigsten Finanzierungsinstrumente für Studierende und Auszubildende in Deutschland. Es wird als Mischung aus Zuschuss und Darlehen gewährt, um wirtschaftliche Hürden bei der Ausbildung zu senken.
+    content={`
+      <p>Das <strong>BAföG</strong> (Bundesausbildungsförderungsgesetz) ist das wichtigste staatliche Finanzierungsinstrument für Studierende und Schülerinnen und Schüler in Deutschland. Ziel ist es, dass niemand aus finanziellen Gründen auf eine Ausbildung verzichten muss. Der große Vorteil: Für Studierende ist die Hälfte der Förderung ein Zuschuss, den man nie zurückzahlen muss, die andere Hälfte ein <strong>zinsloses</strong> Darlehen. Der BAföG-Rechner schätzt anhand Ihrer Angaben, mit welcher Förderung Sie rechnen können.</p>
 
-Die Höhe des BAföG hängt vom Einkommen und Vermögen der Eltern, dem eigenen Einkommen und vorhandenen Vermögen ab. Der Rechner berücksichtigt die aktuellen Freibeträge und das Modell der 50%-Spaltung (Zuschuss vs. zinslose Darlehen).
+      <h4>Wie sich der Bedarfssatz zusammensetzt</h4>
+      <p>Seit dem Wintersemester 2024/25 liegt der BAföG-Höchstsatz für Studierende bei rund <strong>992 € pro Monat</strong>. Er besteht aus einem <strong>Grundbedarf von 475 €</strong>, einer <strong>Wohnpauschale von 380 €</strong> für alle, die nicht bei den Eltern wohnen, sowie Zuschlägen zur Kranken- und Pflegeversicherung. Wer noch bei den Eltern lebt, erhält nur einen deutlich geringeren Wohnanteil.</p>
 
-Ein häufiges Missverständnis: BAföG ist nicht automatisch genauer – wenn Eltern weniger verdienen als der Freibetrag (z.B. bei Arbeitslosigkeit), bleibt der volle Höchstsatz erhalten. Auch Geschwister in Ausbildung reduzieren die Eltern-Freibeträge erheblich.
+      <h4>Bedarfssätze nach Wohnsituation und Ausbildungsart</h4>
+      <table>
+        <thead>
+          <tr><th>Gruppe</th><th>Wohnt bei den Eltern</th><th>Eigene Wohnung</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Studierende (Hochschule)</td><td>ca. 633 €</td><td>ca. 992 €</td></tr>
+          <tr><td>Schüler weiterführende Schulen</td><td>ca. 355 €</td><td>ca. 736 €</td></tr>
+          <tr><td>Berufsfachschüler ohne Abschluss</td><td>ca. 355 €</td><td>ca. 736 €</td></tr>
+          <tr><td>Fach-/Abendschule, Kollegs</td><td>ca. 633 €</td><td>ca. 992 €</td></tr>
+        </tbody>
+      </table>
+      <p style="font-size:0.85rem;color:#777;">Richtwerte inklusive KV-/PV-Zuschlägen. Die genaue Höhe hängt von Alter und Versicherungsstatus ab.</p>
 
-Nach Abschluss der Ausbildung müssen 50% des erhaltenen BAföG als zinslose Darlehen zurückgezahlt werden (KfW-Darlehen). Dies sollte bei der Finanzplanung eingeplant werden. Berufstätige Absolventen zahlen in der Regel 25 Jahre lang Raten von etwa 105€-130€ monatlich.
+      <h4>Einkommen und Vermögen: Was angerechnet wird</h4>
+      <p>Von diesem Bedarf werden anrechenbare Einkünfte abgezogen. Das <strong>Elterneinkommen</strong> bleibt bis zu einem Grundfreibetrag von rund 2.540 € netto im Monat (zusammenlebende Eltern) unberücksichtigt; für jedes weitere Kind in Ausbildung steigt der Freibetrag. <strong>Eigenes Einkommen</strong> aus einem Nebenjob ist bis zur Minijob-Grenze (2026 rund 556 € pro Monat) anrechnungsfrei. Beim <strong>Vermögen</strong> gilt ein Freibetrag von 15.000 € für unter 30-Jährige und 45.000 € ab 30 Jahren. Ein häufiges Missverständnis: Verdienen die Eltern weniger als den Freibetrag, bleibt der volle Höchstsatz erhalten.</p>
 
-Der Antrag muss beim BAföG-Amt gestellt werden. Wichtig: Stellen Sie den Antrag frühzeitig, da BAföG erst vom Monat der Antragstellung an gezahlt wird, nicht rückwirkend."
+      <h4>Elternunabhängiges BAföG</h4>
+      <p>In bestimmten Konstellationen wird das Einkommen der Eltern gar nicht herangezogen. <strong>Elternunabhängiges BAföG</strong> gibt es unter anderem, wenn Sie vor Ausbildungsbeginn mindestens fünf Jahre erwerbstätig waren, eine dreijährige Berufsausbildung plus drei Jahre Berufstätigkeit abgeschlossen haben oder bei Ausbildungsbeginn über 30 Jahre alt sind. Dann zählt nur Ihr eigenes Einkommen und Vermögen – die Förderung fällt oft höher aus.</p>
+
+      <h4>Rückzahlung und Deckelung</h4>
+      <p>Nur der Darlehensanteil des Studierenden-BAföG muss zurückgezahlt werden, und zwar <strong>zinslos</strong>. Die Rückzahlung beginnt fünf Jahre nach dem Ende der Förderungshöchstdauer in Raten von mindestens 130 € pro Monat. Entscheidend: Die Rückzahlung ist auf insgesamt <strong>höchstens 10.010 €</strong> begrenzt. Wer während des Studiums mehr Darlehen erhalten hat, muss den darüber hinausgehenden Betrag nicht zurückzahlen. Schüler-BAföG ist dagegen ein reiner Zuschuss ohne Rückzahlung.</p>
+
+      <h4>Antrag und Förderungshöchstdauer</h4>
+      <p>Der Antrag wird beim zuständigen <strong>Amt für Ausbildungsförderung</strong> (meist beim Studierendenwerk) gestellt und kann online über <em>BAföG Digital</em> eingereicht werden. Wichtig: BAföG wird erst ab dem Monat der Antragstellung gezahlt, nicht rückwirkend – stellen Sie den Antrag daher rechtzeitig zum Studienbeginn. Gefördert wird grundsätzlich für die Dauer der Regelstudienzeit; bei Krankheit, Kindererziehung oder Gremientätigkeit ist eine Verlängerung möglich.</p>
+    `}
     relatedSlugs={['kindergeld-rechner', 'elterngeld-rechner']}
   />
 </Layout>

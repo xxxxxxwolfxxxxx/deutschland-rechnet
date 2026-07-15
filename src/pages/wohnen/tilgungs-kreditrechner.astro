@@ -25,11 +25,14 @@ const year = new Date().getFullYear();
     sourceNote="Annuitätendarlehen."
     explanation="Bei einem Annuitätendarlehen bleibt die monatliche Rate über die gesamte Laufzeit konstant, während sich das Verhältnis von Zins- und Tilgungsanteil verschiebt. Der effektive Jahreszins muss nach § 6 PAngV (Preisangabenverordnung) vom Kreditgeber angegeben werden und ermöglicht den Vergleich verschiedener Angebote. Bei Immobiliendarlehen besteht nach § 489 BGB ein Sonderkündigungsrecht nach 10 Jahren Zinsbindung."
     faqs={[
-      { q: "Was ist ein Annuitätendarlehen?", a: "Ein Darlehen, bei dem die monatliche Rate (Annuität) über die gesamte Laufzeit gleich bleibt. Die Rate setzt sich aus Zins- und Tilgungsanteil zusammen. Am Anfang ist der Zinsanteil höher, später die Tilgung." },
-      { q: "Was bedeutet 'Tilgung'?", a: "Die Tilgung ist die Rückzahlung des Darlehensbetrags. Bei jedem Zahlungsvorgang wird zuerst der Zins gezahlt, dann wird der restliche Betrag der Tilgung zugeordnet. Dadurch sinkt die Restschuld." },
-      { q: "Wie berechne ich die monatliche Rate?", a: "Formel: Rate = Darlehensbetrag × (Monatszins × (1+Monatszins)^Monate) / ((1+Monatszins)^Monate - 1). Beispiel: 200.000€ bei 3,5% für 20 Jahre = ca. 1.001€/Monat." },
-      { q: "Warum steigen die Zinsen in dem Rechner nicht?", a: "Der Rechner geht von einem gleichbleibenden Zinssatz über die gesamte Laufzeit aus. Bei echten Hypotheken können Zinsen nach Ablauf des Zinsbindungszeitraums angepasst werden." },
-      { q: "Wie viel spare ich mit kürzerer Laufzeit?", a: "Beispiel: 200.000€ à 3,5%: 10 Jahre = 6.100€ Zinsen (monatlich 2.035€), 20 Jahre = 40.240€ Zinsen (monatlich 1.001€). Kürzere Laufzeit = höhere Rate, aber deutlich weniger Gesamtkosten." }
+      { q: "Was ist ein Annuitätendarlehen?", a: "Ein Darlehen, bei dem die monatliche Rate (Annuität) über die gesamte Zinsbindung gleich bleibt. Die Rate setzt sich aus Zins- und Tilgungsanteil zusammen. Am Anfang ist der Zinsanteil höher, im Zeitverlauf verschiebt sich das Verhältnis zugunsten der Tilgung, sodass die Restschuld immer schneller sinkt." },
+      { q: "Was bedeutet 'Tilgung' und 'Anfangstilgung'?", a: "Die Tilgung ist die eigentliche Rückzahlung des Darlehensbetrags. Bei jeder Rate wird zuerst der fällige Zins auf die Restschuld beglichen, der Rest fließt in die Tilgung. Die Anfangstilgung ist der Tilgungssatz im ersten Jahr, meist 2 bis 3 Prozent. Sie bestimmt Höhe der Rate und Laufzeit maßgeblich." },
+      { q: "Wie berechne ich die monatliche Rate?", a: "Die Formel lautet: Rate = Darlehen × (Monatszins × (1+Monatszins)^Monate) / ((1+Monatszins)^Monate − 1). Einfacher ist der Weg über Zins plus Tilgung: Bei 200.000 € mit 4 % Zins und 2 % Anfangstilgung sind das 6 % pro Jahr = 12.000 €, also 1.000 € im Monat." },
+      { q: "Warum ändert sich der Zinssatz im Rechner nicht?", a: "Der Rechner geht von einem gleichbleibenden Sollzins aus. In der Praxis gilt der vereinbarte Zins nur für die Dauer der Zinsbindung (typisch 10, 15 oder 20 Jahre). Danach wird für die verbleibende Restschuld eine Anschlussfinanzierung zu den dann gültigen Konditionen abgeschlossen." },
+      { q: "Wie viel spare ich mit einer höheren Anfangstilgung?", a: "Sehr viel. Bei 200.000 € und 4 % Zins läuft das Darlehen mit 1 % Tilgung rund 41 Jahre, mit 3 % nur etwa 22 Jahre. Die höhere Tilgung bedeutet zwar eine höhere Monatsrate, spart aber über die Laufzeit einen fünfstelligen Betrag an Zinsen, weil die Restschuld schneller schrumpft." },
+      { q: "Was ist der Unterschied zwischen Sollzins und Effektivzins?", a: "Der Sollzins ist der reine Zins auf die Darlehenssumme. Der effektive Jahreszins enthält zusätzlich weitere Kosten wie Bereitstellungszinsen und muss nach § 6 PAngV angegeben werden. Nur der Effektivzins macht verschiedene Angebote wirklich vergleichbar – achten Sie beim Vergleich immer darauf." },
+      { q: "Was ist eine Sondertilgung und lohnt sie sich?", a: "Eine Sondertilgung ist eine zusätzliche außerplanmäßige Rückzahlung. Die meisten Verträge erlauben 5 % der Darlehenssumme pro Jahr kostenfrei. Sie reduziert die Restschuld sofort und spart überproportional Zinsen, weil sie in der frühen Phase mit hohem Zinsanteil wirkt. Für viele Kreditnehmer ist sie die renditestärkste risikofreie Geldanlage." },
+      { q: "Kann ich meinen Kredit vorzeitig kündigen?", a: "Bei einer laufenden Zinsbindung verlangt die Bank sonst eine Vorfälligkeitsentschädigung. Nach § 489 BGB dürfen Sie jedes Darlehen jedoch zehn Jahre nach Vollauszahlung mit sechs Monaten Frist kündigen – kostenfrei und unabhängig davon, ob eine längere Zinsbindung vereinbart wurde. Das lohnt sich, wenn die Zinsen zwischenzeitlich gefallen sind." }
     ]}
   >
     <div class="calc-form">
@@ -59,28 +62,37 @@ const year = new Date().getFullYear();
   </CalculatorShell>
 
   <CalculatorGuide
-    title="Tilgungsplan und Kreditberechnung"
-    content={`<p>Der <strong>Tilgungsplan</strong> zeigt, wie sich ein Darlehen mit jedem Zahlungsvorgang abbaut. Bei einem Annuitätendarlehen besteht jede Zahlung aus einem Zins- und einem Tilgungsanteil.</p>
+    title="Annuitätendarlehen verstehen: Rate, Tilgung und Restschuld"
+    content={`
+      <p>Das <strong>Annuitätendarlehen</strong> ist in Deutschland die mit Abstand häufigste Form der Baufinanzierung. Sein Kennzeichen: Die monatliche Rate – die sogenannte Annuität – bleibt über die gesamte Zinsbindung konstant. Diese Rate setzt sich aus einem <strong>Zinsanteil</strong> und einem <strong>Tilgungsanteil</strong> zusammen. Da mit jeder Zahlung ein Stück der Restschuld getilgt wird, fällt der Zinsanteil und der Tilgungsanteil steigt entsprechend – die Rückzahlung beschleunigt sich also im Zeitverlauf von selbst.</p>
 
-<p><strong>Am Anfang der Laufzeit:</strong>
-<ul>
-  <li>Hoher Zinsanteil (z.B. 583€ von 1.001€)</li>
-  <li>Niedriger Tilgungsanteil (z.B. 418€)</li>
-  <li>Die Restschuld sinkt nur langsam</li>
-</ul>
-</p>
+      <h4>So verschiebt sich das Verhältnis von Zins und Tilgung</h4>
+      <p>Ein Beispiel: Bei einem Darlehen über <strong>200.000 €</strong> mit <strong>4 % Sollzins</strong> und <strong>2 % Anfangstilgung</strong> beträgt die Jahresrate 6 % der Darlehenssumme, also 12.000 € oder 1.000 € im Monat. Im ersten Monat entfallen davon rund 667 € auf Zinsen (200.000 € × 4 % ÷ 12) und nur 333 € auf die Tilgung. Weil die Zinsen immer nur auf die verbleibende Restschuld berechnet werden, dreht sich dieses Verhältnis mit den Jahren um: Gegen Ende der Laufzeit besteht die gleiche Rate fast vollständig aus Tilgung.</p>
 
-<p><strong>Am Ende der Laufzeit:</strong>
-<ul>
-  <li>Niedriger Zinsanteil (z.B. 5€)</li>
-  <li>Hoher Tilgungsanteil (z.B. 996€)</li>
-  <li>Die Restschuld sinkt schnell</li>
-</ul>
-</p>
+      <h4>Anfangstilgung: der wichtigste Hebel für Laufzeit und Zinskosten</h4>
+      <p>Die <strong>Anfangstilgung</strong> entscheidet maßgeblich, wie lange Sie zahlen und wie viel Zinsen insgesamt anfallen. Je höher die Tilgung, desto höher die Monatsrate, aber desto kürzer die Laufzeit und desto geringer die Gesamtzinsen. Die folgende Tabelle zeigt die Wirkung verschiedener Anfangstilgungen bei einem Darlehen von <strong>200.000 € und 4 % Sollzins</strong>:</p>
+      <table>
+        <thead>
+          <tr><th>Anfangstilgung</th><th>Monatsrate</th><th>Laufzeit (ca.)</th><th>Restschuld nach 10 Jahren</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>1 %</td><td>833 €</td><td>~41 Jahre</td><td>~176.000 €</td></tr>
+          <tr><td>2 %</td><td>1.000 €</td><td>~28 Jahre</td><td>~152.000 €</td></tr>
+          <tr><td>3 %</td><td>1.167 €</td><td>~22 Jahre</td><td>~128.000 €</td></tr>
+          <tr><td>4 %</td><td>1.333 €</td><td>~18 Jahre</td><td>~104.000 €</td></tr>
+        </tbody>
+      </table>
+      <p>Bei nur <strong>1 % Tilgung</strong> läuft das Darlehen über 40 Jahre, und Sie zahlen im Ergebnis mehr Zinsen, als das Darlehen selbst groß war. Deshalb gilt: In einem Zinsumfeld um 4 % sollte die Anfangstilgung mindestens 2 %, besser 3 % betragen.</p>
 
-<p><strong>Beispiel-Tilgungsplan:</strong> Ein 200.000€-Kredit bei 3,5% über 20 Jahre hat 240 Raten à 1.001€. Gesamtkosten: 240.240€. Zinsen: 40.240€.</p>
+      <h4>Zinsbindung und Restschuld</h4>
+      <p>Anders als in vielen Ländern wird in Deutschland der Zinssatz nicht für die gesamte Laufzeit, sondern nur für eine feste <strong>Zinsbindung</strong> vereinbart – üblich sind 10, 15 oder 20 Jahre. Nach Ablauf dieser Frist bleibt fast immer eine <strong>Restschuld</strong> übrig, die über eine <strong>Anschlussfinanzierung</strong> weiter zurückgezahlt wird. Wie hoch diese Restschuld ist, hängt direkt von der gewählten Anfangstilgung ab (siehe Tabelle). Ein niedriger Zins während der Zinsbindung ist nur die halbe Miete – entscheidend ist auch, wie viel Schuld am Ende noch zu einem dann unbekannten Zins refinanziert werden muss.</p>
 
-<p><strong>Wichtig für Hypotheken:</strong> Bei Immobilienkrediten ist der Zinsbindungszeitraum wichtig! Sie sind nur für die vereinbarte Zeit an den Zinssatz gebunden. Danach erfolgt eine Anschlussfinanzierung, bei der sich der Zins ändern kann.</p>`}
+      <h4>Sondertilgung und Volltilgerdarlehen</h4>
+      <p>Die meisten Kreditverträge räumen ein <strong>Sondertilgungsrecht</strong> von 5 % der Darlehenssumme pro Jahr kostenfrei ein. Jede Sondertilgung reduziert die Restschuld unmittelbar und spart überproportional Zinsen, weil sie in der frühen Phase mit hohem Zinsanteil wirkt. Wer von Beginn an schuldenfrei sein möchte, wählt ein <strong>Volltilgerdarlehen</strong>: Hier wird die Tilgung so gewählt, dass das Darlehen exakt am Ende der Zinsbindung vollständig getilgt ist – ganz ohne Anschlussfinanzierung und Zinsänderungsrisiko. Banken belohnen diese Planungssicherheit oft mit einem kleinen Zinsabschlag.</p>
+
+      <h4>Sollzins und effektiver Jahreszins</h4>
+      <p>Achten Sie beim Vergleich von Angeboten auf den <strong>effektiven Jahreszins</strong> statt nur auf den Sollzins. Der Effektivzins muss nach § 6 der Preisangabenverordnung (PAngV) ausgewiesen werden und enthält zusätzliche Kosten wie Bereitstellungszinsen oder bestimmte Gebühren – er macht Angebote also erst wirklich vergleichbar. Zu wissen ist außerdem: Nach § 489 BGB dürfen Sie jedes Darlehen zehn Jahre nach Vollauszahlung mit einer Frist von sechs Monaten kündigen, auch wenn eine längere Zinsbindung vereinbart wurde – ein wertvolles Recht, falls die Zinsen bis dahin deutlich gefallen sind.</p>
+    `}
     relatedSlugs={['hauskauf-rechner', 'immobilienkauf-nebenkosten', 'grunderwerbsteuer-rechner']}
   />
 </Layout>

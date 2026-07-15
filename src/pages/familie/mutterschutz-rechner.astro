@@ -8,12 +8,14 @@ const cat = CATEGORIES[calc.category];
 const year = new Date().getFullYear();
 
 const faqs = [
-  { q: 'Was ist Mutterschutz?', a: 'Mutterschutz ist der rechtliche Schutz werdender Mütter. Es beinhaltet Beschäftigungsverbote, Kündigungsschutz und Mutterschaftsgeld.' },
-  { q: 'Wie lange dauert die Schutzfrist?', a: 'Die Mutterschutzfrist beträgt 6 Wochen vor und 8 Wochen nach dem errechneten Entbindungstermin.' },
-  { q: 'Bekomme ich in der Schutzfrist Geld?', a: 'Ja, Mutterschaftsgeld wird gezahlt. Bei Kassenpatienten zahlt die Krankenkasse, bei Privatpatienten der Arbeitgeber.' },
-  { q: 'Wie hoch ist das Mutterschaftsgeld?', a: 'Mutterschaftsgeld beträgt max. 13€/Tag oder das Durchschnittseinkommen der letzten 3 Monate bei Privatversicherten.' },
-  { q: 'Darf mein Arbeitgeber mich kündigen?', a: 'Nein, während der Schutzfrist ist eine Kündigung unzulässig. Der Schutz beginnt 4 Wochen vor Schutzfristbeginn.' },
-  { q: 'Kann ich während Mutterschutz arbeiten?', a: 'Nein, auf Arbeitsverbote in der Schutzfrist. Ausnahmen sind nur mit schriftlicher Zustimmung möglich.' },
+  { q: 'Was ist der Mutterschutz?', a: 'Der Mutterschutz ist der gesetzliche Schutz von schwangeren und stillenden Frauen im Job. Er umfasst Beschäftigungsverbote, die Schutzfristen rund um die Geburt, einen besonderen Kündigungsschutz und den Anspruch auf Mutterschaftsgeld. Grundlage ist das Mutterschutzgesetz (MuSchG).' },
+  { q: 'Wie lange dauert die Schutzfrist?', a: 'Die Schutzfrist beträgt nach § 3 MuSchG 6 Wochen vor und 8 Wochen nach dem errechneten Entbindungstermin. Bei Früh- und Mehrlingsgeburten sowie bei Geburt eines Kindes mit Behinderung verlängert sich die Frist nach der Geburt auf 12 Wochen.' },
+  { q: 'Was passiert, wenn das Kind später oder früher kommt?', a: 'Die Frist vor der Geburt ist an den errechneten Termin gebunden. Kommt das Kind später, verkürzt sich die Vorfrist nicht – die verlorenen Tage werden an die 8-Wochen-Frist nach der Geburt angehängt. Kommt das Kind früher, wird die nicht genutzte Vorfrist ebenfalls nach hinten übertragen, sodass immer die volle Schutzzeit erhalten bleibt.' },
+  { q: 'Wie hoch ist das Mutterschaftsgeld?', a: 'Gesetzlich Versicherte erhalten von ihrer Krankenkasse maximal 13 € pro Kalendertag. Der Arbeitgeber stockt mit einem Zuschuss auf, sodass zusammen das durchschnittliche Nettoentgelt der letzten drei Monate erreicht wird. Für die Frau entsteht also in der Schutzfrist in der Regel kein Einkommensverlust.' },
+  { q: 'Wer zahlt das Mutterschaftsgeld?', a: 'Bei gesetzlich Versicherten zahlt die Krankenkasse bis zu 13 € pro Tag, den Rest bis zum Nettolohn trägt der Arbeitgeber (Arbeitgeberzuschuss nach § 20 MuSchG). Privat oder familienversicherte Frauen erhalten einen einmaligen Zuschuss von maximal 210 € über das Bundesamt für Soziale Sicherung; auch hier zahlt der Arbeitgeber den Aufstockungsbetrag.' },
+  { q: 'Darf mein Arbeitgeber mich kündigen?', a: 'Nein. Nach § 17 MuSchG ist eine Kündigung während der Schwangerschaft und bis vier Monate nach der Geburt unzulässig – vorausgesetzt, der Arbeitgeber kennt die Schwangerschaft oder wird innerhalb von zwei Wochen nach Zugang der Kündigung informiert. Ausnahmen sind nur in seltenen Sonderfällen mit behördlicher Zustimmung möglich.' },
+  { q: 'Was ist ein Beschäftigungsverbot?', a: 'Neben den Schutzfristen kann ein individuelles oder generelles Beschäftigungsverbot bestehen, wenn die Tätigkeit Mutter oder Kind gefährdet (z. B. schweres Heben, Nachtarbeit, Akkord). Während eines Beschäftigungsverbots außerhalb der Schutzfrist zahlt der Arbeitgeber den vollen Lohn weiter (Mutterschutzlohn nach § 18 MuSchG).' },
+  { q: 'Was ist der Unterschied zwischen Mutterschutz und Elternzeit?', a: 'Der Mutterschutz ist ein automatischer gesetzlicher Schutz rund um die Geburt und muss nicht beantragt werden. Die Elternzeit dagegen muss beim Arbeitgeber schriftlich angemeldet werden, kann von beiden Elternteilen genommen werden und schließt sich in der Regel an die Mutterschutzfrist an. Elterngeld wird für die Elternzeit gezahlt, nicht für den Mutterschutz.' },
 ];
 ---
 <Layout
@@ -59,15 +61,38 @@ const faqs = [
 
   <CalculatorGuide
     title="Mutterschutz – Rechtliche Sicherheit für werdende Mütter"
-    content="Mutterschutz ist ein fundamentaler rechtlicher Schutz für werdende und stillende Mütter. Die Schutzfrist beträgt 6 Wochen vor und 8 Wochen nach der Geburt. Während dieser Zeit darf die Mutter nicht arbeiten, und der Arbeitgeber darf nicht kündigen.
+    content={`
+      <p>Der <strong>Mutterschutz</strong> ist einer der zentralen gesetzlichen Schutzmechanismen für schwangere und stillende Frauen im Arbeitsleben. Geregelt ist er im <strong>Mutterschutzgesetz (MuSchG)</strong>. Er verfolgt zwei Ziele: die Gesundheit von Mutter und Kind zu schützen und die wirtschaftliche Existenz der Frau während dieser Zeit zu sichern. Der Mutterschutz-Rechner ermittelt aus dem errechneten Geburtstermin den Beginn und das Ende Ihrer persönlichen Schutzfrist.</p>
 
-Die Mutterschaftsgeldleistung beträgt maximal 13€/Tag bei gesetzlich Versicherten (die Krankenkasse zahlt). Privatversicherte und Selbstständige müssen mit ihrem Arbeitgeber klären, wie die Zahlung funktioniert.
+      <h4>Die Schutzfristen nach § 3 MuSchG</h4>
+      <p>Die Schutzfrist beginnt <strong>6 Wochen vor</strong> dem errechneten Entbindungstermin und endet regulär <strong>8 Wochen nach</strong> der Geburt. In dieser Zeit besteht ein grundsätzliches Beschäftigungsverbot. Die Frau darf in den sechs Wochen vor der Geburt auf eigenen, jederzeit widerrufbaren Wunsch weiterarbeiten – nach der Geburt gilt das Verbot jedoch absolut. Verschiebt sich die tatsächliche Geburt gegenüber dem errechneten Termin, bleibt die Gesamtschutzzeit erhalten: Tage, die vor der Geburt „verloren“ gehen, werden hinten angehängt.</p>
 
-Ein häufiges Missverständnis: Mutterschutz und Elternzeit sind unterschiedlich. Mutterschutz ist ein automatischer gesetzlicher Schutz, Elternzeit muss beantragt werden und beginnt ab der Geburt.
+      <h4>Fristen im Überblick: normale und besondere Geburt</h4>
+      <table>
+        <thead>
+          <tr><th>Situation</th><th>Frist vor Geburt</th><th>Frist nach Geburt</th><th>Gesamt (bei Termingeburt)</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Normale Einlingsgeburt</td><td>6 Wochen</td><td>8 Wochen</td><td>14 Wochen</td></tr>
+          <tr><td>Frühgeburt</td><td>6 Wochen</td><td>12 Wochen</td><td>18 Wochen*</td></tr>
+          <tr><td>Mehrlingsgeburt (Zwillinge etc.)</td><td>6 Wochen</td><td>12 Wochen</td><td>18 Wochen</td></tr>
+          <tr><td>Kind mit Behinderung (auf Antrag)</td><td>6 Wochen</td><td>12 Wochen</td><td>18 Wochen</td></tr>
+        </tbody>
+      </table>
+      <p style="font-size:0.85rem;color:#777;">* Bei Frühgeburten wird zusätzlich die vor der Geburt nicht ausgeschöpfte Frist an die 12 Wochen angehängt.</p>
 
-Bei Mehrlingen verlängert sich die Schutzfrist. Auch bei Totgeburten nach der 20. Woche gilt Mutterschutz. Arbeitnehmerinnen, die Mutterschutzfristen nicht einhalten, können eine Beschwerde beim Gewerbeaufsichtsamt einreichen.
+      <h4>Mutterschaftsgeld und Arbeitgeberzuschuss</h4>
+      <p>Während der Schutzfrist entsteht der Frau in der Regel <strong>kein Einkommensverlust</strong>. Gesetzlich Versicherte erhalten von ihrer Krankenkasse <strong>Mutterschaftsgeld von maximal 13 € pro Kalendertag</strong>. Da dieser Betrag meist unter dem bisherigen Nettolohn liegt, zahlt der Arbeitgeber einen <strong>Zuschuss</strong> (§ 20 MuSchG), der die Differenz bis zum durchschnittlichen Nettoentgelt der letzten drei Monate ausgleicht. Privat oder familienversicherte Frauen erhalten über das Bundesamt für Soziale Sicherung einen einmaligen Zuschuss von höchstens 210 €; den Aufstockungsbetrag zahlt auch hier der Arbeitgeber.</p>
 
-Tipp: Informieren Sie Ihren Arbeitgeber frühzeitig über die Schwangerschaft, damit er die Schutzbestimmungen einplanen kann."
+      <h4>Kündigungsschutz nach § 17 MuSchG</h4>
+      <p>Ab Beginn der Schwangerschaft bis zum Ablauf von <strong>vier Monaten nach der Geburt</strong> ist eine Kündigung durch den Arbeitgeber unzulässig. Voraussetzung ist, dass dem Arbeitgeber die Schwangerschaft bekannt ist oder ihm innerhalb von zwei Wochen nach Zugang der Kündigung mitgeteilt wird. Dieser Schutz gilt unabhängig von der Betriebsgröße und auch in der Probezeit. Nur in seltenen Ausnahmefällen kann die zuständige Aufsichtsbehörde eine Kündigung für zulässig erklären.</p>
+
+      <h4>Beschäftigungsverbote außerhalb der Schutzfrist</h4>
+      <p>Neben den festen Schutzfristen kann ein <strong>Beschäftigungsverbot</strong> ausgesprochen werden, wenn die konkrete Tätigkeit Mutter oder Kind gefährdet – etwa bei schwerem Heben, Nachtarbeit, Akkord- oder Fließbandarbeit oder Kontakt mit Gefahrstoffen. Ein solches Verbot kann ärztlich (individuell) oder gesetzlich (generell) begründet sein. Während eines Beschäftigungsverbots zahlt der Arbeitgeber den vollen <strong>Mutterschutzlohn</strong> weiter (§ 18 MuSchG); es entsteht kein finanzieller Nachteil.</p>
+
+      <h4>Praktische Hinweise</h4>
+      <p>Informieren Sie Ihren Arbeitgeber frühzeitig über die Schwangerschaft und den errechneten Termin, damit die Schutzbestimmungen und eine mögliche Vertretung geplant werden können. Der Mutterschutz geht in der Regel nahtlos in die <strong>Elternzeit</strong> über, die jedoch gesondert beantragt werden muss. Auch bei einer Fehlgeburt ab der 24. Schwangerschaftswoche gilt die Frau als entbunden und hat Anspruch auf die nachgeburtliche Schutzfrist.</p>
+    `}
     relatedSlugs={['elterngeld-rechner', 'schwangerschafts-rechner']}
   />
 </Layout>

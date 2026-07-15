@@ -29,7 +29,11 @@ const year = new Date().getFullYear();
       { q: "Was kostet der Strom vs. Benzin?", a: "E-Auto: ca. 3-5€ pro 100 km (bei 20€/kWh). Benziner: ca. 8-10€ pro 100 km (bei 1,80€/Liter). E-Auto ist ca. 50% günstiger beim Betrieb." },
       { q: "Ist die Batterie ein Kostenfaktor?", a: "Batterien halten heute 10+ Jahre. Garantie meist 8 Jahre oder 160.000 km. Austausch kostet 5.000-10.000€, aber sehr selten nötig." },
       { q: "Wartungskosten E-Auto vs. Benziner?", a: "E-Auto: 100-150€/Jahr (Reifen, Inspektion). Benziner: 400-600€/Jahr (Öl, Filter, Zündkerzen, TÜV)." },
-      { q: "Gibt es noch Förderungen?", a: "2026: Kaufprämie bis 4.500€ in manchen Bundesländern. Steuerliche Vorteile sinken. Hauptersparnis: niedriger Betrieb." }
+      { q: "Gibt es noch Förderungen?", a: "Die bundesweite Umweltprämie (BAFA) ist Ende 2023 ausgelaufen. 2026 gibt es je nach Bundesland und Kommune noch regionale Zuschüsse sowie vergünstigte KfW-Kredite für Wallboxen. Die größten geldwerten Vorteile liegen bei der Dienstwagenbesteuerung (0,25 % statt 1 %) und der Kfz-Steuerbefreiung." },
+      { q: "Ist mein E-Auto von der Kfz-Steuer befreit?", a: "Reine Elektroautos, die bis zum 31.12.2025 erstmals zugelassen wurden, sind nach § 3d KraftStG bis längstens Ende 2030 von der Kfz-Steuer befreit. Für spätere Erstzulassungen gilt die Befreiung nach aktueller Rechtslage nicht automatisch – hier ist eine gesetzliche Verlängerung im politischen Gespräch, aber noch nicht final beschlossen." },
+      { q: "Was bringt die THG-Quote?", a: "Halter reiner E-Autos können jährlich ihre Treibhausgasminderungsquote (THG-Quote) über einen Anbieter verkaufen. Die Prämie ist von anfänglich mehreren Hundert Euro stark gefallen und liegt 2026 meist nur noch bei etwa 25 bis 100 Euro pro Jahr, abhängig vom Zertifikatspreis." },
+      { q: "Was kostet öffentliches Laden im Vergleich zu Hause?", a: "Zu Hause laden Sie zum Haushaltsstrompreis von rund 30 bis 40 ct/kWh. Öffentliches AC-Laden kostet meist 45 bis 60 ct/kWh, Schnellladen (DC) an der Autobahn oft 60 bis 79 ct/kWh. Wer überwiegend zu Hause oder am Arbeitsplatz lädt, senkt die Energiekosten erheblich." },
+      { q: "Wie stark verliert ein E-Auto an Wert?", a: "Der Restwert ist stark modellabhängig. Gefragte Modelle mit guter Reichweite und aktueller Batterietechnik halten ihren Wert ähnlich gut wie Verbrenner. Ältere E-Autos mit kleiner Batterie verlieren dagegen überdurchschnittlich. Setzen Sie im Rechner einen realistischen Restwert für Ihr konkretes Modell an." }
     ]}
   >
     <div class="calc-form">
@@ -83,17 +87,38 @@ const year = new Date().getFullYear();
 
   <CalculatorGuide
     title="Elektroauto vs. Verbrenner: Gesamtkosten im Vergleich"
-    content={`<p>Die Entscheidung zwischen Elektroauto und Verbrenner ist mehr als eine Frage des Kaufpreises. Die <strong>Total Cost of Ownership (TCO)</strong> umfasst alle Kosten, die in der gesamten Nutzungsdauer eines Fahrzeugs anfallen: Anschaffung, Betrieb, Wartung, Versicherung, Steuern und Wertverlust. Nur wer alle Faktoren berücksichtigt, kann eine fundierte Entscheidung treffen.</p>
+    content={`<p>Die Entscheidung zwischen Elektroauto und Verbrenner ist mehr als eine Frage des Kaufpreises. Die <strong>Total Cost of Ownership (TCO)</strong> umfasst alle Kosten, die während der gesamten Nutzungsdauer eines Fahrzeugs anfallen: Anschaffung, Energie, Wartung, Versicherung, Steuern und Wertverlust. Nur wer alle Blöcke zusammenrechnet, erkennt, welches Antriebskonzept für das eigene Fahrprofil wirklich günstiger ist.</p>
 
-<p><strong>Anschaffungskosten und Fördermöglichkeiten:</strong> Elektroautos haben in der Regel einen höheren Listenpreis als vergleichbare Verbrenner. Allerdings bieten einige Bundesländer noch regionale Förderungen an. Zudem sind E-Autos bis 2030 von der Kfz-Steuer befreit (gemäß Kraftfahrzeugsteuergesetz). Dienstwagenfahrer profitieren von der vergünstigten Versteuerung des geldwerten Vorteils: Nur 0,25 % des Listenpreises werden monatlich angesetzt (bei einem Preis bis 70.000 Euro), während Verbrenner mit 1 % versteuert werden.</p>
+<h4>TCO-Vergleich über 5 Jahre (Beispielrechnung)</h4>
+<p>Die folgende Modellrechnung zeigt einen Mittelklassewagen bei 15.000 km pro Jahr über 5 Jahre (75.000 km gesamt), Heimladen zu 0,35 Euro/kWh und Benzin zu 1,80 Euro/Liter. Die Werte sind Richtgrößen und ersetzen keine individuelle Kalkulation.</p>
+<table>
+  <thead>
+    <tr><th>Kostenblock (5 Jahre)</th><th>Elektroauto</th><th>Benziner</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>Anschaffungspreis</td><td>42.000 €</td><td>33.000 €</td></tr>
+    <tr><td>Energie (Strom bzw. Benzin)</td><td>ca. 4.990 €</td><td>ca. 9.450 €</td></tr>
+    <tr><td>Wartung &amp; Verschleiß</td><td>ca. 750 €</td><td>ca. 2.750 €</td></tr>
+    <tr><td>Kfz-Steuer</td><td>0 € (befreit)</td><td>ca. 600 €</td></tr>
+    <tr><td>Versicherung</td><td>ca. 3.100 €</td><td>ca. 2.800 €</td></tr>
+    <tr><td>THG-Prämie (Gutschrift)</td><td>ca. −300 €</td><td>–</td></tr>
+    <tr><td>Restwert nach 5 Jahren</td><td>−21.000 €</td><td>−14.850 €</td></tr>
+    <tr><td><strong>Gesamtkosten (TCO)</strong></td><td><strong>ca. 29.540 €</strong></td><td><strong>ca. 33.750 €</strong></td></tr>
+  </tbody>
+</table>
+<p>Im Beispiel ist das E-Auto trotz höherem Kaufpreis über 5 Jahre rund <strong>4.200 Euro günstiger</strong> – vor allem wegen niedriger Energie- und Wartungskosten. Bei geringer Fahrleistung oder teurem Ladestrom kann sich das Bild umkehren.</p>
 
-<p><strong>Betriebskosten im Detail:</strong> Die laufenden Kosten machen den größten Unterschied. Ein Elektroauto verbraucht im Durchschnitt 18-22 kWh pro 100 km. Bei einem Heimladestrompreis von 0,30 Euro/kWh ergeben sich Kosten von ca. 5,40-6,60 Euro pro 100 km. Ein vergleichbarer Benziner mit 7 Liter Verbrauch kommt bei 1,85 Euro/Liter auf ca. 12,95 Euro pro 100 km. Über 10 Jahre und 150.000 km ergibt das allein bei den Energiekosten eine Ersparnis von rund 9.500 Euro zugunsten des E-Autos.</p>
+<h4>Anschaffung, Kfz-Steuer und Dienstwagenvorteil</h4>
+<p>Elektroautos haben meist einen höheren Listenpreis als vergleichbare Verbrenner. Dafür sind reine E-Autos mit Erstzulassung bis 31.12.2025 nach § 3d KraftStG bis längstens Ende 2030 von der <strong>Kfz-Steuer</strong> befreit. Dienstwagenfahrer profitieren zusätzlich: Für die private Nutzung werden nur 0,25 % des Bruttolistenpreises pro Monat versteuert (bei Fahrzeugen bis 70.000 Euro), gegenüber 1 % beim Verbrenner. Eine bundesweite Kaufprämie gibt es seit Ende 2023 nicht mehr, wohl aber regionale Zuschüsse einzelner Länder und Kommunen.</p>
 
-<p><strong>Wartung und Verschleiß:</strong> Elektroautos haben deutlich geringere Wartungskosten. Es entfallen Ölwechsel, Zahnriemenwechsel, Auspuffanlage und Kupplung. Bremsbeläge halten durch die Rekuperation (Energierückgewinnung beim Bremsen) zwei- bis dreimal so lange. Laut ADAC liegen die jährlichen Wartungskosten eines E-Autos bei ca. 100-200 Euro, während Verbrenner mit 400-800 Euro zu Buche schlagen.</p>
+<h4>Energiekosten: Heimladen schlägt öffentliches Laden</h4>
+<p>Die laufenden Kosten machen den größten Unterschied. Ein E-Auto verbraucht im Schnitt 18–22 kWh pro 100 km. Beim <strong>Heimladen</strong> zum Haushaltsstrompreis (rund 35 ct/kWh) ergeben sich etwa 6,30–7,70 Euro pro 100 km. Öffentliches AC-Laden (45–60 ct/kWh) und Schnellladen an der Autobahn (bis 79 ct/kWh) sind deutlich teurer. Ein Benziner mit 7 Litern kommt bei 1,80 Euro/Liter auf rund 12,60 Euro pro 100 km – der Kostenvorteil des E-Autos schmilzt also, wenn oft öffentlich geladen wird.</p>
 
-<p><strong>Versicherung und Restwert:</strong> Die Versicherungskosten für E-Autos sind oft niedriger, da viele Versicherer Sondertarife anbieten. Der Restwert ist fahrzeugabhängig: Beliebte E-Auto-Modelle halten ihren Wert gut, während ältere Modelle mit kleiner Batterie stärker an Wert verlieren. Bei der Kalkulation sollten Sie realistische Restwerte für Ihr konkretes Modell ansetzen.</p>
+<h4>Wartung, Versicherung und Restwert</h4>
+<p>E-Autos haben spürbar geringere <strong>Wartungskosten</strong>: Ölwechsel, Zahnriemen, Auspuff und Kupplung entfallen, und die Bremsbeläge halten dank Rekuperation zwei- bis dreimal so lange. Laut ADAC liegen die jährlichen Wartungskosten bei etwa 100–200 Euro, Verbrenner bei 400–800 Euro. Die <strong>Versicherung</strong> ist mal günstiger, mal teurer – ein Vergleich lohnt. Der <strong>Restwert</strong> ist stark modellabhängig: Gefragte E-Modelle halten ihren Wert gut, ältere mit kleiner Batterie verlieren überdurchschnittlich.</p>
 
-<p><strong>Praxistipp:</strong> Wer zu Hause laden kann (eigene Wallbox), spart am meisten. Nutzen Sie außerdem dynamische Stromtarife, um nachts günstig zu laden. Ab einer Jahresfahrleistung von ca. 10.000 km amortisiert sich ein E-Auto in der Regel innerhalb von 6-8 Jahren gegenüber einem vergleichbaren Benziner.</p>`}
+<h4>Praxistipp und THG-Quote</h4>
+<p>Wer eine eigene <strong>Wallbox</strong> hat und überwiegend zu Hause oder am Arbeitsplatz lädt, spart am meisten – idealerweise mit dynamischem oder PV-Strom. Zusätzlich können Halter jährlich ihre <strong>THG-Quote</strong> verkaufen; die Prämie ist 2026 allerdings auf meist 25–100 Euro pro Jahr gesunken. Als Faustregel amortisiert sich ein E-Auto ab etwa 10.000–15.000 km Jahresfahrleistung innerhalb von rund 5–8 Jahren gegenüber einem vergleichbaren Benziner.</p>`}
     relatedSlugs={['spritkosten-vergleich', 'kfz-steuer-rechner', 'fahrtkosten-rechner', 'e-auto-leasing-kostenrechner']}
   />
 </Layout>
@@ -148,4 +173,3 @@ berechne();
 <style>
 .page-header { margin-bottom: 2rem; }
 </style>
-</Layout>

@@ -29,7 +29,10 @@ const year = new Date().getFullYear();
       { q: "Was ist die 'ortsübliche Vergleichsmiete'?", a: "Die ortsübliche Vergleichsmiete ist die durchschnittliche Nettokaltmiete für vergleichbare Wohnungen in der Region. Sie wird aus dem qualifizierten Mietspiegel ermittelt und basiert auf Baujahr, Größe, Ausstattung und Lage. Existiert kein Mietspiegel, kann ein Sachverständigengutachten oder eine Mietdatenbank herangezogen werden." },
       { q: "Schützt die Mietpreisbremse Bestandsmieter?", a: "Nein, die Mietpreisbremse nach § 556d BGB gilt nur bei Neuvermietungen. Für bestehende Mietverhältnisse gelten die Kappungsgrenzen nach § 558 BGB: maximal 20% Mieterhöhung innerhalb von drei Jahren, in angespannten Märkten sogar nur 15%." },
       { q: "Kann ich zu viel gezahlte Miete zurückfordern?", a: "Ja, seit der Reform 2019 können Mieter zu viel gezahlte Miete zurückfordern. Voraussetzung: Sie müssen den Verstoß gegenüber dem Vermieter qualifiziert rügen. Ab dem Zeitpunkt der Rüge können Sie die Differenz zwischen gezahlter und zulässiger Miete zurückfordern." },
-      { q: "Welche Ausnahmen gibt es von der Mietpreisbremse?", a: "Ausgenommen sind Neubauten (Erstbezug nach dem 1. Oktober 2014), umfassend modernisierte Wohnungen und Fälle, in denen die Vormiete bereits über der zulässigen Grenze lag (Bestandsschutz nach § 556e BGB). Auch möblierte Wohnungen auf Zeit können Sonderregelungen unterliegen." }
+      { q: "Welche Ausnahmen gibt es von der Mietpreisbremse?", a: "Ausgenommen sind Neubauten (Erstvermietung nach dem 1. Oktober 2014), umfassend modernisierte Wohnungen und Fälle, in denen die Vormiete bereits über der zulässigen Grenze lag (Bestandsschutz nach § 556e BGB). Rechtsgrundlage der Neubau- und Modernisierungsausnahme ist § 556f BGB. Auch möblierte Wohnungen auf Zeit können Sonderregelungen unterliegen." },
+      { q: "Wie schreibe ich eine wirksame Rüge?", a: "Seit der Reform 2019 genügt eine einfache Rüge: Sie beanstanden gegenüber dem Vermieter schriftlich, dass die Miete gegen die Mietpreisbremse verstößt. Eine detaillierte Begründung ist nicht mehr nötig. Versenden Sie die Rüge nachweisbar, etwa per Einschreiben oder E-Mail mit Empfangsbestätigung. Musterschreiben bietet der Deutsche Mieterbund an." },
+      { q: "Habe ich einen Auskunftsanspruch gegenüber dem Vermieter?", a: "Ja. Nach § 556g Abs. 3 BGB müssen Vermieter Ihnen auf Verlangen Auskunft über die Tatsachen geben, die für die zulässige Miethöhe maßgeblich sind, etwa die Höhe der Vormiete oder durchgeführte Modernisierungen. Berufen sie sich auf eine Ausnahme, müssen sie das teils sogar unaufgefordert vor Vertragsschluss offenlegen." },
+      { q: "Was ist der Unterschied zwischen qualifiziertem und einfachem Mietspiegel?", a: "Ein qualifizierter Mietspiegel wird nach wissenschaftlichen Grundsätzen erstellt, von Gemeinde und Interessenvertretern anerkannt und alle zwei Jahre aktualisiert. Er hat vor Gericht eine starke Beweiskraft. Ein einfacher Mietspiegel ist weniger formalisiert. Existiert gar kein Mietspiegel, kann die Vergleichsmiete über Sachverständigengutachten oder Vergleichswohnungen ermittelt werden." }
     ]}
   >
     <div class="calc-form">
@@ -81,7 +84,48 @@ const year = new Date().getFullYear();
     </div>
   </CalculatorShell>
 
-  <CalculatorGuide title="Mietpreisbremse in Deutschland: Was Sie wissen müssen" content="<p>Die Mietpreisbremse wurde 2015 mit § 556d BGB eingeführt, um den rasanten Anstieg der Mieten in Ballungsräumen zu begrenzen. Die Regelung besagt: Bei einer Neuvermietung darf die Miete höchstens 10% über der ortsüblichen Vergleichsmiete liegen. Diese Vergleichsmiete wird in der Regel aus dem qualifizierten Mietspiegel der jeweiligen Gemeinde abgelesen.</p><p><strong>Wo gilt die Mietpreisbremse?</strong> Die einzelnen Bundesländer legen per Verordnung fest, welche Gemeinden als angespannter Wohnungsmarkt gelten. In Bayern betrifft das unter anderem München, Augsburg und Regensburg. Berlin, Hamburg und Frankfurt am Main haben ebenfalls entsprechende Verordnungen erlassen. Die Verordnungen haben eine Laufzeit von maximal fünf Jahren und müssen dann erneuert werden.</p><p><strong>Rechenbeispiel:</strong> Bei einer 80 m² Wohnung in München mit einer ortsüblichen Vergleichsmiete von 14,50 €/m² liegt die zulässige Höchstmiete bei 15,95 €/m² (14,50 € + 10%). Das ergibt eine maximale Kaltmiete von 1.276 € pro Monat. Verlangt der Vermieter 18 €/m² (1.440 €), zahlen Sie monatlich 164 € zu viel.</p><p><strong>So gehen Sie bei einem Verstoß vor:</strong> Seit der Gesetzesreform 2019 müssen Mieter den Verstoß schriftlich rügen. Ab dem Rügezeitpunkt können Sie die Differenz zwischen gezahlter und zulässiger Miete zurückfordern. Die Rüge sollte konkret benennen, warum die Miete zu hoch ist. Ein Musterbrief ist beim Deutschen Mieterbund erhältlich.</p><p><strong>Modernisierungsumlage beachten:</strong> Vermieter dürfen 8% der Modernisierungskosten pro Jahr auf die Miete umlegen (§ 559 BGB). Eine energetische Sanierung für 30.000 € rechtfertigt damit eine Mieterhöhung von 2.400 € jährlich, also 200 € pro Monat. Diese Umlage kommt zur zulässigen Miete nach Mietpreisbremse hinzu, ist aber auf maximal 3 €/m² innerhalb von sechs Jahren gedeckelt (bzw. 2 €/m² bei Mieten unter 7 €/m²).</p><p><strong>Praxistipp:</strong> Prüfen Sie vor der Anmietung den Mietspiegel Ihrer Stadt. Viele Kommunen veröffentlichen ihn kostenlos online. Falls kein qualifizierter Mietspiegel existiert, können Sie beim örtlichen Mieterverein eine Einschätzung der Vergleichsmiete erhalten. Dokumentieren Sie alle Angaben des Vermieters zur Vormiete und zu durchgeführten Modernisierungen.</p>" relatedSlugs={['mietrechner', 'nebenkosten-rechner', 'kaufen-vs-mieten']} />
+  <CalculatorGuide title="Mietpreisbremse: Was Mieter wissen müssen" content={`
+      <p>Die <strong>Mietpreisbremse</strong> wurde 2015 mit § 556d BGB eingeführt, um den rasanten Mietanstieg in Ballungsräumen zu dämpfen. Der Grundsatz ist einfach: Bei einer <strong>Neuvermietung</strong> darf die Miete höchstens <strong>10 % über der ortsüblichen Vergleichsmiete</strong> liegen. Diese Vergleichsmiete wird in der Regel aus dem qualifizierten Mietspiegel der Gemeinde abgeleitet. Die Regelung wurde mehrfach verlängert und gilt nach aktuellem Stand bis Ende 2029.</p>
+
+      <h4>So berechnet sich die zulässige Höchstmiete</h4>
+      <p>Die Höchstmiete ergibt sich, indem Sie auf die ortsübliche Vergleichsmiete pauschal 10 % aufschlagen. Die folgende Tabelle zeigt Beispielwerte je Quadratmeter sowie die daraus resultierende Kaltmiete für eine 70-m²-Wohnung:</p>
+      <table>
+        <thead>
+          <tr><th>Ortsübliche Vergleichsmiete</th><th>Zulässige Höchstmiete (+10 %)</th><th>Kaltmiete bei 70 m²</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>8,00 €/m²</td><td>8,80 €/m²</td><td>616 €</td></tr>
+          <tr><td>10,00 €/m²</td><td>11,00 €/m²</td><td>770 €</td></tr>
+          <tr><td>12,00 €/m²</td><td>13,20 €/m²</td><td>924 €</td></tr>
+          <tr><td>14,50 €/m²</td><td>15,95 €/m²</td><td>1.117 €</td></tr>
+          <tr><td>18,00 €/m²</td><td>19,80 €/m²</td><td>1.386 €</td></tr>
+        </tbody>
+      </table>
+      <p><strong>Rechenbeispiel:</strong> Liegt die Vergleichsmiete bei 12,00 €/m², sind höchstens 13,20 €/m² zulässig – bei 70 m² also 924 € Kaltmiete. Verlangt der Vermieter 15,00 €/m² (1.050 €), zahlen Sie monatlich 126 € zu viel, im Jahr über 1.500 €.</p>
+
+      <h4>Wo gilt die Mietpreisbremse?</h4>
+      <p>Die Bremse greift nur in <strong>Gebieten mit angespanntem Wohnungsmarkt</strong>, die das jeweilige Bundesland per <strong>Landesverordnung</strong> ausweisen muss. Dazu zählen nahezu alle Großstädte wie Berlin, München, Hamburg, Köln und Frankfurt am Main sowie viele Umlandgemeinden. Die Verordnungen sind befristet und müssen regelmäßig erneuert werden – prüfen Sie daher stets die aktuelle Gebietskulisse Ihres Landes, denn außerhalb dieser Gebiete gilt die Mietpreisbremse nicht.</p>
+
+      <h4>Die vier großen Ausnahmen</h4>
+      <p>Selbst in Gebieten mit Mietpreisbremse gibt es wichtige Ausnahmen, bei denen der Vermieter mehr verlangen darf:</p>
+      <table>
+        <thead>
+          <tr><th>Ausnahme</th><th>Regelung</th><th>Rechtsgrundlage</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Neubau</td><td>Erstvermietung nach dem 01.10.2014 ist komplett ausgenommen</td><td>§ 556f BGB</td></tr>
+          <tr><td>Umfassende Modernisierung</td><td>bei Kosten von rund einem Drittel eines Neubaus</td><td>§ 556f BGB</td></tr>
+          <tr><td>Höhere Vormiete</td><td>war die Vormiete bereits höher, gilt Bestandsschutz</td><td>§ 556e BGB</td></tr>
+          <tr><td>Modernisierungsumlage</td><td>8 % der Modernisierungskosten pro Jahr umlegbar</td><td>§ 559 BGB</td></tr>
+        </tbody>
+      </table>
+
+      <h4>Auskunftsanspruch und Rüge: So setzen Sie Ihr Recht durch</h4>
+      <p>Berufen sich Vermieter auf eine Ausnahme, müssen sie dies vor Vertragsschluss unaufgefordert offenlegen – etwa die Höhe der Vormiete. Zusätzlich haben Mieter nach § 556g Abs. 3 BGB einen <strong>Auskunftsanspruch</strong> über die für die Miethöhe maßgeblichen Tatsachen. Halten Sie die Miete für überhöht, müssen Sie den Verstoß schriftlich <strong>rügen</strong>. Seit der Reform 2019 genügt eine einfache Rüge, in der Sie die Miete beanstanden; Sie müssen sie nicht mehr detailliert begründen. Ab dem Zugang der Rüge können Sie die zu viel gezahlte Miete zurückfordern.</p>
+
+      <h4>Abgrenzung: Bestandsmieten und Kappungsgrenze</h4>
+      <p>Wichtig ist die Unterscheidung zur laufenden Mieterhöhung: Die Mietpreisbremse betrifft ausschließlich <strong>Neuvermietungen</strong>. Für bestehende Mietverhältnisse gilt stattdessen die <strong>Kappungsgrenze</strong> nach § 558 BGB – hier darf die Miete innerhalb von drei Jahren um höchstens 20 %, in angespannten Märkten sogar nur um 15 % steigen, und maximal bis zur ortsüblichen Vergleichsmiete. Nutzen Sie zur Prüfung stets einen <strong>qualifizierten Mietspiegel</strong>; existiert keiner, hilft der örtliche Mieterverein bei der Einschätzung der Vergleichsmiete weiter.</p>
+    `} relatedSlugs={['mietrechner', 'nebenkosten-rechner', 'kaufen-vs-mieten']} />
 </Layout>
 
 <script type="module">
