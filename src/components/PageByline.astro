@@ -1,0 +1,39 @@
+---
+import { getLastModifiedMap } from '../utils/lastModified.mjs';
+
+interface Props {
+  /** Seitenpfad inkl. base und Slashes, z. B. '/auto/km-kostenrechner/' */
+  path: string;
+}
+const { path } = Astro.props;
+const base = import.meta.env.BASE_URL;
+
+// Echtes Commit-Datum. Ohne Git-Historie bleibt es leer – dann behauptet die
+// Seite keine Aktualität, statt ein erfundenes Datum zu zeigen.
+const lastModified = getLastModifiedMap().get(path);
+const label = lastModified
+  ? new Date(lastModified).toLocaleDateString('de-DE', { day: '2-digit', month: 'long', year: 'numeric' })
+  : null;
+---
+<p class="byline">
+  {label && <>Stand: <time datetime={lastModified}>{label}</time> · </>}
+  Erstellt und geprüft von <a href={`${base}ueber-uns/`}>Matthias Dührkop</a>
+</p>
+
+<style>
+.byline {
+  font-size: 0.78rem;
+  color: var(--muted);
+  line-height: 1.6;
+  margin: 0.4rem 0 0;
+}
+.byline a {
+  color: var(--muted);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.byline a:hover,
+.byline a:focus-visible {
+  color: var(--accent);
+}
+</style>

@@ -1,6 +1,7 @@
 ---
 import CalculatorLayout from '../../layouts/CalculatorLayout.astro';
 import CalculatorGuide from '../../components/CalculatorGuide.astro';
+import PageByline from '../../components/PageByline.astro';
 
 const base = import.meta.env.BASE_URL;
 ---
@@ -94,6 +95,7 @@ const base = import.meta.env.BASE_URL;
         </ul>
       </div>
     </div>
+    <PageByline path={`${base}auto/km-kostenrechner/`} />
   </div>
 
   <CalculatorGuide

@@ -2,6 +2,8 @@
 import CategoryHero from './CategoryHero.astro';
 import RelatedLinks from './RelatedLinks.astro';
 import { CATEGORIES, type Calculator } from '../data/calculators';
+import PageByline from './PageByline.astro';
+import { getLastModifiedMap } from '../utils/lastModified.mjs';
 
 interface Props {
   calculator: Calculator;
@@ -15,6 +17,21 @@ const cat = CATEGORIES[calculator.category];
 const base = import.meta.env.BASE_URL;
 const siteUrl = import.meta.env.SITE ?? 'https://deutschland-rechnet.de';
 
+const pagePath = `${base}${calculator.category}/${calculator.slug}/`;
+const pageUrl = `${siteUrl}${pagePath}`;
+
+// Echtes Commit-Datum der Seite. Ohne Git-Historie bleibt es undefined und
+// weder Schema noch sichtbarer Hinweis behaupten dann eine Aktualität.
+const lastModified = getLastModifiedMap().get(pagePath);
+
+// Verantwortlich ist eine reale, im Impressum genannte Person. Google bewertet
+// Rechner zu Geld- und Gesundheitsthemen (YMYL) auch nach solchen Signalen.
+const author = {
+  "@type": "Person",
+  "name": "Matthias Dührkop",
+  "url": `${siteUrl}${base}ueber-uns/`
+};
+
 const webAppSchema = {
   "@context": "https://schema.org",
   "@type": "WebApplication",
@@ -27,12 +44,15 @@ const webAppSchema = {
     "priceCurrency": "EUR"
   },
   "inLanguage": "de-DE",
-  "url": `${siteUrl}${base}${calculator.category}/${calculator.slug}/`,
+  "url": pageUrl,
   "description": calculator.description,
-  "author": {
+  "author": author,
+  "publisher": {
     "@type": "Organization",
-    "name": "Deutschland rechnet"
-  }
+    "name": "Deutschland rechnet",
+    "url": `${siteUrl}${base}`
+  },
+  ...(lastModified ? { "dateModified": lastModified } : {})
 };
 
 
@@ -71,6 +91,7 @@ const faqSchema = faqs && faqs.length > 0 ? {
       </div>
     )}
     <p class="source-note">{sourceNote}</p>
+    <PageByline path={pagePath} />
   </div>
 
   {faqs && faqs.length > 0 && (
