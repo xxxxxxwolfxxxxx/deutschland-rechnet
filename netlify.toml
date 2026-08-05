@@ -10,15 +10,9 @@
   to = "/geld/ratenkredit-detailrechner/"
   status = 301
 
-[[redirects]]
-  from = "/auto/unterhaltskosten-auto/*"
-  to = "/auto/km-kostenrechner/"
-  status = 301
-
-[[redirects]]
-  from = "/auto/wartungskosten-auto/*"
-  to = "/auto/km-kostenrechner/"
-  status = 301
+# unterhaltskosten-auto und wartungskosten-auto hatten hier Redirects auf den
+# KM-Kostenrechner. Beide existieren jetzt als eigene Seiten – die Redirects
+# sind entfallen, sonst wären die neuen Seiten nicht erreichbar.
 
 [[redirects]]
   from = "/auto/treibstoffkosten-reise/*"
