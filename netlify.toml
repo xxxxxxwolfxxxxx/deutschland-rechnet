@@ -2,6 +2,35 @@
   command = "npm run build"
   publish = "dist"
 
+# 301-Weiterleitungen für Alt-URLs, die Google als 404 gemeldet hat.
+# Müssen vor dem Catch-all stehen – Netlify nimmt die erste passende Regel.
+
+[[redirects]]
+  from = "/geld/kreditrechner/*"
+  to = "/geld/ratenkredit-detailrechner/"
+  status = 301
+
+[[redirects]]
+  from = "/auto/unterhaltskosten-auto/*"
+  to = "/auto/km-kostenrechner/"
+  status = 301
+
+[[redirects]]
+  from = "/auto/wartungskosten-auto/*"
+  to = "/auto/km-kostenrechner/"
+  status = 301
+
+[[redirects]]
+  from = "/auto/treibstoffkosten-reise/*"
+  to = "/auto/spritkosten-rechner/"
+  status = 301
+
+[[redirects]]
+  from = "/auto/elektroauto-verbrennungsmotor/*"
+  to = "/auto/elektroauto-tco-rechner/"
+  status = 301
+
+# Catch-all: muss die letzte Regel bleiben.
 [[redirects]]
   from = "/*"
   to = "/index.html"
