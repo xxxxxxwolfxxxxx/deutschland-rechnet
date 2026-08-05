@@ -141,16 +141,19 @@ export const CALCULATORS: Calculator[] = [
   { slug: 'jahresenergieverbrauch',       title: 'Jahresenergieverbrauch',         description: 'Strom-, Gas- und Wasserverbrauch deines Haushalts berechnen.',     category: 'energie',   featured: false, live: true },
   { slug: 'co2-einsparung-renovierung',   title: 'CO₂-Einsparung durch Renovierung',description: 'Energie- und CO₂-Einsparung durch Sanierungsmaßnahmen berechnen.',category: 'energie',   featured: false, live: true },
   { slug: 'energieausweis-vorberechnung', title: 'Energieausweis-Vorberechnung',   description: 'Wichtige Kennwerte für den Energieausweis deines Hauses ermitteln.',category: 'energie',   featured: false, live: true },
-  { slug: 'unterhaltskosten-auto',        title: 'Unterhaltskosten Auto',          description: 'Jährliche Kosten deines Autos inkl. Wertverlust, Steuer, Versicherung.', category: 'auto',      featured: false, live: true },
-  { slug: 'elektroauto-verbrennungsmotor',title: 'Elektroauto vs Verbrennungsmotor',description: 'Kostenvergleich E-Auto und Verbrenner über die gesamte Nutzungsdauer.',category: 'auto',      featured: false, live: true },
+  { slug: 'km-kostenrechner',             title: 'KM-Kostenrechner',               description: 'Fahrtkosten pro gefahrenem Kilometer berechnen.',                       category: 'auto',      featured: false, live: true },
   { slug: 'e-auto-leasing-kostenrechner', title: 'E-Auto Leasing Kostenrechner',   description: 'Gesamtkosten und monatliche Rate für E-Auto-Leasing berechnen.',        category: 'auto',      featured: false, live: true },
-  { slug: 'reichweite-elektroauto',       title: 'Reichweite Elektroauto',         description: 'Realistische Reichweite abhängig von Temperatur, Fahrstil und Gelände.',   category: 'auto',      featured: false, live: true },
-  { slug: 'treibstoffkosten-reise',       title: 'Treibstoffkosten für Reise',     description: 'Spritkosten für eine geplante Strecke berechnen.',                 category: 'auto',      featured: false, live: true },
-  { slug: 'co2-flotte-berechnung',        title: 'CO₂-Flotten-Berechnung',         description: 'Flottenemissionen für Unternehmen berechnen und ausgleichen.',       category: 'auto',      featured: false, live: true },
-  { slug: 'wartungskosten-auto',          title: 'Wartungskosten Auto',            description: 'Voraussichtliche Instandhaltungskosten nach Alter und Laufleistung.',  category: 'auto',      featured: false, live: true },
-  { slug: 'familienzuschuss-rechner',     title: 'Familienzuschuss-Rechner',       description: 'Zulässige Höhe des Familienzuschusses beim Finanzamt prüfen.',       category: 'familie',   featured: false, live: true },
-  { slug: 'unterhaltsvorschuss-rechner',  title: 'Unterhaltsvorschuss-Rechner',    description: 'Höhe des staatlichen Unterhaltsvorschusses für Alleinerziehende.',     category: 'familie',   featured: false, live: true },
-  { slug: 'schwangerengeld-rechner',      title: 'Schwangerengeld-Rechner',        description: 'Zuschuss zum Mutterschaftsgeld bei freiwilliger Versicherung berechnen.',category: 'familie',   featured: false, live: true },
+  // Geplant, aber noch ohne Seite. live: false, damit Navigation und RelatedLinks
+  // nicht auf 404 verlinken – Google hatte diese URLs bereits als "Nicht gefunden" gemeldet.
+  { slug: 'unterhaltskosten-auto',        title: 'Unterhaltskosten Auto',          description: 'Jährliche Kosten deines Autos inkl. Wertverlust, Steuer, Versicherung.', category: 'auto',      featured: false, live: false },
+  { slug: 'elektroauto-verbrennungsmotor',title: 'Elektroauto vs Verbrennungsmotor',description: 'Kostenvergleich E-Auto und Verbrenner über die gesamte Nutzungsdauer.',category: 'auto',      featured: false, live: false },
+  { slug: 'reichweite-elektroauto',       title: 'Reichweite Elektroauto',         description: 'Realistische Reichweite abhängig von Temperatur, Fahrstil und Gelände.',   category: 'auto',      featured: false, live: false },
+  { slug: 'treibstoffkosten-reise',       title: 'Treibstoffkosten für Reise',     description: 'Spritkosten für eine geplante Strecke berechnen.',                 category: 'auto',      featured: false, live: false },
+  { slug: 'co2-flotte-berechnung',        title: 'CO₂-Flotten-Berechnung',         description: 'Flottenemissionen für Unternehmen berechnen und ausgleichen.',       category: 'auto',      featured: false, live: false },
+  { slug: 'wartungskosten-auto',          title: 'Wartungskosten Auto',            description: 'Voraussichtliche Instandhaltungskosten nach Alter und Laufleistung.',  category: 'auto',      featured: false, live: false },
+  { slug: 'familienzuschuss-rechner',     title: 'Familienzuschuss-Rechner',       description: 'Zulässige Höhe des Familienzuschusses beim Finanzamt prüfen.',       category: 'familie',   featured: false, live: false },
+  { slug: 'unterhaltsvorschuss-rechner',  title: 'Unterhaltsvorschuss-Rechner',    description: 'Höhe des staatlichen Unterhaltsvorschusses für Alleinerziehende.',     category: 'familie',   featured: false, live: false },
+  { slug: 'schwangerengeld-rechner',      title: 'Schwangerengeld-Rechner',        description: 'Zuschuss zum Mutterschaftsgeld bei freiwilliger Versicherung berechnen.',category: 'familie',   featured: false, live: false },
   // VORLAGEN & TOOLS
   { slug: 'qr-code-generator',           title: 'QR-Code Generator',              description: 'QR-Codes erstellen – mit eigenem Logo in der Mitte. Kostenlos als PNG.',     category: 'vorlagen',  featured: true,  live: true },
   { slug: 'protokoll-generator',          title: 'Protokoll-Generator',            description: 'Übergabe-, Abnahme-, Besprechungsprotokolle als PDF – kostenlos und rechtssicher.',  category: 'vorlagen',  featured: true,  live: true },
@@ -160,8 +163,22 @@ export function getByCategory(category: Category): Calculator[] {
 }
 
 export function getRelated(current: Calculator, limit = 6): Calculator[] {
-  const same = CALCULATORS.filter(c => c.category === current.category && c.slug !== current.slug && c.live);
-  if (same.length >= 3) return same.slice(0, limit);
+  const inCategory = CALCULATORS.filter(c => c.category === current.category && c.live);
+  const position = inCategory.findIndex(c => c.slug === current.slug);
+
+  // Zirkulär ab der eigenen Position auswählen statt immer die ersten sechs der
+  // Kategorie. Sonst erhalten nur die vordersten Rechner eingehende Links und
+  // alles dahinter bleibt intern unverlinkt – in 'geld' (30 Einträge) betraf das
+  // den Großteil der Seiten.
+  const neighbours = position === -1
+    ? inCategory.filter(c => c.slug !== current.slug)
+    : Array.from(
+        { length: inCategory.length - 1 },
+        (_, offset) => inCategory[(position + 1 + offset) % inCategory.length],
+      );
+
+  if (neighbours.length >= 3) return neighbours.slice(0, limit);
+
   const featured = CALCULATORS.filter(c => c.featured && c.slug !== current.slug && c.live && c.category !== current.category);
-  return [...same, ...featured].slice(0, limit);
+  return [...neighbours, ...featured].slice(0, limit);
 }
