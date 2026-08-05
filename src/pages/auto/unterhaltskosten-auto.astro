@@ -1,0 +1,241 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import CalculatorShell from '../../components/CalculatorShell.astro';
+import CalculatorGuide from '../../components/CalculatorGuide.astro';
+import { CALCULATORS, CATEGORIES } from '../../data/calculators';
+const calc = CALCULATORS.find(c => c.slug === 'unterhaltskosten-auto')!;
+const cat = CATEGORIES[calc.category];
+const year = new Date().getFullYear();
+---
+<Layout
+  title={`Unterhaltskosten Auto ${year} – was kostet mein Auto im Jahr?`}
+  description="Jährliche Autokosten berechnen: Wertverlust, Versicherung, Steuer, Sprit und Wartung – getrennt nach Fixkosten und variablen Kosten."
+  canonicalPath="/auto/unterhaltskosten-auto/"
+  categoryColor={cat.color}
+  categoryLight={cat.colorLight}
+  categoryImage={cat.image}
+>
+  <div class="page-header">
+    <a href={`${import.meta.env.BASE_URL}auto/`} class="back-link">← Auto & Mobilität</a>
+    <h1>Unterhaltskosten Auto {year} – Jahreskosten berechnen</h1>
+  </div>
+  <CalculatorShell
+    calculator={calc}
+    intro="Was kostet Ihr Auto tatsächlich im Jahr? Dieser Rechner addiert alle Posten und trennt sie nach Fixkosten, die auch beim Stehenlassen anfallen, und variablen Kosten, die vom Fahren abhängen. Der Wertverlust ist dabei meist der größte und am häufigsten übersehene Posten."
+    sourceNote="Wertverlust = (Kaufpreis − Restwert) ÷ Haltedauer. Spritkosten = (km ÷ 100) × Verbrauch × Preis. Versicherung, Steuer, Wartung und Sonstiges werden als Jahresbeträge übernommen. Kfz-Steuer und Versicherungsbeitrag finden Sie auf Ihrem Steuerbescheid bzw. der Police."
+    explanation="Fixkosten fallen unabhängig von der Fahrleistung an: Wertverlust, Versicherung, Kfz-Steuer, Stellplatz und Mitgliedschaften. Variable Kosten entstehen durch das Fahren: Sprit und Wartung. Je weniger Sie fahren, desto stärker dominieren die Fixkosten – und desto teurer wird jeder einzelne Kilometer."
+    faqs={[
+      {
+        q: "Was kostet ein Auto durchschnittlich im Monat?",
+        a: "Für einen Kompaktwagen mit 15.000 Kilometern Jahresfahrleistung liegen die Gesamtkosten meist zwischen 400 und 550 Euro im Monat, inklusive Wertverlust. Ohne Wertverlust – also bei einem älteren, abgeschriebenen Fahrzeug – bleiben typischerweise 200 bis 300 Euro. Die Spanne ist groß, weil Versicherungsbeitrag und Wertverlust stark vom Fahrzeug und der Person abhängen."
+      },
+      {
+        q: "Warum ist der Wertverlust so wichtig?",
+        a: "Weil er der größte Einzelposten ist und nie als Rechnung ankommt. Ein Neuwagen verliert im ersten Jahr etwa 20 bis 25 Prozent seines Wertes, in den Folgejahren jeweils rund 5 bis 10 Prozent. Bei 25.000 Euro Kaufpreis sind das im ersten Jahr über 5.000 Euro – mehr als Sprit, Versicherung und Steuer zusammen."
+      },
+      {
+        q: "Wie ermittle ich den Restwert meines Autos?",
+        a: "Kostenlose Schätzungen liefern die Bewertungsportale von DAT und Schwacke sowie die Preisabfragen großer Gebrauchtwagenbörsen. Für eine grobe Rechnung genügt oft: Neuwagen verlieren in fünf Jahren etwa die Hälfte ihres Wertes, in acht Jahren rund zwei Drittel."
+      },
+      {
+        q: "Was gehört unter Sonstiges?",
+        a: "Typischerweise Stellplatz oder Garagenmiete, Automobilclub-Mitgliedschaft, Parkgebühren, Wagenwäsche, Schutzbrief und gegebenenfalls die Umweltplakette. Bei einem Stellplatz in der Stadt kommen hier schnell 1.200 Euro im Jahr zusammen."
+      },
+      {
+        q: "Ab wann lohnt sich ein eigenes Auto gegenüber Carsharing?",
+        a: "Unterhalb von etwa 5.000 Kilometern im Jahr sind Carsharing, Mietwagen und Taxi in aller Regel günstiger, weil die Fixkosten auf sehr wenige Kilometer entfallen. Zwischen 5.000 und 10.000 Kilometern hängt es stark vom Fahrzeug und den örtlichen Angeboten ab. Ab etwa 10.000 Kilometern im Jahr ist das eigene Auto meist wirtschaftlicher."
+      },
+      {
+        q: "Sind die Unterhaltskosten steuerlich absetzbar?",
+        a: "Für den Arbeitsweg gilt die Entfernungspauschale, unabhängig vom tatsächlichen Aufwand und vom genutzten Verkehrsmittel. Die tatsächlichen Kosten anzusetzen lohnt sich nur bei beruflich veranlassten Fahrten außerhalb des Arbeitswegs oder bei Selbstständigen mit betrieblicher Nutzung. Die konkrete Behandlung sollten Sie mit einem Steuerberater klären."
+      },
+      {
+        q: "Worin unterscheidet sich dieser Rechner vom KM-Kostenrechner?",
+        a: "Dieser Rechner beantwortet die Haushaltsfrage: Was kostet mich das Auto im Jahr und im Monat, und welcher Teil davon läuft auch ohne Fahren weiter? Der KM-Kostenrechner betrachtet dieselben Posten aus der Kilometerperspektive. Für die reinen Werkstatt- und Verschleißkosten gibt es den Wartungskosten-Rechner."
+      }
+    ]}
+  >
+    <div class="calc-form">
+      <div class="calc-group">
+        <label>Jahresfahrleistung – Schnellauswahl</label>
+        <div class="presets">
+          <button type="button" class="preset-btn" data-km="5000">5.000 km</button>
+          <button type="button" class="preset-btn" data-km="10000">10.000 km</button>
+          <button type="button" class="preset-btn active" data-km="15000">15.000 km</button>
+          <button type="button" class="preset-btn" data-km="25000">25.000 km</button>
+        </div>
+      </div>
+      <div class="calc-grid">
+        <div class="calc-group">
+          <label for="kaufpreis">Kaufpreis (€)</label>
+          <input type="number" id="kaufpreis" min="0" max="500000" value="25000" step="500" />
+        </div>
+        <div class="calc-group">
+          <label for="restwert">Erwarteter Restwert (€)</label>
+          <input type="number" id="restwert" min="0" max="500000" value="12000" step="500" />
+        </div>
+        <div class="calc-group">
+          <label for="haltedauer">Haltedauer (Jahre)</label>
+          <input type="number" id="haltedauer" min="1" max="30" value="5" step="1" />
+        </div>
+        <div class="calc-group">
+          <label for="km">Fahrleistung (km/Jahr)</label>
+          <input type="number" id="km" min="0" max="200000" value="15000" step="1000" />
+        </div>
+        <div class="calc-group">
+          <label for="verbrauch">Verbrauch (L/100 km)</label>
+          <input type="number" id="verbrauch" min="0" max="50" value="7" step="0.1" />
+        </div>
+        <div class="calc-group">
+          <label for="spritpreis">Spritpreis (€/L)</label>
+          <input type="number" id="spritpreis" min="0" max="5" value="1.75" step="0.01" />
+        </div>
+        <div class="calc-group">
+          <label for="versicherung">Versicherung (€/Jahr)</label>
+          <input type="number" id="versicherung" min="0" max="20000" value="600" step="50" />
+        </div>
+        <div class="calc-group">
+          <label for="steuer">Kfz-Steuer (€/Jahr)</label>
+          <input type="number" id="steuer" min="0" max="5000" value="150" step="10" />
+        </div>
+        <div class="calc-group">
+          <label for="wartung">Wartung/Reparatur (€/Jahr)</label>
+          <input type="number" id="wartung" min="0" max="20000" value="700" step="50" />
+        </div>
+        <div class="calc-group">
+          <label for="sonstiges">Sonstiges (€/Jahr)</label>
+          <input type="number" id="sonstiges" min="0" max="20000" value="240" step="20" />
+        </div>
+      </div>
+      <div class="calc-result">
+        <div class="label">Kosten pro Monat</div>
+        <div id="proMonat">— €</div>
+      </div>
+      <div class="breakdown">
+        <div class="breakdown-row"><span>Wertverlust pro Jahr</span><strong id="wertverlust">—</strong></div>
+        <div class="breakdown-row"><span>Spritkosten pro Jahr</span><strong id="sprit">—</strong></div>
+        <div class="breakdown-row"><span>Fixkosten gesamt</span><strong id="fix">—</strong></div>
+        <div class="breakdown-row"><span>Variable Kosten gesamt</span><strong id="variabel">—</strong></div>
+        <div class="breakdown-row total"><span>Gesamt pro Jahr</span><strong id="gesamt">—</strong></div>
+        <div class="breakdown-row"><span>Kosten pro Kilometer</span><strong id="proKm">—</strong></div>
+      </div>
+      <p id="hinweis" class="hinweis"></p>
+    </div>
+  </CalculatorShell>
+
+  <CalculatorGuide
+    title="Autokosten im Jahr – die vollständige Rechnung"
+    content={`<p>Die meisten Autofahrer unterschätzen ihre <strong>Unterhaltskosten</strong> erheblich. Der Grund ist einfach: Nur ein Teil der Kosten kommt als Rechnung an. Tankquittung, Versicherungsbeitrag und Steuerbescheid sind sichtbar. Der Wertverlust dagegen passiert lautlos – und ist bei jungen Fahrzeugen der mit Abstand größte Posten.</p>
+
+<p><strong>Fixkosten und variable Kosten – warum die Trennung zählt:</strong> Fixkosten laufen weiter, auch wenn das Auto drei Wochen in der Garage steht: Wertverlust, Versicherung, Kfz-Steuer, Stellplatz, Automobilclub. Variable Kosten entstehen erst durch das Fahren: Sprit, Verschleiß, Reifen. Wer wenig fährt, zahlt jeden Kilometer teuer, weil sich die Fixkosten auf wenige Kilometer verteilen. Genau deshalb ist die Frage »lohnt sich mein Auto?« für Wenigfahrer eine andere als für Pendler.</p>
+
+<p><strong>Der Wertverlust im Detail:</strong> Ein Neuwagen verliert im ersten Jahr typischerweise 20 bis 25 Prozent seines Wertes, danach jährlich etwa 5 bis 10 Prozent. Nach fünf Jahren ist ein Fahrzeug im Schnitt noch rund die Hälfte des Neupreises wert, nach acht Jahren etwa ein Drittel. Bei einem Kaufpreis von 25.000 Euro und fünf Jahren Haltedauer bedeutet das rund 2.600 Euro Wertverlust pro Jahr – mehr als Versicherung und Steuer zusammen. Wer einen drei Jahre alten Gebrauchtwagen kauft, umgeht den steilsten Teil dieser Kurve.</p>
+
+<p><strong>Die Versicherung ist verhandelbar:</strong> Anders als der Wertverlust lässt sich der Versicherungsbeitrag aktiv senken. Ein Wechsel zum Jahresende, eine höhere Selbstbeteiligung, die Beschränkung des Fahrerkreises, eine Werkstattbindung oder eine ehrlich angegebene niedrigere Jahresfahrleistung wirken oft zusammen mit mehreren hundert Euro. Bei der Kfz-Steuer geht das nicht – sie ergibt sich aus Hubraum und CO₂-Ausstoß.</p>
+
+<p><strong>Rechnen Sie ehrlich mit Sonstigem:</strong> Stellplatz oder Garage, Automobilclub, Parkgebühren, Wagenwäsche, Schutzbrief – einzeln wirken diese Posten klein, in Summe kommen leicht 500 bis 1.500 Euro im Jahr zusammen. In Großstädten ist der Stellplatz allein oft der zweitgrößte Fixkostenblock nach dem Wertverlust.</p>
+
+<p><strong>Die Entscheidungsfrage:</strong> Wenn Sie unter 5.000 Kilometer im Jahr fahren, rechnen Sie einmal gegen: Mietwagen für die Urlaubsfahrten, Carsharing für die Wocheneinkäufe, gelegentlich ein Taxi. In vielen Fällen liegt diese Kombination unter den Fixkosten eines eigenen Fahrzeugs. Ab etwa 10.000 Kilometern im Jahr kippt die Rechnung fast immer zugunsten des eigenen Autos.</p>
+
+<p><strong>Was dieser Rechner nicht leistet:</strong> Er arbeitet mit Ihren Eingaben und rechnet sie sauber zusammen – er schätzt nicht selbst, was Ihr Fahrzeug an Wartung kosten wird. Für eine Schätzung der Werkstattkosten nach Alter und Laufleistung nutzen Sie den Wartungskosten-Rechner und übertragen das Ergebnis in das Feld »Wartung/Reparatur«.</p>`}
+    relatedSlugs={['km-kostenrechner', 'wartungskosten-auto', 'kfz-steuer-rechner']}
+  />
+</Layout>
+
+<style>
+.presets {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.5rem;
+}
+.preset-btn {
+  padding: 0.4rem 0.85rem;
+  background: var(--bg);
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-family: var(--font-ui);
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text);
+  transition: border-color 0.15s, background 0.15s, color 0.15s;
+}
+.preset-btn:hover { border-color: var(--cat-color, var(--red)); }
+.preset-btn.active {
+  border-color: var(--cat-color, var(--red));
+  background: color-mix(in srgb, var(--cat-color, var(--red)) 8%, white);
+  color: var(--cat-color, var(--red));
+}
+.breakdown {
+  margin-top: 1rem;
+  display: grid;
+  gap: 0.4rem;
+}
+.breakdown-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  font-size: 0.9rem;
+  padding: 0.35rem 0;
+  border-bottom: 1px solid var(--border);
+}
+.breakdown-row.total {
+  border-bottom: 2px solid var(--cat-color, var(--red));
+  font-size: 1rem;
+}
+.hinweis {
+  margin-top: 0.75rem;
+  font-size: 0.85rem;
+  color: var(--text-light);
+}
+</style>
+
+<script type="module">
+const { berechneUnterhaltskosten } = await import(window.__base + 'scripts/unterhaltskosten-auto.js');
+
+function euro(n) { return n.toLocaleString('de-DE', { minimumFractionDigits: 0, maximumFractionDigits: 0 }) + ' €'; }
+const num = id => parseFloat(document.getElementById(id).value) || 0;
+
+function berechne() {
+  const r = berechneUnterhaltskosten({
+    kaufpreis: num('kaufpreis'),
+    restwert: num('restwert'),
+    haltedauerJahre: num('haltedauer'),
+    kmProJahr: num('km'),
+    verbrauch: num('verbrauch'),
+    spritpreis: num('spritpreis'),
+    versicherungProJahr: num('versicherung'),
+    steuerProJahr: num('steuer'),
+    wartungProJahr: num('wartung'),
+    sonstigesProJahr: num('sonstiges'),
+  });
+
+  document.getElementById('proMonat').textContent = euro(r.gesamtProMonat);
+  document.getElementById('wertverlust').textContent = euro(r.wertverlustProJahr);
+  document.getElementById('sprit').textContent = euro(r.spritkostenProJahr);
+  document.getElementById('fix').textContent = euro(r.fixkostenProJahr);
+  document.getElementById('variabel').textContent = euro(r.variableKostenProJahr);
+  document.getElementById('gesamt').textContent = euro(r.gesamtProJahr);
+  document.getElementById('proKm').textContent =
+    r.centProKm.toLocaleString('de-DE', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + ' ct/km';
+
+  document.getElementById('hinweis').textContent =
+    `${r.fixkostenAnteilProzent.toLocaleString('de-DE', { maximumFractionDigits: 0 })} % Ihrer Autokosten fallen unabhängig davon an, wie viel Sie fahren.`;
+}
+
+document.querySelectorAll('.preset-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('km').value = btn.dataset.km;
+    berechne();
+  });
+});
+['kaufpreis','restwert','haltedauer','km','verbrauch','spritpreis','versicherung','steuer','wartung','sonstiges']
+  .forEach(id => document.getElementById(id).addEventListener('input', () => {
+    if (id === 'km') document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
+    berechne();
+  }));
+berechne();
+</script>

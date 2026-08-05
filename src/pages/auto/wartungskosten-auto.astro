@@ -1,0 +1,214 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import CalculatorShell from '../../components/CalculatorShell.astro';
+import CalculatorGuide from '../../components/CalculatorGuide.astro';
+import { CALCULATORS, CATEGORIES } from '../../data/calculators';
+const calc = CALCULATORS.find(c => c.slug === 'wartungskosten-auto')!;
+const cat = CATEGORIES[calc.category];
+const year = new Date().getFullYear();
+---
+<Layout
+  title={`Wartungskosten Auto ${year} – Verschleiß pro Kilometer berechnen`}
+  description="Wartung, Verschleiß und Reifen nach Fahrzeugalter und Laufleistung schätzen – inklusive Abnutzung pro Kilometer in Cent."
+  canonicalPath="/auto/wartungskosten-auto/"
+  categoryColor={cat.color}
+  categoryLight={cat.colorLight}
+  categoryImage={cat.image}
+>
+  <div class="page-header">
+    <a href={`${import.meta.env.BASE_URL}auto/`} class="back-link">← Auto & Mobilität</a>
+    <h1>Wartungskosten Auto {year} – Verschleiß pro Kilometer</h1>
+  </div>
+  <CalculatorShell
+    calculator={calc}
+    intro="Was kostet die Abnutzung Ihres Autos pro Kilometer? Dieser Rechner schätzt Wartung, Verschleiß und Reifen getrennt – abhängig von Fahrzeugklasse, Alter und Jahresfahrleistung. Sprit, Steuer und Versicherung bleiben bewusst außen vor."
+    sourceNote="Schätzmodell in drei Blöcken: Wartung (überwiegend fix), Verschleiß (km × Alterfaktor) und Reifen (Laufleistung je Satz). Größenordnungen orientiert an den Werkstatt- und Reifenanteilen der ADAC-Autokostenrechnung. Werkstattpreise streuen regional erheblich – die Werte sind Orientierung, kein Kostenvoranschlag."
+    explanation="Wartung wächst nur leicht mit der Fahrleistung, weil Ölwechsel und HU auch nach Zeit fällig werden. Verschleiß dagegen steigt mit jedem Kilometer und zusätzlich mit dem Alter: Der Alterfaktor beginnt bei 0,5 im ersten Jahr (meist noch Garantie) und wächst um 0,12 pro Lebensjahr bis maximal 2,5. Reifen werden rein über die Laufleistung je Satz umgelegt."
+    faqs={[
+      {
+        q: "Wie viel Verschleiß pro Kilometer ist normal?",
+        a: "Für Wartung, Verschleiß und Reifen zusammen liegen typische Werte bei etwa 5-7 Cent pro Kilometer im Kleinwagen- und Kompaktsegment, 7-10 Cent in der Mittelklasse und 12-16 Cent in der Oberklasse – bei rund 15.000 km im Jahr und mittlerem Fahrzeugalter. Sprit ist darin nicht enthalten."
+      },
+      {
+        q: "Warum sinken die Kosten pro Kilometer, je mehr ich fahre?",
+        a: "Ein Teil der Wartung fällt unabhängig von der Fahrleistung an: Die Hauptuntersuchung ist alle zwei Jahre fällig, Motoröl altert auch im Stand. Diese Fixkosten verteilen sich bei 30.000 km auf doppelt so viele Kilometer wie bei 15.000 km. Der Verschleißanteil bleibt dagegen pro Kilometer konstant."
+      },
+      {
+        q: "Ab welchem Alter wird ein Auto teuer in der Wartung?",
+        a: "Die ersten Jahre sind meist günstig, weil Garantie und Kulanz greifen. Spürbar teurer wird es typischerweise ab dem sechsten bis achten Jahr, wenn Verschleißteile wie Stoßdämpfer, Auspuffanlage, Kupplung oder Zahnriemen fällig werden. Der Rechner bildet das über einen mit dem Alter steigenden Faktor ab."
+      },
+      {
+        q: "Was gehört zu Wartung, was zu Verschleiß?",
+        a: "Wartung ist planbar: Inspektion nach Herstellervorgabe, Ölwechsel, Filter, Hauptuntersuchung und Abgasuntersuchung. Verschleiß entsteht durch Nutzung: Bremsbeläge und -scheiben, Kupplung, Stoßdämpfer, Auspuff, Batterie sowie unplanmäßige Reparaturen. Reifen werden getrennt geführt, weil sie fast ausschließlich von der Laufleistung abhängen."
+      },
+      {
+        q: "Wie oft muss ich Reifen wechseln?",
+        a: "Ein Satz Sommerreifen hält je nach Fahrweise und Fahrzeug etwa 30.000 bis 40.000 Kilometer. Bei 15.000 km im Jahr entspricht das rund zwei bis zweieinhalb Jahren. Unabhängig von der Laufleistung sollten Reifen nach etwa acht bis zehn Jahren ersetzt werden, weil die Gummimischung aushärtet."
+      },
+      {
+        q: "Sind Elektroautos in der Wartung günstiger?",
+        a: "In der Regel ja. Es entfallen Ölwechsel, Zündkerzen, Auspuffanlage und Kupplung, und die Rekuperation schont die Bremsen erheblich. Dafür sind die Reifen wegen des höheren Fahrzeuggewichts und des sofort anliegenden Drehmoments oft früher abgefahren. Unterm Strich liegen die Werkstattkosten meist 20 bis 35 Prozent unter denen eines vergleichbaren Verbrenners."
+      },
+      {
+        q: "Rechnet das Modell auch unvorhergesehene Reparaturen mit ein?",
+        a: "Teilweise. Der Verschleißblock enthält einen über das Alter steigenden Anteil für Reparaturen. Einen kapitalen Schaden – etwa an Getriebe, Motor oder Hochvoltbatterie – bildet ein Durchschnittsmodell naturgemäß nicht ab. Für solche Fälle ist eine Rücklage sinnvoll."
+      },
+      {
+        q: "Wie unterscheidet sich dieser Rechner vom KM-Kostenrechner?",
+        a: "Der KM-Kostenrechner betrachtet die Vollkosten pro Kilometer inklusive Sprit, Versicherung, Steuer und Wertverlust. Dieser Rechner isoliert bewusst nur den Werkstatt- und Verschleißanteil – nützlich, wenn Sie einschätzen wollen, was ein bestimmtes Fahrzeugalter oder eine höhere Laufleistung tatsächlich kostet."
+      }
+    ]}
+  >
+    <div class="calc-form">
+      <div class="calc-group">
+        <label>Jahresfahrleistung – Schnellauswahl</label>
+        <div class="presets">
+          <button type="button" class="preset-btn" data-km="5000">5.000 km</button>
+          <button type="button" class="preset-btn" data-km="10000">10.000 km</button>
+          <button type="button" class="preset-btn active" data-km="15000">15.000 km</button>
+          <button type="button" class="preset-btn" data-km="25000">25.000 km</button>
+          <button type="button" class="preset-btn" data-km="40000">40.000 km</button>
+        </div>
+      </div>
+      <div class="calc-grid">
+        <div class="calc-group">
+          <label for="klasse">Fahrzeugklasse</label>
+          <select id="klasse">
+            <option value="kleinwagen">Kleinwagen</option>
+            <option value="kompakt" selected>Kompaktklasse</option>
+            <option value="mittelklasse">Mittelklasse</option>
+            <option value="suv">SUV/Geländewagen</option>
+            <option value="van">Van/Kombi</option>
+            <option value="oberklasse">Oberklasse</option>
+          </select>
+        </div>
+        <div class="calc-group">
+          <label for="alter">Fahrzeugalter (Jahre)</label>
+          <input type="number" id="alter" min="0" max="30" value="5" step="1" />
+        </div>
+        <div class="calc-group">
+          <label for="km">Fahrleistung (km/Jahr)</label>
+          <input type="number" id="km" min="0" max="200000" value="15000" step="1000" />
+        </div>
+      </div>
+      <div class="calc-result">
+        <div class="label">Abnutzung pro Kilometer</div>
+        <div id="proKm">— ct</div>
+      </div>
+      <div class="breakdown">
+        <div class="breakdown-row"><span>Wartung (Inspektion, Öl, HU)</span><strong id="wartung">—</strong></div>
+        <div class="breakdown-row"><span>Verschleiß und Reparaturen</span><strong id="verschleiss">—</strong></div>
+        <div class="breakdown-row"><span>Reifen</span><strong id="reifen">—</strong></div>
+        <div class="breakdown-row total"><span>Gesamt pro Jahr</span><strong id="gesamt">—</strong></div>
+        <div class="breakdown-row"><span>Gesamt pro Monat</span><strong id="monat">—</strong></div>
+      </div>
+      <p id="hinweis" class="hinweis"></p>
+    </div>
+  </CalculatorShell>
+
+  <CalculatorGuide
+    title="Wartungskosten und Verschleiß richtig einschätzen"
+    content={`<p>Die <strong>Wartungskosten eines Autos</strong> sind der Kostenblock, der sich am schwersten vorhersagen lässt. Sprit rechnet man im Kopf, die Versicherungsrechnung kommt einmal im Jahr – aber was Bremsen, Reifen und die nächste Inspektion kosten, zeigt sich meist erst in der Werkstatt. Dieser Rechner macht die Größenordnung vorab sichtbar.</p>
+
+<p><strong>Warum drei getrennte Blöcke?</strong> Wartung, Verschleiß und Reifen verhalten sich völlig unterschiedlich. Die Hauptuntersuchung ist alle zwei Jahre fällig, egal ob Sie 5.000 oder 30.000 Kilometer gefahren sind. Motoröl altert auch im Stand. Bremsbeläge dagegen verschleißen praktisch nur beim Fahren, und Reifen halten eine ziemlich feste Kilometerzahl. Wer alles in einen Topf wirft, bekommt für Wenigfahrer wie für Vielfahrer falsche Werte.</p>
+
+<p><strong>Der Alterseffekt:</strong> In den ersten Jahren zahlen Sie fast nur planbare Wartung – Garantie und Kulanz fangen das meiste ab. Ab etwa dem sechsten Jahr ändert sich das Bild: Stoßdämpfer lassen nach, die Auspuffanlage rostet, Zahnriemen oder Steuerkette stehen an, die Klimaanlage will befüllt werden. Das Modell bildet das über einen Faktor ab, der bei 0,5 im ersten Jahr beginnt und um 0,12 je Lebensjahr wächst. Bei etwa 16 Jahren wird er gedeckelt – danach wird meist eher verschrottet als repariert.</p>
+
+<p><strong>Fixkostendegression – warum Vielfahrer pro Kilometer günstiger fahren:</strong> Ein Kompaktwagen mit fünf Jahren auf dem Buckel kommt bei 5.000 Kilometern im Jahr auf rund 10 Cent Werkstattkosten pro Kilometer. Bei 30.000 Kilometern sind es nur noch etwa 7 Cent. Die Jahressumme steigt zwar deutlich, aber der fixe Wartungsanteil verteilt sich auf sechsmal so viele Kilometer. Für die Frage »lohnt sich mein Auto überhaupt?« ist das entscheidend: Wenigfahrer zahlen jeden Kilometer teuer.</p>
+
+<p><strong>Was das Modell nicht kann:</strong> Es rechnet mit Durchschnitten. Ein Kapitalschaden an Getriebe, Motor oder Hochvoltbatterie kostet vierstellig und taucht in keiner Durchschnittsrechnung auf. Ebenso wenig die Preisunterschiede zwischen Vertragswerkstatt und freier Werkstatt – die können bei identischer Leistung 30 bis 40 Prozent betragen. Nutzen Sie die Werte als Budgetrahmen, nicht als Kostenvoranschlag.</p>
+
+<p><strong>Praktische Konsequenz:</strong> Wer die Werkstattkosten seines Fahrzeugs kennt, kann zwei Fragen sauber beantworten. Erstens: Lohnt sich die nächste Reparatur noch, oder übersteigt sie den Restwert? Zweitens: Wie viel muss ich monatlich zurücklegen, damit die nächste Rechnung nicht wehtut? Bei einem fünf Jahre alten Kompaktwagen mit 15.000 Kilometern im Jahr sind rund 70 bis 80 Euro im Monat eine realistische Rücklage.</p>
+
+<p><strong>Elektroauto oder Verbrenner?</strong> Beim Stromer entfallen Ölwechsel, Zündkerzen, Auspuff und Kupplung, und die Rekuperation schont die Bremsen so stark, dass Beläge oft doppelt so lange halten. Dem stehen höhere Reifenkosten gegenüber: mehr Gewicht, mehr Drehmoment, schnellerer Abrieb. Netto bleiben meist 20 bis 35 Prozent geringere Werkstattkosten.</p>`}
+    relatedSlugs={['km-kostenrechner', 'unterhaltskosten-auto', 'kfz-versicherung-rechner']}
+  />
+</Layout>
+
+<style>
+.presets {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.5rem;
+}
+.preset-btn {
+  padding: 0.4rem 0.85rem;
+  background: var(--bg);
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-family: var(--font-ui);
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text);
+  transition: border-color 0.15s, background 0.15s, color 0.15s;
+}
+.preset-btn:hover { border-color: var(--cat-color, var(--red)); }
+.preset-btn.active {
+  border-color: var(--cat-color, var(--red));
+  background: color-mix(in srgb, var(--cat-color, var(--red)) 8%, white);
+  color: var(--cat-color, var(--red));
+}
+.breakdown {
+  margin-top: 1rem;
+  display: grid;
+  gap: 0.4rem;
+}
+.breakdown-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  font-size: 0.9rem;
+  padding: 0.35rem 0;
+  border-bottom: 1px solid var(--border);
+}
+.breakdown-row.total {
+  border-bottom: 2px solid var(--cat-color, var(--red));
+  font-size: 1rem;
+}
+.hinweis {
+  margin-top: 0.75rem;
+  font-size: 0.85rem;
+  color: var(--text-light);
+}
+</style>
+
+<script type="module">
+const { berechneWartungskosten } = await import(window.__base + 'scripts/wartungskosten.js');
+
+function euro(n) { return n.toLocaleString('de-DE', { minimumFractionDigits: 0, maximumFractionDigits: 0 }) + ' €'; }
+
+function berechne() {
+  const klasse = document.getElementById('klasse').value;
+  const alter = parseFloat(document.getElementById('alter').value) || 0;
+  const kmProJahr = parseFloat(document.getElementById('km').value) || 0;
+  const r = berechneWartungskosten({ klasse, alter, kmProJahr });
+
+  document.getElementById('proKm').textContent =
+    r.centProKm.toLocaleString('de-DE', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + ' ct/km';
+  document.getElementById('wartung').textContent = euro(r.wartungProJahr);
+  document.getElementById('verschleiss').textContent = euro(r.verschleissProJahr);
+  document.getElementById('reifen').textContent = euro(r.reifenProJahr);
+  document.getElementById('gesamt').textContent = euro(r.gesamtProJahr);
+  document.getElementById('monat').textContent = euro(r.gesamtProMonat);
+
+  document.getElementById('hinweis').textContent = r.reifenwechselAlleJahre
+    ? `Bei dieser Fahrleistung steht etwa alle ${r.reifenwechselAlleJahre.toLocaleString('de-DE', { maximumFractionDigits: 1 })} Jahre ein neuer Reifensatz an. Empfohlene monatliche Rücklage: ${euro(r.gesamtProMonat)}.`
+    : 'Ohne Fahrleistung fallen nur die zeitabhängigen Wartungskosten an.';
+}
+
+document.querySelectorAll('.preset-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('km').value = btn.dataset.km;
+    berechne();
+  });
+});
+['klasse', 'alter', 'km'].forEach(id => document.getElementById(id).addEventListener('input', () => {
+  if (id === 'km') document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
+  berechne();
+}));
+berechne();
+</script>

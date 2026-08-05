@@ -143,14 +143,14 @@ export const CALCULATORS: Calculator[] = [
   { slug: 'energieausweis-vorberechnung', title: 'Energieausweis-Vorberechnung',   description: 'Wichtige Kennwerte für den Energieausweis deines Hauses ermitteln.',category: 'energie',   featured: false, live: true },
   { slug: 'km-kostenrechner',             title: 'KM-Kostenrechner',               description: 'Fahrtkosten pro gefahrenem Kilometer berechnen.',                       category: 'auto',      featured: false, live: true },
   { slug: 'e-auto-leasing-kostenrechner', title: 'E-Auto Leasing Kostenrechner',   description: 'Gesamtkosten und monatliche Rate für E-Auto-Leasing berechnen.',        category: 'auto',      featured: false, live: true },
+  { slug: 'unterhaltskosten-auto',        title: 'Unterhaltskosten Auto',          description: 'Jährliche Kosten deines Autos inkl. Wertverlust, Steuer, Versicherung.', category: 'auto',      featured: true,  live: true },
+  { slug: 'wartungskosten-auto',          title: 'Wartungskosten Auto',            description: 'Wartung, Verschleiß und Reifen nach Alter und Laufleistung schätzen.',  category: 'auto',      featured: false, live: true },
   // Geplant, aber noch ohne Seite. live: false, damit Navigation und RelatedLinks
   // nicht auf 404 verlinken – Google hatte diese URLs bereits als "Nicht gefunden" gemeldet.
-  { slug: 'unterhaltskosten-auto',        title: 'Unterhaltskosten Auto',          description: 'Jährliche Kosten deines Autos inkl. Wertverlust, Steuer, Versicherung.', category: 'auto',      featured: false, live: false },
   { slug: 'elektroauto-verbrennungsmotor',title: 'Elektroauto vs Verbrennungsmotor',description: 'Kostenvergleich E-Auto und Verbrenner über die gesamte Nutzungsdauer.',category: 'auto',      featured: false, live: false },
   { slug: 'reichweite-elektroauto',       title: 'Reichweite Elektroauto',         description: 'Realistische Reichweite abhängig von Temperatur, Fahrstil und Gelände.',   category: 'auto',      featured: false, live: false },
   { slug: 'treibstoffkosten-reise',       title: 'Treibstoffkosten für Reise',     description: 'Spritkosten für eine geplante Strecke berechnen.',                 category: 'auto',      featured: false, live: false },
   { slug: 'co2-flotte-berechnung',        title: 'CO₂-Flotten-Berechnung',         description: 'Flottenemissionen für Unternehmen berechnen und ausgleichen.',       category: 'auto',      featured: false, live: false },
-  { slug: 'wartungskosten-auto',          title: 'Wartungskosten Auto',            description: 'Voraussichtliche Instandhaltungskosten nach Alter und Laufleistung.',  category: 'auto',      featured: false, live: false },
   { slug: 'familienzuschuss-rechner',     title: 'Familienzuschuss-Rechner',       description: 'Zulässige Höhe des Familienzuschusses beim Finanzamt prüfen.',       category: 'familie',   featured: false, live: false },
   { slug: 'unterhaltsvorschuss-rechner',  title: 'Unterhaltsvorschuss-Rechner',    description: 'Höhe des staatlichen Unterhaltsvorschusses für Alleinerziehende.',     category: 'familie',   featured: false, live: false },
   { slug: 'schwangerengeld-rechner',      title: 'Schwangerengeld-Rechner',        description: 'Zuschuss zum Mutterschaftsgeld bei freiwilliger Versicherung berechnen.',category: 'familie',   featured: false, live: false },
