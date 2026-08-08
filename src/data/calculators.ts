@@ -141,7 +141,7 @@ export const CALCULATORS: Calculator[] = [
   { slug: 'jahresenergieverbrauch',       title: 'Jahresenergieverbrauch',         description: 'Strom-, Gas- und Wasserverbrauch deines Haushalts berechnen.',     category: 'energie',   featured: false, live: true },
   { slug: 'co2-einsparung-renovierung',   title: 'CO₂-Einsparung durch Renovierung',description: 'Energie- und CO₂-Einsparung durch Sanierungsmaßnahmen berechnen.',category: 'energie',   featured: false, live: true },
   { slug: 'energieausweis-vorberechnung', title: 'Energieausweis-Vorberechnung',   description: 'Wichtige Kennwerte für den Energieausweis deines Hauses ermitteln.',category: 'energie',   featured: false, live: true },
-  { slug: 'km-kostenrechner',             title: 'KM-Kostenrechner',               description: 'Fahrtkosten pro gefahrenem Kilometer berechnen.',                       category: 'auto',      featured: false, live: true },
+  { slug: 'km-kostenrechner',             title: 'KM-Kostenrechner',               description: 'Fahrtkosten pro gefahrenem Kilometer berechnen.',                       category: 'auto',      featured: true,  live: true },
   { slug: 'e-auto-leasing-kostenrechner', title: 'E-Auto Leasing Kostenrechner',   description: 'Gesamtkosten und monatliche Rate für E-Auto-Leasing berechnen.',        category: 'auto',      featured: false, live: true },
   { slug: 'unterhaltskosten-auto',        title: 'Unterhaltskosten Auto',          description: 'Jährliche Kosten deines Autos inkl. Wertverlust, Steuer, Versicherung.', category: 'auto',      featured: true,  live: true },
   { slug: 'wartungskosten-auto',          title: 'Wartungskosten Auto',            description: 'Wartung, Verschleiß und Reifen nach Alter und Laufleistung schätzen.',  category: 'auto',      featured: false, live: true },
@@ -177,8 +177,24 @@ export function getRelated(current: Calculator, limit = 6): Calculator[] {
         (_, offset) => inCategory[(position + 1 + offset) % inCategory.length],
       );
 
-  if (neighbours.length >= 3) return neighbours.slice(0, limit);
-
   const featured = CALCULATORS.filter(c => c.featured && c.slug !== current.slug && c.live && c.category !== current.category);
-  return [...neighbours, ...featured].slice(0, limit);
+
+  if (neighbours.length < 3) return [...neighbours, ...featured].slice(0, limit);
+
+  // Zwei der sechs Plaetze bleiben fuer featured-Rechner aus anderen Kategorien
+  // reserviert. Vorher griff der featured-Zweig nur, wenn eine Kategorie weniger
+  // als drei Nachbarn hatte - in 'geld' (30) oder 'auto' (15) also nie. Dadurch
+  // bekam jeder Rechner exakt gleich viele eingehende interne Links und die
+  // Verlinkung priorisierte nichts. Der Startpunkt haengt am Slug, damit sich die
+  // Links ueber die Seiten verteilen statt immer dieselben zwei zu treffen.
+  const RESERVED_FOR_FEATURED = 2;
+  if (featured.length === 0) return neighbours.slice(0, limit);
+
+  const offset = current.slug.length % featured.length;
+  const picks = Array.from(
+    { length: Math.min(RESERVED_FOR_FEATURED, featured.length) },
+    (_, i) => featured[(offset + i) % featured.length],
+  );
+
+  return [...neighbours.slice(0, limit - picks.length), ...picks];
 }

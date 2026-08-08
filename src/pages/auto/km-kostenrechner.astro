@@ -7,12 +7,14 @@ const base = import.meta.env.BASE_URL;
 ---
 
 <CalculatorLayout
-  title="KM-Kostenrechner - Fahrtkosten pro Kilometer berechnen"
-  description="Berechne die Kosten pro Kilometer für dein Auto. Erfahre monatliche Fahrtkosten und Kosten für verschiedene Entfernungen."
+  title="KM-Kostenrechner - Kosten pro Kilometer inkl. Verschleiß"
+  description="Kosten pro Kilometer inklusive Verschleiß, Abnutzung und Wertverlust berechnen. Einzeln aufgeschlüsselt nach Fixkosten und variablen Kosten - kostenlos und ohne Anmeldung."
   canonicalPath="/auto/km-kostenrechner/"
   categoryColor="#1565c0"
   categoryLight="#e3f2fd"
   faqs={[
+    { q: "Wie hoch ist die Abnutzung pro Kilometer?", a: "Als Abnutzung oder Verschleiß gelten Reifen, Bremsen, Kupplung, Auspuff und Stoßdämpfer - also Teile, die sich durch das Fahren abnutzen und unabhängig von der planmäßigen Wartung ersetzt werden müssen. Rechnerisch liegt dieser Posten bei den meisten Fahrzeugen im niedrigen einstelligen Cent-Bereich pro Kilometer. Wer ihn genau kennen will, summiert die Rechnungen für Verschleißteile der letzten Jahre und teilt sie durch die in dieser Zeit gefahrenen Kilometer. Der Wertverlust zählt nicht zum Verschleiß, sondern wird getrennt gerechnet - er ist meist der deutlich größere Posten." },
+    { q: "Warum unterscheiden sich meine Kosten von der ADAC-Kilometerkostentabelle?", a: "Der ADAC rechnet mit Neuwagenpreisen, pauschalen Haltedauern und einer angenommenen Jahresfahrleistung. Wer einen bezahlten Gebrauchtwagen länger fährt, hat kaum noch Wertverlust und liegt deutlich darunter; wer wenig fährt, liegt darüber, weil sich die Fixkosten auf weniger Kilometer verteilen. Dieser Rechner nutzt deine eigenen Zahlen statt Durchschnittswerte - das Ergebnis weicht deshalb bewusst von Tabellenwerten ab." },
     { q: "Was zählt alles zu den Fixkosten beim Auto?", a: "Zu den Fixkosten gehören Kfz-Versicherung, Kfz-Steuer, Hauptuntersuchung (TÜV), Stellplatz bzw. Garagenmiete sowie der Wertverlust des Fahrzeugs. Diese Kosten fallen unabhängig davon an, wie viel Sie fahren." },
     { q: "Wie berechne ich den Wertverlust meines Autos?", a: "Ziehen Sie den aktuellen Marktwert (z. B. über DAT oder Schwacke) vom Kaufpreis ab und teilen Sie durch die bisherige Haltedauer in Monaten. Neuwagen verlieren im ersten Jahr ca. 20-25 % an Wert, danach sinkt der jährliche Wertverlust auf ca. 5-10 %." },
     { q: "Wie hoch sind die durchschnittlichen Autokosten laut ADAC?", a: "Laut ADAC liegen die Gesamtkosten pro Kilometer bei Kleinwagen bei ca. 30-40 Cent, in der Kompaktklasse bei 40-55 Cent und in der Mittelklasse bei 55-75 Cent. Diese Werte beinhalten alle Kosten inklusive Wertverlust." },
@@ -23,36 +25,70 @@ const base = import.meta.env.BASE_URL;
   <div class="calculator">
     <form id="kmKostenForm" class="calc-form">
       <div class="form-group">
-        <label for="annualBudget">Jährliche Gesamtkosten (€)</label>
-        <input
-          type="number"
-          id="annualBudget"
-          name="annualBudget"
-          placeholder="4800"
-          min="100"
-          max="50000"
-          step="100"
-          value="4800"
-          required
-        />
-        <small>Sprit, Versicherung, Wartung, Kfz-Steuer, Abnutzung</small>
-      </div>
-
-      <div class="form-group">
         <label for="annualKm">Jährliche Kilometerleistung</label>
-        <input
-          type="number"
-          id="annualKm"
-          name="annualKm"
-          placeholder="15000"
-          min="1000"
-          max="100000"
-          step="1000"
-          value="15000"
-          required
-        />
+        <input type="number" id="annualKm" name="annualKm" min="500" max="200000" step="500" value="15000" required />
         <small>Durchschnittliche Jahresfahrleistung in km</small>
       </div>
+
+      <fieldset class="cost-group">
+        <legend>Variable Kosten – fallen nur beim Fahren an</legend>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label for="consumption">Verbrauch</label>
+            <input type="number" id="consumption" min="0" max="50" step="0.1" value="7.0" required />
+            <small>Liter bzw. kWh je 100 km</small>
+          </div>
+          <div class="form-group">
+            <label for="fuelPrice">Preis je Liter / kWh (€)</label>
+            <input type="number" id="fuelPrice" min="0" max="10" step="0.01" value="1.75" required />
+            <small>Für E-Autos: Strompreis je kWh</small>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label for="maintenance">Wartung &amp; Reparatur (€/Jahr)</label>
+            <input type="number" id="maintenance" min="0" max="20000" step="10" value="600" required />
+            <small>Inspektion, Ölwechsel, Reparaturen</small>
+          </div>
+          <div class="form-group">
+            <label for="wear">Verschleiß &amp; Abnutzung (€/Jahr)</label>
+            <input type="number" id="wear" min="0" max="20000" step="10" value="350" required />
+            <small>Reifen, Bremsen, Kupplung, Auspuff</small>
+          </div>
+        </div>
+      </fieldset>
+
+      <fieldset class="cost-group">
+        <legend>Fixkosten – fallen an, egal wie viel du fährst</legend>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label for="depreciation">Wertverlust (€/Jahr)</label>
+            <input type="number" id="depreciation" min="0" max="50000" step="50" value="1500" required />
+            <small>Kaufpreis minus heutiger Wert, geteilt durch die Haltejahre</small>
+          </div>
+          <div class="form-group">
+            <label for="insurance">Kfz-Versicherung (€/Jahr)</label>
+            <input type="number" id="insurance" min="0" max="20000" step="10" value="600" required />
+            <small>Haftpflicht und ggf. Kasko</small>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label for="tax">Kfz-Steuer (€/Jahr)</label>
+            <input type="number" id="tax" min="0" max="5000" step="5" value="150" required />
+            <small>Jahresbetrag laut Steuerbescheid</small>
+          </div>
+          <div class="form-group">
+            <label for="other">Sonstiges (€/Jahr)</label>
+            <input type="number" id="other" min="0" max="20000" step="10" value="200" required />
+            <small>Stellplatz, TÜV, Mitgliedschaften</small>
+          </div>
+        </div>
+      </fieldset>
 
       <button type="submit" class="calc-button">Berechnen</button>
     </form>
@@ -66,22 +102,42 @@ const base = import.meta.env.BASE_URL;
         </div>
       </div>
 
+      <div class="split-box">
+        <div class="split-part">
+          <h3>Variable Kosten</h3>
+          <div class="split-value" id="variablePerKm">0,00 €/km</div>
+          <p>Sprit, Wartung, Verschleiß</p>
+        </div>
+        <div class="split-part">
+          <h3>Fixkosten</h3>
+          <div class="split-value" id="fixedPerKm">0,00 €/km</div>
+          <p>Wertverlust, Versicherung, Steuer</p>
+        </div>
+      </div>
+
       <div class="result-boxes">
         <div class="result-card">
+          <h3>Verschleiß je km</h3>
+          <div class="value" id="wearPerKm">0,00 €</div>
+        </div>
+
+        <div class="result-card">
           <h3>Monatliche Kosten</h3>
-          <div class="value">€<span id="monthlyCosts">0,00</span></div>
+          <div class="value" id="monthlyCosts">0,00 €</div>
         </div>
 
         <div class="result-card">
           <h3>Kosten für 100 km</h3>
-          <div class="value">€<span id="cost100km">0,00</span></div>
+          <div class="value" id="cost100km">0,00 €</div>
         </div>
 
         <div class="result-card">
-          <h3>Kosten für 1.000 km</h3>
-          <div class="value">€<span id="cost1000km">0,00</span></div>
+          <h3>Jahresgesamtkosten</h3>
+          <div class="value" id="annualTotal">0,00 €</div>
         </div>
       </div>
+
+      <p class="hint" id="fixedShareHint"></p>
 
       <div class="info-box">
         <h3>Was gehört zu den Fahrtkosten?</h3>
@@ -236,6 +292,69 @@ const base = import.meta.env.BASE_URL;
   color: #1565c0;
 }
 
+.cost-group {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 1.25rem 1.25rem 0.5rem;
+  margin: 0;
+}
+
+.cost-group legend {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #1565c0;
+  padding: 0 0.5rem;
+}
+
+.form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.25rem;
+  margin-bottom: 1rem;
+}
+
+.split-box {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.split-part {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-top: 3px solid #1565c0;
+  border-radius: var(--radius-sm);
+  padding: 1.25rem;
+  text-align: center;
+}
+
+.split-part h3 {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-light);
+  margin: 0 0 0.5rem 0;
+}
+
+.split-value {
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: #1565c0;
+}
+
+.split-part p {
+  font-size: 0.78rem;
+  color: var(--text-light);
+  margin: 0.4rem 0 0 0;
+}
+
+.hint {
+  font-size: 0.88rem;
+  line-height: 1.6;
+  color: var(--text-light);
+  margin: 0 0 1.5rem 0;
+}
+
 .info-box {
   background: var(--bg);
   padding: 1.5rem;
@@ -269,36 +388,54 @@ const base = import.meta.env.BASE_URL;
     font-size: 2rem;
   }
 
-  .result-boxes {
+  .result-boxes,
+  .form-row,
+  .split-box {
     grid-template-columns: 1fr;
   }
 }
 </style>
 
 <script define:vars={{}}>
-document.getElementById('kmKostenForm').addEventListener('submit', function(e) {
+// Vier Nachkommastellen fuer Cent-genaue km-Saetze, zwei fuer Eurobetraege.
+const euroPerKm = new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR', minimumFractionDigits: 2, maximumFractionDigits: 3 });
+const euro = new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 });
+const euroExact = new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' });
+
+const num = (id) => {
+  const value = parseFloat(document.getElementById(id).value);
+  return Number.isFinite(value) && value >= 0 ? value : 0;
+};
+
+document.getElementById('kmKostenForm').addEventListener('submit', function (e) {
   e.preventDefault();
 
-  const annualBudget = parseFloat(document.getElementById('annualBudget').value);
-  const annualKm = parseInt(document.getElementById('annualKm').value);
+  const annualKm = num('annualKm');
+  if (annualKm <= 0) return;
 
-  // Berechne Kosten pro km
-  const costPerKm = annualBudget / annualKm;
+  // Verbrauch ist auf 100 km bezogen, deshalb durch 100 teilen.
+  const fuelPerYear = (num('consumption') / 100) * num('fuelPrice') * annualKm;
+  const wearPerYear = num('wear');
+  const variablePerYear = fuelPerYear + num('maintenance') + wearPerYear;
+  const fixedPerYear = num('depreciation') + num('insurance') + num('tax') + num('other');
+  const totalPerYear = variablePerYear + fixedPerYear;
 
-  // Monatliche Kosten
-  const monthlyCosts = annualBudget / 12;
+  const costPerKm = totalPerYear / annualKm;
+  const fixedShare = totalPerYear > 0 ? (fixedPerYear / totalPerYear) * 100 : 0;
 
-  // Kosten für 100 km
-  const cost100km = costPerKm * 100;
+  document.getElementById('costPerKm').textContent = euroPerKm.format(costPerKm);
+  document.getElementById('variablePerKm').textContent = euroPerKm.format(variablePerYear / annualKm) + '/km';
+  document.getElementById('fixedPerKm').textContent = euroPerKm.format(fixedPerYear / annualKm) + '/km';
+  document.getElementById('wearPerKm').textContent = euroPerKm.format(wearPerYear / annualKm);
+  document.getElementById('monthlyCosts').textContent = euroExact.format(totalPerYear / 12);
+  document.getElementById('cost100km').textContent = euroExact.format(costPerKm * 100);
+  document.getElementById('annualTotal').textContent = euro.format(totalPerYear);
 
-  // Kosten für 1.000 km
-  const cost1000km = costPerKm * 1000;
-
-  // Update results
-  document.getElementById('costPerKm').textContent = costPerKm.toFixed(2);
-  document.getElementById('monthlyCosts').textContent = monthlyCosts.toFixed(2);
-  document.getElementById('cost100km').textContent = cost100km.toFixed(2);
-  document.getElementById('cost1000km').textContent = cost1000km.toFixed(2);
+  document.getElementById('fixedShareHint').textContent =
+    `${Math.round(fixedShare)} % deiner Autokosten fallen an, ohne dass du fährst. `
+    + `Würdest du nur die Hälfte fahren, läge dein Kilometersatz bei `
+    + `${euroPerKm.format((totalPerYear - variablePerYear / 2) / (annualKm / 2))} statt `
+    + `${euroPerKm.format(costPerKm)}.`;
 
   document.getElementById('result').style.display = 'block';
   document.getElementById('result').scrollIntoView({ behavior: 'smooth' });
