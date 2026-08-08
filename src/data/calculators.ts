@@ -8,6 +8,7 @@ export type Category =
   | 'gesundheit'
   | 'versicherungen'
   | 'einheiten'
+  | 'boot'
   | 'vorlagen';
 
 export interface Calculator {
@@ -25,9 +26,10 @@ export const CATEGORIES: Record<Category, { label: string; emoji: string; descri
   energie:   { label: 'Energie',              emoji: '⚡', description: 'Strom, Heizung, Photovoltaik',            color: '#b8860b', colorLight: '#ffe082', image: 'images/categories/energie.png' },
   auto:      { label: 'Auto & Mobilität',     emoji: '🚗', description: 'Kfz-Steuer, Sprit, Fahrtkosten',          color: '#b71c1c', colorLight: '#ffcdd2', image: 'images/categories/auto.png' },
   familie:   { label: 'Familie & Soziales',   emoji: '👨‍👩‍👧', description: 'Elterngeld, Kindergeld, Rente',      color: '#e65100', colorLight: '#ffccbc', image: 'images/categories/familie.png' },
-  gesundheit:{ label: 'Gesheit & Fitness', emoji: '🏃', description: 'BMI, Kalorien, Promille',                  color: '#00796b', colorLight: '#b2dfdb', image: 'images/categories/gesundheit.png' },
+  gesundheit:{ label: 'Gesundheit & Fitness', emoji: '🏃', description: 'BMI, Kalorien, Promille',                color: '#00796b', colorLight: '#b2dfdb', image: 'images/categories/gesundheit.png' },
   versicherungen: { label: 'Versicherungen', emoji: '🛡️', description: 'Rechtsschutz, Zahnzusatz, Pflege, Elementarschutz', color: '#e65100', colorLight: '#fff3e0', image: 'images/categories/versicherungen.png' },
   einheiten: { label: 'Einheiten & Mathe',    emoji: '📐', description: 'Länge, Gewicht, Temperatur, Inflation',  color: '#6a1b9a', colorLight: '#e1bee7', image: 'images/categories/einheiten.png' },
+  boot:      { label: 'Boot & Wasser',        emoji: '⚓', description: 'Trailer, Sprit, Ankern, Rumpfgeschwindigkeit', color: '#01579b', colorLight: '#b3e5fc', image: 'images/categories/boot.svg' },
   vorlagen:  { label: 'Vorlagen & Tools',     emoji: '📋', description: 'QR-Codes, Protokolle, Formulare als PDF',  color: '#37474f', colorLight: '#cfd8dc', image: 'images/categories/vorlagen.png' },
 };
 
@@ -154,6 +156,11 @@ export const CALCULATORS: Calculator[] = [
   { slug: 'familienzuschuss-rechner',     title: 'Familienzuschuss-Rechner',       description: 'Zulässige Höhe des Familienzuschusses beim Finanzamt prüfen.',       category: 'familie',   featured: false, live: false },
   { slug: 'unterhaltsvorschuss-rechner',  title: 'Unterhaltsvorschuss-Rechner',    description: 'Höhe des staatlichen Unterhaltsvorschusses für Alleinerziehende.',     category: 'familie',   featured: false, live: false },
   { slug: 'schwangerengeld-rechner',      title: 'Schwangerengeld-Rechner',        description: 'Zuschuss zum Mutterschaftsgeld bei freiwilliger Versicherung berechnen.',category: 'familie',   featured: false, live: false },
+  // BOOT & WASSER
+  { slug: 'bootstrailer-fuehrerschein',   title: 'Bootstrailer-Führerschein',      description: 'Reicht Klasse B für dein Gespann – oder brauchst du B96 oder BE?',       category: 'boot',      featured: true,  live: true },
+  { slug: 'spritverbrauch-boot',          title: 'Spritverbrauch & Reichweite',    description: 'Reichweite, Fahrzeit und Spritkosten eines Bootes berechnen.',           category: 'boot',      featured: false, live: true },
+  { slug: 'ankerkette-rechner',           title: 'Ankerkettenlänge',               description: 'Nötigen Kettenvorlauf nach Tiefe, Tidenhub und Wetterlage berechnen.',   category: 'boot',      featured: false, live: true },
+  { slug: 'rumpfgeschwindigkeit',         title: 'Rumpfgeschwindigkeit',           description: 'Maximale Verdrängerfahrt aus der Wasserlinienlänge berechnen.',          category: 'boot',      featured: false, live: true },
   // VORLAGEN & TOOLS
   { slug: 'qr-code-generator',           title: 'QR-Code Generator',              description: 'QR-Codes erstellen – mit eigenem Logo in der Mitte. Kostenlos als PNG.',     category: 'vorlagen',  featured: true,  live: true },
   { slug: 'protokoll-generator',          title: 'Protokoll-Generator',            description: 'Übergabe-, Abnahme-, Besprechungsprotokolle als PDF – kostenlos und rechtssicher.',  category: 'vorlagen',  featured: true,  live: true },

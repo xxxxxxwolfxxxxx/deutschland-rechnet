@@ -29,7 +29,7 @@ const content = await loadCategoryContent('geld');
   />
   {content && (
     <article class="category-content">
-      <Fragment set:html={content.content} />
+      <Fragment set:html={content.html} />
     </article>
   )}
   <div class="grid">

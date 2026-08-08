@@ -1,14 +1,18 @@
 // src/utils/loadCategoryContent.ts
 import fs from 'fs';
 import path from 'path';
+import { renderMarkdown } from './renderMarkdown';
 
 // Allowed category slugs - prevents path traversal attacks
-const ALLOWED_CATEGORIES = ['geld', 'wohnen', 'energie', 'auto', 'familie', 'gesundheit', 'versicherungen'];
+const ALLOWED_CATEGORIES = ['geld', 'wohnen', 'energie', 'auto', 'familie', 'gesundheit', 'versicherungen', 'boot'];
 
 export interface CategoryContent {
   title: string;
   slug: string;
+  /** Rohes Markdown — Grundlage für die Abschnitts-Extraktion. */
   content: string;
+  /** Gerendertes HTML für die Ausgabe. Ohne das stünde "##" wörtlich auf der Seite. */
+  html: string;
   sections: {
     intro: string;
     mistakes: string;
@@ -62,6 +66,7 @@ export async function loadCategoryContent(slug: string): Promise<CategoryContent
       title: frontmatter.title,
       slug: frontmatter.slug,
       content,
+      html: renderMarkdown(content),
       sections
     };
   } catch (error) {

@@ -1,0 +1,138 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import CalculatorShell from '../../components/CalculatorShell.astro';
+import CalculatorGuide from '../../components/CalculatorGuide.astro';
+import { CALCULATORS, CATEGORIES } from '../../data/calculators';
+const calc = CALCULATORS.find(c => c.slug === 'ankerkette-rechner')!;
+const cat = CATEGORIES[calc.category];
+---
+<Layout
+  title="Ankerkette berechnen – wie viel Vorlauf brauche ich?"
+  description="Nötige Ankerkettenlänge nach Wassertiefe, Bughöhe, Tidenhub und Wetterlage berechnen. Für Kette und Leine, mit Schwojkreis."
+  canonicalPath="/boot/ankerkette-rechner/"
+  categoryColor={cat.color}
+  categoryLight={cat.colorLight}
+  categoryImage={cat.image}
+>
+  <div class="page-header">
+    <a href={`${import.meta.env.BASE_URL}boot/`} class="back-link">← Boot & Wasser</a>
+    <h1>Ankerkettenlänge berechnen – der richtige Kettenvorlauf</h1>
+  </div>
+  <CalculatorShell
+    calculator={calc}
+    intro="Ein Anker hält nicht durch sein Gewicht, sondern durch den flachen Zugwinkel. Je mehr Kette am Grund liegt, desto flacher zieht sie – deshalb rechnet man mit einem Vielfachen der Tiefe statt mit einem festen Wert."
+    sourceNote="Die Faktoren sind gängige seemännische Faustwerte. Grund, Bewuchs, Ankertyp und Schwell können mehr Vorlauf erfordern – im Zweifel großzügiger stecken."
+    explanation="Gerechnet wird ab der Ankerrolle bis zum Grund: Wassertiefe plus Höhe des Bugs über Wasser plus erwarteter Tidenhub. Diese Gesamttiefe wird mit dem Faktor für Material und Wetterlage multipliziert. Kette wirkt durch ihr Eigengewicht und braucht weniger Vorlauf als eine Leine."
+    faqs={[
+      {
+        q: "Warum zählt die Bughöhe mit?",
+        a: "Weil die Kette nicht an der Wasseroberfläche beginnt, sondern an der Ankerrolle am Bug. Bei einem Boot mit einem Meter Freibord ist die tatsächlich zu überbrückende Höhe einen Meter größer als die Wassertiefe – bei fünf Metern Tiefe immerhin 20 Prozent."
+      },
+      {
+        q: "Wie berücksichtige ich die Tide?",
+        a: "Gerechnet wird immer für den höchsten zu erwartenden Wasserstand, nicht für den beim Ankern gemessenen. Wer bei Niedrigwasser ankert und den Tidenhub vergisst, hat bei Hochwasser plötzlich deutlich zu wenig Vorlauf gesteckt."
+      },
+      {
+        q: "Kette oder Leine – was ist besser?",
+        a: "Kette wirkt durch ihr Eigengewicht: Sie hängt in einer Kurve durch und zieht dadurch flach am Anker. Eine Leine steht im Wasser nahezu gerade und braucht deshalb deutlich mehr Vorlauf für denselben Zugwinkel. Ein Kettenvorlauf von einigen Metern vor der Leine verbessert die Wirkung erheblich."
+      },
+      {
+        q: "Was ist der Schwojkreis?",
+        a: "Der Kreis, in dem das Boot um seinen Anker treibt, wenn Wind oder Strom drehen. Sein Radius entspricht mindestens dem gesteckten Vorlauf plus der Bootslänge. Beim Ankerplatz muss dieser gesamte Kreis frei von anderen Booten, Untiefen und Ufer sein."
+      },
+      {
+        q: "Reicht mehr Kette immer?",
+        a: "Mehr Vorlauf verbessert den Zugwinkel, vergrößert aber auch den Schwojkreis. In engen Buchten mit vielen Booten ist das der begrenzende Faktor. Dann helfen ein zweiter Anker, eine Landleine oder ein anderer Ankerplatz mehr als noch mehr Kette."
+      }
+    ]}
+  >
+    <div class="calc-form">
+      <div class="calc-grid">
+        <div class="calc-group">
+          <label for="tiefe">Wassertiefe (m)</label>
+          <input type="number" id="tiefe" min="0" max="60" value="5" step="0.5" />
+        </div>
+        <div class="calc-group">
+          <label for="bughoehe">Höhe Ankerrolle über Wasser (m)</label>
+          <input type="number" id="bughoehe" min="0" max="10" value="1" step="0.1" />
+        </div>
+        <div class="calc-group">
+          <label for="tidenhub">Erwarteter Tidenhub (m)</label>
+          <input type="number" id="tidenhub" min="0" max="15" value="0" step="0.1" />
+        </div>
+        <div class="calc-group">
+          <label for="material">Material</label>
+          <select id="material">
+            <option value="kette">Kette</option>
+            <option value="leine">Leine mit Kettenvorlauf</option>
+          </select>
+        </div>
+      </div>
+      <div class="calc-group" style="margin-top:0.5rem;">
+        <label for="lage">Wetterlage</label>
+        <select id="lage">
+          <option value="ruhig">Ruhig – geschützte Bucht</option>
+          <option value="maessig" selected>Mäßig – Wind bis etwa 5 Bft</option>
+          <option value="sturm">Starkwind bis Sturm</option>
+        </select>
+      </div>
+      <div class="calc-result">
+        <div class="label">Zu steckender Vorlauf</div>
+        <div id="benoetigt">— m</div>
+      </div>
+      <p id="details" style="margin-top:0.5rem;font-size:0.9rem;font-weight:600;"></p>
+      <p id="hinweis" style="margin-top:0.35rem;font-size:0.85rem;color:#666;line-height:1.5;"></p>
+    </div>
+  </CalculatorShell>
+
+  <CalculatorGuide
+    title="Ankern, das auch nachts hält"
+    content="
+    <p>Ein Anker ist kein Gewicht, das ein Boot festhält. Er ist ein Haken, der sich in den Grund eingräbt – und das tut er nur, wenn die Kette flach an ihm zieht. Zieht sie nach oben, bricht er aus. Der gesamte Sinn des Kettenvorlaufs besteht darin, diesen Winkel flach zu halten.</p>
+
+    <p><strong>Die Kettenlinie arbeitet für Sie:</strong> Kette hängt unter ihrem Eigengewicht in einer Kurve durch. Bei Zug muss dieser Durchhang erst gestreckt werden, was Energie schluckt und Böen abfedert. Eine Leine hat diesen Effekt kaum – sie steht fast gerade und überträgt jeden Ruck direkt auf den Anker.</p>
+
+    <p><strong>Gerechnet wird ab der Ankerrolle:</strong> Nicht die Wassertiefe zählt, sondern der Abstand vom Bug bis zum Grund. Bei einem Meter Freibord und fünf Metern Wasser sind das sechs Meter – und mit Faktor fünf eben 30 statt 25 Meter Kette.</p>
+
+    <p><strong>Tide immer für Hochwasser rechnen:</strong> Wer bei Niedrigwasser ankert und den Hub vergisst, liegt sechs Stunden später mit deutlich zu kurzem Vorlauf da – meist genau dann, wenn niemand wach ist. Der Wasserstand ist überhaupt eine Größe, die sich auf Binnengewässern schneller ändert als gedacht: Nach starkem Regen verschieben sich Tiefen und auch Brückendurchfahrten spürbar. Wer eine ganze Route gegen aktuelle Pegel prüfen will, findet das auf <a href='https://sportbootnavi.de' target='_blank' rel='noopener'>sportbootnavi.de</a>.</p>
+
+    <p><strong>Der Schwojkreis gehört zur Planung:</strong> Dreht der Wind, wandert das Boot um seinen Anker. Der Radius ist der gesteckte Vorlauf plus Bootslänge – bei 30 Metern Kette und acht Metern Boot fast 40 Meter. Dieser ganze Kreis muss frei sein, auch von Booten, die kürzeren Vorlauf gesteckt haben und deshalb anders schwojen.</p>
+
+    <p><strong>Eingraben statt fallen lassen:</strong> Der Anker wird nicht geworfen, sondern gefiert, während das Boot langsam rückwärts treibt. Erst dann mit der Maschine sanft eindampfen und prüfen, ob er hält. Ein Anker, der nur auf dem Grund liegt, hält bei der ersten Bö nicht.</p>
+    "
+    relatedSlugs={['spritverbrauch-boot', 'rumpfgeschwindigkeit', 'bootstrailer-fuehrerschein']}
+  />
+</Layout>
+
+<script type="module">
+const { berechneAnkerkette } = await import(window.__base + 'scripts/ankerkette.js');
+
+function num(id) { return parseFloat(document.getElementById(id).value) || 0; }
+function fmt(n, digits = 1) {
+  return n.toLocaleString('de-DE', { minimumFractionDigits: digits, maximumFractionDigits: digits });
+}
+
+function berechne() {
+  const r = berechneAnkerkette({
+    wassertiefeM: num('tiefe'),
+    bughoeheM: num('bughoehe'),
+    tidenhubM: num('tidenhub'),
+    material: document.getElementById('material').value,
+    lage: document.getElementById('lage').value,
+  });
+
+  document.getElementById('benoetigt').textContent = r.benoetigtM.toLocaleString('de-DE') + ' m';
+  document.getElementById('details').textContent =
+    `Gesamttiefe ab Ankerrolle ${fmt(r.rechentiefeM)} m · Faktor ${r.faktor}-fach`;
+  document.getElementById('hinweis').textContent =
+    `Auslegung für ${r.lageText}. Schwojkreis mindestens ${r.schwojkreisM} m plus Bootslänge – dieser Bereich muss frei bleiben.`;
+}
+
+['tiefe','bughoehe','tidenhub'].forEach(id =>
+  document.getElementById(id).addEventListener('input', berechne)
+);
+['material','lage'].forEach(id =>
+  document.getElementById(id).addEventListener('change', berechne)
+);
+berechne();
+</script>

@@ -1,0 +1,53 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 800" width="800" height="800" role="img" aria-label="Seekarte mit Wellen und Kompassrose">
+  <defs>
+    <linearGradient id="himmel" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#012a4a"/>
+      <stop offset="55%" stop-color="#01579b"/>
+      <stop offset="100%" stop-color="#0277bd"/>
+    </linearGradient>
+    <linearGradient id="tiefe" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#014f86"/>
+      <stop offset="100%" stop-color="#012a4a"/>
+    </linearGradient>
+    <!-- Feines Kartenraster wie auf einer Seekarte -->
+    <pattern id="raster" width="50" height="50" patternUnits="userSpaceOnUse">
+      <path d="M50 0H0V50" fill="none" stroke="#7ec8e3" stroke-width="0.6" opacity="0.22"/>
+    </pattern>
+  </defs>
+
+  <rect width="800" height="800" fill="url(#himmel)"/>
+  <rect width="800" height="800" fill="url(#raster)"/>
+
+  <!-- Kompassrose, bewusst dezent als Kartensignatur -->
+  <g transform="translate(565 215)" opacity="0.5">
+    <circle r="92" fill="none" stroke="#b3e5fc" stroke-width="1.6"/>
+    <circle r="66" fill="none" stroke="#b3e5fc" stroke-width="0.8" opacity="0.7"/>
+    <g stroke="#b3e5fc" stroke-width="1">
+      <path d="M0-92V-78M0 92V78M-92 0H-78M92 0H78"/>
+      <path d="M65-65l-10 10M-65 65l10-10M-65-65l10 10M65 65l-10-10" opacity="0.6"/>
+    </g>
+    <!-- Nordzacke hervorgehoben -->
+    <path d="M0-78 14 0 0 26-14 0Z" fill="#ffd166"/>
+    <path d="M0 78 14 0 0-26-14 0Z" fill="#b3e5fc" opacity="0.55"/>
+  </g>
+
+  <!-- Wellenbänder, von hinten nach vorn dichter werdend -->
+  <path d="M0 470c110-34 190 30 300 6s180-58 290-30 160 44 210 26v328H0Z" fill="#0277bd" opacity="0.55"/>
+  <path d="M0 545c130-40 210 32 330 8s170-52 280-26 140 40 190 24v249H0Z" fill="url(#tiefe)" opacity="0.85"/>
+  <path d="M0 632c120-36 200 28 320 6s190-46 300-22 150 34 180 20v164H0Z" fill="#012a4a"/>
+
+  <!-- Schaumkronen als kurze Striche auf den Wellenkämmen -->
+  <g stroke="#b3e5fc" stroke-width="3" stroke-linecap="round" opacity="0.5">
+    <path d="M96 512h54M232 498h40M388 486h60M566 496h46M676 508h44"/>
+    <path d="M150 596h48M330 582h56M520 590h42M668 600h40" opacity="0.7"/>
+  </g>
+
+  <!-- Anker, ruhig platziert im linken Drittel -->
+  <g transform="translate(214 300)" fill="none" stroke="#ffd166" stroke-width="13" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="0" cy="-96" r="25"/>
+    <path d="M0-71v186"/>
+    <path d="M-50-38h100"/>
+    <path d="M-84 42c0 52 40 84 84 84s84-32 84-84"/>
+    <path d="M-84 42-108 20M84 42l24-22"/>
+  </g>
+</svg>
