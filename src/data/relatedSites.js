@@ -12,5 +12,11 @@ export const relatedSites = [
     url: "https://dachplattenrechner.de",
     description: "Berechne Dachplattenbedarf für Dachflächen",
     icon: "🏠"
+  },
+  {
+    name: "SportbootNavi",
+    url: "https://sportbootnavi.de",
+    description: "Kostenlose Boots-Navigation und Törnplaner",
+    icon: "⛵"
   }
 ];
