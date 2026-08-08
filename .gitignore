@@ -22,3 +22,6 @@ pnpm-debug.log*
 
 # jetbrains setting folder
 .idea/
+
+# Von Claude Code angelegte Worktrees – eigene Repos, gehoeren nicht hier hinein
+.claude/worktrees/
