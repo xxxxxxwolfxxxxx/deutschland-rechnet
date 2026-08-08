@@ -29,7 +29,7 @@ export const CATEGORIES: Record<Category, { label: string; emoji: string; descri
   gesundheit:{ label: 'Gesundheit & Fitness', emoji: '🏃', description: 'BMI, Kalorien, Promille',                color: '#00796b', colorLight: '#b2dfdb', image: 'images/categories/gesundheit.png' },
   versicherungen: { label: 'Versicherungen', emoji: '🛡️', description: 'Rechtsschutz, Zahnzusatz, Pflege, Elementarschutz', color: '#e65100', colorLight: '#fff3e0', image: 'images/categories/versicherungen.png' },
   einheiten: { label: 'Einheiten & Mathe',    emoji: '📐', description: 'Länge, Gewicht, Temperatur, Inflation',  color: '#6a1b9a', colorLight: '#e1bee7', image: 'images/categories/einheiten.png' },
-  boot:      { label: 'Boot & Wasser',        emoji: '⚓', description: 'Trailer, Sprit, Ankern, Rumpfgeschwindigkeit', color: '#01579b', colorLight: '#b3e5fc', image: 'images/categories/boot.svg' },
+  boot:      { label: 'Boot & Wasser',        emoji: '⚓', description: 'Trailer, Sprit, Ankern, Rumpfgeschwindigkeit', color: '#01579b', colorLight: '#b3e5fc', image: 'images/categories/boot.png' },
   vorlagen:  { label: 'Vorlagen & Tools',     emoji: '📋', description: 'QR-Codes, Protokolle, Formulare als PDF',  color: '#37474f', colorLight: '#cfd8dc', image: 'images/categories/vorlagen.png' },
 };
 
