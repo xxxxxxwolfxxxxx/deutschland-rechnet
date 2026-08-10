@@ -37,6 +37,9 @@ const navLinks = [
   { href: `${base}versicherungen/`, label: 'Versicherungen' },
   { href: `${base}einheiten/`, label: 'Einheiten' },
   { href: `${base}boot/`, label: 'Boot' },
+  // Ratgeber ist keine Rechnerkategorie, steht aber bewusst in derselben
+  // Navigation: Die Textsektion soll von jeder Seite aus erreichbar sein.
+  { href: `${base}ratgeber/`, label: 'Ratgeber' },
 ];
 ---
 <!DOCTYPE html>
@@ -59,15 +62,21 @@ const navLinks = [
       gtag('consent', 'default', { ad_storage: 'denied', ad_user_data: 'denied', ad_personalization: 'denied', analytics_storage: 'denied' });
     }
   </script>
-  <script is:inline>
-    if (localStorage.getItem('cookie-consent') === 'granted') {
-      var s = document.createElement('script');
-      s.src = 'https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-8687929894744033';
-      s.async = true;
-      s.crossOrigin = 'anonymous';
-      document.head.appendChild(s);
-    }
-  </script>
+  <!--
+    Das AdSense-Script wird immer geladen, nie hinter der Einwilligung versteckt.
+    Vorher hing es an localStorage['cookie-consent'] === 'granted' – ein frischer
+    Browser (und damit jeder Crawler und jeder AdSense-Prüfer) hat diesen Eintrag
+    nicht, fand den Code also nie. Die Einwilligung steuert stattdessen der oben
+    gesetzte Consent Mode v2: bei 'denied' liefert Google nicht-personalisierte
+    Anzeigen aus. Reihenfolge ist Pflicht – der Consent-Default muss vor diesem
+    Script stehen.
+  -->
+  <script
+    is:inline
+    async
+    src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-8687929894744033"
+    crossorigin="anonymous"
+  ></script>
 
   <script type="application/ld+json" set:html={JSON.stringify({
     '@context': 'https://schema.org',
@@ -108,6 +117,9 @@ const navLinks = [
   {categoryColor && (
     <style set:html={`:root { --cat-color: ${categoryColor}; --cat-light: ${categoryLight ?? '#f8f8f8'}; --page-bg: ${categoryLight ?? '#f5f4f0'}; }`} />
   )}
+
+  <!-- Für seitenspezifische head-Einträge, z. B. das Article-Schema der Ratgeber. -->
+  <slot name="head" />
 </head>
 <body>
   <header>
@@ -219,11 +231,6 @@ const navLinks = [
         localStorage.setItem('cookie-consent', 'granted');
         banner.style.display = 'none';
         gtag('consent', 'update', { ad_storage: 'granted', ad_user_data: 'granted', ad_personalization: 'granted', analytics_storage: 'granted' });
-        var s = document.createElement('script');
-        s.src = 'https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-8687929894744033';
-        s.async = true;
-        s.crossOrigin = 'anonymous';
-        document.head.appendChild(s);
       });
       document.getElementById('cookie-reject').addEventListener('click', function() {
         localStorage.setItem('cookie-consent', 'denied');
