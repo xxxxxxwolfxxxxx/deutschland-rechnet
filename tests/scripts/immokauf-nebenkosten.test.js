@@ -13,3 +13,18 @@ describe('berechneImmokaufNebenkosten', () => {
     expect(r.grunderwerbsteuer).toBe(13000);
   });
 });
+
+describe('Grunderwerbsteuersätze kommen aus grunderwerbsteuer.js', () => {
+  // Das Modul führte bis 10.08.2026 eine eigene Kopie der Satztabelle, die zwei
+  // Gesetzesänderungen hinterher war. Diese Tests halten die Kopplung fest.
+  it('Thüringen rechnet mit 5,0 % (nicht mehr 6,5 %)', () => {
+    const r = berechneImmokaufNebenkosten({ kaufpreis: 400000, bundesland: 'th', mitMakler: false });
+    expect(r.gewSatz).toBe(5.0);
+    expect(r.grunderwerbsteuer).toBe(20000);
+  });
+  it('Bremen rechnet mit 5,5 % (nicht mehr 5,0 %)', () => {
+    const r = berechneImmokaufNebenkosten({ kaufpreis: 400000, bundesland: 'hb', mitMakler: false });
+    expect(r.gewSatz).toBe(5.5);
+    expect(r.grunderwerbsteuer).toBe(22000);
+  });
+});
