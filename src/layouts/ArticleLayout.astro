@@ -1,0 +1,162 @@
+---
+import Layout from './Layout.astro';
+
+interface Props {
+  title: string;
+  description: string;
+  canonicalPath: string;
+  /** Kurzer Vorspann über der ersten Zwischenüberschrift. */
+  lead: string;
+  /** ISO-Datum der Veröffentlichung bzw. letzten inhaltlichen Prüfung. */
+  datum: string;
+  /** Quellen mit Titel und URL – bei Steuerthemen Pflicht, nicht Deko. */
+  quellen?: Array<{ titel: string; url: string }>;
+}
+
+const { title, description, canonicalPath, lead, datum, quellen = [] } = Astro.props;
+const base = import.meta.env.BASE_URL;
+const siteUrl = import.meta.env.SITE ?? 'https://deutschland-rechnet.de';
+
+const datumLesbar = new Date(datum).toLocaleDateString('de-DE', {
+  day: '2-digit', month: 'long', year: 'numeric',
+});
+
+// Article statt WebApplication: Diese Seiten sind Text, kein Werkzeug. Google
+// bewertet sie anders, und die Unterscheidung ist genau der Punkt der Sektion.
+const articleSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'Article',
+  headline: title,
+  description,
+  datePublished: datum,
+  dateModified: datum,
+  inLanguage: 'de-DE',
+  mainEntityOfPage: `${siteUrl}${canonicalPath}`,
+  author: {
+    '@type': 'Person',
+    name: 'Matthias Dührkop',
+    url: `${siteUrl}${base}ueber-uns/`,
+  },
+  publisher: {
+    '@type': 'Organization',
+    name: 'Deutschland rechnet',
+    url: `${siteUrl}${base}`,
+  },
+};
+---
+<Layout title={title} description={description} canonicalPath={canonicalPath}>
+  <script type="application/ld+json" set:html={JSON.stringify(articleSchema)} slot="head" />
+
+  <article class="article">
+    <nav class="article-breadcrumb" aria-label="Brotkrumennavigation">
+      <a href={`${base}ratgeber/`}>← Ratgeber</a>
+    </nav>
+
+    <header class="article-header">
+      <h1>{title}</h1>
+      <p class="article-lead">{lead}</p>
+      <p class="article-meta">
+        Von Matthias Dührkop · Stand <time datetime={datum}>{datumLesbar}</time>
+      </p>
+    </header>
+
+    <div class="article-body">
+      <slot />
+    </div>
+
+    {quellen.length > 0 && (
+      <footer class="article-sources">
+        <h2>Quellen</h2>
+        <ul>
+          {quellen.map((q) => (
+            <li><a href={q.url} rel="noopener nofollow" target="_blank">{q.titel}</a></li>
+          ))}
+        </ul>
+      </footer>
+    )}
+  </article>
+</Layout>
+
+<style>
+.article {
+  max-width: 68ch;
+  margin: 0 auto;
+}
+.article-breadcrumb {
+  font-size: 0.85rem;
+  margin-bottom: 1.5rem;
+}
+.article-breadcrumb a { color: var(--text-light); text-decoration: none; }
+.article-breadcrumb a:hover { color: var(--red); }
+
+.article-header {
+  border-bottom: 3px solid var(--dark);
+  padding-bottom: 1.5rem;
+  margin-bottom: 2rem;
+}
+.article-header h1 {
+  font-family: var(--font-display);
+  font-size: clamp(1.75rem, 1.2rem + 2.2vw, 2.75rem);
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+  margin-bottom: 0.85rem;
+}
+.article-lead {
+  font-size: clamp(1.05rem, 1rem + 0.4vw, 1.25rem);
+  line-height: 1.6;
+  color: var(--text);
+  font-weight: 500;
+  margin-bottom: 1rem;
+}
+.article-meta {
+  font-size: 0.82rem;
+  color: var(--text-light);
+  margin: 0;
+}
+
+/* Fließtext bewusst großzügiger als auf den Rechnerseiten – hier wird gelesen,
+   nicht bedient. */
+.article-body :global(h2) {
+  font-family: var(--font-display);
+  font-size: 1.45rem;
+  line-height: 1.25;
+  margin: 2.75rem 0 0.85rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--border);
+}
+.article-body :global(h3) {
+  font-size: 1.1rem;
+  font-weight: 700;
+  margin: 1.75rem 0 0.5rem;
+}
+.article-body :global(p) {
+  font-size: 1.02rem;
+  line-height: 1.75;
+  margin-bottom: 1.1rem;
+}
+.article-body :global(ul), .article-body :global(ol) {
+  margin: 0 0 1.1rem 1.25rem;
+  line-height: 1.75;
+}
+.article-body :global(li) { margin-bottom: 0.4rem; }
+.article-body :global(strong) { font-weight: 700; }
+.article-body :global(a) { color: var(--red); }
+
+.article-sources {
+  margin-top: 3rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--border);
+  font-size: 0.85rem;
+}
+.article-sources h2 {
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--text-light);
+  margin-bottom: 0.6rem;
+}
+.article-sources ul { list-style: none; margin: 0; padding: 0; }
+.article-sources li { margin-bottom: 0.35rem; line-height: 1.5; }
+.article-sources a { color: var(--text-light); }
+.article-sources a:hover { color: var(--red); }
+</style>

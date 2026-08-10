@@ -2,11 +2,6 @@ import { defineConfig } from 'astro/config';
 import sitemap from '@astrojs/sitemap';
 import { buildLastModifiedMap, lookupLastModified } from './src/utils/lastModified.mjs';
 
-const redirectPages = [
-  'https://deutschland-rechnet.de/auto/leasingrechner/',
-  'https://deutschland-rechnet.de/familie/unterhalt-rechner/',
-];
-
 const lastModified = buildLastModifiedMap();
 
 export default defineConfig({
@@ -15,7 +10,8 @@ export default defineConfig({
   trailingSlash: 'always',
   integrations: [
     sitemap({
-      filter: (page) => !redirectPages.includes(page),
+      // Der Filter schloss zwei Meta-Refresh-Stub-Seiten aus. Die sind entfallen
+      // und laufen jetzt als 301 über netlify.toml – es gibt nichts mehr zu filtern.
       serialize: (item) => {
         // Echtes Commit-Datum statt Build-Datum: sonst meldet jeder Deploy alle
         // Seiten als geändert und Google ignoriert das Signal. Ist das Datum

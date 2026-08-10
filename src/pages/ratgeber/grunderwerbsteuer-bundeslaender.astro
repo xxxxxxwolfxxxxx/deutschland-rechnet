@@ -1,0 +1,251 @@
+---
+import ArticleLayout from '../../layouts/ArticleLayout.astro';
+import { BUNDESLAENDER, berechneGrunderwerbsteuer } from '../../../public/scripts/grunderwerbsteuer.js';
+
+const base = import.meta.env.BASE_URL;
+
+// Die Tabelle wird zur Build-Zeit aus demselben Modul gerechnet, das auch der
+// Rechner benutzt. Artikel und Rechner können damit nicht auseinanderlaufen –
+// eine Satzänderung schlägt automatisch in beiden durch.
+const BEISPIEL_KAUFPREIS = 400_000;
+
+const laender = Object.entries(BUNDESLAENDER)
+  .map(([kuerzel, land]) => ({
+    kuerzel,
+    ...land,
+    steuer: berechneGrunderwerbsteuer({ kaufpreis: BEISPIEL_KAUFPREIS, bundesland: kuerzel }).steuer,
+  }))
+  .sort((a, b) => a.satz - b.satz || a.name.localeCompare(b.name, 'de'));
+
+const guenstigste = laender[0];
+const teuerste = laender[laender.length - 1];
+const spanne = teuerste.steuer - guenstigste.steuer;
+
+const durchschnittSatz = laender.reduce((s, l) => s + l.satz, 0) / laender.length;
+const durchschnittSteuer = Math.round(BEISPIEL_KAUFPREIS * durchschnittSatz / 100);
+
+const hoechstsatzLaender = laender.filter(l => l.satz === teuerste.satz);
+const seit2020Geaendert = laender
+  .filter(l => l.gueltigSeit >= '2020-01-01')
+  .sort((a, b) => a.gueltigSeit.localeCompare(b.gueltigSeit));
+
+const eur = (n: number) => n.toLocaleString('de-DE', { maximumFractionDigits: 0 }) + ' €';
+const proz = (n: number) => n.toLocaleString('de-DE', { minimumFractionDigits: 1, maximumFractionDigits: 2 }) + ' %';
+const kurzDatum = (iso: string) =>
+  new Date(iso).toLocaleDateString('de-DE', { month: '2-digit', year: 'numeric' });
+---
+<ArticleLayout
+  title="Grunderwerbsteuer 2026: Was ein Hauskauf in jedem Bundesland kostet"
+  description={`Alle 16 Grunderwerbsteuersätze im Vergleich, durchgerechnet für ${eur(BEISPIEL_KAUFPREIS)} Kaufpreis. Zwischen dem günstigsten und dem teuersten Bundesland liegen ${eur(spanne)}.`}
+  canonicalPath="/ratgeber/grunderwerbsteuer-bundeslaender/"
+  lead={`Beim identischen Haus für ${eur(BEISPIEL_KAUFPREIS)} zahlen Käufer je nach Bundesland zwischen ${eur(guenstigste.steuer)} und ${eur(teuerste.steuer)} Grunderwerbsteuer. Diese ${eur(spanne)} Unterschied treffen den Käufer an der empfindlichsten Stelle der Finanzierung – beim Eigenkapital.`}
+  datum="2026-08-10"
+  quellen={[
+    { titel: 'Thüringer Gesetz über die Bestimmung des Steuersatzes bei der Grunderwerbsteuer (Landesrecht Thüringen)', url: 'https://landesrecht.thueringen.de/bsth/document/jlr-GrEStSatzGTHrahmen' },
+    { titel: 'Senatspressestelle Bremen: Senat bringt moderate Erhöhung der Grunderwerbsteuer auf den Weg', url: 'https://www.senatspressestelle.bremen.de/pressemitteilungen/senat-bringt-moderate-erhoehung-der-grunderwerbsteuer-auf-den-weg-458299' },
+    { titel: 'Bundesfinanzministerium: Grundsteuer & Grunderwerbsteuer', url: 'https://www.bundesfinanzministerium.de/Web/DE/Themen/Steuern/Steuerarten/Grundsteuer_Grunderwerbsteuer/Grundsteuer_Grunderwerbsteuer.html' },
+  ]}
+>
+  <p>
+    Die Grunderwerbsteuer ist der größte Einzelposten der Kaufnebenkosten und der
+    einzige, den der Käufer nicht verhandeln kann. Sie ist Ländersache: Der Bund gibt
+    keinen Satz vor, jedes Land beschließt seinen eigenen. Entsprechend weit liegen
+    die Sätze auseinander – von {proz(guenstigste.satz)} in {guenstigste.name} bis
+    {proz(teuerste.satz)} in gleich {hoechstsatzLaender.length} Ländern.
+  </p>
+
+  <h2>Alle 16 Bundesländer, gerechnet für {eur(BEISPIEL_KAUFPREIS)}</h2>
+  <p>
+    Die dritte Spalte zeigt, was bei einem Kaufpreis von {eur(BEISPIEL_KAUFPREIS)}
+    tatsächlich ans Finanzamt geht. Die letzte Spalte nennt das Datum, seit dem der
+    Satz gilt – ein Detail, das die meisten Übersichten weglassen, obwohl es die
+    Aktualität überhaupt erst überprüfbar macht.
+  </p>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th scope="col">Bundesland</th>
+          <th scope="col" class="num">Satz</th>
+          <th scope="col" class="num">Steuer auf {eur(BEISPIEL_KAUFPREIS)}</th>
+          <th scope="col" class="num">ggü. Ø</th>
+          <th scope="col" class="num">gilt seit</th>
+        </tr>
+      </thead>
+      <tbody>
+        {laender.map((l) => {
+          const diff = l.steuer - durchschnittSteuer;
+          return (
+            <tr>
+              <th scope="row">{l.name}</th>
+              <td class="num">{proz(l.satz)}</td>
+              <td class="num strong">{eur(l.steuer)}</td>
+              <td class={`num ${diff < 0 ? 'gut' : diff > 0 ? 'schlecht' : ''}`}>
+                {diff === 0 ? '±0 €' : `${diff > 0 ? '+' : '−'}${eur(Math.abs(diff))}`}
+              </td>
+              <td class="num klein">{kurzDatum(l.gueltigSeit)}</td>
+            </tr>
+          );
+        })}
+      </tbody>
+      <tfoot>
+        <tr>
+          <th scope="row">Durchschnitt</th>
+          <td class="num">{proz(durchschnittSatz)}</td>
+          <td class="num strong">{eur(durchschnittSteuer)}</td>
+          <td class="num">—</td>
+          <td class="num">—</td>
+        </tr>
+      </tfoot>
+    </table>
+  </div>
+
+  <p>
+    Wer in {guenstigste.name} kauft, zahlt {eur(durchschnittSteuer - guenstigste.steuer)}
+    weniger als der Bundesdurchschnitt. Im Vergleich zum teuersten Land sind es
+    {eur(spanne)} – bei einer typischen Finanzierung entspricht das ungefähr einem
+    zusätzlichen Jahresbeitrag zur Tilgung.
+  </p>
+
+  <h2>Warum die Spreizung härter trifft als sie aussieht</h2>
+  <p>
+    {eur(spanne)} klingen bei {eur(BEISPIEL_KAUFPREIS)} Kaufpreis nach einem
+    überschaubaren Aufschlag von rund drei Prozent. Der Punkt ist aber ein anderer:
+    <strong>Kaufnebenkosten sind nicht beleihbar.</strong> Banken finanzieren den
+    Kaufpreis, nicht die Steuer. Die Grunderwerbsteuer muss also vollständig aus
+    Eigenkapital kommen – und Eigenkapital ist bei den meisten Käufern die knappste
+    Größe der gesamten Finanzierung.
+  </p>
+  <p>
+    Praktisch heißt das: Die {eur(spanne)} Differenz sind nicht drei Prozent mehr
+    Kredit, sondern {eur(spanne)} weniger Eigenkapital für alles andere. Bei einem
+    Käufer mit {eur(80000)} Eigenkapital ist das ein Sechstel des Polsters, das
+    zwischen zwei ansonsten identischen Häusern verschwindet.
+  </p>
+
+  <h2>Was sich zuletzt geändert hat</h2>
+  <p>
+    Grunderwerbsteuersätze sind träge – die Hälfte der heute geltenden Sätze stammt
+    noch aus der Zeit vor 2016. Seit 2020 gab es nur {seit2020Geaendert.length}
+    Änderungen:
+  </p>
+  <ul>
+    {seit2020Geaendert.map((l) => (
+      <li>
+        <strong>{l.name}</strong> – {proz(l.satz)} seit {kurzDatum(l.gueltigSeit)}
+      </li>
+    ))}
+  </ul>
+  <p>
+    Bemerkenswert ist die Richtung: Thüringen hat 2024 als bislang einziges
+    Bundesland den Satz gesenkt, von 6,5 auf {proz(BUNDESLAENDER.th.satz)}. Bremen
+    ging 2025 den umgekehrten Weg und erhöhte erstmals seit zehn Jahren auf
+    {proz(BUNDESLAENDER.hb.satz)} – ausdrücklich zur Haushaltskonsolidierung. Wer
+    eine Übersicht liest, die Thüringen noch mit 6,5 Prozent führt, liest eine
+    veraltete Tabelle; das kommt häufiger vor, als man erwarten würde.
+  </p>
+
+  <h2>Die eine legale Stellschraube: bewegliches Inventar</h2>
+  <p>
+    Am Satz lässt sich nichts drehen, an der Bemessungsgrundlage schon. Die
+    Grunderwerbsteuer fällt nur auf Grundstück und fest verbundene Gebäudeteile an –
+    <strong>nicht auf bewegliches Zubehör.</strong> Einbauküche, Markise, Sauna,
+    Gartenhaus oder Photovoltaikanlage können im Kaufvertrag gesondert ausgewiesen
+    werden und mindern dann die Bemessungsgrundlage.
+  </p>
+  <p>
+    Ein Beispiel: Werden {eur(20000)} für die Einbauküche und weiteres Inventar
+    separat aufgeführt, sinkt die Steuer in einem Land mit
+    {proz(teuerste.satz)} um {eur(Math.round(20000 * teuerste.satz / 100))}.
+    Zwei Bedingungen müssen erfüllt sein – die Gegenstände müssen tatsächlich
+    beweglich sein, und der angesetzte Wert muss realistisch sein. Finanzämter prüfen
+    das, und als grobe Grenze gilt, dass das Inventar 15 Prozent des Kaufpreises
+    nicht überschreiten sollte, ohne durch Belege gedeckt zu sein.
+  </p>
+
+  <h2>Wann die Steuer fällig wird</h2>
+  <p>
+    Das Finanzamt erfährt vom Kauf durch die Anzeige des Notars und verschickt den
+    Steuerbescheid meist sechs bis zehn Wochen nach der Beurkundung. Die Zahlungsfrist
+    beträgt einen Monat. Erst nach Zahlung stellt das Finanzamt die
+    Unbedenklichkeitsbescheinigung aus – und ohne die trägt das Grundbuchamt den
+    neuen Eigentümer nicht ein. Die Steuer ist damit kein nachgelagerter Posten,
+    sondern liegt zeitlich vor der Eigentumsumschreibung.
+  </p>
+
+  <h2>Den eigenen Fall durchrechnen</h2>
+  <p>
+    Die Tabelle oben nutzt {eur(BEISPIEL_KAUFPREIS)} als Beispielwert. Für den
+    konkreten Kaufpreis rechnen die passenden Rechner mit denselben Sätzen:
+  </p>
+  <ul>
+    <li><a href={`${base}wohnen/grunderwerbsteuer-rechner/`}>Grunderwerbsteuer-Rechner</a> – Steuer nach Bundesland und Kaufpreis</li>
+    <li><a href={`${base}wohnen/immobilienkauf-nebenkosten/`}>Kaufnebenkosten-Rechner</a> – Steuer, Notar, Grundbuch und Makler zusammen</li>
+    <li><a href={`${base}wohnen/wie-viel-haus/`}>Budget-Rechner</a> – wie viel Haus bei vorhandenem Eigenkapital realistisch ist</li>
+  </ul>
+
+  <p class="hinweis">
+    Alle Angaben nach bestem Wissen, Stand August 2026. Die Grunderwerbsteuer ist
+    Ländersache und kann sich kurzfristig ändern – maßgeblich ist das Recht des
+    Landes, in dem das Grundstück liegt. Dieser Artikel ersetzt keine Steuerberatung.
+  </p>
+</ArticleLayout>
+
+<style>
+.table-wrap {
+  overflow-x: auto;
+  margin: 1.5rem 0 1.25rem;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+  background: white;
+}
+thead th {
+  background: var(--dark);
+  color: white;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-weight: 600;
+  padding: 0.7rem 0.75rem;
+  text-align: left;
+  white-space: nowrap;
+}
+tbody th {
+  text-align: left;
+  font-weight: 600;
+  padding: 0.6rem 0.75rem;
+  white-space: nowrap;
+}
+tbody td { padding: 0.6rem 0.75rem; }
+tbody tr:nth-child(even) { background: var(--surface); }
+tbody tr:hover { background: var(--cat-light, #f3f4f6); }
+.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.strong { font-weight: 700; }
+.klein { font-size: 0.8rem; color: var(--text-light); }
+.gut { color: #0f7b3e; }
+.schlecht { color: var(--red); }
+tfoot th, tfoot td {
+  padding: 0.65rem 0.75rem;
+  border-top: 2px solid var(--dark);
+  font-weight: 700;
+  font-size: 0.87rem;
+}
+tfoot th { text-align: left; }
+
+.hinweis {
+  margin-top: 2rem;
+  padding: 0.9rem 1.1rem;
+  background: var(--surface);
+  border-left: 3px solid var(--gold);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  font-size: 0.85rem !important;
+  line-height: 1.6 !important;
+  color: var(--text-light);
+}
+</style>

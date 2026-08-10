@@ -1,0 +1,121 @@
+---
+import Layout from '../../layouts/Layout.astro';
+
+const base = import.meta.env.BASE_URL;
+
+// Bewusst eine handgepflegte Liste statt einer Content-Collection: Die Sektion
+// soll klein und kuratiert bleiben. Jeder Artikel muss eigene, gerechnete Daten
+// mitbringen – nichts, was sich beliebig hochskalieren ließe.
+const artikel = [
+  {
+    slug: 'grunderwerbsteuer-bundeslaender',
+    titel: 'Grunderwerbsteuer 2026: Was ein Hauskauf in jedem Bundesland kostet',
+    teaser: 'Alle 16 Sätze durchgerechnet für 400.000 € Kaufpreis – inklusive Gültigkeitsdaten, der Wirkung auf das Eigenkapital und der einen legalen Stellschraube.',
+    datum: '2026-08-10',
+    thema: 'Wohnen',
+  },
+];
+
+const artikelSortiert = [...artikel].sort((a, b) => b.datum.localeCompare(a.datum));
+---
+<Layout
+  title="Ratgeber"
+  description="Ratgeber-Artikel zu Steuern, Immobilien und Finanzen – mit eigenen Berechnungen, Quellenangaben und konkreten Zahlen statt Allgemeinplätzen."
+  canonicalPath="/ratgeber/"
+>
+  <a href={`${base}`} class="back-link">← Startseite</a>
+
+  <header class="ratgeber-header">
+    <h1>Ratgeber</h1>
+    <p>
+      Ausführliche Artikel zu Themen, bei denen die reine Zahl aus dem Rechner nicht
+      reicht. Jeder Beitrag bringt eigene Berechnungen mit, nennt seine Quellen und
+      sagt, von wann die Daten stammen.
+    </p>
+  </header>
+
+  <ul class="artikel-liste">
+    {artikelSortiert.map((a) => (
+      <li>
+        <article>
+          <div class="meta">
+            <span class="thema">{a.thema}</span>
+            <time datetime={a.datum}>
+              {new Date(a.datum).toLocaleDateString('de-DE', { day: '2-digit', month: 'long', year: 'numeric' })}
+            </time>
+          </div>
+          <h2><a href={`${base}ratgeber/${a.slug}/`}>{a.titel}</a></h2>
+          <p>{a.teaser}</p>
+          <a href={`${base}ratgeber/${a.slug}/`} class="weiter">Artikel lesen →</a>
+        </article>
+      </li>
+    ))}
+  </ul>
+</Layout>
+
+<style>
+.back-link { font-size: 0.85rem; color: var(--text-light); text-decoration: none; }
+.back-link:hover { color: var(--red); }
+
+.ratgeber-header {
+  max-width: 60ch;
+  margin: 1.25rem 0 2.5rem;
+  padding-bottom: 1.5rem;
+  border-bottom: 3px solid var(--dark);
+}
+.ratgeber-header h1 {
+  font-family: var(--font-display);
+  font-size: clamp(1.9rem, 1.4rem + 2vw, 2.75rem);
+  margin-bottom: 0.75rem;
+  letter-spacing: -0.02em;
+}
+.ratgeber-header p {
+  font-size: 1.02rem;
+  line-height: 1.7;
+  color: var(--text-light);
+  margin: 0;
+}
+
+.artikel-liste { list-style: none; margin: 0; padding: 0; max-width: 68ch; }
+.artikel-liste > li { margin-bottom: 2.25rem; }
+
+.meta {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-size: 0.75rem;
+  margin-bottom: 0.5rem;
+}
+.thema {
+  background: var(--dark);
+  color: white;
+  padding: 0.2rem 0.5rem;
+  border-radius: 3px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: 600;
+}
+.meta time { color: var(--text-light); }
+
+.artikel-liste h2 {
+  font-family: var(--font-display);
+  font-size: 1.4rem;
+  line-height: 1.25;
+  margin-bottom: 0.5rem;
+}
+.artikel-liste h2 a { color: var(--text); text-decoration: none; }
+.artikel-liste h2 a:hover { color: var(--red); }
+.artikel-liste p {
+  font-size: 0.95rem;
+  line-height: 1.7;
+  color: var(--text-light);
+  margin-bottom: 0.6rem;
+}
+.weiter {
+  font-size: 0.87rem;
+  font-weight: 600;
+  color: var(--red);
+  text-decoration: none;
+}
+.weiter:hover { text-decoration: underline; }
+</style>

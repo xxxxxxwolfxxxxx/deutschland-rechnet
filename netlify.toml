@@ -24,8 +24,24 @@
   to = "/auto/elektroauto-tco-rechner/"
   status = 301
 
-# Catch-all: muss die letzte Regel bleiben.
+# Diese beiden URLs waren bisher Astro-Seiten mit einer Meta-Refresh-Weiterleitung.
+# Meta-Refresh gilt bei Google als Soft-404 und vererbt keine Linkkraft – als
+# echter 301 tut es beides richtig.
+
+[[redirects]]
+  from = "/auto/leasingrechner/*"
+  to = "/auto/leasing-rechner/"
+  status = 301
+
+[[redirects]]
+  from = "/familie/unterhalt-rechner/*"
+  to = "/familie/ehegattenunterhalt-rechner/"
+  status = 301
+
+# Catch-all: muss die letzte Regel bleiben. Zeigt auf die echte 404-Seite, die
+# Astro nach dist/404.html baut – vorher lieferte diese Regel den kompletten
+# Startseiten-Inhalt unter jeder beliebigen URL aus, nur mit Status 404.
 [[redirects]]
   from = "/*"
-  to = "/index.html"
+  to = "/404.html"
   status = 404
