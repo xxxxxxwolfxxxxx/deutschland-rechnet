@@ -3,126 +3,249 @@ import Layout from '../../layouts/Layout.astro';
 import CalculatorShell from '../../components/CalculatorShell.astro';
 import CalculatorGuide from '../../components/CalculatorGuide.astro';
 import { CALCULATORS, CATEGORIES } from '../../data/calculators';
+import { BUNDESLAENDER, berechneGrunderwerbsteuer } from '../../../public/scripts/grunderwerbsteuer.js';
+
 const calc = CALCULATORS.find(c => c.slug === 'grunderwerbsteuer-rechner')!;
 const cat = CATEGORIES[calc.category];
+const base = import.meta.env.BASE_URL;
 const year = new Date().getFullYear();
+
+// Alles auf dieser Seite stammt aus BUNDESLAENDER. Vorher war die Auswahlliste
+// hart ausgeschrieben und lief gegen den Rechner auseinander – Bremen und
+// Thüringen standen dort mit Sätzen, die seit Jahren nicht mehr galten.
+const laender = Object.entries(BUNDESLAENDER)
+  .map(([kuerzel, land]) => ({ kuerzel, ...land }))
+  .sort((a, b) => a.name.localeCompare(b.name, 'de'));
+
+const nachSatz = [...laender].sort((a, b) => a.satz - b.satz);
+const guenstigste = nachSatz[0];
+const teuerste = nachSatz[nachSatz.length - 1];
+const durchschnittSatz = laender.reduce((s, l) => s + l.satz, 0) / laender.length;
+
+// Für die Gruppierung im Erklärtext: Satz -> Länder. Aus den Daten erzeugt,
+// damit kein Bundesland versehentlich in zwei Gruppen landet.
+const gruppen = [...new Set(laender.map(l => l.satz))]
+  .sort((a, b) => a - b)
+  .map(satz => ({
+    satz,
+    namen: laender.filter(l => l.satz === satz).map(l => l.name),
+  }));
+
+const proz = (n: number) => n.toLocaleString('de-DE', { minimumFractionDigits: 1, maximumFractionDigits: 2 }) + ' %';
+const eur = (n: number) => n.toLocaleString('de-DE', { maximumFractionDigits: 0 }) + ' €';
+
+const BEISPIEL = 350_000;
+const beispielTeuer = berechneGrunderwerbsteuer({ kaufpreis: BEISPIEL, bundesland: teuerste.kuerzel }).steuer;
+const beispielGuenstig = berechneGrunderwerbsteuer({ kaufpreis: BEISPIEL, bundesland: guenstigste.kuerzel }).steuer;
+
+const gruppenText = gruppen
+  .map(g => `<li><strong>${proz(g.satz)}</strong> – ${g.namen.join(', ')}</li>`)
+  .join('\n');
+
+const zuletztGeaendert = [...laender]
+  .sort((a, b) => b.gueltigSeit.localeCompare(a.gueltigSeit))
+  .slice(0, 3);
 ---
 <Layout
   title={`Grunderwerbsteuer-Rechner ${year}`}
-  description="Grunderwerbsteuer nach Bundesland kostenlos berechnen. Alle 16 Bundesländer, aktuelle Steuersätze 3,5–6,5 %."
+  description={`Grunderwerbsteuer für alle 16 Bundesländer berechnen – mit geprüften Sätzen von ${proz(guenstigste.satz)} bis ${proz(teuerste.satz)} und Angabe, seit wann jeder Satz gilt.`}
   canonicalPath="/wohnen/grunderwerbsteuer-rechner/"
   categoryColor={cat.color}
   categoryLight={cat.colorLight}
   categoryImage={cat.image}
 >
   <div class="page-header">
-    <a href={`${import.meta.env.BASE_URL}wohnen/`} class="back-link">← Wohnen & Immobilien</a>
+    <a href={`${base}wohnen/`} class="back-link">← Wohnen & Immobilien</a>
     <h1>Grunderwerbsteuer-Rechner {year} – nach Bundesland</h1>
   </div>
-   <CalculatorShell
-     calculator={calc}
-     intro="Mit dem Grunderwerbsteuer-Rechner berechnen Sie die Grunderwerbsteuer beim Kauf einer Immobilie. Die Steuersätze unterscheiden sich je nach Bundesland erheblich und können bis zu 6,5 % betragen. So erfahren Sie vorab, welcher Betrag zusätzlich zum Kaufpreis auf Sie zukommt."
-     sourceNote="0% bis 6,5% je nach Bundesland."
-     explanation="Die Grunderwerbsteuer ist in § 1 GrEStG geregelt und fällt bei jedem Immobilienerwerb an. Die Steuersätze werden von den Bundesländern festgelegt und reichen von 3,5 % (Bayern, Sachsen) bis 6,5 % (z. B. NRW, Brandenburg). Die Steuer muss innerhalb von zwei Wochen nach Steuerbescheid gezahlt werden – erst danach erteilt das Finanzamt die Unbedenklichkeitsbescheinigung für die Grundbucheintragung."
-      faqs={[
-        { q: "Welches Bundesland hat die höchste Grunderwerbsteuer?", a: "Nordrhein-Westfalen, Schleswig-Holstein, Brandenburg, Saarland und Thüringen mit jeweils 6,5%. Bayern und Sachsen haben 3,5%, die niedrigsten Sätze." },
-        { q: "Wer muss die Grunderwerbsteuer zahlen?", a: "Der Käufer der Immobilie muss die Steuer zahlen. Sie wird bei Eintragung der Eigentumsübertragung beim Finanzamt fällig. Die Zahlung muss innerhalb von 2 Wochen erfolgen." },
-        { q: "Was ist in der Steuerbemessung enthalten?", a: "Die Grunderwerbsteuer wird auf den Kaufpreis berechnet. Makler-, Notar- und Grundbuchgebühren sind NICHT enthalten. Diese kommen zusätzlich hinzu (ca. 5-10% weitere Kosten)." },
-        { q: "Gibt es Ausnahmen oder Ermäßigungen?", a: "Ja, z.B. für Familienheimzuschuss-Eigenheime in manchen Bundesländern. Auch bestimmte Erbschaften sind befreit. Der Notar prüft dies bei der Vertragsgestaltung." },
-        { q: "Unterscheidet sich der Satz für Grund vs. Gebäude?", a: "Nein, die Grunderwerbsteuer wird auf den gesamten Kaufpreis berechnet (Land + Gebäude), nicht differenziert. Der Steuersatz ist für beide gleich." }
-      ]}
-   >
+
+  <CalculatorShell
+    calculator={calc}
+    intro={`Die Grunderwerbsteuer ist der größte Einzelposten der Kaufnebenkosten und der einzige, den Sie nicht verhandeln können. Sie ist Ländersache: Die Sätze reichen von ${proz(guenstigste.satz)} in ${guenstigste.name} bis ${proz(teuerste.satz)}. Bei ${eur(BEISPIEL)} Kaufpreis liegen dazwischen ${eur(beispielTeuer - beispielGuenstig)}.`}
+    sourceNote={`Steuersätze ${proz(guenstigste.satz)} bis ${proz(teuerste.satz)} je Bundesland, geprüft am 10.08.2026.`}
+    explanation={`Die Grunderwerbsteuer ist in § 1 GrEStG geregelt und fällt bei jedem Immobilienerwerb an. Den Satz legt jedes Bundesland per eigenem Gesetz fest – einen bundeseinheitlichen Satz gibt es nicht. Bemessungsgrundlage ist die Gegenleistung, in der Regel der Kaufpreis; fest verbundene Gebäudeteile zählen dazu, bewegliches Zubehör nicht. Nach § 15 GrEStG ist die Steuer einen Monat nach Bekanntgabe des Steuerbescheids fällig. Erst nach Zahlung erteilt das Finanzamt die Unbedenklichkeitsbescheinigung, ohne die das Grundbuchamt den Eigentümerwechsel nicht einträgt.`}
+    faqs={[
+      {
+        q: 'Welches Bundesland hat die höchste, welches die niedrigste Grunderwerbsteuer?',
+        a: `Am günstigsten ist ${guenstigste.name} mit ${proz(guenstigste.satz)}. Den Höchstsatz von ${proz(teuerste.satz)} erheben ${laender.filter(l => l.satz === teuerste.satz).map(l => l.name).join(', ')}. Der Durchschnitt über alle 16 Länder liegt bei ${proz(durchschnittSatz)}.`,
+      },
+      {
+        q: 'Wann muss ich die Grunderwerbsteuer bezahlen?',
+        a: 'Der Notar zeigt den Kauf beim Finanzamt an, der Bescheid kommt meist sechs bis zehn Wochen nach der Beurkundung. Die Zahlungsfrist beträgt nach § 15 GrEStG einen Monat ab Bekanntgabe des Bescheids. Die Steuer ist damit vor der Eigentumsumschreibung fällig, nicht danach.',
+      },
+      {
+        q: 'Kann ich die Grunderwerbsteuer mitfinanzieren?',
+        a: 'In der Regel nicht. Banken beleihen den Immobilienwert, nicht die Nebenkosten – die Grunderwerbsteuer muss deshalb fast immer aus Eigenkapital kommen. Das ist der Grund, warum die Unterschiede zwischen den Bundesländern schwerer wiegen, als der reine Prozentsatz vermuten lässt.',
+      },
+      {
+        q: 'Lässt sich die Steuer legal senken?',
+        a: 'Am Satz nicht, an der Bemessungsgrundlage schon. Bewegliches Zubehör – Einbauküche, Markise, Sauna, Gartenhaus – kann im Kaufvertrag gesondert ausgewiesen werden und unterliegt dann nicht der Grunderwerbsteuer. Der angesetzte Wert muss realistisch und im Zweifel belegbar sein; Finanzämter prüfen das.',
+      },
+      {
+        q: 'Gilt der Satz für Grundstück und Gebäude gleichermaßen?',
+        a: 'Ja. Die Steuer wird auf die gesamte Gegenleistung berechnet, ohne Aufteilung zwischen Grund und Gebäude. Makler-, Notar- und Grundbuchkosten gehören nicht zur Bemessungsgrundlage – sie kommen als eigene Posten hinzu.',
+      },
+      {
+        q: 'Wie aktuell sind die Sätze in diesem Rechner?',
+        a: `Geprüft am 10.08.2026 gegen die jeweiligen Landesquellen. Zuletzt geändert haben ${zuletztGeaendert.map(l => `${l.name} (${proz(l.satz)} seit ${new Date(l.gueltigSeit).toLocaleDateString('de-DE', { month: '2-digit', year: 'numeric' })})`).join(', ')}. Jede Auswahl im Rechner zeigt das Gültigkeitsdatum mit an.`,
+      },
+    ]}
+  >
     <div class="calc-form">
       <div class="calc-grid">
         <div class="calc-group">
           <label for="kaufpreis">Kaufpreis (€)</label>
-          <input type="number" id="kaufpreis" min="0" max="100000000" value="350000" step="5000" />
+          <input type="number" id="kaufpreis" min="0" max="100000000" value={BEISPIEL} step="5000" />
         </div>
         <div class="calc-group">
           <label for="bundesland">Bundesland</label>
           <select id="bundesland">
-            <option value="bw">Baden-Württemberg (5,0 %)</option>
-            <option value="by">Bayern (3,5 %)</option>
-            <option value="be">Berlin (6,0 %)</option>
-            <option value="bb">Brandenburg (6,5 %)</option>
-            <option value="hb">Bremen (5,0 %)</option>
-            <option value="hh">Hamburg (5,5 %)</option>
-            <option value="he">Hessen (6,0 %)</option>
-            <option value="mv">Mecklenburg-Vorpommern (6,0 %)</option>
-            <option value="ni">Niedersachsen (5,0 %)</option>
-            <option value="nw" selected>Nordrhein-Westfalen (6,5 %)</option>
-            <option value="rp">Rheinland-Pfalz (5,0 %)</option>
-            <option value="sl">Saarland (6,5 %)</option>
-            <option value="sn">Sachsen (5,5 %)</option>
-            <option value="st">Sachsen-Anhalt (5,0 %)</option>
-            <option value="sh">Schleswig-Holstein (6,5 %)</option>
-            <option value="th">Thüringen (6,5 %)</option>
+            {laender.map(l => (
+              <option value={l.kuerzel} selected={l.kuerzel === 'nw'}>
+                {l.name} ({proz(l.satz)})
+              </option>
+            ))}
           </select>
         </div>
       </div>
-       <div class="calc-result">
-         <div class="label">Grunderwerbsteuer</div>
-         <div id="steuer">— €</div>
-         <div class="result-actions">
-           <button 
-             data-copy-result="#steuer" 
-             class="btn-copy"
-             title="Resultat kopieren"
-           >
-             📋 Kopieren
-           </button>
-           <button 
-             data-save-pdf="#steuer" 
-             class="btn-pdf"
-             title="Als PDF speichern"
-           >
-             📄 PDF
-           </button>
-         </div>
-       </div>
-      <p id="info" style="margin-top:0.5rem;font-size:0.85rem;color:#666;"></p>
+
+      <div class="calc-result">
+        <div class="label">Grunderwerbsteuer</div>
+        <div id="steuer">— €</div>
+        <div class="result-actions">
+          <button data-copy-result="#steuer" class="btn-copy" title="Resultat kopieren">📋 Kopieren</button>
+          <button data-save-pdf="#steuer" class="btn-pdf" title="Als PDF speichern">📄 PDF</button>
+        </div>
+      </div>
+
+      <p id="info" class="calc-info"></p>
+
+      <!-- Die Einordnung ist der eigentliche Mehrwert gegenüber anderen Rechnern:
+           nicht nur der Betrag, sondern was er im Ländervergleich bedeutet. -->
+      <div id="vergleich" class="vergleich" hidden>
+        <div class="vergleich-zeile">
+          <span>Bundesdurchschnitt ({proz(durchschnittSatz)})</span>
+          <strong id="v-schnitt">—</strong>
+        </div>
+        <div class="vergleich-zeile">
+          <span>Günstigstes Land ({guenstigste.name}, {proz(guenstigste.satz)})</span>
+          <strong id="v-guenstig">—</strong>
+        </div>
+        <div class="vergleich-zeile">
+          <span>Teuerstes Land ({proz(teuerste.satz)})</span>
+          <strong id="v-teuer">—</strong>
+        </div>
+        <p id="v-fazit" class="vergleich-fazit"></p>
+      </div>
     </div>
   </CalculatorShell>
 
   <CalculatorGuide
     title="Grunderwerbsteuer beim Immobilienkauf"
-    content={`<p>Die <strong>Grunderwerbsteuer (GrESt)</strong> ist eine Steuer, die beim Kauf von Grundstücken und Immobilien anfällt. Sie wird auf Bundeslandebene unterschiedlich festgelegt – von 3,5% in Bayern bis 6,5% in NRW und anderen Ländern.</p>
+    content={`<p>Die <strong>Grunderwerbsteuer</strong> fällt einmalig beim Erwerb eines Grundstücks oder einer Immobilie an. Sie ist eine reine Ländersteuer – der Bund gibt weder Satz noch Rahmen vor, jedes Land beschließt eigenständig.</p>
 
-<p><strong>Bundesland-Unterschiede (aktuelle Sätze):</strong>
+<p><strong>Alle Sätze nach Höhe gruppiert:</strong></p>
 <ul>
-  <li>3,5%: Bayern, Sachsen</li>
-  <li>5,0%: Baden-Württemberg, Bremen, Niedersachsen, Rheinland-Pfalz, Sachsen-Anhalt</li>
-  <li>5,5%: Hamburg, Mecklenburg-Vorpommern, Sachsen</li>
-  <li>6,0%: Berlin, Hessen, Mecklenburg-Vorpommern</li>
-  <li>6,5%: Brandenburg, Nordrhein-Westfalen, Saarland, Schleswig-Holstein, Thüringen</li>
+${gruppenText}
 </ul>
-</p>
 
-<p><strong>Wichtige Nebenkosten beim Hauskauf:</strong>
+<p><strong>Warum die Steuer schwerer wiegt als ihr Prozentsatz:</strong> Kaufnebenkosten sind nicht beleihbar. Während der Kaufpreis finanziert wird, muss die Grunderwerbsteuer aus Eigenkapital kommen. Bei ${eur(BEISPIEL)} Kaufpreis sind das je nach Bundesland zwischen ${eur(beispielGuenstig)} und ${eur(beispielTeuer)} – ein Unterschied von ${eur(beispielTeuer - beispielGuenstig)}, der direkt vom verfügbaren Eigenkapital abgeht.</p>
+
+<p><strong>Die weiteren Kaufnebenkosten:</strong></p>
 <ul>
-  <li>Grunderwerbsteuer: 3,5 – 6,5%</li>
-  <li>Maklergebühren (optional): 3 – 7,14%</li>
-  <li>Notargebühren: ca. 1,5 – 2%</li>
-  <li>Grundbuchgebühren: ca. 0,1 – 0,2%</li>
-  <li>Makler + Notar + Grundbuch = ca. 5 – 10% extra</li>
+  <li>Notargebühren: rund 1,5 % des Kaufpreises</li>
+  <li>Grundbucheintragung: rund 0,5 %</li>
+  <li>Maklerprovision (falls beauftragt): 3,57 % bis 7,14 % inklusive Umsatzsteuer, seit Dezember 2020 in der Regel geteilt zwischen Käufer und Verkäufer</li>
 </ul>
-</p>
 
-<p><strong>Beispiel:</strong> Beim Kauf für 350.000€ in NRW (6,5%): Grunderwerbsteuer = 22.750€. Mit Makler und Notar kommen weitere 17.500€ hinzu. Gesamtnebenkosten: ca. 40.250€ (11,5%).</p>`}
+<p>Zusammen mit der Grunderwerbsteuer landen die Nebenkosten je nach Bundesland und Maklerbeteiligung bei etwa 6 bis 15 Prozent des Kaufpreises. Eine vollständige Aufstellung für den eigenen Fall liefert der <a href="${base}wohnen/immobilienkauf-nebenkosten/">Nebenkosten-Rechner</a>.</p>
+
+<p><strong>Ausführlicher Ländervergleich:</strong> Im Ratgeber steht die komplette Tabelle mit allen 16 Sätzen, den Gültigkeitsdaten und der Änderungshistorie: <a href="${base}ratgeber/grunderwerbsteuer-bundeslaender/">Was ein Hauskauf in jedem Bundesland kostet</a>.</p>`}
     relatedSlugs={['hauskauf-rechner', 'immobilienkauf-nebenkosten', 'tilgungs-kreditrechner']}
   />
 </Layout>
 
-<script type="module">
+<script type="module" define:vars={{ LAENDER: laender, DURCHSCHNITT: durchschnittSatz }}>
 const { berechneGrunderwerbsteuer } = await import(window.__base + 'scripts/grunderwerbsteuer.js');
-function fmt(n) { return n.toLocaleString('de-DE', {minimumFractionDigits:2, maximumFractionDigits:2}) + ' €'; }
+
+const eur0 = (n) => n.toLocaleString('de-DE', { maximumFractionDigits: 0 }) + ' €';
+const eur2 = (n) => n.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
+
+const nachSatz = [...LAENDER].sort((a, b) => a.satz - b.satz);
+const guenstigste = nachSatz[0];
+const teuerste = nachSatz[nachSatz.length - 1];
+
 function berechne() {
-  const kp = parseFloat(document.getElementById('kaufpreis').value)||0;
+  const kp = parseFloat(document.getElementById('kaufpreis').value) || 0;
   const bl = document.getElementById('bundesland').value;
+  const land = LAENDER.find(l => l.kuerzel === bl);
   const r = berechneGrunderwerbsteuer({ kaufpreis: kp, bundesland: bl });
-  document.getElementById('steuer').textContent = fmt(r.steuer);
-  document.getElementById('info').textContent = `Steuersatz: ${r.satz} % · Kaufpreis: ${fmt(kp)}`;
+
+  document.getElementById('steuer').textContent = eur2(r.steuer);
+
+  const seit = new Date(land.gueltigSeit).toLocaleDateString('de-DE', { month: '2-digit', year: 'numeric' });
+  document.getElementById('info').textContent =
+    `${land.name}: ${r.satz.toLocaleString('de-DE', { minimumFractionDigits: 1 })} % – dieser Satz gilt seit ${seit}.`;
+
+  const vergleich = document.getElementById('vergleich');
+  if (kp <= 0) { vergleich.hidden = true; return; }
+  vergleich.hidden = false;
+
+  const schnitt = Math.round(kp * DURCHSCHNITT / 100);
+  const guenstig = berechneGrunderwerbsteuer({ kaufpreis: kp, bundesland: guenstigste.kuerzel }).steuer;
+  const teuer = berechneGrunderwerbsteuer({ kaufpreis: kp, bundesland: teuerste.kuerzel }).steuer;
+
+  document.getElementById('v-schnitt').textContent = eur0(schnitt);
+  document.getElementById('v-guenstig').textContent = eur0(guenstig);
+  document.getElementById('v-teuer').textContent = eur0(teuer);
+
+  const diff = r.steuer - schnitt;
+  const fazit = document.getElementById('v-fazit');
+  if (Math.abs(diff) < 1) {
+    fazit.textContent = `${land.name} liegt genau im Bundesdurchschnitt.`;
+  } else if (diff < 0) {
+    fazit.textContent = `Sie zahlen ${eur0(Math.abs(diff))} weniger als im Bundesdurchschnitt. Gegenüber dem teuersten Bundesland sparen Sie ${eur0(teuer - r.steuer)}.`;
+  } else {
+    fazit.textContent = `Sie zahlen ${eur0(diff)} mehr als im Bundesdurchschnitt – und ${eur0(r.steuer - guenstig)} mehr als in ${guenstigste.name}. Da Nebenkosten nicht mitfinanziert werden, fehlt dieser Betrag beim Eigenkapital.`;
+  }
 }
-['kaufpreis','bundesland'].forEach(id => document.getElementById(id).addEventListener('input', berechne));
+
+['kaufpreis', 'bundesland'].forEach(id =>
+  document.getElementById(id).addEventListener('input', berechne)
+);
 berechne();
 </script>
+
+<style>
+.calc-info {
+  margin-top: 0.5rem;
+  font-size: 0.85rem;
+  color: var(--text-light);
+}
+.vergleich {
+  margin-top: 1.25rem;
+  padding: 1rem 1.1rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+.vergleich-zeile {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 1rem;
+  padding: 0.35rem 0;
+  font-size: 0.88rem;
+  border-bottom: 1px solid var(--border);
+}
+.vergleich-zeile:last-of-type { border-bottom: none; }
+.vergleich-zeile span { color: var(--text-light); }
+.vergleich-zeile strong { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.vergleich-fazit {
+  margin: 0.75rem 0 0;
+  font-size: 0.87rem;
+  line-height: 1.6;
+  padding-top: 0.7rem;
+  border-top: 1px solid var(--border);
+}
+</style>
