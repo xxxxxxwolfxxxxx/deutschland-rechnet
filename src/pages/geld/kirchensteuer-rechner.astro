@@ -3,61 +3,69 @@ import Layout from '../../layouts/Layout.astro';
 import CalculatorShell from '../../components/CalculatorShell.astro';
 import CalculatorGuide from '../../components/CalculatorGuide.astro';
 import { CALCULATORS, CATEGORIES } from '../../data/calculators';
+import { KIRCHENSTEUER_LAENDER, KAPPUNG_MIN, KAPPUNG_MAX } from '../../../public/scripts/kirchensteuer.js';
 const calc = CALCULATORS.find(c => c.slug === 'kirchensteuer-rechner')!;
 const cat = CATEGORIES[calc.category];
+const base = import.meta.env.BASE_URL;
 const year = new Date().getFullYear();
+
+// Alles auf dieser Seite stammt aus KIRCHENSTEUER_LAENDER. Vorher standen die
+// 16 Sätze zusätzlich im Markup, und die Meta-Description nannte neun Länder
+// mit 8 % statt zwei. Wird der Satz eines Landes geändert, ändert sich hier
+// jede Nennung mit.
+const laender = Object.entries(KIRCHENSTEUER_LAENDER)
+  .map(([kuerzel, land]) => ({ kuerzel, ...land }))
+  .sort((a, b) => a.name.localeCompare(b.name, 'de'));
+
+const proz = (satz: number) => `${(satz * 100).toLocaleString('de-DE')} %`;
+
+const achtProzent = laender.filter(l => l.satz === 0.08);
+const neunProzent = laender.filter(l => l.satz === 0.09);
+const ohneKappung = laender.filter(l => !l.kappungMoeglich);
+
+const achtNamen = achtProzent.map(l => l.name).join(' und ');
+const kappungSpanne = `${proz(KAPPUNG_MIN)} bis ${proz(KAPPUNG_MAX)}`;
 ---
 <Layout
   title={`Kirchensteuer-Rechner ${year}`}
-  description="Kirchensteuer 2026 berechnen – 9% bzw. 8% (Bayern, BW, Hessen, NRW, RP, SL, Sachsen, ST, Thüringen) der Lohnsteuer nach Bundesland und Konfession."
+  description={`Kirchensteuer ${year} berechnen: ${proz(0.08)} in ${achtNamen}, ${proz(0.09)} in den übrigen ${neunProzent.length} Bundesländern – als Zuschlag auf die Lohnsteuer.`}
   canonicalPath="/geld/kirchensteuer-rechner/"
   categoryColor={cat.color}
   categoryLight={cat.colorLight}
   categoryImage={cat.image}
 >
   <div class="page-header">
-    <a href={`${import.meta.env.BASE_URL}geld/`} class="back-link">← Geld &amp; Gehalt</a>
+    <a href={`${base}geld/`} class="back-link">← Geld &amp; Gehalt</a>
     <h1>Kirchensteuer-Rechner {year}</h1>
   </div>
   <CalculatorShell
     calculator={calc}
-    intro="Die Kirchensteuer wird nicht auf Ihr Bruttoeinkommen erhoben, sondern als Zuschlag auf die festgesetzte Lohnsteuer berechnet. Je nach Bundesland beträgt der Satz 8 % (Bayern und Baden-Württemberg) oder 9 % (alle übrigen Bundesländer). Mit diesem Rechner ermitteln Sie Ihre monatliche und jährliche Kirchensteuer unter Berücksichtigung von Bundesland, Konfession und der sogenannten Kappungsregelung, die bei hohen Einkommen greift."
-    sourceNote="Rechtsgrundlage: § 51a EStG regelt die Bemessungsgrundlage der Kirchensteuer als Zuschlag zur Einkommensteuer. Die Kirchensteuersätze (8 % bzw. 9 %) werden durch die Kirchensteuergesetze der einzelnen Bundesländer festgelegt. Die Kirchensteuer ist gemäß § 10 Abs. 1 Nr. 4 EStG als Sonderausgabe voll abzugsfähig."
-    explanation="Die Berechnung der Kirchensteuer erfolgt in mehreren Schritten: Zunächst wird Ihre Lohnsteuer nach den allgemeinen Regeln des EStG ermittelt (Steuerklasse, Freibeträge, Progression). Auf diese Lohnsteuer wird dann der landesrechtliche Kirchensteuersatz von 8 % oder 9 % angewendet. Bei Besserverdienenden kann die sogenannte Kappungsregelung greifen: Übersteigt die Kirchensteuer einen bestimmten Prozentsatz des zu versteuernden Einkommens (je nach Bundesland 2,75 % bis 4 %), wird sie auf diesen Betrag gedeckelt. Die Kappung muss in der Regel beim Finanzamt beantragt werden und erfolgt nicht automatisch über den Lohnsteuerabzug. Zusätzlich fällt Kirchensteuer auch auf Kapitalerträge an (§ 51a Abs. 2c EStG), wobei die Bank diese automatisch einbehält, sofern ein Sperrvermerk beim Bundeszentralamt für Steuern nicht vorliegt."
+    intro={`Die Kirchensteuer wird nicht auf Ihr Bruttoeinkommen erhoben, sondern als Zuschlag auf die festgesetzte Lohnsteuer. Der Satz beträgt ${proz(0.08)} in ${achtNamen} und ${proz(0.09)} in allen übrigen Bundesländern. Geben Sie deshalb Ihre Lohnsteuer ein – sie steht auf jeder Lohnabrechnung und im Steuerbescheid. So ist das Ergebnis exakt und keine Schätzung.`}
+    sourceNote={`Rechtsgrundlage: § 51a EStG regelt die Kirchensteuer als Zuschlag zur Einkommensteuer. Die Sätze legen die Kirchensteuergesetze der Länder und die Kirchensteuerbeschlüsse der Landeskirchen und (Erz-)Bistümer fest – für Bayern Art. 8 BayKirchStG. Die Kirchensteuer ist nach § 10 Abs. 1 Nr. 4 EStG als Sonderausgabe voll abziehbar. Sätze geprüft am 10.08.2026.`}
+    explanation={`Die Berechnung hat nur einen Schritt: Kirchensteuer = festgesetzte Lohnsteuer × ${proz(0.08)} oder ${proz(0.09)}. Maßgeblich ist das Bundesland Ihres Wohnsitzes, nicht das Ihres Arbeitgebers. Für Kirchenmitglieder ist der Satz unabhängig davon, ob sie evangelisch oder katholisch sind. Bei hohen Einkommen kann die Kappungsregelung greifen: Die Kirchensteuer wird dann nicht mehr an der Steuer, sondern am zu versteuernden Einkommen bemessen und auf ${kappungSpanne} davon begrenzt. Wie hoch der Kappungssatz ausfällt, entscheidet Ihre Landeskirche oder Diözese – er unterscheidet sich innerhalb desselben Bundeslandes zwischen evangelisch und katholisch und in Baden-Württemberg zusätzlich zwischen Baden und Württemberg. In ${ohneKappung.map(l => l.name).join(', ')} gibt es keine Kappung. Dieser Rechner wendet sie nicht an, weil ihm das zu versteuernde Einkommen nicht bekannt ist. Zusätzlich fällt Kirchensteuer auf Kapitalerträge an (§ 51a Abs. 2c EStG); die Bank behält sie automatisch ein, sofern kein Sperrvermerk beim Bundeszentralamt für Steuern vorliegt.`}
     faqs={[
-      { q: "Wer zahlt Kirchensteuer?", a: "Nur Kirchenmitglieder (evangelisch, katholisch, andere Kirchen). Konfessionslose zahlen keine Kirchensteuer. Die Kirchenzugehörigkeit wird beim Finanzamt abgefragt – Ihr Arbeitgeber sieht das nicht." },
-      { q: "Wie viel Kirchensteuer zahle ich?", a: "8-9% der Lohnsteuer (nicht des Einkommens!). Beispiel: Lohnsteuer 500€, Kirchensteuer = 500€ × 8% oder 9% = 40€ oder 45€. Die Unterschiede sind regional." },
-      { q: "Was ist der Unterschied 8% vs. 9%?", a: "Bayern und Baden-Württemberg: 8%. Alle anderen: 9%. Ein Unterschied von ca. 1% der Lohnsteuer. Wer umzieht, kann da etwas sparen, aber nicht viel." },
-      { q: "Kann ich austreten?", a: "Ja. Du kannst dich vom Finanzamt abmelden (Kirchenaustritt). Das kostet meist 0-50€ (regional unterschiedlich) und spart sofort alle Kirchensteuern. Nach Austritt: Keine Trauungen, Beerdigungen in der Kirche ohne Gebühren." },
-      { q: "Gilt Kirchensteuer auch für Kapitalerträge?", a: "Ja. Dividenden, Zinsen und Kursgewinne unterliegen auch der Abgeltungsteuer + Kirchensteuer. Die Bank zieht das direkt ab, wenn du im Kirchensteuersystem angemeldet bist." },
-      { q: "Kann ich die Kirchensteuer sparen?", a: "Nur durch Austritt. Als Kirchenmitglied zahlst du zwingend. Manche zahlen auch symbolisch, weil sie die Kirchenarbeit unterstützen wollen. Das ist eine persönliche Entscheidung." }
+      { q: "Wer zahlt Kirchensteuer?", a: "Nur Mitglieder einer steuererhebenden Religionsgemeinschaft, vor allem der evangelischen Landeskirchen und der katholischen Bistümer. Konfessionslose zahlen keine Kirchensteuer. Die Zugehörigkeit ist als Lohnsteuerabzugsmerkmal gespeichert; der Arbeitgeber sieht dabei nur, ob und in welcher Höhe einzubehalten ist." },
+      { q: "Wie viel Kirchensteuer zahle ich?", a: `${proz(0.08)} oder ${proz(0.09)} der Lohnsteuer – nicht des Einkommens. Beispiel: 6.000 € Lohnsteuer im Jahr ergeben ${(6000 * 0.09).toLocaleString('de-DE')} € Kirchensteuer bei ${proz(0.09)} und ${(6000 * 0.08).toLocaleString('de-DE')} € bei ${proz(0.08)}, also 45 € bzw. 40 € im Monat.` },
+      { q: `Welche Bundesländer haben ${proz(0.08)}, welche ${proz(0.09)}?`, a: `${proz(0.08)} erheben ausschließlich ${achtNamen}. Die übrigen ${neunProzent.length} Bundesländer erheben ${proz(0.09)}: ${neunProzent.map(l => l.name).join(', ')}. Maßgeblich ist Ihr Wohnsitz.` },
+      { q: "Was ist die Kappung und was bringt sie?", a: `Bei der Kappung wird die Kirchensteuer nicht mehr an der Steuer, sondern am zu versteuernden Einkommen bemessen und auf ${kappungSpanne} davon begrenzt. Sie lohnt sich erst bei hohen Einkommen. Der Satz hängt von Ihrer Landeskirche oder Diözese ab, in einigen Ländern wird sie von Amts wegen berücksichtigt, in anderen nur auf schriftlichen Antrag. In ${ohneKappung.map(l => l.name).join(', ')} gibt es sie nicht. Fragen Sie im Zweifel bei Ihrer Landeskirche oder Ihrem Bistum nach.` },
+      { q: "Gilt die Kirchensteuer auch für Kapitalerträge?", a: "Ja. Auf Zinsen, Dividenden und Kursgewinne fällt neben der Abgeltungsteuer auch Kirchensteuer an (§ 51a Abs. 2c EStG). Die Bank ruft die Zugehörigkeit einmal jährlich beim Bundeszentralamt für Steuern ab und behält die Kirchensteuer automatisch ein, sofern Sie dort keinen Sperrvermerk eingelegt haben." },
+      { q: "Was passiert bei einem Kirchenaustritt?", a: "Der Austritt wird beim Standesamt oder Amtsgericht erklärt – je nach Bundesland – und wirkt für die Kirchensteuer ab dem Folgemonat oder dem Monat der Erklärung. Die Gebühr ist Landesrecht und liegt meist im niedrigen zweistelligen Bereich; in einzelnen Ländern ist der Austritt gebührenfrei. Kirchliche Amtshandlungen wie Trauung oder kirchliche Bestattung stehen danach nicht mehr selbstverständlich offen." },
+      { q: "Kann ich die Kirchensteuer von der Steuer absetzen?", a: "Ja, in voller Höhe als Sonderausgabe nach § 10 Abs. 1 Nr. 4 EStG. Dadurch sinkt die tatsächliche Belastung spürbar unter den Nominalbetrag. Nicht abziehbar ist die Kirchensteuer auf Kapitalerträge, die bereits im Abgeltungsteuersatz berücksichtigt wird." }
     ]}
   >
     <div class="calc-form">
       <div class="calc-grid">
         <div class="calc-group">
-          <label for="brutto">Jahresbrutto (€)</label>
-          <input type="number" id="brutto" min="1000" max="500000" value="42000" step="1000" />
+          <label for="lohnsteuer">Lohnsteuer pro Jahr (€)</label>
+          <input type="number" id="lohnsteuer" min="0" max="500000" value="6000" step="100" />
+          <small style="color:#666;">Steht auf der Lohnabrechnung und im Steuerbescheid. Nur die Lohnsteuer, nicht Soli oder Sozialabgaben.</small>
         </div>
         <div class="calc-group">
-          <label for="bundesland">Bundesland</label>
+          <label for="bundesland">Bundesland (Wohnsitz)</label>
           <select id="bundesland">
-            <option value="BW">Baden-Württemberg (8%)</option>
-            <option value="BY">Bayern (8%)</option>
-            <option value="BE">Berlin (9%)</option>
-            <option value="BB">Brandenburg (9%)</option>
-            <option value="HB">Bremen (9%)</option>
-            <option value="HH">Hamburg (9%)</option>
-            <option value="HE">Hessen (9%)</option>
-            <option value="MV">Mecklenburg-Vorpommern (9%)</option>
-            <option value="NI">Niedersachsen (9%)</option>
-            <option value="NW" selected>Nordrhein-Westfalen (9%)</option>
-            <option value="RP">Rheinland-Pfalz (9%)</option>
-            <option value="SL">Saarland (9%)</option>
-            <option value="SN">Sachsen (9%)</option>
-            <option value="ST">Sachsen-Anhalt (9%)</option>
-            <option value="SH">Schleswig-Holstein (9%)</option>
-            <option value="TH">Thüringen (9%)</option>
+            {laender.map(l => (
+              <option value={l.kuerzel} selected={l.kuerzel === 'NW'}>{l.name} ({proz(l.satz)})</option>
+            ))}
           </select>
         </div>
         <div class="calc-group">
@@ -65,7 +73,7 @@ const year = new Date().getFullYear();
           <select id="konfession">
             <option value="rk">Römisch-katholisch</option>
             <option value="ev">Evangelisch</option>
-            <option value="keine">Konfessionslos (kein KiSt)</option>
+            <option value="keine">Konfessionslos (keine Kirchensteuer)</option>
           </select>
         </div>
       </div>
@@ -74,18 +82,22 @@ const year = new Date().getFullYear();
         <div id="kimonat">— €</div>
       </div>
       <div id="details" style="margin-top:0.75rem;font-size:0.88rem;color:#666;display:flex;gap:1.5rem;flex-wrap:wrap;"></div>
+      <div id="kappungshinweis" style="margin-top:0.75rem;font-size:0.88rem;color:#666;"></div>
+      <p style="margin-top:1rem;font-size:0.88rem;color:#666;">
+        Sie kennen Ihre Lohnsteuer nicht? Der <a href={`${base}geld/brutto-netto-rechner/`}>Brutto-Netto-Rechner</a> ermittelt sie aus Ihrem Bruttogehalt.
+      </p>
     </div>
   </CalculatorShell>
 
   <CalculatorGuide
     title="So funktioniert die Kirchensteuer"
-    content={`<p><strong>Kirchensteuer</strong> ist eine Steuer, die nur von Kirchenmitgliedern bezahlt wird – evangelisch, katholisch, oder Freikirchen. Sie wird auf die Lohnsteuer als Prozentsatz berechnet (8-9%, je Bundesland). Konfessionslose zahlen nichts.</p>
+    content={`<p><strong>Die Kirchensteuer ist ein Zuschlag auf die Lohnsteuer</strong>, nicht auf das Gehalt. Sie zahlen ${proz(0.08)} oder ${proz(0.09)} der Steuer, die das Finanzamt ohnehin festsetzt. Wer keiner steuererhebenden Religionsgemeinschaft angehört, zahlt sie nicht.</p>
 
-<p><strong>Wie wird sie berechnet?</strong> Kirchensteuer = Lohnsteuer × 8% oder 9% (regional). Beispiel: Brutto 42.000€, Lohnsteuer 6.000€, Kirchensteuer = 6.000€ × 9% = 540€/Jahr = 45€/Monat. Die Kirche erhält den Betrag, nicht das Finanzamt.</p>
+<p><strong>Die Rechnung:</strong> Kirchensteuer = Lohnsteuer × Satz. Bei 6.000 € Lohnsteuer im Jahr sind das ${(6000 * 0.09).toLocaleString('de-DE')} € in einem ${proz(0.09)}-Land, also 45 € im Monat – und ${(6000 * 0.08).toLocaleString('de-DE')} € bzw. 40 € im Monat in ${achtNamen}.</p>
 
-<p><strong>Regionaler Unterschied:</strong> Bayern und Baden-Württemberg zahlen 8%, alle anderen Bundesländer 9%. Das ergibt einen Unterschied von ca. 1% der Lohnsteuer – minimal, aber messbar.</p>
+<p><strong>Warum ${proz(0.08)} und ${proz(0.09)}?</strong> Den Satz legt jedes Bundesland in seinem Kirchensteuergesetz fest. ${achtNamen} liegen bei ${proz(0.08)}, die übrigen ${neunProzent.length} Länder bei ${proz(0.09)}. Bei 6.000 € Lohnsteuer trennt beide Gruppen ein Unterschied von 60 € im Jahr. Es zählt Ihr Wohnsitz, nicht der Sitz des Arbeitgebers.</p>
 
-<p><strong>Austritt und Konsequenzen:</strong> Du kannst austreten (beim Finanzamt anmelden, kostet 0-50€). Danach sparst du sofort alle Kirchensteuern. Aber: Du bekommst kirchliche Dienste nur gegen Gebühren (Trauung, Beerdigung, Taufe). Viele treten aus steuerlichen Gründen aus, bereuen es später aber.</p>`}
+<p><strong>Was die Belastung senkt:</strong> Die gezahlte Kirchensteuer ist nach § 10 Abs. 1 Nr. 4 EStG in voller Höhe als Sonderausgabe abziehbar. Wer viel verdient, kann zusätzlich die Kappung prüfen: Die Kirchensteuer wird dann auf ${kappungSpanne} des zu versteuernden Einkommens begrenzt. Zuständig ist die Landeskirche oder Diözese, nicht das Finanzamt – in mehreren Ländern nur auf schriftlichen Antrag, in ${ohneKappung.map(l => l.name).join(', ')} gar nicht.</p>`}
     relatedSlugs={['brutto-netto-rechner', 'abgeltungsteuer-rechner', 'gehaltserhoehung-rechner']}
   />
 </Layout>
@@ -94,23 +106,27 @@ const year = new Date().getFullYear();
 const { berechneKirchensteuer } = await import(window.__base + 'scripts/kirchensteuer.js');
 function fmt(n) { return n.toLocaleString('de-DE', {minimumFractionDigits:2, maximumFractionDigits:2}) + ' €'; }
 function berechne() {
-  const bruttoJahr = parseFloat(document.getElementById('brutto').value)||42000;
+  const lohnsteuerJahr = parseFloat(document.getElementById('lohnsteuer').value) || 0;
   const bundesland = document.getElementById('bundesland').value;
   const konfession = document.getElementById('konfession').value;
-  const r = berechneKirchensteuer({ bruttoJahr, bundesland, konfession });
+  const r = berechneKirchensteuer({ lohnsteuerJahr, bundesland, konfession });
+
+  const hinweis = document.getElementById('kappungshinweis');
   if (konfession === 'keine') {
     document.getElementById('kimonat').textContent = '0,00 € (nicht kirchensteuerpflichtig)';
     document.getElementById('details').innerHTML = '';
+    hinweis.innerHTML = '';
     return;
   }
   document.getElementById('kimonat').textContent = fmt(r.kirchensteuerMonat);
   document.getElementById('details').innerHTML =
     `<span>Pro Jahr: <strong>${fmt(r.kirchensteuerJahr)}</strong></span>` +
-    `<span>Lohnsteuer/Jahr: <strong>${fmt(r.lohnsteuerJahr)}</strong></span>` +
-    `<span>Satz: <strong>${(r.satz * 100).toFixed(0)} %</strong></span>` +
-    (r.gekappt ? `<span style="color:#b8860b">Kappungsregelung greift</span>` : '');
+    `<span>Satz in ${r.bundeslandName}: <strong>${(r.satz * 100).toLocaleString('de-DE')} %</strong></span>`;
+  hinweis.innerHTML = r.kappungMoeglich
+    ? `Bei hohem Einkommen kann in ${r.bundeslandName} eine Kappung in Betracht kommen. Sie bemisst sich am zu versteuernden Einkommen und ist hier nicht eingerechnet – zuständig ist Ihre Landeskirche oder Diözese.`
+    : `In ${r.bundeslandName} gibt es keine Kappungsregelung.`;
 }
-['brutto','bundesland','konfession'].forEach(id => {
+['lohnsteuer','bundesland','konfession'].forEach(id => {
   document.getElementById(id).addEventListener('input', berechne);
   document.getElementById(id).addEventListener('change', berechne);
 });
