@@ -3,9 +3,20 @@ import Layout from '../../layouts/Layout.astro';
 import CalculatorShell from '../../components/CalculatorShell.astro';
 import CalculatorGuide from '../../components/CalculatorGuide.astro';
 import { CALCULATORS, CATEGORIES } from '../../data/calculators';
+import { BUNDESLAENDER } from '../../../public/scripts/grunderwerbsteuer.js';
 const calc = CALCULATORS.find(c => c.slug === 'immobilienkauf-nebenkosten')!;
 const cat = CATEGORIES[calc.category];
 const year = new Date().getFullYear();
+
+// Die Auswahlliste stand hier hart im Markup und lief gegen das Rechenmodul
+// auseinander: Bremen mit 5,0 % (statt 5,5 %) und Thüringen mit 6,5 % (statt
+// 5,0 %). Jetzt aus derselben Quelle wie der Grunderwerbsteuer-Rechner.
+const laender = Object.entries(BUNDESLAENDER)
+  .map(([kuerzel, land]) => ({ kuerzel, ...land }))
+  .sort((a, b) => a.name.localeCompare(b.name, 'de'));
+
+const proz = (n: number) =>
+  n.toLocaleString('de-DE', { minimumFractionDigits: 1, maximumFractionDigits: 2 }) + ' %';
 ---
 <Layout
   title={`Immobilienkauf-Nebenkosten ${year}`}
@@ -42,22 +53,11 @@ const year = new Date().getFullYear();
         <div class="calc-group">
           <label for="bundesland">Bundesland</label>
           <select id="bundesland">
-            <option value="bw">Baden-Württemberg (5,0 %)</option>
-            <option value="by">Bayern (3,5 %)</option>
-            <option value="be">Berlin (6,0 %)</option>
-            <option value="bb">Brandenburg (6,5 %)</option>
-            <option value="hb">Bremen (5,0 %)</option>
-            <option value="hh">Hamburg (5,5 %)</option>
-            <option value="he">Hessen (6,0 %)</option>
-            <option value="mv">Mecklenburg-Vorpommern (6,0 %)</option>
-            <option value="ni">Niedersachsen (5,0 %)</option>
-            <option value="nw" selected>Nordrhein-Westfalen (6,5 %)</option>
-            <option value="rp">Rheinland-Pfalz (5,0 %)</option>
-            <option value="sl">Saarland (6,5 %)</option>
-            <option value="sn">Sachsen (5,5 %)</option>
-            <option value="st">Sachsen-Anhalt (5,0 %)</option>
-            <option value="sh">Schleswig-Holstein (6,5 %)</option>
-            <option value="th">Thüringen (6,5 %)</option>
+            {laender.map(l => (
+              <option value={l.kuerzel} selected={l.kuerzel === 'nw'}>
+                {l.name} ({proz(l.satz)})
+              </option>
+            ))}
           </select>
         </div>
         <div class="calc-group">
@@ -99,7 +99,7 @@ function berechne() {
   const r = berechneImmokaufNebenkosten({ kaufpreis, bundesland, mitMakler });
   document.getElementById('gesamt').textContent = fmt(r.gesamt) + ` (${r.gesamtProzent.toLocaleString('de-DE')} %)`;
   const rows = [
-    ['Grunderwerbsteuer', `${r.gewSatz} %`, fmt(r.grunderwerbsteuer)],
+    ['Grunderwerbsteuer', `${r.gewSatz.toLocaleString('de-DE', { minimumFractionDigits: 1 })} %`, fmt(r.grunderwerbsteuer)],
     ['Notar & Grundbuch', 'ca. 1,5 %', fmt(r.notar)],
     ...(mitMakler ? [['Makler (Käuferanteil)', '3,57 % + MwSt', fmt(r.maklerKaeufer)]] : []),
     ['Gesamt', `${r.gesamtProzent.toLocaleString('de-DE')} %`, fmt(r.gesamt)],

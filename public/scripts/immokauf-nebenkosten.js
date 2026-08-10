@@ -1,12 +1,13 @@
 // Immobilienkauf-Nebenkosten
-const GRUNDERWERBSTEUER = {
-  bw: 5.0, by: 3.5, be: 6.0, bb: 6.5, hb: 5.0, hh: 5.5,
-  he: 6.0, mv: 6.0, ni: 5.0, nw: 6.5, rp: 5.0, sl: 6.5,
-  sn: 5.5, st: 5.0, sh: 6.5, th: 6.5,
-};
+//
+// Die Grunderwerbsteuersätze standen hier als eigene Kopie und waren dadurch
+// zwei Änderungen hinterher (Bremen 5,0 statt 5,5 %, Thüringen 6,5 statt
+// 5,0 %). Sie kommen jetzt aus grunderwerbsteuer.js – dem einzigen Ort, an dem
+// sie gepflegt werden.
+import { STEUERSAETZE } from './grunderwerbsteuer.js';
 
 export function berechneImmokaufNebenkosten({ kaufpreis, bundesland, mitMakler = true, maklerProvisionProzent = 3.57 }) {
-  const gewSatz = GRUNDERWERBSTEUER[bundesland] ?? 5.0;
+  const gewSatz = STEUERSAETZE[bundesland] ?? 5.0;
   const grunderwerbsteuer = Math.round(kaufpreis * gewSatz / 100 * 100) / 100;
   const notar = Math.round(kaufpreis * 0.015 * 100) / 100; // ca. 1,5 % (Notar + Grundbuch)
   const makler = mitMakler ? Math.round(kaufpreis * maklerProvisionProzent / 100 * 119 / 100 * 100) / 100 : 0;
