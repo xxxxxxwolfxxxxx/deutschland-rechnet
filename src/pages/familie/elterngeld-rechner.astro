@@ -3,13 +3,67 @@ import Layout from '../../layouts/Layout.astro';
 import CalculatorShell from '../../components/CalculatorShell.astro';
 import CalculatorGuide from '../../components/CalculatorGuide.astro';
 import { CALCULATORS, CATEGORIES } from '../../data/calculators';
+import {
+  HOECHSTBETRAG,
+  MINDESTBETRAG,
+  SATZ_REGEL,
+  SATZ_MIN,
+  SATZ_MAX,
+  GERINGVERDIENER_GRENZE,
+  ABSENKUNGS_GRENZE,
+  SATZ_SCHRITT,
+  EINKOMMEN_SCHRITT,
+  KAPPUNG_VORGEBURTLICH,
+  SOZIALABGABEN_PAUSCHALEN,
+  GESCHWISTERBONUS_SATZ,
+  GESCHWISTERBONUS_MINDESTBETRAG,
+  MEHRLINGSZUSCHLAG,
+  EINKOMMENSGRENZE,
+  BASISMONATE,
+  PARTNERMONATE,
+  PARTNERSCHAFTSBONUS_MONATE,
+  BASISMONATE_FRUEHGEBURT,
+  ersatzrate,
+} from '../../../public/scripts/elterngeld.js';
+import { ARBEITNEHMER_PAUSCHBETRAG } from '../../../public/scripts/lohnsteuer.js';
+
 const calc = CALCULATORS.find(c => c.slug === 'elterngeld-rechner')!;
 const cat = CATEGORIES[calc.category];
 const year = new Date().getFullYear();
+
+const euro = (n: number) => n.toLocaleString('de-DE', {
+  minimumFractionDigits: Number.isInteger(n) ? 0 : 2,
+  maximumFractionDigits: 2,
+}) + ' Euro';
+const prozent = (n: number) => (n * 100).toLocaleString('de-DE', { maximumFractionDigits: 1 }) + ' %';
+// Die Staffelung des § 2 Abs. 2 BEEG bewegt sich in Prozentpunkten, nicht in
+// Prozent des Prozentsatzes.
+const punkte = (n: number) => (n * 100).toLocaleString('de-DE', { maximumFractionDigits: 1 }) + ' Prozentpunkte';
+
+// Alle Zahlen im Text stammen aus dem Rechenmodul, damit Artikel und Rechner
+// nicht auseinanderlaufen.
+const sozialabgabenGesamt = SOZIALABGABEN_PAUSCHALEN.krankenPflege
+  + SOZIALABGABEN_PAUSCHALEN.rente
+  + SOZIALABGABEN_PAUSCHALEN.arbeitsfoerderung;
+
+// Der Punkt, ab dem die Absenkung nach § 2 Abs. 2 Satz 2 BEEG ihren Boden
+// erreicht: aus dem Modul gesucht statt als eigene Zahl gepflegt.
+const bodenAb = (() => {
+  for (let e = ABSENKUNGS_GRENZE; e <= ABSENKUNGS_GRENZE + 200; e += EINKOMMEN_SCHRITT) {
+    if (ersatzrate(e) <= SATZ_MIN) return e;
+  }
+  return ABSENKUNGS_GRENZE;
+})();
+
+const monatePlus = (BASISMONATE + PARTNERMONATE) * 2;
+
+const fruehgeburtZeilen = BASISMONATE_FRUEHGEBURT.map(s =>
+  `<tr><td>mindestens ${s.wochenVorher} Wochen</td><td>${s.monate} Monatsbeträge</td></tr>`
+).join('\n');
 ---
 <Layout
   title={`Elterngeld-Rechner ${year}`}
-  description="Elterngeld und ElterngeldPlus kostenlos berechnen. Sofortiges Ergebnis nach BEEG – ohne Anmeldung."
+  description="Elterngeld und Elterngeld Plus nach dem BEEG berechnen – mit gestaffelter Ersatzrate, Geschwisterbonus und Mehrlingszuschlag."
   canonicalPath="/familie/elterngeld-rechner/"
   categoryColor={cat.color}
   categoryLight={cat.colorLight}
@@ -17,60 +71,167 @@ const year = new Date().getFullYear();
 >
   <div class="page-header">
     <a href={`${import.meta.env.BASE_URL}familie/`} class="back-link">← Familie & Soziales</a>
-    <h1>Elterngeld-Rechner {year} – kostenlos berechnen</h1>
+    <h1>Elterngeld-Rechner {year} – nach BEEG berechnen</h1>
   </div>
   <CalculatorShell
     calculator={calc}
-    intro="Mit dem Elterngeld-Rechner berechnen Sie das Elterngeld und ElterngeldPlus nach dem BEEG."
-    sourceNote="65-100% des Nettoeinkommens."
-    explanation="Basiselterngeld: 65-100% des Nettoeinkommens (300-1.800€/Monat). ElterngeldPlus: die Hälfte bei doppelter Bezugsdauer."
+    intro="Mit dem Elterngeld-Rechner berechnen Sie Basiselterngeld und Elterngeld Plus nach dem BEEG. Der Rechner ermittelt das maßgebliche Erwerbseinkommen nach den §§ 2c bis 2f BEEG aus Ihrem Bruttoentgelt und wendet die gestaffelte Ersatzrate des § 2 Abs. 2 BEEG an."
+    sourceNote={`§§ 2, 2a BEEG – Ersatzrate ${prozent(SATZ_MIN)} bis ${prozent(SATZ_MAX)}`}
+    explanation={`Basiselterngeld: gestaffelte Ersatzrate von ${prozent(SATZ_MIN)} bis ${prozent(SATZ_MAX)} des Erwerbseinkommens, begrenzt auf ${euro(MINDESTBETRAG)} bis ${euro(HOECHSTBETRAG)} im Monat (§ 2 BEEG). Elterngeld Plus beträgt höchstens die Hälfte, wird aber doppelt so lange gezahlt (§ 4a Abs. 2 BEEG).`}
     faqs={[
-      { q: "Wie lange wird Basiselterngeld gezahlt?", a: "Basiselterngeld wird für maximal 12 Lebensmonate des Kindes gezahlt. Nutzen beide Elternteile das Elterngeld und reduziert mindestens ein Elternteil die Arbeitszeit, kommen 2 Partnermonate hinzu (insgesamt 14 Monate). Alleinerziehende erhalten ebenfalls 14 Monate." },
-      { q: "Was ist der Unterschied zwischen Elterngeld und ElterngeldPlus?", a: "Basiselterngeld beträgt 67% des Nettoeinkommens (300-1.800 Euro). ElterngeldPlus beträgt die Hälfte des Basiselterngeldes, wird aber doppelt so lange gezahlt (bis zu 24 statt 12 Monate). ElterngeldPlus lohnt sich besonders für Eltern, die Teilzeit arbeiten wollen." },
-      { q: "Was ist der Partnerschaftsbonus?", a: "Arbeiten beide Elternteile gleichzeitig zwischen 24 und 32 Stunden pro Woche in Teilzeit, erhalten sie jeweils bis zu 4 zusätzliche Monate ElterngeldPlus. Der Bonus fördert eine partnerschaftliche Aufteilung der Kinderbetreuung." },
-      { q: "Wie wirkt sich Teilzeitarbeit auf das Elterngeld aus?", a: "Wer während des Elterngeldbezugs Teilzeit arbeitet (max. 32 Stunden/Woche), erhält Elterngeld auf die Differenz zwischen vorherigem und aktuellem Nettoeinkommen. Das Einkommen aus Teilzeit wird also angerechnet, aber nicht vollständig abgezogen." },
-      { q: "Gibt es Elterngeld für Selbstständige?", a: "Ja, Selbstständige haben Anspruch auf Elterngeld. Berechnungsgrundlage ist der Gewinn der letzten 12 Monate vor der Geburt laut Steuerbescheid. Selbstständige dürfen während des Bezugs weiterarbeiten, müssen aber Einkünfte angeben, die angerechnet werden." },
-      { q: "Kann ich Elterngeld rückwirkend beantragen?", a: "Ja, Elterngeld wird rückwirkend für bis zu 3 Monate vor dem Monat der Antragstellung gezahlt. Es ist dennoch ratsam, den Antrag zeitnah nach der Geburt zu stellen, um keine Zahlungen zu verlieren." }
+      { q: "Wie hoch ist die Ersatzrate wirklich?", a: `Sie ist nicht fest. Nach § 2 Abs. 2 BEEG beträgt sie im Regelfall ${prozent(SATZ_REGEL)}, steigt aber bei einem Erwerbseinkommen unter ${euro(GERINGVERDIENER_GRENZE)} um ${punkte(SATZ_SCHRITT)} je volle ${euro(EINKOMMEN_SCHRITT)} Unterschreitung auf bis zu ${prozent(SATZ_MAX)}. Oberhalb von ${euro(ABSENKUNGS_GRENZE)} sinkt sie nach derselben Staffel auf ${prozent(SATZ_MIN)}. Diesen Boden erreicht sie bereits bei ${euro(bodenAb)} Einkommen – für die meisten Beschäftigten gelten also ${prozent(SATZ_MIN)}, nicht ${prozent(SATZ_REGEL)}.` },
+      { q: "Warum weicht das Einkommen im Rechner von meinem Netto ab?", a: `Weil das BEEG nicht mit dem Netto der Gehaltsabrechnung rechnet. Nach den §§ 2c bis 2f BEEG werden von den Einnahmen ein Zwölftel des Arbeitnehmer-Pauschbetrags von ${euro(ARBEITNEHMER_PAUSCHBETRAG)}, die Steuern nach dem Programmablaufplan und pauschale Sozialabgaben von ${prozent(sozialabgabenGesamt)} abgezogen. Die ${prozent(sozialabgabenGesamt)} sind eine gesetzliche Pauschale (${prozent(SOZIALABGABEN_PAUSCHALEN.krankenPflege)} Kranken- und Pflegeversicherung, ${prozent(SOZIALABGABEN_PAUSCHALEN.rente)} Rentenversicherung, ${prozent(SOZIALABGABEN_PAUSCHALEN.arbeitsfoerderung)} Arbeitsförderung), nicht der tatsächliche Beitrag. Einmalzahlungen wie Weihnachtsgeld bleiben nach § 2c Abs. 1 Satz 2 BEEG außer Betracht.` },
+      { q: "Wie lange wird Basiselterngeld gezahlt?", a: `Die Eltern haben nach § 4 Abs. 3 BEEG gemeinsam Anspruch auf ${BASISMONATE} Monatsbeträge. Ist das Erwerbseinkommen eines Elternteils in zwei Lebensmonaten gemindert, kommen ${PARTNERMONATE} Partnermonate hinzu, insgesamt also ${BASISMONATE + PARTNERMONATE}. Alleinerziehende können die Partnermonate unter den Voraussetzungen des § 4c BEEG allein beziehen. Bei Frühgeburten verlängert sich der Anspruch nach § 4 Abs. 5 BEEG auf bis zu ${BASISMONATE_FRUEHGEBURT[BASISMONATE_FRUEHGEBURT.length - 1].monate} Monatsbeträge.` },
+      { q: "Was ist der Unterschied zwischen Elterngeld und Elterngeld Plus?", a: `Ein Monat Basiselterngeld lässt sich nach § 4 Abs. 3 Satz 3 BEEG gegen zwei Monate Elterngeld Plus tauschen, aus ${BASISMONATE + PARTNERMONATE} Monaten werden so bis zu ${monatePlus}. Elterngeld Plus beträgt nach § 4a Abs. 2 Satz 2 BEEG höchstens die Hälfte des Basiselterngeldes, das ohne Einkommen zustünde. Wichtig: Die Hälfte ist die Obergrenze, nicht automatisch der Betrag. Wer während des Bezugs Teilzeit arbeitet, erhält oft weniger; wer gar nicht arbeitet, genau die Hälfte.` },
+      { q: "Wie wirkt sich Teilzeitarbeit auf das Elterngeld aus?", a: `Das Teilzeiteinkommen wird nicht vom Elterngeld abgezogen. Nach § 2 Abs. 3 BEEG wird die Ersatzrate stattdessen auf den Unterschiedsbetrag zwischen dem Einkommen vor der Geburt und dem Einkommen während des Bezugs angewandt. Das Einkommen vor der Geburt ist dabei höchstens mit ${euro(KAPPUNG_VORGEBURTLICH)} anzusetzen (§ 2 Abs. 3 Satz 2 BEEG). Erwerbstätig sein dürfen Sie bis zu 32 Wochenstunden im Durchschnitt des Lebensmonats (§ 1 Abs. 6 BEEG).` },
+      { q: "Was sind Geschwisterbonus und Mehrlingszuschlag?", a: `Wer mit zwei Kindern unter drei Jahren oder drei Kindern unter sechs Jahren in einem Haushalt lebt, erhält nach § 2a Abs. 1 BEEG einen Geschwisterbonus von ${prozent(GESCHWISTERBONUS_SATZ)} des Elterngeldes, mindestens ${euro(GESCHWISTERBONUS_MINDESTBETRAG)}. Bei Mehrlingsgeburten kommen nach § 2a Abs. 4 BEEG ${euro(MEHRLINGSZUSCHLAG)} je zweitem und weiterem Kind hinzu. Beide Zuschläge schließen sich nicht aus und treten neben den Höchstbetrag – mit ihnen sind mehr als ${euro(HOECHSTBETRAG)} möglich.` },
+      { q: "Ab welchem Einkommen entfällt der Anspruch?", a: `Nach § 1 Abs. 8 BEEG entfällt der Anspruch, wenn das zu versteuernde Einkommen im letzten abgeschlossenen Veranlagungszeitraum vor der Geburt mehr als ${euro(EINKOMMENSGRENZE)} betragen hat. Erfüllt auch eine zweite Person die Voraussetzungen, gilt die Grenze für die Summe beider Einkommen. Die Grenze wurde mehrfach gesenkt und lag früher bei 300.000, dann 250.000 und 200.000 Euro – ältere Angaben im Netz sind überholt.` },
+      { q: "Was ist der Partnerschaftsbonus?", a: `Arbeiten beide Elternteile im Durchschnitt des Lebensmonats nicht weniger als 24 und nicht mehr als 32 Wochenstunden, hat jeder Elternteil nach § 4b BEEG Anspruch auf bis zu ${PARTNERSCHAFTSBONUS_MONATE} zusätzliche Monatsbeträge Elterngeld Plus. Sie können ihn nur gleichzeitig, in aufeinander folgenden Lebensmonaten und für mindestens zwei Monate beziehen.` },
+      { q: "Gibt es Elterngeld für Selbstständige?", a: "Ja. Für Einkommen aus selbstständiger Erwerbstätigkeit gelten aber die §§ 2d und 2b Abs. 2 BEEG: Bemessungsgrundlage ist der Gewinn der steuerlichen Gewinnermittlungszeiträume des letzten abgeschlossenen Veranlagungszeitraums vor der Geburt, nicht die zwölf Monate vor dem Geburtsmonat. Dieser Rechner bildet nur Einkommen aus nichtselbstständiger Arbeit ab." },
+      { q: "Kann ich Elterngeld rückwirkend beantragen?", a: "Ja, Elterngeld wird rückwirkend für bis zu drei Monate vor dem Monat der Antragstellung gezahlt (§ 7 Abs. 1 Satz 2 BEEG). Stellen Sie den Antrag dennoch zeitnah nach der Geburt, um keine Monatsbeträge zu verlieren." }
     ]}
   >
     <div class="calc-form">
-      <div class="calc-group">
-        <label for="netto">Monatliches Nettoeinkommen vor Geburt (€)</label>
-        <input type="number" id="netto" min="0" max="20000" value="2500" step="50" />
+      <div class="calc-grid">
+        <div class="calc-group">
+          <label for="brutto">Bruttoentgelt vor der Geburt (€/Monat)</label>
+          <input type="number" id="brutto" min="0" max="30000" value="2500" step="50" />
+        </div>
+        <div class="calc-group">
+          <label for="steuerklasse">Steuerklasse</label>
+          <select id="steuerklasse">
+            <option value="1">I</option>
+            <option value="2">II</option>
+            <option value="3">III</option>
+            <option value="4" selected>IV</option>
+            <option value="5">V</option>
+          </select>
+        </div>
+        <div class="calc-group">
+          <label for="teilzeit">Bruttoentgelt während des Bezugs (€/Monat)</label>
+          <input type="number" id="teilzeit" min="0" max="30000" value="0" step="50" />
+        </div>
+        <div class="calc-group">
+          <label for="kinderzahl">Kinder bei dieser Geburt</label>
+          <select id="kinderzahl">
+            <option value="1" selected>1 Kind</option>
+            <option value="2">Zwillinge</option>
+            <option value="3">Drillinge</option>
+          </select>
+        </div>
+      </div>
+      <div class="calc-grid">
+        <div class="calc-group calc-check">
+          <label for="geschwister">
+            <input type="checkbox" id="geschwister" />
+            Geschwisterbonus (§ 2a Abs. 1 BEEG)
+          </label>
+        </div>
+        <div class="calc-group calc-check">
+          <label for="kirche">
+            <input type="checkbox" id="kirche" />
+            kirchensteuerpflichtig
+          </label>
+        </div>
       </div>
       <div class="calc-result">
-        <div class="label">Elterngeld monatlich</div>
+        <div class="label">Basiselterngeld monatlich</div>
         <div id="ergebnis">— €</div>
       </div>
       <p id="plus" style="margin-top:0.75rem;font-size:0.95rem;"></p>
+      <p id="details" style="margin-top:0.5rem;font-size:0.85rem;color:#666;"></p>
+      <p id="hinweis" style="margin-top:0.5rem;font-size:0.85rem;color:#666;"></p>
     </div>
   </CalculatorShell>
 
   <CalculatorGuide
     title="Elterngeld in Deutschland: Anspruch, Berechnung und Gestaltungsmöglichkeiten"
-    content={`<p>Das Elterngeld ist eine der wichtigsten Familienleistungen in Deutschland. Es wird nach dem <strong>Bundeselterngeld- und Elternzeitgesetz (BEEG)</strong> gezahlt und soll Eltern nach der Geburt eines Kindes finanziell unterstützen, damit sie sich ohne existenzielle Sorgen der Betreuung widmen können. Der Anspruch besteht für alle Eltern, die ihr Kind selbst betreuen und nicht mehr als 32 Stunden pro Woche erwerbstätig sind.</p>
+    content={`<p>Das Elterngeld wird nach dem <strong>Bundeselterngeld- und Elternzeitgesetz (BEEG)</strong> gezahlt. Anspruch hat, wer mit seinem Kind in einem Haushalt lebt, es selbst betreut und erzieht und nicht voll erwerbstätig ist – also im Durchschnitt des Lebensmonats nicht mehr als 32 Wochenstunden arbeitet (§ 1 Abs. 1 und 6 BEEG).</p>
 
-<p><strong>Berechnung des Elterngeldes:</strong> Die Höhe des Basiselterngeldes richtet sich nach dem durchschnittlichen monatlichen Nettoeinkommen der letzten 12 Monate vor der Geburt. Die Ersatzrate beträgt grundsätzlich 65 Prozent des Nettoeinkommens. Bei Geringverdienern (unter 1.240 Euro netto) steigt die Ersatzrate auf bis zu 100 Prozent. Es gilt ein Mindestbetrag von 300 Euro und ein Höchstbetrag von 1.800 Euro monatlich. Seit 2024 liegt die Einkommensgrenze bei 200.000 Euro zu versteuerndem Jahreseinkommen (für Paare).</p>
+<p><strong>Die Ersatzrate ist gestaffelt, nicht fest.</strong> Verbreitet ist die Angabe, das Elterngeld betrage ${prozent(SATZ_REGEL)} des Nettoeinkommens. Das trifft nur einen schmalen Bereich. Nach § 2 Abs. 2 BEEG steigt der Prozentsatz bei einem Erwerbseinkommen unter ${euro(GERINGVERDIENER_GRENZE)} um ${punkte(SATZ_SCHRITT)} für je volle ${euro(EINKOMMEN_SCHRITT)}, um die das Einkommen diese Grenze unterschreitet – auf bis zu ${prozent(SATZ_MAX)}. Oberhalb von ${euro(ABSENKUNGS_GRENZE)} sinkt er nach derselben Staffel auf bis zu ${prozent(SATZ_MIN)}. Da die Absenkung ihren Boden schon bei einem Einkommen von ${euro(bodenAb)} erreicht, gelten für die meisten Beschäftigten ${prozent(SATZ_MIN)}.</p>
 
-<p><strong>Drei Varianten im Überblick:</strong> Das Elterngeld gibt es in drei Varianten: Basiselterngeld (65 % des Nettos, max. 14 Monate), ElterngeldPlus (halber Betrag, doppelte Dauer, ideal bei Teilzeitarbeit) und den Partnerschaftsbonus (4 zusätzliche ElterngeldPlus-Monate, wenn beide Eltern 24-32 Stunden arbeiten). Diese Varianten lassen sich kombinieren, sodass Familien die Bezugsdauer und Höhe individuell an ihre Lebenssituation anpassen können.</p>
+<p><strong>Das maßgebliche Einkommen ist nicht Ihr Netto.</strong> Das BEEG bildet in den §§ 2c bis 2f eine eigene Größe. Von den Einnahmen aus nichtselbstständiger Arbeit werden abgezogen: ein Zwölftel des Arbeitnehmer-Pauschbetrags von ${euro(ARBEITNEHMER_PAUSCHBETRAG)} (§ 2c Abs. 1 Satz 1), die Steuern auf Grundlage des Programmablaufplans für den Lohnsteuerabzug (§ 2e) und Sozialabgaben von pauschal ${prozent(sozialabgabenGesamt)} (§ 2f). Diese ${prozent(sozialabgabenGesamt)} setzen sich aus ${prozent(SOZIALABGABEN_PAUSCHALEN.krankenPflege)} für die Kranken- und Pflegeversicherung, ${prozent(SOZIALABGABEN_PAUSCHALEN.rente)} für die Rentenversicherung und ${prozent(SOZIALABGABEN_PAUSCHALEN.arbeitsfoerderung)} für die Arbeitsförderung zusammen. Es sind gesetzliche Pauschalen: Nach § 2f Abs. 3 BEEG bleiben andere Maßgaben zur Beitragsbemessung außer Betracht, eine Beitragsbemessungsgrenze wirkt hier also nicht. Einmalzahlungen wie Weihnachts- oder Urlaubsgeld zählen nach § 2c Abs. 1 Satz 2 BEEG nicht mit.</p>
 
-<p><strong>Geschwisterbonus und Mehrlingsbonus:</strong> Familien mit weiteren Kindern unter 3 Jahren (oder zwei Kindern unter 6 Jahren) erhalten einen Geschwisterbonus von 10 Prozent des Elterngeldes, mindestens aber 75 Euro monatlich. Bei Mehrlingsgeburten gibt es einen Zuschlag von 300 Euro pro weiterem Kind.</p>
+<p><strong>Ober- und Untergrenze:</strong> Das Basiselterngeld beträgt höchstens ${euro(HOECHSTBETRAG)} monatlich (§ 2 Abs. 1 Satz 2 BEEG) und mindestens ${euro(MINDESTBETRAG)} – letzteres auch dann, wenn vor der Geburt überhaupt kein Erwerbseinkommen bestand (§ 2 Abs. 4 BEEG).</p>
 
-<p><strong>Wichtige Fristen und Antragstellung:</strong> Der Elterngeldantrag wird bei der zuständigen Elterngeldstelle des Bundeslandes eingereicht. Die Bearbeitungszeit beträgt in der Regel 4-8 Wochen. Benötigte Unterlagen sind: Geburtsurkunde, Einkommensnachweise (Gehaltsabrechnungen oder Steuerbescheid bei Selbstständigen), Bescheinigung der Krankenkasse über Mutterschaftsgeld und eine Arbeitgeberbescheinigung über den Zuschuss zum Mutterschaftsgeld.</p>
+<p><strong>Zuschläge nach § 2a BEEG:</strong> Wer mit zwei Kindern unter drei Jahren oder drei Kindern unter sechs Jahren in einem Haushalt lebt, erhält einen Geschwisterbonus von ${prozent(GESCHWISTERBONUS_SATZ)}, mindestens ${euro(GESCHWISTERBONUS_MINDESTBETRAG)}. Bei Mehrlingsgeburten kommen ${euro(MEHRLINGSZUSCHLAG)} für das zweite und jedes weitere Kind hinzu. Beide Zuschläge lassen sich kombinieren und treten neben den Höchstbetrag – der Gesamtbetrag kann ${euro(HOECHSTBETRAG)} also überschreiten.</p>
 
-<p><strong>Praxistipp:</strong> Planen Sie die Elternzeit strategisch: Monate mit niedrigem Einkommen (z. B. wegen Krankheit oder Kurzarbeit) in den 12 Monaten vor der Geburt können unter bestimmten Voraussetzungen aus der Berechnung herausgenommen werden, was das Elterngeld erhöht. Lassen Sie sich frühzeitig bei einer Elterngeldberatungsstelle beraten.</p>`}
+<p><strong>Teilzeit während des Bezugs:</strong> Erwerbseinkommen wird nicht vom Elterngeld abgezogen. Nach § 2 Abs. 3 BEEG wird die Ersatzrate auf den Unterschiedsbetrag zwischen dem Einkommen vor der Geburt und dem während des Bezugs angewandt, wobei das vorgeburtliche Einkommen höchstens mit ${euro(KAPPUNG_VORGEBURTLICH)} angesetzt wird.</p>
+
+<p><strong>Bezugsdauer:</strong> Die Eltern haben gemeinsam Anspruch auf ${BASISMONATE} Monatsbeträge Basiselterngeld, zuzüglich ${PARTNERMONATE} Partnermonaten, wenn das Einkommen eines Elternteils in zwei Lebensmonaten gemindert ist (§ 4 Abs. 3 BEEG). Statt eines Monats Basiselterngeld lassen sich jeweils zwei Monate Elterngeld Plus beziehen, aus ${BASISMONATE + PARTNERMONATE} Monaten werden so bis zu ${monatePlus}. Arbeiten beide Eltern gleichzeitig zwischen 24 und 32 Wochenstunden, kommen nach § 4b BEEG je Elternteil bis zu ${PARTNERSCHAFTSBONUS_MONATE} weitere Monate Elterngeld Plus hinzu.</p>
+
+<p><strong>Frühgeburten (§ 4 Abs. 5 BEEG):</strong> Kam das Kind deutlich vor dem errechneten Termin zur Welt, verlängert sich der gemeinsame Anspruch:</p>
+<table>
+  <thead><tr><th>Geburt vor dem Termin</th><th>Basiselterngeld</th></tr></thead>
+  <tbody>
+${fruehgeburtZeilen}
+  </tbody>
+</table>
+
+<p><strong>Einkommensgrenze:</strong> Der Anspruch entfällt, wenn das zu versteuernde Einkommen im letzten abgeschlossenen Veranlagungszeitraum vor der Geburt mehr als ${euro(EINKOMMENSGRENZE)} betrug; bei zwei berechtigten Personen zählt die Summe beider Einkommen (§ 1 Abs. 8 BEEG). Diese Grenze wurde mehrfach gesenkt – ältere Angaben von 200.000, 250.000 oder 300.000 Euro sind überholt.</p>
+
+<p><strong>Praxistipp:</strong> Monate mit geringem Einkommen können unter den Voraussetzungen des § 2b Abs. 1 Satz 2 BEEG aus dem Bemessungszeitraum herausfallen, etwa bei Mutterschaftsgeldbezug für ein älteres Kind oder einer schwangerschaftsbedingten Krankheit. Das erhöht das durchschnittliche Einkommen und damit das Elterngeld. Auch die Wahl der Steuerklasse im Bemessungszeitraum wirkt sich aus, weil § 2e BEEG an die Steuerklasse anknüpft.</p>`}
     relatedSlugs={['kindergeld-rechner', 'mutterschutz-rechner', 'wohngeld-rechner', 'unterhaltsrechner']}
   />
 </Layout>
 
-<script>
-function berechne() {
-  const netto = parseFloat(document.getElementById('netto').value)||0;
-  const eg = Math.min(1800, Math.max(300, Math.round(netto * 0.67)));
-  const egPlus = Math.round(eg / 2);
-  document.getElementById('ergebnis').textContent = eg.toLocaleString('de-DE') + ' €';
-  document.getElementById('plus').textContent = `ElterngeldPlus: ${egPlus.toLocaleString('de-DE')} € / Monat (doppelte Bezugsdauer)`;
+<script type="module">
+const { berechneElterngeld } = await import(window.__base + 'scripts/elterngeld.js');
+
+function euro(n) {
+  return n.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
 }
-document.getElementById('netto').addEventListener('input', berechne);
+function prozent(n) {
+  return (n * 100).toLocaleString('de-DE', { maximumFractionDigits: 1 }) + ' %';
+}
+
+function berechne() {
+  const brutto = parseFloat(document.getElementById('brutto').value) || 0;
+  const teilzeitRoh = parseFloat(document.getElementById('teilzeit').value) || 0;
+  const steuerklasse = parseInt(document.getElementById('steuerklasse').value, 10);
+  const kinderZahl = parseInt(document.getElementById('kinderzahl').value, 10);
+  const geschwisterbonus = document.getElementById('geschwister').checked;
+  const kirchensteuer = document.getElementById('kirche').checked;
+
+  const r = berechneElterngeld({
+    einnahmenMonat: brutto,
+    steuerklasse,
+    kirchensteuer,
+    einnahmenBezugMonat: teilzeitRoh > 0 ? teilzeitRoh : undefined,
+    geschwisterbonus,
+    kinderZahl,
+  });
+
+  document.getElementById('ergebnis').textContent = euro(r.basiselterngeld);
+  document.getElementById('plus').textContent =
+    `Elterngeld Plus: ${euro(r.elterngeldPlus)} im Monat, dafür bis zu ${r.plusmonateMitPartner} Monate statt ${r.basismonateMitPartner}.`;
+
+  const teile = [`Einkommen nach §§ 2c–2f BEEG: ${euro(r.einkommen)}`];
+  // Ohne Einkommen sagt die Ersatzrate nichts aus: Es zählt allein der
+  // Mindestbetrag nach § 2 Abs. 4 BEEG.
+  if (r.einkommen > 0) teile.push(`Ersatzrate: ${prozent(r.ersatzrate)}`);
+  if (r.einkommenBezug !== null) {
+    teile.push(`Einkommen während des Bezugs: ${euro(r.einkommenBezug)}`);
+  }
+  if (r.geschwisterbonus > 0) teile.push(`Geschwisterbonus: ${euro(r.geschwisterbonus)}`);
+  if (r.mehrlingszuschlag > 0) teile.push(`Mehrlingszuschlag: ${euro(r.mehrlingszuschlag)}`);
+  document.getElementById('details').textContent = teile.join(' · ');
+
+  const hinweise = [];
+  if (r.basiselterngeld === 1800) {
+    hinweise.push('Der Höchstbetrag nach § 2 Abs. 1 Satz 2 BEEG ist erreicht.');
+  }
+  if (r.basiselterngeld === 300) {
+    hinweise.push('Es greift der Mindestbetrag nach § 2 Abs. 4 BEEG.');
+  }
+  hinweise.push(`Gesamt über ${r.basismonate} Monate Basiselterngeld: ${euro(r.gesamtBasis)}.`);
+  document.getElementById('hinweis').textContent = hinweise.join(' ');
+}
+
+['brutto', 'teilzeit', 'steuerklasse', 'kinderzahl', 'geschwister', 'kirche'].forEach(id => {
+  const el = document.getElementById(id);
+  el.addEventListener('input', berechne);
+  el.addEventListener('change', berechne);
+});
 berechne();
 </script>
