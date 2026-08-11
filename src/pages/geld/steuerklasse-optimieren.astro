@@ -3,13 +3,33 @@ import Layout from '../../layouts/Layout.astro';
 import CalculatorShell from '../../components/CalculatorShell.astro';
 import CalculatorGuide from '../../components/CalculatorGuide.astro';
 import { CALCULATORS, CATEGORIES } from '../../data/calculators';
+import { vergleicheKombinationen } from '../../../public/scripts/steuerklassenwahl.js';
+import { GRUNDFREIBETRAG } from '../../../public/scripts/einkommensteuer.js';
 const calc = CALCULATORS.find(c => c.slug === 'steuerklasse-optimieren')!;
 const cat = CATEGORIES[calc.category];
 const year = new Date().getFullYear();
+
+// Das Rechenbeispiel im Ratgeber stammt aus demselben Modul wie der Rechner
+// oben. Vorher standen dort frei gewählte Zahlen, die zur Rechnung auf der
+// Seite nicht passten – und die Rechnung selbst war ebenfalls falsch.
+const BEISPIEL_A = 50000;
+const BEISPIEL_B = 25000;
+const beispiel = vergleicheKombinationen({ bruttoJahrA: BEISPIEL_A, bruttoJahrB: BEISPIEL_B, kinder: 1 });
+const euro = (n: number) => n.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' Euro';
+const euro0 = (n: number) => Math.round(n).toLocaleString('de-DE') + ' Euro';
+const gfb = GRUNDFREIBETRAG.toLocaleString('de-DE');
+const gfbDoppelt = (GRUNDFREIBETRAG * 2).toLocaleString('de-DE');
+const beispielZeilen = beispiel.kombinationen.filter(k => k.anwendbar).map(k => {
+  const abrechnung = Math.abs(k.differenz) < 1
+    ? 'ausgeglichen'
+    : (k.differenz > 0 ? `Erstattung ${euro0(k.differenz)}` : `Nachzahlung ${euro0(-k.differenz)}`);
+  const name = k.faktorverfahren ? `${k.name} (Faktor ${beispiel.faktor.wert.toLocaleString('de-DE', { minimumFractionDigits: 3 })})` : k.name;
+  return `<tr><td>${name}</td><td>${euro(k.partnerA.lohnsteuerMonat)}</td><td>${euro(k.partnerB.lohnsteuerMonat)}</td><td>${euro(k.abzugMonat)}</td><td>${abrechnung}</td></tr>`;
+}).join('');
 ---
 <Layout
   title={`Steuerklasse optimieren ${year}`}
-  description="Steuerklassen-Rechner 2026 für Ehepaare: III/V, IV/IV oder IV/IV mit Faktor vergleichen. Monatliches Netto, Nachzahlung und Auswirkung auf Elterngeld berechnen. Mit konkreten Rechenbeispielen."
+  description={`Steuerklassen-Rechner ${year} für Ehepaare: III/V, IV/IV und IV/IV mit Faktor im Vergleich – monatlicher Lohnsteuerabzug und die daraus folgende Nachzahlung oder Erstattung, berechnet nach § 39b und § 39f EStG.`}
   canonicalPath="/geld/steuerklasse-optimieren/"
   categoryColor={cat.color}
   categoryLight={cat.colorLight}
@@ -21,13 +41,13 @@ const year = new Date().getFullYear();
   </div>
   <CalculatorShell
     calculator={calc}
-    intro="Mit dem Steuerklasse-optimieren-Rechner finden Sie heraus, welche Steuerklassen-Kombination für Sie als Paar am günstigsten ist. Vergleichen Sie III/V, IV/IV und IV/IV mit Faktor und sehen Sie die Auswirkung auf Ihr monatliches Netto."
-    sourceNote="III/V, IV/IV oder IV/IV mit Faktor."
-    explanation="Die Kombination III/V bringt monatlich mehr Netto, verpflichtet aber zur Einkommensteuererklärung und kann zu Nachzahlungen führen. IV/IV mit Faktor verteilt die Steuerlast gerechter und vermeidet Überraschungen. Ein Wechsel ist seit 2020 mehrmals jährlich möglich." faqs={[
+    intro="Der Rechner vergleicht für Ehepaare und eingetragene Lebenspartner alle Steuerklassen-Kombinationen: Wie viel Lohnsteuer jeder Partner monatlich zahlt und was bei der Steuererklärung als Nachzahlung oder Erstattung übrig bleibt. Die Jahressteuer selbst steht dabei fest – sie hängt nicht von der Steuerklasse ab."
+    sourceNote={`Lohnsteuerabzug nach § 39b Abs. 2 EStG, Splittingverfahren nach § 32a Abs. 5 EStG, Faktor nach § 39f EStG, Beitragssätze ${year}. Angenommen: keine Kirchensteuer, keine Freibeträge nach § 39a EStG, keine weiteren Einkünfte.`}
+    explanation="Die Steuerklassenwahl verändert die Jahressteuer des Paares nicht, sondern nur, wie viel davon monatlich einbehalten wird. III/V bringt monatlich mehr Netto, verpflichtet aber zur Einkommensteuererklärung und endet regelmäßig in einer Nachzahlung. IV/IV mit Faktor trifft die Jahressteuer am genauesten. Ein Wechsel ist seit 2020 mehrmals jährlich möglich." faqs={[
       { q: "Welche Steuerklassen-Kombinationen gibt es für Ehepaare?", a: "Verheiratete und eingetragene Lebenspartner haben drei Möglichkeiten: IV/IV (Standard, gleiche Abzüge für beide), III/V (Partner mit höherem Einkommen bekommt III mit weniger Abzügen, der andere V mit höheren Abzügen) und IV/IV mit Faktor (seit 2010, berücksichtigt das tatsächliche Einkommensverhältnis und vermeidet hohe Nachzahlungen). Unverheiratete Paare können keine gemeinsame Steuerklassenwahl treffen." },
       { q: "Wann lohnt sich die Kombination III/V?", a: "Die Kombination III/V lohnt sich, wenn ein Partner deutlich mehr verdient als der andere (mindestens 60/40-Verhältnis). Der Besserverdienende in Klasse III profitiert vom doppelten Grundfreibetrag, während der Geringerverdienende in Klasse V höhere Abzüge hat. Vorsicht: Bei III/V ist die Einkommensteuererklärung Pflicht, und es kann zu Nachzahlungen kommen, weil im Laufe des Jahres insgesamt zu wenig Lohnsteuer einbehalten wurde." },
       { q: "Wie wechsle ich die Steuerklasse?", a: "Den Steuerklassenwechsel beantragen Sie beim zuständigen Finanzamt mit dem amtlichen Vordruck 'Antrag auf Steuerklassenwechsel bei Ehegatten/Lebenspartnern'. Seit 2020 ist ein Wechsel mehrmals im Jahr möglich (vorher nur einmal). Sie können den Antrag auch über ELSTER online einreichen. Der Wechsel gilt ab dem Folgemonat nach der Bearbeitung." },
-      { q: "Was ist die Steuerklasse IV mit Faktor?", a: "Bei IV mit Faktor berechnet das Finanzamt einen individuellen Faktor, der das Einkommensverhältnis beider Partner berücksichtigt. So wird die Lohnsteuer bereits im Laufe des Jahres möglichst genau einbehalten. Der Vorteil gegenüber III/V: kaum Nachzahlungen bei der Steuererklärung. Der Vorteil gegenüber IV/IV: Bei ungleichen Einkommen wird die Steuerlast gerechter verteilt. Der Faktor muss jährlich neu beantragt werden." },
+      { q: "Was ist die Steuerklasse IV mit Faktor?", a: "Bei IV mit Faktor berechnet das Finanzamt einen individuellen Faktor, der das Einkommensverhältnis beider Partner berücksichtigt. So wird die Lohnsteuer bereits im Laufe des Jahres möglichst genau einbehalten. Der Vorteil gegenüber III/V: kaum Nachzahlungen bei der Steuererklärung. Der Vorteil gegenüber IV/IV: Bei ungleichen Einkommen wird die Steuerlast gerechter verteilt. Der Faktor gilt nach § 39f Abs. 1 Satz 9 EStG bis zum Ablauf des folgenden Kalenderjahres, also längstens zwei Jahre, und muss danach neu beantragt werden." },
       { q: "Beeinflusst die Steuerklasse mein Elterngeld oder Arbeitslosengeld?", a: "Ja, und das ist ein wichtiger Aspekt bei der Wahl. Elterngeld, Arbeitslosengeld, Krankengeld und Kurzarbeitergeld werden auf Basis des Nettoeinkommens berechnet. Wer plant, diese Leistungen in Anspruch zu nehmen, sollte rechtzeitig (mindestens 7 Monate vorher) in eine günstigere Steuerklasse wechseln. Bei geplantem Elterngeld kann der Wechsel in Klasse III mehrere Hundert Euro monatlich mehr Elterngeld bedeuten." },
       { q: "Was passiert mit der Steuerklasse bei Trennung oder Scheidung?", a: "Im Trennungsjahr behalten Sie Ihre Steuerklasse und können weiterhin die gemeinsame Veranlagung nutzen. Ab dem 1. Januar nach der Trennung werden beide Partner automatisch in Steuerklasse I (oder II bei Alleinerziehenden mit Kind) eingestuft. Wichtig: Das Trennungsjahr beginnt mit dem tatsächlichen Auszug, nicht mit dem Scheidungsantrag. Im Trennungsjahr lohnt sich oft noch ein strategischer Wechsel." },
       { q: "Wird die Steuerklassenkombination III/V abgeschafft?", a: "Es gibt seit 2023 Pläne, III/V durch IV/IV mit Faktor als Standard zu ersetzen. Bisher wurde die Abschaffung jedoch nicht umgesetzt. Stand 2026 stehen weiterhin alle drei Kombinationen zur Verfügung. Die Reform soll die Steuerbelastung gerechter auf beide Partner verteilen und Nachzahlungen vermeiden. Beobachten Sie die Gesetzgebung – ein Wechsel könnte ab 2027 oder 2028 kommen." }
@@ -44,28 +64,24 @@ const year = new Date().getFullYear();
           <input type="number" id="einkommen2" min="0" max="500000" value="25000" step="1000" />
         </div>
         <div class="calc-group">
-          <label for="klasse1">Aktuelle Steuerklasse Partner 1</label>
-          <select id="klasse1">
-            <option value="IV" selected>IV</option>
-            <option value="III">III</option>
-            <option value="V">V</option>
-          </select>
-        </div>
-        <div class="calc-group">
-          <label for="klasse2">Aktuelle Steuerklasse Partner 2</label>
-          <select id="klasse2">
-            <option value="IV" selected>IV</option>
-            <option value="III">III</option>
-            <option value="V">V</option>
+          <label for="kinder">Kinder unter 25 Jahren</label>
+          <select id="kinder">
+            <option value="0">keine</option>
+            <option value="1" selected>1 Kind</option>
+            <option value="2">2 Kinder</option>
+            <option value="3">3 Kinder</option>
+            <option value="4">4 Kinder</option>
+            <option value="5">5 Kinder oder mehr</option>
           </select>
         </div>
       </div>
 
       <div class="calc-result">
-        <div class="label">Steuerersparnis durch Wechsel</div>
-        <div id="ersparnis">— € / Jahr</div>
+        <div class="label">Voraussichtliche Jahressteuer des Paares</div>
+        <div id="jahressteuer">— €</div>
       </div>
-      <div id="details" style="margin-top:0.75rem;font-size:0.88rem;color:#666;display:flex;gap:1.5rem;flex-wrap:wrap;"></div>
+      <p class="hinweis">Dieser Betrag ändert sich durch die Steuerklassenwahl <strong>nicht</strong>. Die Steuerklasse bestimmt nur, wie viel davon monatlich einbehalten wird – der Rest kommt als Nachzahlung oder Erstattung zurück.</p>
+      <div id="tabelle"></div>
     </div>
   </CalculatorShell>
 
@@ -73,18 +89,17 @@ const year = new Date().getFullYear();
     title="Steuerklassen-Optimierung: So holen Paare das Maximum heraus"
     content={`<p>Die richtige Steuerklassenkombination kann für Ehepaare und eingetragene Lebenspartner einen erheblichen Unterschied beim monatlichen Nettoeinkommen ausmachen. Dabei geht es nicht um die tatsächliche Jahressteuerlast (die bleibt bei gleicher Veranlagung identisch), sondern um die <strong>Verteilung der monatlichen Lohnsteuerabzüge</strong> und deren Auswirkung auf Lohnersatzleistungen wie Elterngeld, Arbeitslosengeld I, Krankengeld oder Kurzarbeitergeld.</p>
 
-<p><strong>Die drei Optionen im Überblick:</strong> Bei IV/IV (Standard) werden beide Partner gleich besteuert – jeder erhält einen Grundfreibetrag von 12.084 € (2026). Diese Kombination passt, wenn beide ähnlich viel verdienen. Bei III/V erhält der Besserverdienende den doppelten Grundfreibetrag (24.168 €) und zahlt deutlich weniger Lohnsteuer, während der Geringerverdienende bereits ab dem ersten Euro Lohnsteuer zahlt. Bei IV/IV mit Faktor wird das tatsächliche Einkommensverhältnis durch einen individuellen Multiplikator bereits monatlich berücksichtigt.</p>
+<p><strong>Die drei Optionen im Überblick:</strong> Bei IV/IV (Standard) wird bei beiden Partnern der Grundtarif angewendet, jeder mit dem Grundfreibetrag von ${gfb} Euro. Diese Kombination passt, wenn beide ähnlich viel verdienen. Bei III/V rechnet der Besserverdienende mit dem Splittingtarif, der wie ein verdoppelter Grundfreibetrag von ${gfbDoppelt} Euro wirkt, während beim Geringerverdienenden die Sonderformel des § 39b Abs. 2 Satz 7 EStG greift und praktisch ab dem ersten Euro Lohnsteuer einbehalten wird. Bei IV/IV mit Faktor bleibt es beim Grundtarif, aber die Lohnsteuer wird mit einem Faktor multipliziert, den das Finanzamt nach § 39f EStG aus dem tatsächlichen Einkommensverhältnis bildet.</p>
 
-<h3>Rechenbeispiel: Monatliches Netto bei verschiedenen Kombinationen (2026)</h3>
+<h3>Rechenbeispiel: Lohnsteuerabzug bei verschiedenen Kombinationen (${year})</h3>
+<p>Partner 1 verdient ${BEISPIEL_A.toLocaleString('de-DE')} Euro im Jahr, Partner 2 ${BEISPIEL_B.toLocaleString('de-DE')} Euro, ein Kind unter 25 Jahren, keine Kirchensteuer. Die voraussichtliche Jahressteuer des Paares beträgt in allen Fällen <strong>${euro(beispiel.jahressteuer.gesamt)}</strong> – nur die monatliche Verteilung unterscheidet sich.</p>
 <table>
-<thead><tr><th>Kombination</th><th>Partner A (50.000 €/J.)</th><th>Partner B (25.000 €/J.)</th><th>Netto gesamt/Monat</th><th>Nachzahlung ca.</th></tr></thead>
+<thead><tr><th>Kombination</th><th>Lohnsteuer Partner 1</th><th>Lohnsteuer Partner 2</th><th>Abzug gesamt/Monat</th><th>Bei der Steuererklärung</th></tr></thead>
 <tbody>
-<tr><td>IV / IV</td><td>2.680 €</td><td>1.620 €</td><td>4.300 €</td><td>Erstattung ca. 500 €</td></tr>
-<tr><td>III / V (A in III)</td><td>2.950 €</td><td>1.380 €</td><td>4.330 €</td><td>Nachzahlung ca. 800 €</td></tr>
-<tr><td>IV/IV mit Faktor</td><td>2.780 €</td><td>1.540 €</td><td>4.320 €</td><td>ca. 0 € (Idealfall)</td></tr>
+${beispielZeilen}
 </tbody>
 </table>
-<p><em>Vereinfachte Werte, Steuerklasse I, keine Kinder, keine Kirchensteuer. Tatsächliche Beträge hängen von Sozialversicherungsbeiträgen und individuellen Freibeträgen ab.</em></p>
+<p><em>Die Werte stammen aus demselben Rechenmodul wie der Rechner oben. Der Lohnsteuerabzug folgt § 39b Abs. 2 EStG, die Jahressteuer dem Splittingverfahren nach § 32a Abs. 5 EStG mit den Abzugsbeträgen des § 39b Abs. 2 EStG (§ 39f Satz 3 EStG). Die tatsächliche Veranlagung setzt die Vorsorgeaufwendungen nach § 10 EStG an, die davon abweichen können.</em></p>
 
 <h3>Wann welche Kombination wählen?</h3>
 <table>
@@ -100,78 +115,82 @@ const year = new Date().getFullYear();
 
 <p><strong>Strategischer Wechsel vor Lohnersatzleistungen:</strong> Besonders wichtig wird die Steuerklassenwahl vor dem Bezug von Elterngeld, Arbeitslosengeld I, Krankengeld oder Kurzarbeitergeld. Diese Leistungen berechnen sich aus dem Nettoeinkommen. Wer in Klasse III ist, hat ein höheres Netto und bekommt entsprechend mehr Lohnersatzleistung. Beim Elterngeld gilt: Das Finanzamt betrachtet die Steuerklasse der <strong>letzten 12 Monate vor dem Mutterschutz</strong>. Ein Wechsel muss mindestens 7 Monate vor dem Mutterschutz wirksam sein, damit er in die Berechnung einfließt. Konkret kann der Unterschied beim Elterngeld zwischen Klasse V und III bis zu 500 Euro monatlich betragen.</p>
 
-<h3>Auswirkung der Steuerklasse auf das Elterngeld (Beispiel)</h3>
-<table>
-<thead><tr><th>Bruttoeinkommen Partner B</th><th>Steuerklasse V</th><th>Steuerklasse III</th><th>Differenz Elterngeld/Monat</th></tr></thead>
-<tbody>
-<tr><td>25.000 €/Jahr</td><td>ca. 870 €</td><td>ca. 1.180 €</td><td>+310 €</td></tr>
-<tr><td>35.000 €/Jahr</td><td>ca. 1.050 €</td><td>ca. 1.420 €</td><td>+370 €</td></tr>
-<tr><td>45.000 €/Jahr</td><td>ca. 1.230 €</td><td>ca. 1.640 €</td><td>+410 €</td></tr>
-</tbody>
-</table>
-<p><em>Elterngeld = 65–67 % des durchschnittlichen Nettoeinkommens der letzten 12 Monate. Maximalbetrag: 1.800 €/Monat.</em></p>
+<h3>Auswirkung auf das Elterngeld</h3>
+<p>Das Elterngeld beträgt nach § 2 BEEG 65 bis 67 Prozent des durchschnittlichen Nettoeinkommens der zwölf Monate vor der Geburt, höchstens 1.800 Euro im Monat. Weil die Steuerklasse das monatliche Netto verändert, verändert sie auch das Elterngeld – und zwar dauerhaft, obwohl die Jahressteuer selbst gleich bleibt. Wer in Klasse III wechselt, hat ein höheres Netto und bekommt entsprechend mehr Elterngeld. Wie viel genau, hängt vom Einkommen ab; rechnen Sie es mit dem <a href="/familie/elterngeld-rechner/">Elterngeld-Rechner</a> für Ihr konkretes Netto aus dem <a href="/geld/brutto-netto-rechner/">Brutto-Netto-Rechner</a> durch.</p>
 
 <p><strong>So beantragen Sie den Wechsel:</strong> Seit 2020 können Sie die Steuerklasse mehrfach pro Jahr ändern. Den Antrag stellen beide Partner gemeinsam beim Wohnsitz-Finanzamt mit dem amtlichen Vordruck "Antrag auf Steuerklassenwechsel bei Ehegatten/Lebenspartnern" oder digital über <strong>ELSTER</strong> (Mein ELSTER > Formulare > Anträge). Die Änderung gilt ab dem Folgemonat nach Bearbeitung. Bearbeitungszeit: meist 2–4 Wochen.</p>
 
-<p><strong>Praxistipp – Nachzahlung bei III/V einplanen:</strong> Bei der Kombination III/V wird unterjährig insgesamt zu wenig Lohnsteuer einbehalten. Die Nachzahlung bei der Steuererklärung beträgt je nach Einkommenskonstellation zwischen 500 € und 3.000 €. Legen Sie die monatliche Steuerersparnis gegenüber IV/IV konsequent zur Seite. Alternativ können Sie beim Finanzamt eine <strong>freiwillige Vorauszahlung</strong> beantragen, um die Nachzahlung zu vermeiden.</p>
+<p><strong>Praxistipp – Nachzahlung bei III/V einplanen:</strong> Bei der Kombination III/V wird unterjährig insgesamt zu wenig Lohnsteuer einbehalten, deshalb ist die Einkommensteuererklärung nach § 46 Abs. 2 Nr. 3a EStG Pflicht. Wie hoch die Nachzahlung ausfällt, zeigt der Rechner oben in der Spalte „Bei der Steuererklärung". Legen Sie den Betrag über das Jahr zurück oder beantragen Sie beim Finanzamt eine <strong>freiwillige Vorauszahlung</strong>.</p>
 
-<p><strong>Praxistipp – IV/IV mit Faktor jährlich erneuern:</strong> Der Faktor wird vom Finanzamt individuell berechnet und gilt jeweils für ein Kalenderjahr. Er muss <strong>jedes Jahr neu beantragt</strong> werden. Vergessen Sie den Antrag, fallen Sie automatisch auf IV/IV ohne Faktor zurück. Stellen Sie sich eine Erinnerung für November, damit der neue Faktor ab Januar gilt.</p>
+<p><strong>Praxistipp – IV/IV mit Faktor rechtzeitig erneuern:</strong> Der Faktor wird vom Finanzamt individuell berechnet und gilt nach § 39f Abs. 1 Satz 9 EStG bis zum Ablauf des Kalenderjahres, das auf das Jahr des erstmaligen Geltens folgt – also längstens zwei Jahre. Danach fallen Sie ohne neuen Antrag automatisch auf IV/IV ohne Faktor zurück. Bei deutlich verändertem Einkommen lohnt der Neuantrag schon früher, sonst passt der Faktor nicht mehr.</p>
 
 <p><strong>Zukunftsausblick:</strong> Die Bundesregierung plant seit 2023 die schrittweise Abschaffung der Kombination III/V zugunsten von IV/IV mit Faktor als Standard. Bisher wurde die Reform nicht umgesetzt. Stand 2026 stehen weiterhin alle drei Kombinationen zur Verfügung. Die Reform würde vor allem Ehefrauen in Klasse V entlasten, die bisher überproportional hohe monatliche Abzüge tragen. Beobachten Sie die Gesetzgebung – eine Umsetzung könnte ab 2027 oder 2028 erfolgen.</p>`}
     relatedSlugs={['steuerklassen-vergleich', 'steuernachzahlung-rechner', 'brutto-netto-rechner']}
   />
 </Layout>
 
-<script type="module">
-const STEUER_FAKTOR = { III: 0.78, IV: 0.68, V: 0.58 };
-const GRUNDFREIBETRAG = 11604;
+<style>
+.hinweis { font-size: 0.85rem; color: var(--muted); margin: 0.5rem 0 1rem; }
+.kombi-table { width:100%; border-collapse:collapse; font-size:0.88rem; margin-top:0.5rem; }
+.kombi-table th { text-align:left; font-weight:600; font-size:0.78rem; color:var(--muted); padding:0.4rem 0.6rem; border-bottom:2px solid var(--border); text-transform:uppercase; letter-spacing:0.04em; }
+.kombi-table td { padding:0.55rem 0.6rem; border-bottom:1px solid var(--border); }
+.kombi-table td:not(:first-child) { text-align:right; }
+.kombi-table tr.empfohlen td { background:color-mix(in srgb, var(--accent) 6%, white); font-weight:600; }
+.kombi-table tr:last-child td { border-bottom:none; }
+.nachzahlung { color:#c8102e; }
+.erstattung { color:#1e7e34; }
+</style>
 
-function berechneEinkommensteuer(zuVersteuern) {
-  if (zuVersteuern <= 0) return 0;
-  const y = zuVersteuern / 10000;
-  let eSt;
-  if (y <= 17.009) {
-    eSt = (922.98 * y + 1400) * y;
-  } else if (y <= 66.760) {
-    eSt = (181.19 * y + 2397) * y + 1025.38;
-  } else if (y <= 277.825) {
-    eSt = 0.42 * zuVersteuern - 10602.13;
-  } else {
-    eSt = 0.45 * zuVersteuern - 16599.53;
-  }
-  return Math.max(0, Math.round(eSt));
-}
+<script type="module">
+const { vergleicheKombinationen } = await import(window.__base + 'scripts/steuerklassenwahl.js');
+
+function fmt(n) { return n.toLocaleString('de-DE', {minimumFractionDigits:2, maximumFractionDigits:2}) + ' \u20ac'; }
+function fmt0(n) { return Math.round(n).toLocaleString('de-DE') + ' \u20ac'; }
 
 function berechne() {
-  const einkommen1 = parseFloat(document.getElementById('einkommen1').value)||45000;
-  const einkommen2 = parseFloat(document.getElementById('einkommen2').value)||25000;
-  const klasse1 = document.getElementById('klasse1').value;
-  const klasse2 = document.getElementById('klasse2').value;
-  
-  const faktor1 = STEUER_FAKTOR[klasse1];
-  const faktor2 = STEUER_FAKTOR[klasse2];
-  
-  const steuerAktuell = berechneEinkommensteuer(Math.max(0, einkommen1 - GRUNDFREIBETRAG) * faktor1) + 
-                         berechneEinkommensteuer(Math.max(0, einkommen2 - GRUNDFREIBETRAG) * faktor2);
-  
-  const faktorOpt1 = klasse1 === 'III' ? 0.58 : (klasse1 === 'V' ? 0.78 : 0.68);
-  const faktorOpt2 = klasse2 === 'III' ? 0.58 : (klasse2 === 'V' ? 0.78 : 0.68);
-  
-  const steuerOptimal = berechneEinkommensteuer(Math.max(0, einkommen1 - GRUNDFREIBETRAG) * faktorOpt1) + 
-                         berechneEinkommensteuer(Math.max(0, einkommen2 - GRUNDFREIBETRAG) * faktorOpt2);
-  
-  const ersparnis = steuerAktuell - steuerOptimal;
-  
-  document.getElementById('ersparnis').textContent = (ersparnis >= 0 ? '+ ' : '') + ersparnis.toLocaleString('de-DE', {minimumFractionDigits:2}) + ' € / Jahr';
-  document.getElementById('ersparnis').style.color = ersparnis >= 0 ? '#1e7e34' : '#c8102e';
-  document.getElementById('details').innerHTML =
-    `<span>Aktuell: <strong>${steuerAktuell.toLocaleString('de-DE')} €</strong></span>` +
-    `<span>Optimal: <strong>${steuerOptimal.toLocaleString('de-DE')} €</strong></span>` +
-    `<span>Empfehlung: <strong>${klasse1 === klasse2 ? 'Wechsel nicht sinnvoll' : (ersparnis > 0 ? 'Klasse III/V tauschen' : 'Aktuelle Kombination beibehalten')}</strong></span>`;
+  const bruttoJahrA = parseFloat(document.getElementById('einkommen1').value) || 0;
+  const bruttoJahrB = parseFloat(document.getElementById('einkommen2').value) || 0;
+  const kinder = parseInt(document.getElementById('kinder').value) || 0;
+
+  const { jahressteuer, faktor, kombinationen } = vergleicheKombinationen({ bruttoJahrA, bruttoJahrB, kinder });
+
+  document.getElementById('jahressteuer').textContent = fmt(jahressteuer.gesamt);
+
+  // Empfohlen ist die Kombination, die der Jahressteuer am n\u00e4chsten kommt:
+  // Sie vermeidet sowohl Nachzahlung als auch ein zinsloses Darlehen ans Finanzamt.
+  const waehlbar = kombinationen.filter(k => k.anwendbar);
+  const beste = waehlbar.reduce((a, b) => Math.abs(a.differenz) <= Math.abs(b.differenz) ? a : b, waehlbar[0]);
+
+  document.getElementById('tabelle').innerHTML =
+    `<table class="kombi-table">
+      <thead><tr>
+        <th>Kombination</th><th>Abzug Partner 1</th><th>Abzug Partner 2</th><th>Abzug gesamt/Monat</th><th>Bei der Steuererkl\u00e4rung</th>
+      </tr></thead><tbody>` +
+    kombinationen.map(k => {
+      if (!k.anwendbar) {
+        return `<tr><td>${k.name}</td><td colspan="4" style="text-align:left;color:var(--muted);">Nicht m\u00f6glich \u2013 das Finanzamt bildet den Faktor nur, wenn er kleiner als 1 ist (\u00a7 39f Abs. 1 Satz 1 EStG).</td></tr>`;
+      }
+      const d = k.differenz;
+      const text = Math.abs(d) < 1
+        ? 'ausgeglichen'
+        : (d > 0 ? `Erstattung ${fmt0(d)}` : `Nachzahlung ${fmt0(-d)}`);
+      const klasse = Math.abs(d) < 1 ? '' : (d > 0 ? 'erstattung' : 'nachzahlung');
+      const name = k.faktorverfahren ? `${k.name} (${faktor.wert.toLocaleString('de-DE', {minimumFractionDigits:3})})` : k.name;
+      return `<tr class="${k === beste ? 'empfohlen' : ''}">
+        <td>${name}</td>
+        <td>${fmt(k.partnerA.lohnsteuerMonat + k.partnerA.soliJahr / 12)}</td>
+        <td>${fmt(k.partnerB.lohnsteuerMonat + k.partnerB.soliJahr / 12)}</td>
+        <td>${fmt(k.abzugMonat)}</td>
+        <td class="${klasse}">${text}</td>
+      </tr>`;
+    }).join('') +
+    `</tbody></table>`;
 }
-['einkommen1','einkommen2'].forEach(id =>
-  document.getElementById(id).addEventListener('input', berechne));
-['klasse1','klasse2'].forEach(id =>
-  document.getElementById(id).addEventListener('change', berechne));
+
+['einkommen1','einkommen2','kinder'].forEach(id => {
+  const el = document.getElementById(id);
+  el.addEventListener('input', berechne);
+  el.addEventListener('change', berechne);
+});
 berechne();
 </script>
