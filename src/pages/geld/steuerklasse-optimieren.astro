@@ -5,6 +5,12 @@ import CalculatorGuide from '../../components/CalculatorGuide.astro';
 import { CALCULATORS, CATEGORIES } from '../../data/calculators';
 import { vergleicheKombinationen } from '../../../public/scripts/steuerklassenwahl.js';
 import { GRUNDFREIBETRAG } from '../../../public/scripts/einkommensteuer.js';
+import {
+  SATZ_MIN as ELTERNGELD_SATZ_MIN,
+  SATZ_MAX as ELTERNGELD_SATZ_MAX,
+  HOECHSTBETRAG as ELTERNGELD_HOECHSTBETRAG,
+  berechneElterngeld,
+} from '../../../public/scripts/elterngeld.js';
 const calc = CALCULATORS.find(c => c.slug === 'steuerklasse-optimieren')!;
 const cat = CATEGORIES[calc.category];
 const year = new Date().getFullYear();
@@ -17,6 +23,22 @@ const BEISPIEL_B = 25000;
 const beispiel = vergleicheKombinationen({ bruttoJahrA: BEISPIEL_A, bruttoJahrB: BEISPIEL_B, kinder: 1 });
 const euro = (n: number) => n.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' Euro';
 const euro0 = (n: number) => Math.round(n).toLocaleString('de-DE') + ' Euro';
+const prozent = (n: number) => (n * 100).toLocaleString('de-DE', { maximumFractionDigits: 1 }) + ' Prozent';
+
+// Der größte Abstand zwischen den Steuerklassen III und V beim Elterngeld wird
+// aus dem Rechenmodul gesucht, statt eine gerundete Zahl zu behaupten. Oberhalb
+// dieses Punktes schrumpft er wieder, weil Klasse III den Höchstbetrag erreicht.
+const elterngeldSpanne = (() => {
+  let beste = { brutto: 0, klasse3: 0, klasse5: 0, differenz: 0 };
+  for (let brutto = 1000; brutto <= 6000; brutto += 50) {
+    const klasse3 = berechneElterngeld({ einnahmenMonat: brutto, steuerklasse: 3 }).basiselterngeld;
+    const klasse5 = berechneElterngeld({ einnahmenMonat: brutto, steuerklasse: 5 }).basiselterngeld;
+    if (klasse3 - klasse5 > beste.differenz) {
+      beste = { brutto, klasse3, klasse5, differenz: klasse3 - klasse5 };
+    }
+  }
+  return beste;
+})();
 const gfb = GRUNDFREIBETRAG.toLocaleString('de-DE');
 const gfbDoppelt = (GRUNDFREIBETRAG * 2).toLocaleString('de-DE');
 const beispielZeilen = beispiel.kombinationen.filter(k => k.anwendbar).map(k => {
@@ -48,7 +70,7 @@ const beispielZeilen = beispiel.kombinationen.filter(k => k.anwendbar).map(k => 
       { q: "Wann lohnt sich die Kombination III/V?", a: "Die Kombination III/V lohnt sich, wenn ein Partner deutlich mehr verdient als der andere (mindestens 60/40-Verhältnis). Der Besserverdienende in Klasse III profitiert vom doppelten Grundfreibetrag, während der Geringerverdienende in Klasse V höhere Abzüge hat. Vorsicht: Bei III/V ist die Einkommensteuererklärung Pflicht, und es kann zu Nachzahlungen kommen, weil im Laufe des Jahres insgesamt zu wenig Lohnsteuer einbehalten wurde." },
       { q: "Wie wechsle ich die Steuerklasse?", a: "Den Steuerklassenwechsel beantragen Sie beim zuständigen Finanzamt mit dem amtlichen Vordruck 'Antrag auf Steuerklassenwechsel bei Ehegatten/Lebenspartnern'. Seit 2020 ist ein Wechsel mehrmals im Jahr möglich (vorher nur einmal). Sie können den Antrag auch über ELSTER online einreichen. Der Wechsel gilt ab dem Folgemonat nach der Bearbeitung." },
       { q: "Was ist die Steuerklasse IV mit Faktor?", a: "Bei IV mit Faktor berechnet das Finanzamt einen individuellen Faktor, der das Einkommensverhältnis beider Partner berücksichtigt. So wird die Lohnsteuer bereits im Laufe des Jahres möglichst genau einbehalten. Der Vorteil gegenüber III/V: kaum Nachzahlungen bei der Steuererklärung. Der Vorteil gegenüber IV/IV: Bei ungleichen Einkommen wird die Steuerlast gerechter verteilt. Der Faktor gilt nach § 39f Abs. 1 Satz 9 EStG bis zum Ablauf des folgenden Kalenderjahres, also längstens zwei Jahre, und muss danach neu beantragt werden." },
-      { q: "Beeinflusst die Steuerklasse mein Elterngeld oder Arbeitslosengeld?", a: "Ja, und das ist ein wichtiger Aspekt bei der Wahl. Elterngeld, Arbeitslosengeld, Krankengeld und Kurzarbeitergeld werden auf Basis des Nettoeinkommens berechnet. Wer plant, diese Leistungen in Anspruch zu nehmen, sollte rechtzeitig (mindestens 7 Monate vorher) in eine günstigere Steuerklasse wechseln. Bei geplantem Elterngeld kann der Wechsel in Klasse III mehrere Hundert Euro monatlich mehr Elterngeld bedeuten." },
+      { q: "Beeinflusst die Steuerklasse mein Elterngeld oder Arbeitslosengeld?", a: "Ja, und das ist ein wichtiger Aspekt bei der Wahl. Maßgeblich ist dabei nicht das Netto der Gehaltsabrechnung, sondern ein pauschalierter Nettobetrag: beim Arbeitslosengeld und Kurzarbeitergeld das Leistungsentgelt nach § 153 SGB III, beim Elterngeld das Erwerbseinkommen nach den §§ 2c bis 2f BEEG. In beide geht die Steuerklasse ein. Beim Elterngeld zählt ein geändertes Abzugsmerkmal nach § 2c Abs. 3 Satz 2 BEEG nur, wenn es in der überwiegenden Zahl der Monate des Bemessungszeitraums galt – bei zwölf Monaten also in mindestens sieben. Daher die Faustregel, sieben Monate vor dem Mutterschutz zu wechseln." },
       { q: "Was passiert mit der Steuerklasse bei Trennung oder Scheidung?", a: "Im Trennungsjahr behalten Sie Ihre Steuerklasse und können weiterhin die gemeinsame Veranlagung nutzen. Ab dem 1. Januar nach der Trennung werden beide Partner automatisch in Steuerklasse I (oder II bei Alleinerziehenden mit Kind) eingestuft. Wichtig: Das Trennungsjahr beginnt mit dem tatsächlichen Auszug, nicht mit dem Scheidungsantrag. Im Trennungsjahr lohnt sich oft noch ein strategischer Wechsel." },
       { q: "Wird die Steuerklassenkombination III/V abgeschafft?", a: "Es gibt seit 2023 Pläne, III/V durch IV/IV mit Faktor als Standard zu ersetzen. Bisher wurde die Abschaffung jedoch nicht umgesetzt. Stand 2026 stehen weiterhin alle drei Kombinationen zur Verfügung. Die Reform soll die Steuerbelastung gerechter auf beide Partner verteilen und Nachzahlungen vermeiden. Beobachten Sie die Gesetzgebung – ein Wechsel könnte ab 2027 oder 2028 kommen." }
     ]}
@@ -113,10 +135,10 @@ ${beispielZeilen}
 </tbody>
 </table>
 
-<p><strong>Strategischer Wechsel vor Lohnersatzleistungen:</strong> Besonders wichtig wird die Steuerklassenwahl vor dem Bezug von Elterngeld, Arbeitslosengeld I, Krankengeld oder Kurzarbeitergeld. Diese Leistungen berechnen sich aus dem Nettoeinkommen. Wer in Klasse III ist, hat ein höheres Netto und bekommt entsprechend mehr Lohnersatzleistung. Beim Elterngeld gilt: Das Finanzamt betrachtet die Steuerklasse der <strong>letzten 12 Monate vor dem Mutterschutz</strong>. Ein Wechsel muss mindestens 7 Monate vor dem Mutterschutz wirksam sein, damit er in die Berechnung einfließt. Konkret kann der Unterschied beim Elterngeld zwischen Klasse V und III bis zu 500 Euro monatlich betragen.</p>
+<p><strong>Strategischer Wechsel vor Lohnersatzleistungen:</strong> Besonders wichtig wird die Steuerklassenwahl vor dem Bezug von Elterngeld, Arbeitslosengeld I, Krankengeld oder Kurzarbeitergeld. Diese Leistungen berechnen sich nicht aus dem Netto der Gehaltsabrechnung, sondern aus einem pauschalierten Nettobetrag, in den die Steuerklasse eingeht – beim Arbeitslosengeld und Kurzarbeitergeld über das Leistungsentgelt nach § 153 SGB III, beim Elterngeld über die Abzüge für Steuern nach § 2e BEEG. Wer in Klasse III ist, bekommt entsprechend mehr. Beim Elterngeld prüft die Elterngeldstelle die Abzugsmerkmale des <strong>Bemessungszeitraums</strong>, also der zwölf Kalendermonate vor dem Geburtsmonat (§ 2b Abs. 1 BEEG). Ein geändertes Merkmal zählt nach § 2c Abs. 3 Satz 2 BEEG nur, wenn es in der überwiegenden Zahl dieser Monate galt – bei zwölf Monaten also in mindestens sieben. Der Abstand zwischen den Klassen V und III ist am größten bei einem Bruttoentgelt um ${euro0(elterngeldSpanne.brutto)}: dort stehen ${euro(elterngeldSpanne.klasse3)} in Klasse III gegen ${euro(elterngeldSpanne.klasse5)} in Klasse V, ein Unterschied von rund ${euro0(elterngeldSpanne.differenz)} im Monat. Darüber schrumpft er wieder, weil Klasse III den Höchstbetrag von ${euro0(ELTERNGELD_HOECHSTBETRAG)} erreicht. Das Krankengeld fällt aus der Reihe: Es beträgt nach § 47 Abs. 1 SGB V 70 Prozent des Regelentgelts, höchstens aber 90 Prozent des tatsächlichen Nettoarbeitsentgelts – hier zählt also das echte Netto, nicht eine Pauschale.</p>
 
 <h3>Auswirkung auf das Elterngeld</h3>
-<p>Das Elterngeld beträgt nach § 2 BEEG 65 bis 67 Prozent des durchschnittlichen Nettoeinkommens der zwölf Monate vor der Geburt, höchstens 1.800 Euro im Monat. Weil die Steuerklasse das monatliche Netto verändert, verändert sie auch das Elterngeld – und zwar dauerhaft, obwohl die Jahressteuer selbst gleich bleibt. Wer in Klasse III wechselt, hat ein höheres Netto und bekommt entsprechend mehr Elterngeld. Wie viel genau, hängt vom Einkommen ab; rechnen Sie es mit dem <a href="/familie/elterngeld-rechner/">Elterngeld-Rechner</a> für Ihr konkretes Netto aus dem <a href="/geld/brutto-netto-rechner/">Brutto-Netto-Rechner</a> durch.</p>
+<p>Das Elterngeld beträgt nach § 2 BEEG ${prozent(ELTERNGELD_SATZ_MIN)} bis ${prozent(ELTERNGELD_SATZ_MAX)} des Erwerbseinkommens der zwölf Monate vor der Geburt, höchstens ${euro0(ELTERNGELD_HOECHSTBETRAG)} im Monat. Die Spanne ist gestaffelt: Für die meisten Beschäftigten gelten ${prozent(ELTERNGELD_SATZ_MIN)}, die höheren Sätze erreichen nur Geringverdiener. Maßgeblich ist dabei nicht das Netto der Gehaltsabrechnung, sondern eine eigene Größe nach den §§ 2c bis 2f BEEG. Die Steuerklasse wirkt sich darauf aus, weil § 2e BEEG die Abzüge für Steuern nach der Steuerklasse bemisst – und zwar dauerhaft, obwohl die Jahressteuer selbst gleich bleibt. Wer in Klasse III wechselt, bekommt entsprechend mehr Elterngeld. Wie viel genau, hängt vom Einkommen ab; rechnen Sie es mit dem <a href="/familie/elterngeld-rechner/">Elterngeld-Rechner</a> durch.</p>
 
 <p><strong>So beantragen Sie den Wechsel:</strong> Seit 2020 können Sie die Steuerklasse mehrfach pro Jahr ändern. Den Antrag stellen beide Partner gemeinsam beim Wohnsitz-Finanzamt mit dem amtlichen Vordruck "Antrag auf Steuerklassenwechsel bei Ehegatten/Lebenspartnern" oder digital über <strong>ELSTER</strong> (Mein ELSTER > Formulare > Anträge). Die Änderung gilt ab dem Folgemonat nach Bearbeitung. Bearbeitungszeit: meist 2–4 Wochen.</p>
 
