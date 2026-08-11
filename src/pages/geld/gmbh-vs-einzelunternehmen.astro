@@ -72,13 +72,11 @@ const year = new Date().getFullYear();
 </Layout>
 
 <script type="module">
-function einkommensteuer(zvE) {
-  if (zvE <= 12096) return 0;
-  if (zvE <= 17005) { const y = (zvE - 12096) / 10000; return Math.round((979.18 * y + 1400) * y); }
-  if (zvE <= 66760) { const z = (zvE - 17005) / 10000; return Math.round((192.59 * z + 2397) * z + 966.53); }
-  if (zvE <= 277825) return Math.round(0.42 * zvE - 10911.92);
-  return Math.round(0.45 * zvE - 19246.67);
-}
+// Bis zum 11.08.2026 stand der Tarif hier als eigene Kopie – mit dem
+// Grundfreibetrag von 2025 und Faktoren aus 2023. Er kommt jetzt aus
+// einkommensteuer.js, dem einzigen Ort im Projekt, an dem § 32a EStG steht.
+const { einkommensteuer } = await import(window.__base + 'scripts/einkommensteuer.js');
+const { solidaritaetszuschlag } = await import(window.__base + 'scripts/lohnsteuer.js');
 
 function berechne() {
   const gewinn = parseFloat(document.getElementById('gewinn').value) || 150000;
@@ -86,13 +84,25 @@ function berechne() {
   const hebesatz = parseFloat(document.getElementById('hebesatz').value) || 410;
   
   // Einzelunternehmen
+  // § 11 GewStG: Gewerbeertrag auf volle 100 € abrunden, Freibetrag 24.500 €
+  // für natürliche Personen, Steuermesszahl 3,5 %.
   const gewStFreibetrag = 24500;
-  const gewStBasis = Math.max(0, gewinn - gewStFreibetrag);
-  const gewSt = gewStBasis * 0.035 * (hebesatz / 100);
-  const gewStAnrechnung = Math.min(gewSt * 3.8, einkommensteuer(gewinn) * 0.9);
+  const gewStBasis = Math.max(0, Math.floor(gewinn / 100) * 100 - gewStFreibetrag);
+  const messbetrag = gewStBasis * 0.035;
+  const gewSt = messbetrag * (hebesatz / 100);
+  // § 35 Abs. 1 EStG: das Vierfache des Steuermessbetrags, nach Satz 5 begrenzt
+  // auf die tatsächlich zu zahlende Gewerbesteuer und auf den
+  // Ermäßigungshöchstbetrag. Vorher stand hier das 3,8-fache der Gewerbesteuer
+  // selbst statt des Messbetrags – bei 150.000 € Gewinn wurde dadurch fast die
+  // gesamte Einkommensteuer wegangerechnet.
   const zvE_EU = gewinn;
   const est = einkommensteuer(zvE_EU);
-  const gesamtEU = est + gewSt - gewStAnrechnung;
+  const gewStAnrechnung = Math.min(4 * messbetrag, gewSt, est);
+  const estNachAnrechnung = est - gewStAnrechnung;
+  // Der Solidaritätszuschlag wurde auf der GmbH-Seite berechnet, auf der Seite
+  // des Einzelunternehmens aber vergessen – das verzerrte den Vergleich.
+  const soliEU = solidaritaetszuschlag(estNachAnrechnung);
+  const gesamtEU = estNachAnrechnung + soliEU + gewSt;
   
   // GmbH
   const kSt = gewinn * 0.15;
