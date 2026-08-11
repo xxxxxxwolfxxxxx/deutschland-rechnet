@@ -3,9 +3,35 @@ import Layout from '../../layouts/Layout.astro';
 import CalculatorShell from '../../components/CalculatorShell.astro';
 import CalculatorGuide from '../../components/CalculatorGuide.astro';
 import { CALCULATORS, CATEGORIES } from '../../data/calculators';
+import {
+  LEISTUNGSSATZ,
+  LEISTUNGSSATZ_ERHOEHT,
+  ANSPRUCHSDAUER,
+  ANSPRUCHSDAUER_KURZE_ANWARTSCHAFT,
+  TAGE_JE_MONAT,
+} from '../../../public/scripts/arbeitslosengeld.js';
+import { SOZIALVERSICHERUNGSPAUSCHALE } from '../../../public/scripts/leistungsentgelt.js';
+import { BBG_RV_AV_MONAT } from '../../../public/scripts/sozialversicherung.js';
+
 const calc = CALCULATORS.find(c => c.slug === 'arbeitslosengeld-rechner')!;
 const cat = CATEGORIES[calc.category];
 const year = new Date().getFullYear();
+
+const euro = (n: number) => n.toLocaleString('de-DE', {
+  minimumFractionDigits: Number.isInteger(n) ? 0 : 2,
+  maximumFractionDigits: 2,
+}) + ' Euro';
+const prozent = (n: number) => (n * 100).toLocaleString('de-DE', { maximumFractionDigits: 1 }) + ' %';
+
+// Die Tabelle der Anspruchsdauer wird aus dem Rechenmodul erzeugt, damit
+// Text und Rechner nicht auseinanderlaufen.
+const anspruchsdauerZeilen = ANSPRUCHSDAUER.map(s =>
+  `<tr><td>${s.versicherungsmonate} Monaten</td><td>${s.mindestalter === 0 ? '–' : `${s.mindestalter}. Lebensjahres`}</td><td>${s.dauer} Monate</td></tr>`
+).join('\n');
+
+const kurzeAnwartschaftText = ANSPRUCHSDAUER_KURZE_ANWARTSCHAFT
+  .map(s => `${s.versicherungsmonate} Monate ergeben ${s.dauer} Monate`)
+  .join(', ');
 ---
 <Layout
   title={`Arbeitslosengeld-Rechner ${year}`}
@@ -22,73 +48,46 @@ const year = new Date().getFullYear();
   <CalculatorShell
     calculator={calc}
     intro="Mit dem Arbeitslosengeld-Rechner berechnen Sie Ihre Ansprüche auf ALG I nach SGB III. Ermitteln Sie Ihren voraussichtlichen Zahlbetrag und die Bezugsdauer basierend auf Ihrem bisherigen Einkommen."
-    sourceNote="Berechnung nach SGB III."
-    explanation="ALG I beträgt 60% des pauschalierten Nettoentgelts bzw. 67% mit Kindern (§ 149 SGB III). Die Bezugsdauer richtet sich nach Versicherungszeit und Alter und liegt zwischen 6 und 24 Monaten. Voraussetzung sind mindestens 12 Monate Beitragszahlung in den letzten 30 Monaten."
+    sourceNote={`Berechnung nach §§ 149, 151, 153 und 154 SGB III. Rechtsstand ${year}.`}
+    explanation={`Das Arbeitslosengeld beträgt ${prozent(LEISTUNGSSATZ)} des pauschalierten Nettoentgelts, mit Kind ${prozent(LEISTUNGSSATZ_ERHOEHT)} (§ 149 SGB III). Dieses Leistungsentgelt ergibt sich nach § 153 SGB III aus dem beitragspflichtigen Bruttoentgelt abzüglich einer Sozialversicherungspauschale von ${prozent(SOZIALVERSICHERUNGSPAUSCHALE)}, der Lohnsteuer und des Solidaritätszuschlags – es ist also nicht Ihr tatsächliches Netto. Die Anspruchsdauer richtet sich nach Versicherungszeit und Lebensalter und liegt zwischen 6 und 24 Monaten (§ 147 Abs. 2 SGB III).`}
     faqs={[
-      { q: "Wie lange bekomme ich Arbeitslosengeld?", a: "Die Bezugsdauer richtet sich nach der Versicherungszeit: 6 Monate bei 12 Monaten Beitrag, 12 Monate bei 24 Monaten, 24 Monate bei 48 Monaten (nur über 50 Jahre). Für Ältere können bis zu 24 Monate Bezugsdauer gelten." },
-      { q: "Wann habe ich Anspruch auf ALG I?", a: "Sie brauchen mindestens 12 Monate Beitragszahlung in den letzten 30 Monaten, müssen arbeitslos gemeldet sein, die Arbeitsvermittlung nutzen und das 15. Lebensjahr vollendet haben." },
-      { q: "Was ist das 'Bemessungsentgelt'?", a: "Das ist das durchschnittliche tägliche/monatliche Entgelt aus den letzten 52 Wochen vor der Arbeitslosigkeit. Es bildet die Basis für die ALG-Berechnung. Das Entgelt wird bereinigt um außergewöhnliche Zahlungen." },
-      { q: "Wird ALG auf andere Einkünfte angerechnet?", a: "Ja, Arbeitslosengeld wird bei Hartz IV angerechnet. Aber: Die ersten 165€ bei Einkommen aus Erwerbstätigkeit bleiben unberücksichtigt." },
-      { q: "Kann ich arbeiten während ich ALG beziehe?", a: "Ja, Hinzuverdienst ist möglich bis zu 165€/Monat (Freibetrag). Darüber wird das Einkommen zu 80% angerechnet. Bei mehr als 15h/Woche gilt man nicht mehr als arbeitslos."  }
+      { q: "Wie lange bekomme ich Arbeitslosengeld?", a: "Die Dauer richtet sich nach § 147 Abs. 2 SGB III: 12 Monate Versicherungszeit ergeben 6 Monate Anspruch, 24 Monate ergeben 12 Monate. Längere Ansprüche setzen zusätzlich ein Mindestalter voraus – 15 Monate ab 30 Versicherungsmonaten und dem vollendeten 50. Lebensjahr, 18 Monate ab 36 Monaten und dem 55. Lebensjahr, 24 Monate ab 48 Monaten und dem 58. Lebensjahr. Die vollständige Tabelle steht weiter unten." },
+      { q: "Wann habe ich Anspruch auf ALG I?", a: "Sie müssen arbeitslos sein, sich persönlich arbeitslos gemeldet und die Anwartschaftszeit erfüllt haben (§ 137 Abs. 1 SGB III). Die Anwartschaftszeit setzt nach § 142 Abs. 1 SGB III mindestens zwölf Monate Versicherungspflichtverhältnis innerhalb der Rahmenfrist von 30 Monaten voraus. Für überwiegend kurz befristet Beschäftigte gibt es die kurze Anwartschaftszeit nach § 142 Abs. 2 SGB III." },
+      { q: "Was ist das Bemessungsentgelt?", a: "Nach § 151 Abs. 1 SGB III ist es das durchschnittlich auf den Kalendertag entfallende beitragspflichtige Arbeitsentgelt im Bemessungszeitraum. Beitragspflichtig bedeutet, dass Entgelt oberhalb der Beitragsbemessungsgrenze außer Betracht bleibt. Abfindungen und Entgelte, die wegen der Beendigung des Arbeitsverhältnisses gezahlt werden, zählen nach § 151 Abs. 2 SGB III nicht mit." },
+      { q: "Warum ist das Arbeitslosengeld nicht 60 Prozent meines Nettos?", a: "Weil das Gesetz nicht auf Ihr tatsächliches Netto abstellt, sondern auf das pauschalierte Nettoentgelt nach § 153 SGB III. Dort wird eine Sozialversicherungspauschale von genau 20 Prozent abgezogen – unabhängig von Ihren wirklichen Beiträgen – und die Kirchensteuer bleibt außer Betracht. Je nachdem, wie Ihre tatsächlichen Abzüge davon abweichen, liegt das Ergebnis über oder unter 60 Prozent Ihres echten Nettos." },
+      { q: "Wird Arbeitslosengeld auf das Grundsicherungsgeld angerechnet?", a: "Ja. Arbeitslosengeld ist Einkommen im Sinne des § 11 SGB II und wird auf das Grundsicherungsgeld nach § 19 SGB II angerechnet. Deckt es den Bedarf nicht, sind aufstockende Leistungen möglich." },
+      { q: "Kann ich arbeiten, während ich Arbeitslosengeld beziehe?", a: "Ja, aber nur weniger als 15 Stunden in der Woche – sonst gelten Sie nach § 138 Abs. 3 SGB III nicht mehr als arbeitslos. Vom Nebeneinkommen bleibt nach § 155 Abs. 1 SGB III ein Freibetrag von 165 Euro im Monat anrechnungsfrei; was darüber liegt, wird auf das Arbeitslosengeld angerechnet." }
     ]}
   >
     <div class="calc-form">
       <div class="calc-grid">
         <div class="calc-group">
           <label for="brutto">Monatliches Bruttogehalt (€)</label>
-          <input type="number" id="brutto" min="450" max="7700" value="3500" step="50" />
+          <input type="number" id="brutto" min="450" max="15000" value="3500" step="50" />
         </div>
         <div class="calc-group">
           <label for="stklasse">Steuerklasse</label>
           <select id="stklasse">
-            <option value="I">I</option>
-            <option value="II" selected>II (Alleinerziehende)</option>
-            <option value="III">III</option>
-            <option value="IV">IV</option>
-            <option value="V">V</option>
-            <option value="VI">VI</option>
+            <option value="1" selected>I</option>
+            <option value="2">II (Alleinerziehende)</option>
+            <option value="3">III</option>
+            <option value="4">IV</option>
+            <option value="5">V</option>
+            <option value="6">VI</option>
           </select>
         </div>
         <div class="calc-group">
-          <label for="bundesland">Bundesland</label>
-          <select id="bundesland">
-            <option value="BW">Baden-Württemberg</option>
-            <option value="BY">Bayern</option>
-            <option value="BE">Berlin</option>
-            <option value="BB">Brandenburg</option>
-            <option value="HB">Bremen</option>
-            <option value="HH">Hamburg</option>
-            <option value="HE">Hessen</option>
-            <option value="MV">Mecklenburg-Vorpommern</option>
-            <option value="NI">Niedersachsen</option>
-            <option value="NW" selected>Nordrhein-Westfalen</option>
-            <option value="RP">Rheinland-Pfalz</option>
-            <option value="SL">Saarland</option>
-            <option value="SN">Sachsen</option>
-            <option value="ST">Sachsen-Anhalt</option>
-            <option value="SH">Schleswig-Holstein</option>
-            <option value="TH">Thüringen</option>
-          </select>
+          <label for="versicherungsmonate">Versicherungspflichtige Monate</label>
+          <input type="number" id="versicherungsmonate" min="0" max="60" value="24" step="1" />
         </div>
         <div class="calc-group">
-          <label for="arbeitszeit">Arbeitszeit</label>
-          <select id="arbeitszeit">
-            <option value="100">Vollzeit (100%)</option>
-            <option value="75">3/4-Stelle (75%)</option>
-            <option value="50">Teilzeit (50%)</option>
-            <option value="50">Minijob (450 €)</option>
-          </select>
+          <label for="alter">Alter bei Beginn der Arbeitslosigkeit</label>
+          <input type="number" id="alter" min="15" max="67" value="40" step="1" />
         </div>
         <div class="calc-group" style="display:flex;align-items:center;padding-top:1.5rem;">
           <label style="display:flex;align-items:center;gap:0.5rem;font-weight:400;cursor:pointer;">
             <input type="checkbox" id="kind" style="width:auto;" />
-            Kind/Kinder im Haushalt (67%-Satz)
-          </label>
-        </div>
-        <div class="calc-group" style="display:flex;align-items:center;padding-top:1rem;">
-          <label style="display:flex;align-items:center;gap:0.5rem;font-weight:400;cursor:pointer;">
-            <input type="checkbox" id="kinderlos" style="width:auto;" />
-            Kinderlos (2,7% PV statt 2,4%)
+            Mindestens ein Kind (67 %-Satz)
           </label>
         </div>
       </div>
@@ -105,44 +104,68 @@ const year = new Date().getFullYear();
     title="So funktioniert Arbeitslosengeld (ALG I)"
     content={`<p><strong>Arbeitslosengeld (ALG I)</strong> ist eine Versicherungsleistung für Personen, die arbeitslos geworden sind und die Anspruchsvoraussetzungen erfüllen. Es ersetzt teilweise das bisherige Arbeitseinkommen und soll Übergangszahlungen während der Jobsuche leisten.</p>
 
-<p><strong>Der Leistungssatz:</strong>
+<h4>So wird gerechnet (§§ 149, 151, 153 SGB III)</h4>
+<p>Das Arbeitslosengeld bemisst sich nicht am letzten Netto der Gehaltsabrechnung, sondern am <strong>pauschalierten Nettoentgelt</strong>. Der Weg dorthin hat drei Schritte:</p>
 <ul>
-  <li>60% des letzten Nettoeinkommens (ohne Kinder)</li>
-  <li>67% des letzten Nettoeinkommens (mit Kindern)</li>
+  <li><strong>Bemessungsentgelt (§ 151 SGB III):</strong> das durchschnittlich auf den Kalendertag entfallende beitragspflichtige Bruttoentgelt im Bemessungszeitraum. Beitragspflichtig heißt: Entgelt oberhalb der Beitragsbemessungsgrenze von ${euro(BBG_RV_AV_MONAT)} im Monat bleibt außer Betracht.</li>
+  <li><strong>Leistungsentgelt (§ 153 SGB III):</strong> davon abgezogen werden eine Sozialversicherungspauschale von ${prozent(SOZIALVERSICHERUNGSPAUSCHALE)}, die Lohnsteuer nach Ihrer Steuerklasse und der Solidaritätszuschlag.</li>
+  <li><strong>Leistungssatz (§ 149 SGB III):</strong> ${prozent(LEISTUNGSSATZ_ERHOEHT)} für Arbeitslose mit mindestens einem Kind im Sinne des § 32 Abs. 1, 3 bis 5 EStG, sonst ${prozent(LEISTUNGSSATZ)}.</li>
 </ul>
-</p>
+<p>Gezahlt wird für Kalendertage; ein voller Kalendermonat zählt dabei ${TAGE_JE_MONAT} Tage (§ 154 SGB III). Das pauschalierte Nettoentgelt weicht bewusst vom tatsächlichen Netto ab: Die Sozialversicherungspauschale ist ein fester Prozentsatz, und die Kirchensteuer bleibt außer Betracht.</p>
 
-<p><strong>Dauer des Bezugs:</strong> Abhängig von Alter und Beitragsjahren. Grundsätzlich: 12 Monate für 24 Monate Versicherungszeit, 6 Monate für 12 Monate Versicherungszeit, 24 Monate für über 50-Jährige mit 48 Monaten Versicherung.</p>
+<h4>Dauer des Anspruchs (§ 147 Abs. 2 SGB III)</h4>
+<p>Die Dauer richtet sich nach der Versicherungszeit innerhalb der um 30 Monate erweiterten Rahmenfrist und nach dem bei Entstehung des Anspruchs vollendeten Lebensalter. Die längeren Stufen setzen beides voraus:</p>
+<table>
+<thead><tr><th>Versicherungspflichtverhältnisse von mindestens</th><th>nach Vollendung des</th><th>Anspruchsdauer</th></tr></thead>
+<tbody>
+${anspruchsdauerZeilen}
+</tbody>
+</table>
+<p>Bei kurzer Anwartschaftszeit nach § 142 Abs. 2 SGB III gilt unabhängig vom Lebensalter eine eigene Staffel: ${kurzeAnwartschaftText}.</p>
 
-<p><strong>Wichtig:</strong> ALG I ist nicht das gleiche wie Hartz IV (Grundsicherung). ALG I setzt eine bestimmte Versicherungszeit voraus und wird zeitlich begrenzt gezahlt. Danach kann unter bestimmten Bedingungen ALG II (Grundsicherung) folgen.</p>
+<h4>Was dieser Rechner nicht abbildet</h4>
+<p>Nicht berücksichtigt sind die fiktive Bemessung nach § 152 SGB III (wenn sich kein Bemessungszeitraum von mindestens 150 Tagen feststellen lässt), das Ruhen des Anspruchs bei einer Entlassungsentschädigung (§ 158 SGB III) oder einer Sperrzeit (§ 159 SGB III) sowie die Anrechnung von Nebeneinkommen (§ 155 SGB III). Verbindlich ist der Bescheid der Agentur für Arbeit.</p>
 
-<p><strong>Tipp:</strong> Eine frühzeitige Arbeitslosmeldung (nicht erst ab Tag 1 Arbeitslosigkeit) ist wichtig. Die Agentur für Arbeit muss mit dem Antrag auf ALG I beauftragt sein.</p>`}
+<p><strong>Wichtig:</strong> Arbeitslosengeld ist eine Versicherungsleistung und etwas anderes als das Grundsicherungsgeld nach dem SGB II. Es setzt eine Versicherungszeit voraus und wird zeitlich begrenzt gezahlt. Läuft der Anspruch aus, kann bei Bedürftigkeit Grundsicherungsgeld folgen.</p>
+
+<p><strong>Tipp:</strong> Melden Sie sich frühzeitig arbeitsuchend – spätestens drei Monate vor dem Ende des Arbeitsverhältnisses, und innerhalb von drei Tagen, wenn Sie später davon erfahren (§ 38 Abs. 1 SGB III). Arbeitslosengeld wird zudem erst ab dem Tag der persönlichen Arbeitslosmeldung gezahlt (§ 137 Abs. 1 Nr. 2 SGB III).</p>`}
     relatedSlugs={['brutto-netto-rechner', 'mindestlohn-rechner', 'gehaltserhoehung-rechner']}
   />
 </Layout>
 
 <script type="module">
-const { berechneALG } = await import(window.__base + 'scripts/arbeitslosengeld.js');
+const { berechneArbeitslosengeld } = await import(window.__base + 'scripts/arbeitslosengeld.js');
 function fmt(n) { return n.toLocaleString('de-DE', {minimumFractionDigits:2, maximumFractionDigits:2}) + ' €'; }
 function berechne() {
-  const brutto = parseFloat(document.getElementById('brutto').value)||3500;
-  const stklasse = document.getElementById('stklasse').value;
-  const bundesland = document.getElementById('bundesland').value;
-  const arbeitszeit = parseFloat(document.getElementById('arbeitszeit').value)||100;
+  const bruttoMonat = parseFloat(document.getElementById('brutto').value)||0;
+  const steuerklasse = parseInt(document.getElementById('stklasse').value, 10);
+  const versicherungsmonate = parseInt(document.getElementById('versicherungsmonate').value, 10)||0;
+  const alter = parseInt(document.getElementById('alter').value, 10)||0;
   const hatKind = document.getElementById('kind').checked;
-  const kinderlos = document.getElementById('kinderlos').checked;
-  const r = berechneALG({ bruttoMonat: brutto, steuerklasse: stklasse, bundesland, arbeitszeit, hatKind, kinderlos });
-  document.getElementById('alg').textContent = fmt(r.alg);
-  document.getElementById('details').innerHTML =
-    `<span>Bemessungsentgelt: <strong>${fmt(r.bemessungsentgelt)}</strong></span>` +
-    `<span>SV-Anteile: <strong>${fmt(r.svGesamt)}</strong></span>` +
-    `<span>Leistungssatz: <strong>${r.satz.toFixed(0)} %</strong></span>`;
+  const r = berechneArbeitslosengeld({ bruttoMonat, steuerklasse, hatKind, versicherungsmonate, alter });
+
+  document.getElementById('alg').textContent = fmt(r.arbeitslosengeldMonat);
+  const zeilen = [
+    `<span>Je Kalendertag: <strong>${fmt(r.arbeitslosengeldTag)}</strong></span>`,
+    `<span>Bemessungsentgelt je Tag: <strong>${fmt(r.bemessungsentgeltTag)}</strong></span>`,
+    `<span>Leistungsentgelt je Tag: <strong>${fmt(r.leistungsentgeltTag)}</strong></span>`,
+    `<span>Leistungssatz: <strong>${(r.leistungssatz * 100).toFixed(0)} %</strong></span>`,
+  ];
+  if (r.anspruchsdauerMonate > 0) {
+    zeilen.push(`<span>Anspruchsdauer: <strong>${r.anspruchsdauerMonate} Monate</strong></span>`);
+    zeilen.push(`<span>Gesamtanspruch: <strong>${fmt(r.gesamtanspruch)}</strong></span>`);
+  } else {
+    zeilen.push('<span style="color:#c8102e">Mit dieser Versicherungszeit besteht kein Anspruch (§ 147 Abs. 2 SGB III verlangt mindestens 12 Monate).</span>');
+  }
+  if (r.beitragsbemessungsgrenzeErreicht) {
+    zeilen.push('<span style="color:#888">Das Entgelt über der Beitragsbemessungsgrenze bleibt außer Betracht (§ 151 Abs. 1 SGB III).</span>');
+  }
+  document.getElementById('details').innerHTML = zeilen.join('');
 }
-['brutto','stklasse','bundesland','arbeitszeit'].forEach(id =>
-  document.getElementById(id).addEventListener('input', berechne));
-['stklasse','bundesland','arbeitszeit'].forEach(id =>
-  document.getElementById(id).addEventListener('change', berechne));
-['kind','kinderlos'].forEach(id =>
-  document.getElementById(id).addEventListener('change', berechne));
+['brutto','versicherungsmonate','alter','stklasse','kind'].forEach(id => {
+  const el = document.getElementById(id);
+  el.addEventListener('input', berechne);
+  el.addEventListener('change', berechne);
+});
 berechne();
 </script>
