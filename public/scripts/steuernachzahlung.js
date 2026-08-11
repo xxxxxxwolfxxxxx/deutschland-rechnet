@@ -1,59 +1,131 @@
-const GRUNDFREIBETRAG = 11604;
-const WERBUNGSPAUSCHALE = 1230;
-const VORSORGEPAUSCHALE = 0.09;
+// Steuernachzahlung oder Erstattung
+//
+// Rechtsstand: 2026-01-01
+// Rechtsgrundlagen:
+// - § 39b Abs. 2 EStG   einbehaltene Lohnsteuer
+// - § 32a Abs. 1 und 5   Grund- und Splittingtarif der Veranlagung
+// - § 9a, § 10c, § 24b EStG   Pauschbeträge
+// - §§ 3, 4 SolzG 1995   Solidaritätszuschlag
+//
+// Eine Nachzahlung entsteht dort, wo die einbehaltene Lohnsteuer von der
+// tatsächlich geschuldeten Jahressteuer abweicht. Das Modul rechnet deshalb
+// beides und bildet die Differenz.
+//
+// Was hier bis zum 11.08.2026 stand, war etwas anderes: Es gab die komplette
+// Jahressteuer als "Nachzahlung" aus (`nachzahlung = gesamteSteuer`), rechnete
+// mit dem Grundfreibetrag von 2024 und einem Tarif, dessen Formel den
+// Grundfreibetrag gar nicht abzog – bei 30.000 € zu versteuerndem Einkommen
+// kamen 12.506 € statt 4.217 € heraus. Die Steuerklassen-Faktoren, die es
+// berechnete, wurden nie verwendet.
+//
+// Grenze des Modells: Die Vorsorgeaufwendungen werden mit der Vorsorgepauschale
+// des § 39b Abs. 2 Satz 5 Nr. 3 EStG angesetzt, wie es § 39f Satz 3 EStG für
+// die Faktorermittlung vorsieht. Die Veranlagung setzt sie nach § 10 Abs. 1
+// Nr. 2, 3 und 3a EStG mit den dortigen Höchstbeträgen an; davon kann das
+// Ergebnis abweichen. Kinderfreibeträge und die Günstigerprüfung nach § 31 EStG
+// sind nicht abgebildet.
 
-function berechneEinkommensteuer(zuVersteuern) {
-  if (zuVersteuern <= 0) return 0;
-  let eSt = 0;
-  const y = zuVersteuern / 10000;
-  if (y <= 17.009) {
-    eSt = (922.98 * y + 1400) * y;
-  } else if (y <= 66.760) {
-    eSt = (181.19 * y + 2397) * y + 1025.38;
-  } else if (y <= 277.825) {
-    eSt = (0.42 * zuVersteuern - 10602.13);
-  } else {
-    eSt = 0.45 * zuVersteuern - 16599.53;
-  }
-  return Math.max(0, Math.round(eSt));
-}
+import { einkommensteuer } from './einkommensteuer.js';
+import {
+  jahreslohnsteuer,
+  vorsorgepauschale,
+  solidaritaetszuschlag,
+  solidaritaetszuschlagJahr,
+  ARBEITNEHMER_PAUSCHBETRAG,
+  SONDERAUSGABEN_PAUSCHBETRAG,
+  ENTLASTUNGSBETRAG_ALLEINERZIEHENDE,
+  SOLI_FREIGRENZE,
+  SOLI_FREIGRENZE_SPLITTING,
+} from './lohnsteuer.js';
 
-function berechneSteuernachzahlung({ brutto, stklasse, stklasse2 = '0', werbung = 1000, sonder = 2000, kinder = 0 }) {
-  // Bis 11.08.2026 schlug dieses Modul unbedingt 8 % Kirchensteuer auf – für
-  // jeden Nutzer, unabhängig von Konfession und Bundesland, und mit einem Satz,
-  // den nur Bayern und Baden-Württemberg erheben. Der Rechner fragt die
-  // Kirchenzugehörigkeit gar nicht ab und darf sie deshalb nicht unterstellen.
-  // Wer sie braucht: kirchensteuer.js, Zuschlag auf die Lohnsteuer.
-  let arbeitslostenPauschale = Math.min(werbung, WERBUNGSPAUSCHALE);
-  let abzuege = arbeitslostenPauschale + sonder + GRUNDFREIBETRAG;
-  
-  const brutto2 = stklasse2 !== '0' ? brutto * 0.5 : 0;
-  const bruttoPartner = stklasse2 !== '0' ? brutto * 0.5 : 0;
-  
-  const zuVersteuern = Math.max(0, brutto - abzuege);
-  const jahresSteuer = berechneEinkommensteuer(zuVersteuern);
-  
-  const zuVersteuern2 = stklasse2 !== '0' ? Math.max(0, bruttoPartner - (GRUNDFREIBETRAG + WERBUNGSPAUSCHALE + sonder/2)) : 0;
-  const jahresSteuer2 = stklasse2 !== '0' ? berechneEinkommensteuer(zuVersteuern2) : 0;
-  
-  const gesamteSteuer = jahresSteuer + jahresSteuer2;
-  
-  const stklFaktor = { I: 0.68, II: 0.72, III: 0.78, IV: 0.68, V: 0.58, VI: 0.55 };
-  const faktor = stklFaktor[stklasse] || 0.68;
-  const faktor2 = stklasse2 !== '0' ? (stklFaktor[stklasse2] || 0.68) : 0;
-  
-  const voraussichtlicheAbgaben = brutto * (0.2 + VORSORGEPAUSCHALE) + (brutto2 * (0.2 + VORSORGEPAUSCHALE));
-  const freibetraege = GRUNDFREIBETRAG + arbeitslostenPauschale + sonder;
-  
-  const nachzahlung = gesamteSteuer;
-  
+/**
+ * Nachzahlung oder Erstattung nach der Einkommensteuererklärung.
+ *
+ * @param {object} eingabe
+ * @param {number} eingabe.bruttoJahr Jahresarbeitslohn, in Euro
+ * @param {number} eingabe.steuerklasse 1 bis 6
+ * @param {number} [eingabe.partnerBruttoJahr] Jahresarbeitslohn des Partners; 0 = keine Zusammenveranlagung
+ * @param {number} [eingabe.partnerSteuerklasse] Steuerklasse des Partners; 0 = kein Partner
+ * @param {number} [eingabe.werbungskosten] nachgewiesene Werbungskosten, in Euro
+ * @param {number} [eingabe.sonderausgaben] nachgewiesene Sonderausgaben ohne Vorsorgeaufwendungen, in Euro
+ * @param {number} [eingabe.kinder] Kinder unter 25 Jahren, für die Pflegeversicherung
+ * @param {number} [eingabe.zusatzbeitrag] Zusatzbeitragssatz der Krankenkasse
+ */
+export function berechneSteuernachzahlung({
+  bruttoJahr,
+  steuerklasse,
+  partnerBruttoJahr = 0,
+  partnerSteuerklasse = 0,
+  werbungskosten = 0,
+  sonderausgaben = 0,
+  kinder = 0,
+  zusatzbeitrag,
+}) {
+  const lohn = betrag(bruttoJahr);
+  const partnerLohn = partnerSteuerklasse ? betrag(partnerBruttoJahr) : 0;
+  const zusammen = Boolean(partnerSteuerklasse);
+
+  // Einbehalten: Lohnsteuer und Solidaritätszuschlag beider Partner.
+  const eigen = einbehalt(lohn, steuerklasse, kinder, zusatzbeitrag);
+  const partner = zusammen ? einbehalt(partnerLohn, partnerSteuerklasse, kinder, zusatzbeitrag) : leer();
+  const einbehalten = runde(eigen.gesamt + partner.gesamt);
+
+  // Geschuldet: Einkommensteuer auf das zu versteuernde Einkommen.
+  // Werbungskosten und Sonderausgaben wirken nur, soweit sie den jeweiligen
+  // Pauschbetrag übersteigen – darunter gilt ohnehin die Pauschale.
+  const eigenZvE = zuVersteuerndesEinkommen(lohn, steuerklasse, kinder, werbungskosten, sonderausgaben, zusatzbeitrag);
+  const partnerZvE = zusammen
+    ? zuVersteuerndesEinkommen(partnerLohn, partnerSteuerklasse, kinder, 0, 0, zusatzbeitrag)
+    : 0;
+  const zvE = eigenZvE + partnerZvE;
+
+  const steuer = zusammen ? 2 * einkommensteuer(zvE / 2) : einkommensteuer(zvE);
+  const soli = solidaritaetszuschlag(steuer, zusammen ? SOLI_FREIGRENZE_SPLITTING : SOLI_FREIGRENZE);
+  const jahressteuer = runde(steuer + soli);
+
+  // Positiv bedeutet: Es wurde mehr einbehalten als geschuldet.
+  const differenz = runde(einbehalten - jahressteuer);
+
   return {
-    nachzahlung: Math.round(nachzahlung * 100) / 100,
-    jahresSteuer: Math.round(gesamteSteuer * 100) / 100,
-    abgaben: Math.round(voraussichtlicheAbgaben * 100) / 100,
-    freibetraege: Math.round(freibetraege * 100) / 100,
-    pauschbetrag: Math.round(arbeitslostenPauschale * 100) / 100,
+    differenz,
+    erstattung: Math.max(0, differenz),
+    nachzahlung: Math.max(0, -differenz),
+    einbehalten,
+    einbehaltenLohnsteuer: runde(eigen.lohnsteuer + partner.lohnsteuer),
+    einbehaltenSoli: runde(eigen.soli + partner.soli),
+    jahressteuer,
+    einkommensteuer: steuer,
+    soli,
+    zuVersteuerndesEinkommen: runde(zvE),
+    zusammenveranlagung: zusammen,
   };
 }
 
-export { berechneSteuernachzahlung };
+function einbehalt(lohn, steuerklasse, kinder, zusatzbeitrag) {
+  const lohnsteuer = jahreslohnsteuer({ jahresarbeitslohn: lohn, steuerklasse, kinder, zusatzbeitrag });
+  const soli = solidaritaetszuschlagJahr(lohnsteuer, steuerklasse);
+  return { lohnsteuer, soli, gesamt: runde(lohnsteuer + soli) };
+}
+
+function leer() {
+  return { lohnsteuer: 0, soli: 0, gesamt: 0 };
+}
+
+function zuVersteuerndesEinkommen(lohn, steuerklasse, kinder, werbungskosten, sonderausgaben, zusatzbeitrag) {
+  if (lohn <= 0) return 0;
+
+  const werbung = Math.max(betrag(werbungskosten), ARBEITNEHMER_PAUSCHBETRAG);
+  const sonder = Math.max(betrag(sonderausgaben), SONDERAUSGABEN_PAUSCHBETRAG);
+  const vorsorge = vorsorgepauschale({ jahresarbeitslohn: lohn, steuerklasse, kinder, zusatzbeitrag });
+  const entlastung = steuerklasse === 2 ? ENTLASTUNGSBETRAG_ALLEINERZIEHENDE : 0;
+
+  return Math.max(0, lohn - werbung - sonder - vorsorge - entlastung);
+}
+
+function betrag(wert) {
+  return Number.isFinite(wert) ? Math.max(0, wert) : 0;
+}
+
+function runde(wert) {
+  return Math.round(wert * 100) / 100;
+}
