@@ -71,6 +71,19 @@ export const PFLEGE_SONDERWEG = 'SN';
 const PFLEGE_ABSCHLAG_MAX_KINDER = 5;
 
 /**
+ * Arbeitnehmeranteil aus dem Grundbeitragssatz des § 55 Abs. 1 Satz 1 SGB XI.
+ *
+ * Also ohne den Zuschlag für Kinderlose und ohne die Abschläge ab dem zweiten
+ * Kind. Das pauschalierte Nettoentgelt für Kurzarbeiter- und Arbeitslosengeld
+ * rechnet nach § 153 Abs. 1 Satz 4 Nr. 3 SGB III mit genau diesem Satz, während
+ * der Lohnsteuerabzug nach § 39b Abs. 2 Satz 5 Nr. 3c EStG Zuschlag und
+ * Abschläge sehr wohl berücksichtigt.
+ */
+export const PFLEGE_ARBEITNEHMER_GRUNDSATZ = runde6(
+  BEITRAGSSAETZE.pflegeversicherung - PFLEGE_ARBEITGEBERANTEIL
+);
+
+/**
  * Arbeitnehmeranteil zur Krankenversicherung.
  *
  * Die Hälfte des allgemeinen Beitragssatzes plus die Hälfte des

@@ -3,13 +3,47 @@ import Layout from '../../layouts/Layout.astro';
 import CalculatorShell from '../../components/CalculatorShell.astro';
 import CalculatorGuide from '../../components/CalculatorGuide.astro';
 import { CALCULATORS, CATEGORIES } from '../../data/calculators';
+import {
+  berechneKurzarbeitergeld,
+  LEISTUNGSSATZ,
+  LEISTUNGSSATZ_ERHOEHT,
+  SOZIALVERSICHERUNGSPAUSCHALE,
+  RUNDUNGSSTUFE,
+  BEZUGSDAUER_MONATE,
+  BEZUGSDAUER_MONATE_VERLAENGERT,
+  BEZUGSDAUER_VERLAENGERUNG_BIS,
+  MINDESTANTEIL_BETROFFENE,
+  MINDEST_ENTGELTAUSFALL,
+} from '../../../public/scripts/kurzarbeitergeld.js';
+
 const calc = CALCULATORS.find(c => c.slug === 'kurzarbeitergeld-rechner')!;
 const cat = CATEGORIES[calc.category];
 const year = new Date().getFullYear();
+
+const euro = (n: number) => n.toLocaleString('de-DE', { minimumFractionDigits: 0, maximumFractionDigits: 0 }) + ' Euro';
+const prozent = (n: number) => (n * 100).toLocaleString('de-DE', { maximumFractionDigits: 1 }) + ' %';
+
+// Die Beispieltabelle wird aus demselben Modul erzeugt wie der Rechner. Vorher
+// standen dort frei gewählte Nettobeträge, die zu keiner Rechnung passten.
+const BEISPIEL_BRUTTO = [2500, 3000, 3500, 5000, 7000];
+const beispiele = BEISPIEL_BRUTTO.map(brutto => {
+  const ohneKind = berechneKurzarbeitergeld({ sollEntgelt: brutto, ausfallProzent: 100, steuerklasse: 1 });
+  const mitKind = berechneKurzarbeitergeld({ sollEntgelt: brutto, ausfallProzent: 100, steuerklasse: 1, hatKind: true });
+  return { ohneKind, mitKind };
+});
+
+const beispielZeilen = beispiele.map(({ ohneKind, mitKind }) => `
+          <tr>
+            <td>${euro(ohneKind.sollEntgelt)}</td>
+            <td>${euro(ohneKind.sollNetto)}</td>
+            <td>${euro(ohneKind.kurzarbeitergeld)}</td>
+            <td>${euro(mitKind.kurzarbeitergeld)}</td>
+            <td>${euro(ohneKind.verlust)}</td>
+          </tr>`).join('');
 ---
 <Layout
   title={`Kurzarbeitergeld-Rechner ${year}`}
-  description="Kurzarbeitergeld 2025 berechnen: 60 % (ohne Kind) oder 67 % (mit Kind) des Netto-Entgeltausfalls nach SGB III. Rechner mit Steuerklasse, Arbeitsausfall und Gesamtnetto-Vorschau."
+  description={`Kurzarbeitergeld ${year} berechnen: 60 % (ohne Kind) oder 67 % (mit Kind) der Nettoentgeltdifferenz nach §§ 105, 106 SGB III. Rechner mit pauschaliertem Nettoentgelt nach § 153 SGB III, Steuerklasse und Arbeitsausfall.`}
   canonicalPath="/geld/kurzarbeitergeld-rechner/"
   categoryColor={cat.color}
   categoryLight={cat.colorLight}
@@ -22,13 +56,13 @@ const year = new Date().getFullYear();
   <CalculatorShell
     calculator={calc}
     intro="Mit dem Kurzarbeitergeld-Rechner berechnen Sie die Höhe Ihres Kurzarbeitergeldes bei reduzierter Arbeitszeit. Erfahren Sie, wie viel Geld Sie bei teilweisem oder vollständigem Arbeitsausfall erhalten."
-    sourceNote="Berechnung nach SGB III."
-    explanation="Kurzarbeitergeld beträgt 60% des ausgefallenen Nettoentgelts bzw. 67% mit Kindern (§ 105 SGB III). Der Arbeitgeber beantragt die Kurzarbeit bei der Agentur für Arbeit. Voraussetzung ist ein erheblicher Arbeitsausfall von mindestens 10% der Belegschaft."
+    sourceNote={`Berechnung nach §§ 105, 106 und 153 SGB III. Rechtsstand ${year}.`}
+    explanation={`Kurzarbeitergeld beträgt ${prozent(LEISTUNGSSATZ)} der Nettoentgeltdifferenz, mit Kind ${prozent(LEISTUNGSSATZ_ERHOEHT)} (§ 105 SGB III). Die Nettoentgeltdifferenz ist der Abstand zwischen dem pauschalierten Nettoentgelt aus dem Soll-Entgelt und dem aus dem Ist-Entgelt (§ 106 SGB III) – nicht ein fester Anteil des Bruttolohns. Der Arbeitgeber zeigt die Kurzarbeit bei der Agentur für Arbeit an. Der Arbeitsausfall ist nur erheblich, wenn im Kalendermonat mindestens ein Drittel der Beschäftigten von einem Entgeltausfall von jeweils mehr als ${prozent(MINDEST_ENTGELTAUSFALL)} betroffen ist (§ 96 Abs. 1 Satz 1 Nr. 4 SGB III).`}
     faqs={[
-      { q: "Wie lange bekomme ich Kurzarbeitergeld?", a: "Bis zu 12 Monate, maximal 24 Monate bei besonderem wirtschaftlichem Bedarf." },
-      { q: "Wann habe ich Anspruch auf Kurzarbeitergeld?", a: "Bei mindestens 10% Arbeitsausfall und wenn die Betriebsorganisation der Arbeitsagentur das anzeigt." },
-      { q: "Wird Kurzarbeitergeld auf Hartz IV angerechnet?", a: "Ja, es wird als Einkommen angerechnet. Allerdings gibt es Freibeträge, sodass eine vollständige Anrechnung oft nicht erfolgt." },
-      { q: "Wie berechnet sich das Kurzarbeitergeld genau?", a: "60% des Netto-Entgeltverlusters (67% mit Kindern). Der Entgeltausfall ist der Unterschied zwischen dem Netto ohne und mit Kurzarbeit. Steuerklasse und Kinderlose beeinflussen die Nettocalculation." },
+      { q: "Wie lange bekomme ich Kurzarbeitergeld?", a: `Die gesetzliche Bezugsdauer beträgt längstens ${BEZUGSDAUER_MONATE} Monate (§ 104 Abs. 1 Satz 1 SGB III). Die Vierte Kurzarbeitergeldbezugsdauerverordnung verlängert sie auf bis zu ${BEZUGSDAUER_MONATE_VERLAENGERT} Monate, längstens bis zum 31.12.2026. Wird innerhalb der Bezugsdauer mindestens einen Monat lang kein Kurzarbeitergeld gezahlt, verlängert sich die Dauer um diesen Zeitraum (§ 104 Abs. 2 SGB III).` },
+      { q: "Wann habe ich Anspruch auf Kurzarbeitergeld?", a: "Der Arbeitsausfall muss auf wirtschaftlichen Gründen oder einem unabwendbaren Ereignis beruhen, vorübergehend und nicht vermeidbar sein. Zusätzlich muss im jeweiligen Kalendermonat mindestens ein Drittel der Beschäftigten von einem Entgeltausfall von jeweils mehr als 10 Prozent betroffen sein (§ 96 Abs. 1 Satz 1 SGB III). Auszubildende zählen dabei nicht mit. Der Arbeitgeber muss den Arbeitsausfall bei der Agentur für Arbeit anzeigen." },
+      { q: "Wird Kurzarbeitergeld auf das Bürgergeld angerechnet?", a: "Ja, Kurzarbeitergeld ist Einkommen im Sinne des § 11 SGB II und wird auf das Bürgergeld angerechnet. Es gelten aber die Absetzbeträge nach § 11b SGB II, sodass in der Regel nicht der volle Betrag angerechnet wird. Wenn das Kurzarbeitergeld den Bedarf nicht deckt, sind aufstockende Leistungen möglich." },
+      { q: "Wie berechnet sich das Kurzarbeitergeld genau?", a: `Aus dem Soll-Entgelt (Brutto ohne Arbeitsausfall) und dem Ist-Entgelt (tatsächliches Brutto) wird je ein pauschaliertes Nettoentgelt gebildet: abgezogen werden eine Sozialversicherungspauschale von ${prozent(SOZIALVERSICHERUNGSPAUSCHALE)}, die Lohnsteuer und der Solidaritätszuschlag (§ 153 SGB III). Die Differenz beider Beträge ist die Nettoentgeltdifferenz, davon ${prozent(LEISTUNGSSATZ)} bzw. ${prozent(LEISTUNGSSATZ_ERHOEHT)}. Weil die Lohnsteuer progressiv ist, ist das Kurzarbeitergeld bei halbem Arbeitsausfall weniger als halb so hoch wie bei vollem.` },
       { q: "Muss der Arbeitgeber weiterhin Sozialversicherungsbeiträge zahlen?", a: "Ja, der Arbeitgeber zahlt weiterhin Sozialversicherungsbeiträge (Krankenversicherung, Rentenversicherung, etc.) auf Ihr Kurzarbeitergeld. Das ist ein Vorteil gegenüber Arbeitslosigkeit." },
       { q: "Muss ich Kurzarbeitergeld in der Steuererklärung angeben?", a: "Ja. Kurzarbeitergeld ist zwar steuerfrei, unterliegt aber dem Progressionsvorbehalt. Das bedeutet: Es erhöht den Steuersatz auf Ihr übriges Einkommen. Ab 410 Euro KuG im Jahr sind Sie zur Abgabe einer Steuererklärung verpflichtet. Oft kommt es zu einer Nachzahlung von einigen hundert Euro." },
       { q: "Darf ich während der Kurzarbeit einen Nebenjob annehmen?", a: "Ja, unter bestimmten Bedingungen. Ein Nebenjob, der bereits vor der Kurzarbeit bestand, wird nicht angerechnet. Ein neuer Nebenjob wird auf das KuG angerechnet, sofern das Gesamteinkommen (Kurzarbeits-Entgelt + Nebenverdienst) das frühere Netto übersteigt. Der Arbeitgeber muss dem Nebenjob zustimmen." },
@@ -38,7 +72,7 @@ const year = new Date().getFullYear();
     <div class="calc-form">
       <div class="calc-grid">
         <div class="calc-group">
-          <label for="brutto">Bruttogehalt (€/Monat)</label>
+          <label for="brutto">Soll-Entgelt brutto (€/Monat)</label>
           <input type="number" id="brutto" min="500" max="20000" value="3500" step="50" />
         </div>
         <div class="calc-group">
@@ -48,18 +82,18 @@ const year = new Date().getFullYear();
         <div class="calc-group">
           <label for="stklasse">Steuerklasse</label>
           <select id="stklasse">
-            <option value="I">I</option>
-            <option value="II">II</option>
-            <option value="III">III</option>
-            <option value="IV">IV</option>
-            <option value="V">V</option>
-            <option value="VI">VI</option>
+            <option value="1">I</option>
+            <option value="2">II</option>
+            <option value="3">III</option>
+            <option value="4">IV</option>
+            <option value="5">V</option>
+            <option value="6">VI</option>
           </select>
         </div>
         <div class="calc-group" style="display:flex;align-items:center;padding-top:1.5rem;">
           <label style="display:flex;align-items:center;gap:0.5rem;font-weight:400;cursor:pointer;">
             <input type="checkbox" id="kind" style="width:auto;" />
-            Kind im Haushalt (67%-Satz)
+            Mindestens ein Kind ({prozent(LEISTUNGSSATZ_ERHOEHT)})
           </label>
         </div>
       </div>
@@ -103,15 +137,18 @@ const year = new Date().getFullYear();
 const { berechneKurzarbeitergeld } = await import(window.__base + 'scripts/kurzarbeitergeld.js');
 function fmt(n) { return n.toLocaleString('de-DE', {minimumFractionDigits:2, maximumFractionDigits:2}) + ' €'; }
 function berechne() {
-  const bruttoMonat = parseFloat(document.getElementById('brutto').value)||3500;
-  const steuerklasse = document.getElementById('stklasse').value;
+  const sollEntgelt = parseFloat(document.getElementById('brutto').value)||3500;
+  const steuerklasse = parseInt(document.getElementById('stklasse').value, 10);
   const hatKind = document.getElementById('kind').checked;
   const ausfallProzent = parseFloat(document.getElementById('ausfall').value)||100;
-  const r = berechneKurzarbeitergeld({ bruttoMonat, steuerklasse, hatKind, ausfallProzent });
-  document.getElementById('kug').textContent = fmt(r.kug);
+  const r = berechneKurzarbeitergeld({ sollEntgelt, steuerklasse, hatKind, ausfallProzent });
+  document.getElementById('kug').textContent = fmt(r.kurzarbeitergeld);
   document.getElementById('details').innerHTML =
-    `<span>Netto ohne Kurzarbeit: <strong>${fmt(r.sollNetto)}</strong></span>` +
-    `<span>Netto aus Arbeit: <strong>${fmt(r.istNetto)}</strong></span>` +
+    `<span>Soll-Entgelt (gerundet): <strong>${fmt(r.sollEntgelt)}</strong></span>` +
+    `<span>Ist-Entgelt (gerundet): <strong>${fmt(r.istEntgelt)}</strong></span>` +
+    `<span>Pauschaliertes Netto ohne Kurzarbeit: <strong>${fmt(r.sollNetto)}</strong></span>` +
+    `<span>Pauschaliertes Netto aus Arbeit: <strong>${fmt(r.istNetto)}</strong></span>` +
+    `<span>Nettoentgeltdifferenz: <strong>${fmt(r.nettoentgeltdifferenz)}</strong></span>` +
     `<span>Gesamtnetto: <strong>${fmt(r.gesamtNetto)}</strong></span>` +
     `<span>Einkommensverlust: <strong style="color:#c8102e">${fmt(r.verlust)}</strong></span>` +
     `<span>Leistungssatz: <strong>${(r.leistungssatz * 100).toFixed(0)} %</strong></span>`;
@@ -137,55 +174,54 @@ berechne();
     content={`
       <p><strong>Kurzarbeitergeld (KuG)</strong> ist eine Sozialleistung der Bundesagentur für Arbeit in Deutschland. Es schützt Arbeitnehmer, wenn der Arbeitgeber aus wirtschaftlichen oder unvorhergesehenen Gründen die Arbeitszeit reduzieren muss. Statt Kündigung erhalten Sie einen Leistungszuschuss, der einen Teil des Einkommensverlusts auffängt.</p>
 
-      <h4>Kurzarbeitergeld auf einen Blick (2025)</h4>
+      <h4>Kurzarbeitergeld auf einen Blick (Rechtsstand ${year})</h4>
       <table>
         <thead>
-          <tr><th>Merkmal</th><th>Regelung</th></tr>
+          <tr><th>Merkmal</th><th>Regelung</th><th>Rechtsgrundlage</th></tr>
         </thead>
         <tbody>
-          <tr><td>Leistungssatz ohne Kind</td><td>60 % des Netto-Entgeltausfalls</td></tr>
-          <tr><td>Leistungssatz mit Kind</td><td>67 % des Netto-Entgeltausfalls</td></tr>
-          <tr><td>Maximale Bezugsdauer</td><td>12 Monate (bis 24 Monate bei Verordnung)</td></tr>
-          <tr><td>Mindest-Arbeitsausfall</td><td>10 % der Belegschaft betroffen</td></tr>
-          <tr><td>Beitragsbemessungsgrenze (West)</td><td>7.550 Euro/Monat (2025)</td></tr>
-          <tr><td>Beitragsbemessungsgrenze (Ost)</td><td>7.550 Euro/Monat (2025, angeglichen)</td></tr>
-          <tr><td>Progressionsvorbehalt</td><td>Ja (Steuererklärung Pflicht ab 410 Euro/Jahr)</td></tr>
-          <tr><td>Sozialversicherung</td><td>Läuft weiter (AG zahlt Beiträge)</td></tr>
+          <tr><td>Leistungssatz ohne Kind</td><td>${prozent(LEISTUNGSSATZ)} der Nettoentgeltdifferenz</td><td>§ 105 Nr. 2 SGB III</td></tr>
+          <tr><td>Leistungssatz mit Kind</td><td>${prozent(LEISTUNGSSATZ_ERHOEHT)} der Nettoentgeltdifferenz</td><td>§ 105 Nr. 1 SGB III</td></tr>
+          <tr><td>Gesetzliche Bezugsdauer</td><td>${BEZUGSDAUER_MONATE} Monate</td><td>§ 104 Abs. 1 Satz 1 SGB III</td></tr>
+          <tr><td>Verlängerte Bezugsdauer</td><td>bis zu ${BEZUGSDAUER_MONATE_VERLAENGERT} Monate, längstens bis 31.12.2026</td><td>§ 1 der 4. KugBeV</td></tr>
+          <tr><td>Betroffene Beschäftigte</td><td>mindestens ein Drittel, je mit über ${prozent(MINDEST_ENTGELTAUSFALL)} Entgeltausfall</td><td>§ 96 Abs. 1 Satz 1 Nr. 4 SGB III</td></tr>
+          <tr><td>Sozialversicherungspauschale</td><td>${prozent(SOZIALVERSICHERUNGSPAUSCHALE)} des Entgelts</td><td>§ 153 Abs. 1 Satz 2 Nr. 1 SGB III</td></tr>
+          <tr><td>Rundung von Soll- und Ist-Entgelt</td><td>auf durch ${RUNDUNGSSTUFE} teilbare Euro-Beträge</td><td>§ 106 Abs. 1 Satz 5 SGB III</td></tr>
+          <tr><td>Progressionsvorbehalt</td><td>steuerfrei, erhöht aber den Steuersatz; Steuererklärungspflicht ab 410 Euro im Jahr</td><td>§ 32b Abs. 1 Satz 1 Nr. 1a EStG, § 46 Abs. 2 Nr. 1 EStG</td></tr>
         </tbody>
       </table>
 
-      <h4>Berechnungsbeispiele nach Bruttoeinkommen (100 % Arbeitsausfall, Steuerklasse I)</h4>
+      <h4>Berechnungsbeispiele bei vollem Arbeitsausfall (Steuerklasse I)</h4>
       <table>
         <thead>
-          <tr><th>Brutto/Monat</th><th>Netto (ca.)</th><th>KuG ohne Kind (60 %)</th><th>KuG mit Kind (67 %)</th><th>Einkommensverlust</th></tr>
+          <tr><th>Soll-Entgelt brutto</th><th>Pauschaliertes Netto</th><th>KuG ohne Kind (${prozent(LEISTUNGSSATZ)})</th><th>KuG mit Kind (${prozent(LEISTUNGSSATZ_ERHOEHT)})</th><th>Einkommensverlust</th></tr>
         </thead>
-        <tbody>
-          <tr><td>2.500 Euro</td><td>1.750 Euro</td><td>1.050 Euro</td><td>1.173 Euro</td><td>700-577 Euro</td></tr>
-          <tr><td>3.500 Euro</td><td>2.350 Euro</td><td>1.410 Euro</td><td>1.575 Euro</td><td>940-775 Euro</td></tr>
-          <tr><td>5.000 Euro</td><td>3.150 Euro</td><td>1.890 Euro</td><td>2.111 Euro</td><td>1.260-1.039 Euro</td></tr>
-          <tr><td>7.000 Euro</td><td>4.100 Euro</td><td>2.460 Euro</td><td>2.747 Euro</td><td>1.640-1.353 Euro</td></tr>
+        <tbody>${beispielZeilen}
         </tbody>
       </table>
-      <p><em>Werte gerundet, abhängig von Steuerklasse, Kirchensteuer und Bundesland. Nutzen Sie den Rechner oben für Ihre individuelle Berechnung.</em></p>
+      <p><em>Diese Tabelle wird aus demselben Rechenmodul erzeugt wie der Rechner oben. Das pauschalierte Nettoentgelt nach § 153 SGB III ist eine Rechengröße und nicht identisch mit dem Netto auf Ihrer Gehaltsabrechnung: Es zieht eine pauschale Sozialversicherung von ${prozent(SOZIALVERSICHERUNGSPAUSCHALE)} ab statt der tatsächlichen Beiträge und lässt die Kirchensteuer außer Betracht. Der Einkommensverlust ist der Abstand zwischen pauschaliertem Netto und Kurzarbeitergeld.</em></p>
 
       <h4>Voraussetzungen für Kurzarbeitergeld</h4>
       <ul>
-        <li><strong>Arbeitsausfall:</strong> Der Arbeitgeber muss einen wirtschaftlichen Grund vorweisen (Absatzrückgang, Produktionsstörung, Rohstoffmangel, etc.).</li>
-        <li><strong>Anzeige:</strong> Der Arbeitgeber muss die Kurzarbeit bei der Agentur für Arbeit anzeigen.</li>
-        <li><strong>Mindestausfallquote:</strong> Mindestens 10 % der Beschäftigten müssen von einem Entgeltausfall von mehr als 10 % betroffen sein.</li>
-        <li><strong>Sozialversicherungspflicht:</strong> Sie müssen sozialversicherungspflichtig beschäftigt sein (Minijobber sind ausgeschlossen).</li>
+        <li><strong>Erheblicher Arbeitsausfall:</strong> Er muss auf wirtschaftlichen Gründen oder einem unabwendbaren Ereignis beruhen, vorübergehend und nicht vermeidbar sein (§ 96 Abs. 1 Satz 1 Nr. 1 bis 3 SGB III).</li>
+        <li><strong>Mindestausfallquote:</strong> Im jeweiligen Kalendermonat muss mindestens ein Drittel der Beschäftigten von einem Entgeltausfall von jeweils mehr als 10 Prozent des monatlichen Bruttoentgelts betroffen sein. Auszubildende zählen nicht mit (§ 96 Abs. 1 Satz 1 Nr. 4 und Satz 2 SGB III).</li>
+        <li><strong>Vorrang von Urlaub und Arbeitszeitguthaben:</strong> Ein Arbeitsausfall gilt als vermeidbar, wenn er durch Erholungsurlaub oder zulässige Arbeitszeitschwankungen abgewendet werden kann (§ 96 Abs. 4 Satz 2 SGB III).</li>
+        <li><strong>Anzeige:</strong> Der Arbeitgeber muss den Arbeitsausfall bei der Agentur für Arbeit anzeigen.</li>
+        <li><strong>Sozialversicherungspflicht:</strong> Sie müssen versicherungspflichtig beschäftigt sein; Minijobber sind ausgeschlossen.</li>
       </ul>
 
       <h4>Wie wird Kurzarbeitergeld berechnet?</h4>
-      <p>Die Berechnung folgt der pauschalierten Nettoentgelttabelle der Bundesagentur für Arbeit:</p>
+      <p>Maßgeblich ist die Nettoentgeltdifferenz nach § 106 SGB III, nicht ein fester Anteil des Bruttolohns:</p>
       <ul>
-        <li><strong>Schritt 1:</strong> Pauschaliertes Netto aus dem Soll-Entgelt (volles Brutto) ermitteln</li>
-        <li><strong>Schritt 2:</strong> Pauschaliertes Netto aus dem Ist-Entgelt (reduziertes Brutto) ermitteln</li>
-        <li><strong>Schritt 3:</strong> Differenz = Netto-Entgeltausfall</li>
-        <li><strong>Schritt 4:</strong> KuG = Netto-Entgeltausfall x 60 % (bzw. 67 % mit Kind)</li>
+        <li><strong>Schritt 1:</strong> Soll-Entgelt bestimmen – das Brutto, das ohne den Arbeitsausfall angefallen wäre, vermindert um Entgelt für Mehrarbeit. Einmalzahlungen bleiben außer Betracht.</li>
+        <li><strong>Schritt 2:</strong> Ist-Entgelt bestimmen – das tatsächlich erzielte Brutto. Beide Beträge werden auf durch ${RUNDUNGSSTUFE} teilbare Euro-Beträge gerundet.</li>
+        <li><strong>Schritt 3:</strong> Aus beiden je ein pauschaliertes Nettoentgelt bilden: abzüglich ${prozent(SOZIALVERSICHERUNGSPAUSCHALE)} Sozialversicherungspauschale, Lohnsteuer und Solidaritätszuschlag (§ 153 SGB III).</li>
+        <li><strong>Schritt 4:</strong> Kurzarbeitergeld = Differenz der beiden Beträge × Leistungssatz.</li>
       </ul>
 
-      <p><strong>Formel:</strong> KuG = (Pauschal-Netto Soll - Pauschal-Netto Ist) x Leistungssatz</p>
+      <p><strong>Formel:</strong> KuG = (pauschaliertes Netto aus dem Soll-Entgelt − pauschaliertes Netto aus dem Ist-Entgelt) × Leistungssatz</p>
+
+      <p><strong>Warum das nicht proportional ist:</strong> Die Lohnsteuer steigt mit dem Einkommen überproportional. Wegfallendes Entgelt trifft deshalb zuerst die hoch besteuerten Entgeltteile. Bei halbem Arbeitsausfall fällt spürbar weniger als die Hälfte des Nettos weg – und damit auch weniger als das halbe Kurzarbeitergeld. Rechner, die mit einem festen Nettoanteil je Steuerklasse arbeiten, überschätzen das Kurzarbeitergeld bei Teilausfall deutlich.</p>
 
       <h4>Wichtige Hinweise</h4>
       <ul>
@@ -193,6 +229,7 @@ berechne();
         <li><strong>Progressionsvorbehalt:</strong> Kurzarbeitergeld ist steuerfrei, erhöht aber den Steuersatz auf das übrige Einkommen. Eine Steuererklärung ist Pflicht.</li>
         <li><strong>Nebenjob möglich:</strong> Ein vor der Kurzarbeit bestehender Nebenjob wird nicht angerechnet. Ein neuer Nebenjob wird auf das KuG angerechnet, wenn das Gesamteinkommen das frühere Netto übersteigt.</li>
         <li><strong>Kein Kündigungsschutz:</strong> Kurzarbeit schützt nicht absolut vor Kündigung, macht betriebsbedingte Kündigungen aber schwieriger durchsetzbar.</li>
+        <li><strong>Was dieser Rechner nicht abbildet:</strong> Entgelt für Mehrarbeit und Einmalzahlungen bleiben nach § 106 Abs. 1 Sätze 2 und 4 SGB III außer Betracht, Nebeneinkommen erhöht nach § 106 Abs. 3 SGB III das Ist-Entgelt. Geben Sie in diesen Fällen das bereits bereinigte Entgelt ein. Verbindlich ist allein der Bescheid der Agentur für Arbeit.</li>
       </ul>
     `}
     relatedSlugs={['kreditvergleich', 'trinkgeld-rechner']}

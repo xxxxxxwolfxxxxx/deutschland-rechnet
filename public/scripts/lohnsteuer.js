@@ -77,9 +77,12 @@ function pruefeSteuerklasse(steuerklasse) {
  * @param {number} eingabe.steuerklasse 1 bis 6
  * @param {number} eingabe.kinder Kinder unter 25 Jahren; 0 bedeutet kinderlos
  * @param {number} [eingabe.zusatzbeitrag] Zusatzbeitragssatz der Krankenkasse
+ * @param {number} [eingabe.pflegesatz] Arbeitnehmeranteil zur Pflegeversicherung;
+ *   ohne Angabe der kinderabhängige Satz. Das pauschalierte Nettoentgelt nach
+ *   § 153 Abs. 1 Satz 4 Nr. 3 SGB III setzt hier den Grundbeitragssatz ein.
  * @returns {number} Vorsorgepauschale in Euro
  */
-export function vorsorgepauschale({ jahresarbeitslohn, steuerklasse, kinder = 0, zusatzbeitrag = BEITRAGSSAETZE.zusatzbeitragDurchschnitt }) {
+export function vorsorgepauschale({ jahresarbeitslohn, steuerklasse, kinder = 0, zusatzbeitrag = BEITRAGSSAETZE.zusatzbeitragDurchschnitt, pflegesatz }) {
   pruefeSteuerklasse(steuerklasse);
   const lohn = Number.isFinite(jahresarbeitslohn) ? Math.max(0, jahresarbeitslohn) : 0;
   const kvBasis = Math.min(lohn, BBG_KV_PV_JAHR);
@@ -94,7 +97,7 @@ export function vorsorgepauschale({ jahresarbeitslohn, steuerklasse, kinder = 0,
   const kranken = kvBasis * (BEITRAGSSAETZE.krankenversicherungErmaessigt + zusatzbeitrag) / 2;
 
   // c) Pflegeversicherung: bundeseinheitlicher Satz, deshalb ohne Bundesland.
-  const pflege = kvBasis * pflegeArbeitnehmerSatz({ kinder });
+  const pflege = kvBasis * (pflegesatz ?? pflegeArbeitnehmerSatz({ kinder }));
 
   // e) Arbeitslosenversicherung: nur Klassen I bis V und nur, soweit die
   //    Teilbeträge b bis d zusammen 1.900 Euro noch nicht ausschöpfen.
@@ -111,11 +114,11 @@ export function vorsorgepauschale({ jahresarbeitslohn, steuerklasse, kinder = 0,
  * @param {object} eingabe siehe vorsorgepauschale
  * @returns {number} zu versteuernder Jahresbetrag in Euro, nie negativ
  */
-export function zuVersteuernderJahresbetrag({ jahresarbeitslohn, steuerklasse, kinder = 0, zusatzbeitrag }) {
+export function zuVersteuernderJahresbetrag({ jahresarbeitslohn, steuerklasse, kinder = 0, zusatzbeitrag, pflegesatz }) {
   pruefeSteuerklasse(steuerklasse);
   const lohn = Number.isFinite(jahresarbeitslohn) ? Math.max(0, jahresarbeitslohn) : 0;
 
-  let abzuege = vorsorgepauschale({ jahresarbeitslohn: lohn, steuerklasse, kinder, zusatzbeitrag });
+  let abzuege = vorsorgepauschale({ jahresarbeitslohn: lohn, steuerklasse, kinder, zusatzbeitrag, pflegesatz });
 
   // Nr. 1 und 2: Pauschbeträge nur in den Steuerklassen I bis V.
   if (steuerklasse <= 5) {
@@ -135,9 +138,9 @@ export function zuVersteuernderJahresbetrag({ jahresarbeitslohn, steuerklasse, k
  * @param {object} eingabe siehe vorsorgepauschale
  * @returns {number} Jahreslohnsteuer in vollen Euro
  */
-export function jahreslohnsteuer({ jahresarbeitslohn, steuerklasse, kinder = 0, zusatzbeitrag }) {
+export function jahreslohnsteuer({ jahresarbeitslohn, steuerklasse, kinder = 0, zusatzbeitrag, pflegesatz }) {
   pruefeSteuerklasse(steuerklasse);
-  const zvJB = zuVersteuernderJahresbetrag({ jahresarbeitslohn, steuerklasse, kinder, zusatzbeitrag });
+  const zvJB = zuVersteuernderJahresbetrag({ jahresarbeitslohn, steuerklasse, kinder, zusatzbeitrag, pflegesatz });
 
   if (steuerklasse === 3) {
     // § 32a Abs. 5 EStG, Splittingverfahren.
