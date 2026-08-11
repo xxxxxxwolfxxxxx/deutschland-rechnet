@@ -19,9 +19,11 @@ function berechneEinkommensteuer(zuVersteuern) {
 }
 
 function berechneSteuernachzahlung({ brutto, stklasse, stklasse2 = '0', werbung = 1000, sonder = 2000, kinder = 0 }) {
-  const kirchensteuer = stklasse !== 'V' && stklasse !== 'VI' ? 0.08 : 0;
-  const kirchensteuer2 = stklasse2 !== '0' && stklasse2 !== 'V' && stklasse2 !== 'VI' ? 0.08 : 0;
-  
+  // Bis 11.08.2026 schlug dieses Modul unbedingt 8 % Kirchensteuer auf – für
+  // jeden Nutzer, unabhängig von Konfession und Bundesland, und mit einem Satz,
+  // den nur Bayern und Baden-Württemberg erheben. Der Rechner fragt die
+  // Kirchenzugehörigkeit gar nicht ab und darf sie deshalb nicht unterstellen.
+  // Wer sie braucht: kirchensteuer.js, Zuschlag auf die Lohnsteuer.
   let arbeitslostenPauschale = Math.min(werbung, WERBUNGSPAUSCHALE);
   let abzuege = arbeitslostenPauschale + sonder + GRUNDFREIBETRAG;
   
@@ -29,10 +31,10 @@ function berechneSteuernachzahlung({ brutto, stklasse, stklasse2 = '0', werbung 
   const bruttoPartner = stklasse2 !== '0' ? brutto * 0.5 : 0;
   
   const zuVersteuern = Math.max(0, brutto - abzuege);
-  const jahresSteuer = berechneEinkommensteuer(zuVersteuern) * (1 + kirchensteuer);
+  const jahresSteuer = berechneEinkommensteuer(zuVersteuern);
   
   const zuVersteuern2 = stklasse2 !== '0' ? Math.max(0, bruttoPartner - (GRUNDFREIBETRAG + WERBUNGSPAUSCHALE + sonder/2)) : 0;
-  const jahresSteuer2 = stklasse2 !== '0' ? berechneEinkommensteuer(zuVersteuern2) * (1 + kirchensteuer2) : 0;
+  const jahresSteuer2 = stklasse2 !== '0' ? berechneEinkommensteuer(zuVersteuern2) : 0;
   
   const gesamteSteuer = jahresSteuer + jahresSteuer2;
   
