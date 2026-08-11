@@ -3,13 +3,42 @@ import Layout from '../../layouts/Layout.astro';
 import CalculatorShell from '../../components/CalculatorShell.astro';
 import CalculatorGuide from '../../components/CalculatorGuide.astro';
 import { CALCULATORS, CATEGORIES } from '../../data/calculators';
+import {
+  BBG_KV_PV_MONAT,
+  BBG_RV_AV_MONAT,
+  BEITRAGSSAETZE,
+  krankenkasseArbeitnehmerSatz,
+  pflegeArbeitnehmerSatz,
+} from '../../../public/scripts/sozialversicherung.js';
+import {
+  GRUNDFREIBETRAG,
+  ZONE_3_OBERGRENZE,
+  ZONE_4_OBERGRENZE,
+} from '../../../public/scripts/einkommensteuer.js';
+
 const calc = CALCULATORS.find(c => c.slug === 'gehaltserhoehung-rechner')!;
 const cat = CATEGORIES[calc.category];
 const year = new Date().getFullYear();
+
+// Diese Werte standen bis zum 11.08.2026 als eigene Zahlen im Fließtext und
+// waren durchweg auf dem Stand von 2024: 7.550 Euro Beitragsbemessungsgrenze,
+// 5.512,50 Euro in der Krankenversicherung, 1,7 Prozent Pflegeversicherung.
+const euro = (n: number) => n.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' Euro';
+const euroGlatt = (n: number) => n.toLocaleString('de-DE', { maximumFractionDigits: 0 }) + ' Euro';
+const satz = (n: number) => (n * 100).toLocaleString('de-DE', { minimumFractionDigits: 1, maximumFractionDigits: 2 }) + ' %';
+
+const kvHalb = BEITRAGSSAETZE.krankenversicherungAllgemein / 2;
+const kvZusatzHalb = BEITRAGSSAETZE.zusatzbeitragDurchschnitt / 2;
+const pflegeMitKind = pflegeArbeitnehmerSatz({ kinder: 1 });
+const pflegeKinderlos = pflegeArbeitnehmerSatz({ kinder: 0 });
+const abgabenGesamt = krankenkasseArbeitnehmerSatz()
+  + pflegeMitKind
+  + BEITRAGSSAETZE.rentenversicherung / 2
+  + BEITRAGSSAETZE.arbeitslosenversicherung / 2;
 ---
 <Layout
   title={`Gehaltserhöhung-Rechner ${year}`}
-  description="Gehaltserhöhung-Rechner 2025: Berechnen Sie den Netto-Gewinn Ihrer Brutto-Erhöhung inkl. Grenzsteuersatz, Sozialabgaben und Steuerklasse. Mit Beispielrechnungen für 3.000-6.000 Euro Gehalt."
+  description={`Gehaltserhöhung-Rechner ${year}: Berechnen Sie den Netto-Gewinn Ihrer Brutto-Erhöhung inkl. Grenzsteuersatz, Sozialabgaben und Steuerklasse. Mit Beispielrechnungen für 3.000-6.000 Euro Gehalt.`}
   canonicalPath="/geld/gehaltserhoehung-rechner/"
   categoryColor={cat.color}
   categoryLight={cat.colorLight}
@@ -23,7 +52,7 @@ const year = new Date().getFullYear();
     calculator={calc}
     intro="Mit dem Gehaltserhöhung-Rechner sehen Sie, wie viel von einer Brutto-Erhöhung tatsächlich netto übrig bleibt. Ideal zur Vorbereitung auf Gehaltsverhandlungen oder um den realen Wert einer Gehaltsanpassung einzuschätzen."
     sourceNote="Grenzsteuersatz berücksichtigt."
-    explanation="Die Netto-Erhöhung wird durch den Grenzsteuersatz bestimmt, der bei 42% (ab ca. 67.000 Euro) bzw. 45% (ab ca. 278.000 Euro) liegen kann. Sozialabgaben fallen oberhalb der Beitragsbemessungsgrenze nicht mehr an, was den Nettoeffekt bei hohen Gehältern verbessert."
+    explanation={`Die Netto-Erhöhung wird durch den Grenzsteuersatz bestimmt, der bei 42 % (ab einem zu versteuernden Einkommen von ${euroGlatt(ZONE_3_OBERGRENZE + 1)}) bzw. 45 % (ab ${euroGlatt(ZONE_4_OBERGRENZE + 1)}) liegen kann. Sozialabgaben fallen oberhalb der Beitragsbemessungsgrenze von ${euro(BBG_RV_AV_MONAT)} im Monat nicht mehr an, was den Nettoeffekt bei hohen Gehältern verbessert.`}
     faqs={[
       { q: "Warum ist die Netto-Erhöhung viel kleiner als die Brutto-Erhöhung?", a: "Das ist der Grenzsteuersatz! Auf Ihre Gehaltserhöhung zahlen Sie die höchsten Steuern und Sozialabgaben, die Sie insgesamt zahlen – nicht den Durchschnitt. Mit Einkommen über 60.000€ sind das leicht 40-50% Abgaben. Bei 500€ Brutto-Plus bleiben also nur 250-300€ netto übrig." },
       { q: "Was ist der Grenzsteuersatz?", a: "Der Grenzsteuersatz ist die Steuer auf den letzten verdientem Euro. Nicht auf das ganze Gehalt. Beispiel: Mit 50.000€ Einkommen (Steuerklasse IV) zahlen Sie ca. 42% Grenzsteuersatz. Das bedeutet: Jeder zusätzlich verdiente Euro kostet Sie 42 Cent Steuern." },
@@ -74,7 +103,7 @@ const year = new Date().getFullYear();
 
   <CalculatorGuide
     title="So funktioniert die Netto-Berechnung bei Gehaltserhöhung"
-    content={`<p><strong>Der Grenzsteuersatz ist der Schlüssel:</strong> Wenn Sie eine Gehaltserhöhung erhalten, zahlen Sie nicht Ihre durchschnittliche Steuerlast, sondern den <strong>Grenzsteuersatz</strong> – die Steuer auf den letzten Euro Einkommen. Bei einem Einkommen über 62.810 Euro (2025) kann dieser 42% oder sogar 45% (ab 277.826 Euro) betragen. Deshalb bringt eine Brutto-Erhöhung von 500 Euro oft nur 250-300 Euro netto.</p>
+    content={`<p><strong>Der Grenzsteuersatz ist der Schlüssel:</strong> Wenn Sie eine Gehaltserhöhung erhalten, zahlen Sie nicht Ihre durchschnittliche Steuerlast, sondern den <strong>Grenzsteuersatz</strong> – die Steuer auf den letzten Euro Einkommen. Bei einem zu versteuernden Einkommen über ${euroGlatt(ZONE_3_OBERGRENZE + 1)} kann dieser 42% oder sogar 45% (ab ${euroGlatt(ZONE_4_OBERGRENZE + 1)}) betragen. Deshalb bringt eine Brutto-Erhöhung von 500 Euro oft nur 250-300 Euro netto.</p>
 
 <h4>Beispielrechnungen: Was bleibt netto von einer Gehaltserhöhung?</h4>
 <table>
@@ -91,23 +120,23 @@ const year = new Date().getFullYear();
   </tbody>
 </table>
 
-<h4>Sozialabgaben 2025 im Überblick</h4>
+<h4>Sozialabgaben ${year} im Überblick</h4>
 <table>
   <thead>
-    <tr><th>Beitrag</th><th>Arbeitnehmeranteil</th><th>Beitragsbemessungsgrenze (West)</th></tr>
+    <tr><th>Beitrag</th><th>Arbeitnehmeranteil</th><th>Beitragsbemessungsgrenze</th></tr>
   </thead>
   <tbody>
-    <tr><td>Krankenversicherung</td><td>7,3% + Zusatzbeitrag (~0,9%)</td><td>5.512,50 Euro/Monat</td></tr>
-    <tr><td>Pflegeversicherung</td><td>1,7% (kinderlos: 2,3%)</td><td>5.512,50 Euro/Monat</td></tr>
-    <tr><td>Rentenversicherung</td><td>9,3%</td><td>7.550 Euro/Monat</td></tr>
-    <tr><td>Arbeitslosenversicherung</td><td>1,3%</td><td>7.550 Euro/Monat</td></tr>
+    <tr><td>Krankenversicherung</td><td>${satz(kvHalb)} + halber Zusatzbeitrag (durchschnittlich ${satz(kvZusatzHalb)})</td><td>${euro(BBG_KV_PV_MONAT)}/Monat</td></tr>
+    <tr><td>Pflegeversicherung</td><td>${satz(pflegeMitKind)} (kinderlos: ${satz(pflegeKinderlos)})</td><td>${euro(BBG_KV_PV_MONAT)}/Monat</td></tr>
+    <tr><td>Rentenversicherung</td><td>${satz(BEITRAGSSAETZE.rentenversicherung / 2)}</td><td>${euro(BBG_RV_AV_MONAT)}/Monat</td></tr>
+    <tr><td>Arbeitslosenversicherung</td><td>${satz(BEITRAGSSAETZE.arbeitslosenversicherung / 2)}</td><td>${euro(BBG_RV_AV_MONAT)}/Monat</td></tr>
   </tbody>
 </table>
-<p>Gesamtbelastung Arbeitnehmer: ca. 20,5% Sozialabgaben plus Einkommensteuer. Zusammen ergibt das 40-50% Gesamtabgabenlast auf eine Gehaltserhöhung.</p>
+<p>Gesamtbelastung Arbeitnehmer: rund ${satz(abgabenGesamt)} Sozialabgaben plus Einkommensteuer. Die Beitragsbemessungsgrenzen gelten seit 2025 bundeseinheitlich; die frühere Unterscheidung zwischen West und Ost ist entfallen.</p>
 
-<p><strong>Wie der Grenzsteuersatz funktioniert:</strong> Deutschland hat ein progressives Steuersystem. Der Grundfreibetrag liegt 2025 bei 12.096 Euro (steuerfrei). Danach steigt der Steuersatz von 14% linear auf 42% (ab 62.810 Euro zu versteuerndem Einkommen). Der Spitzensteuersatz von 45% greift ab 277.826 Euro. Wenn Sie bereits 50.000 Euro verdienen und 500 Euro mehr bekommen, zahlen Sie auf diese 500 Euro Ihren persönlichen Grenzsteuersatz von ca. 38-40%.</p>
+<p><strong>Wie der Grenzsteuersatz funktioniert:</strong> Deutschland hat ein progressives Steuersystem. Der Grundfreibetrag liegt ${year} bei ${euroGlatt(GRUNDFREIBETRAG)} (steuerfrei). Danach steigt der Steuersatz von 14% linear auf 42%, der ab einem zu versteuernden Einkommen von ${euroGlatt(ZONE_3_OBERGRENZE + 1)} greift. Der Spitzensteuersatz von 45% beginnt bei ${euroGlatt(ZONE_4_OBERGRENZE + 1)} (§ 32a Abs. 1 EStG). Wenn Sie bereits 50.000 Euro verdienen und 500 Euro mehr bekommen, zahlen Sie auf diese 500 Euro Ihren persönlichen Grenzsteuersatz.</p>
 
-<p><strong>Beitragsbemessungsgrenzen beachten:</strong> Die Renten- und Arbeitslosenversicherung sind ab 7.550 Euro/Monat (West, 2025) gedeckelt. Wer darüber verdient, zahlt auf eine Gehaltserhöhung keine zusätzlichen RV/AV-Beiträge mehr. Das verbessert die Netto-Quote bei hohen Gehältern spürbar.</p>
+<p><strong>Beitragsbemessungsgrenzen beachten:</strong> Die Renten- und Arbeitslosenversicherung sind ab ${euro(BBG_RV_AV_MONAT)}/Monat gedeckelt. Wer darüber verdient, zahlt auf eine Gehaltserhöhung keine zusätzlichen RV/AV-Beiträge mehr. Das verbessert die Netto-Quote bei hohen Gehältern spürbar.</p>
 
 <h4>Tipps zur Gehaltsverhandlung</h4>
 <p><strong>Durchschnittliche Gehaltserhöhungen in Deutschland 2025:</strong> Laut Vergütungsstudien liegen reguläre Gehaltsanpassungen bei 3,5-5% pro Jahr. Bei einem Jobwechsel sind 10-20% realistisch. Die Inflationsrate lag 2024 bei 2,2%, das heisst alles unter 3% ist real ein Gehaltsverlust.</p>
