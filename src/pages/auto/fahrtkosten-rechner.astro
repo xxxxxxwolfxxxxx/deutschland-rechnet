@@ -9,7 +9,7 @@ const year = new Date().getFullYear();
 ---
 <Layout
   title={`Pendlerpauschale-Rechner ${year}`}
-  description="Steuerliche Entfernungspauschale (Pendlerpauschale) berechnen – 0,30 € für erste 20 km, 0,38 € ab dem 21. km nach § 9 EStG."
+  description={`Entfernungspauschale (Pendlerpauschale) ${year} berechnen: 0,38 € je Entfernungskilometer ab dem ersten Kilometer nach § 9 Abs. 1 Satz 3 Nr. 4 EStG, mit Höchstbetrag und Jahresabzug.`}
   canonicalPath="/auto/fahrtkosten-rechner/"
   categoryColor={cat.color}
   categoryLight={cat.colorLight}
@@ -22,12 +22,12 @@ const year = new Date().getFullYear();
   <CalculatorShell
     calculator={calc}
     intro="Mit dem Fahrtkosten-Rechner berechnen Sie die steuerliche Kilometerpauschale für Fahrten zwischen Wohnung und Arbeitsstätte. Erfahren Sie, wie viel Sie über die Steuererklärung zurückbekommen und ob sich ein Umzug finanziell lohnt."
-    sourceNote="0,30-0,38€ pro km."
-    explanation="Die Entfernungspauschale nach § 9 Abs. 1 Nr. 4 EStG beträgt 0,30 € pro Entfernungskilometer. Ab dem 21. Kilometer gilt eine erhöhte Pauschale von 0,38 € (befristet bis 2026). Maßgeblich ist die einfache Entfernung, nicht Hin- und Rückfahrt."
+    sourceNote={`§ 9 Abs. 1 Satz 3 Nr. 4 EStG, Rechtsstand ${year}: 0,38 € je vollem Entfernungskilometer.`}
+    explanation="Die Entfernungspauschale nach § 9 Abs. 1 Satz 3 Nr. 4 EStG beträgt 0,38 € je vollem Entfernungskilometer – seit 2026 einheitlich ab dem ersten Kilometer, die frühere Staffelung mit 0,30 € für die ersten 20 Kilometer ist entfallen. Maßgeblich ist die einfache Entfernung der kürzesten Straßenverbindung, nicht Hin- und Rückfahrt. Der Abzug ist auf 4.500 € im Jahr begrenzt, außer bei Nutzung eines eigenen Kraftwagens."
     faqs={[
       {
         q: "Was ist die Pendlerpauschale und wie funktioniert sie?",
-        a: "Die Pendlerpauschale (Entfernungspauschale) nach § 9 Absatz 1 Satz 3 Nummer 4 EStG ermöglicht es Arbeitnehmern, die Kosten für die Fahrt zur Arbeitsstätte steuerlich geltend zu machen. Sie beträgt 0,30 € pro Kilometer für die einfache Entfernung zwischen Wohnung und Arbeitsstätte."
+        a: "Die Pendlerpauschale (Entfernungspauschale) nach § 9 Absatz 1 Satz 3 Nummer 4 EStG ermöglicht es Arbeitnehmern, die Kosten für den Weg zur ersten Tätigkeitsstätte steuerlich geltend zu machen. Sie beträgt 0,38 € je vollem Kilometer der einfachen Entfernung zwischen Wohnung und Tätigkeitsstätte – unabhängig davon, welches Verkehrsmittel Sie benutzen."
       },
       {
         q: "Wird die Hin- oder die Hinfahrt berechnet?",
@@ -39,7 +39,7 @@ const year = new Date().getFullYear();
       },
       {
         q: "Kann ich die Pendlerpauschale und Fahrtkosten kombinieren?",
-        a: "Nein, Sie müssen sich entscheiden: Entweder nutzen Sie die Pauschale (pauschal 0,30 €/km) oder Sie rechnen tatsächliche Fahrtkosten einzeln auf. Die Pauschale ist meist günstiger und einfacher, daher die Standardmethode."
+        a: "Für den Weg zur ersten Tätigkeitsstätte gilt ausschließlich die Entfernungspauschale von 0,38 € je Entfernungskilometer; tatsächliche Kosten können Sie dafür nicht ansetzen. Anders bei beruflich veranlassten Fahrten außerhalb dieses Wegs (§ 9 Abs. 1 Satz 3 Nr. 4a EStG): Dort sind die tatsächlichen Kosten oder pauschale Kilometersätze möglich."
       },
       {
         q: "Gelten manche Tage nicht als Arbeitstage?",
