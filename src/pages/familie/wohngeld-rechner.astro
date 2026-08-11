@@ -3,17 +3,48 @@ import Layout from '../../layouts/Layout.astro';
 import CalculatorShell from '../../components/CalculatorShell.astro';
 import CalculatorGuide from '../../components/CalculatorGuide.astro';
 import { CALCULATORS, CATEGORIES } from '../../data/calculators';
+import {
+  HOECHSTBETRAEGE,
+  HEIZKOSTENENTLASTUNG,
+  KLIMAKOMPONENTE,
+  MIETENSTUFEN,
+  WOHNGELD_FAKTOR,
+  MEHRBETRAG_AB_13,
+  ABZUGSPAUSCHALE,
+  MAX_HAUSHALTSGROESSE_FORMEL,
+  heizkostenentlastung,
+  klimakomponente,
+} from '../../../public/scripts/wohngeld.js';
+
 const calc = CALCULATORS.find(c => c.slug === 'wohngeld-rechner')!;
 const cat = CATEGORIES[calc.category];
 const year = new Date().getFullYear();
 
+const euro = (n: number) => n.toLocaleString('de-DE', {
+  minimumFractionDigits: Number.isInteger(n) ? 0 : 2,
+  maximumFractionDigits: 2,
+}) + ' Euro';
+const ROEMISCH = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII'];
+
+// Höchstbeträge und Zuschläge werden aus dem Rechenmodul erzeugt, damit
+// Tabelle und Rechner nicht auseinanderlaufen.
+const hoechstbetragZeilen = MIETENSTUFEN.map(stufe => {
+  const { betraege, mehrbetrag } = HOECHSTBETRAEGE[stufe];
+  return `<tr><td>${ROEMISCH[stufe - 1]}</td>${betraege.map(b => `<td>${euro(b)}</td>`).join('')}<td>+ ${euro(mehrbetrag)}</td></tr>`;
+}).join('\n');
+
+const zuschlagZeilen = [1, 2, 3, 4, 5].map(n =>
+  `<tr><td>${n}</td><td>${euro(heizkostenentlastung(n))}</td><td>${euro(klimakomponente(n))}</td></tr>`
+).join('\n');
+
 const faqs = [
-  { q: 'Wer hat Anspruch auf Wohngeld?', a: 'Mieter oder Hauseigentümer mit kleinerem Einkommen. Ausgeschlossen sind BAföG-Empfänger und Arbeitslose (ALG II/Sozialhilfe).' },
-  { q: 'Wie wird Wohngeld berechnet?', a: 'Formel: Mietzuschuss = (Miete - Einkommen × Prozentsatz) × Multiplikator, maximal begrenzt.' },
-  { q: 'Was zählt als Einkommen?', a: 'Einkommen: Lohn, Kindergeld, Rente, Unterhaltsleistungen. Nicht zählbar: Kinderfreibetrag, Freibeträge für Behinderte.' },
-  { q: 'Wie hoch ist der maximale Zuschuss?', a: 'Der Höchstbetrag richtet sich nach Größe der Mietwohnung und Mietlevel. Beispiel: bis 600€ monatlich möglich.' },
-  { q: 'Muss ich Wohngeld beantragen?', a: 'Ja, Wohngeld wird nicht automatisch gezahlt. Antrag beim Wohngeldamt erforderlich.' },
-  { q: 'Wird Wohngeld angerechnet auf andere Leistungen?', a: 'Wohngeld wird nicht auf Grundsicherung angerechnet, sondern reduziert das Einkommen.' },
+  { q: 'Wer hat Anspruch auf Wohngeld?', a: 'Wohngeld ist ein Zuschuss für Haushalte mit kleinem Einkommen – als Mietzuschuss für Mieter und als Lastenzuschuss für selbst genutztes Wohneigentum. Vom Wohngeld ausgeschlossen ist nach § 7 Abs. 1 WoGG, wer Grundsicherungsgeld nach dem SGB II, Grundsicherung im Alter, Hilfe zum Lebensunterhalt oder eine der weiteren dort genannten Leistungen bezieht – aber nur, wenn bei deren Berechnung bereits Kosten der Unterkunft berücksichtigt wurden. Werden die Leistungen ausschließlich als Darlehen gewährt, greift der Ausschluss nicht.' },
+  { q: 'Wie wird Wohngeld berechnet?', a: `Nach der Formel des § 19 Abs. 1 WoGG: Wohngeld = ${WOHNGELD_FAKTOR.toLocaleString('de-DE')} × (M − (a + b × M + c × Y) × Y). Dabei ist M die zu berücksichtigende Miete und Y das monatliche Gesamteinkommen; a, b und c hängen von der Haushaltsgröße ab und stehen in Anlage 2 zum WoGG. Das Ergebnis wird auf volle Euro gerundet.` },
+  { q: 'Was zählt als Einkommen?', a: `Maßgeblich ist das Gesamteinkommen nach § 13 WoGG: die Summe der Jahreseinkommen aller Haushaltsmitglieder nach § 14 WoGG, vermindert um die Freibeträge der §§ 17 und 17a und die Abzugsbeträge für Unterhalt nach § 18 WoGG. Nach § 16 WoGG werden je ${(ABZUGSPAUSCHALE * 100).toLocaleString('de-DE')} Prozent abgezogen, wenn Steuern vom Einkommen, Pflichtbeiträge zur Kranken- und Pflegeversicherung oder zur Rentenversicherung zu leisten sind – zusammen also höchstens 30 Prozent.` },
+  { q: 'Wie hoch ist der maximale Zuschuss?', a: 'Das Wohngeld ist nicht durch einen festen Höchstbetrag gedeckelt, sondern durch die Formel selbst. Begrenzt wird die berücksichtigungsfähige Miete: Sie zählt höchstens bis zur Summe aus dem Höchstbetrag nach Anlage 1 zum WoGG und der Klimakomponente. Die Höchstbeträge hängen von Haushaltsgröße und Mietenstufe ab und stehen in der Tabelle weiter unten.' },
+  { q: 'Muss ich Wohngeld beantragen?', a: 'Ja, Wohngeld wird nicht automatisch gezahlt. Der Antrag geht an die Wohngeldbehörde der Gemeinde oder des Kreises. Wohngeld wird in der Regel für zwölf Monate bewilligt; danach ist ein Weiterleistungsantrag nötig.' },
+  { q: 'Was ist die Mietenstufe und wie finde ich meine?', a: 'Die Mietenstufe bildet ab, wie stark das Mietenniveau einer Gemeinde vom Bundesdurchschnitt abweicht (§ 12 Abs. 2 bis 5 WoGG). Es gibt sieben Stufen: Stufe I liegt mehr als 15 Prozent unter dem Durchschnitt, Stufe VII mindestens 35 Prozent darüber. Welche Stufe für Ihre Gemeinde gilt, steht in der Anlage zu § 1 Abs. 3 der Wohngeldverordnung; die Wohngeldbehörde nennt sie Ihnen ebenfalls.' },
+  { q: 'Was sind Heizkostenentlastung und Klimakomponente?', a: `Beides sind Zuschläge, die seit der Reform zum 01.01.2023 fest im Gesetz stehen. Die Klimakomponente nach § 12 Abs. 7 WoGG erhöht den Höchstbetrag für die Miete, die Heizkostenentlastung nach § 12 Abs. 6 WoGG kommt nach § 11 Abs. 1 WoGG zusätzlich auf die zu berücksichtigende Miete – sie unterliegt dem Höchstbetrag also nicht. Für einen Einpersonenhaushalt sind das ${euro(klimakomponente(1))} und ${euro(heizkostenentlastung(1))} im Monat.` },
 ];
 ---
 <Layout
@@ -31,8 +62,8 @@ const faqs = [
   <CalculatorShell
     calculator={calc}
     intro="Mit dem Wohngeld-Rechner prüfen Sie Ihren Anspruch auf Wohngeld. Erfahren Sie, ob Ihnen ein Mietzuschuss oder Lastenzuschuss zusteht und wie hoch dieser ausfallen kann."
-    sourceNote="Mietzuschuss oder Lastenzuschuss."
-    explanation="Das Wohngeld wird nach dem Wohngeldgesetz (WoGG) berechnet. Entscheidend sind Haushaltsgröße, Gesamteinkommen (§ 13 WoGG) und die Mietstufe der Gemeinde. Seit der WoGG-Reform 2023 haben deutlich mehr Haushalte Anspruch."
+    sourceNote="Berechnung nach § 19 WoGG mit den Anlagen 1 bis 3 in der Fassung vom 01.01.2025 (BGBl. 2024 I Nr. 314)."
+    explanation="Das Wohngeld wird nach der Formel des § 19 Abs. 1 WoGG berechnet. Entscheidend sind die Haushaltsgröße, das Gesamteinkommen nach § 13 WoGG und die zu berücksichtigende Miete nach § 11 WoGG, die durch den Höchstbetrag der Mietenstufe begrenzt wird. Seit der Reform zum 01.01.2023 kommen die Heizkostenentlastung und die Klimakomponente nach § 12 Abs. 6 und 7 WoGG hinzu."
     faqs={faqs}
   >
     <div class="calc-form">
@@ -40,31 +71,39 @@ const faqs = [
         <div class="calc-group">
           <label for="haushalt">Haushaltsgröße (Personen)</label>
           <select id="haushalt">
-            <option value="1">1 Person</option>
-            <option value="2">2 Personen</option>
-            <option value="3" selected>3 Personen</option>
-            <option value="4">4 Personen</option>
-            <option value="5">5 Personen</option>
+            {Array.from({ length: MAX_HAUSHALTSGROESSE_FORMEL }, (_, i) => i + 1).map(n => (
+              <option value={n} selected={n === 3}>{n === 1 ? '1 Person' : `${n} Personen`}</option>
+            ))}
           </select>
         </div>
         <div class="calc-group">
           <label for="brutto">Haushaltseinkommen (€/Monat brutto)</label>
-          <input type="number" id="brutto" min="0" max="5000" value="1800" step="50" />
+          <input type="number" id="brutto" min="0" max="10000" value="1800" step="50" />
         </div>
         <div class="calc-group">
           <label for="miete">Kaltmiete (€/Monat)</label>
-          <input type="number" id="miete" min="100" max="3000" value="750" step="25" />
+          <input type="number" id="miete" min="0" max="3000" value="750" step="25" />
         </div>
         <div class="calc-group">
-          <label for="mietstufe">Mietstufe (Gemeinde)</label>
+          <label for="mietstufe">Mietenstufe (§ 12 Abs. 5 WoGG)</label>
           <select id="mietstufe">
-            <option value="1">I – sehr ländlich</option>
-            <option value="2">II – ländlich</option>
-            <option value="3" selected>III – Bundesdurchschnitt</option>
-            <option value="4">IV – städtisch</option>
-            <option value="5">V – Großstadt</option>
-            <option value="6">VI – teuerste Lagen</option>
+            <option value="1">I – mehr als 15 % unter dem Bundesdurchschnitt</option>
+            <option value="2">II – 15 bis 5 % unter dem Durchschnitt</option>
+            <option value="3" selected>III – um den Bundesdurchschnitt</option>
+            <option value="4">IV – 5 bis 15 % über dem Durchschnitt</option>
+            <option value="5">V – 15 bis 25 % darüber</option>
+            <option value="6">VI – 25 bis 35 % darüber</option>
+            <option value="7">VII – 35 % und mehr darüber</option>
           </select>
+        </div>
+      </div>
+
+      <div class="calc-grid" style="margin-top:0.5rem;">
+        <div class="calc-group" style="display:flex;align-items:center;">
+          <label style="display:flex;align-items:center;gap:0.5rem;font-weight:400;cursor:pointer;">
+            <input type="checkbox" id="alleinerziehend" style="width:auto;" />
+            Alleinerziehend mit minderjährigem Kind (§ 17 Nr. 3 WoGG)
+          </label>
         </div>
       </div>
       <div class="calc-result">
@@ -77,15 +116,37 @@ const faqs = [
 
   <CalculatorGuide
     title="Wohngeld – Finanzielle Unterstützung für Mieter"
-    content="Wohngeld ist eine Leistung, die Mieter mit geringerem Einkommen unterstützt. Es wird nicht automatisch gezahlt, sondern muss beim Wohngeldamt beantragt werden.
+    content={`<p>Wohngeld ist ein Zuschuss zu den Wohnkosten für Haushalte mit kleinem Einkommen – als Mietzuschuss für Mieter und als Lastenzuschuss für selbst genutztes Wohneigentum. Es wird nicht automatisch gezahlt, sondern muss bei der Wohngeldbehörde beantragt werden.</p>
 
-Die Berechnung erfolgt nach einer komplizierten Formel, die Miethöhe, Einkommen, Familiengröße und regionale Mietlevel berücksichtigt. Ein Richtwert: Bei Einkommen unter 1.200€ für 1 Person können Sie oft Wohngeld bekommen.
+<h4>Die Wohngeldformel des § 19 Abs. 1 WoGG</h4>
+<p>Das ungerundete monatliche Wohngeld beträgt:</p>
+<p><strong>${WOHNGELD_FAKTOR.toLocaleString('de-DE')} × (M − (a + b × M + c × Y) × Y)</strong></p>
+<p>Dabei ist <strong>M</strong> die zu berücksichtigende monatliche Miete und <strong>Y</strong> das monatliche Gesamteinkommen. Die Werte <strong>a</strong>, <strong>b</strong> und <strong>c</strong> hängen allein von der Haushaltsgröße ab und stehen in Anlage 2 zum WoGG. Anlage 3 gibt die Reihenfolge der Rechenschritte vor: Zuerst werden zu kleine Werte für M und Y durch Mindestwerte ersetzt, dann wird mit zehn Nachkommastellen gerechnet, und am Ende wird auf volle Euro gerundet. Für mehr als ${MAX_HAUSHALTSGROESSE_FORMEL} Haushaltsmitglieder erhöht § 19 Abs. 3 WoGG das Wohngeld um je ${euro(MEHRBETRAG_AB_13)} – höchstens bis zur Höhe der berücksichtigten Miete.</p>
 
-Wichtig: Wohngeld wird auf Grundsicherung (Hartz IV / ALG II) nicht angerechnet – es reduziert nicht die Sozialhilfe. Für BAföG-Empfänger ist Wohngeld nicht verfügbar.
+<h4>Höchstbeträge für die Miete nach Anlage 1 zum WoGG</h4>
+<p>Die Miete zählt nicht unbegrenzt: Sie wird auf die Summe aus dem Höchstbetrag und der Klimakomponente gedeckelt (§ 11 Abs. 1 Nr. 1 WoGG). Beträge in Euro im Monat:</p>
+<table>
+<thead><tr><th>Mietenstufe</th><th>1 Person</th><th>2</th><th>3</th><th>4</th><th>5</th><th>je weitere</th></tr></thead>
+<tbody>
+${hoechstbetragZeilen}
+</tbody>
+</table>
 
-Ein häufiges Missverständnis: Der Zuschuss ist nicht die volle Miete – es ist ein Zuschuss, der die Mietbelastung unter einen bestimmten Prozentsatz des Einkommens bringt (üblicherweise 20-30%).
+<h4>Heizkostenentlastung und Klimakomponente</h4>
+<p>Beide Zuschläge stehen seit der Reform zum 01.01.2023 fest im Gesetz. Die Klimakomponente erhöht den Höchstbetrag, die Heizkostenentlastung kommt darüber hinaus auf die zu berücksichtigende Miete und unterliegt dem Höchstbetrag damit nicht:</p>
+<table>
+<thead><tr><th>Haushaltsmitglieder</th><th>Heizkostenentlastung (§ 12 Abs. 6 WoGG)</th><th>Klimakomponente (§ 12 Abs. 7 WoGG)</th></tr></thead>
+<tbody>
+${zuschlagZeilen}
+</tbody>
+</table>
+<p><em>Für jedes weitere Haushaltsmitglied kommen ${euro(HEIZKOSTENENTLASTUNG.mehrbetrag)} beziehungsweise ${euro(KLIMAKOMPONENTE.mehrbetrag)} hinzu. Alle Tabellen auf dieser Seite werden aus demselben Rechenmodul erzeugt wie der Rechner oben.</em></p>
 
-Finanzierungstipp: Prüfen Sie regelmäßig, ob Sie noch Anspruch haben. Einkommensveränderungen (neue Beschäftigung, Bonus, etc.) können Ihren Wohngeldanspruch beeinflussen. Machen Sie Neuanträge proaktiv, bevor alte ablaufen."
+<h4>Was dieser Rechner nicht abbilden kann</h4>
+<p>Der Rechner geht von Einkommen aus nichtselbständiger Arbeit aus und setzt den Arbeitnehmer-Pauschbetrag als Werbungskosten an. Nicht berücksichtigt sind die Abzüge nach § 11 Abs. 2 und 3 WoGG für gewerblich genutzte Flächen, Untermieter oder andere öffentliche Leistungen, die Belastung bei Wohneigentum nach § 10 WoGG sowie die Freibeträge des § 17 Nr. 1, 2 und 4 WoGG für schwerbehinderte Haushaltsmitglieder und für eigene Einkünfte von Kindern. Das Ergebnis ist deshalb eine Schätzung; verbindlich ist der Bescheid der Wohngeldbehörde.</p>
+
+<h4>Praktische Hinweise</h4>
+<p>Wohngeld wird in der Regel für zwölf Monate bewilligt. Danach ist ein Weiterleistungsantrag nötig – am besten rechtzeitig vor Ablauf, weil Wohngeld grundsätzlich erst ab dem Monat der Antragstellung gezahlt wird. Ändert sich das Einkommen deutlich, kann sich der Anspruch auch innerhalb des Bewilligungszeitraums ändern; solche Änderungen sind der Behörde mitzuteilen.</p>`}
     relatedSlugs={['kindergeld-rechner', 'renten-rechner']}
   />
 </Layout>
@@ -94,23 +155,32 @@ Finanzierungstipp: Prüfen Sie regelmäßig, ob Sie noch Anspruch haben. Einkomm
 const { berechneWohngeld } = await import(window.__base + 'scripts/wohngeld.js');
 function fmt(n) { return n.toLocaleString('de-DE', {minimumFractionDigits:2, maximumFractionDigits:2}) + ' €'; }
 function berechne() {
-  const haushaltGroesse = parseInt(document.getElementById('haushalt').value)||3;
-  const bruttoMonat = parseFloat(document.getElementById('brutto').value)||1800;
-  const kaltmiete = parseFloat(document.getElementById('miete').value)||750;
-  const mietstufe = parseInt(document.getElementById('mietstufe').value)||3;
-  const r = berechneWohngeld({ haushaltGroesse, bruttoMonat, kaltmiete, mietstufe });
-  if (r.keinAnspruch) {
-    document.getElementById('wohngeld').textContent = '0,00 € – kein Anspruch';
-    document.getElementById('details').innerHTML = `<span style="color:#888">${r.grund}</span>`;
-  } else {
-    document.getElementById('wohngeld').textContent = `${fmt(r.wohngeld)} / Monat`;
-    document.getElementById('details').innerHTML =
-      `<span>Pro Jahr: <strong>${fmt(r.wohngeldJahr)}</strong></span>` +
-      `<span>Berücks. Miete max.: <strong>${fmt(r.maxMiete)}</strong></span>` +
-      `<span>Angerechnete Miete: <strong>${fmt(r.M)}</strong></span>`;
+  const haushaltsgroesse = parseInt(document.getElementById('haushalt').value)||3;
+  const bruttoMonat = parseFloat(document.getElementById('brutto').value)||0;
+  const kaltmiete = parseFloat(document.getElementById('miete').value)||0;
+  const mietenstufe = parseInt(document.getElementById('mietstufe').value)||3;
+  const alleinerziehendMitKind = document.getElementById('alleinerziehend').checked;
+  const r = berechneWohngeld({ haushaltsgroesse, bruttoMonat, kaltmiete, mietenstufe, alleinerziehendMitKind });
+
+  const details = document.getElementById('details');
+  if (!r.hatAnspruch) {
+    document.getElementById('wohngeld').textContent = '0 € – kein Anspruch';
+    details.innerHTML =
+      `<span style="color:#888">Nach der Formel des § 19 Abs. 1 WoGG ergibt sich kein Zuschuss. ` +
+      `Angerechnetes Einkommen: <strong>${fmt(r.angesetztesEinkommen)}</strong>, ` +
+      `berücksichtigte Miete: <strong>${fmt(r.angesetzteMiete)}</strong>.</span>`;
+    return;
   }
+  document.getElementById('wohngeld').textContent = `${r.wohngeld.toLocaleString('de-DE')} € / Monat`;
+  details.innerHTML =
+    `<span>Pro Jahr: <strong>${r.wohngeldJahr.toLocaleString('de-DE')} €</strong></span>` +
+    `<span>Höchstbetrag Miete: <strong>${fmt(r.hoechstbetrag)}</strong></span>` +
+    `<span>+ Klimakomponente: <strong>${fmt(r.klimakomponente)}</strong></span>` +
+    `<span>+ Heizkostenentlastung: <strong>${fmt(r.heizkostenentlastung)}</strong></span>` +
+    `<span>Berücksichtigte Miete: <strong>${fmt(r.miete)}</strong></span>` +
+    `<span>Monatliches Gesamteinkommen: <strong>${fmt(r.gesamteinkommen)}</strong></span>`;
 }
-['haushalt','brutto','miete','mietstufe'].forEach(id => {
+['haushalt','brutto','miete','mietstufe','alleinerziehend'].forEach(id => {
   document.getElementById(id).addEventListener('input', berechne);
   document.getElementById(id).addEventListener('change', berechne);
 });
