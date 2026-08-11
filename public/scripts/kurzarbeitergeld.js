@@ -32,19 +32,18 @@
 // nur § 153 über die Berechnung des Leistungsentgelts, nicht das
 // Bemessungsentgelt des § 151.
 
-import { jahreslohnsteuer, solidaritaetszuschlagJahr, STEUERKLASSEN } from './lohnsteuer.js';
-import { PFLEGE_ARBEITNEHMER_GRUNDSATZ } from './sozialversicherung.js';
+import { STEUERKLASSEN } from './lohnsteuer.js';
+import { leistungsentgeltMonat, SOZIALVERSICHERUNGSPAUSCHALE } from './leistungsentgelt.js';
 
 export const KUG_STAND = '2026-01-01';
+
+export { SOZIALVERSICHERUNGSPAUSCHALE };
 
 /** § 105 Nr. 2 SGB III – Regelleistungssatz. */
 export const LEISTUNGSSATZ = 0.6;
 
 /** § 105 Nr. 1 SGB III – erhöhter Leistungssatz für Berechtigte mit Kind. */
 export const LEISTUNGSSATZ_ERHOEHT = 0.67;
-
-/** § 153 Abs. 1 Satz 2 Nr. 1 SGB III – Sozialversicherungspauschale. */
-export const SOZIALVERSICHERUNGSPAUSCHALE = 0.2;
 
 /** § 106 Abs. 1 Satz 5 SGB III – Soll- und Ist-Entgelt werden auf durch 20 teilbare Euro-Beträge gerundet. */
 export const RUNDUNGSSTUFE = 20;
@@ -102,18 +101,7 @@ export function rundeEntgelt(entgelt) {
  */
 export function pauschaliertesNettoentgelt({ entgeltMonat, steuerklasse }) {
   pruefeSteuerklasse(steuerklasse);
-  const entgelt = Number.isFinite(entgeltMonat) ? Math.max(0, entgeltMonat) : 0;
-  if (entgelt === 0) return 0;
-
-  const lohnsteuerJahr = jahreslohnsteuer({
-    jahresarbeitslohn: entgelt * 12,
-    steuerklasse,
-    pflegesatz: PFLEGE_ARBEITNEHMER_GRUNDSATZ,
-  });
-  const soliJahr = solidaritaetszuschlagJahr(lohnsteuerJahr, steuerklasse);
-
-  const sozialversicherung = entgelt * SOZIALVERSICHERUNGSPAUSCHALE;
-  return entgelt - sozialversicherung - (lohnsteuerJahr + soliJahr) / 12;
+  return leistungsentgeltMonat({ bemessungsentgeltMonat: entgeltMonat, steuerklasse });
 }
 
 /**
