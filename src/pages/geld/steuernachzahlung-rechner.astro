@@ -9,7 +9,7 @@ const year = new Date().getFullYear();
 ---
 <Layout
   title={`Steuernachzahlung-Rechner ${year}`}
-  description="Steuernachzahlung oder Erstattung 2025 berechnen: Steuerklasse, Werbungskosten und Freibetraege eingeben und sofort sehen, ob Sie nachzahlen oder Geld zurueckbekommen."
+  description={`Steuernachzahlung oder Erstattung ${year} berechnen: Der Rechner stellt die einbehaltene Lohnsteuer der geschuldeten Jahressteuer gegenüber – mit Steuerklasse, Partnereinkommen, Werbungskosten und Sonderausgaben.`}
   canonicalPath="/geld/steuernachzahlung-rechner/"
   categoryColor={cat.color}
   categoryLight={cat.colorLight}
@@ -22,12 +22,12 @@ const year = new Date().getFullYear();
   <CalculatorShell
     calculator={calc}
     intro="Mit dem Steuernachzahlung-Rechner schätzen Sie, ob Sie mit einer Steuernachzahlung oder Erstattung rechnen können. So vermeiden Sie böse Überraschungen und können rechtzeitig Rücklagen bilden."
-    sourceNote="Schätzung basierend auf Grundtarif."
-    explanation="Die Schätzung basiert auf dem Einkommensteuertarif nach § 32a EStG und berücksichtigt die wichtigsten Freibeträge. Nachzahlungen entstehen häufig bei der Kombination III/V, Nebeneinkünften oder Lohnersatzleistungen mit Progressionsvorbehalt. Eine exakte Berechnung erfolgt erst mit der Steuererklärung." faqs={[
+    sourceNote={`Einbehalt nach § 39b Abs. 2 EStG, Jahressteuer nach § 32a EStG (Grund- oder Splittingtarif), Solidaritätszuschlag nach SolzG 1995, Beitragssätze ${year}. Die Vorsorgeaufwendungen werden mit der Vorsorgepauschale angesetzt; die Veranlagung rechnet sie nach § 10 EStG, davon kann das Ergebnis abweichen. Kinderfreibeträge und Progressionsvorbehalt sind nicht abgebildet.`}
+    explanation="Der Rechner stellt zwei Größen gegenüber: die Lohnsteuer, die Ihr Arbeitgeber über das Jahr einbehalten hat, und die Einkommensteuer, die Sie tatsächlich schulden. Die Differenz ist die Nachzahlung oder Erstattung. Nachzahlungen entstehen vor allem bei der Steuerklassenkombination III/V, bei Nebeneinkünften und bei Lohnersatzleistungen mit Progressionsvorbehalt. Die verbindliche Berechnung nimmt erst das Finanzamt vor." faqs={[
       { q: "Wann muss ich mit einer Steuernachzahlung rechnen?", a: "Nachzahlungen entstehen, wenn im Laufe des Jahres zu wenig Lohnsteuer einbehalten wurde. Typische Fälle sind: Steuerklassenkombination III/V, Einkünfte aus Nebenjobs oder Selbstständigkeit, Abfindungen, Mieteinnahmen oder andere Einkünfte neben dem Gehalt. Auch bei Lohnersatzleistungen wie Kurzarbeitergeld oder Elterngeld kann der Progressionsvorbehalt zu Nachzahlungen führen." },
       { q: "Wie kann ich eine Steuernachzahlung vermeiden?", a: "Sie können beim Finanzamt die Eintragung eines Freibetrags oder eine Erhöhung der Vorauszahlungen beantragen, um die Steuerlast besser über das Jahr zu verteilen. Bei der Kombination III/V empfiehlt sich der Wechsel zu IV/IV mit Faktor. Legen Sie zudem jeden Monat einen Teil des Nettoeinkommens zur Seite, wenn Sie mit einer Nachzahlung rechnen." },
-      { q: "Welche Freibeträge kann ich geltend machen?", a: "Die wichtigsten Freibeträge sind: Grundfreibetrag (12.096 Euro in 2025), Arbeitnehmerpauschbetrag (1.230 Euro Werbungskosten), Sonderausgabenpauschale (36 Euro), Sparerpauschbetrag (1.000 Euro), Kinderfreibetrag (6.672 Euro pro Kind, alternativ zum Kindergeld). Zusätzlich können Sie tatsächliche Werbungskosten, Fahrtkosten (0,30 Euro/km, ab 21. km 0,38 Euro/km) und Homeoffice-Pauschale (6 Euro/Tag, max. 1.260 Euro) absetzen." },
-      { q: "Bis wann muss ich meine Steuererklärung abgeben?", a: "Für die Steuererklärung 2025 gilt als Abgabefrist der 31. Juli 2026 (bei Pflichtveranlagung). Wer einen Steuerberater oder Lohnsteuerhilfeverein beauftragt, hat Zeit bis Ende Februar 2027. Bei freiwilliger Abgabe haben Sie vier Jahre Zeit (für 2025 also bis Ende 2029). Wer die Frist bei Pflichtabgabe versäumt, riskiert einen Verspätungszuschlag von mindestens 25 Euro pro angefangenem Monat." },
+      { q: "Welche Freibeträge kann ich geltend machen?", a: "Die wichtigsten Freibeträge sind: Grundfreibetrag (12.348 Euro, § 32a Abs. 1 EStG), Arbeitnehmer-Pauschbetrag (1.230 Euro, § 9a EStG), Sonderausgaben-Pauschbetrag (36 Euro, § 10c EStG), Sparer-Pauschbetrag (1.000 Euro, § 20 Abs. 9 EStG) und der Kinderfreibetrag samt Betreuungsfreibetrag (3.414 plus 1.464 Euro je Elternteil, bei Zusammenveranlagung also 9.756 Euro je Kind – alternativ zum Kindergeld, das Finanzamt prüft von selbst, was günstiger ist). Zusätzlich absetzbar sind tatsächliche Werbungskosten, die Entfernungspauschale von 0,38 Euro je Entfernungskilometer ab dem ersten Kilometer (§ 9 Abs. 1 Nr. 4 EStG) und die Homeoffice-Pauschale von 6 Euro je Tag, höchstens 1.260 Euro im Jahr." },
+      { q: "Bis wann muss ich meine Steuererklärung abgeben?", a: "Bei Pflichtveranlagung endet die Frist am 31. Juli des Folgejahres, für das Steuerjahr 2026 also am 31. Juli 2027. Wer einen Steuerberater oder Lohnsteuerhilfeverein beauftragt, hat bis Ende Februar des übernächsten Jahres Zeit. Bei freiwilliger Abgabe haben Sie vier Jahre, für 2026 also bis Ende 2030. Wer die Frist bei Pflichtabgabe versäumt, riskiert einen Verspätungszuschlag von mindestens 25 Euro pro angefangenem Monat." },
       { q: "Lohnt sich eine freiwillige Steuererklärung?", a: "Ja, in den meisten Fällen. Arbeitnehmer erhalten laut Statistischem Bundesamt im Durchschnitt etwa 1.095 Euro zurück. Besonders lohnend ist die Abgabe bei hohen Fahrtkosten, Homeoffice-Nutzung, außergewöhnlichen Belastungen (Krankheitskosten, Pflegekosten), Handwerkerleistungen oder haushaltsnahen Dienstleistungen. Eine freiwillige Erklärung kann rückwirkend bis zu vier Jahre eingereicht werden." },
       { q: "Wie hoch sind die Nachzahlungszinsen vom Finanzamt?", a: "Das Finanzamt berechnet ab dem 16. Monat nach Ablauf des Steuerjahres Zinsen von 0,15 % pro Monat (1,8 % pro Jahr) auf Nachzahlungen und Erstattungen. Fuer das Steuerjahr 2024 beginnt die Verzinsung ab dem 1. Mai 2026. Bei einer Nachzahlung von 3.000 Euro waeren das 4,50 Euro pro Monat. Vorauszahlungen koennen beim Finanzamt beantragt werden, um Nachzahlungszinsen zu vermeiden." },
       { q: "Was ist der Progressionsvorbehalt?", a: "Lohnersatzleistungen wie Elterngeld, Kurzarbeitergeld, Arbeitslosengeld I oder Krankengeld sind zwar steuerfrei, erhoehen aber den Steuersatz auf das uebrige Einkommen (Progressionsvorbehalt nach Paragraph 32b EStG). Beispiel: Bei 40.000 Euro Gehalt und 10.000 Euro Elterngeld wird die Steuer so berechnet, als haetten Sie 50.000 Euro verdient – der hoehere Steuersatz wird dann auf die 40.000 Euro angewandt. Das fuehrt haeufig zu Nachzahlungen von 1.000-3.000 Euro." },
@@ -41,37 +41,47 @@ const year = new Date().getFullYear();
           <input type="number" id="brutto" min="0" max="1000000" value="50000" step="1000" />
         </div>
         <div class="calc-group">
-          <label for="stklasse">Steuerklasse</label>
+          <label for="stklasse">Ihre Steuerklasse</label>
           <select id="stklasse">
-            <option value="I">I</option>
-            <option value="II">II (Alleinerziehende)</option>
-            <option value="III">III</option>
-            <option value="IV" selected>IV</option>
-            <option value="V">V</option>
+            <option value="1">I</option>
+            <option value="2">II (Alleinerziehende)</option>
+            <option value="3">III</option>
+            <option value="4" selected>IV</option>
+            <option value="5">V</option>
+            <option value="6">VI</option>
           </select>
         </div>
         <div class="calc-group">
-          <label for="stklasse6">Partner-Steuerklasse (II/III)</label>
-          <select id="stklasse6">
-            <option value="0">Ohne Partner</option>
-            <option value="I">I</option>
-            <option value="II">II</option>
-            <option value="III">III</option>
-            <option value="IV">IV</option>
-            <option value="V">V</option>
+          <label for="partnerBrutto">Jahresbrutto Partner (€)</label>
+          <input type="number" id="partnerBrutto" min="0" max="1000000" value="0" step="1000" />
+        </div>
+        <div class="calc-group">
+          <label for="partnerKlasse">Steuerklasse Partner</label>
+          <select id="partnerKlasse">
+            <option value="0" selected>Keine Zusammenveranlagung</option>
+            <option value="3">III</option>
+            <option value="4">IV</option>
+            <option value="5">V</option>
           </select>
         </div>
         <div class="calc-group">
-          <label for="werbung">Werbungskosten (€)</label>
+          <label for="werbung">Werbungskosten (€/Jahr)</label>
           <input type="number" id="werbung" min="0" max="100000" value="1000" step="100" />
         </div>
         <div class="calc-group">
-          <label for="sonder">Sonderausgaben (€)</label>
-          <input type="number" id="sonder" min="0" max="100000" value="2000" step="100" />
+          <label for="sonder">Sonderausgaben ohne Vorsorgeaufwendungen (€/Jahr)</label>
+          <input type="number" id="sonder" min="0" max="100000" value="0" step="100" />
         </div>
         <div class="calc-group">
-          <label for="kinder">Anzahl Kinder</label>
-          <input type="number" id="kinder" min="0" max="20" value="0" step="1" />
+          <label for="kinder">Kinder unter 25 Jahren</label>
+          <select id="kinder">
+            <option value="0">keine</option>
+            <option value="1" selected>1 Kind</option>
+            <option value="2">2 Kinder</option>
+            <option value="3">3 Kinder</option>
+            <option value="4">4 Kinder</option>
+            <option value="5">5 Kinder oder mehr</option>
+          </select>
         </div>
       </div>
 
@@ -101,7 +111,7 @@ const year = new Date().getFullYear();
 </tbody>
 </table>
 
-<p><strong>Die wichtigsten Abzugsmoeglichkeiten:</strong> Werbungskosten mindern die Steuerlast direkt. Der Arbeitnehmerpauschbetrag betraegt 1.230 Euro. Erst wenn Ihre tatsaechlichen Werbungskosten darueber liegen, lohnt es sich, diese einzeln nachzuweisen. Typische Werbungskosten sind Fahrtkosten zur Arbeit (Entfernungspauschale: 0,30 Euro pro km, ab dem 21. Kilometer 0,38 Euro), Arbeitsmittel wie Computer oder Fachliteratur, Fortbildungskosten und die Homeoffice-Pauschale (6 Euro pro Tag, maximal 1.260 Euro im Jahr).</p>
+<p><strong>Die wichtigsten Abzugsmoeglichkeiten:</strong> Werbungskosten mindern die Steuerlast direkt. Der Arbeitnehmerpauschbetrag betraegt 1.230 Euro. Erst wenn Ihre tatsaechlichen Werbungskosten darueber liegen, lohnt es sich, diese einzeln nachzuweisen. Typische Werbungskosten sind Fahrtkosten zur Arbeit (Entfernungspauschale: 0,38 Euro je Entfernungskilometer ab dem ersten Kilometer, höchstens 4.500 Euro im Jahr – ohne diese Grenze, wenn Sie einen eigenen Wagen nutzen), Arbeitsmittel wie Computer oder Fachliteratur, Fortbildungskosten und die Homeoffice-Pauschale (6 Euro pro Tag, maximal 1.260 Euro im Jahr).</p>
 
 <h3>Wichtige Freibetraege und Pauschalen 2025</h3>
 <table>
@@ -113,7 +123,7 @@ const year = new Date().getFullYear();
 <tr><td>Kinderfreibetrag</td><td>6.672 EUR pro Kind</td><td>Eltern (alternativ zu Kindergeld)</td></tr>
 <tr><td>Entlastungsbetrag Alleinerziehende</td><td>4.260 EUR</td><td>Steuerklasse II</td></tr>
 <tr><td>Homeoffice-Pauschale</td><td>6 EUR/Tag, max. 1.260 EUR</td><td>Arbeitnehmer im Homeoffice</td></tr>
-<tr><td>Entfernungspauschale</td><td>0,30 EUR/km (ab 21. km: 0,38 EUR)</td><td>Pendler</td></tr>
+<tr><td>Entfernungspauschale</td><td>0,38 EUR je Entfernungskilometer</td><td>Pendler</td></tr>
 <tr><td>Sonderausgabenpauschale</td><td>36 EUR / 72 EUR (Ehepaar)</td><td>Alle Steuerpflichtigen</td></tr>
 </tbody>
 </table>
@@ -129,35 +139,49 @@ const year = new Date().getFullYear();
 
 <script type="module">
 const { berechneSteuernachzahlung } = await import(window.__base + 'scripts/steuernachzahlung.js');
-function fmt(n) { return Math.abs(n).toLocaleString('de-DE', {minimumFractionDigits:2, maximumFractionDigits:2}) + ' €'; }
+
+function fmt(n) { return Math.abs(n).toLocaleString('de-DE', {minimumFractionDigits:2, maximumFractionDigits:2}) + ' \u20ac'; }
+
 function berechne() {
-  const brutto = parseFloat(document.getElementById('brutto').value)||50000;
-  const stklasse = document.getElementById('stklasse').value;
-  const stklasse2 = document.getElementById('stklasse6').value;
-  const werbung = parseFloat(document.getElementById('werbung').value)||1000;
-  const sonder = parseFloat(document.getElementById('sonder').value)||2000;
-  const kinder = parseInt(document.getElementById('kinder').value)||0;
-  const r = berechneSteuernachzahlung({ brutto, stklasse, stklasse2, werbung, sonder, kinder });
+  const r = berechneSteuernachzahlung({
+    bruttoJahr: parseFloat(document.getElementById('brutto').value) || 0,
+    steuerklasse: parseInt(document.getElementById('stklasse').value),
+    partnerBruttoJahr: parseFloat(document.getElementById('partnerBrutto').value) || 0,
+    partnerSteuerklasse: parseInt(document.getElementById('partnerKlasse').value) || 0,
+    werbungskosten: parseFloat(document.getElementById('werbung').value) || 0,
+    sonderausgaben: parseFloat(document.getElementById('sonder').value) || 0,
+    kinder: parseInt(document.getElementById('kinder').value) || 0,
+  });
+
   const ergebnisEl = document.getElementById('ergebnis');
   const labelEl = document.getElementById('result-label');
+
   if (r.nachzahlung > 0) {
-    ergebnisEl.textContent = '− ' + fmt(r.nachzahlung);
+    ergebnisEl.textContent = '\u2212 ' + fmt(r.nachzahlung);
     ergebnisEl.style.color = '#c8102e';
-    labelEl.textContent = 'Geschätzte Steuernachzahlung';
-  } else {
-    ergebnisEl.textContent = '+ ' + fmt(r.nachzahlung);
+    labelEl.textContent = 'Voraussichtliche Nachzahlung';
+  } else if (r.erstattung > 0) {
+    ergebnisEl.textContent = '+ ' + fmt(r.erstattung);
     ergebnisEl.style.color = '#1e7e34';
-    labelEl.textContent = 'Geschätzte Steuererstattung';
+    labelEl.textContent = 'Voraussichtliche Erstattung';
+  } else {
+    ergebnisEl.textContent = '0,00 \u20ac';
+    ergebnisEl.style.color = '';
+    labelEl.textContent = 'Weder Nachzahlung noch Erstattung';
   }
+
   document.getElementById('details').innerHTML =
-    `<span>Jahressteuer: <strong>${fmt(r.jahresSteuer)}</strong></span>` +
-    `<span>Abgaben: <strong>${fmt(r.abgaben)}</strong></span>` +
-    `<span>Freibeträge: <strong>${fmt(r.freibeträge)}</strong></span>` +
-    `<span>Arbeitnehmer-Pauschbetrag: <strong>${fmt(r.pauschbetrag)}</strong></span>`;
+    `<span>Einbehaltene Lohnsteuer: <strong>${fmt(r.einbehaltenLohnsteuer)}</strong></span>` +
+    `<span>Einbehaltener Soli: <strong>${fmt(r.einbehaltenSoli)}</strong></span>` +
+    `<span>Geschuldete Jahressteuer: <strong>${fmt(r.jahressteuer)}</strong></span>` +
+    `<span>Zu versteuerndes Einkommen: <strong>${fmt(r.zuVersteuerndesEinkommen)}</strong></span>` +
+    `<span>Veranlagung: <strong>${r.zusammenveranlagung ? 'zusammen' : 'einzeln'}</strong></span>`;
 }
-['brutto','werbung','sonder','kinder'].forEach(id =>
-  document.getElementById(id).addEventListener('input', berechne));
-['stklasse','stklasse6'].forEach(id =>
-  document.getElementById(id).addEventListener('change', berechne));
+
+['brutto','partnerBrutto','werbung','sonder','stklasse','partnerKlasse','kinder'].forEach(id => {
+  const el = document.getElementById(id);
+  el.addEventListener('input', berechne);
+  el.addEventListener('change', berechne);
+});
 berechne();
 </script>
