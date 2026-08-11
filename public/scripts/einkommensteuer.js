@@ -12,9 +12,14 @@ export const TARIF_STAND = '2026-01-01';
 /** Grundfreibetrag in Euro (§ 32a Abs. 1 Satz 2 Nr. 1 EStG). */
 export const GRUNDFREIBETRAG = 12348;
 
-const ZONE_2_OBERGRENZE = 17799;
-const ZONE_3_OBERGRENZE = 69878;
-const ZONE_4_OBERGRENZE = 277825;
+/** Obergrenze der ersten Progressionszone (§ 32a Abs. 1 Satz 2 Nr. 2 EStG). */
+export const ZONE_2_OBERGRENZE = 17799;
+
+/** Ab dem nächsten Euro greift der Spitzensteuersatz von 42 % (§ 32a Abs. 1 Satz 2 Nr. 3 EStG). */
+export const ZONE_3_OBERGRENZE = 69878;
+
+/** Ab dem nächsten Euro greift der Steuersatz von 45 % (§ 32a Abs. 1 Satz 2 Nr. 4 EStG). */
+export const ZONE_4_OBERGRENZE = 277825;
 
 /**
  * Tarifliche Einkommensteuer auf ein zu versteuerndes Einkommen.

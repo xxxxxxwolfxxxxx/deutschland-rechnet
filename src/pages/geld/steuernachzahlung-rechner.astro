@@ -3,9 +3,50 @@ import Layout from '../../layouts/Layout.astro';
 import CalculatorShell from '../../components/CalculatorShell.astro';
 import CalculatorGuide from '../../components/CalculatorGuide.astro';
 import { CALCULATORS, CATEGORIES } from '../../data/calculators';
+import {
+  einkommensteuer,
+  GRUNDFREIBETRAG,
+  ZONE_2_OBERGRENZE,
+  ZONE_3_OBERGRENZE,
+  ZONE_4_OBERGRENZE,
+} from '../../../public/scripts/einkommensteuer.js';
+import {
+  ARBEITNEHMER_PAUSCHBETRAG,
+  ENTLASTUNGSBETRAG_ALLEINERZIEHENDE,
+} from '../../../public/scripts/lohnsteuer.js';
+import {
+  KINDERFREIBETRAG_JE_ELTERNTEIL,
+  BEA_FREIBETRAG_JE_ELTERNTEIL,
+} from '../../../public/scripts/kindergeld.js';
+
 const calc = CALCULATORS.find(c => c.slug === 'steuernachzahlung-rechner')!;
 const cat = CATEGORIES[calc.category];
 const year = new Date().getFullYear();
+
+// Tarif und Freibeträge werden aus den Rechenmodulen abgeleitet. Bis zum
+// 11.08.2026 standen hier die Werte des Jahres 2025 als eigene Zahlen:
+// 12.096 Euro Grundfreibetrag, Zonengrenzen bei 17.443 und 66.760 Euro.
+const eur = (n: number) => n.toLocaleString('de-DE', { maximumFractionDigits: 0 }) + ' EUR';
+const pct = (n: number) => (n * 100).toLocaleString('de-DE', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + ' %';
+
+const TARIFZONEN = [
+  { bereich: `bis ${eur(GRUNDFREIBETRAG)}`, grenz: '0 %', bis: GRUNDFREIBETRAG },
+  { bereich: `${eur(GRUNDFREIBETRAG + 1)} - ${eur(ZONE_2_OBERGRENZE)}`, grenz: '14 - 24 %', bis: ZONE_2_OBERGRENZE },
+  { bereich: `${eur(ZONE_2_OBERGRENZE + 1)} - ${eur(ZONE_3_OBERGRENZE)}`, grenz: '24 - 42 %', bis: ZONE_3_OBERGRENZE },
+  { bereich: `${eur(ZONE_3_OBERGRENZE + 1)} - ${eur(ZONE_4_OBERGRENZE)}`, grenz: '42 %', bis: ZONE_4_OBERGRENZE },
+];
+
+const tarifZeilen = TARIFZONEN.map(z => {
+  const steuer = einkommensteuer(z.bis);
+  if (steuer === 0) return `<tr><td>${z.bereich}</td><td>${z.grenz}</td><td>0 EUR</td><td>0 %</td></tr>`;
+  return `<tr><td>${z.bereich}</td><td>${z.grenz}</td><td>bis ${eur(steuer)}</td><td>bis ${pct(steuer / z.bis)}</td></tr>`;
+}).join('\n');
+
+const spitzensteuerAb = einkommensteuer(ZONE_4_OBERGRENZE);
+const tarifZeileSpitze = `<tr><td>ab ${eur(ZONE_4_OBERGRENZE + 1)}</td><td>45 %</td><td>ab ${eur(spitzensteuerAb)}</td><td>ab ${pct(spitzensteuerAb / ZONE_4_OBERGRENZE)}</td></tr>`;
+
+const kinderfreibetragGesamt = KINDERFREIBETRAG_JE_ELTERNTEIL * 2;
+const beaFreibetragGesamt = BEA_FREIBETRAG_JE_ELTERNTEIL * 2;
 ---
 <Layout
   title={`Steuernachzahlung-Rechner ${year}`}
@@ -99,29 +140,27 @@ const year = new Date().getFullYear();
 
 <p><strong>Wie entsteht eine Steuernachzahlung?</strong> Waehrend des Jahres behaelt Ihr Arbeitgeber Lohnsteuer ein, die auf Basis Ihrer Steuerklasse und Ihres monatlichen Gehalts berechnet wird. Stimmt die einbehaltene Steuer nicht mit der tatsaechlichen Jahressteuer ueberein, ergibt sich eine Differenz. Haeufigste Gruende fuer Nachzahlungen sind: die Steuerklassenkombination III/V, Einkuenfte aus Vermietung oder Nebentaetigkeit, der Progressionsvorbehalt bei Lohnersatzleistungen und nicht angegebene geldwerte Vorteile.</p>
 
-<h3>Einkommensteuertarif 2025: Grenzsteuersaetze</h3>
+<h3>Einkommensteuertarif ${year}: Grenzsteuersaetze</h3>
 <table>
 <thead><tr><th>Zu versteuerndes Einkommen</th><th>Grenzsteuersatz</th><th>Steuer auf Gesamtbetrag</th><th>Durchschnittssteuersatz</th></tr></thead>
 <tbody>
-<tr><td>bis 12.096 EUR</td><td>0 %</td><td>0 EUR</td><td>0 %</td></tr>
-<tr><td>12.097 - 17.443 EUR</td><td>14 - 24 %</td><td>bis 940 EUR</td><td>ca. 5,4 %</td></tr>
-<tr><td>17.444 - 66.760 EUR</td><td>24 - 42 %</td><td>bis 15.696 EUR</td><td>ca. 23,5 %</td></tr>
-<tr><td>66.761 - 277.825 EUR</td><td>42 %</td><td>bis 104.343 EUR</td><td>ca. 37,6 %</td></tr>
-<tr><td>ab 277.826 EUR</td><td>45 %</td><td>ab 104.343 EUR</td><td>ab 37,6 %</td></tr>
+${tarifZeilen}
+${tarifZeileSpitze}
 </tbody>
 </table>
+<p><em>Grundtarif nach § 32a Abs. 1 EStG, also ohne Splitting. Die Steuerbetraege sind aus demselben Rechenmodul erzeugt wie der Rechner oben.</em></p>
 
 <p><strong>Die wichtigsten Abzugsmoeglichkeiten:</strong> Werbungskosten mindern die Steuerlast direkt. Der Arbeitnehmerpauschbetrag betraegt 1.230 Euro. Erst wenn Ihre tatsaechlichen Werbungskosten darueber liegen, lohnt es sich, diese einzeln nachzuweisen. Typische Werbungskosten sind Fahrtkosten zur Arbeit (Entfernungspauschale: 0,38 Euro je Entfernungskilometer ab dem ersten Kilometer, höchstens 4.500 Euro im Jahr – ohne diese Grenze, wenn Sie einen eigenen Wagen nutzen), Arbeitsmittel wie Computer oder Fachliteratur, Fortbildungskosten und die Homeoffice-Pauschale (6 Euro pro Tag, maximal 1.260 Euro im Jahr).</p>
 
-<h3>Wichtige Freibetraege und Pauschalen 2025</h3>
+<h3>Wichtige Freibetraege und Pauschalen ${year}</h3>
 <table>
-<thead><tr><th>Freibetrag / Pauschale</th><th>Betrag 2025</th><th>Gilt fuer</th></tr></thead>
+<thead><tr><th>Freibetrag / Pauschale</th><th>Betrag ${year}</th><th>Gilt fuer</th></tr></thead>
 <tbody>
-<tr><td>Grundfreibetrag</td><td>12.096 EUR</td><td>Alle Steuerpflichtigen</td></tr>
-<tr><td>Arbeitnehmerpauschbetrag</td><td>1.230 EUR</td><td>Arbeitnehmer (Werbungskosten)</td></tr>
+<tr><td>Grundfreibetrag</td><td>${eur(GRUNDFREIBETRAG)}</td><td>Alle Steuerpflichtigen</td></tr>
+<tr><td>Arbeitnehmerpauschbetrag</td><td>${eur(ARBEITNEHMER_PAUSCHBETRAG)}</td><td>Arbeitnehmer (Werbungskosten)</td></tr>
 <tr><td>Sparerpauschbetrag</td><td>1.000 EUR / 2.000 EUR (Ehepaar)</td><td>Kapitalertraege</td></tr>
-<tr><td>Kinderfreibetrag</td><td>6.828 EUR pro Kind, zzgl. 2.928 EUR Betreuungsfreibetrag</td><td>Eltern (alternativ zu Kindergeld)</td></tr>
-<tr><td>Entlastungsbetrag Alleinerziehende</td><td>4.260 EUR</td><td>Steuerklasse II</td></tr>
+<tr><td>Kinderfreibetrag</td><td>${eur(kinderfreibetragGesamt)} pro Kind, zzgl. ${eur(beaFreibetragGesamt)} Betreuungsfreibetrag</td><td>Eltern (alternativ zu Kindergeld)</td></tr>
+<tr><td>Entlastungsbetrag Alleinerziehende</td><td>${eur(ENTLASTUNGSBETRAG_ALLEINERZIEHENDE)}</td><td>Steuerklasse II</td></tr>
 <tr><td>Homeoffice-Pauschale</td><td>6 EUR/Tag, max. 1.260 EUR</td><td>Arbeitnehmer im Homeoffice</td></tr>
 <tr><td>Entfernungspauschale</td><td>0,38 EUR je Entfernungskilometer</td><td>Pendler</td></tr>
 <tr><td>Sonderausgabenpauschale</td><td>36 EUR / 72 EUR (Ehepaar)</td><td>Alle Steuerpflichtigen</td></tr>
