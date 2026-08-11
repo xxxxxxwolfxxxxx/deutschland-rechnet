@@ -3,13 +3,38 @@ import Layout from '../../layouts/Layout.astro';
 import CalculatorShell from '../../components/CalculatorShell.astro';
 import CalculatorGuide from '../../components/CalculatorGuide.astro';
 import { CALCULATORS, CATEGORIES } from '../../data/calculators';
+import {
+  GRUNDFREIBETRAG_MONAT,
+  ERHOEHUNG_ERSTE_PERSON,
+  ERHOEHUNG_WEITERE_PERSON,
+  HOECHSTBETRAG_MONAT,
+  freigrenze,
+  pKontoFreibetrag,
+  berechnePfaendungsfreigrenze,
+} from '../../../public/scripts/pfaendungsfreigrenze.js';
 const calc = CALCULATORS.find(c => c.slug === 'pfaendungsfreigrenze-rechner')!;
 const cat = CATEGORIES[calc.category];
 const year = new Date().getFullYear();
+
+// Alle Beträge stammen aus dem Rechenmodul, damit Text und Rechner nicht
+// auseinanderlaufen können. Vor dem 11.08.2026 standen auf dieser Seite drei
+// verschiedene, sämtlich veraltete Wertesätze.
+const euro = (n: number) => n.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
+const euroKurz = (n: number) => n.toLocaleString('de-DE') + ' €';
+
+const beispielNetto = 2200;
+const beispiel = berechnePfaendungsfreigrenze({ nettoMonat: beispielNetto });
+const beispielMitKind = berechnePfaendungsfreigrenze({ nettoMonat: beispielNetto, unterhaltspflichtige: 2 });
+
+// Tabelle: pfändbarer Betrag nach Nettolohn und Unterhaltspflichten.
+const tabellenZeilen = [1600, 1800, 2000, 2200, 2500, 3000, 3500, 4000, 4500].map((netto) => ({
+  netto,
+  spalten: [0, 1, 2, 3].map((n) => berechnePfaendungsfreigrenze({ nettoMonat: netto, unterhaltspflichtige: n }).pfaendbar),
+}));
 ---
 <Layout
   title={`Pfändungsfreigrenze-Rechner ${year}`}
-  description="Pfändbares Einkommen nach § 850c ZPO berechnen – Pfändungsfreigrenze 2025/2026 mit Unterhaltspflichtigen."
+  description={`Pfändbares Einkommen nach § 850c ZPO berechnen – Pfändungsfreigrenze ab 1. Juli 2026: ${euro(GRUNDFREIBETRAG_MONAT)} für Alleinstehende, mehr mit Unterhaltspflichten.`}
   canonicalPath="/geld/pfaendungsfreigrenze-rechner/"
   categoryColor={cat.color}
   categoryLight={cat.colorLight}
@@ -22,14 +47,14 @@ const year = new Date().getFullYear();
   <CalculatorShell
     calculator={calc}
     intro="Mit dem Pfändungsfreigrenze-Rechner berechnen Sie den pfändungsfreien Betrag Ihres Einkommens nach § 850c ZPO. Ermitteln Sie, wie viel von Ihrem Nettoeinkommen bei einer Pfändung geschützt ist."
-    sourceNote="Nach § 850c ZPO."
-    explanation="Die Pfändungsfreigrenze nach § 850c ZPO sichert das Existenzminimum und liegt bei ca. 1.450 Euro netto für Alleinstehende. Für jede unterhaltspflichtige Person erhöht sich der Freibetrag um ca. 410 Euro. Die Beträge werden regelmässig an die Lebenshaltungskosten angepasst."
+    sourceNote={`§ 850c ZPO in der Fassung der Pfändungsfreigrenzenbekanntmachung 2026 (Bek. v. 19.03.2026, BGBl. 2026 I Nr. 80), gültig ab 1. Juli 2026. Grundfreibetrag ${euro(GRUNDFREIBETRAG_MONAT)} monatlich. Der Rechner bildet die amtliche Monatstabelle ab; für Wochen- und Tageslohn gelten eigene Tabellen.`}
+    explanation={`Die Pfändungsfreigrenze nach § 850c ZPO sichert das Existenzminimum. Seit dem 1. Juli 2026 liegt sie für Alleinstehende ohne Unterhaltspflichten bei ${euro(GRUNDFREIBETRAG_MONAT)} netto im Monat. Für die erste unterhaltsberechtigte Person erhöht sie sich um ${euro(ERHOEHUNG_ERSTE_PERSON)}, für die zweite bis fünfte um je ${euro(ERHOEHUNG_WEITERE_PERSON)}. Vom Einkommen oberhalb der Freigrenze bleiben drei Zehntel unpfändbar, bei Unterhaltspflichten mehr. Was ${euro(HOECHSTBETRAG_MONAT)} übersteigt, ist in voller Höhe pfändbar.`}
     faqs={[
-      { q: "Was ist eine Pfändungsfreigrenze?", a: "Die Pfändungsfreigrenze ist der gesetzlich geschützte Mindestbetrag deines Nettoeinkommens, den kein Gläubiger pfänden darf. Dieser Betrag sichert dein Existenzminimum. Alles oberhalb der Freigrenze kann anteilig gepfändet werden, geregelt in § 850c ZPO." },
-      { q: "Wie hoch ist die Pfändungsfreigrenze aktuell?", a: "Seit Juli 2023 liegt die Pfändungsfreigrenze bei 1.402,28 Euro netto monatlich für Alleinstehende ohne Unterhaltspflichten. Mit Unterhaltspflichten steigt der Freibetrag: Für die erste Person um ca. 527 Euro, für die zweite bis fünfte um jeweils ca. 294 Euro. Die Beträge werden regelmäßig an die Lebenshaltungskosten angepasst." },
-      { q: "Was ist ein P-Konto und wie funktioniert es?", a: "Ein P-Konto (Pfändungsschutzkonto) schützt dein Guthaben auf dem Girokonto vor Pfändung. Der Grundfreibetrag von 1.402,28 Euro wird automatisch geschützt. Für Unterhaltspflichten oder Kindergeld kannst du eine Bescheinigung vorlegen und den Freibetrag erhöhen lassen. Jede Person darf nur ein P-Konto führen." },
+      { q: "Was ist eine Pfändungsfreigrenze?", a: "Die Pfändungsfreigrenze ist der gesetzlich geschützte Mindestbetrag deines Nettoeinkommens, den kein Gläubiger pfänden darf. Dieser Betrag sichert dein Existenzminimum. Vom Einkommen oberhalb der Freigrenze ist nur ein Teil pfändbar, geregelt in § 850c ZPO." },
+      { q: "Wie hoch ist die Pfändungsfreigrenze aktuell?", a: `Seit dem 1. Juli 2026 liegt sie bei ${euro(GRUNDFREIBETRAG_MONAT)} netto monatlich für Alleinstehende ohne Unterhaltspflichten. Mit Unterhaltspflichten steigt der Freibetrag: für die erste Person um ${euro(ERHOEHUNG_ERSTE_PERSON)}, für die zweite bis fünfte um je ${euro(ERHOEHUNG_WEITERE_PERSON)}. Bei zwei unterhaltsberechtigten Personen sind das ${euro(freigrenze(2))}. Das Bundesministerium der Justiz passt die Beträge jeweils zum 1. Juli an die Entwicklung des steuerlichen Grundfreibetrags an.` },
+      { q: "Was ist ein P-Konto und wie funktioniert es?", a: `Ein P-Konto (Pfändungsschutzkonto) schützt dein Guthaben auf dem Girokonto vor Pfändung. Automatisch geschützt sind ${euroKurz(pKontoFreibetrag())} im Monat – nach § 899 Abs. 1 ZPO der Freibetrag des § 850c, aufgerundet auf volle zehn Euro. Für Unterhaltspflichten oder Kindergeld kannst du eine Bescheinigung vorlegen und den Freibetrag erhöhen lassen. Jede Person darf nur ein P-Konto führen.` },
       { q: "Wer setzt die Pfändungsfreigrenze fest?", a: "Die Pfändungsfreigrenze ist gesetzlich in der Pfändungsfreigrenzenbekanntmachung geregelt und wird vom Bundesministerium der Justiz veröffentlicht. Der Arbeitgeber berechnet bei einer Lohnpfändung den pfändungsfreien Betrag anhand der Pfändungstabelle und zahlt nur den pfändbaren Anteil an den Gläubiger." },
-      { q: "Kann der Gläubiger unter die Freigrenze pfänden?", a: "Nein. Die Pfändungsfreigrenze ist ein absoluter Schutz. Unterhalb dieses Betrags kann nicht gepfändet werden, unabhängig von der Höhe der Schulden. Oberhalb der Freigrenze wird der pfändbare Betrag gestaffelt berechnet, wobei der Anteil mit steigendem Einkommen zunimmt." }
+      { q: "Kann der Gläubiger unter die Freigrenze pfänden?", a: "Nein. Die Pfändungsfreigrenze ist ein absoluter Schutz. Unterhalb dieses Betrags kann nicht gepfändet werden, unabhängig von der Höhe der Schulden. Oberhalb der Freigrenze bleiben zunächst drei Zehntel des Mehrbetrags unpfändbar, sodass der pfändbare Anteil am Gesamteinkommen mit steigendem Verdienst zunimmt." }
     ]}
   >
     <div class="calc-form">
@@ -62,17 +87,28 @@ const year = new Date().getFullYear();
     title="So funktioniert die Pfändungsfreigrenze"
     content={`<p><strong>Was ist die Pfändungsfreigrenze?</strong> Die Pfändungsfreigrenze ist der gesetzlich festgelegte Betrag des Nettoeinkommens, der bei einer Pfändung nicht angetastet werden darf. Dieser Schutzmechanismus soll sicherstellen, dass Schuldner trotz bestehender Verbindlichkeiten ihr Existenzminimum behalten und ihren grundlegenden Lebensunterhalt bestreiten können. Die rechtliche Grundlage bildet § 850c der Zivilprozessordnung (ZPO), ergänzt durch die regelmäßig aktualisierte Pfändungsfreigrenzenbekanntmachung des Bundesministeriums der Justiz.</p>
 
-<p><strong>Aktuelle Pfändungsfreigrenzen:</strong> Seit dem 1. Juli 2023 beträgt die Pfändungsfreigrenze für eine alleinstehende Person ohne Unterhaltspflichten 1.402,28 Euro netto pro Monat. Dieser Betrag ist absolut geschützt und darf von keinem Gläubiger gepfändet werden. Mit Unterhaltspflichten erhöht sich der Freibetrag spürbar: Für die erste unterhaltsberechtigte Person steigt er um etwa 527 Euro, für jede weitere Person um rund 294 Euro. Ein verheirateter Arbeitnehmer mit zwei Kindern hat somit einen Freibetrag von deutlich über 2.000 Euro monatlich. Die Beträge werden regelmäßig an die Entwicklung der Lebenshaltungskosten angepasst.</p>
+<p><strong>Aktuelle Pfändungsfreigrenzen:</strong> Seit dem 1. Juli 2026 beträgt die Pfändungsfreigrenze für eine alleinstehende Person ohne Unterhaltspflichten <strong>${euro(GRUNDFREIBETRAG_MONAT)}</strong> netto pro Monat (§ 850c Abs. 1 Nr. 1 ZPO). Dieser Betrag ist absolut geschützt. Mit Unterhaltspflichten erhöht er sich: für die erste unterhaltsberechtigte Person um ${euro(ERHOEHUNG_ERSTE_PERSON)}, für die zweite bis fünfte um je ${euro(ERHOEHUNG_WEITERE_PERSON)} (§ 850c Abs. 2 ZPO). Ein verheirateter Arbeitnehmer mit zwei Kindern kommt damit auf ${euro(freigrenze(3))}. Das Bundesministerium der Justiz passt die Beträge jeweils zum 1. Juli an – Maßstab ist nach § 850c Abs. 4 Satz 2 ZPO die Entwicklung des steuerlichen Grundfreibetrags, nicht die allgemeine Preisentwicklung.</p>
 
-<p><strong>So funktioniert die Lohnpfändung:</strong> Wenn ein Gläubiger einen Pfändungs- und Überweisungsbeschluss erwirkt hat, wird dieser dem Arbeitgeber zugestellt. Der Arbeitgeber ist dann verpflichtet, den pfändbaren Anteil des Lohns direkt an den Gläubiger abzuführen. Den pfändungsfreien Betrag muss der Arbeitgeber weiterhin an den Arbeitnehmer auszahlen. Die Berechnung erfolgt anhand der offiziellen Pfändungstabelle, die genau festlegt, welcher Betrag bei welchem Nettoeinkommen und welcher Anzahl an Unterhaltspflichten pfändbar ist. Der pfändbare Anteil steigt mit dem Einkommen stufenweise an.</p>
+<p><strong>Wie viel ist pfändbar?</strong> Nicht der gesamte Betrag über der Freigrenze. Nach § 850c Abs. 3 ZPO bleiben vom Mehrbetrag zunächst <strong>drei Zehntel</strong> unpfändbar; für die erste unterhaltsberechtigte Person kommen zwei weitere Zehntel hinzu, für die zweite bis fünfte je ein weiteres. Bei fünf Personen sind somit neun Zehntel des Mehrbetrags geschützt. Vorher wird das Einkommen nach Absatz 5 auf volle zehn Euro abgerundet – deshalb ändert sich der pfändbare Betrag nur in Zehnerschritten. Was ${euro(HOECHSTBETRAG_MONAT)} im Monat übersteigt, bleibt bei dieser Rechnung außer Betracht und ist in voller Höhe pfändbar.</p>
 
-<p><strong>Das P-Konto (Pfändungsschutzkonto):</strong> Ein P-Konto schützt das Guthaben auf dem Girokonto vor Kontopfändung. Jede Person hat das Recht, ihr bestehendes Girokonto in ein P-Konto umwandeln zu lassen. Der Grundfreibetrag von 1.402,28 Euro pro Monat wird automatisch geschützt. Wer Unterhaltspflichten hat oder Sozialleistungen wie Kindergeld erhält, kann den geschützten Betrag durch Vorlage einer Bescheinigung erhöhen lassen. Diese Bescheinigung stellen Arbeitgeber, Sozialleistungsträger, Schuldnerberatungen oder Rechtsanwälte aus. Wichtig: Jede Person darf nur ein einziges P-Konto führen.</p>
+<p><strong>So funktioniert die Lohnpfändung:</strong> Wenn ein Gläubiger einen Pfändungs- und Überweisungsbeschluss erwirkt hat, wird dieser dem Arbeitgeber zugestellt. Der Arbeitgeber ist dann verpflichtet, den pfändbaren Anteil des Lohns direkt an den Gläubiger abzuführen. Den pfändungsfreien Betrag muss er weiterhin an den Arbeitnehmer auszahlen. Grundlage ist die amtliche Pfändungstabelle im Anhang der Bekanntmachung; im Pfändungsbeschluss genügt nach § 850c Abs. 5 Satz 3 ZPO die Bezugnahme darauf.</p>
+
+<h3>Pfändbarer Betrag nach Nettolohn (Stand 1. Juli 2026)</h3>
+<table>
+<thead><tr><th>Nettolohn monatlich</th><th>ohne Unterhalt</th><th>1 Person</th><th>2 Personen</th><th>3 Personen</th></tr></thead>
+<tbody>
+${tabellenZeilen.map((z) => `<tr><td>${euroKurz(z.netto)}</td>${z.spalten.map((p) => `<td>${p > 0 ? euro(p) : '–'}</td>`).join('')}</tr>`).join('\n')}
+</tbody>
+</table>
+<p style="font-size:0.9rem;color:#666;">Werte aus § 850c ZPO berechnet und gegen die amtliche Monatstabelle der Pfändungsfreigrenzenbekanntmachung 2026 geprüft.</p>
+
+<p><strong>Das P-Konto (Pfändungsschutzkonto):</strong> Ein P-Konto schützt das Guthaben auf dem Girokonto vor Kontopfändung. Jede Person hat das Recht, ihr bestehendes Girokonto in ein P-Konto umwandeln zu lassen. Automatisch geschützt sind ${euroKurz(pKontoFreibetrag())} pro Monat – nach § 899 Abs. 1 Satz 1 ZPO der Freibetrag des § 850c, aufgerundet auf den nächsten vollen Zehn-Euro-Betrag. Wer Unterhaltspflichten hat oder Sozialleistungen wie Kindergeld erhält, kann den geschützten Betrag durch Vorlage einer Bescheinigung erhöhen lassen. Diese Bescheinigung stellen Arbeitgeber, Sozialleistungsträger, Schuldnerberatungen oder Rechtsanwälte aus. Wichtig: Jede Person darf nur ein einziges P-Konto führen.</p>
 
 <p><strong>Unterhaltspflichten erhöhen den Freibetrag:</strong> Wer gesetzliche Unterhaltspflichten hat, profitiert von einem deutlich höheren pfändungsfreien Betrag. Als unterhaltsberechtigte Personen gelten Ehepartner, eingetragene Lebenspartner und minderjährige Kinder, für die tatsächlich Unterhalt geleistet wird. Der Nachweis erfolgt durch entsprechende Belege wie Geburtsurkunden oder Unterhaltstitel. Je mehr Personen unterhaltsberechtigt sind, desto höher ist der Schutz vor Pfändung.</p>
 
 <p><strong>Was wird nicht gepfändet?</strong> Neben dem geschützten Grundbetrag gibt es weitere Einkommensarten, die ganz oder teilweise unpfändbar sind. Dazu gehören unter anderem Kindergeld, Erziehungsgeld, Pflegegeld sowie bestimmte Aufwandsentschädigungen und Zulagen für Sonntags-, Feiertags- und Nachtarbeit. Auch vermögenswirksame Leistungen und die Hälfte der Überstundenvergütung genießen besonderen Pfändungsschutz. Diese Regelungen stellen sicher, dass Schuldner nicht in eine aussichtslose finanzielle Lage geraten.</p>
 
-<p><strong>Praktisches Beispiel:</strong> Ein alleinstehender Arbeitnehmer verdient 2.200 Euro netto. Die Pfändungsfreigrenze beträgt 1.402,28 Euro. Vom Überschuss von 797,72 Euro ist ein gestaffelter Anteil pfändbar, der sich nach der Pfändungstabelle richtet. Bei einem verheirateten Arbeitnehmer mit einem Kind und demselben Nettoeinkommen wäre der geschützte Betrag deutlich höher, sodass kaum oder gar nichts gepfändet werden kann.</p>`}
+<p><strong>Praktisches Beispiel:</strong> Ein alleinstehender Arbeitnehmer verdient ${euroKurz(beispielNetto)} netto. Die Freigrenze liegt bei ${euro(GRUNDFREIBETRAG_MONAT)}. Für die Berechnung wird der Lohn auf volle zehn Euro abgerundet; vom Mehrbetrag bleiben drei Zehntel geschützt, sodass <strong>${euro(beispiel.pfaendbar)}</strong> pfändbar sind und ${euro(beispiel.unpfaendbar)} beim Arbeitnehmer bleiben. Ist derselbe Arbeitnehmer seinem Ehepartner und einem Kind gegenüber unterhaltspflichtig, steigt die Freigrenze auf ${euro(freigrenze(2))} – pfändbar sind dann nur noch ${beispielMitKind.pfaendbar > 0 ? euro(beispielMitKind.pfaendbar) : 'null Euro'}.</p>`}
     relatedSlugs={['arbeitslosengeld-rechner', 'brutto-netto-rechner', 'schuldentilgungs-rechner']}
   />
 </Layout>
@@ -87,7 +123,10 @@ function berechne() {
   document.getElementById('pfaendbar').textContent = r.pfaendbar > 0 ? fmt(r.pfaendbar) : '0,00 € (nicht pfändbar)';
   document.getElementById('details').innerHTML =
     `<span>Freigrenze: <strong>${fmt(r.freigrenze)}</strong></span>` +
-    `<span>Unpfändbarer Betrag: <strong>${fmt(r.unpfaendbar)}</strong></span>`;
+    `<span>Bleibt beim Schuldner: <strong>${fmt(r.unpfaendbar)}</strong></span>` +
+    (r.ueberHoechstbetrag > 0
+      ? `<span>Davon voll pfändbar über ${fmt(r.hoechstbetrag)}: <strong>${fmt(r.ueberHoechstbetrag)}</strong></span>`
+      : '');
 }
 ['netto','unterhalt'].forEach(id => document.getElementById(id).addEventListener('input', berechne));
 ['netto','unterhalt'].forEach(id => document.getElementById(id).addEventListener('change', berechne));
