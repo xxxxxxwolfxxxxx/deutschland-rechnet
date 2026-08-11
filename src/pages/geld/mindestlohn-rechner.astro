@@ -3,13 +3,29 @@ import Layout from '../../layouts/Layout.astro';
 import CalculatorShell from '../../components/CalculatorShell.astro';
 import CalculatorGuide from '../../components/CalculatorGuide.astro';
 import { CALCULATORS, CATEGORIES } from '../../data/calculators';
+import {
+  MINDESTLOHN,
+  MINIJOB_GRENZE,
+  MINDESTLOHN_ENTWICKLUNG,
+  berechneMindestlohn,
+} from '../../../public/scripts/mindestlohn.js';
 const calc = CALCULATORS.find(c => c.slug === 'mindestlohn-rechner')!;
 const cat = CATEGORIES[calc.category];
 const year = new Date().getFullYear();
+
+// Alle Beträge kommen aus dem Rechenmodul. Vor dem 11.08.2026 stand hier
+// durchgängig der Satz des Jahres 2025 (12,82 €) und in der Entwicklungs-
+// tabelle mit "2025: 12,55 €" ein Wert, den es nie gegeben hat.
+const euro = (n: number) => n.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
+const stundensatz = (n: number) => n.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
+
+const vollzeit = berechneMindestlohn({ stundenProWoche: 40 });
+const kuenftig = MINDESTLOHN_ENTWICKLUNG.find((e) => e.betrag > MINDESTLOHN);
+const monatsMonat = (b: number) => euro(Math.round(b * (52 / 12) * 40 * 100) / 100);
 ---
 <Layout
   title={`Mindestlohn-Rechner ${year}`}
-  description="Mindestlohn-Rechner 2026: Aktuell 12,82 €/h brutto. Monats- und Jahresgehalt bei 20h, 30h oder 40h Wochenstunden berechnen. Mit Tabelle zur Entwicklung seit 2015."
+  description={`Mindestlohn-Rechner ${year}: Aktuell ${stundensatz(MINDESTLOHN)}/h brutto. Monats- und Jahresgehalt bei 20h, 30h oder 40h Wochenstunden berechnen – mit Minijob-Grenze und Entwicklung der Sätze.`}
   canonicalPath="/geld/mindestlohn-rechner/"
   categoryColor={cat.color}
   categoryLight={cat.colorLight}
@@ -22,16 +38,16 @@ const year = new Date().getFullYear();
   <CalculatorShell
     calculator={calc}
     intro="Mit dem Mindestlohn-Rechner berechnen Sie Ihr monatliches Mindestlohn-Gehalt auf Basis Ihres Stundenlohns und Ihrer Wochenstunden. Prüfen Sie, ob Ihr Gehalt den gesetzlichen Mindestlohn erfüllt."
-    sourceNote="Aktueller Mindestlohn 2026: 12,82€."
-    explanation="Der gesetzliche Mindestlohn nach dem Mindestlohngesetz (MiLoG) beträgt seit Januar 2026 12,82 Euro brutto pro Stunde. Er gilt für alle Arbeitnehmer mit wenigen Ausnahmen wie Auszubildende und Langzeitarbeitslose in den ersten sechs Monaten."
+    sourceNote={`Mindestlohn seit 1. Januar 2026: ${stundensatz(MINDESTLOHN)} je Zeitstunde – § 1 der Fünften Mindestlohnanpassungsverordnung vom 05.11.2025 (BGBl. 2025 I Nr. 268). Geringfügigkeitsgrenze ${MINIJOB_GRENZE} € nach § 8 Abs. 1a SGB IV.`}
+    explanation={`Der gesetzliche Mindestlohn beträgt seit Januar 2026 ${stundensatz(MINDESTLOHN)} brutto pro Stunde. Er gilt für alle Arbeitnehmer mit wenigen Ausnahmen wie Auszubildende und Langzeitarbeitslose in den ersten sechs Monaten. Bei einer 40-Stunden-Woche ergibt das ${euro(vollzeit.monat)} im Monat.${kuenftig ? ` Zum ${new Date(kuenftig.ab).toLocaleDateString('de-DE')} steigt der Satz auf ${stundensatz(kuenftig.betrag)} – bereits verkündet in derselben Verordnung.` : ''}`}
     faqs={[
       { q: "Wer bekommt Mindestlohn?", a: "Alle Arbeitnehmer in Deutschland, außer: Auszubildende, Auslandsentsandte bis 3 Monate, Langzeitarbeitslose in den ersten 6 Monaten. Auch Mini-Jobber, Schüler und Studenten müssen den Mindestlohn erhalten, wenn sie arbeiten." },
       { q: "Wie wird der Mindestlohn berechnet?", a: "Stundenlohn × Wochenstunden × 4,33 (Durchschnitt Wochen/Monat) oder einfach: Stundenlohn × (wöchentliche Stunden × 52 Wochen ÷ 12 Monate). Der Arbeitgeber muss mindes tens diesen Betrag zahlen, bevor Steuern abgezogen werden." },
       { q: "Gibt es Ausnahmen von der Mindestlohn-Regel?", a: "Ja: Auszubildende sind befreit. Auch: Freiberufler und Selbstständige müssen den Mindestlohn nicht zahlen – das betrifft nur Angestellte. Übergangsvorschriften für Langzeitarbeitslose (erste 6 Monate) können gelten." },
-      { q: "Wird der Mindestlohn regelmäßig erhöht?", a: "Ja. Die Mindestlohnkommission bewertet jährlich, ob eine Anpassung nötig ist. 2024: 12,41€, 2025: 12,55€, 2026: 12,82€. Die Erhöhung folgt Inflationsrate und Lohnentwicklung." },
+      { q: "Wird der Mindestlohn regelmäßig erhöht?", a: `Ja. Die Mindestlohnkommission schlägt die Anpassung vor, die Bundesregierung setzt sie nach § 1 Abs. 2 Satz 2 MiLoG per Rechtsverordnung um. Die verkündeten Sätze: ${MINDESTLOHN_ENTWICKLUNG.map((e) => `${e.ab.slice(0, 4)}: ${stundensatz(e.betrag)}`).join(', ')}.` },
       { q: "Kann mein Arbeitgeber den Mindestlohn verweigern?", a: "Nein. Es ist illegal. Du kannst Beschwerde bei der Finanzbehörde (Zollbehörden für Schwarzarbeit) oder der Gewerkschaft einreichen. Der Arbeitgeber muss nachzahlen + Verzugszinsen." },
       { q: "Ist Mindestlohn das gleiche wie Lohn im Tarifvertrag?", a: "Nein. Mindestlohn ist das Minimum, das ALLE erhalten müssen. Tarifverträge können höhere Löhne festlegen. Viele Branchen haben Tarifverträge mit 15-20€+/Stunde." },
-      { q: "Wie wirkt sich der Mindestlohn auf Mini-Jobs aus?", a: "Seit Oktober 2022 ist die Minijob-Grenze dynamisch an den Mindestlohn gekoppelt. Bei 12,82€/h und maximal 10 Wochenstunden liegt die Grenze 2026 bei 556€/Monat. Verdienen Sie mehr, rutschen Sie in einen Midi-Job (556,01–2.000€) mit anteiligen Sozialabgaben." },
+      { q: "Wie wirkt sich der Mindestlohn auf Mini-Jobs aus?", a: `Seit Oktober 2022 ist die Geringfügigkeitsgrenze an den Mindestlohn gekoppelt. § 8 Abs. 1a Satz 2 SGB IV rechnet: Mindestlohn mal 130, geteilt durch drei, auf volle Euro aufgerundet. Bei ${stundensatz(MINDESTLOHN)} sind das ${MINIJOB_GRENZE} € im Monat – das entspricht zehn Wochenstunden. Verdienen Sie mehr, rutschen Sie in einen Midi-Job (${MINIJOB_GRENZE + 1} bis 2.000 €) mit anteiligen Sozialabgaben.` },
       { q: "Was passiert bei Mindestlohn-Verstößen des Arbeitgebers?", a: "Verstöße gegen das MiLoG sind Ordnungswidrigkeiten. Dem Arbeitgeber drohen Bußgelder bis zu 500.000€. Außerdem muss er den Differenzbetrag nachzahlen – rückwirkend für bis zu 3 Jahre. Zuständig für die Kontrolle ist die Finanzkontrolle Schwarzarbeit (FKS) des Zolls. Arbeitnehmer können sich anonym beim Zoll melden." }
     ]}
   >
@@ -42,8 +58,8 @@ const year = new Date().getFullYear();
           <input type="number" id="stunden" min="1" max="80" value="40" step="0.5" />
         </div>
         <div class="calc-group">
-          <label for="urlaubstage">Urlaubstage/Jahr</label>
-          <input type="number" id="urlaubstage" min="0" max="40" value="24" step="1" />
+          <label for="stundenlohn">Ihr Stundenlohn (€, brutto)</label>
+          <input type="number" id="stundenlohn" min="0" max="200" value={MINDESTLOHN} step="0.01" />
         </div>
       </div>
       <div class="calc-result">
@@ -56,64 +72,73 @@ const year = new Date().getFullYear();
 
   <CalculatorGuide
     title="So funktioniert der Mindestlohn"
-    content={`<p><strong>Der Mindestlohn ist die unterste Lohngrenze,</strong> die Arbeitgeber zahlen müssen. In Deutschland liegt der gesetzliche Mindestlohn seit Januar 2026 bei <strong>12,82 Euro brutto pro Stunde</strong>. Das Mindestlohngesetz (MiLoG) schreibt diese Untergrenze vor, um Lohndumping zu verhindern und Arbeitnehmer vor Ausbeutung zu schützen.</p>
+    content={`<p><strong>Der Mindestlohn ist die unterste Lohngrenze,</strong> die Arbeitgeber zahlen müssen. In Deutschland liegt der gesetzliche Mindestlohn seit Januar 2026 bei <strong>${stundensatz(MINDESTLOHN)} brutto pro Stunde</strong>. Das Mindestlohngesetz (MiLoG) schreibt diese Untergrenze vor, um Lohndumping zu verhindern und Arbeitnehmer vor Ausbeutung zu schützen. Der Gesetzestext selbst nennt in § 1 Abs. 2 Satz 1 nur 12,00 Euro; die Erhöhungen ergehen nach Satz 2 durch Rechtsverordnung. Maßgeblich ist deshalb immer die jüngste Anpassungsverordnung – zurzeit die Fünfte vom 5. November 2025.</p>
 
-<p><strong>Berechnung des Monatsgehalts:</strong> Die Formel lautet: Stundenlohn × Wochenstunden × 4,33 (durchschnittliche Wochen pro Monat). Bei 12,82 €/h und einer 40-Stunden-Woche ergibt das ein Bruttomonatsgehalt von ca. 2.221 Euro. Alternativ rechnen Sie: Stundenlohn × Wochenstunden × 52 Wochen ÷ 12 Monate.</p>
+<p><strong>Berechnung des Monatsgehalts:</strong> Stundenlohn × Wochenstunden × 52 Wochen ÷ 12 Monate. Bei ${stundensatz(MINDESTLOHN)} und einer 40-Stunden-Woche ergibt das ein Bruttomonatsgehalt von ${euro(vollzeit.monat)}. Urlaubstage ändern daran nichts: Bezahlter Urlaub wird nach § 11 BUrlG fortgezahlt, das Monatsentgelt bleibt gleich.</p>
 
-<h3>Mindestlohn-Gehalt nach Wochenstunden (2026)</h3>
+<h3>Mindestlohn-Gehalt nach Wochenstunden (${year})</h3>
 <table>
 <thead><tr><th>Wochenstunden</th><th>Monatslohn brutto</th><th>Jahreslohn brutto</th><th>Typische Jobs</th></tr></thead>
 <tbody>
-<tr><td>10 h (Mini-Job)</td><td>555,53 €</td><td>6.666,40 €</td><td>Aushilfe, Nachhilfe</td></tr>
-<tr><td>20 h (Teilzeit)</td><td>1.111,07 €</td><td>13.332,80 €</td><td>Werkstudent, Teilzeit-Verkauf</td></tr>
-<tr><td>30 h (Teilzeit)</td><td>1.666,60 €</td><td>19.999,20 €</td><td>Teilzeit-Pflege, Büro</td></tr>
-<tr><td>35 h</td><td>1.944,37 €</td><td>23.332,40 €</td><td>Reduzierte Vollzeit</td></tr>
-<tr><td>38,5 h</td><td>2.139,80 €</td><td>25.677,60 €</td><td>Tarif-Vollzeit (IG Metall)</td></tr>
-<tr><td>40 h (Vollzeit)</td><td>2.221,13 €</td><td>26.653,60 €</td><td>Standard-Vollzeit</td></tr>
+${[
+  { h: 10, was: 'Aushilfe, Nachhilfe' },
+  { h: 20, was: 'Werkstudent, Teilzeit-Verkauf' },
+  { h: 30, was: 'Teilzeit-Pflege, Büro' },
+  { h: 35, was: 'Reduzierte Vollzeit' },
+  { h: 38.5, was: 'Tarif-Vollzeit (IG Metall)' },
+  { h: 40, was: 'Standard-Vollzeit' },
+].map(({ h, was }) => {
+  const r = berechneMindestlohn({ stundenProWoche: h });
+  const label = h === 10 ? '10 h (Mini-Job)' : h === 40 ? '40 h (Vollzeit)' : `${h.toLocaleString('de-DE')} h`;
+  return `<tr><td>${label}</td><td>${euro(r.monat)}</td><td>${euro(r.jahr)}</td><td>${was}</td></tr>`;
+}).join('\n')}
 </tbody>
 </table>
+<p style="font-size:0.9rem;color:#666;">Zehn Wochenstunden bleiben mit ${euro(berechneMindestlohn({ stundenProWoche: 10 }).monat)} knapp unter der Geringfügigkeitsgrenze von ${MINIJOB_GRENZE} € – genau so ist sie berechnet.</p>
 
-<h3>Entwicklung des Mindestlohns seit Einführung</h3>
+<h3>Verkündete Mindestlohnsätze</h3>
 <table>
-<thead><tr><th>Zeitraum</th><th>Stundenlohn</th><th>Monatsgehalt (40h)</th><th>Steigerung zum Vorjahr</th></tr></thead>
+<thead><tr><th>Gültig ab</th><th>Stundenlohn</th><th>Monatsgehalt (40 h)</th><th>Rechtsgrundlage</th></tr></thead>
 <tbody>
-<tr><td>Jan 2015</td><td>8,50 €</td><td>1.473 €</td><td>— (Einführung)</td></tr>
-<tr><td>Jan 2017</td><td>8,84 €</td><td>1.532 €</td><td>+4,0 %</td></tr>
-<tr><td>Jan 2019</td><td>9,19 €</td><td>1.593 €</td><td>+4,0 %</td></tr>
-<tr><td>Jan 2020</td><td>9,35 €</td><td>1.621 €</td><td>+1,7 %</td></tr>
-<tr><td>Jul 2021</td><td>9,60 €</td><td>1.664 €</td><td>+2,7 %</td></tr>
-<tr><td>Jan 2022</td><td>9,82 €</td><td>1.702 €</td><td>+2,3 %</td></tr>
-<tr><td>Okt 2022</td><td>12,00 €</td><td>2.080 €</td><td>+22,2 % (Sonderanhebung)</td></tr>
-<tr><td>Jan 2024</td><td>12,41 €</td><td>2.151 €</td><td>+3,4 %</td></tr>
-<tr><td>Jan 2025</td><td>12,55 €</td><td>2.175 €</td><td>+1,1 %</td></tr>
-<tr><td>Jan 2026</td><td>12,82 €</td><td>2.221 €</td><td>+2,2 %</td></tr>
+${MINDESTLOHN_ENTWICKLUNG.map((e) => `<tr><td>${new Date(e.ab).toLocaleDateString('de-DE')}</td><td>${stundensatz(e.betrag)}</td><td>${monatsMonat(e.betrag)}</td><td>${e.fundstelle}</td></tr>`).join('\n')}
 </tbody>
 </table>
+<p style="font-size:0.9rem;color:#666;">Vor Oktober 2022 galten Sätze ab 8,50 € (Einführung 2015). Sie beruhten auf inzwischen außer Kraft getretenen Verordnungen und werden hier nicht aufgeführt, weil die Fundstellen nicht mehr amtlich abrufbar sind.</p>
 
 <p><strong>Wer bekommt Mindestlohn?</strong> Der gesetzliche Mindestlohn gilt für nahezu alle Arbeitnehmer in Deutschland – auch für Mini-Jobber, Saisonarbeiter, Teilzeitkräfte und ausländische Beschäftigte. Ausgenommen sind: Auszubildende (für die gilt seit 2020 eine eigene Mindestausbildungsvergütung), Pflichtpraktikanten und freiwillige Praktikanten unter drei Monaten, Langzeitarbeitslose in den ersten sechs Monaten einer neuen Beschäftigung sowie ehrenamtlich Tätige.</p>
 
-<p><strong>Praxistipp – Mindestlohn bei Stücklohn und Akkordarbeit:</strong> Auch wenn Sie nach Stückzahl, Provision oder Akkord bezahlt werden, muss Ihr Arbeitgeber sicherstellen, dass der Stundenlohn im Monatsdurchschnitt mindestens 12,82 € beträgt. Erreichen Ihre Provisionen diesen Betrag nicht, muss der Arbeitgeber die Differenz aufstocken. Dokumentieren Sie Ihre Arbeitszeiten sorgfältig – der Arbeitgeber ist ohnehin verpflichtet, Beginn, Ende und Dauer der täglichen Arbeitszeit aufzuzeichnen (§ 17 MiLoG).</p>
+<p><strong>Praxistipp – Mindestlohn bei Stücklohn und Akkordarbeit:</strong> Auch wenn Sie nach Stückzahl, Provision oder Akkord bezahlt werden, muss Ihr Arbeitgeber sicherstellen, dass der Stundenlohn im Monatsdurchschnitt mindestens ${stundensatz(MINDESTLOHN)} beträgt. Erreichen Ihre Provisionen diesen Betrag nicht, muss der Arbeitgeber die Differenz aufstocken. Dokumentieren Sie Ihre Arbeitszeiten sorgfältig – der Arbeitgeber ist ohnehin verpflichtet, Beginn, Ende und Dauer der täglichen Arbeitszeit aufzuzeichnen (§ 17 MiLoG).</p>
 
-<p><strong>Mindestlohn und Minijob-Grenze:</strong> Seit Oktober 2022 ist die Minijob-Grenze dynamisch an den Mindestlohn gekoppelt. Die Formel: Mindestlohn × 130 ÷ 3. Bei 12,82 €/h ergibt das eine Grenze von 556 €/Monat (2026). Das bedeutet: Bei einer 40-Stunden-Woche verdienen Sie deutlich über der Minijob-Grenze. Ein Minijob auf Mindestlohn-Basis erlaubt maximal ca. 10 Stunden pro Woche, bevor Sie in den Midi-Job-Bereich (556,01–2.000 €) rutschen.</p>
+<p><strong>Mindestlohn und Minijob-Grenze:</strong> Seit Oktober 2022 ist die Geringfügigkeitsgrenze an den Mindestlohn gekoppelt und wird nicht mehr eigenständig festgesetzt. § 8 Abs. 1a Satz 2 SGB IV rechnet: Mindestlohn × 130 ÷ 3, aufgerundet auf volle Euro. Bei ${stundensatz(MINDESTLOHN)} sind das <strong>${MINIJOB_GRENZE} € im Monat</strong>. Ein Minijob auf Mindestlohnbasis erlaubt damit zehn Wochenstunden; darüber rutschen Sie in den Midi-Job-Bereich (${MINIJOB_GRENZE + 1} bis 2.000 €) mit anteiligen Sozialabgaben. Steigt der Mindestlohn, steigt die Grenze automatisch mit.</p>
 
-<p><strong>Vergleich mit Branchenmindestlöhnen 2026:</strong> In vielen Branchen gelten tarifvertragliche Mindestlöhne, die deutlich über dem gesetzlichen Mindestlohn liegen. Beispiele: Elektrohandwerk ca. 14,50 €/h, Gebäudereinigung 14,25 €/h, Pflegebranche (Fachkräfte) 19,50 €/h, Dachdecker 15,40 €/h, Maler und Lackierer 14,50 €/h. Diese Branchenmindestlöhne sind für alle Betriebe der jeweiligen Branche verbindlich – auch wenn sie nicht tarifgebunden sind. Prüfen Sie immer, ob für Ihre Branche ein höherer Mindestlohn gilt.</p>`}
+<p><strong>Branchenmindestlöhne gehen vor:</strong> In vielen Branchen gelten tarifvertragliche Mindestlöhne, die über dem gesetzlichen liegen – etwa im Bauhauptgewerbe, im Dachdecker-, Maler- und Elektrohandwerk, in der Gebäudereinigung und in der Pflege. Sie werden nach dem Arbeitnehmer-Entsendegesetz für allgemeinverbindlich erklärt und gelten dann für alle Betriebe der Branche, auch für nicht tarifgebundene. § 1 Abs. 3 MiLoG stellt klar, dass sie dem gesetzlichen Mindestlohn vorgehen, soweit sie ihn nicht unterschreiten. Die jeweils geltenden Sätze ändern sich häufig; verbindlich sind die Rechtsverordnungen zum AEntG und die Auskunft der Finanzkontrolle Schwarzarbeit des Zolls.</p>`}
     relatedSlugs={['brutto-netto-rechner', 'gehaltserhoehung-rechner', 'kuendigungsfrist-rechner']}
   />
 </Layout>
 
 <script type="module">
-const { berechneMindestlohn } = await import(window.__base + 'scripts/mindestlohn.js');
+const { berechneMindestlohn, MINDESTLOHN, MINIJOB_GRENZE } =
+  await import(window.__base + 'scripts/mindestlohn.js');
 function fmt(n) { return n.toLocaleString('de-DE', {minimumFractionDigits:2, maximumFractionDigits:2}) + ' €'; }
 function berechne() {
   const stunden = parseFloat(document.getElementById('stunden').value)||0;
-  const urlaubstage = parseInt(document.getElementById('urlaubstage').value)||24;
-  const r = berechneMindestlohn({ stundenProWoche: stunden, urlaubstage });
+  const eingegeben = parseFloat(document.getElementById('stundenlohn').value);
+  const stundenlohn = Number.isFinite(eingegeben) ? eingegeben : MINDESTLOHN;
+  const r = berechneMindestlohn({ stundenProWoche: stunden, stundenlohn });
   document.getElementById('monat').textContent = fmt(r.monat);
+
+  const soll = berechneMindestlohn({ stundenProWoche: stunden });
+  const fehlt = Math.round((soll.monat - r.monat) * 100) / 100;
+  const hinweis = fehlt > 0
+    ? `<span style="color:#b3261e;">Unter Mindestlohn – es fehlen <strong>${fmt(fehlt)}</strong> im Monat</span>`
+    : `<span style="color:#146c2e;">Mindestlohn erfüllt</span>`;
+
   document.getElementById('details').innerHTML =
     `<span>Pro Jahr: ${fmt(r.jahr)}</span>` +
     `<span>Stunden/Monat: ${r.stundenProMonat.toLocaleString('de-DE')}</span>` +
-    `<span>Stundenlohn: ${fmt(r.mindestlohn)}</span>`;
+    `<span>${r.ueberMinijobGrenze ? 'Über' : 'Innerhalb'} der Minijob-Grenze von ${MINIJOB_GRENZE} €</span>` +
+    hinweis;
 }
-['stunden','urlaubstage'].forEach(id => document.getElementById(id).addEventListener('input', berechne));
+['stunden','stundenlohn'].forEach(id => document.getElementById(id).addEventListener('input', berechne));
 berechne();
 </script>
