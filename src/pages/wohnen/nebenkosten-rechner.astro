@@ -3,13 +3,41 @@ import Layout from '../../layouts/Layout.astro';
 import CalculatorShell from '../../components/CalculatorShell.astro';
 import CalculatorGuide from '../../components/CalculatorGuide.astro';
 import { CALCULATORS, CATEGORIES } from '../../data/calculators';
+import {
+  BETRIEBSKOSTENSPIEGEL,
+  BETRIEBSKOSTEN_ARTEN,
+  GLASFASER_BEREITSTELLUNGSENTGELT,
+  HEIZKOSTEN_VERBRAUCHSANTEIL,
+  KABEL_UMLAGE_ENDE,
+  NICHT_UMLAGEFAEHIG,
+  berechneNebenkosten,
+} from '../../../public/scripts/nebenkosten.js';
+
 const calc = CALCULATORS.find(c => c.slug === 'nebenkosten-rechner')!;
 const cat = CATEGORIES[calc.category];
 const year = new Date().getFullYear();
+
+const spiegel = BETRIEBSKOSTENSPIEGEL;
+const eur = (n: number) => n.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const nummer = (nr: number | number[]) => (Array.isArray(nr) ? nr.join(' und ') : String(nr));
+
+// Beispielrechnung zur Buildzeit – dieselbe Quelle wie der Rechner im Browser.
+const beispielFlaeche = 70;
+const beispiel = berechneNebenkosten({ flaeche: beispielFlaeche });
+const beispielVoll = berechneNebenkosten({ flaeche: beispielFlaeche, aufzug: true, garten: true, hauswart: true });
+
+const heizung = BETRIEBSKOSTEN_ARTEN.find(a => a.key === 'heizung')!;
+const heizanteil = Math.round((heizung.euroProQmMonat / spiegel.durchschnittGesamt) * 100);
+const grundsteuer = BETRIEBSKOSTEN_ARTEN.find(a => a.key === 'grundsteuer')!;
+const grundsteuerAnteil = Math.round((grundsteuer.euroProQmMonat / spiegel.durchschnittGesamt) * 100);
+const wasser = BETRIEBSKOSTEN_ARTEN.find(a => a.key === 'wasser')!;
+const wasserAnteil = Math.round((wasser.euroProQmMonat / spiegel.durchschnittGesamt) * 100);
+const hauswart = BETRIEBSKOSTEN_ARTEN.find(a => a.key === 'hauswart')!;
+const versicherung = BETRIEBSKOSTEN_ARTEN.find(a => a.key === 'versicherung')!;
 ---
 <Layout
   title={`Nebenkosten-Rechner ${year}`}
-  description="Monatliche Nebenkosten für Mietwohnungen berechnen – nach Betriebskostenspiegel des Deutschen Mieterbundes."
+  description={`Monatliche Nebenkosten für Mietwohnungen berechnen und die Vorauszahlung prüfen – nach § 2 BetrKV und dem Betriebskostenspiegel des Deutschen Mieterbundes (Abrechnungsjahr ${spiegel.abrechnungsjahr}).`}
   canonicalPath="/wohnen/nebenkosten-rechner/"
   categoryColor={cat.color}
   categoryLight={cat.colorLight}
@@ -21,15 +49,16 @@ const year = new Date().getFullYear();
   </div>
   <CalculatorShell
     calculator={calc}
-    intro="Mit dem Nebenkosten-Rechner berechnen Sie die monatlichen Nebenkosten für Ihre Wohnung auf Basis aktueller Durchschnittswerte. So können Sie prüfen, ob Ihre Vorauszahlung angemessen ist oder eine Nachzahlung droht. Der Rechner orientiert sich am Betriebskostenspiegel des Deutschen Mieterbundes."
-    sourceNote="2-3€ pro m²."
-    explanation="Welche Betriebskosten umlagefähig sind, regelt die Betriebskostenverordnung (BetrKV) abschließend mit 17 zulässigen Positionen. Der Vermieter muss die Nebenkostenabrechnung innerhalb von 12 Monaten nach Ende des Abrechnungszeitraums zustellen – verspätete Nachforderungen sind nach § 556 Abs. 3 BGB ausgeschlossen. Mieter haben 12 Monate Zeit, Einwendungen gegen die Abrechnung zu erheben."
+    intro={`Der Rechner schätzt Ihre monatlichen Nebenkosten aus Wohnfläche und Ausstattung und vergleicht sie mit Ihrer Vorauszahlung. So sehen Sie, ob eine Nachzahlung droht. Grundlage sind die Durchschnittswerte des Betriebskostenspiegels des Deutschen Mieterbundes für das Abrechnungsjahr ${spiegel.abrechnungsjahr}.`}
+    sourceNote={`Betriebskostenspiegel des Deutschen Mieterbundes, Abrechnungsjahr ${spiegel.abrechnungsjahr} (veröffentlicht Dezember 2025): im Schnitt ${eur(spiegel.durchschnittGesamt)} €/m² und Monat, bei voller Ausstattung bis zu ${eur(spiegel.alleArtenGesamt)} €/m². Umlagefähigkeit nach § 2 BetrKV, Fristen nach § 556 Abs. 3 BGB.`}
+    explanation={`Welche Betriebskosten der Vermieter überhaupt umlegen darf, zählt § 2 BetrKV in 17 Nummern auf. Nur die Nummern 1 bis 16 sind konkret benannt; Nummer 17 lässt sonstige Betriebskosten zu, die aber im Mietvertrag ausdrücklich vereinbart sein müssen. Nicht umlagefähig sind nach § 1 Abs. 2 BetrKV Verwaltungskosten sowie Instandhaltung und Reparaturen. Die Abrechnung muss dem Mieter spätestens zwölf Monate nach Ende des Abrechnungszeitraums zugehen (§ 556 Abs. 3 Satz 2 BGB); danach sind Nachforderungen ausgeschlossen, sofern der Vermieter die Verspätung zu vertreten hat. Einwendungen muss der Mieter seinerseits binnen zwölf Monaten nach Zugang erheben.`}
     faqs={[
-      { q: "Welche Nebenkosten darf der Vermieter umlegen?", a: "Nach der Betriebskostenverordnung (BetrKV) sind 17 Positionen umlagefähig, darunter: Grundsteuer, Wasserversorgung, Entwässerung, Heizung, Warmwasser, Aufzug, Straßenreinigung, Müllabfuhr, Gebäudereinigung, Gartenpflege, Beleuchtung, Schornsteinreinigung, Sach- und Haftpflichtversicherung, Hauswart und Kabelanschluss. Nicht umlagefähig sind Verwaltungskosten, Instandhaltung und Reparaturen." },
-      { q: "Wie hoch sind durchschnittliche Nebenkosten pro Quadratmeter?", a: "Laut Betriebskostenspiegel des Deutschen Mieterbundes liegen die durchschnittlichen Nebenkosten bei 2,17-2,88 €/m² pro Monat. In einer 70 m² Wohnung entspricht das 152-202 € monatlich. Heizkosten machen dabei den größten Anteil aus (ca. 1,03 €/m²), gefolgt von Wasser/Abwasser (ca. 0,52 €/m²)." },
-      { q: "Wie kann ich meine Nebenkostenabrechnung prüfen?", a: "Sie haben das Recht auf Belegeinsicht (§ 259 BGB). Häufige Fehler: falscher Verteilerschlüssel, falsche Wohnfläche, nicht umlagefähige Kosten, verspätete Zustellung (Frist: 12 Monate nach Abrechnungszeitraum). Einwendungen müssen Sie innerhalb von 12 Monaten nach Zugang erheben. Der örtliche Mieterverein prüft Abrechnungen oft kostenlos für Mitglieder." },
-      { q: "Wie kann ich Heizkosten effektiv senken?", a: "Die wirksamsten Maßnahmen: Raumtemperatur um 1 Grad senken spart 6-8% Heizkosten. Heizkörper entlüften (kostenlos, spart bis 15%). Stoßlüften statt Kipplüften. Programmierbare Thermostate (ab 20 €) können die Heizkosten um 10-15% reduzieren. Nachts die Temperatur auf 16-17 Grad absenken." },
-      { q: "Was passiert bei einer fehlerhaften Nebenkostenabrechnung?", a: "Eine formell fehlerhafte Abrechnung (z.B. nicht nachvollziehbar, fehlender Verteilerschlüssel) ist unwirksam. Nachforderungen aus einer unwirksamen Abrechnung müssen Sie nicht zahlen. Inhaltlich fehlerhafte Abrechnungen (z.B. falsche Beträge) können Sie innerhalb von 12 Monaten beanstanden. Bei Überzahlung steht Ihnen ein Rückforderungsanspruch zu." }
+      { q: "Welche Nebenkosten darf der Vermieter umlegen?", a: `§ 2 BetrKV zählt sie abschließend auf: Grundsteuer, Wasserversorgung, Entwässerung, Heizung, Warmwasser, Aufzug, Straßenreinigung und Müllbeseitigung, Gebäudereinigung, Gartenpflege, Beleuchtung, Schornsteinreinigung, Sach- und Haftpflichtversicherung, Hauswart, Gemeinschaftsantenne, Wäschepflege sowie sonstige Betriebskosten. Nicht umlagefähig sind nach § 1 Abs. 2 BetrKV Verwaltungskosten, Instandhaltung und Reparaturen. Wichtig: Sonstige Betriebskosten nach Nummer 17 darf der Vermieter nur abrechnen, wenn sie im Mietvertrag konkret benannt sind – eine pauschale Klausel genügt nicht.` },
+      { q: "Wie hoch sind durchschnittliche Nebenkosten pro Quadratmeter?", a: `Nach dem Betriebskostenspiegel des Deutschen Mieterbundes für das Abrechnungsjahr ${spiegel.abrechnungsjahr} zahlten Mieter im Schnitt ${eur(spiegel.durchschnittGesamt)} € pro Quadratmeter und Monat. Fallen alle Kostenarten an, kommen bis zu ${eur(spiegel.alleArtenGesamt)} €/m² zusammen. Für ${beispielFlaeche} m² sind das rund ${eur(beispiel.gesamtMonat)} € monatlich, mit Aufzug, Garten und Hauswart etwa ${eur(beispielVoll.gesamtMonat)} €. Größte Position ist Heizung und Warmwasser mit ${eur(heizung.euroProQmMonat)} €/m² – rund ${heizanteil} Prozent der Nebenkosten.` },
+      { q: "Ist der Kabelanschluss noch über die Nebenkosten umlagefähig?", a: `Nein. Das sogenannte Nebenkostenprivileg endete am 30. Juni 2024. Seit dem 1. Juli 2024 darf der Vermieter das Nutzungsentgelt für Kabelfernsehen nicht mehr über die Betriebskosten abrechnen (§ 2 Nr. 15 Buchst. a und b BetrKV). Wer Kabelfernsehen weiter nutzen möchte, schließt einen eigenen Vertrag mit dem Anbieter. Umlagefähig bleiben der Betriebsstrom der Gemeinschaftsantenne und – bei Glasfaser – ein Bereitstellungsentgelt von höchstens ${GLASFASER_BEREITSTELLUNGSENTGELT.maxEuroProJahr} € im Jahr und insgesamt ${GLASFASER_BEREITSTELLUNGSENTGELT.maxEuroGesamt} € je Wohnung (§ 72 TKG).` },
+      { q: "Wie kann ich meine Nebenkostenabrechnung prüfen?", a: `Sie haben nach § 556 Abs. 4 BGB einen Anspruch auf Einsicht in die Belege; der Vermieter darf sie auch elektronisch bereitstellen. Häufige Fehler: falscher Verteilerschlüssel, falsche Wohnfläche, nicht umlagefähige Positionen wie Reparaturen oder Verwaltungskosten sowie verspätete Zustellung. Haben Sie nichts anderes vereinbart, wird nach Wohnfläche umgelegt (§ 556a Abs. 1 BGB) – Heizkosten dagegen zu ${HEIZKOSTEN_VERBRAUCHSANTEIL.min * 100} bis ${HEIZKOSTEN_VERBRAUCHSANTEIL.max * 100} Prozent nach erfasstem Verbrauch (§ 7 Abs. 1 HeizkostenV). Einwendungen müssen Sie binnen zwölf Monaten nach Zugang erheben.` },
+      { q: "Was passiert bei einer verspäteten oder fehlerhaften Abrechnung?", a: `Geht die Abrechnung später als zwölf Monate nach Ende des Abrechnungszeitraums zu, ist eine Nachforderung ausgeschlossen (§ 556 Abs. 3 Satz 3 BGB) – es sei denn, der Vermieter hat die Verspätung nicht zu vertreten. Ein Guthaben müssen Sie auch aus einer verspäteten Abrechnung erhalten. Eine formell fehlerhafte Abrechnung, die sich nicht nachvollziehen lässt, löst keine Zahlungspflicht aus. Inhaltliche Fehler beanstanden Sie innerhalb der Einwendungsfrist.` },
+      { q: "Wie hoch darf die Vorauszahlung sein?", a: `§ 556 Abs. 2 Satz 2 BGB erlaubt Vorauszahlungen nur in angemessener Höhe – sie sollen die zu erwartenden Kosten decken, nicht dauerhaft übersteigen. Nach einer Abrechnung dürfen beide Seiten die Vorauszahlung anpassen (§ 560 Abs. 4 BGB). Eine deutlich zu niedrig angesetzte Vorauszahlung ist kein Fehler des Vermieters, führt aber planbar zur Nachzahlung; der Rechner zeigt Ihnen die Lücke.` }
     ]}
   >
     <div class="calc-form">
@@ -38,16 +67,17 @@ const year = new Date().getFullYear();
           <label for="flaeche">Wohnfläche (m²)</label>
           <input type="number" id="flaeche" min="10" max="500" value="70" step="5" />
         </div>
-        <div class="calc-group" style="display:flex;align-items:center;gap:1.5rem;padding-top:1.5rem;">
-          <label style="display:flex;align-items:center;gap:0.5rem;font-weight:400;cursor:pointer;">
-            <input type="checkbox" id="aufzug" style="width:auto;" />
-            Aufzug vorhanden
-          </label>
-          <label style="display:flex;align-items:center;gap:0.5rem;font-weight:400;cursor:pointer;">
-            <input type="checkbox" id="garten" style="width:auto;" />
-            Gartenpflege
-          </label>
+        <div class="calc-group">
+          <label for="vorauszahlung">Vorauszahlung laut Mietvertrag (€/Monat)</label>
+          <input type="number" id="vorauszahlung" min="0" max="2000" value="150" step="10" />
         </div>
+      </div>
+
+      <div class="calc-group" style="display:flex;gap:1.25rem;flex-wrap:wrap;margin-bottom:0.75rem;">
+        <label class="check"><input type="checkbox" id="aufzug" /> Aufzug im Haus</label>
+        <label class="check"><input type="checkbox" id="garten" /> Gartenpflege</label>
+        <label class="check"><input type="checkbox" id="hauswart" /> Hauswart</label>
+        <label class="check"><input type="checkbox" id="heizspitze" /> Hohe Heizkosten (unsanierter Altbau)</label>
       </div>
 
       <div class="presets" style="display:flex;gap:0.5rem;flex-wrap:wrap;margin-bottom:0.75rem;">
@@ -62,11 +92,105 @@ const year = new Date().getFullYear();
         <div class="label">Geschätzte Nebenkosten pro Monat</div>
         <div id="gesamt">— €</div>
       </div>
+      <div id="einordnung" class="hinweis"></div>
+      <div id="vorauszahlung-hinweis" class="hinweis"></div>
       <div id="details" style="margin-top:1rem;"></div>
+
+      <div class="fristen">
+        <h3>Fristen prüfen (§ 556 Abs. 3 BGB)</h3>
+        <div class="calc-grid">
+          <div class="calc-group">
+            <label for="zeitraum-ende">Abrechnungszeitraum endete am</label>
+            <input type="date" id="zeitraum-ende" value="2025-12-31" />
+          </div>
+          <div class="calc-group">
+            <label for="zugang">Abrechnung zugegangen am</label>
+            <input type="date" id="zugang" value="2026-06-30" />
+          </div>
+        </div>
+        <div id="fristen-ergebnis" class="hinweis"></div>
+      </div>
     </div>
   </CalculatorShell>
 
-  <CalculatorGuide title="Nebenkosten in Deutschland: Zusammensetzung, Prüfung und Spartipps" content="<p>Die Nebenkosten, oft als zweite Miete bezeichnet, sind ein erheblicher Kostenfaktor für Mieter in Deutschland. Sie umfassen alle laufenden Betriebskosten einer Immobilie, die der Vermieter gemäß § 556 BGB und der Betriebskostenverordnung (BetrKV) auf die Mieter umlegen darf. Der Deutsche Mieterbund erhebt regelmäßig den Betriebskostenspiegel, der bundesweite Durchschnittswerte liefert.</p><p><strong>Zusammensetzung der Nebenkosten:</strong> Den größten Anteil machen die Heizkosten aus (ca. 40-50% der Gesamtnebenkosten). Es folgen Wasser und Abwasser (ca. 20%), Grundsteuer (ca. 10%), Müllabfuhr (ca. 5-8%), Gebäudeversicherung (ca. 5%) sowie Hausmeister, Treppenhausreinigung und sonstige Positionen. Bei einer 80 m² Wohnung mit durchschnittlichen Nebenkosten von 2,50 €/m² fallen monatlich 200 € an, also 2.400 € pro Jahr.</p><p><strong>Abrechnungsfristen und Ihre Rechte:</strong> Der Vermieter muss die Nebenkostenabrechnung innerhalb von 12 Monaten nach Ende des Abrechnungszeitraums zustellen (§ 556 Abs. 3 BGB). Versäumt er diese Frist, darf er keine Nachforderungen mehr stellen. Sie als Mieter haben nach Erhalt der Abrechnung ebenfalls 12 Monate Zeit für Einwendungen. Nutzen Sie Ihr Recht auf Belegeinsicht, um die Abrechnung zu überprüfen.</p><p><strong>Häufige Fehler in Nebenkostenabrechnungen:</strong> Studien zeigen, dass jede zweite Abrechnung fehlerhaft ist. Typische Probleme: falscher Verteilerschlüssel (Wohnfläche statt Verbrauch bei Heizkosten), nicht umlagefähige Kosten wie Reparaturen oder Verwaltungsgebühren, falsche Wohnflächenberechnung oder Doppelberechnungen bei Eigentümerwechsel.</p><p><strong>Praktische Spartipps:</strong> Heizkosten reduzieren Sie am effektivsten durch richtiges Lüftungsverhalten (Stoßlüften statt Dauerkippen), programmierbare Thermostate und das Entlüften der Heizkörper. Beim Warmwasser sparen Sparduschköpfe (ab 10 €) bis zu 30% des Verbrauchs. LED-Beleuchtung im Treppenhaus kann die Stromkosten für Allgemeinstrom deutlich senken. Vergleichen Sie Ihre Nebenkosten mit dem aktuellen Betriebskostenspiegel, um überhöhte Positionen zu identifizieren.</p><p><strong>Besonderheiten bei Heizkosten:</strong> Nach der Heizkostenverordnung müssen mindestens 50% und höchstens 70% der Heizkosten verbrauchsabhängig abgerechnet werden. Der Rest wird nach Wohnfläche verteilt. Seit 2022 gilt zudem die CO2-Kostenaufteilung: Je schlechter die energetische Qualität des Gebäudes, desto höher ist der Anteil des Vermieters an den CO2-Kosten.</p>" relatedSlugs={['mietrechner', 'mietpreisbremse-rechner', 'quadratmeterpreis-vergleich', 'kaufen-vs-mieten']} />
+  <section class="info-block">
+    <h2>Was der Vermieter nicht umlegen darf</h2>
+    <p>
+      § 1 Abs. 2 BetrKV nimmt zwei große Blöcke ausdrücklich aus. Tauchen sie in
+      Ihrer Abrechnung auf, ist der Betrag zu streichen:
+    </p>
+    <ul>
+      {NICHT_UMLAGEFAEHIG.map(punkt => <li>{punkt}</li>)}
+    </ul>
+    <p>
+      Die Abgrenzung ist praktisch bedeutsam: Die Wartung einer Anlage ist
+      umlagefähig, ihre Reparatur nicht. Auch die Kosten eines Hauswarts sind nur
+      insoweit umlagefähig, als er nicht instand setzt oder verwaltet
+      (§ 2 Nr. 14 BetrKV).
+    </p>
+  </section>
+
+  <section class="info-block">
+    <h2>Kabelanschluss: seit Juli 2024 keine Nebenkosten mehr</h2>
+    <p>
+      Bis zum {KABEL_UMLAGE_ENDE.split('-').reverse().join('.')} durfte der
+      Vermieter das Nutzungsentgelt für Kabelfernsehen auf alle Mieter umlegen –
+      auch auf die, die es nicht nutzten. § 2 Nr. 15 Buchst. a und b BetrKV
+      begrenzt diese Umlage seither ausdrücklich auf die Zeit
+      „bis zum 30. Juni 2024“. Wer weiter über Kabel fernsehen will, braucht
+      einen eigenen Vertrag.
+    </p>
+    <p>
+      An seine Stelle kann ein Glasfaserbereitstellungsentgelt treten: höchstens
+      {' '}{GLASFASER_BEREITSTELLUNGSENTGELT.maxEuroProJahr} € im Jahr,
+      höchstens {GLASFASER_BEREITSTELLUNGSENTGELT.maxEuroGesamt} € insgesamt je
+      Wohnung und längstens {GLASFASER_BEREITSTELLUNGSENTGELT.maxJahre} Jahre,
+      in Ausnahmefällen {GLASFASER_BEREITSTELLUNGSENTGELT.maxJahreVerlaengert} Jahre
+      {' '}(§ 72 Abs. 2 TKG). Tragen müssen Sie es nur bei wirtschaftlicher
+      Umsetzung; bei Gesamtkosten über
+      {' '}{GLASFASER_BEREITSTELLUNGSENTGELT.schwelleAufwaendig} € muss der
+      Vermieter drei Angebote eingeholt haben (§ 556 Abs. 3a BGB).
+    </p>
+  </section>
+
+  <section class="info-block">
+    <h2>Die Positionen im Einzelnen</h2>
+    <p>
+      Richtwerte je Quadratmeter Wohnfläche und Monat nach dem
+      Betriebskostenspiegel des Deutschen Mieterbundes für das Abrechnungsjahr
+      {' '}{spiegel.abrechnungsjahr}, mit der Nummer des § 2 BetrKV und dem
+      Maßstab, nach dem üblicherweise verteilt wird.
+    </p>
+    <div style="overflow-x:auto;">
+      <table class="nk-table">
+        <thead>
+          <tr><th>Position</th><th>§ 2 BetrKV</th><th>€/m² und Monat</th><th>Verteilung</th></tr>
+        </thead>
+        <tbody>
+          {BETRIEBSKOSTEN_ARTEN.map(art => (
+            <tr>
+              <td>{art.label}</td>
+              <td>Nr. {nummer(art.nr)}</td>
+              <td>{eur(art.euroProQmMonat)} €{art.spitze ? ` (bis ${eur(art.spitze)} €)` : ''}</td>
+              <td>{art.verteiler === 'verbrauch' ? 'nach Verbrauch' : 'nach Wohnfläche'}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+    <p class="fussnote">
+      Bei Heizung und Warmwasser müssen {HEIZKOSTEN_VERBRAUCHSANTEIL.min * 100}
+      {' '}bis {HEIZKOSTEN_VERBRAUCHSANTEIL.max * 100} Prozent nach dem
+      erfassten Verbrauch verteilt werden, der Rest nach Wohnfläche
+      (§ 7 Abs. 1 HeizkostenV). Ohne abweichende Vereinbarung gilt für alle
+      übrigen Positionen die Wohnfläche als Maßstab (§ 556a Abs. 1 BGB). Wenn
+      Sie Ihren Verbrauch kennen, rechnen Sie die Heizkosten im
+      {' '}<a href={`${import.meta.env.BASE_URL}energie/heizkosten-rechner/`}>Heizkosten-Rechner</a>
+      {' '}genauer.
+    </p>
+  </section>
+
+  <CalculatorGuide title="Nebenkosten in Deutschland: Zusammensetzung, Prüfung und Spartipps" content={`<p>Die Nebenkosten, oft als zweite Miete bezeichnet, sind ein erheblicher Kostenfaktor für Mieter in Deutschland. Sie umfassen die laufenden Betriebskosten einer Immobilie, die der Vermieter nach § 556 BGB und der Betriebskostenverordnung auf die Mieter umlegen darf – vorausgesetzt, der Mietvertrag sieht das vor. Der Deutsche Mieterbund erhebt dazu regelmäßig den Betriebskostenspiegel.</p><p><strong>Zusammensetzung der Nebenkosten:</strong> Den mit Abstand größten Anteil machen Heizung und Warmwasser aus: ${eur(heizung.euroProQmMonat)} €/m² und Monat, also rund ${heizanteil} Prozent der durchschnittlichen Nebenkosten von ${eur(spiegel.durchschnittGesamt)} €/m². Es folgen Hauswart (${eur(hauswart.euroProQmMonat)} €), Sach- und Haftpflichtversicherung (${eur(versicherung.euroProQmMonat)} €), Wasser und Entwässerung (${eur(wasser.euroProQmMonat)} €, rund ${wasserAnteil} Prozent) und die Grundsteuer (${eur(grundsteuer.euroProQmMonat)} €, rund ${grundsteuerAnteil} Prozent). Für eine Wohnung mit ${beispielFlaeche} m² ergeben die üblicherweise anfallenden Positionen rund ${eur(beispiel.gesamtMonat)} € im Monat oder ${eur(beispiel.gesamtJahr)} € im Jahr.</p><p><strong>Abrechnungsfristen und Ihre Rechte:</strong> Der Vermieter muss die Abrechnung innerhalb von zwölf Monaten nach Ende des Abrechnungszeitraums zustellen (§ 556 Abs. 3 Satz 2 BGB). Versäumt er die Frist, ist eine Nachforderung ausgeschlossen, sofern er die Verspätung zu vertreten hat; ein Guthaben müssen Sie trotzdem bekommen. Sie selbst haben nach Zugang ebenfalls zwölf Monate Zeit für Einwendungen. Das Recht auf Belegeinsicht steht in § 556 Abs. 4 BGB – der Vermieter darf die Belege inzwischen auch elektronisch bereitstellen.</p><p><strong>Häufige Fehler in Nebenkostenabrechnungen:</strong> Der Deutsche Mieterbund gibt an, dass etwa jede zweite von seinen Vereinen geprüfte Abrechnung Fehler enthält. Typisch sind ein falscher Verteilerschlüssel, eine zu große angesetzte Wohnfläche, nicht umlagefähige Positionen wie Reparaturen oder Verwaltungskosten sowie Doppelberechnungen bei einem Eigentümerwechsel. Seit Juli 2024 kommt ein neuer Fehlertyp hinzu: weiterhin abgerechnetes Kabelfernsehen.</p><p><strong>Praktische Spartipps:</strong> Bei den Heizkosten wirkt richtiges Lüften am schnellsten – kurzes Stoßlüften statt dauerhaft gekippter Fenster. Eine um ein Grad niedrigere Raumtemperatur senkt den Verbrauch spürbar, und entlüftete Heizkörper geben ihre Wärme wieder vollständig ab. Beim Warmwasser bringt ein Sparduschkopf am meisten, weil er Wasser- und Heizkosten zugleich senkt. Vergleichen Sie außerdem Ihre Abrechnung Position für Position mit dem Betriebskostenspiegel: Ausreißer nach oben sind der beste Anlass für eine Belegeinsicht.</p><p><strong>Besonderheiten bei Heizkosten:</strong> Nach § 7 Abs. 1 HeizkostenV müssen mindestens ${HEIZKOSTEN_VERBRAUCHSANTEIL.min * 100} und höchstens ${HEIZKOSTEN_VERBRAUCHSANTEIL.max * 100} Prozent der Heizkosten verbrauchsabhängig abgerechnet werden; der Rest wird nach Wohnfläche verteilt. Seit dem 1. Januar 2023 gilt zudem das Kohlendioxidkostenaufteilungsgesetz: Je schlechter die energetische Qualität des Gebäudes, desto größer ist der Anteil des Vermieters an den CO₂-Kosten – bei sehr schlechten Werten trägt er 95 Prozent.</p>`} relatedSlugs={['mietrechner', 'mietpreisbremse-rechner', 'quadratmeterpreis-vergleich', 'kaufen-vs-mieten']} />
 </Layout>
 
 <style>
@@ -86,39 +210,102 @@ const year = new Date().getFullYear();
   background: color-mix(in srgb, var(--accent) 8%, white);
   color: var(--accent);
 }
+.check { display:flex; align-items:center; gap:0.4rem; font-weight:400; cursor:pointer; font-size:0.9rem; }
+.check input { width:auto; }
 .nk-table { width:100%; border-collapse:collapse; font-size:0.85rem; }
+.nk-table th { text-align:left; padding:0.3rem 0.5rem; border-bottom:1.5px solid var(--border); font-size:0.8rem; color:var(--muted); font-weight:600; }
 .nk-table td { padding:0.3rem 0.5rem; border-bottom:1px solid var(--border); }
 .nk-table tr:last-child td { border-bottom:none; }
-.nk-table td:last-child { text-align:right; color:var(--muted); }
+.nk-table td:nth-child(2), .nk-table th:nth-child(2) { color:var(--muted); font-size:0.8rem; white-space:nowrap; }
+.nk-table td:nth-child(3), .nk-table th:nth-child(3) { text-align:right; white-space:nowrap; }
+.nk-table td:last-child, .nk-table th:last-child { color:var(--muted); font-size:0.8rem; }
+.hinweis { margin-top:0.75rem; font-size:0.88rem; line-height:1.5; }
+.hinweis:empty { display:none; }
+.hinweis strong { color:var(--text); }
+.fristen { margin-top:1.5rem; padding-top:1rem; border-top:1px solid var(--border); }
+.fristen h3 { font-size:1rem; margin:0 0 0.75rem; }
+.info-block { margin:2rem 0; }
+.info-block h2 { font-size:1.2rem; margin-bottom:0.6rem; }
+.info-block p, .info-block li { font-size:0.92rem; line-height:1.65; }
+.info-block ul { padding-left:1.2rem; }
+.info-block li { margin-bottom:0.3rem; }
+.fussnote { font-size:0.85rem !important; color:var(--muted); margin-top:0.6rem; }
 </style>
 
 <script type="module">
-const { berechneNebenkosten } = await import(window.__base + 'scripts/nebenkosten.js');
-function fmt(n) { return n.toLocaleString('de-DE', {minimumFractionDigits:2, maximumFractionDigits:2}) + ' €'; }
+const {
+  berechneNebenkosten, pruefeVorauszahlung, abrechnungsfristEnde, einwendungsfristEnde,
+} = await import(window.__base + 'scripts/nebenkosten.js');
+
+const fmt = n => n.toLocaleString('de-DE', {minimumFractionDigits:2, maximumFractionDigits:2}) + ' €';
+const datum = iso => iso.split('-').reverse().join('.');
+const el = id => document.getElementById(id);
+
 function berechne() {
-  const flaeche = parseFloat(document.getElementById('flaeche').value)||70;
-  const hatAufzug = document.getElementById('aufzug').checked;
-  const hatGarten = document.getElementById('garten').checked;
-  const r = berechneNebenkosten({ flaeche, hatAufzug, hatGarten });
-  document.getElementById('gesamt').textContent = `${fmt(r.gesamtMin)} – ${fmt(r.gesamtMax)}`;
-  document.getElementById('details').innerHTML =
-    `<table class="nk-table">` +
+  const flaeche = parseFloat(el('flaeche').value) || 70;
+  const eingabe = {
+    flaeche,
+    aufzug: el('aufzug').checked,
+    garten: el('garten').checked,
+    hauswart: el('hauswart').checked,
+    heizungSpitze: el('heizspitze').checked,
+  };
+  const r = berechneNebenkosten(eingabe);
+
+  el('gesamt').textContent = fmt(r.gesamtMonat);
+  el('einordnung').innerHTML =
+    `Das sind <strong>${r.euroProQmMonat.toLocaleString('de-DE', {minimumFractionDigits:2, maximumFractionDigits:2})} €/m²</strong> ` +
+    `und Monat, also <strong>${fmt(r.gesamtJahr)}</strong> im Jahr. ${r.einordnung.text}`;
+
+  const vorauszahlung = parseFloat(el('vorauszahlung').value);
+  if (Number.isFinite(vorauszahlung) && vorauszahlung > 0) {
+    const v = pruefeVorauszahlung({ ...eingabe, vorauszahlungMonat: vorauszahlung });
+    el('vorauszahlung-hinweis').innerHTML = v.nachzahlungJahr > 0
+      ? `Ihre Vorauszahlung liegt <strong>${fmt(v.differenzMonat)}</strong> pro Monat darunter. Über ein Jahr ergibt das eine Nachzahlung von rund <strong>${fmt(v.nachzahlungJahr)}</strong>.`
+      : v.guthabenJahr > 0
+        ? `Ihre Vorauszahlung liegt <strong>${fmt(-v.differenzMonat)}</strong> pro Monat darüber. Über ein Jahr ergibt das ein Guthaben von rund <strong>${fmt(v.guthabenJahr)}</strong>.`
+        : `Ihre Vorauszahlung deckt die erwarteten Kosten genau.`;
+  } else {
+    el('vorauszahlung-hinweis').textContent = '';
+  }
+
+  el('details').innerHTML =
+    `<table class="nk-table"><thead><tr><th>Position</th><th>Verteilung</th><th>pro Monat</th></tr></thead><tbody>` +
     r.positionen.map(p =>
-      `<tr><td>${p.label}</td><td>${fmt(p.monatMin)} – ${fmt(p.monatMax)}</td></tr>`
+      `<tr><td>${p.label}</td><td>${p.verteiler === 'verbrauch' ? 'nach Verbrauch' : 'nach Wohnfläche'}</td><td>${fmt(p.monat)}</td></tr>`
     ).join('') +
-    `</table>`;
+    `<tr><td><strong>Summe</strong></td><td></td><td><strong>${fmt(r.gesamtMonat)}</strong></td></tr>` +
+    `</tbody></table>`;
+
   document.querySelectorAll('.preset-btn').forEach(b => {
     b.classList.toggle('active', parseFloat(b.dataset.v) === flaeche);
   });
 }
-document.getElementById('flaeche').addEventListener('input', berechne);
-document.getElementById('aufzug').addEventListener('change', berechne);
-document.getElementById('garten').addEventListener('change', berechne);
+
+function fristen() {
+  const ende = el('zeitraum-ende').value;
+  const zugang = el('zugang').value;
+  if (!ende) { el('fristen-ergebnis').textContent = ''; return; }
+
+  const frist = abrechnungsfristEnde(ende);
+  let text = `Die Abrechnung muss Ihnen spätestens am <strong>${datum(frist)}</strong> zugehen (§ 556 Abs. 3 Satz 2 BGB).`;
+
+  if (zugang) {
+    const verspaetet = zugang > frist;
+    text += verspaetet
+      ? ` Zugegangen am ${datum(zugang)} – das ist <strong>zu spät</strong>. Eine Nachforderung ist ausgeschlossen, es sei denn, der Vermieter hat die Verspätung nicht zu vertreten (Satz 3). Ein Guthaben müssen Sie trotzdem erhalten.`
+      : ` Zugegangen am ${datum(zugang)} – die Frist ist <strong>gewahrt</strong>.`;
+    text += ` Ihre Einwendungen müssen Sie bis zum <strong>${datum(einwendungsfristEnde(zugang))}</strong> erheben (Satz 5).`;
+  }
+  el('fristen-ergebnis').innerHTML = text;
+}
+
+['flaeche','vorauszahlung'].forEach(id => el(id).addEventListener('input', berechne));
+['aufzug','garten','hauswart','heizspitze'].forEach(id => el(id).addEventListener('change', berechne));
+['zeitraum-ende','zugang'].forEach(id => el(id).addEventListener('change', fristen));
 document.querySelectorAll('.preset-btn').forEach(b => {
-  b.addEventListener('click', () => {
-    document.getElementById('flaeche').value = b.dataset.v;
-    berechne();
-  });
+  b.addEventListener('click', () => { el('flaeche').value = b.dataset.v; berechne(); });
 });
 berechne();
+fristen();
 </script>
