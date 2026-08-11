@@ -187,8 +187,24 @@ function lohnsteuerKlasseVundVI(zvJB) {
  */
 export function solidaritaetszuschlagJahr(jahreslohnsteuerBetrag, steuerklasse) {
   pruefeSteuerklasse(steuerklasse);
-  const lst = Number.isFinite(jahreslohnsteuerBetrag) ? Math.max(0, jahreslohnsteuerBetrag) : 0;
-  const freigrenze = steuerklasse === 3 ? SOLI_FREIGRENZE_SPLITTING : SOLI_FREIGRENZE;
+  return solidaritaetszuschlag(
+    jahreslohnsteuerBetrag,
+    steuerklasse === 3 ? SOLI_FREIGRENZE_SPLITTING : SOLI_FREIGRENZE
+  );
+}
+
+/**
+ * Solidaritätszuschlag auf eine beliebige Bemessungsgrundlage.
+ *
+ * Für die veranlagte Einkommensteuer nach § 3 Abs. 1 Nr. 1 SolzG – etwa bei
+ * Selbständigen – gelten dieselben Freigrenzen wie beim Lohnsteuerabzug.
+ *
+ * @param {number} bemessungsgrundlage Einkommen- oder Lohnsteuer in Euro
+ * @param {number} [freigrenze] SOLI_FREIGRENZE oder SOLI_FREIGRENZE_SPLITTING
+ * @returns {number} Solidaritätszuschlag in Euro
+ */
+export function solidaritaetszuschlag(bemessungsgrundlage, freigrenze = SOLI_FREIGRENZE) {
+  const lst = Number.isFinite(bemessungsgrundlage) ? Math.max(0, bemessungsgrundlage) : 0;
   if (lst <= freigrenze) return 0;
 
   const voll = SOLI_SATZ * lst;
