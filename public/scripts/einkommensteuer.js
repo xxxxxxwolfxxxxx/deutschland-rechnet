@@ -29,17 +29,21 @@ const ZONE_4_OBERGRENZE = 277825;
 export function einkommensteuer(zvE) {
   if (!Number.isFinite(zvE) || zvE <= GRUNDFREIBETRAG) return 0;
 
+  // § 32a Abs. 1 Satz 1 EStG: Bemessung nach dem auf volle Euro abgerundeten zvE.
+  const x = Math.floor(zvE);
+  if (x <= GRUNDFREIBETRAG) return 0;
+
   let steuer;
-  if (zvE <= ZONE_2_OBERGRENZE) {
-    const y = (zvE - GRUNDFREIBETRAG) / 10000;
+  if (x <= ZONE_2_OBERGRENZE) {
+    const y = (x - GRUNDFREIBETRAG) / 10000;
     steuer = (914.51 * y + 1400) * y;
-  } else if (zvE <= ZONE_3_OBERGRENZE) {
-    const z = (zvE - ZONE_2_OBERGRENZE) / 10000;
+  } else if (x <= ZONE_3_OBERGRENZE) {
+    const z = (x - ZONE_2_OBERGRENZE) / 10000;
     steuer = (173.10 * z + 2397) * z + 1034.87;
-  } else if (zvE <= ZONE_4_OBERGRENZE) {
-    steuer = 0.42 * zvE - 11135.63;
+  } else if (x <= ZONE_4_OBERGRENZE) {
+    steuer = 0.42 * x - 11135.63;
   } else {
-    steuer = 0.45 * zvE - 19470.38;
+    steuer = 0.45 * x - 19470.38;
   }
 
   // § 32a Abs. 1 Satz 6 EStG: auf den nächsten vollen Euro-Betrag abrunden.

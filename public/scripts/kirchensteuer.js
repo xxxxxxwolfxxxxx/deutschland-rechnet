@@ -14,6 +14,8 @@
 // Dies ist die einzige Stelle, an der die Sätze stehen. Die Auswahlliste der
 // Seite wird daraus erzeugt – keine zweite Kopie anlegen.
 
+import { BUNDESLAENDER } from './bundeslaender.js';
+
 export const KIRCHENSTEUER_STAND = '2026-01-01';
 
 /**
@@ -24,24 +26,35 @@ export const KIRCHENSTEUER_STAND = '2026-01-01';
  * sich je Landeskirche und Bistum – in Baden-Württemberg etwa zwischen Baden
  * und Württemberg – und ließe sich nicht als ein Wert je Land abbilden.
  */
-export const KIRCHENSTEUER_LAENDER = {
-  BW: { name: 'Baden-Württemberg',      satz: 0.08, kappungMoeglich: true,  gueltigSeit: '1978-01-01' },
-  BY: { name: 'Bayern',                 satz: 0.08, kappungMoeglich: false, gueltigSeit: '1978-01-01' },
-  BE: { name: 'Berlin',                 satz: 0.09, kappungMoeglich: true,  gueltigSeit: '1991-01-01' },
-  BB: { name: 'Brandenburg',            satz: 0.09, kappungMoeglich: true,  gueltigSeit: '1991-01-01' },
-  HB: { name: 'Bremen',                 satz: 0.09, kappungMoeglich: true,  gueltigSeit: '1978-01-01' },
-  HH: { name: 'Hamburg',                satz: 0.09, kappungMoeglich: true,  gueltigSeit: '1978-01-01' },
-  HE: { name: 'Hessen',                 satz: 0.09, kappungMoeglich: true,  gueltigSeit: '1978-01-01' },
-  MV: { name: 'Mecklenburg-Vorpommern', satz: 0.09, kappungMoeglich: true,  gueltigSeit: '1991-01-01' },
-  NI: { name: 'Niedersachsen',          satz: 0.09, kappungMoeglich: true,  gueltigSeit: '1978-01-01' },
-  NW: { name: 'Nordrhein-Westfalen',    satz: 0.09, kappungMoeglich: true,  gueltigSeit: '1978-01-01' },
-  RP: { name: 'Rheinland-Pfalz',        satz: 0.09, kappungMoeglich: true,  gueltigSeit: '1978-01-01' },
-  SL: { name: 'Saarland',               satz: 0.09, kappungMoeglich: true,  gueltigSeit: '1978-01-01' },
-  SN: { name: 'Sachsen',                satz: 0.09, kappungMoeglich: true,  gueltigSeit: '1991-01-01' },
-  ST: { name: 'Sachsen-Anhalt',         satz: 0.09, kappungMoeglich: true,  gueltigSeit: '1991-01-01' },
-  SH: { name: 'Schleswig-Holstein',     satz: 0.09, kappungMoeglich: true,  gueltigSeit: '1978-01-01' },
-  TH: { name: 'Thüringen',              satz: 0.09, kappungMoeglich: true,  gueltigSeit: '1991-01-01' },
+const SAETZE = {
+  BW: { satz: 0.08, kappungMoeglich: true,  gueltigSeit: '1978-01-01' },
+  BY: { satz: 0.08, kappungMoeglich: false, gueltigSeit: '1978-01-01' },
+  BE: { satz: 0.09, kappungMoeglich: true,  gueltigSeit: '1991-01-01' },
+  BB: { satz: 0.09, kappungMoeglich: true,  gueltigSeit: '1991-01-01' },
+  HB: { satz: 0.09, kappungMoeglich: true,  gueltigSeit: '1978-01-01' },
+  HH: { satz: 0.09, kappungMoeglich: true,  gueltigSeit: '1978-01-01' },
+  HE: { satz: 0.09, kappungMoeglich: true,  gueltigSeit: '1978-01-01' },
+  MV: { satz: 0.09, kappungMoeglich: true,  gueltigSeit: '1991-01-01' },
+  NI: { satz: 0.09, kappungMoeglich: true,  gueltigSeit: '1978-01-01' },
+  NW: { satz: 0.09, kappungMoeglich: true,  gueltigSeit: '1978-01-01' },
+  RP: { satz: 0.09, kappungMoeglich: true,  gueltigSeit: '1978-01-01' },
+  SL: { satz: 0.09, kappungMoeglich: true,  gueltigSeit: '1978-01-01' },
+  SN: { satz: 0.09, kappungMoeglich: true,  gueltigSeit: '1991-01-01' },
+  ST: { satz: 0.09, kappungMoeglich: true,  gueltigSeit: '1991-01-01' },
+  SH: { satz: 0.09, kappungMoeglich: true,  gueltigSeit: '1978-01-01' },
+  TH: { satz: 0.09, kappungMoeglich: true,  gueltigSeit: '1991-01-01' },
 };
+
+// Die Namen kommen aus bundeslaender.js, damit sie nicht in jedem Rechner neu
+// getippt werden. Fehlt hier ein Land, fällt es beim Zusammensetzen auf.
+export const KIRCHENSTEUER_LAENDER = Object.fromEntries(
+  Object.entries(BUNDESLAENDER).map(([kuerzel, name]) => {
+    if (!SAETZE[kuerzel]) {
+      throw new Error(`Kein Kirchensteuersatz hinterlegt für: ${kuerzel}`);
+    }
+    return [kuerzel, { name, ...SAETZE[kuerzel] }];
+  })
+);
 
 /** Untere Grenze der Kappungssätze (Ev. Landeskirche in Württemberg). */
 export const KAPPUNG_MIN = 0.0275;

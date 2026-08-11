@@ -1,68 +1,61 @@
-// Berechnungsgrundlage: § 32a EStG 2026, BMAS SV-Beitragssätze 2026
+// Brutto-Netto-Rechner
+//
+// Rechtsstand: 2026-01-01
+//
+// Das Modul rechnet selbst nichts aus, was woanders schon steht: Der Tarif
+// kommt aus einkommensteuer.js, der Lohnsteuerabzug aus lohnsteuer.js, die
+// Beitragssätze aus sozialversicherung.js, der Kirchensteuersatz aus
+// kirchensteuer.js. Vorher standen Tarif und Beitragssätze hier noch einmal –
+// veraltet, und mit einem doppelt abgezogenen Grundfreibetrag.
+//
+// Nicht abgebildet: individuelle Freibeträge nach § 39a EStG, Kinderfreibeträge
+// beim Solidaritätszuschlag, private Kranken- und Pflegeversicherung, Renten-
+// und Versorgungsbezüge sowie der Übergangsbereich nach § 20 Abs. 2 SGB IV.
+
+import { jahreslohnsteuer, solidaritaetszuschlagJahr, STEUERKLASSEN } from './lohnsteuer.js';
+import { berechneSozialabgaben } from './sozialversicherung.js';
 import { kirchensteuersatz } from './kirchensteuer.js';
 
-const SV = {
-  krankenversicherung: 0.073 + 0.011,  // 14,6% + Zusatzbeitrag 1,1%
-  rentenversicherung: 0.093,
-  arbeitslosenversicherung: 0.013,
-  pflegeversicherung: 0.024,  // 2,4% (Kinderlose 2,7%)
-  pflegeversicherungKinderlos: 0.027,
-  kvBBG: 5712.50,  // 2026 West
-  rvBBG: 7750,    // 2026 West
-};
+export { STEUERKLASSEN };
 
-function einkommensteuerJahr(zvE) {
-  if (zvE <= 12096) return 0;
-  if (zvE <= 17005) {
-    const y = (zvE - 12096) / 10000;
-    return Math.round((979.18 * y + 1400) * y);
-  }
-  if (zvE <= 66760) {
-    const z = (zvE - 17005) / 10000;
-    return Math.round((192.59 * z + 2397) * z + 966.53);
-  }
-  if (zvE <= 277825) return Math.round(0.42 * zvE - 10911.92);
-  return Math.round(0.45 * zvE - 19246.67);
+/**
+ * Nettolohn aus dem Bruttomonatsgehalt.
+ *
+ * @param {object} eingabe
+ * @param {number} eingabe.bruttoMonat Bruttogehalt im Monat, in Euro
+ * @param {number} eingabe.steuerklasse 1 bis 6
+ * @param {string} eingabe.bundesland Kürzel aus BUNDESLAENDER, z. B. 'NW'
+ * @param {boolean} eingabe.kirchensteuer Mitglied einer steuererhebenden Religionsgemeinschaft
+ * @param {number} [eingabe.kinder] Kinder unter 25 Jahren; 0 bedeutet kinderlos
+ * @param {number} [eingabe.zusatzbeitrag] Zusatzbeitragssatz der Krankenkasse
+ */
+export function berechneNettoGehalt({ bruttoMonat, steuerklasse, bundesland, kirchensteuer = false, kinder = 0, zusatzbeitrag }) {
+  const brutto = Number.isFinite(bruttoMonat) ? Math.max(0, bruttoMonat) : 0;
+  const bruttoJahr = brutto * 12;
+
+  const sv = berechneSozialabgaben({ bruttoMonat: brutto, kinder, bundesland, zusatzbeitrag });
+
+  const lohnsteuerJahr = jahreslohnsteuer({ jahresarbeitslohn: bruttoJahr, steuerklasse, kinder, zusatzbeitrag });
+  const lohnsteuerMonat = runde(lohnsteuerJahr / 12);
+  const soliMonat = runde(solidaritaetszuschlagJahr(lohnsteuerJahr, steuerklasse) / 12);
+  const kirchensteuerMonat = kirchensteuer ? runde(lohnsteuerMonat * kirchensteuersatz(bundesland)) : 0;
+
+  const abzuege = sv.gesamt + lohnsteuerMonat + soliMonat + kirchensteuerMonat;
+
+  return {
+    netto: runde(brutto - abzuege),
+    lohnsteuer: lohnsteuerMonat,
+    lohnsteuerJahr,
+    soli: soliMonat,
+    kirchensteuer: kirchensteuerMonat,
+    sozialversicherung: sv.gesamt,
+    krankenversicherung: sv.krankenversicherung,
+    rentenversicherung: sv.rentenversicherung,
+    arbeitslosenversicherung: sv.arbeitslosenversicherung,
+    pflegeversicherung: sv.pflegeversicherung,
+  };
 }
 
-const SK_FAKTOREN = {
-  1: { freibetrag: 12096 },
-  2: { freibetrag: 15900 },
-  3: { freibetrag: 24192 },
-  4: { freibetrag: 12096 },
-  5: { freibetrag: 0 },
-  6: { freibetrag: 0 },
-};
-
-export const STEUERKLASSEN = [1, 2, 3, 4, 5, 6];
-
-export function berechneNettoGehalt({ bruttoMonat, steuerklasse, kirchensteuer, bundesland, kinderlos = false }) {
-  const bruttoJahr = bruttoMonat * 12;
-  const freibetrag = SK_FAKTOREN[steuerklasse]?.freibetrag ?? 12096;
-  const kvBasis = Math.min(bruttoMonat, SV.kvBBG);
-  const rvBasis = Math.min(bruttoMonat, SV.rvBBG);
-  const kv = Math.round(kvBasis * SV.krankenversicherung * 100) / 100;
-  const rv = Math.round(rvBasis * SV.rentenversicherung * 100) / 100;
-  const av = Math.round(rvBasis * SV.arbeitslosenversicherung * 100) / 100;
-  const pvSatz = kinderlos ? SV.pflegeversicherungKinderlos : SV.pflegeversicherung;
-  const pv = Math.round(kvBasis * pvSatz * 100) / 100;
-  const svGesamt = kv + rv + av + pv;
-  const svJahr = svGesamt * 12;
-  const zvE = Math.max(0, bruttoJahr - freibetrag - svJahr);
-  const estJahr = einkommensteuerJahr(zvE);
-  const lohnsteuerMonat = Math.round(estJahr / 12 * 100) / 100;
-  let soliMonat = 0;
-  if (estJahr > 18130) soliMonat = Math.round((estJahr * 0.055) / 12 * 100) / 100;
-  let kistMonat = 0;
-  if (kirchensteuer) {
-    kistMonat = Math.round(lohnsteuerMonat * kirchensteuersatz(bundesland) * 100) / 100;
-  }
-  const abzuege = svGesamt + lohnsteuerMonat + soliMonat + kistMonat;
-  const netto = Math.round((bruttoMonat - abzuege) * 100) / 100;
-  return {
-    netto, lohnsteuer: lohnsteuerMonat, soli: soliMonat, kirchensteuer: kistMonat,
-    sozialversicherung: Math.round(svGesamt * 100) / 100,
-    krankenversicherung: kv, rentenversicherung: rv,
-    arbeitslosenversicherung: av, pflegeversicherung: pv,
-  };
+function runde(betrag) {
+  return Math.round(betrag * 100) / 100;
 }
