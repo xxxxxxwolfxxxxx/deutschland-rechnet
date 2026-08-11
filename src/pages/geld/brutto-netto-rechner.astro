@@ -3,9 +3,17 @@ import Layout from '../../layouts/Layout.astro';
 import CalculatorShell from '../../components/CalculatorShell.astro';
 import CalculatorGuide from '../../components/CalculatorGuide.astro';
 import { CALCULATORS, CATEGORIES } from '../../data/calculators';
+import { KIRCHENSTEUER_LAENDER } from '../../../public/scripts/kirchensteuer.js';
 const calc = CALCULATORS.find(c => c.slug === 'brutto-netto-rechner')!;
 const cat = CATEGORIES[calc.category];
 const year = new Date().getFullYear();
+
+// Die Auswahlliste stammt aus KIRCHENSTEUER_LAENDER. Vorher stand sie hier fest
+// verdrahtet und benutzte andere Kürzel als das Rechenmodul ('nw' gegen 'nrw'),
+// wodurch sechs Bundesländer mit dem falschen Kirchensteuersatz gerechnet wurden.
+const laender = Object.entries(KIRCHENSTEUER_LAENDER)
+  .map(([kuerzel, land]) => ({ kuerzel, ...land }))
+  .sort((a, b) => a.name.localeCompare(b.name, 'de'));
 ---
 <Layout
   title={`Brutto-Netto-Rechner ${year}`}
@@ -52,22 +60,9 @@ const year = new Date().getFullYear();
         <div class="calc-group">
           <label for="bundesland">Bundesland</label>
           <select id="bundesland">
-            <option value="bw">Baden-Württemberg</option>
-            <option value="by">Bayern</option>
-            <option value="be">Berlin</option>
-            <option value="bb">Brandenburg</option>
-            <option value="hb">Bremen</option>
-            <option value="hh">Hamburg</option>
-            <option value="he">Hessen</option>
-            <option value="mv">Mecklenburg-Vorpommern</option>
-            <option value="ni">Niedersachsen</option>
-            <option value="nw" selected>Nordrhein-Westfalen</option>
-            <option value="rp">Rheinland-Pfalz</option>
-            <option value="sl">Saarland</option>
-            <option value="sn">Sachsen</option>
-            <option value="st">Sachsen-Anhalt</option>
-            <option value="sh">Schleswig-Holstein</option>
-            <option value="th">Thüringen</option>
+            {laender.map(l => (
+              <option value={l.kuerzel} selected={l.kuerzel === 'NW'}>{l.name}</option>
+            ))}
           </select>
         </div>
         <div class="calc-group">

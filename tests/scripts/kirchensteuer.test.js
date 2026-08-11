@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { berechneKirchensteuer, KIRCHENSTEUER_LAENDER, KAPPUNG_MIN, KAPPUNG_MAX } from '../../public/scripts/kirchensteuer.js';
+import { berechneKirchensteuer, kirchensteuersatz, KIRCHENSTEUER_LAENDER, KAPPUNG_MIN, KAPPUNG_MAX } from '../../public/scripts/kirchensteuer.js';
 
 describe('Kirchensteuersätze', () => {
   it('enthält alle 16 Bundesländer mit Name, Satz und Rechtsstand', () => {
@@ -32,6 +32,33 @@ describe('Kirchensteuersätze', () => {
   it('kennt nur die beiden Sätze 8 % und 9 %', () => {
     const saetze = new Set(Object.values(KIRCHENSTEUER_LAENDER).map(l => l.satz));
     expect([...saetze].sort()).toEqual([0.08, 0.09]);
+  });
+});
+
+describe('kirchensteuersatz – gemeinsame Nachschlagefunktion', () => {
+  // Der Brutto-Netto-Rechner führte bis 11.08.2026 eine eigene Kopie der Sätze
+  // und wies Hessen, Rheinland-Pfalz, Saarland, Sachsen, Sachsen-Anhalt und
+  // Thüringen 8 % statt 9 % zu. Alle Rechner holen den Satz jetzt hier.
+  it('liefert den Satz zum Länderkürzel', () => {
+    expect(kirchensteuersatz('BY')).toBe(0.08);
+    expect(kirchensteuersatz('NW')).toBe(0.09);
+  });
+
+  it('gibt für die sechs früher falschen Länder 9 % zurück', () => {
+    for (const kuerzel of ['HE', 'RP', 'SL', 'SN', 'ST', 'TH']) {
+      expect(kirchensteuersatz(kuerzel), kuerzel).toBe(0.09);
+    }
+  });
+
+  it('wirft bei unbekanntem Kürzel', () => {
+    expect(() => kirchensteuersatz('nrw')).toThrow();
+    expect(() => kirchensteuersatz('XX')).toThrow();
+  });
+
+  it('stimmt für jedes Land mit KIRCHENSTEUER_LAENDER überein', () => {
+    for (const [kuerzel, land] of Object.entries(KIRCHENSTEUER_LAENDER)) {
+      expect(kirchensteuersatz(kuerzel)).toBe(land.satz);
+    }
   });
 });
 

@@ -49,6 +49,24 @@ export const KAPPUNG_MIN = 0.0275;
 export const KAPPUNG_MAX = 0.04;
 
 /**
+ * Kirchensteuersatz eines Bundeslandes.
+ *
+ * Einstiegspunkt für alle anderen Rechner – wer den Satz braucht, holt ihn
+ * hier und legt keine eigene Tabelle an. Unbekannte Kürzel führen bewusst zu
+ * einem Fehler statt zu einem stillen Rückfall auf 9 %.
+ *
+ * @param {string} bundesland Kürzel aus KIRCHENSTEUER_LAENDER, z. B. 'NW'
+ * @returns {number} Satz als Dezimalzahl, also 0.08 oder 0.09
+ */
+export function kirchensteuersatz(bundesland) {
+  const land = KIRCHENSTEUER_LAENDER[bundesland];
+  if (!land) {
+    throw new Error(`Unbekanntes Bundesland: ${bundesland}`);
+  }
+  return land.satz;
+}
+
+/**
  * Kirchensteuer als Zuschlag auf die Lohn- oder Einkommensteuer (§ 51a EStG).
  *
  * Erwartet die tatsächlich festgesetzte Jahres-Lohnsteuer, nicht das Brutto:
