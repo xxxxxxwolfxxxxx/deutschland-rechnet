@@ -3,13 +3,73 @@ import CalculatorLayout from '../../layouts/CalculatorLayout.astro';
 import CalculatorShell from '../../components/CalculatorShell.astro';
 import CalculatorGuide from '../../components/CalculatorGuide.astro';
 import { CALCULATORS, CATEGORIES } from '../../data/calculators';
+import {
+  BRENNSTOFFE,
+  CO2_PREISKORRIDOR_2026,
+  CO2_PREIS_AKTUELL,
+  CO2_FESTPREIS_EURO_JE_TONNE,
+  berechneHeizkosten,
+  co2Preisbestandteil,
+  emissionsfaktor,
+  mieteranteilCo2Kosten,
+  waermepreisCent,
+  abgerechneteKwh,
+} from '../../../public/scripts/heizkosten.js';
 const calc = CALCULATORS.find(c => c.slug === 'heizkosten-rechner')!;
 const cat = CATEGORIES[calc.category];
 const year = new Date().getFullYear();
+
+const REFERENZ_KWH = 15000;
+const euro = (b: number) => b.toLocaleString('de-DE', { maximumFractionDigits: 0 }) + ' €';
+const euro2 = (b: number) => b.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
+const ct = (b: number) => b.toLocaleString('de-DE', { minimumFractionDigits: 1, maximumFractionDigits: 2 });
+
+// Vergleichstabelle zur Buildzeit aus demselben Modul erzeugen, mit dem der
+// Rechner arbeitet – so können Text und Ergebnis nicht auseinanderlaufen.
+const vergleich = Object.entries(BRENNSTOFFE).map(([key, b]) => {
+  const verbrauchKwh = abgerechneteKwh({ waermebedarfKwh: REFERENZ_KWH, nutzungsgrad: b.nutzungsgrad });
+  const r = berechneHeizkosten({
+    verbrauchKwh,
+    preisCent: b.arbeitspreisCent,
+    grundpreisJahr: b.grundpreisJahr,
+    brennstoff: b.behg,
+  });
+  return {
+    key,
+    label: b.label,
+    verbrauchKwh,
+    arbeitspreisCent: b.arbeitspreisCent,
+    waermepreis: waermepreisCent(b),
+    ...r,
+  };
+}).sort((a, b) => a.kosten - b.kosten);
+
+const gasKwh = abgerechneteKwh({ waermebedarfKwh: REFERENZ_KWH, nutzungsgrad: BRENNSTOFFE.gas.nutzungsgrad });
+const oelKwh = abgerechneteKwh({ waermebedarfKwh: REFERENZ_KWH, nutzungsgrad: BRENNSTOFFE.heizoel.nutzungsgrad });
+const gasCo2 = co2Preisbestandteil({ verbrauchKwh: gasKwh, brennstoff: 'gas' });
+const oelCo2 = co2Preisbestandteil({ verbrauchKwh: oelKwh, brennstoff: 'heizoel' });
+const gasCo2_2021 = co2Preisbestandteil({ verbrauchKwh: gasKwh, brennstoff: 'gas', preisJeTonne: CO2_FESTPREIS_EURO_JE_TONNE[2021] });
+const gasAnstieg = gasCo2.kosten - gasCo2_2021.kosten;
+const wp = BRENNSTOFFE.waermepumpe;
+const wpStromKwh = Math.round(abgerechneteKwh({ waermebedarfKwh: REFERENZ_KWH, nutzungsgrad: wp.jaz }));
+const beispielKgProQm = (gasKwh * emissionsfaktor('gas')) / 100;
+const beispielAufteilung = mieteranteilCo2Kosten(beispielKgProQm);
+
+const faqs = [
+  { q: 'Welcher Energieträger ist derzeit am günstigsten?', a: `Bei den hier hinterlegten Annahmen Holzpellets mit ${ct(waermepreisCent(BRENNSTOFFE.pellets))} ct je Kilowattstunde Wärme, dahinter die Wärmepumpe mit ${ct(waermepreisCent(wp))} ct. Wichtig ist der Preis je Kilowattstunde <em>Wärme</em>, nicht je Kilowattstunde Brennstoff: Der Wärmepumpenstrom kostet ${ct(wp.arbeitspreisCent)} ct, aus einer Kilowattstunde Strom macht die Anlage bei einer Jahresarbeitszahl von ${ct(wp.jaz)} aber ${ct(wp.jaz)} Kilowattstunden Wärme. Gas und Heizöl liegen bei ${ct(waermepreisCent(BRENNSTOFFE.heizoel))} bis ${ct(waermepreisCent(BRENNSTOFFE.gas))} ct je Kilowattstunde Wärme, Fernwärme darüber.` },
+  { q: 'Warum zählt der Grundpreis mit?', a: `Weil er unabhängig vom Verbrauch anfällt und bei manchen Energieträgern einen erheblichen Teil der Rechnung ausmacht. Bei Fernwärme sind Grundpreise von mehreren hundert Euro im Jahr üblich, bei Heizöl und Pellets gibt es keinen. Ein Vergleich allein über den Arbeitspreis führt deshalb in die Irre – der Rechner addiert den Grundpreis deshalb ausdrücklich.` },
+  { q: 'Wie berechne ich meinen Jahresverbrauch, wenn ich ihn nicht kenne?', a: 'Am zuverlässigsten aus der letzten Heizkostenabrechnung oder dem Zählerstand. Als grober Anhalt dient der spezifische Verbrauch je Quadratmeter: unsanierter Altbau 150 bis 250 kWh, teilsaniert 100 bis 160 kWh, Effizienzhaus 50 bis 80 kWh je Quadratmeter und Jahr. Die Voreinstellungen des Rechners setzen 150 kWh je Quadratmeter an und liegen damit am oberen Ende.' },
+  { q: 'Wie hoch ist der CO₂-Preis 2026?', a: `Die Emissionszertifikate werden nach § 10 Abs. 1 Satz 2 BEHG ab 2026 versteigert. Für 2026 gilt dabei ein Preiskorridor von ${CO2_PREISKORRIDOR_2026.min} bis ${CO2_PREISKORRIDOR_2026.max} Euro je Tonne (§ 10 Abs. 2 Satz 5 BEHG); der Rechner arbeitet mit dem Mindestpreis. Bis 2025 galten Festpreise, zuletzt ${CO2_FESTPREIS_EURO_JE_TONNE[2025]} Euro. Für 2027 sieht das Gesetz keinen Korridor mehr vor.` },
+  { q: 'Kommt der CO₂-Preis auf meine Heizkosten obendrauf?', a: `Nein – er steckt bereits im Arbeitspreis. Ihr Lieferant muss ihn nach § 3 Abs. 1 Nr. 2 CO2KostAufG als Preisbestandteil auf der Rechnung ausweisen, samt Umsatzsteuer. Bei ${Math.round(gasKwh).toLocaleString('de-DE')} kWh Erdgas sind das ${euro2(gasCo2.kosten)} im Jahr oder ${ct(gasCo2.centProKwh)} ct je Kilowattstunde, bei ${Math.round(oelKwh).toLocaleString('de-DE')} kWh Heizöl ${euro2(oelCo2.kosten)} beziehungsweise ${ct(oelCo2.centProKwh)} ct. Gegenüber 2021, als die Tonne noch ${CO2_FESTPREIS_EURO_JE_TONNE[2021]} Euro kostete, sind das rund ${euro(gasAnstieg)} Mehrkosten im Jahr.` },
+  { q: 'Warum entfällt der CO₂-Preis bei Pellets und Wärmepumpe?', a: 'Das Brennstoffemissionshandelsgesetz erfasst fossile Brennstoffe. Feste Biomasse fällt nicht darunter, Strom unterliegt dem europäischen Emissionshandel und wird deshalb nicht zusätzlich nach dem BEHG belastet. Bei Fernwärme hängt der Bestandteil vom Brennstoffmix des Heizwerks ab; der Wärmelieferant weist ihn nach § 3 Abs. 4 CO2KostAufG gesondert aus.' },
+  { q: 'Ich wohne zur Miete – zahle ich die CO₂-Kosten allein?', a: 'Nein. Seit 2023 teilt das Kohlendioxidkostenaufteilungsgesetz die CO₂-Kosten bei Wohngebäuden nach einem Stufenmodell zwischen Mieter und Vermieter auf. Maßgeblich ist der Ausstoß je Quadratmeter Wohnfläche und Jahr: Unter 12 kg trägt der Mieter alles, ab 52 kg nur noch 5 Prozent. Je schlechter das Gebäude, desto größer der Anteil des Vermieters.' },
+  { q: 'Welche Kosten kommen neben Brennstoff und Grundpreis dazu?', a: 'Wartung, Schornsteinfeger und Rücklagen für Reparaturen. Bei Gas- und Ölheizungen liegen Wartung und Kehrbezirksarbeiten zusammen meist im niedrigen dreistelligen Bereich pro Jahr, bei Wärmepumpen entfällt der Schornsteinfeger. Der Rechner erfasst diese Posten nicht – für einen Systemvergleich sollten Sie sie ergänzen.' },
+  { q: 'Kann ich Heizkosten ohne Heizungstausch senken?', a: 'Ja. Ein Grad weniger Raumtemperatur spart nach Faustregel 6 Prozent, ein hydraulischer Abgleich 5 bis 15 Prozent. Stoßlüften statt Kipplüften, freistehende Heizkörper und nachts geschlossene Rollläden wirken sofort und kosten nichts.' },
+];
 ---
 <CalculatorLayout
   title={`Heizkosten-Rechner ${year}`}
-  description="Heizkosten 2026 berechnen: Gas, Öl, Pellets, Fernwärme & Wärmepumpe im Kostenvergleich. Mit CO₂-Abgabe, Spartipps und Richtwerten für 50-140 m² Wohnfläche."
+  description={`Heizkosten ${year} berechnen: Gas, Öl, Pellets, Fernwärme und Wärmepumpe im Vergleich – mit Grundpreis und dem CO₂-Preisbestandteil nach BEHG und CO2KostAufG.`}
   canonicalPath="/energie/heizkosten-rechner/"
   categoryColor={cat.color}
   categoryLight={cat.colorLight}
@@ -23,23 +83,14 @@ const year = new Date().getFullYear();
   </div>
   <CalculatorShell
     calculator={calc}
-    intro="Berechnen Sie Ihre jährlichen Heizkosten für Gas, Öl, Pellets oder Wärmepumpe. So sehen Sie, ob Ihr Verbrauch im Normalbereich liegt und wo Einsparpotenzial besteht."
-    sourceNote="Gas, Öl, Wärmepumpe."
-    explanation="Heizkosten ergeben sich aus Verbrauch mal Brennstoffpreis. Durch die steigende CO₂-Abgabe werden fossile Brennstoffe jährlich teurer. Ein typischer Gashaushalt zahlt 1.500-2.500 Euro pro Jahr."
-    faqs={[
-      { q: "Welcher Energieträger ist aktuell am günstigsten?", a: "Wärmepumpen sind bei niedrigen Strompreisen günstiger (5-6 ct/kWh), Gas/Öl kosten etwa 10-12 ct/kWh. Pellets 6-8 ct/kWh – aber Lagerung erforderlich. Langfristig werden Wärmepumpen günstiger." },
-      { q: "Wie berechne ich meinen Jahresverbrauch, wenn ich ihn nicht kenne?", a: "Faustregel: 50 m² Wohnung ≈ 7.500 kWh/a, 100 m² ≈ 15.000 kWh/a, 140 m² ≈ 21.000 kWh/a. Nachtspeicherheizung: +20%, moderne Wärmepumpe: -30%. Bei Gasheizung: Jahresrechnung prüfen oder Zählerstand auslesen." },
-      { q: "Welche versteckten Kosten habe ich bei der Heizung?", a: "Wartung (100-200€/a für Gas/Öl), Schornsteinfeger (80-150€/2a), Reparaturen (Reserve 100-150€/a). Wärmepumpen: weniger Wartung (50€/a), aber höhere Anschaffungskosten." },
-      { q: "Kann ich meine Heizkosten senken ohne Heizung zu wechseln?", a: "Ja: Temperatur um 1°C senken = 6-8% Kostenersparnis. Hydraulischer Abgleich (300-500€) optimiert Verteilung. Entlüftung und Entlüftungsventile am Heizkörper (30€). Dämmen von Rohren im kalten Keller (gering, aber Effekt)." },
-      { q: "Lohnt sich ein Heizungstausch wirtschaftlich?", a: "Ja, wenn Heizung älter als 15-20 Jahre ist. Wärmepumpe spart 30-50% gegenüber alter Gasheizung, rechnet sich in 12-18 Jahren ohne Förderung, mit KfW-Zuschuss in 8-12 Jahren. Gas-Brennwert spart 10-15% gegenüber alter Heizung." },
-      { q: "Wie sicher sind die Preisprognosen für Heizenergie?", a: "Schwer zu sagen – Gas/Öl hängen von Weltmarkt ab, Strom von Energiewende. Mit Faustregel kann man rechnen: Gas/Öl Preise +1-2% p.a. erwartet, Strom in Pausen stabil. Wärmepumpen profitieren von Energiewende langfristig." },
-      { q: "Wie hoch ist die CO₂-Abgabe 2026 und wie wirkt sie sich auf meine Heizkosten aus?", a: "Die CO₂-Abgabe beträgt 2026 voraussichtlich 55 Euro pro Tonne CO₂. Das erhöht die Gaskosten um ca. 1,1 ct/kWh und Heizöl um ca. 1,4 ct/kWh. Bei einem 100-m²-Haushalt mit Gasheizung (15.000 kWh) sind das rund 165 Euro Mehrkosten pro Jahr im Vergleich zu 2021. Bis 2027 steigt die Abgabe weiter auf 65 Euro/Tonne." },
-      { q: "Gibt es regionale Unterschiede bei den Heizkosten in Deutschland?", a: "Ja, erhebliche. In Bayern und Baden-Württemberg liegen Gaspreise oft 5-10% über dem Bundesdurchschnitt (weniger Wettbewerb). Fernwärme variiert stark: In Hamburg oder Berlin zahlen Sie 12-16 ct/kWh, in kleineren Städten oft nur 9-11 ct/kWh. Heizölpreise sind im Süden tendenziell günstiger (kürzere Transportwege zu Raffinerien). Wärmepumpen-Stromtarife schwanken zwischen 22 und 30 ct/kWh je nach Netzbetreiber." }
-    ]}
+    intro="Berechnen Sie Ihre jährlichen Heizkosten für Gas, Öl, Pellets, Fernwärme oder Wärmepumpe – inklusive Grundpreis. Der Rechner weist zusätzlich aus, welcher Teil der Kosten auf den CO₂-Preis entfällt."
+    sourceNote="CO₂-Preis nach § 10 BEHG, Emissionsfaktoren nach EBeV 2030."
+    explanation={`Heizkosten bestehen aus Arbeitspreis mal Verbrauch plus Grundpreis. Im Arbeitspreis fossiler Brennstoffe steckt der CO₂-Preis, den Ihr Lieferant nach § 3 Abs. 1 Nr. 2 CO2KostAufG gesondert ausweisen muss. Er beträgt 2026 zwischen ${CO2_PREISKORRIDOR_2026.min} und ${CO2_PREISKORRIDOR_2026.max} Euro je Tonne CO₂.`}
+    faqs={faqs}
   >
     <div class="calc-form">
       <div class="calc-group">
-        <label>Wohnungsgröße (Richtwert)</label>
+        <label>Wohnungsgröße (Richtwert, 150 kWh je m²)</label>
         <div class="presets">
           <button type="button" class="preset-btn" data-kwh="7500">50 m²<span>7.500 kWh</span></button>
           <button type="button" class="preset-btn" data-kwh="10500">70 m²<span>10.500 kWh</span></button>
@@ -51,76 +102,80 @@ const year = new Date().getFullYear();
         <div class="calc-group">
           <label for="traeger">Energieträger</label>
           <select id="traeger">
-            <option value="10.0">Erdgas (ca. 10 ct/kWh)</option>
-            <option value="10.0">Heizöl (ca. 10 ct/kWh)</option>
-            <option value="12.5">Fernwärme (ca. 12,5 ct/kWh)</option>
-            <option value="6.0">Holzpellets (ca. 6 ct/kWh)</option>
-            <option value="5.0">Wärmepumpe (ca. 5 ct/kWh)</option>
+            {Object.entries(BRENNSTOFFE).map(([key, b]) => (
+              <option value={key} selected={key === 'gas'}>{b.label}</option>
+            ))}
           </select>
         </div>
         <div class="calc-group">
-          <label for="verbrauch">Jahresverbrauch (kWh)</label>
+          <label for="verbrauch">Jahresverbrauch (kWh laut Abrechnung)</label>
           <input type="number" id="verbrauch" min="0" max="200000" value="15000" step="500" />
         </div>
         <div class="calc-group">
-          <label for="preis">Preis (Cent/kWh)</label>
-          <input type="number" id="preis" min="0" max="100" value="10.0" step="0.1" />
+          <label for="preis">Arbeitspreis (Cent/kWh)</label>
+          <input type="number" id="preis" min="0" max="100" value={BRENNSTOFFE.gas.arbeitspreisCent} step="0.1" />
+        </div>
+        <div class="calc-group">
+          <label for="grundpreis">Grundpreis (€/Jahr)</label>
+          <input type="number" id="grundpreis" min="0" max="5000" value={BRENNSTOFFE.gas.grundpreisJahr} step="10" />
         </div>
       </div>
       <div class="calc-result">
         <div class="label">Heizkosten pro Jahr</div>
         <div id="jahr">— €</div>
       </div>
-      <p id="monat" style="margin-top:0.5rem;font-size:0.95rem;color:#666;"></p>
+      <div id="details" style="margin-top:0.75rem;font-size:0.88rem;color:#666;display:flex;gap:1.5rem;flex-wrap:wrap;"></div>
+      <div id="co2-hinweis" style="display:none;margin-top:0.75rem;padding:0.75rem 1rem;border-radius:8px;background:#eef4ff;font-size:0.88rem;"></div>
     </div>
   </CalculatorShell>
 
   <CalculatorGuide
     title="Heizkosten verstehen und sparen"
-    content={`<p>Heizkosten sind meist der größte Posten in der Energierechnung von Haushalten. Mit diesem Rechner können Sie präzise berechnen, welche Heizkosten Sie mit Ihrem aktuellen Energieträger erwarten – und vergleichen, wie viel Sie mit einem Wechsel sparen können.</p>
+    content={`<p>Heizkosten sind meist der größte Posten der Energierechnung. Dieser Rechner zeigt, was Ihr Verbrauch bei einem bestimmten Energieträger kostet – und welcher Teil davon auf den CO₂-Preis entfällt.</p>
 
-<p><strong>Unterschiedliche Energieträger und ihre Kosten:</strong> Erdgas ist mit 10-12 ct/kWh derzeit eine preiswerte Option, Heizöl ähnlich (aber starken Preisschwankungen unterworfen). Fernwärme kostet etwa 12-15 ct/kWh und steigt mit den Stadtwerken. Holzpellets sind günstig (6-8 ct/kWh), erfordern aber Lagerung und Brenner-Anschaffung. Wärmepumpen nutzen Strom und sind bei moderaten Strompreisen eine zukunftssichere Option.</p>
+<p><strong>Arbeitspreis, Grundpreis, CO₂-Preis:</strong> Der Arbeitspreis wird je verbrauchter Kilowattstunde abgerechnet, der Grundpreis unabhängig davon. Der CO₂-Preis ist kein dritter Posten, sondern im Arbeitspreis fossiler Brennstoffe bereits enthalten. Ihr Lieferant muss ihn nach § 3 Abs. 1 Nr. 2 CO2KostAufG samt Umsatzsteuer gesondert auf der Rechnung ausweisen, ebenso den Emissionsfaktor in Kilogramm CO₂ je Kilowattstunde.</p>
 
-<p><strong>Verbrauch realistisch einschätzen:</strong> Die Faustregel von 150 kWh pro m² und Jahr ist ein guter Anhalt für alte, teilweise unsanierte Häuser. Moderne, gut sanierte Häuser verbrauchen nur 50-80 kWh/m²/a. Ein Einfamilienhaus mit 120 m² sollte realistische 12.000-18.000 kWh/a verbrauchen – nachzuprüfen in der jährlichen Heizkostenabrechnung.</p>
+<p><strong>Wärmepumpen richtig vergleichen:</strong> Der häufigste Fehler beim Vergleich ist, den Strompreis der Wärmepumpe direkt gegen den Gaspreis zu stellen. Das ist unzulässig, weil eine Wärmepumpe aus einer Kilowattstunde Strom mehrere Kilowattstunden Wärme macht. Bei ${ct(wp.arbeitspreisCent)} ct Wärmepumpenstrom und einer Jahresarbeitszahl von ${ct(wp.jaz)} kostet die Kilowattstunde Wärme ${ct(waermepreisCent(wp))} ct. Für ${REFERENZ_KWH.toLocaleString('de-DE')} kWh Wärme braucht die Anlage rund ${wpStromKwh.toLocaleString('de-DE')} kWh Strom. Entscheidend ist die Jahresarbeitszahl aus dem realen Betrieb, nicht der Laborwert COP.</p>
 
-<p><strong>Sparpotenziale erkennen:</strong> Die größte Wirkung hat Sanierung (40-60% Einsparung mit Dämmung + moderner Heizung). Ohne Sanierung: Temperaturabsenkung um 1°C spart 6-8%, ein hydraulischer Abgleich 5-15%, regelmäßige Wartung 2-5%. Ein Heizungstausch von alter Öl-/Gasheizung zu Brennwert spart 10-15%, zu Wärmepumpe 30-50%.</p>
+<p><strong>Verbrauch realistisch einschätzen:</strong> Die Faustregel von 150 kWh je Quadratmeter und Jahr passt zu einem alten, teilweise unsanierten Haus. Gut sanierte Gebäude liegen bei 50 bis 80 kWh. Ein Blick in die Heizkostenabrechnung ersetzt jede Faustregel.</p>
 
-<p><strong>Wirtschaftlichkeit von Heizungstausch:</strong> Eine neue Gasbrennwertanlage kostet 5.000-8.000€ und spart 1.000-2.000€/a. Eine Wärmepumpe kostet 15.000-25.000€, spart aber 3.000-5.000€/a. Mit KfW-Zuschüssen (bis 70% Förderung 2024) amortisiert sich ein Wärmepumpentausch in 8-12 Jahren. Ölheizungen sollten 2025+ nicht mehr eingebaut werden (ab 2026 schrittweise verboten).</p>
+<p><strong>Sparpotenziale:</strong> Die größte Wirkung hat die Gebäudehülle – Dämmung und Fenster senken den Bedarf um 40 bis 60 Prozent. Ohne Investition wirken Temperaturabsenkung (rund 6 Prozent je Grad), hydraulischer Abgleich (5 bis 15 Prozent) und regelmäßige Wartung.</p>
 
-<p><strong>Zukunftssicher planen:</strong> Neue Heizungen sollten mindestens 15-20 Jahre halten. Gasheizungen sind eine riskante Langzeitinvestition bei Klimaziele und steigenden CO₂-Abgaben. Wärmepumpen werden durch sinkende Strompreise (Energiewende) langfristig günstiger und sind zukunftssicher.</p>
-
-<h3>Heizkosten-Vergleich nach Energieträger (100 m², 15.000 kWh/a, Stand 2026)</h3>
+<h3>Heizkosten nach Energieträger (${REFERENZ_KWH.toLocaleString('de-DE')} kWh Wärmebedarf, Annahmen Stand ${year})</h3>
 <table>
-<thead><tr><th>Energieträger</th><th>Preis (ct/kWh)</th><th>Jahreskosten</th><th>CO₂-Abgabe/Jahr</th><th>Gesamtkosten</th></tr></thead>
+<thead><tr><th>Energieträger</th><th>Arbeitspreis</th><th>Wärmepreis</th><th>Grundpreis</th><th>Kosten/Jahr</th><th>davon CO₂-Preis</th></tr></thead>
 <tbody>
-<tr><td>Erdgas</td><td>10,0 – 12,0</td><td>1.500 – 1.800 €</td><td>ca. 165 €</td><td>1.665 – 1.965 €</td></tr>
-<tr><td>Heizöl</td><td>9,5 – 11,5</td><td>1.425 – 1.725 €</td><td>ca. 210 €</td><td>1.635 – 1.935 €</td></tr>
-<tr><td>Fernwärme</td><td>11,0 – 15,0</td><td>1.650 – 2.250 €</td><td>entfällt*</td><td>1.650 – 2.250 €</td></tr>
-<tr><td>Holzpellets</td><td>5,5 – 7,5</td><td>825 – 1.125 €</td><td>entfällt</td><td>825 – 1.125 €</td></tr>
-<tr><td>Wärmepumpe (COP 3,5)</td><td>10,0 – 12,0**</td><td>430 – 515 €***</td><td>entfällt</td><td>430 – 515 €</td></tr>
+${vergleich.map(v => `<tr><td>${v.label}</td><td>${ct(v.arbeitspreisCent)} ct/kWh</td><td>${ct(v.waermepreis)} ct/kWh</td><td>${v.grundpreis > 0 ? euro(v.grundpreis) : '–'}</td><td>${euro(v.kosten)}</td><td>${v.co2Anteil.kosten > 0 ? euro2(v.co2Anteil.kosten) : '–'}</td></tr>`).join('\n')}
 </tbody>
 </table>
-<p><small>* Fernwärme-Anbieter können CO₂-Kosten intern umlegen. ** Wärmepumpenstrom 25-30 ct/kWh, aber COP 3,5 reduziert den effektiven Preis auf 7-9 ct/kWh Wärme. *** Nur ca. 4.285 kWh Strom für 15.000 kWh Wärme nötig.</small></p>
+<p><small>Der Arbeitspreis gilt je abgerechneter Kilowattstunde, der Wärmepreis je Kilowattstunde nutzbarer Wärme – nur er ist zwischen den Heizungsarten vergleichbar. Die Spalte „davon CO₂-Preis“ ist ein Bestandteil der Jahreskosten und wird nicht hinzugerechnet. Bei Fernwärme hängt er vom Brennstoffmix des Heizwerks ab und wird vom Wärmelieferanten ausgewiesen; feste Biomasse und Strom unterliegen dem BEHG nicht. Die Preise sind Marktannahmen und schwanken regional und je Vertrag erheblich – überschreiben Sie sie mit den Werten Ihrer Rechnung.</small></p>
 
-<h3>Saisonale Verteilung der Heizkosten</h3>
-<p>Heizkosten fallen nicht gleichmäßig über das Jahr an. Im Durchschnitt entfallen rund 70-75 % der Heizkosten auf die Monate Oktober bis März. Die Spitzenmonate Dezember und Januar allein verursachen etwa 30-35 % der Jahreskosten. Das bedeutet konkret: Bei 1.800 Euro Jahreskosten zahlen Sie im Januar effektiv 270-315 Euro, im Mai dagegen nur 20-40 Euro. Wer seine monatliche Abschlagszahlung optimieren möchte, sollte dieses Profil kennen – die tatsächlichen Kosten weichen erheblich vom gleichmäßigen Zwölftel ab.</p>
+<h3>Was sich 2026 rechtlich geändert hat</h3>
+<p>Zwei Änderungen wirken unmittelbar auf die Heizkosten. Erstens läuft die Festpreisphase des CO₂-Preises aus: Nach § 10 Abs. 1 Satz 2 BEHG werden die Emissionszertifikate ab 2026 versteigert, für 2026 gilt nach § 10 Abs. 2 Satz 5 BEHG noch ein Preiskorridor von ${CO2_PREISKORRIDOR_2026.min} bis ${CO2_PREISKORRIDOR_2026.max} Euro je Tonne. Für 2027 nennt das Gesetz keinen Korridor mehr.</p>
+
+<p>Zweitens wurde das Gebäudeenergiegesetz zum 29. Juli 2026 neu gefasst und heißt seither <strong>Gebäudemodernisierungsgesetz</strong>. Die vielzitierte Pflicht, neue Heizungen zu 65 Prozent mit erneuerbaren Energien zu betreiben, ist damit entfallen – § 71 GEG ist aufgehoben. An ihre Stelle tritt ein Optionenmodell: § 42 GModG zählt zehn zulässige Arten des Heizungsersatzes auf, darunter ausdrücklich weiterhin Gas-, Öl- und Flüssiggasheizungen. Wer eine solche Heizung nach dem 29. Juli 2026 neu einbaut, muss nach § 43 Abs. 1 GModG allerdings einen wachsenden Anteil erneuerbarer Brennstoffe einsetzen: ab 2029 mindestens 10 Prozent, ab 2030 15 Prozent, ab 2035 30 Prozent und ab 2040 60 Prozent. Auch das frühere Betriebsverbot für Öl- und Gaskessel ab 2045 steht so nicht mehr im Gesetz; § 42a GModG kündigt stattdessen eine Grüngas- und Grünheizölquote an, die erst noch beschlossen werden muss.</p>
 
 <h3>Heizkosten nach Gebäudetyp und Sanierungsstand</h3>
 <table>
-<thead><tr><th>Gebäudetyp</th><th>Verbrauch (kWh/m²/a)</th><th>100 m² Gaskosten/Jahr</th></tr></thead>
+<thead><tr><th>Gebäudetyp</th><th>Verbrauch (kWh/m²/a)</th><th>100 m² mit Erdgas</th></tr></thead>
 <tbody>
-<tr><td>Altbau unsaniert (vor 1978)</td><td>180 – 250</td><td>1.800 – 2.750 €</td></tr>
-<tr><td>Teilsaniert (neue Fenster, Dach)</td><td>120 – 160</td><td>1.200 – 1.760 €</td></tr>
-<tr><td>Vollsaniert (KfW-Effizienzhaus)</td><td>50 – 80</td><td>500 – 880 €</td></tr>
-<tr><td>Neubau nach GEG 2024</td><td>35 – 55</td><td>350 – 605 €</td></tr>
-<tr><td>Passivhaus</td><td>10 – 15</td><td>100 – 165 €</td></tr>
+<tr><td>Altbau unsaniert (vor 1978)</td><td>180 – 250</td><td>${euro(180 * 100 * BRENNSTOFFE.gas.arbeitspreisCent / 100)} – ${euro(250 * 100 * BRENNSTOFFE.gas.arbeitspreisCent / 100)}</td></tr>
+<tr><td>Teilsaniert (neue Fenster, Dach)</td><td>120 – 160</td><td>${euro(120 * 100 * BRENNSTOFFE.gas.arbeitspreisCent / 100)} – ${euro(160 * 100 * BRENNSTOFFE.gas.arbeitspreisCent / 100)}</td></tr>
+<tr><td>Vollsaniert (Effizienzhaus)</td><td>50 – 80</td><td>${euro(50 * 100 * BRENNSTOFFE.gas.arbeitspreisCent / 100)} – ${euro(80 * 100 * BRENNSTOFFE.gas.arbeitspreisCent / 100)}</td></tr>
+<tr><td>Neubau nach aktuellem Standard</td><td>35 – 55</td><td>${euro(35 * 100 * BRENNSTOFFE.gas.arbeitspreisCent / 100)} – ${euro(55 * 100 * BRENNSTOFFE.gas.arbeitspreisCent / 100)}</td></tr>
+<tr><td>Passivhaus</td><td>10 – 15</td><td>${euro(10 * 100 * BRENNSTOFFE.gas.arbeitspreisCent / 100)} – ${euro(15 * 100 * BRENNSTOFFE.gas.arbeitspreisCent / 100)}</td></tr>
 </tbody>
 </table>
-<p>Die Tabelle zeigt: Zwischen einem unsanierten Altbau und einem Neubau nach aktuellem Gebäudeenergiegesetz (GEG) liegt ein Faktor 4-5 bei den Heizkosten. Eine energetische Sanierung – vor allem Fassadendämmung, Fensteraustausch und Dachdämmung – kann die Heizkosten um 40-60 % senken. In Kombination mit einem Heizungstausch auf Wärmepumpe sind Einsparungen von über 70 % möglich.</p>
+<p><small>Arbeitspreis ohne Grundpreis, damit die Zeilen untereinander vergleichbar bleiben.</small></p>
 
-<h3>Praxistipp: Heizkosten sofort senken ohne Investition</h3>
-<p>Noch vor jeder Sanierung können Sie Ihre Heizkosten mit einfachen Maßnahmen um 10-20 % reduzieren. Nachtabsenkung auf 16-17 °C spart etwa 5-8 %, konsequentes Stoßlüften statt Kipplüften reduziert den Wärmeverlust um 10-15 %, und programmierbare Thermostate (ab 15 Euro pro Stück) verhindern unnötiges Heizen bei Abwesenheit. In Mietwohnungen besonders effektiv: Heizkörper nicht mit Möbeln zustellen und Rollladen nachts schließen – das allein bringt 3-5 % Ersparnis an kalten Tagen.</p>`}
-    relatedSlugs={['waermepumpe-rechner', 'jahresenergieverbrauch', 'energieausweis-vorberechnung']}
+<h3>CO₂-Kosten in der Mietwohnung</h3>
+<p>Mieter tragen die CO₂-Kosten nicht allein. Das Kohlendioxidkostenaufteilungsgesetz verteilt sie seit 2023 nach einem Stufenmodell, das an den Ausstoß je Quadratmeter Wohnfläche und Jahr anknüpft (Anlage zu den §§ 5 bis 7 CO2KostAufG). Unter 12 kg CO₂ je Quadratmeter trägt der Mieter 100 Prozent, zwischen 32 und 37 kg teilen sich beide Seiten hälftig, ab 52 kg trägt der Vermieter 95 Prozent. Der Vermieter muss die Einstufung und die Berechnungsgrundlagen in der Heizkostenabrechnung ausweisen; unterbleibt das, darf der Mieter seinen Heizkostenanteil nach § 7 Abs. 4 CO2KostAufG um 3 Prozent kürzen.</p>
+
+<p>Ein Beispiel: Eine Wohnung von 100 m² mit Gasheizung und ${REFERENZ_KWH.toLocaleString('de-DE')} kWh Verbrauch verursacht rund ${beispielKgProQm.toLocaleString('de-DE', { maximumFractionDigits: 1 })} kg CO₂ je Quadratmeter und Jahr. Das ist Stufe ${beispielAufteilung.stufe} von zehn: Von den ${euro2(gasCo2.kosten)} CO₂-Kosten trägt der Mieter ${(beispielAufteilung.mieter * 100).toLocaleString('de-DE')} Prozent, der Vermieter ${(beispielAufteilung.vermieter * 100).toLocaleString('de-DE')} Prozent.</p>
+
+<h3>Saisonale Verteilung</h3>
+<p>Heizkosten fallen nicht gleichmäßig an: Rund 70 bis 75 Prozent entfallen auf Oktober bis März, allein auf Dezember und Januar etwa 30 bis 35 Prozent. Der im Rechner ausgewiesene Monatswert ist deshalb ein rechnerisches Zwölftel und keine Prognose für den einzelnen Monat.</p>`}
+    relatedSlugs={['heizkosten-vergleich', 'waermepumpe-rechner', 'jahresenergieverbrauch']}
   />
 </CalculatorLayout>
 
@@ -163,29 +218,73 @@ const year = new Date().getFullYear();
 </style>
 
 <script type="module">
-const { berechneHeizkosten } = await import(window.__base + 'scripts/heizkosten.js');
+const { BRENNSTOFFE, berechneHeizkosten, abgerechneteKwh, CO2_PREIS_AKTUELL } = await import(window.__base + 'scripts/heizkosten.js');
 function fmt(n) { return n.toLocaleString('de-DE', {minimumFractionDigits:2, maximumFractionDigits:2}) + ' €'; }
+function ct(n) { return n.toLocaleString('de-DE', {minimumFractionDigits:1, maximumFractionDigits:2}); }
+
 function berechne() {
+  const key = document.getElementById('traeger').value;
+  const brennstoff = BRENNSTOFFE[key];
   const verbrauch = parseFloat(document.getElementById('verbrauch').value)||0;
   const preis = parseFloat(document.getElementById('preis').value)||0;
-  const r = berechneHeizkosten({ verbrauchKwh: verbrauch, preisCent: preis });
+  const grundpreis = parseFloat(document.getElementById('grundpreis').value)||0;
+  const r = berechneHeizkosten({
+    verbrauchKwh: verbrauch,
+    preisCent: preis,
+    grundpreisJahr: grundpreis,
+    brennstoff: brennstoff?.behg ?? null,
+  });
   document.getElementById('jahr').textContent = fmt(r.kosten);
-  document.getElementById('monat').textContent = 'Pro Monat: ' + fmt(r.monat);
+  const nutzungsgrad = brennstoff?.nutzungsgrad ?? 1;
+  const waermebedarf = verbrauch * nutzungsgrad;
+  document.getElementById('details').innerHTML =
+    `<span>Pro Monat: <strong>${fmt(r.monat)}</strong></span>` +
+    `<span>Arbeitspreis: ${fmt(r.arbeitskosten)}</span>` +
+    (r.grundpreis > 0 ? `<span>Grundpreis: ${fmt(r.grundpreis)}</span>` : '') +
+    `<span>Daraus nutzbare Wärme: ${Math.round(waermebedarf).toLocaleString('de-DE')} kWh</span>`;
+
+  const hinweis = document.getElementById('co2-hinweis');
+  if (r.co2Anteil.kosten > 0) {
+    hinweis.style.display = 'block';
+    hinweis.innerHTML = `<strong>Darin enthaltener CO₂-Preis: ${fmt(r.co2Anteil.kosten)} im Jahr</strong> ` +
+      `(${ct(r.co2Anteil.centProKwh)} ct/kWh bei ${CO2_PREIS_AKTUELL} € je Tonne CO₂). ` +
+      `Der Verbrauch verursacht rund ${Math.round(r.co2Anteil.emissionenKg).toLocaleString('de-DE')} kg CO₂. ` +
+      `Der Betrag ist im Arbeitspreis bereits enthalten und wird nicht hinzugerechnet – Ihr Lieferant weist ihn nach § 3 Abs. 1 Nr. 2 CO2KostAufG gesondert aus.`;
+  } else {
+    hinweis.style.display = 'none';
+  }
 }
+
 document.querySelectorAll('.preset-btn').forEach(btn => {
   btn.addEventListener('click', () => {
     document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
-    document.getElementById('verbrauch').value = btn.dataset.kwh;
+    const b = BRENNSTOFFE[document.getElementById('traeger').value];
+    document.getElementById('verbrauch').value = Math.round(
+      abgerechneteKwh({ waermebedarfKwh: parseFloat(btn.dataset.kwh), nutzungsgrad: b?.nutzungsgrad ?? 1 })
+    );
     berechne();
   });
 });
+// Beim Wechsel des Energieträgers wird der Verbrauch mit umgerechnet: 15.000 kWh
+// Gas und 15.000 kWh Wärmepumpenstrom sind nicht dasselbe. Umgerechnet wird über
+// den Wärmebedarf, der hinter beiden Werten steht.
+let aktuellerTraeger = 'gas';
 document.getElementById('traeger').addEventListener('change', e => {
-  document.getElementById('preis').value = e.target.value;
+  const alt = BRENNSTOFFE[aktuellerTraeger];
+  const neu = BRENNSTOFFE[e.target.value];
+  if (alt && neu) {
+    const verbrauchFeld = document.getElementById('verbrauch');
+    const waermebedarf = (parseFloat(verbrauchFeld.value) || 0) * alt.nutzungsgrad;
+    verbrauchFeld.value = Math.round(abgerechneteKwh({ waermebedarfKwh: waermebedarf, nutzungsgrad: neu.nutzungsgrad }));
+    document.getElementById('preis').value = Math.round(neu.arbeitspreisCent * 100) / 100;
+    document.getElementById('grundpreis').value = neu.grundpreisJahr;
+  }
+  aktuellerTraeger = e.target.value;
   berechne();
 });
-['verbrauch','preis'].forEach(id => document.getElementById(id).addEventListener('input', () => {
-  document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
+['verbrauch','preis','grundpreis'].forEach(id => document.getElementById(id).addEventListener('input', () => {
+  if (id === 'verbrauch') document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
   berechne();
 }));
 berechne();
