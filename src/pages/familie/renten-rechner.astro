@@ -3,22 +3,36 @@ import Layout from '../../layouts/Layout.astro';
 import CalculatorShell from '../../components/CalculatorShell.astro';
 import CalculatorGuide from '../../components/CalculatorGuide.astro';
 import { CALCULATORS, CATEGORIES } from '../../data/calculators';
+import { bundeslaenderAlphabetisch } from '../../../public/scripts/bundeslaender.js';
+import {
+  AKTUELLER_RENTENWERT,
+  BBG_RENTE_JAHR,
+  DURCHSCHNITTSENTGELT_VORLAEUFIG,
+  MAX_ENTGELTPUNKTE_JAHR,
+} from '../../../public/scripts/rentenwerte.js';
 const calc = CALCULATORS.find(c => c.slug === 'renten-rechner')!;
 const cat = CATEGORIES[calc.category];
 const year = new Date().getFullYear();
+const laender = bundeslaenderAlphabetisch();
+
+const euro = (betrag: number) => betrag.toLocaleString('de-DE') + ' €';
+const rentenwertText = AKTUELLER_RENTENWERT.toLocaleString('de-DE', { minimumFractionDigits: 2 }) + ' €';
+const durchschnittText = euro(DURCHSCHNITTSENTGELT_VORLAEUFIG);
+const bbgText = euro(BBG_RENTE_JAHR);
+const maxPunkteText = MAX_ENTGELTPUNKTE_JAHR.toLocaleString('de-DE', { minimumFractionDigits: 4, maximumFractionDigits: 4 });
 
 const faqs = [
-  { q: 'Wann kann ich in Rente gehen?', a: 'Die reguläre Renteneintrittsalter liegt bei 67 Jahren. Mit Zu- oder Abschlägen ist es ab 63 oder 62 möglich.' },
-  { q: 'Wie wird meine Rente berechnet?', a: 'Rente = (Entgeltpunkte × aktueller Rentenwert × Rentenartfaktor). Der aktuelle Rentenwert wird jährlich angepasst.' },
-  { q: 'Was sind Entgeltpunkte?', a: 'Ein Entgeltpunkt wird für ein Jahr Beiträge zum Durchschnittsverdienst verdient. Unterschiedliche Einkommen ergeben unterschiedliche Punkte.' },
-  { q: 'Gibt es Zu- oder Abschläge?', a: 'Ja: 0,6% pro Monat Zuschlag bei Hinausschiebung, 0,3% pro Monat Abschlag bei Frührentne.' },
-  { q: 'Wird meine Rente besteuert?', a: 'Ja, Renteneinkünfte unterliegen der Besteuerung. Der steuerpflichtige Anteil steigt jährlich.' },
-  { q: 'Kann ich vor 67 in Rente gehen?', a: 'Ja, ab 62 oder 63 mit Abschlägen, oder mit 45 Versicherungsjahren ohne Abschlag.' },
+  { q: 'Wann kann ich in Rente gehen?', a: 'Die Regelaltersgrenze liegt für alle ab 1964 Geborenen bei 67 Jahren (§ 35 SGB VI). Für die Jahrgänge 1947 bis 1963 wird sie nach § 235 Abs. 2 SGB VI stufenweise von 65 auf 67 angehoben. Eine Altersrente vor 63 gibt es abgesehen von der Rente für schwerbehinderte Menschen nicht.' },
+  { q: 'Wie wird meine Rente berechnet?', a: `Nach der Rentenformel des § 64 SGB VI: persönliche Entgeltpunkte mal Rentenartfaktor mal aktueller Rentenwert. Der Rentenartfaktor der Altersrenten ist 1,0, der aktuelle Rentenwert beträgt seit dem 1. Juli 2026 ${rentenwertText} je Punkt.` },
+  { q: 'Was sind Entgeltpunkte?', a: `Ein Entgeltpunkt entsteht in einem Jahr mit dem Durchschnittsentgelt aller Versicherten, derzeit ${durchschnittText}. Wegen der Beitragsbemessungsgrenze von ${bbgText} sind höchstens ${maxPunkteText} Punkte pro Jahr möglich.` },
+  { q: 'Wie hoch sind Abschläge und Zuschläge?', a: 'Nach § 77 Abs. 2 SGB VI sinkt der Zugangsfaktor je Monat vorzeitiger Inanspruchnahme um 0,003, die Rente also um 0,3 Prozent je Monat. Wer die Rente über die Regelaltersgrenze hinaus aufschiebt, gewinnt je Monat 0,005, also 0,5 Prozent. Bei drei Jahren Frührente sind das 10,8 Prozent weniger, dauerhaft.' },
+  { q: 'Wird meine Rente besteuert?', a: 'Ja. Der Besteuerungsanteil richtet sich nach dem Jahr des Rentenbeginns (§ 22 Nr. 1 Satz 3 Buchst. a Doppelbuchst. aa EStG) und steigt für jeden neuen Rentenjahrgang. Ob tatsächlich Steuer anfällt, hängt von allen Einkünften ab; dieser Rechner zieht sie nicht ab.' },
+  { q: 'Wann geht es ohne Abschlag früher?', a: 'Mit 45 Jahren an Beitragszeiten – der Altersrente für besonders langjährig Versicherte. Deren Altersgrenze liegt für Jahrgänge ab 1964 bei 65 Jahren (§ 38 SGB VI) und wird für die Jahrgänge 1953 bis 1963 von 63 auf 65 angehoben (§ 236b SGB VI). Wer noch früher geht, bekommt Abschläge wie alle anderen.' },
 ];
 ---
 <Layout
   title={`Renten-Rechner ${year}`}
-  description="Gesetzliche Rente berechnen – Monatliche Brutto- und Nettorente aus Entgeltpunkten, Rentenwert ca. 39,50 € (2026)."
+  description={`Gesetzliche Rente berechnen – monatliche Rente und Rentenlücke aus Entgeltpunkten, Zugangsfaktor und dem aktuellen Rentenwert von ${rentenwertText}.`}
   canonicalPath="/familie/renten-rechner/"
   categoryColor={cat.color}
   categoryLight={cat.colorLight}
@@ -31,8 +45,8 @@ const faqs = [
   <CalculatorShell
     calculator={calc}
     intro="Mit dem Renten-Rechner berechnen Sie Ihre voraussichtliche gesetzliche Rente und die Rentenlücke. So erkennen Sie frühzeitig, ob Ihre Altersvorsorge ausreicht oder zusätzlicher Bedarf besteht."
-    sourceNote="Rentenpunkte × 40€."
-    explanation="Die Rentenberechnung folgt der Rentenformel nach § 64 SGB VI: Entgeltpunkte x Zugangsfaktor x aktueller Rentenwert x Rentenartfaktor. Der aktuelle Rentenwert liegt bei ca. 39,50 € (2026) und wird jährlich angepasst."
+    sourceNote={`Rentenformel § 64 SGB VI, ${rentenwertText} je Punkt.`}
+    explanation={`Die Rentenberechnung folgt der Rentenformel des § 64 SGB VI: Entgeltpunkte mal Zugangsfaktor mal Rentenartfaktor mal aktueller Rentenwert. Der aktuelle Rentenwert beträgt seit dem 1. Juli 2026 ${rentenwertText} und wird jährlich neu festgesetzt. Der Zugangsfaktor bildet ab, wie weit der Rentenbeginn von der Regelaltersgrenze abweicht.`}
     faqs={faqs}
   >
     <div class="calc-form">
@@ -47,33 +61,71 @@ const faqs = [
         </div>
         <div class="calc-group">
           <label for="geburtsjahr">Geburtsjahr</label>
-          <input type="number" id="geburtsjahr" min="1950" max="2000" value="1980" step="1" />
+          <input type="number" id="geburtsjahr" min="1950" max="2010" value="1980" step="1" />
         </div>
         <div class="calc-group">
           <label for="rentenjahr">Geplanter Rentenbeginn (Jahr)</label>
-          <input type="number" id="rentenjahr" min="2025" max="2060" value="2047" step="1" />
+          <input type="number" id="rentenjahr" min="2026" max="2080" value="2047" step="1" />
+        </div>
+        <div class="calc-group">
+          <label for="steuerklasse">Steuerklasse (für den Vergleich)</label>
+          <select id="steuerklasse">
+            <option value="1" selected>I – Ledig</option>
+            <option value="2">II – Alleinerziehend</option>
+            <option value="3">III – Verheiratet, höheres Einkommen</option>
+            <option value="4">IV – Verheiratet, ähnliches Einkommen</option>
+            <option value="5">V – Verheiratet, geringeres Einkommen</option>
+            <option value="6">VI – Zweites Arbeitsverhältnis</option>
+          </select>
+        </div>
+        <div class="calc-group">
+          <label for="bundesland">Bundesland</label>
+          <select id="bundesland">
+            {laender.map(l => (
+              <option value={l.kuerzel} selected={l.kuerzel === 'NW'}>{l.name}</option>
+            ))}
+          </select>
+        </div>
+        <div class="calc-group">
+          <label for="wartezeit45">45 Beitragsjahre erreicht?</label>
+          <select id="wartezeit45">
+            <option value="nein" selected>Nein</option>
+            <option value="ja">Ja – besonders langjährig versichert</option>
+          </select>
+        </div>
+        <div class="calc-group">
+          <label for="eltern">Kinder (für den Pflegebeitrag)</label>
+          <select id="eltern">
+            <option value="ja" selected>Ja, mindestens ein Kind</option>
+            <option value="nein">Nein, kinderlos</option>
+          </select>
         </div>
       </div>
       <div class="calc-result">
-        <div class="label">Gesetzliche Rente (netto, ca.)</div>
+        <div class="label">Rente nach Kranken- und Pflegebeitrag</div>
         <div id="rente">— €/Monat</div>
       </div>
       <div id="details" style="margin-top:0.75rem;font-size:0.88rem;color:#666;display:flex;gap:1.5rem;flex-wrap:wrap;"></div>
+      <div id="alters-hinweis" style="display:none;margin-top:0.75rem;padding:0.75rem 1rem;border-radius:8px;background:#e7f1ff;font-size:0.88rem;"></div>
       <div id="luecke-box" style="display:none;margin-top:0.75rem;padding:0.75rem 1rem;border-radius:8px;background:#fff3cd;font-size:0.88rem;"></div>
     </div>
   </CalculatorShell>
 
   <CalculatorGuide
-    title="Rente – Absicherung im Alter und bei Erwerbsminderung"
-    content="Die gesetzliche Rente ist das Rückgrat der Altersversorgung in Deutschland. Die Renteneintrittsalter liegt regulär bei 67 Jahren, aber es gibt Optionen für frühere Renteneintritt mit Zu- oder Abschlägen.
+    title="Rente – Absicherung im Alter"
+    content={`Die gesetzliche Rente ist das Rückgrat der Altersversorgung in Deutschland. Ihre Höhe folgt einer einzigen Formel, die in § 64 SGB VI steht: persönliche Entgeltpunkte mal Rentenartfaktor mal aktueller Rentenwert. Für Altersrenten ist der Rentenartfaktor 1,0, der aktuelle Rentenwert liegt seit dem 1. Juli 2026 bei ${rentenwertText} je Punkt.
 
-Die Rentenberechnung basiert auf Entgeltpunkten, dem aktuellen Rentenwert und einem Rentenartfaktor. Jedes Arbeitsjahr mit Durchschnittseinkommen verdient 1 Rentenpunkt. Der aktuelle Rentenwert wird jährlich angepasst (2024: ca. 40€ pro Punkt).
+Entgeltpunkte entstehen aus Beiträgen: Ein Jahr mit dem Durchschnittsentgelt von ${durchschnittText} ergibt einen Punkt, mehr als ${maxPunkteText} Punkte im Jahr sind wegen der Beitragsbemessungsgrenze von ${bbgText} nicht möglich.
 
-Ein wichtiges Konzept: Erwerbstätigenversicherung funktioniert anders als Renteneintritt. Auch ohne 45 Jahre Versicherung können Sie Rente beziehen, müssen aber Abschläge akzeptieren. Mit 45 Jahren Versicherung ist Renteneintritt mit 63 Jahren ohne Abschlag möglich.
+Der Zugangsfaktor nach § 77 Abs. 2 SGB VI entscheidet, wie viel davon ankommt. Wer vor seiner Altersgrenze in Rente geht, verliert 0,3 Prozent je Monat – und zwar dauerhaft, nicht nur bis zur Regelaltersgrenze. Wer sie aufschiebt, gewinnt 0,5 Prozent je Monat.
 
-Frauen haben seit 2023 bessere Möglichkeiten: Die Erwerbstätigenrente wurde erweitert. Auch Zeiten der Kindererziehung zählen mit (Anrechtigungszeiten).
+Welche Altersgrenze gilt, hängt vom Jahrgang und von der Versicherungsdauer ab. Die Regelaltersgrenze liegt ab Jahrgang 1964 bei 67 Jahren und wird für die Jahrgänge 1947 bis 1963 stufenweise von 65 auf 67 angehoben (§ 235 Abs. 2 SGB VI). Wer 35 Beitragsjahre hat, kann ab 63 vorzeitig gehen – mit Abschlag (§ 36 SGB VI). Wer 45 Beitragsjahre erreicht, geht abschlagsfrei, ab Jahrgang 1964 mit 65 Jahren (§ 38 SGB VI). Die oft zitierte "Rente mit 63 ohne Abschlag" gilt nur noch für Jahrgänge bis 1952.
 
-Finanzierungstipp: Betriebliche oder private Zusatzversicherung verbessert oft die Rentensicherheit erheblich. Prüfen Sie auch Ausgleichszahlungen und Lebensversicherungen."
+Von der Bruttorente gehen Beiträge ab. In der Krankenversicherung gilt zwar der volle allgemeine Beitragssatz (§ 247 SGB V), doch § 249a SGB V teilt ihn zwischen Rentner und Rentenversicherung – es bleibt also rund die Hälfte. In der Pflegeversicherung ist es umgekehrt: Nach § 59 Abs. 1 SGB XI trägt der Rentner den Beitrag aus der Rente allein.
+
+Nicht abgezogen ist die Einkommensteuer. Renten sind steuerpflichtig, der Besteuerungsanteil richtet sich nach dem Jahr des Rentenbeginns (§ 22 EStG). Die tatsächliche Rentenlücke fällt deshalb eher etwas größer aus als hier ausgewiesen.
+
+Alle Beträge sind in heutigen Werten gerechnet. Durchschnittsentgelt, Beitragsbemessungsgrenze und Rentenwert steigen mit den Löhnen; wer unterstellt, dass sein Gehalt mitwächst, liest das Ergebnis als heutige Kaufkraft – nicht als späteren Zahlbetrag.`}
     relatedSlugs={['rentenpunkte-rechner', 'elterngeld-rechner']}
   />
 
@@ -82,29 +134,55 @@ Finanzierungstipp: Betriebliche oder private Zusatzversicherung verbessert oft d
 <script type="module">
 const { berechneRente } = await import(window.__base + 'scripts/rentenrechner.js');
 function fmt(n) { return n.toLocaleString('de-DE', {minimumFractionDigits:2, maximumFractionDigits:2}) + ' €'; }
+function pkt(n) { return n.toLocaleString('de-DE', {minimumFractionDigits:4, maximumFractionDigits:4}); }
+function alterText(jahre, monate) { return monate > 0 ? `${jahre} Jahre und ${monate} Monate` : `${jahre} Jahre`; }
 function berechne() {
-  const entgeltpunkte = parseFloat(document.getElementById('ep').value)||0;
-  const bruttoMonat = parseFloat(document.getElementById('brutto').value)||3800;
-  const geburtsjahrgang = parseInt(document.getElementById('geburtsjahr').value)||1980;
-  const rentenbeginn = parseInt(document.getElementById('rentenjahr').value)||2047;
-  const r = berechneRente({ geburtsjahrgang, rentenbeginn, entgeltpunkte, bruttoMonat, versicherungsjahre: 0 });
-  document.getElementById('rente').textContent = fmt(r.renteNetto);
+  const r = berechneRente({
+    entgeltpunkte: parseFloat(document.getElementById('ep').value)||0,
+    bruttoMonat: parseFloat(document.getElementById('brutto').value)||0,
+    geburtsjahr: parseInt(document.getElementById('geburtsjahr').value)||1980,
+    rentenbeginn: parseInt(document.getElementById('rentenjahr').value)||2047,
+    steuerklasse: parseInt(document.getElementById('steuerklasse').value)||1,
+    bundesland: document.getElementById('bundesland').value,
+    wartezeit45: document.getElementById('wartezeit45').value === 'ja',
+    elternteil: document.getElementById('eltern').value === 'ja',
+  });
+  document.getElementById('rente').textContent = fmt(r.renteNachBeitraegen);
   document.getElementById('details').innerHTML =
-    `<span>Bruttorente: <strong>${fmt(r.renteMonat)}</strong></span>` +
-    `<span>Gesamte EP: <strong>${r.gesamtEP.toLocaleString('de-DE')}</strong></span>` +
-    `<span>Renteneintrittsalter: <strong>${r.alter} Jahre</strong></span>` +
-    (r.monateVorzeitig > 0
-      ? `<span style="color:#c8102e">Abzug: <strong>${(r.monateVorzeitig * 0.3).toFixed(1)} %</strong> (Frührentner)</span>`
+    `<span>Bruttorente: <strong>${fmt(r.renteBrutto)}</strong></span>` +
+    `<span>Entgeltpunkte: <strong>${pkt(r.gesamtEntgeltpunkte)}</strong></span>` +
+    `<span>Renteneintritt mit: <strong>${alterText(r.renteneintrittsalter, r.renteneintrittsalterMonateRest)}</strong></span>` +
+    `<span>Zugangsfaktor: <strong>${r.zugangsfaktor.toLocaleString('de-DE', {minimumFractionDigits:4})}</strong></span>` +
+    (r.abschlagProzent > 0
+      ? `<span style="color:#c8102e">Abschlag: <strong>${r.abschlagProzent.toLocaleString('de-DE')} %</strong> (${r.monateVorzeitig} Monate vorzeitig)</span>`
       : '') +
-    `<span>Zugangsfaktor: <strong>${r.zugangsfaktor.toLocaleString('de-DE', {minimumFractionDigits:4})}</strong></span>`;
+    (r.zuschlagProzent > 0
+      ? `<span style="color:#1a7f37">Zuschlag: <strong>${r.zuschlagProzent.toLocaleString('de-DE')} %</strong> (${r.monateAufgeschoben} Monate später)</span>`
+      : '') +
+    `<span>Krankenversicherung: ${fmt(r.krankenversicherung)}</span>` +
+    `<span>Pflegeversicherung: ${fmt(r.pflegeversicherung)}</span>`;
+
+  const altersHinweis = document.getElementById('alters-hinweis');
+  const regelalter = alterText(r.regelaltersgrenzeJahre, r.regelaltersgrenzeMonateRest);
+  if (r.aufFruehestenBeginnAngehoben) {
+    altersHinweis.style.display = 'block';
+    altersHinweis.innerHTML = `<strong>Rentenbeginn auf 63 Jahre gesetzt.</strong> Früher gibt es eine Altersrente nach § 36 SGB VI nicht – ausgenommen die Rente für schwerbehinderte Menschen (§ 37 SGB VI). Ihre Regelaltersgrenze: <strong>${regelalter}</strong>.`;
+  } else {
+    altersHinweis.style.display = 'block';
+    altersHinweis.innerHTML = `Ihre Regelaltersgrenze: <strong>${regelalter}</strong> (§ 235 Abs. 2 SGB VI).`;
+  }
+
   const lueckeBox = document.getElementById('luecke-box');
   if (r.rentenluecke > 0) {
     lueckeBox.style.display = 'block';
-    lueckeBox.innerHTML = `<strong>Rentenlücke: ${fmt(r.rentenluecke)}/Monat</strong><br>Ihr letztes Netto (ca.): ${fmt(r.letzterNettoMonat)} – Rente: ${fmt(r.renteNetto)}. Zusätzliche Altersvorsorge empfohlen.`;
+    lueckeBox.innerHTML = `<strong>Rentenlücke: ${fmt(r.rentenluecke)}/Monat</strong><br>Ihr heutiges Netto: ${fmt(r.letztesNetto)} – Rente nach Beiträgen: ${fmt(r.renteNachBeitraegen)}. Die Einkommensteuer auf die Rente ist dabei noch nicht abgezogen, die Lücke fällt also eher größer aus.`;
   } else {
     lueckeBox.style.display = 'none';
   }
 }
-['ep','brutto','geburtsjahr','rentenjahr'].forEach(id => document.getElementById(id).addEventListener('input', berechne));
+['ep','brutto','geburtsjahr','rentenjahr','steuerklasse','bundesland','wartezeit45','eltern'].forEach(id => {
+  const el = document.getElementById(id);
+  el.addEventListener(el.tagName === 'SELECT' ? 'change' : 'input', berechne);
+});
 berechne();
 </script>

@@ -3,22 +3,36 @@ import Layout from '../../layouts/Layout.astro';
 import CalculatorShell from '../../components/CalculatorShell.astro';
 import CalculatorGuide from '../../components/CalculatorGuide.astro';
 import { CALCULATORS, CATEGORIES } from '../../data/calculators';
+import {
+  AKTUELLER_RENTENWERT,
+  BBG_RENTE_JAHR,
+  DURCHSCHNITTSENTGELT_VORLAEUFIG,
+  MAX_ENTGELTPUNKTE_JAHR,
+} from '../../../public/scripts/rentenwerte.js';
 const calc = CALCULATORS.find(c => c.slug === 'rentenpunkte-rechner')!;
 const cat = CATEGORIES[calc.category];
 const year = new Date().getFullYear();
 
+const euro = (betrag: number) => betrag.toLocaleString('de-DE') + ' €';
+const punkte = (wert: number) => wert.toLocaleString('de-DE', { minimumFractionDigits: 4, maximumFractionDigits: 4 });
+
+const rentenwertText = AKTUELLER_RENTENWERT.toLocaleString('de-DE', { minimumFractionDigits: 2 }) + ' €';
+const durchschnittText = euro(DURCHSCHNITTSENTGELT_VORLAEUFIG);
+const bbgText = euro(BBG_RENTE_JAHR);
+const maxPunkteText = punkte(MAX_ENTGELTPUNKTE_JAHR);
+
 const faqs = [
-  { q: 'Wie erhalte ich Rentenpunkte?', a: 'Durch Beitragszahlungen zur Rentenversicherung. Ein Rentenpunkt wird für ein Jahr Einkommen auf Höhe des Durchschnitts verdient.' },
-  { q: 'Wer hat Anspruch auf Rentenpunkte?', a: 'Alle Versicherten der Rentenversicherung: Angestellte, Arbeiter, Beamte (nach Altversorgung), Selbstständige (freiwillig).' },
-  { q: 'Wie viele Punkte für ein Jahr?', a: 'Im Durchschnitt wird 1 Punkt pro Jahr verdient (bei Durchschnittseinkommen). Höheres Einkommen = mehr Punkte.' },
-  { q: 'Werden Anrechtigungszeiten berücksichtigt?', a: 'Ja: Ausbildung, Arbeitslosigkeit, Elternzeiten und Schulzeiten zählen teilweise mit.' },
-  { q: 'Wie werden Rentenpunkte zusammengerechnet?', a: 'Alle Punkte (Beitrags- und Anrechtigungszeiten) werden summiert und zur Rentenberechnung herangezogen.' },
-  { q: 'Kann ich Rentenpunkte von früheren Arbeiten geltend machen?', a: 'Ja, bei mehreren Beschäftigungen werden alle Punkte kumuliert, auch von früher. Nachweis durch Versicherungskonto.' },
+  { q: 'Wie entstehen Rentenpunkte?', a: `Aus Beiträgen. Nach § 70 Abs. 1 SGB VI wird das beitragspflichtige Jahresentgelt durch das Durchschnittsentgelt aller Versicherten geteilt – für ${year} sind das ${durchschnittText}. Wer genau so viel verdient, erhält einen Entgeltpunkt.` },
+  { q: 'Wer erwirbt Rentenpunkte?', a: 'Alle Pflichtversicherten der gesetzlichen Rentenversicherung, also abhängig Beschäftigte und einzelne Gruppen Selbstständiger. Beamte, Richter und Berufssoldaten sind nach § 5 Abs. 1 Satz 1 Nr. 1 SGB VI versicherungsfrei und erwerben keine Entgeltpunkte, sondern Ansprüche aus der Beamtenversorgung.' },
+  { q: 'Wie viele Punkte sind in einem Jahr höchstens möglich?', a: `${maxPunkteText} Punkte. Beiträge werden nach § 157 SGB VI nur bis zur Beitragsbemessungsgrenze erhoben, ${year} bis ${bbgText} im Jahr. Was darüber verdient wird, erhöht die Rente nicht.` },
+  { q: 'Zählen Zeiten ohne Beiträge mit?', a: 'Teilweise. Anrechnungszeiten wie Krankheit, Arbeitslosigkeit oder Ausbildung werden über die Gesamtleistungsbewertung der §§ 71 bis 74 SGB VI bewertet, also aus dem Durchschnitt der übrigen Beitragszeiten. Für berufliche Ausbildung und Fachschule sind das höchstens 0,0625 Punkte im Monat und insgesamt höchstens drei Jahre; Zeiten einer Schul- oder Hochschulausbildung werden nach § 74 Satz 4 SGB VI gar nicht bewertet.' },
+  { q: 'Wie viel Rente ergibt ein Rentenpunkt?', a: `Ein Entgeltpunkt ergibt derzeit ${rentenwertText} Rente im Monat. Dieser aktuelle Rentenwert wird jedes Jahr zum 1. Juli neu festgesetzt, zuletzt durch § 1 der Rentenwertbestimmungsverordnung 2026.` },
+  { q: 'Wo sehe ich meine bisherigen Punkte?', a: 'In der Renteninformation und im Versicherungsverlauf der Deutschen Rentenversicherung. Alle Punkte aus allen Beschäftigungen werden dort addiert. Lücken lassen sich in einer kostenlosen Kontenklärung schließen.' },
 ];
 ---
 <Layout
   title={`Rentenpunkte-Rechner ${year}`}
-  description="Rentenpunkte (Entgeltpunkte) und Rentenanspruch kostenlos berechnen – nach § 70 SGB VI mit aktuellem Rentenwert 2026."
+  description={`Rentenpunkte (Entgeltpunkte) und Rentenanspruch kostenlos berechnen – nach § 70 SGB VI mit dem aktuellen Rentenwert von ${rentenwertText}.`}
   canonicalPath="/familie/rentenpunkte-rechner/"
   categoryColor={cat.color}
   categoryLight={cat.colorLight}
@@ -31,8 +45,8 @@ const faqs = [
   <CalculatorShell
     calculator={calc}
     intro="Mit dem Rentenpunkte-Rechner berechnen Sie Ihre Entgeltpunkte für die gesetzliche Rente. Erfahren Sie, wie viele Punkte Ihr Gehalt pro Jahr ergibt und was das für Ihre spätere Rente bedeutet."
-    sourceNote="1 Punkt = Durchschnittsverdienst."
-    explanation="Entgeltpunkte werden nach § 70 SGB VI berechnet: Ihr Jahresverdienst geteilt durch das Durchschnittsentgelt aller Versicherten. Maximal erreichbar sind ca. 2 Punkte pro Jahr (Beitragsbemessungsgrenze). Auch Kindererziehungs- und Pflegezeiten ergeben Punkte."
+    sourceNote={`Ein Punkt = ${durchschnittText} Jahresverdienst.`}
+    explanation={`Entgeltpunkte werden nach § 70 Abs. 1 SGB VI berechnet: beitragspflichtiges Jahresentgelt geteilt durch das Durchschnittsentgelt aller Versicherten (${durchschnittText}). Weil Beiträge nur bis zur Beitragsbemessungsgrenze von ${bbgText} erhoben werden, sind höchstens ${maxPunkteText} Punkte im Jahr möglich. Auch Kindererziehungs- und Pflegezeiten ergeben Punkte.`}
     faqs={faqs}
   >
     <div class="calc-form">
@@ -51,20 +65,23 @@ const faqs = [
         <div id="punkte">—</div>
       </div>
       <div id="details" style="margin-top:0.75rem;font-size:0.88rem;color:#666;display:flex;gap:1.5rem;flex-wrap:wrap;"></div>
+      <div id="bbg-hinweis" style="display:none;margin-top:0.75rem;padding:0.75rem 1rem;border-radius:8px;background:#fff3cd;font-size:0.88rem;"></div>
     </div>
   </CalculatorShell>
 
   <CalculatorGuide
     title="Rentenpunkte – Basis der Rentenberechnung"
-    content="Rentenpunkte (oder Entgeltpunkte) sind die Grundlage jeder Rentenberechnung. Sie werden für Beitragszahlungen zur Rentenversicherung erworben – ein Punkt pro Jahr mit Durchschnittseinkommen.
+    content={`Rentenpunkte – im Gesetz Entgeltpunkte – sind die Grundlage jeder Rentenberechnung. Sie entstehen aus gezahlten Beiträgen: Ein Jahr mit dem Durchschnittsentgelt aller Versicherten ergibt genau einen Punkt, derzeit also ein Jahresverdienst von ${durchschnittText}.
 
-Jede Beschäftigung mit unterschiedlichem Einkommen erzeugt unterschiedliche Punkte. Wer doppeltes Durchschnittseinkommen hat, verdient 2 Punkte pro Jahr. Wer die Hälfte verdient, bekommt 0,5 Punkte.
+Wer die Hälfte verdient, erhält 0,5 Punkte. Nach oben gibt es dagegen eine harte Grenze: Beiträge werden nach § 157 SGB VI nur bis zur Beitragsbemessungsgrenze erhoben, im Jahr ${year} bis ${bbgText}. Mehr als ${maxPunkteText} Punkte sind in einem Jahr deshalb nicht erreichbar, auch bei doppeltem oder dreifachem Durchschnittsverdienst nicht.
 
-Anrechtigungszeiten (ohne Beitrag) zählen auch mit: Schulzeiten, Arbeitslosigkeit, Ausbildung und Elternzeiten. Diese werden mit reduziertem Satz (ca. 0,75 Punkt pro Jahr) berücksichtigt.
+Beitragsfreie Zeiten zählen nicht pauschal mit, sondern über die Gesamtleistungsbewertung der §§ 71 bis 74 SGB VI: Sie werden mit dem Durchschnitt der übrigen Beitragszeiten bewertet. Für Zeiten der beruflichen Ausbildung oder einer Fachschule ist dieser Wert auf 0,0625 Punkte im Monat und auf insgesamt drei Jahre begrenzt. Zeiten einer Schul- oder Hochschulausbildung sind zwar Anrechnungszeiten und verlängern die Wartezeit, bringen aber nach § 74 Satz 4 SGB VI keine Entgeltpunkte.
 
-Wichtig: Rentenpunkte aus verschiedenen Lebens-Abschnitten werden summiert. Wenn Sie mehrmals zwischen Beschäftigung und Arbeitslosigkeit wechseln, alle Punkte addieren sich.
+Kindererziehungszeiten ergeben dagegen echte Punkte: 0,0833 Entgeltpunkte je Kalendermonat nach § 70 Abs. 2 SGB VI, also rund einen Punkt pro Jahr.
 
-Planungstipp: Prüfen Sie Ihr Versicherungskonto regelmäßig bei der Deutschen Rentenversicherung. Fehlerhafte Einträge können Ihre zukünftige Rente senken. Kostenlose Kontenklärung ist möglich."
+Die ausgewiesene Rente ist ein heutiger Wert. Sie entsteht aus dem aktuellen Rentenwert von ${rentenwertText} je Punkt und unterstellt einen Rentenbeginn genau mit der Regelaltersgrenze, also einen Zugangsfaktor von 1,0.
+
+Planungstipp: Prüfen Sie Ihr Versicherungskonto regelmäßig bei der Deutschen Rentenversicherung. Fehlende Zeiten senken die spätere Rente; die Kontenklärung ist kostenlos.`}
     relatedSlugs={['renten-rechner', 'elterngeld-rechner']}
   />
 
@@ -73,15 +90,23 @@ Planungstipp: Prüfen Sie Ihr Versicherungskonto regelmäßig bei der Deutschen 
 <script type="module">
 const { berechneRentenpunkte } = await import(window.__base + 'scripts/rentenpunkte.js');
 function fmt(n) { return n.toLocaleString('de-DE', {minimumFractionDigits:2, maximumFractionDigits:2}) + ' €'; }
+function pkt(n) { return n.toLocaleString('de-DE', {minimumFractionDigits:4, maximumFractionDigits:4}); }
 function berechne() {
   const brutto = parseFloat(document.getElementById('brutto').value)||0;
   const jahre = parseInt(document.getElementById('jahre').value)||1;
   const r = berechneRentenpunkte({ bruttoJahr: brutto, jahre });
-  document.getElementById('punkte').textContent = r.entgeltpunkte.toLocaleString('de-DE', {minimumFractionDigits:2, maximumFractionDigits:2}) + ' Punkte/Jahr';
+  document.getElementById('punkte').textContent = pkt(r.entgeltpunkte) + ' Punkte/Jahr';
   document.getElementById('details').innerHTML =
-    (jahre > 1 ? `<span>Punkte gesamt (${jahre} Jahre): ${r.entgeltpunkteGesamt.toLocaleString('de-DE', {minimumFractionDigits:2})} Punkte</span>` : '') +
-    `<span>Monatliche Rente (${jahre} Jahr${jahre>1?'e':''}): ${fmt(r.monatsrente)}</span>` +
+    (jahre > 1 ? `<span>Punkte gesamt (${jahre} Jahre): <strong>${pkt(r.entgeltpunkteGesamt)}</strong></span>` : '') +
+    `<span>Rente daraus: <strong>${fmt(r.monatsrente)}</strong>/Monat</span>` +
     `<span>Rentenwert: ${fmt(r.rentenwert)}/Punkt</span>`;
+  const hinweis = document.getElementById('bbg-hinweis');
+  if (r.ueberBeitragsbemessungsgrenze) {
+    hinweis.style.display = 'block';
+    hinweis.innerHTML = `<strong>Beitragsbemessungsgrenze erreicht.</strong> Beiträge werden nur aus ${fmt(r.beitragsbemessungsgrenze)} im Jahr erhoben (§ 157 SGB VI). Der Verdienst darüber erhöht die Rente nicht – mehr als ${pkt(r.maxEntgeltpunkte)} Punkte im Jahr sind nicht möglich.`;
+  } else {
+    hinweis.style.display = 'none';
+  }
 }
 ['brutto','jahre'].forEach(id => document.getElementById(id).addEventListener('input', berechne));
 berechne();
