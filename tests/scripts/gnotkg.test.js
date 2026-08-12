@@ -1,5 +1,9 @@
 import { describe, it, expect } from 'vitest';
-import { gebuehrTabelleB, gebuehrB } from '../../public/scripts/gnotkg.js';
+import {
+  gebuehrTabelleB,
+  gebuehrB,
+  berechneNotarUndGrundbuch,
+} from '../../public/scripts/gnotkg.js';
 
 // Anlage 2 zu § 34 Abs. 3 GNotKG, Spalte "Tabelle B", vollständig übernommen
 // aus https://www.gesetze-im-internet.de/gnotkg/ (Stand 06.05.2026).
@@ -41,6 +45,19 @@ describe('gebuehrTabelleB – Anlage 2 GNotKG', () => {
     expect(gebuehrTabelleB(2999)).toBe(33);
     expect(gebuehrTabelleB(200001)).toBe(485); // Zeile "230 000"
     expect(gebuehrTabelleB(1)).toBe(15); // Zeile "500"
+  });
+
+  it('springt erst beim angefangenen Betrag auf die nächste Stufe', () => {
+    // 500 bis 2.000 €: je angefangene 500 € plus 4,00 €
+    expect(gebuehrTabelleB(501)).toBe(19);
+    expect(gebuehrTabelleB(1000)).toBe(19);
+    expect(gebuehrTabelleB(1001)).toBe(23);
+  });
+
+  it('ist degressiv: der Gebührenanteil am Wert sinkt mit steigendem Wert', () => {
+    const anteil = (wert) => gebuehrTabelleB(wert) / wert;
+    expect(anteil(400000)).toBeLessThan(anteil(100000));
+    expect(anteil(1000000)).toBeLessThan(anteil(400000));
   });
 });
 
@@ -120,5 +137,42 @@ describe('gebuehrB – Mindest- und Höchstbeträge', () => {
     expect(gebuehrB(1000, 0.2, 20, 70)).toBe(20); // 0,2 × 19 € = 3,80 €
     expect(gebuehrB(200000, 0.2, 20, 70)).toBe(70); // 0,2 × 435 € = 87 €
     expect(gebuehrB(50000, 0.2, 20, 70)).toBe(33); // 0,2 × 165 € = 33 €
+  });
+});
+
+describe('berechneNotarUndGrundbuch – Zusammensetzung beim Immobilienkauf', () => {
+  it('rechnet bei 400.000 € rund 3.980 € statt einer 2-%-Pauschale', () => {
+    const r = berechneNotarUndGrundbuch(400000);
+    // Notar: 2,0 (KV 21100) + 0,5 (KV 22110) + 0,5 (KV 22200) = 3,0 × 785 €
+    expect(r.notarNetto).toBe(2355);
+    expect(r.umsatzsteuer).toBe(447.45); // 19 % nach KV 32014
+    expect(r.notar).toBe(2802.45);
+    // Grundbuch: 0,5 (KV 14150) + 1,0 (KV 14110) = 1,5 × 785 €, ohne USt
+    expect(r.grundbuch).toBe(1177.5);
+    expect(r.gesamt).toBe(3979.95);
+    // Eine Pauschale von 2 % hätte 8.000 € ergeben.
+    expect(r.gesamt).toBeLessThan(400000 * 0.02);
+  });
+
+  it('bleibt degressiv: der Anteil am Kaufpreis sinkt mit dem Kaufpreis', () => {
+    const anteil = (preis) => berechneNotarUndGrundbuch(preis).gesamt / preis;
+    expect(anteil(1000000)).toBeLessThan(anteil(200000));
+  });
+
+  it('wendet die Mindestbeträge bei kleinen Kaufpreisen an', () => {
+    const r = berechneNotarUndGrundbuch(500);
+    // Beurkundung mindestens 120 € (KV 21100), Vollzug und Betreuung je
+    // mindestens 15 € (§ 34 Abs. 5 GNotKG) statt rechnerisch 7,50 €.
+    expect(r.notarNetto).toBe(150);
+    expect(r.umsatzsteuer).toBe(28.5);
+    expect(r.notar).toBe(178.5);
+    expect(r.grundbuch).toBe(30); // 15 € (KV 14150) + 15 € (KV 14110)
+    expect(r.gesamt).toBe(208.5);
+  });
+
+  it('weist die Umsatzsteuer nur auf die Notarkosten aus, nicht auf das Grundbuch', () => {
+    const r = berechneNotarUndGrundbuch(400000);
+    expect(r.umsatzsteuer).toBe(Math.round(r.notarNetto * 0.19 * 100) / 100);
+    expect(r.notar + r.grundbuch).toBe(r.gesamt);
   });
 });

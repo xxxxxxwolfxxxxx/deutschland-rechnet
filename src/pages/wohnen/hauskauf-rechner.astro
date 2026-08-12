@@ -21,11 +21,11 @@ const year = new Date().getFullYear();
   </div>
   <CalculatorShell
     calculator={calc}
-    intro="Mit dem Hauskauf-Rechner berechnen Sie die Gesamtkosten beim Kauf eines Hauses inklusive aller Nebenkosten und Finanzierung. So sehen Sie auf einen Blick, wie viel Eigenkapital Sie benötigen und welche monatliche Rate auf Sie zukommt. Der Rechner hilft Ihnen, versteckte Kosten wie Renovierung und Instandhaltung realistisch einzuplanen."
-    sourceNote="Kaufpreis + Nebenkosten + Renovierung."
-    explanation="Beim Hauskauf fallen neben dem Kaufpreis Nebenkosten von 8-15 % an, die gemäß § 448 BGB grundsätzlich vom Käufer zu tragen sind. Dazu gehören Grunderwerbsteuer (GrEStG), Notarkosten (GNotKG) und Grundbuchgebühren. Die Maklerprovision wird seit Dezember 2020 nach § 656c BGB bei Wohnimmobilien zwischen Käufer und Verkäufer geteilt."
+    intro="Mit dem Hauskauf-Rechner berechnen Sie die Gesamtkosten beim Kauf eines Hauses inklusive aller Kaufnebenkosten und der Finanzierung. So sehen Sie auf einen Blick, wie viel Eigenkapital Sie benötigen, welche monatliche Rate auf Sie zukommt und wie viel Restschuld am Ende der Zinsbindung noch offen ist. Renovierung und Instandhaltung sind nicht enthalten – planen Sie dafür ein eigenes Budget ein."
+    sourceNote="GrEStG · GNotKG (Tabelle B) · § 656c BGB"
+    explanation="Beim Hauskauf fallen neben dem Kaufpreis Nebenkosten von rund 4,5 bis 11 % an, die gemäß § 448 BGB grundsätzlich vom Käufer zu tragen sind. Dazu gehören die Grunderwerbsteuer (3,5 bis 6,5 % je nach Bundesland, GrEStG) sowie Notar- und Grundbuchkosten. Letztere sind keine Pauschale, sondern Wertgebühren nach § 34 GNotKG und damit degressiv: bei 400.000 € Kaufpreis rund 3.980 €, also knapp 1 %. Die Maklerprovision wird seit Dezember 2020 nach § 656c BGB bei Wohnimmobilien zwischen Käufer und Verkäufer geteilt; der Käuferanteil beträgt üblicherweise 3,57 % inklusive Umsatzsteuer."
     faqs={[
-      { q: "Welche Nebenkosten fallen beim Hauskauf an?", a: "Typischerweise 8-15% des Kaufpreises: Grunderwerbsteuer (5-6%), Notargebühren (1-2%), Makler (3-7,5%), Grundbuchgebühren (0,2-0,5%), Handwerker für Inspektionen, Versicherung. Hinzu kommen Makler, Handwerker und Inspektionen." },
+      { q: "Welche Nebenkosten fallen beim Hauskauf an?", a: "Ohne Makler rund 4,5 bis 7,5 % des Kaufpreises, mit Makler rund 8 bis 11 %. Im Einzelnen: Grunderwerbsteuer 3,5 % (Bayern) bis 6,5 % (u. a. NRW, Saarland, Brandenburg), Notar- und Grundbuchkosten zusammen knapp 1 % sowie der Makleranteil des Käufers von 3,57 %. Hinzu kommen freiwillige Posten wie Gutachten oder Inspektionen." },
       { q: "Wie viel Eigenkapital sollte ich haben?", a: "Finanzielle Sicherheit mit 20-30% Eigenkapital. Mit weniger wird der Kreditvertrag teurer. Mit 10% ist es gerade noch möglich, aber risikobehaftet. Mindestens 5-10% sollten es sein, sonst wird keine Bank anständig kreditieren." },
       { q: "Wie lange sollte ich das Darlehen laufen lassen?", a: "Bei den aktuellen Zinsen (2024/2025) sind 15-20 Jahre attraktiv. Wer später abbezahlen kann, sollte weniger lange binden. Bei günstigen Raten lohnt sich auch 10 Jahre. Ein Generationendarlehen über 30+ Jahre sollte gut überlegt sein." },
       { q: "Macht es Sinn, die Immobilie vor Kauf zu prüfen lassen?", a: "Ja, eine Baugutachten (500-1.500€) kann tausende sparen. Ohne Besichtigung durch einen Sachverständigen riskiert man Überraschungen (Schimmel, Elektrik, Dämmung, Dach). Besonders bei älteren Häusern sinnvoll." },
@@ -85,7 +85,7 @@ const year = new Date().getFullYear();
         <div class="calc-group" style="display:flex;align-items:center;">
           <label style="display:flex;align-items:center;gap:0.5rem;font-weight:400;cursor:pointer;">
             <input type="checkbox" id="makler" style="width:auto;" checked />
-            Makler (3,57% inkl. MwSt.)
+            Makler (Käuferanteil 3,57 % inkl. MwSt.)
           </label>
         </div>
       </div>
@@ -100,7 +100,7 @@ const year = new Date().getFullYear();
 
   <CalculatorGuide
     title="Hauskauf richtig planen – Gesamtkosten verstehen"
-    content="<p>Beim Hauskauf fallen neben dem Kaufpreis erhebliche Nebenkosten an, die oft unterschätzt werden. Mit unserem Rechner können Sie alle Kostenpositionen transparent sehen: Notargebühren, Grundbuchgebühren, Maklergebühren, Grunderwerbsteuer – je nach Bundesland und Kaufpreis unterschiedlich.</p>\n\n<p><strong>Nebenkosten realistisch einschätzen:</strong> Ein grober Anhalt: 8-15% des Kaufpreises zusätzlich. In teuren Bundesländern (NRW, Hessen) kann die Grunderwerbsteuer allein 6% sein. Mit Makler (3-7,5%) wird es schnell 10-15%. Diese Kosten müssen meist aus Eigenkapital finanziert werden, da Banken sie nicht kreditieren.</p>\n\n<p><strong>Finanzierung planen:</strong> Berechnen Sie realistische Raten: Eine 400.000€-Hypothek über 20 Jahre bei 4% Zins kostet ca. 1.900€/Monat + Nebenkosten aus Taschen. Die Faustregel: Kreditrate sollte max. 40-45% des Nettoeinkommens sein. Mit 2 Einkommen darf die Quote höher sein.</p>\n\n<p><strong>Lage und Wertsteigerung berücksichtigen:</strong> Ein Haus ist keine reine Kostenposition, sondern langfristige Wertsicherung. In guten Lagen steigen Preise 2-3% p.a. Deshalb: zentrale Lage ist oft teurer, aber rentabler. Das Umland spart Kaufpreis, verliert aber bei Wertsteigerung.</p>\n\n<p><strong>Inspektionen und Gutachten:</strong> Ein Bauherren-Gutachten (500-1.500€) kann Tausende sparen, wenn Mängel frühzeitig erkannt werden. Auch ein Energieausweis (50-300€) gibt Aufschluss über Heizkosten-Perspektive. Diese Investition ist sinnvoll vor Kauf – nicht nachher.</p>\n\n<p><strong>Mit Puffern kalkulieren:</strong> Planen Sie mindestens 1% des Kaufpreises pro Altersjahrgang für Instandhaltung. Ein 30 Jahre altes Haus hat oft Dachrenovierung (20.000-50.000€), Elektrik oder Heizung anstehend. Ein Puffer für Überraschungen ist essentiell.</p>\n\n<p><strong>Entscheidungshilfen nutzen:</strong> Vergleichen Sie: Kaufen vs. Mieten. Lage vs. Kaufpreis. Makler vs. privat. Alle diese Faktoren spielen in die Gesamtrentabilität einer Immobilie über 20+ Jahre hinein. Nutzen Sie unsere verwandten Rechner zum Vergleich!</p>"
+    content="<p>Beim Hauskauf fallen neben dem Kaufpreis erhebliche Nebenkosten an, die oft unterschätzt werden. Mit unserem Rechner können Sie alle Kostenpositionen transparent sehen: Notargebühren, Grundbuchgebühren, Maklergebühren, Grunderwerbsteuer – je nach Bundesland und Kaufpreis unterschiedlich.</p>\n\n<p><strong>Nebenkosten realistisch einschätzen:</strong> Ohne Makler sind es rund 4,5 bis 7,5 % des Kaufpreises, mit Makler rund 8 bis 11 %. Den größten Posten stellt die Grunderwerbsteuer: 3,5 % in Bayern, 6,5 % in NRW, im Saarland und in Brandenburg. Notar und Grundbuch schlagen zusammen mit knapp 1 % zu Buche – bei 400.000 € Kaufpreis rund 3.980 €. Diese Kosten müssen meist aus Eigenkapital bezahlt werden, da Banken sie nicht kreditieren.</p>\n\n<p><strong>Notar- und Grundbuchkosten sind degressiv:</strong> Sie werden nicht als Prozentsatz berechnet, sondern als Wertgebühren nach Tabelle B des GNotKG. Der Gebührensatz steigt in Stufen, aber langsamer als der Kaufpreis. Deshalb sinkt der prozentuale Anteil, je teurer die Immobilie ist: bei 200.000 € sind es 1,1 %, bei 400.000 € 1,0 % und bei einer Million 0,9 %. Eine pauschale Faustformel von 2 % überschätzt diesen Posten um das Doppelte.</p>\n\n<p><strong>Finanzierung planen:</strong> Berechnen Sie realistische Raten: Eine 320.000-€-Hypothek bei 3,5 % Sollzins und 2 % Anfangstilgung kostet rund 1.467 € im Monat – dabei ist sie nach zehn Jahren Zinsbindung erst zu einem Viertel getilgt, rund 243.500 € bleiben als Restschuld offen. Die Faustregel: Die Kreditrate sollte höchstens 40-45 % des Nettoeinkommens ausmachen. Mit zwei Einkommen darf die Quote höher sein.</p>\n\n<p><strong>Lage und Wertsteigerung berücksichtigen:</strong> Ein Haus ist keine reine Kostenposition, sondern langfristige Wertsicherung. In guten Lagen steigen Preise 2-3% p.a. Deshalb: zentrale Lage ist oft teurer, aber rentabler. Das Umland spart Kaufpreis, verliert aber bei Wertsteigerung.</p>\n\n<p><strong>Inspektionen und Gutachten:</strong> Ein Bauherren-Gutachten (500-1.500€) kann Tausende sparen, wenn Mängel frühzeitig erkannt werden. Auch ein Energieausweis (50-300€) gibt Aufschluss über Heizkosten-Perspektive. Diese Investition ist sinnvoll vor Kauf – nicht nachher.</p>\n\n<p><strong>Mit Puffern kalkulieren:</strong> Planen Sie mindestens 1% des Kaufpreises pro Altersjahrgang für Instandhaltung. Ein 30 Jahre altes Haus hat oft Dachrenovierung (20.000-50.000€), Elektrik oder Heizung anstehend. Ein Puffer für Überraschungen ist essentiell.</p>\n\n<p><strong>Entscheidungshilfen nutzen:</strong> Vergleichen Sie: Kaufen vs. Mieten. Lage vs. Kaufpreis. Makler vs. privat. Alle diese Faktoren spielen in die Gesamtrentabilität einer Immobilie über 20+ Jahre hinein. Nutzen Sie unsere verwandten Rechner zum Vergleich!</p>"
     relatedSlugs={['wie-viel-haus', 'immobilienkauf-nebenkosten', 'kaufen-vs-mieten']}
   />
 </Layout>
@@ -117,14 +117,19 @@ function berechne() {
   const laufzeit = parseInt(document.getElementById('laufzeit').value)||10;
   const makler = document.getElementById('makler').checked;
   const r = berechneHauskauf({ kaufpreis, bundesland, eigenkapital, zins, tilgung, laufzeit, makler });
+  const proz = (n) => n.toLocaleString('de-DE', {minimumFractionDigits:1, maximumFractionDigits:1}) + ' %';
   document.getElementById('rate').textContent = fmt(r.monatlicheRate);
   document.getElementById('details').innerHTML =
     `<span>Kaufpreis: <strong>${fmt(r.kaufpreis)}</strong></span>` +
-    `<span>Nebenkosten: <strong>${fmt(r.nebenkosten)}</strong></span>` +
+    `<span>Grunderwerbsteuer (${proz(r.gewSatz)}): <strong>${fmt(r.grunderwerbsteuer)}</strong></span>` +
+    `<span>Notar &amp; Grundbuch: <strong>${fmt(r.notarUndGrundbuch)}</strong></span>` +
+    (makler ? `<span>Makler (Käuferanteil): <strong>${fmt(r.maklerKosten)}</strong></span>` : '') +
+    `<span>Nebenkosten: <strong>${fmt(r.nebenkosten)}</strong> (${proz(r.nebenkosten / r.kaufpreis * 100)})</span>` +
     `<span>Gesamtkosten: <strong>${fmt(r.gesamtkosten)}</strong></span>` +
     `<span>Darlehen: <strong>${fmt(r.darlehen)}</strong></span>` +
     `<span>Zinsaufwand (${laufzeit}J): <strong>${fmt(r.zinsaufwand)}</strong></span>` +
-    `<span>Tilgungszeit: <strong>ca. ${r.tilgungszeit} Jahre</strong></span>`;
+    `<span>Restschuld nach ${laufzeit}J: <strong>${fmt(r.restschuld)}</strong></span>` +
+    `<span>Volltilgung: <strong>${Number.isFinite(r.tilgungszeit) ? `nach ca. ${r.tilgungszeit.toLocaleString('de-DE')} Jahren` : 'nicht erreicht'}</strong></span>`;
 }
 ['kaufpreis','eigenkapital','zins','tilgung'].forEach(id =>
   document.getElementById(id).addEventListener('input', berechne));
