@@ -3,6 +3,14 @@ import Layout from '../../layouts/Layout.astro';
 import CalculatorShell from '../../components/CalculatorShell.astro';
 import CalculatorGuide from '../../components/CalculatorGuide.astro';
 import { CALCULATORS, CATEGORIES } from '../../data/calculators';
+import {
+  LADESTROM_HEIM_CENT_PRO_KWH,
+  LADESTROM_AC_CENT_PRO_KWH,
+  LADESTROM_DC_CENT_PRO_KWH,
+  LADESTROM_ADHOC_AUTOBAHN_CENT_PRO_KWH,
+  LADESTROM_QUELLE,
+  ladekostenJe100km,
+} from '../../../public/scripts/strompreis.js';
 const calc = CALCULATORS.find(c => c.slug === 'spritkosten-vergleich')!;
 const cat = CATEGORIES[calc.category];
 const year = new Date().getFullYear();
@@ -29,7 +37,7 @@ const year = new Date().getFullYear();
       { q: "Was ist der Verbrauch eines E-Autos?", a: "Kompaktklasse: 15-18 kWh/100km. SUV: 20-25 kWh/100km. Benziner gleiche Klasse: 6-8 Liter/100km." },
       { q: "Wie wirken sich Strompreise aus?", a: "Bei 0,20€/kWh: sehr günstig. Bei 0,40€/kWh: immer noch günstiger als Benzin. Wichtig: Zuhause laden ist billiger als öffentliche Ladesäulen." },
       { q: "Diesel vs. Benzin – was ist günstiger?", a: "Diesel ca. 3-10% billiger pro Liter. Aber: Diesel-Fahrzeuge sind teurer, höhere KFZ-Steuer, mehr Wartung. Ab 15.000 km/Jahr lohnt sich Diesel." },
-      { q: "Was sind Ladesäulen-Kosten?", a: "Öffentliche Ladesäulen: 0,30-0,50€/kWh (teurer als Zuhause). Schnellladung: bis 0,60€/kWh. Langfristig: Wallbox zu Hause installieren!" }
+      { q: "Was kostet Laden an öffentlichen Ladesäulen?", a: `Öffentliches Normalladen (AC) kostet im Schnitt ${LADESTROM_AC_CENT_PRO_KWH} ct/kWh, Schnellladen (DC) ${LADESTROM_DC_CENT_PRO_KWH} ct/kWh, ohne Vertrag an der Autobahn bis zu ${LADESTROM_ADHOC_AUTOBAHN_CENT_PRO_KWH} ct/kWh. Zu Hause zahlen Sie dagegen nur den Haushaltsstrompreis von ${LADESTROM_HEIM_CENT_PRO_KWH} ct/kWh – eine Wallbox rechnet sich deshalb schnell.` }
     ]}
   >
     <div class="calc-form">
@@ -86,7 +94,7 @@ const year = new Date().getFullYear();
 
 <p><strong>Benzin und Diesel im Vergleich:</strong> Dieselkraftstoff ist pro Liter etwas günstiger als Benzin, allerdings verbrauchen Dieselmotoren auch weniger Kraftstoff pro 100 km (ca. 5-7 Liter vs. 6-9 Liter bei Benzinern gleicher Leistungsklasse). Die niedrigeren Betriebskosten des Diesels werden jedoch durch höhere Anschaffungspreise, eine höhere Kfz-Steuer und teurere Wartung (Dieselpartikelfilter, AdBlue) relativiert. Als Faustregel gilt: Diesel lohnt sich ab ca. 15.000-20.000 km Jahresfahrleistung.</p>
 
-<p><strong>Strom als Energieträger:</strong> E-Autos verbrauchen typischerweise 15-22 kWh pro 100 km. Bei einem Haushaltsstrompreis von ca. 0,30-0,35 Euro/kWh ergeben sich Kosten von nur 4,50-7,70 Euro pro 100 km. Zum Vergleich: Ein Benziner mit 7 Liter Verbrauch bei 1,85 Euro/Liter kostet 12,95 Euro pro 100 km. Das bedeutet eine Einsparung von rund 50-60 Prozent bei den reinen Energiekosten. Wichtig: An öffentlichen Schnellladesäulen ist der Strom deutlich teurer (0,45-0,79 Euro/kWh).</p>
+<p><strong>Strom als Energieträger:</strong> E-Autos verbrauchen typischerweise 15 bis 22 kWh pro 100 km. Zu Hause geladen, zum Haushaltsstrompreis von ${LADESTROM_HEIM_CENT_PRO_KWH} ct/kWh, kostet das ${ladekostenJe100km({ verbrauchKwhJe100km: 15, centProKwh: LADESTROM_HEIM_CENT_PRO_KWH }).toLocaleString('de-DE', { minimumFractionDigits: 2 })} bis ${ladekostenJe100km({ verbrauchKwhJe100km: 22, centProKwh: LADESTROM_HEIM_CENT_PRO_KWH }).toLocaleString('de-DE', { minimumFractionDigits: 2 })} Euro je 100 km. Ein Benziner mit 7 Litern kommt bei 1,85 Euro/Liter auf 12,95 Euro – der Vorteil liegt also bei rund der Hälfte. Er schrumpft aber deutlich, sobald öffentlich geladen wird: Am Schnelllader (${LADESTROM_DC_CENT_PRO_KWH} ct/kWh) sind es schon ${ladekostenJe100km({ verbrauchKwhJe100km: 20, centProKwh: LADESTROM_DC_CENT_PRO_KWH }).toLocaleString('de-DE', { minimumFractionDigits: 2 })} Euro je 100 km bei 20 kWh Verbrauch. Ladepreise nach ${LADESTROM_QUELLE}.</p>
 
 <p><strong>Einflussfaktoren auf den Verbrauch:</strong> Der tatsächliche Verbrauch weicht oft vom Herstellerwert ab. Fahrweise, Reifendruck, Klimaanlage, Beladung und Geschwindigkeit beeinflussen den Kraftstoffverbrauch erheblich. Bei Autobahnfahrten über 130 km/h steigt der Verbrauch überproportional. E-Autos verlieren bei niedrigen Temperaturen bis zu 30 Prozent Reichweite, da die Batterieheizung und Innenraumheizung zusätzlich Strom benötigen.</p>
 

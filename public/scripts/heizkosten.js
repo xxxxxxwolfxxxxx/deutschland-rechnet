@@ -9,6 +9,12 @@
 //
 // Die Brennstoffpreise sind KEINE Rechtsgrößen, sondern Marktpreise. Sie stehen
 // hier als klar datierte Annahme und sind auf allen Seiten überschreibbar.
+//
+// Ausnahme: Der Strompreis der Wärmepumpe steht nicht hier, sondern in
+// strompreis.js – dort, wo auch der Haushaltsstrompreis liegt und wo
+// dokumentiert ist, warum Wärmepumpentarife ein eigener Wert sind.
+
+import { WAERMEPUMPENSTROM_CENT_PRO_KWH } from './strompreis.js';
 
 export const HEIZKOSTEN_STAND = '2026-08';
 
@@ -120,7 +126,7 @@ export const BRENNSTOFFE = {
   pellets:     { label: 'Holzpellets', arbeitspreisCent: 7.0,  nutzungsgrad: 0.88, grundpreisJahr: 0,   behg: null },
   waermepumpe: {
     label: 'Wärmepumpe',
-    arbeitspreisCent: 26.0, // Wärmepumpenstrom
+    arbeitspreisCent: WAERMEPUMPENSTROM_CENT_PRO_KWH,
     jaz: 3.5,
     get nutzungsgrad() { return this.jaz; },
     grundpreisJahr: 130,

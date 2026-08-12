@@ -3,9 +3,36 @@ import Layout from '../../layouts/Layout.astro';
 import CalculatorShell from '../../components/CalculatorShell.astro';
 import CalculatorGuide from '../../components/CalculatorGuide.astro';
 import { CALCULATORS, CATEGORIES } from '../../data/calculators';
+import {
+  LADESTROM_HEIM_CENT_PRO_KWH,
+  LADESTROM_HEIM_EURO_PRO_KWH,
+  LADESTROM_AC_CENT_PRO_KWH,
+  LADESTROM_DC_CENT_PRO_KWH,
+  LADESTROM_ADHOC_AUTOBAHN_CENT_PRO_KWH,
+  LADESTROM_ADHOC_AUTOBAHN_EURO_PRO_KWH,
+  LADESTROM_QUELLE,
+  LADEWEGE,
+  ladekostenJe100km,
+} from '../../../public/scripts/strompreis.js';
 const calc = CALCULATORS.find(c => c.slug === 'elektroauto-tco-rechner')!;
 const cat = CATEGORIES[calc.category];
 const year = new Date().getFullYear();
+
+const ct = (b: number) => b.toLocaleString('de-DE', { maximumFractionDigits: 1 });
+const eur = (b: number) => b.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+// Ladestrom ist kein einzelner Preis, sondern drei: Wer zu Hause lädt, zahlt
+// seinen Haushaltstarif, wer unterwegs lädt, den Preis des Säulenbetreibers.
+// Die Tabelle entsteht zur Buildzeit aus demselben Modul, mit dem der Rechner
+// arbeitet – vorher nannte die Seite vier verschiedene Werte.
+const EV_VERBRAUCH_KWH_JE_100KM = 20;
+const ladewege = LADEWEGE.map(w => ({
+  ...w,
+  je100km: ladekostenJe100km({
+    verbrauchKwhJe100km: EV_VERBRAUCH_KWH_JE_100KM,
+    centProKwh: w.centProKwh,
+  }),
+}));
 ---
 <Layout
   title={`Elektroauto TCO-Rechner ${year}`}
@@ -32,7 +59,7 @@ const year = new Date().getFullYear();
       { q: "Gibt es noch Förderungen?", a: "Die bundesweite Umweltprämie (BAFA) ist Ende 2023 ausgelaufen. 2026 gibt es je nach Bundesland und Kommune noch regionale Zuschüsse sowie vergünstigte KfW-Kredite für Wallboxen. Die größten geldwerten Vorteile liegen bei der Dienstwagenbesteuerung (0,25 % statt 1 %) und der Kfz-Steuerbefreiung." },
       { q: "Ist mein E-Auto von der Kfz-Steuer befreit?", a: "Reine Elektroautos, die bis zum 31.12.2025 erstmals zugelassen wurden, sind nach § 3d KraftStG bis längstens Ende 2030 von der Kfz-Steuer befreit. Für spätere Erstzulassungen gilt die Befreiung nach aktueller Rechtslage nicht automatisch – hier ist eine gesetzliche Verlängerung im politischen Gespräch, aber noch nicht final beschlossen." },
       { q: "Was bringt die THG-Quote?", a: "Halter reiner E-Autos können jährlich ihre Treibhausgasminderungsquote (THG-Quote) über einen Anbieter verkaufen. Die Prämie ist von anfänglich mehreren Hundert Euro stark gefallen und liegt 2026 meist nur noch bei etwa 25 bis 100 Euro pro Jahr, abhängig vom Zertifikatspreis." },
-      { q: "Was kostet öffentliches Laden im Vergleich zu Hause?", a: "Zu Hause laden Sie zum Haushaltsstrompreis von rund 30 bis 40 ct/kWh. Öffentliches AC-Laden kostet meist 45 bis 60 ct/kWh, Schnellladen (DC) an der Autobahn oft 60 bis 79 ct/kWh. Wer überwiegend zu Hause oder am Arbeitsplatz lädt, senkt die Energiekosten erheblich." },
+      { q: "Was kostet öffentliches Laden im Vergleich zu Hause?", a: `Zu Hause laden Sie zum Haushaltsstrompreis von ${ct(LADESTROM_HEIM_CENT_PRO_KWH)} ct/kWh. Öffentliches Normalladen (AC) kostet im Schnitt ${ct(LADESTROM_AC_CENT_PRO_KWH)} ct/kWh, Schnellladen (DC) ${ct(LADESTROM_DC_CENT_PRO_KWH)} ct/kWh. Ohne Vertrag an einem Autobahn-Schnelllader werden bis zu ${ct(LADESTROM_ADHOC_AUTOBAHN_CENT_PRO_KWH)} ct/kWh fällig. Unterwegs laden kostet also grob das Anderthalb- bis Zweifache – wer überwiegend zu Hause oder am Arbeitsplatz lädt, senkt die Energiekosten erheblich.` },
       { q: "Wie stark verliert ein E-Auto an Wert?", a: "Der Restwert ist stark modellabhängig. Gefragte Modelle mit guter Reichweite und aktueller Batterietechnik halten ihren Wert ähnlich gut wie Verbrenner. Ältere E-Autos mit kleiner Batterie verlieren dagegen überdurchschnittlich. Setzen Sie im Rechner einen realistischen Restwert für Ihr konkretes Modell an." }
     ]}
   >
@@ -60,7 +87,7 @@ const year = new Date().getFullYear();
         </div>
         <div class="calc-group">
           <label for="strompreis">Strompreis (€/kWh)</label>
-          <input type="number" id="strompreis" min="0.15" max="0.50" value="0.32" step="0.01" />
+          <input type="number" id="strompreis" min="0.15" max={LADESTROM_ADHOC_AUTOBAHN_EURO_PRO_KWH} value={LADESTROM_HEIM_EURO_PRO_KWH} step="0.01" />
         </div>
         <div class="calc-group">
           <label for="benzinpreis">Benzinpreis (€/Liter)</label>
@@ -90,7 +117,7 @@ const year = new Date().getFullYear();
     content={`<p>Die Entscheidung zwischen Elektroauto und Verbrenner ist mehr als eine Frage des Kaufpreises. Die <strong>Total Cost of Ownership (TCO)</strong> umfasst alle Kosten, die während der gesamten Nutzungsdauer eines Fahrzeugs anfallen: Anschaffung, Energie, Wartung, Versicherung, Steuern und Wertverlust. Nur wer alle Blöcke zusammenrechnet, erkennt, welches Antriebskonzept für das eigene Fahrprofil wirklich günstiger ist.</p>
 
 <h4>TCO-Vergleich über 5 Jahre (Beispielrechnung)</h4>
-<p>Die folgende Modellrechnung zeigt einen Mittelklassewagen bei 15.000 km pro Jahr über 5 Jahre (75.000 km gesamt), Heimladen zu 0,35 Euro/kWh und Benzin zu 1,80 Euro/Liter. Die Werte sind Richtgrößen und ersetzen keine individuelle Kalkulation.</p>
+<p>Die folgende Modellrechnung zeigt einen Mittelklassewagen bei 15.000 km pro Jahr über 5 Jahre (75.000 km gesamt), Heimladen zu ${eur(LADESTROM_HEIM_EURO_PRO_KWH)} Euro/kWh und Benzin zu 1,80 Euro/Liter. Die Werte sind Richtgrößen und ersetzen keine individuelle Kalkulation.</p>
 <table>
   <thead>
     <tr><th>Kostenblock (5 Jahre)</th><th>Elektroauto</th><th>Benziner</th></tr>
@@ -112,7 +139,18 @@ const year = new Date().getFullYear();
 <p>Elektroautos haben meist einen höheren Listenpreis als vergleichbare Verbrenner. Dafür sind reine E-Autos mit Erstzulassung bis 31.12.2025 nach § 3d KraftStG bis längstens Ende 2030 von der <strong>Kfz-Steuer</strong> befreit. Dienstwagenfahrer profitieren zusätzlich: Für die private Nutzung werden nur 0,25 % des Bruttolistenpreises pro Monat versteuert (bei Fahrzeugen bis 70.000 Euro), gegenüber 1 % beim Verbrenner. Eine bundesweite Kaufprämie gibt es seit Ende 2023 nicht mehr, wohl aber regionale Zuschüsse einzelner Länder und Kommunen.</p>
 
 <h4>Energiekosten: Heimladen schlägt öffentliches Laden</h4>
-<p>Die laufenden Kosten machen den größten Unterschied. Ein E-Auto verbraucht im Schnitt 18–22 kWh pro 100 km. Beim <strong>Heimladen</strong> zum Haushaltsstrompreis (rund 35 ct/kWh) ergeben sich etwa 6,30–7,70 Euro pro 100 km. Öffentliches AC-Laden (45–60 ct/kWh) und Schnellladen an der Autobahn (bis 79 ct/kWh) sind deutlich teurer. Ein Benziner mit 7 Litern kommt bei 1,80 Euro/Liter auf rund 12,60 Euro pro 100 km – der Kostenvorteil des E-Autos schmilzt also, wenn oft öffentlich geladen wird.</p>
+<p>Die laufenden Kosten machen den größten Unterschied – und sie hängen davon ab, wo geladen wird. Ein E-Auto mit ${EV_VERBRAUCH_KWH_JE_100KM} kWh je 100 km kostet auf denselben 100 Kilometern:</p>
+
+<table>
+  <thead>
+    <tr><th>Ladeweg</th><th>Preis je kWh</th><th>Kosten je 100 km</th></tr>
+  </thead>
+  <tbody>
+    ${ladewege.map(w => `<tr><td>${w.label}</td><td>${ct(w.centProKwh)} ct</td><td>${eur(w.je100km)} Euro</td></tr>`).join('')}
+  </tbody>
+</table>
+
+<p>Ein Benziner mit 7 Litern kommt bei 1,80 Euro/Liter auf 12,60 Euro pro 100 km. Zu Hause geladen fährt das E-Auto also für etwa die Hälfte, am Schnelllader schmilzt der Vorteil auf wenige Euro. Ladepreise nach ${LADESTROM_QUELLE}.</p>
 
 <h4>Wartung, Versicherung und Restwert</h4>
 <p>E-Autos haben spürbar geringere <strong>Wartungskosten</strong>: Ölwechsel, Zahnriemen, Auspuff und Kupplung entfallen, und die Bremsbeläge halten dank Rekuperation zwei- bis dreimal so lange. Laut ADAC liegen die jährlichen Wartungskosten bei etwa 100–200 Euro, Verbrenner bei 400–800 Euro. Die <strong>Versicherung</strong> ist mal günstiger, mal teurer – ein Vergleich lohnt. Der <strong>Restwert</strong> ist stark modellabhängig: Gefragte E-Modelle halten ihren Wert gut, ältere mit kleiner Batterie verlieren überdurchschnittlich.</p>
@@ -129,7 +167,7 @@ function berechne() {
   const benziner_preis = parseFloat(document.getElementById('benziner_preis').value)||35000;
   const jahres_km = parseFloat(document.getElementById('jahres_km').value)||12000;
   const zeitraum = parseInt(document.getElementById('zeitraum').value)||8;
-  const strompreis = parseFloat(document.getElementById('strompreis').value)||0.32;
+  const strompreis = parseFloat(document.getElementById('strompreis').value)||0;
   const benzinpreis = parseFloat(document.getElementById('benzinpreis').value)||1.85;
 
   const gesamtKm = jahres_km * zeitraum;

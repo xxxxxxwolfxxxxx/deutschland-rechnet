@@ -3,9 +3,22 @@ import Layout from '../../layouts/Layout.astro';
 import CalculatorShell from '../../components/CalculatorShell.astro';
 import CalculatorGuide from '../../components/CalculatorGuide.astro';
 import { CALCULATORS, CATEGORIES } from '../../data/calculators';
+import { STROMPREIS_CENT_PRO_KWH } from '../../../public/scripts/strompreis.js';
+import { berechneWärmepumpe } from '../../../public/scripts/waermepumpe.js';
 const calc = CALCULATORS.find(c => c.slug === 'waermepumpe-rechner')!;
 const cat = CATEGORIES[calc.category];
 const year = new Date().getFullYear();
+
+const euro = (b: number) => b.toLocaleString('de-DE', { maximumFractionDigits: 0 }) + ' €';
+const ct = (b: number) => b.toLocaleString('de-DE', { minimumFractionDigits: 1, maximumFractionDigits: 2 });
+
+// Beispielrechnung aus demselben Modul wie das Ergebnis oben. Der Fließtext
+// hatte hier zuvor die Jahresarbeitszahl unterschlagen und für die Wärmepumpe
+// 4.500 € statt der tatsächlichen Stromkosten ausgewiesen.
+const BEISPIEL = { flaeche: 120, verbrauch: 15000, gaskosten: 10, wpJahrescope: 3.5, investition: 15000, förderung: 30 };
+const mitHaushaltsstrom = berechneWärmepumpe({ ...BEISPIEL, stromkosten: STROMPREIS_CENT_PRO_KWH });
+const mitWaermepumpentarif = berechneWärmepumpe({ ...BEISPIEL, stromkosten: 26 });
+const waermepreisWp = STROMPREIS_CENT_PRO_KWH / BEISPIEL.wpJahrescope;
 ---
 <Layout
   title={`Wärmepumpe-Rechner ${year}`}
@@ -22,15 +35,16 @@ const year = new Date().getFullYear();
   <CalculatorShell
     calculator={calc}
     intro="Vergleichen Sie die Heizkosten einer Wärmepumpe mit Ihrer aktuellen Gas- oder Ölheizung. So sehen Sie, ob sich der Umstieg für Ihr Gebäude wirtschaftlich rechnet."
-    sourceNote="COP 3-4."
+    sourceNote={`Wärmepreis = Strompreis ÷ Jahresarbeitszahl. Voreingestellt sind ${ct(STROMPREIS_CENT_PRO_KWH)} ct/kWh – der durchschnittliche Haushaltsstrompreis 2026 nach der BDEW-Strompreisanalyse April 2026 (Datenstand 04/2026, abgerufen am 12.08.2026). Wer einen eigenen Wärmepumpentarif hat, trägt dessen niedrigeren Arbeitspreis ein; solche Sondertarife sind im BDEW-Durchschnitt ausdrücklich nicht enthalten. Die CO₂-Bilanz rechnet mit dem Emissionsfaktor für Erdgas nach EBeV 2030 Anlage 2 Teil 4 (0,181 kg je kWh) und dem Strommix von 344 g je kWh nach Umweltbundesamt für 2025.`}
     explanation="Eine Wärmepumpe erzeugt aus 1 kWh Strom 3 bis 4 kWh Wärme. Maßgeblich ist dabei die Jahresarbeitszahl aus dem realen Betrieb, nicht der im Labor ermittelte COP. Seit der Neufassung des Gebäudeenergiegesetzes zum 29. Juli 2026 – es heißt jetzt Gebäudemodernisierungsgesetz – ist die Wärmepumpe eine von zehn zulässigen Optionen beim Heizungstausch (§ 42 Abs. 2 GModG); die frühere 65-Prozent-Pflicht für erneuerbare Energien ist entfallen."
     faqs={[
-      { q: "Wann rechnet sich ein Wärmepumpentausch wirtschaftlich?", a: "Mit moderaten Strompreisen (30-35ct/kWh) und JAZ 3.5: Ersparnis ~1.500-2.000€/a. Investition 15.000€ (nach 30% Förderung), Amortisationszeit 9-11 Jahre. Mit höherem Strompreis (50ct/kWh) oder besserer JAZ (4.0+): 6-8 Jahre. KfW-Förderung ist entscheidend!" },
+      { q: "Wann rechnet sich ein Wärmepumpentausch wirtschaftlich?", a: `Entscheidend ist das Verhältnis von Strompreis zu Jahresarbeitszahl. Beim Haushaltsstrompreis von ${ct(STROMPREIS_CENT_PRO_KWH)} ct/kWh und JAZ 3,5 kostet die Kilowattstunde Wärme ${ct(waermepreisWp)} ct – gegen Gas zu 10 ct/kWh entsteht dann keine Ersparnis, sondern ein Minus von ${euro(Math.abs(mitHaushaltsstrom.ersparnis))} im Jahr. Mit einem Wärmepumpentarif von etwa 26 ct/kWh sind es dagegen ${euro(mitWaermepumpentarif.ersparnis)} Ersparnis. Rechnen Sie also mit Ihrem tatsächlichen Tarif, nicht mit dem Haushaltsdurchschnitt, und prüfen Sie einen separaten Wärmepumpenzähler.` },
+      { q: "Warum zeigt der Rechner mit dem Standardwert keine Ersparnis?", a: `Weil die Voreinstellung bewusst den belegten Haushaltsstrompreis nimmt und nicht einen geschönten Wert. Bei ${ct(STROMPREIS_CENT_PRO_KWH)} ct/kWh und JAZ 3,5 liegt der Wärmepreis mit ${ct(waermepreisWp)} ct/kWh knapp über dem eines Gaspreises von 10 ct/kWh. Die Wärmepumpe wird wirtschaftlich, sobald mindestens eines davon zutrifft: ein Wärmepumpentarif, eine bessere Jahresarbeitszahl (gute Dämmung, niedrige Vorlauftemperatur), ein steigender Gaspreis durch den CO₂-Preis oder eigener PV-Strom. Die Förderung verkürzt die Amortisation, ersetzt aber keine laufende Ersparnis.` },
       { q: "Was ist der Unterschied zwischen COP, JAZ und SCOP?", a: "COP = Kennzahl im Labor, optimale Bedingungen. JAZ = reale Jahresarbeitszahl mit echtem Wetter und Betrieb (15-30% niedriger als COP). SCOP = standardisierter Europawert. Rechnen Sie mit JAZ 3.0-4.0, nicht mit Hersteller-COP 4-5!" },
       { q: "Brauche ich ein neues Heizsystem für eine Wärmepumpe?", a: "Nicht zwingend! Moderne Hochtemperatur-Wärmepumpen (55-60°C) können auch alte Heizkörper versorgen. Effektiver (und günstiger): Alte Heizung + Wärmepumpe kombiniert = Hybrid-Lösung. Ideal: neue Heizkörper oder Flächenheizung = noch bessere Effizienz." },
       { q: "Funktioniert eine Wärmepumpe auch im Winter bei -20°C?", a: "Ja! Moderne Geräte arbeiten bis -25°C zuverlässig (JAZ bleibt 2.5-3.0 auch bei Frost). Ein Gasbrennwert-Speicher hilft dann im Hintergrund nach. Ungünstig: sehr alte, ungedämmte Häuser brauchen extra viel Heizstrom bei Kälte (können teuer werden)." },
       { q: "Brauche ich einen Heizstab oder Gasbrennwert-Hybrid?", a: "Hybrid mit Gas ist praktisch für Übergangsfälle und Spitzenlast (spart ~20€/a Stromkosten). Ein Heizstab allein ist ineffizient. Besser: gute Dämmung + Speicher → Wärmepumpe läuft effizient auch bei Kälte. Hybrid ist eine Sicherheit, keine Notwendigkeit." },
-      { q: "Kann ich eine Wärmepumpe mit PV-Anlage kombinieren?", a: "Ideal! Tagsüber PV-Strom direkt für Wärmepumpe nutzen (spart 30-40ct/kWh). Mit Speicher noch besser (Warmwasserspeicher 300-500L optimal). Eine 8-kWp-PV + 12-kW-Wärmepumpe können 80% des Heizbedarfs selbst deckeln." }
+      { q: "Kann ich eine Wärmepumpe mit PV-Anlage kombinieren?", a: `Ideal – und wirtschaftlich oft der entscheidende Punkt. Jede selbst erzeugte Kilowattstunde, die in die Wärmepumpe geht, ersetzt Netzstrom zu ${ct(STROMPREIS_CENT_PRO_KWH)} ct/kWh, statt für 7,70 ct/kWh eingespeist zu werden. Mit einem Warmwasserspeicher (300-500 l) lässt sich der Mittagsertrag in den Abend verschieben. Im Winter, wenn der Wärmebedarf am größten ist, liefert die PV-Anlage allerdings am wenigsten – der Deckungsgrad übers Jahr bleibt deshalb begrenzt.` }
     ]}
   >
     <div class="calc-form">
@@ -49,7 +63,7 @@ const year = new Date().getFullYear();
         </div>
         <div class="calc-group">
           <label for="stromkosten">Stromkosten (ct/kWh)</label>
-          <input type="number" id="stromkosten" min="20" max="50" value="30" step="1" />
+          <input type="number" id="stromkosten" min="15" max="60" value={STROMPREIS_CENT_PRO_KWH} step="0.5" />
         </div>
         <div class="calc-group">
           <label for="wp_jahrescope">Wärmepumpe JAZ (COP)</label>
@@ -75,12 +89,13 @@ const year = new Date().getFullYear();
 
 <script type="module">
 const { berechneWärmepumpe } = await import(window.__base + 'scripts/waermepumpe.js');
+const { STROMPREIS_CENT_PRO_KWH } = await import(window.__base + 'scripts/strompreis.js');
 function fmt(n) { return n.toLocaleString('de-DE', {minimumFractionDigits:2, maximumFractionDigits:2}) + ' €'; }
 function berechne() {
   const flaeche = parseFloat(document.getElementById('flaeche').value)||120;
   const verbrauch = parseFloat(document.getElementById('verbrauch').value)||15000;
   const gaskosten = parseFloat(document.getElementById('gaskosten').value)||10;
-  const stromkosten = parseFloat(document.getElementById('stromkosten').value)||30;
+  const stromkosten = parseFloat(document.getElementById('stromkosten').value)||STROMPREIS_CENT_PRO_KWH;
   const wpJahrescope = parseFloat(document.getElementById('wp_jahrescope').value)||3.5;
   const investition = parseFloat(document.getElementById('investition').value)||15000;
   const förderung = parseFloat(document.getElementById('förderung').value)||30;
@@ -91,7 +106,7 @@ function berechne() {
     `<span>WP-Stromkosten/Jahr: <strong>${fmt(r.wpKosten)}</strong></span>` +
     `<span>Amortisation: <strong>${r.amortisation} Jahre</strong></span>` +
     `<span>Invest. nach Förderung: <strong>${fmt(r.investitionNetto)}</strong></span>` +
-    `<span>CO₂-Einsparung: <strong>${r.co2Einsparung} kg/Jahr</strong></span>`;
+    `<span>CO₂-Einsparung: <strong>${r.co2EinsparungKg.toLocaleString('de-DE')} kg/Jahr</strong></span>`;
 }
 ['flaeche','verbrauch','gaskosten','stromkosten','wp_jahrescope','investition','förderung'].forEach(id =>
   document.getElementById(id).addEventListener('input', berechne));
@@ -100,17 +115,19 @@ berechne();
 
 <CalculatorGuide
   title="Wärmepumpen verstehen und wirtschaftlich bewerten"
-  content="<p>Wärmepumpen sind die zukunftsweisende Heizlösung für klimafreundliches Wohnen. Sie nutzen kostenlose Umweltwärme aus Luft, Erde oder Wasser und wandeln sie mit nur 25-35% Stromverbrauch in Heizwärme um. Das macht sie langfristig günstiger und CO₂-freier als Gas- oder Ölheizungen.</p>
+  content={`<p>Eine Wärmepumpe nutzt Umweltwärme aus Luft, Erde oder Wasser und braucht dafür nur einen Bruchteil an Strom. Ob sie sich auch finanziell trägt, entscheidet sich aber an einer einzigen Rechnung: Strompreis geteilt durch Jahresarbeitszahl ergibt den Preis je Kilowattstunde Wärme – und der muss unter dem der alten Heizung liegen.</p>
 
-<p><strong>Funktionsweise und Effizienzmaßstäbe:</strong> Eine Wärmepumpe nutzt einen Wärme-Transportprozess ähnlich wie ein Kühlschrank. 1 kWh Strom erzeugt 3-4 kWh Wärmeleistung (Kennzahl JAZ = Jahresarbeitszahl). Der COP-Wert der Hersteller ist meist höher (4-5), weil er unter optimalen Laborbedingungen gemessen wird. Mit echtem Wetter rechnen Sie mit JAZ 2.8-4.0. Modern Luft-Wärmepumpen funktionieren auch bei -25°C, sind aber am effizientesten zwischen 0°C und +15°C.</p>
+<p><strong>Funktionsweise und Effizienzmaßstäbe:</strong> Eine Wärmepumpe arbeitet wie ein Kühlschrank in umgekehrter Richtung. 1 kWh Strom erzeugt 3-4 kWh Wärme; die maßgebliche Kennzahl ist die Jahresarbeitszahl (JAZ). Der COP-Wert der Hersteller liegt meist höher (4-5), weil er unter Laborbedingungen gemessen wird. Rechnen Sie mit JAZ 2,8 bis 4,0. Moderne Luft-Wärmepumpen laufen auch bei -25 °C, am effizientesten arbeiten sie zwischen 0 °C und +15 °C.</p>
 
-<p><strong>Wirtschaftlichkeit mit realistischen Annahmen:</strong> Eine Wärmepumpe kostet heute 12.000-20.000€ (Komplettsystem). Mit der KfW-Förderung (25-70% Zuschuss ab 2024) sinkt das auf 8.000-15.000€ netto. Jährliche Stromkosten bei 15.000 kWh Bedarf und 30ct/kWh: 4.500€ für Wärmepumpe (JAZ 3.5) vs. 1.500€ für Gas. Das ist zunächst teurer, aber die Amortisationszeit verkürzt sich mit steigenden Strompreisen und sinkenden Wärmepumpenkosten.</p>
+<p><strong>Die entscheidende Rechnung, mit echten Zahlen:</strong> Ein Haus mit ${BEISPIEL.verbrauch.toLocaleString('de-DE')} kWh Wärmebedarf zahlt bei einem Gaspreis von ${BEISPIEL.gaskosten} ct/kWh rund ${euro(mitHaushaltsstrom.gasKosten)} im Jahr. Eine Wärmepumpe mit JAZ ${BEISPIEL.wpJahrescope.toLocaleString('de-DE')} braucht dafür ${Math.round(BEISPIEL.verbrauch / BEISPIEL.wpJahrescope).toLocaleString('de-DE')} kWh Strom. Zum durchschnittlichen Haushaltsstrompreis von ${ct(STROMPREIS_CENT_PRO_KWH)} ct/kWh kostet das ${euro(mitHaushaltsstrom.wpKosten)} – also ${euro(Math.abs(mitHaushaltsstrom.ersparnis))} <em>mehr</em> als Gas. Der Wärmepreis liegt mit ${ct(waermepreisWp)} ct/kWh knapp über dem Gaspreis. Mit einem Wärmepumpentarif von etwa 26 ct/kWh dreht sich das Bild: Dann kostet der Strom ${euro(mitWaermepumpentarif.wpKosten)} und es bleiben ${euro(mitWaermepumpentarif.ersparnis)} Ersparnis im Jahr. Bei ${euro(mitWaermepumpentarif.investitionNetto)} Investition nach Förderung sind das rechnerisch ${Number(mitWaermepumpentarif.amortisation).toLocaleString('de-DE', { maximumFractionDigits: 1 })} Jahre – gerechnet mit heutigen, konstanten Preisen.</p>
 
-<p><strong>Schlüsselbedingungen für Erfolg:</strong> Die Gebäudedämmung ist entscheidend – ungedämmte Altbauten brauchen 30-50% mehr Strom und amortisieren sich nicht. Moderne Wärmepumpen funktionieren auch mit alten Heizkörpern, sind aber weniger effizient. Ideal: Flächenheizung (Fußbodenheizung) oder moderne Niedertemperatur-Heizkörper bei niedrigen Vorlauftemperaturen (35-45°C). Mit Warmwasserspeicher lässt sich tagsüber PV-Strom nutzen und die Effizienz steigt.</p>
+<p><strong>Was die Rechnung kippt:</strong> Vier Stellschrauben entscheiden, und keine davon ist der Anschaffungspreis. Erstens der Stromtarif: Ein separater Wärmepumpenzähler mit eigenem Tarif ist meist die größte einzelne Verbesserung. Zweitens die Jahresarbeitszahl – jeder Zehntelpunkt zählt, und sie hängt an Dämmung und Vorlauftemperatur, nicht am Gerät allein. Drittens der Gaspreis: Der CO₂-Preis nach dem BEHG steigt weiter und verteuert Gas Jahr für Jahr, während dieser Rechner bewusst mit konstanten Preisen arbeitet. Viertens eigener PV-Strom, der Netzstrom ersetzt.</p>
 
-<p><strong>Kombination mit erneuerbaren Stromquellen:</strong> Eine Wärmepumpe ist perfekt für Haushalte mit PV-Anlage oder grünem Stromangebot. Tagsüber können Sie den selbst erzeugten PV-Strom direkt nutzen (spart 40-50ct/kWh gegenüber Netzstrom). Mit intelligenter Steuerung oder Stromspeicher lässt sich der Eigennutzungsgrad auf 60-80% erhöhen. Damit rentiert sich eine Wärmepumpe deutlich schneller.</p>
+<p><strong>Schlüsselbedingungen für Erfolg:</strong> Die Gebäudedämmung ist entscheidend – ungedämmte Altbauten brauchen 30-50 % mehr Strom und amortisieren sich nicht. Moderne Wärmepumpen funktionieren auch mit alten Heizkörpern, sind dabei aber weniger effizient. Ideal ist eine Flächenheizung oder ein Niedertemperatur-Heizkörper mit 35-45 °C Vorlauftemperatur. Ein Warmwasserspeicher erlaubt es zusätzlich, den Betrieb in die Stunden mit PV-Ertrag zu verschieben.</p>
 
-<p><strong>CO₂-Bilanz und Zukunftssicherheit:</strong> Eine Wärmepumpe spart sofort 30-50% CO₂ gegenüber Gas (Strommix Deutschland: ca. 500 g CO₂/kWh). Mit zukünftig grünerer Stromversorgung (Windkraft, Solar) wird diese Einsparung immer größer – während Gas weiterhin CO₂ produziert. Ab 2024 müssen Neubauten zu 60% erneuerbar heizen, ab 2030 zu 80%, Wärmepumpen sind der einfachste Weg dahin.</p>"
+<p><strong>Kombination mit einer PV-Anlage:</strong> Jede selbst erzeugte Kilowattstunde, die in die Wärmepumpe geht, ersetzt Netzstrom zu ${ct(STROMPREIS_CENT_PRO_KWH)} ct/kWh, statt für 7,70 ct/kWh eingespeist zu werden – das ist der eigentliche Hebel. Mit Steuerung und Warmwasserspeicher lässt sich der Eigenverbrauch deutlich steigern. Die Einschränkung bleibt jahreszeitlich: Wenn der Wärmebedarf am größten ist, liefert die Anlage am wenigsten.</p>
+
+<p><strong>CO₂-Bilanz und Regelwerk:</strong> Gegenüber Gas spart eine Wärmepumpe schon mit dem heutigen Strommix rund die Hälfte der Emissionen, und der Vorsprung wächst mit jedem Jahr, in dem der Strommix sauberer wird. Rechtlich ist sie seit der Neufassung des Gebäudeenergiegesetzes zum 29. Juli 2026 – jetzt Gebäudemodernisierungsgesetz – eine von zehn zulässigen Optionen beim Heizungstausch (§ 42 Abs. 2 GModG); eine Pflicht zur Wärmepumpe besteht nicht.</p>`}
   relatedSlugs={['heizkosten-rechner', 'photovoltaik-rechner', 'co2-einsparung-renovierung']}
 />
 </Layout>

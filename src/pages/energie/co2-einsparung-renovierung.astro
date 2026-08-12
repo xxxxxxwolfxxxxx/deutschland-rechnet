@@ -3,9 +3,16 @@ import Layout from '../../layouts/Layout.astro';
 import CalculatorShell from '../../components/CalculatorShell.astro';
 import CalculatorGuide from '../../components/CalculatorGuide.astro';
 import { CALCULATORS, CATEGORIES } from '../../data/calculators';
+import { BRENNSTOFFE } from '../../../public/scripts/heizkosten.js';
 const calc = CALCULATORS.find(c => c.slug === 'co2-einsparung-renovierung')!;
 const cat = CATEGORIES[calc.category];
 const year = new Date().getFullYear();
+
+// Gedämmt und Fenster getauscht wird gegen HEIZenergie, nicht gegen
+// Haushaltsstrom: Eingespart wird das, was der Kessel heute verbrennt. Erdgas
+// ist der häufigste Bestandsbrennstoff und deshalb die Voreinstellung. Vorher
+// standen hier 25 ct ohne Herkunft – zu viel für Gas, zu wenig für Strom.
+const GASPREIS_CENT = BRENNSTOFFE.gas.arbeitspreisCent;
 ---
 <Layout
   title={`CO₂-Einsparung durch Renovierung ${year}`}
@@ -22,7 +29,7 @@ const year = new Date().getFullYear();
    <CalculatorShell
      calculator={calc}
      intro="Berechnen Sie Energie- und CO₂-Einsparungen durch Sanierungsmaßnahmen an Ihrem Gebäude. So erfahren Sie, welche Renovierung sich finanziell und ökologisch am meisten lohnt."
-     sourceNote="Dämmung, neue Heizung, Fenster."
+     sourceNote="Dämmung, neue Heizung, Fenster. Energiepreis und CO₂-Faktor beziehen sich auf die eingesparte Heizenergie, voreingestellt Erdgas mit 0,181 kg CO₂ je kWh nach EBeV 2030 Anlage 2 Teil 4."
      explanation="Dämmung bringt bis 50% Einsparung, ein Heizungstausch bis 40%. Die KfW fördert Einzelmaßnahmen mit 15-25% und Komplettsanierungen mit bis zu 40% nach GEG-Standards."
       faqs={[
         { q: "Welche Sanierungsmaßnahme spart am meisten CO₂?", a: "Der Heizungstausch und die Außenwanddämmung sind besonders effektiv. Bei älteren Häusern (vor 1979) können diese Maßnahmen bis zu 100 kg CO₂ pro m² und Jahr einsparen." },
@@ -64,7 +71,8 @@ const year = new Date().getFullYear();
         </div>
         <div class="calc-group">
           <label for="energiepreis">Energiepreis (ct/kWh)</label>
-          <input type="number" id="energiepreis" min="10" max="50" value="25" step="1" />
+          <input type="number" id="energiepreis" min="5" max="50" value={GASPREIS_CENT} step="0.5" />
+          <small>Preis der eingesparten Heizenergie – voreingestellt Erdgas</small>
         </div>
       </div>
        <div class="calc-result">
@@ -109,12 +117,22 @@ const year = new Date().getFullYear();
 </Layout>
 
 <script type="module">
+const { emissionsfaktor } = await import(window.__base + 'scripts/heizkosten.js');
+
+// Gedämmt wird gegen Heizenergie, nicht gegen Haushaltsstrom: Eingespart wird
+// der Brennstoff, den der Kessel heute verbrennt. Der Faktor gehört deshalb
+// zum selben Brennstoff wie der Energiepreis im Formular – voreingestellt
+// Erdgas. Vorher standen hier 0,402 kg/kWh, ein Strommix-Wert, der zu einer
+// Dämmmaßnahme nicht passt und die Einsparung um mehr als das Doppelte
+// überzeichnet hat.
+const CO2_FAKTOR_KG_JE_KWH = emissionsfaktor('gas');
+
 function berechne() {
   const flaeche = parseFloat(document.getElementById('wohnflaeche').value) || 120;
   const maßnahme = document.getElementById('maßnahme').value;
   const baujahr = document.getElementById('baujahr').value;
   const foerderung = parseFloat(document.getElementById('foerderung').value) || 20;
-  const energiepreisCt = parseFloat(document.getElementById('energiepreis').value) || 25;
+  const energiepreisCt = parseFloat(document.getElementById('energiepreis').value) || 0;
   const energiepreis = energiepreisCt / 100; // €/kWh
   
   // Energieeinsparung pro m² und Jahr in kWh
@@ -156,9 +174,7 @@ function berechne() {
   const foerderungsBetrag = investitionGesamt * (foerderung / 100);
   const nettoInvestition = investitionGesamt - foerderungsBetrag;
   
-  // CO₂-Faktor: 0,402 kg CO₂/kWh für Strommix Deutschland
-  const co2Faktor = 0.402;
-  const jahresCo2Einsparung = jahresEinsparungKwh * co2Faktor;
+  const jahresCo2Einsparung = jahresEinsparungKwh * CO2_FAKTOR_KG_JE_KWH;
   
   const jahresEinsparungEuro = jahresEinsparungKwh * energiepreis;
   const amortisationsjahre = jahresEinsparungEuro > 0 ? nettoInvestition / jahresEinsparungEuro : 0;
