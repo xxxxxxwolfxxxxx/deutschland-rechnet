@@ -3,9 +3,60 @@ import Layout from '../../layouts/Layout.astro';
 import CalculatorShell from '../../components/CalculatorShell.astro';
 import CalculatorGuide from '../../components/CalculatorGuide.astro';
 import { CALCULATORS, CATEGORIES } from '../../data/calculators';
+import {
+  berechneStromspeicher,
+  DIREKTVERBRAUCH_ANTEIL,
+  SPEICHER_WIRKUNGSGRAD,
+} from '../../../public/scripts/stromspeicher.js';
+import { verguetungProKwh } from '../../../public/scripts/photovoltaik.js';
+import { STROMPREIS_CENT_PRO_KWH } from '../../../public/scripts/strompreis.js';
 const calc = CALCULATORS.find(c => c.slug === 'stromspeicher-rechner')!;
 const cat = CATEGORIES[calc.category];
 const year = new Date().getFullYear();
+
+// Einspeisevergütung nach § 48 Abs. 2 EEG aus dem Photovoltaik-Modul, damit
+// der Ratgebertext nicht von der Rechnung abweichen kann. Der Strompreis
+// kommt aus strompreis.js – vorher standen hier 38 ct ohne Quelle, während
+// das Eingabefeld darunter mit 35 ct startete.
+const STROMPREIS_CENT = STROMPREIS_CENT_PRO_KWH;
+const verguetungCent = verguetungProKwh(10) * 100;
+const dez = (n: number, stellen = 2) =>
+  n.toLocaleString('de-DE', { minimumFractionDigits: stellen, maximumFractionDigits: stellen });
+const euro = (n: number) => n.toLocaleString('de-DE', { maximumFractionDigits: 0 }) + ' Euro';
+
+// Beispielszenarien der Ratgebertabelle – gerechnet mit demselben Modul wie
+// der Rechner oben, damit Tabelle und Ergebnis nicht auseinanderlaufen.
+const szenarien = [
+  { name: '4-Personen-Haushalt, 10 kWp PV', speicher: 10, pvLeistung: 10, verbrauch: 6000, investition: 7000 },
+  { name: '2-Personen-Haushalt, 7 kWp PV', speicher: 5, pvLeistung: 7, verbrauch: 3000, investition: 4000 },
+  { name: 'Einfamilienhaus + Waermepumpe, 12 kWp PV', speicher: 15, pvLeistung: 12, verbrauch: 9000, investition: 9500 },
+  { name: 'Kleiner Haushalt, 5 kWp PV', speicher: 5, pvLeistung: 5, verbrauch: 2500, investition: 4000 },
+];
+
+// Referenzfall für die FAQ: derselbe 10-kWh-Speicher wie in Zeile 1 der
+// Tabelle, damit die Antwort keine Amortisation behauptet, die der Rechner
+// darunter widerlegt.
+const referenz = berechneStromspeicher({
+  speicher: 10,
+  pvLeistung: 10,
+  stromverbrauch: 6000,
+  strompreis: STROMPREIS_CENT,
+  speicherkosten: 700,
+});
+
+const szenarienZeilen = szenarien
+  .map((s) => {
+    const r = berechneStromspeicher({
+      speicher: s.speicher,
+      pvLeistung: s.pvLeistung,
+      stromverbrauch: s.verbrauch,
+      strompreis: STROMPREIS_CENT,
+      speicherkosten: s.investition / s.speicher,
+    });
+    const amortisation = r.amortisation === null ? 'nicht erreicht' : `${dez(r.amortisation, 1)} Jahre`;
+    return `<tr><td>${s.name}</td><td>${s.speicher} kWh</td><td>${euro(s.investition)}</td><td>${euro(r.ersparnis)}</td><td>${amortisation}</td></tr>`;
+  })
+  .join('\n');
 ---
 <Layout
   title={`Stromspeicher-Rechner ${year}`}
@@ -25,7 +76,7 @@ const year = new Date().getFullYear();
     sourceNote="500-800€ pro kWh."
     explanation="Stromspeicher kosten aktuell 500-800 Euro pro kWh nutzbarer Kapazität bei einer Lebensdauer von 15-20 Jahren. Ohne Speicher nutzen Sie nur ca. 30% Ihres PV-Stroms selbst, mit Speicher bis zu 70%."
     faqs={[
-      { q: "Wann amortisiert sich ein Stromspeicher wirklich?", a: "Bei moderaten Strompreisen (35ct/kWh) und ausreichend PV-Überschuss: 15-20 Jahre. Ein 10-kWh-Speicher (10.000€) bei 1.000€/a Zusatzersparnis amortisiert sich in 10 Jahren. Bei hohem Strompreis (50ct/kWh) schneller, bei niedrigem Preis länger." },
+      { q: "Wann amortisiert sich ein Stromspeicher wirklich?", a: `Entscheidend ist nicht der Strompreis, sondern sein Abstand zur Einspeiseverguetung: ${dez(STROMPREIS_CENT - verguetungCent)} ct je gespeicherter Kilowattstunde. Ein 10-kWh-Speicher fuer ${euro(7000)} an einer 10-kWp-Anlage mit 6.000 kWh Jahresverbrauch verschiebt rund ${referenz.speicherKwh.toLocaleString('de-DE')} kWh im Jahr in den Eigenverbrauch und bringt damit ${euro(referenz.ersparnis)} pro Jahr – rechnerisch ${referenz.amortisation === null ? 'keine Amortisation' : dez(referenz.amortisation, 1) + ' Jahre'}. Ein hoeherer Strompreis oder ein guenstigerer Speicher verkuerzt das, eine kleinere Anlage verlaengert es. Nicht enthalten sind Strompreissteigerung, Zinsen und Speicheralterung.` }, { q: "Was bringt ein Speicher bei niedrigem Strompreis?", a: "Weniger, als oft gerechnet wird. Der Vorteil ist die Differenz aus Netzstrompreis und entgangener Einspeiseverguetung – faellt der Strompreis, schrumpft diese Spanne unmittelbar. Bei sehr niedrigen Preisen traegt allein der Speicher die Investition nicht mehr; dann zaehlen andere Gruende wie Notstromfaehigkeit oder Unabhaengigkeit vom Versorger." },
       { q: "Rentiert sich Speicher ohne PV-Anlage?", a: "Nein. Ohne PV würde der Speicher nur nachts günstig laden (Nachtstrom-Tarife) – das lohnt sich nicht mehr, da Nachtstrom-Rabatte klein sind (~5-10% Unterschied zu Normaltarif). Speicher + PV ist die wirtschaftliche Kombination." },
       { q: "Welche Zusatzkosten fallen für einen Speicher an?", a: "Installation/Elektriker: 500-1.500€. Wechselrichter für AC-gekoppelten Speicher: 2.000-4.000€ (optional, oft im Speicher-Komplettpaket). Wartung/Versicherung: ~50-100€/a. Diese Kosten sollten bei der Amortisationszeitberechnung berücksichtigt werden." },
       { q: "Ist es billiger, einen Speicher später zu installieren?", a: "Nicht unbedingt. Speicherpreise fallen zwar, aber auch Strompreise steigen. Ein Speicher heute mit 10.000€ amortisiert sich, ein zukünftiger zu 7.000€ aber vielleicht nicht schneller – und Sie verpassen Einsparungen dazwischen. Faustregel: Kauf lohnt sich jetzt bei hohem Strompreis." },
@@ -52,7 +103,7 @@ const year = new Date().getFullYear();
         </div>
         <div class="calc-group">
           <label for="strompreis">Strompreis (ct/kWh)</label>
-          <input type="number" id="strompreis" min="20" max="60" value="35" step="1" />
+          <input type="number" id="strompreis" min="20" max="60" value={STROMPREIS_CENT} step="0.5" />
         </div>
         <div class="calc-group">
           <label for="speicherkosten">Speicherkosten (€/kWh)</label>
@@ -80,11 +131,13 @@ function berechne() {
   const r = berechneStromspeicher({ speicher, pvLeistung, stromverbrauch, strompreis, speicherkosten });
   document.getElementById('ersparnis').textContent = fmt(r.ersparnis);
   document.getElementById('details').innerHTML =
-    `<span>Ohne Speicher: <strong>${fmt(r.ohneSpeicher)}</strong></span>` +
-    `<span>Mit Speicher: <strong>${fmt(r.mitSpeicher)}</strong></span>` +
-    `<span>Eigenverbrauch: <strong>${r.eigenverbrauch}%</strong></span>` +
+    `<span>Jahresvorteil ohne Speicher: <strong>${fmt(r.ohneSpeicher)}</strong></span>` +
+    `<span>Jahresvorteil mit Speicher: <strong>${fmt(r.mitSpeicher)}</strong></span>` +
+    `<span>Autarkiegrad: <strong>${r.autarkiegrad}%</strong> des Verbrauchs</span>` +
+    `<span>Eigenverbrauchsquote: <strong>${r.eigenverbrauchsquote}%</strong> des Ertrags</span>` +
+    `<span>Einspeisevergütung: <strong>${r.verguetungCentProKwh.toLocaleString('de-DE', {minimumFractionDigits:2})} ct/kWh</strong></span>` +
     `<span>Investition: <strong>${fmt(r.investition)}</strong></span>` +
-    `<span>Amortisation: <strong>${r.amortisation} Jahre</strong></span>`;
+    `<span>Amortisation: <strong>${r.amortisation === null ? 'nicht erreicht' : r.amortisation.toLocaleString('de-DE', {maximumFractionDigits:1}) + ' Jahre'}</strong></span>`;
 }
 ['speicher','pv_leistung','stromverbrauch','strompreis','speicherkosten'].forEach(id =>
   document.getElementById(id).addEventListener('input', berechne));
@@ -93,7 +146,7 @@ berechne();
 
 <CalculatorGuide
   title="Stromspeicher wirtschaftlich bewerten"
-  content={`<p>Ein Stromspeicher macht Solaranlagen wirtschaftlicher, indem er PV-Ueberschuss fuer Abend und Nacht nutzbar macht. Statt 8,1 ct/kWh Einspeiseverguetung (2025) erhalten Sie effektiv 35-42 ct/kWh Ersparnis durch Eigenverbrauch. Die Differenz von ca. 27-34 ct/kWh pro gespeicherter Kilowattstunde ist der wirtschaftliche Kern eines Speichers.</p>
+  content={`<p>Ein Stromspeicher macht Solaranlagen wirtschaftlicher, indem er PV-Ueberschuss fuer Abend und Nacht nutzbar macht. Statt ${dez(verguetungCent)} ct/kWh Einspeiseverguetung nach § 48 Abs. 2 EEG (Anlagen bis 10 kWp) sparen Sie den Netzstrom, der im Bundesdurchschnitt ${dez(STROMPREIS_CENT)} ct/kWh kostet. Die Differenz von ${dez(STROMPREIS_CENT - verguetungCent)} ct/kWh pro gespeicherter Kilowattstunde ist der wirtschaftliche Kern eines Speichers – nicht derStrompreis selbst.</p>
 
 <h4>Stromspeicher-Vergleich: Beliebte Modelle 2025</h4>
 <table>
@@ -117,22 +170,19 @@ berechne();
     <tr><th>Szenario</th><th>Speicher</th><th>Investition</th><th>Zusatzersparnis/Jahr</th><th>Amortisation</th></tr>
   </thead>
   <tbody>
-    <tr><td>4-Personen-Haushalt, 10 kWp PV</td><td>10 kWh</td><td>7.000 Euro</td><td>550-650 Euro</td><td>11-13 Jahre</td></tr>
-    <tr><td>2-Personen-Haushalt, 7 kWp PV</td><td>5 kWh</td><td>4.000 Euro</td><td>350-450 Euro</td><td>9-11 Jahre</td></tr>
-    <tr><td>Einfamilienhaus + Waermepumpe</td><td>15 kWh</td><td>9.500 Euro</td><td>800-1.000 Euro</td><td>10-12 Jahre</td></tr>
-    <tr><td>Kleiner Haushalt, 5 kWp PV</td><td>5 kWh</td><td>4.000 Euro</td><td>250-350 Euro</td><td>12-16 Jahre</td></tr>
+${szenarienZeilen}
   </tbody>
 </table>
 
-<p><strong>Annahmen:</strong> Strompreis 38 ct/kWh, Einspeiseverguetung 8,1 ct/kWh, Speicher-Wirkungsgrad 92%, Eigenverbrauchsquote steigt von 30% ohne auf 60-70% mit Speicher.</p>
+<p><strong>Annahmen:</strong> Strompreis ${STROMPREIS_CENT} ct/kWh, Einspeiseverguetung ${dez(verguetungCent)} ct/kWh nach § 48 Abs. 2 EEG, Speicher-Wirkungsgrad ${Math.round(SPEICHER_WIRKUNGSGRAD * 100)} %, Autarkiegrad steigt von ${Math.round(DIREKTVERBRAUCH_ANTEIL * 100)} % ohne Speicher auf 55 bis 75 % mit Speicher.</p>
 
-<p><strong>Eigenverbrauch mit und ohne Speicher:</strong> Ohne Speicher nutzen Sie typisch nur 25-35% Ihres PV-Stroms selbst (der Rest fliesst ins Netz). Mit einem passend dimensionierten Speicher steigt der Eigenverbrauch auf 60-75%. Das bedeutet: Statt 8,1 ct Einspeiseverguetung sparen Sie 38 ct Strombezugskosten. Jede zusaetzlich selbst genutzte kWh bringt ca. 30 ct Vorteil.</p>
+<p><strong>Autarkiegrad und Eigenverbrauchsquote:</strong> Beide Zahlen werden staendig verwechselt. Der Autarkiegrad ist der Anteil Ihres <em>Verbrauchs</em>, den Sie selbst decken; die Eigenverbrauchsquote ist der Anteil des <em>erzeugten</em> Stroms, den Sie selbst nutzen. Ohne Speicher liegt der Autarkiegrad bei rund ${Math.round(DIREKTVERBRAUCH_ANTEIL * 100)} %, mit passendem Speicher bei 55 bis 75 %. Wirtschaftlich zaehlt aber weder die eine noch die andere Prozentzahl, sondern die Menge: Jede zusaetzlich selbst genutzte Kilowattstunde bringt ${dez(STROMPREIS_CENT - verguetungCent)} ct Vorteil – ${STROMPREIS_CENT} ct ersparter Zukauf abzueglich ${dez(verguetungCent)} ct entgangener Verguetung.</p>
 
 <p><strong>Gesamtkosten richtig kalkulieren:</strong> Zum reinen Speicherpreis kommen hinzu: Installation und Elektriker (800-1.500 Euro), ggf. Hybrid-Wechselrichter (1.500-3.000 Euro falls nicht vorhanden), Notstromfunktion optional (500-1.000 Euro Aufpreis). Rechnen Sie mit 20-30% Aufschlag auf den reinen Speicherpreis fuer die Gesamtinstallation.</p>
 
 <p><strong>Speichertechnologien 2025:</strong> Lithium-Eisenphosphat (LFP) hat sich als Standard durchgesetzt: 6.000-10.000 Zyklen Lebensdauer, kein thermisches Durchgehen, wartungsfrei. NMC-Speicher (aeltere Technologie) bieten hoehere Energiedichte, aber kuerzere Lebensdauer (3.000-5.000 Zyklen). Salzwasserspeicher und Redox-Flow-Batterien sind Nischenprodukte fuer Gewerbe.</p>
 
-<p><strong>Wann sich ein Speicher besonders lohnt:</strong> Hoher Strompreis (ueber 35 ct/kWh), regelmaessiger Abendverbrauch (Kochen, Waschen, E-Auto laden nachts), PV-Anlage mit mindestens 7 kWp, und wenn kein dynamischer Stromtarif genutzt wird. Bei Kombination mit Waermepumpe steigt die Wirtschaftlichkeit deutlich.</p>`}
+<p><strong>Wann sich ein Speicher besonders lohnt:</strong> Ein Strompreis oberhalb des Durchschnitts von ${dez(STROMPREIS_CENT)} ct/kWh, regelmaessiger Abendverbrauch (Kochen, Waschen, E-Auto laden nachts), PV-Anlage mit mindestens 7 kWp, und wenn kein dynamischer Stromtarif genutzt wird. Bei Kombination mit Waermepumpe steigt die Wirtschaftlichkeit deutlich.</p>`}
   relatedSlugs={['photovoltaik-rechner', 'solarspeicher-dimensionierung', 'waermepumpe-rechner']}
 />
 </Layout>

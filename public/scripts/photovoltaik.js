@@ -25,7 +25,7 @@ export const VERGUETUNG_GUELTIG_BIS = '31. Januar 2027';
 export const VERGUETUNGSDAUER_JAHRE = 20;
 
 // Spezifischer Jahresertrag im deutschen Mittel über alle Ausrichtungen.
-const SPEZIFISCHER_ERTRAG = 950; // kWh je kWp und Jahr
+export const SPEZIFISCHER_ERTRAG = 950; // kWh je kWp und Jahr
 
 // Alterung der Module, Herstellerangaben liegen typisch bei 0,4 bis 0,5 % p. a.
 const DEGRADATION = 0.005;

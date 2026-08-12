@@ -3,9 +3,21 @@ import Layout from '../../layouts/Layout.astro';
 import CalculatorShell from '../../components/CalculatorShell.astro';
 import CalculatorGuide from '../../components/CalculatorGuide.astro';
 import { CALCULATORS, CATEGORIES } from '../../data/calculators';
+import {
+  STROMPREIS_CENT_PRO_KWH,
+  STROMPREIS_QUELLE,
+  stromkostenProJahr,
+} from '../../../public/scripts/strompreis.js';
+import { BRENNSTOFFE } from '../../../public/scripts/heizkosten.js';
 const calc = CALCULATORS.find(c => c.slug === 'jahresenergieverbrauch')!;
 const cat = CATEGORIES[calc.category];
 const year = new Date().getFullYear();
+
+// Diese Seite stellt Strom und Wärme nebeneinander. Beide Preise kommen aus
+// den Modulen, die auch die jeweiligen Rechner speisen.
+const GASPREIS_CENT = BRENNSTOFFE.gas.arbeitspreisCent;
+const ct = (b: number) => b.toLocaleString('de-DE', { minimumFractionDigits: 1, maximumFractionDigits: 2 });
+const euro = (b: number) => b.toLocaleString('de-DE', { maximumFractionDigits: 0 }) + ' €';
 ---
 <Layout
   title={`Jahresenergieverbrauch ${year}`}
@@ -29,7 +41,7 @@ const year = new Date().getFullYear();
         { q: "Warum ist mein Verbrauch höher als der Durchschnitt?", a: "Mögliche Gründe: Schlechte Dämmung (vor 1978), alte Heizung, zu hohe Raumtemperatur (jedes °C +6%), alte/viele Elektrogeräte, häufige Dusche/Bad. Ein hydraulischer Abgleich oder Heizungsprüfung kann schon 10-20% sparen." },
         { q: "Wie zuverlässig sind die prognostizierten Verbrauchswerte?", a: "Sehr zuverlässig für den Wärmebedarf (±10-15% Unsicherheit), da dieser von Gebäudephysik bestimmt wird. Stromverbrauch hängt mehr von Nutzerverhalten ab (±20-30%). Witterung kann Jahr zu Jahr stark variieren (kalter Winter +20%)." },
         { q: "Kann ich meinen Energieverbrauch senken, ohne die Heizung zu wechseln?", a: "Ja, mit einfachen Maßnahmen: 1°C Temperatursenkung = 6-8%, Fenster abdichten (2-5%), Duschköpfe-Sparaufsätze (10-15% Wasser), alte Heizpumpe prüfen (5%). Größere Effekte: Isolierung von Heizungsrohren (10%), Heizkörper-Thermostaten (5-10%)." },
-        { q: "Wie viel kostet mich eine kWh Energie durchschnittlich?", a: "2024: Strom ~35-45 ct/kWh (regional unterschiedlich), Gas ~10-15 ct/kWh, Wasser ~2-3 €/m³. Für einen Durchschnittshaushalt (2.500 kWh Strom + 15.000 kWh Gas): ~2.000-2.500 €/a. Prognose: Strom ab 2025 günstiger durch Windkraft-Ausbau." },
+        { q: "Wie viel kostet mich eine kWh Energie durchschnittlich?", a: `Strom kostet im Haushaltsdurchschnitt ${ct(STROMPREIS_CENT_PRO_KWH)} ct/kWh (${STROMPREIS_QUELLE}), Erdgas rund ${ct(GASPREIS_CENT)} ct/kWh, Wasser 2 bis 3 Euro je Kubikmeter. Für einen Haushalt mit 2.500 kWh Strom und 15.000 kWh Gas ergibt das ${euro(stromkostenProJahr({ verbrauchKwh: 2500 }).jahr + (15000 * GASPREIS_CENT) / 100)} im Jahr. Regional und je Vertrag weichen die Preise erheblich ab.` },
         { q: "Wie schnell amortisiert sich eine Energiesparberatung?", a: "Eine professionelle Energieberatung vor Ort kostet nach BAFA-Förderung (bis zu 80 % Zuschuss, gedeckelt) für Eigentümer meist nur noch 30 bis 100 Euro Eigenanteil. Sie führt oft zu 15-25 % Einsparung und amortisiert sich damit in der Regel innerhalb von 1 bis 2 Jahren." },
         { q: "Wie viel Strom verbraucht ein Haushalt pro Person?", a: "Als Richtwert gelten rund 1.500 kWh für den ersten Haushaltsmitglied und je etwa 800-1.000 kWh für jede weitere Person, da sich Grundlasten wie Kühlschrank oder Router teilen. Ein 1-Personen-Haushalt liegt so bei ca. 1.500 kWh, ein 4-Personen-Haushalt bei rund 3.500-4.000 kWh pro Jahr." },
         { q: "Erhöht elektrische Warmwasserbereitung meinen Stromverbrauch stark?", a: "Ja, deutlich. Wird das Warmwasser über einen elektrischen Durchlauferhitzer oder Boiler erzeugt statt über die Zentralheizung, kommen pro Person etwa 500-800 kWh Strom pro Jahr hinzu. Ein 3-Personen-Haushalt kann dadurch 1.500-2.400 kWh mehr Strom verbrauchen." },

@@ -3,9 +3,27 @@ import Layout from '../../layouts/Layout.astro';
 import CalculatorShell from '../../components/CalculatorShell.astro';
 import CalculatorGuide from '../../components/CalculatorGuide.astro';
 import { CALCULATORS, CATEGORIES } from '../../data/calculators';
+import { STROMPREIS_CENT_PRO_KWH, STROMPREIS_EURO_PRO_KWH } from '../../../public/scripts/strompreis.js';
+import { berechnePhotovoltaik } from '../../../public/scripts/photovoltaik.js';
 const calc = CALCULATORS.find(c => c.slug === 'photovoltaik-rechner')!;
 const cat = CATEGORIES[calc.category];
 const year = new Date().getFullYear();
+
+const euro = (b: number) => b.toLocaleString('de-DE', { maximumFractionDigits: 0 }) + ' €';
+const ct = (b: number) => b.toLocaleString('de-DE', { minimumFractionDigits: 1, maximumFractionDigits: 2 });
+const kwh = (b: number) => b.toLocaleString('de-DE') + ' kWh';
+
+// Die Beispielrechnung in FAQ und Fließtext kommt aus demselben Modul wie das
+// Ergebnis oben – sonst laufen Text und Rechner beim nächsten Datenupdate
+// wieder auseinander.
+const BEISPIEL = { leistungKwp: 8, investition: 14000, strompreis: STROMPREIS_EURO_PRO_KWH, eigenverbrauchAnteil: 0.3 };
+const b = berechnePhotovoltaik(BEISPIEL);
+
+// Amortisationsspanne der angebotenen Anlagengrößen – der Fließtext nannte sie
+// bisher als feste Zahl und lag nach jeder Preisänderung daneben.
+const amortJahre = [[5, 9000], [10, 17000]].map(([leistungKwp, investition]) =>
+  berechnePhotovoltaik({ ...BEISPIEL, leistungKwp, investition }).amortJahre);
+const amortSpanne = `${Math.min(...amortJahre)} bis ${Math.max(...amortJahre)}`;
 ---
 <Layout
   title={`Photovoltaik-Rechner ${year}`}
@@ -22,12 +40,12 @@ const year = new Date().getFullYear();
   <CalculatorShell
     calculator={calc}
     intro="Berechnen Sie Amortisationszeit, Jahresertrag und Überschuss Ihrer PV-Anlage über 25 Jahre – mit der Einspeisevergütung, die seit August 2026 gilt, und mit den laufenden Betriebskosten."
-    sourceNote="950 kWh je kWp und Jahr; Einspeisevergütung nach § 48 Abs. 2 EEG in der ab 1. August 2026 geltenden Höhe (7,70 ct/kWh bis 10 kWp), Betriebskosten 1 % der Investition pro Jahr."
+    sourceNote={`950 kWh je kWp und Jahr; Einspeisevergütung nach § 48 Abs. 2 EEG in der ab 1. August 2026 geltenden Höhe (7,70 ct/kWh bis 10 kWp), Betriebskosten 1 % der Investition pro Jahr. Der voreingestellte Strompreis von ${ct(STROMPREIS_CENT_PRO_KWH)} ct/kWh ist der Haushaltsdurchschnitt 2026 nach der BDEW-Strompreisanalyse April 2026 (Datenstand 04/2026, abgerufen am 12.08.2026).`}
     explanation="Der Ertrag liegt im deutschen Mittel bei 950 kWh je kWp und Jahr. Die Einspeisevergütung zahlt der Netzbetreiber nach § 25 EEG 20 Jahre lang; danach bleibt nur noch die Ersparnis beim Stromzukauf. Die Sätze sinken nach § 49 EEG zum 1. Februar und 1. August um je 1 Prozent – maßgeblich ist der Satz bei Inbetriebnahme, der dann für die gesamten 20 Jahre gilt."
     faqs={[
-      { q: "Wie rechnet sich eine PV-Anlage wirtschaftlich?", a: "Eine 8-kWp-Anlage für 14.000 € erzeugt rund 7.600 kWh im Jahr. Bei 30 % Eigenverbrauch (2.280 kWh) und 31 ct/kWh Strompreis spart sie 707 € Stromkosten, für die eingespeisten 5.320 kWh kommen 410 € Vergütung dazu. Abzüglich rund 140 € Betriebskosten bleiben 976 € im Jahr – die Anlage ist nach 15 Jahren bezahlt." },
-      { q: "Lohnt sich eine PV-Anlage für mein Dach?", a: "Ja, wenn: Dach südlich/westlich ausgerichtet, keine Verschattung (Bäume, Gebäude), Hausdach/Flachdach stabil. Unrentabel bei Norddächern oder viel Verschattung. Auch kleine Anlagen ab 5 kWp rechnen sich, brauchen aber je nach Eigenverbrauch 15 bis 18 Jahre bis zur Amortisation." },
-      { q: "Was ist der Unterschied zwischen Eigenverbrauch und Netzeinspeisung?", a: "Eigenverbrauch heißt: Sie nutzen den Strom selbst und sparen den Zukauf – jede Kilowattstunde ist so viel wert wie Ihr Strompreis, derzeit rund 31 ct. Einspeisung bringt dagegen nur die EEG-Vergütung von 7,70 ct/kWh (Anlagen bis 10 kWp, Inbetriebnahme ab August 2026). Eigenverbrauch ist also gut viermal so viel wert – deshalb lohnen sich Speicher und Wärmepumpe." },
+      { q: "Wie rechnet sich eine PV-Anlage wirtschaftlich?", a: `Eine 8-kWp-Anlage für ${euro(BEISPIEL.investition)} erzeugt rund ${kwh(b.jahresertragKwh)} im Jahr. Bei 30 % Eigenverbrauch (${kwh(b.eigenverbrauchKwh)}) und ${ct(STROMPREIS_CENT_PRO_KWH)} ct/kWh Strompreis spart sie ${euro(b.einsparungStrom)} Stromkosten, für die eingespeisten ${kwh(b.einspeisungKwh)} kommen ${euro(b.einspeiseerloese)} Vergütung dazu. Abzüglich rund ${euro(b.betriebskosten)} Betriebskosten bleiben ${euro(b.jahresueberschuss)} im Jahr – die Anlage ist nach ${b.amortJahre} Jahren bezahlt.` },
+      { q: "Lohnt sich eine PV-Anlage für mein Dach?", a: `Ja, wenn: Dach südlich/westlich ausgerichtet, keine Verschattung (Bäume, Gebäude), Hausdach/Flachdach stabil. Unrentabel bei Norddächern oder viel Verschattung. Auch kleine Anlagen ab 5 kWp rechnen sich – bei ${ct(STROMPREIS_CENT_PRO_KWH)} ct/kWh Strompreis und 30 % Eigenverbrauch dauert die Amortisation ${amortSpanne} Jahre. Wer mehr Strom selbst verbraucht, ist schneller durch, wer weniger verbraucht, entsprechend langsamer.` },
+      { q: "Was ist der Unterschied zwischen Eigenverbrauch und Netzeinspeisung?", a: `Eigenverbrauch heißt: Sie nutzen den Strom selbst und sparen den Zukauf – jede Kilowattstunde ist so viel wert wie Ihr Strompreis, im Haushaltsdurchschnitt ${ct(STROMPREIS_CENT_PRO_KWH)} ct. Einspeisung bringt dagegen nur die EEG-Vergütung von 7,70 ct/kWh (Anlagen bis 10 kWp, Inbetriebnahme ab August 2026). Eigenverbrauch ist also fast fünfmal so viel wert – deshalb lohnen sich Speicher und Wärmepumpe.` },
       { q: "Brauche ich einen Stromspeicher (Batterie)?", a: "Nicht zwingend. Ohne Speicher nutzen Sie ~30% des PV-Stroms selbst, der Rest wird eingespeist. Mit Speicher (8-10 kWh = 5.000€+): 60-70% Eigenverbrauch möglich. ROI: 15-20 Jahre. Speicher lohnt sich bei hohem Strompreis und guter Ausnutzung." },
       { q: "Wie lange leben Solarmodule?", a: "Moderne Module halten 30-40 Jahre. Nach 25 Jahren: 85-90% Leistung. Wechselrichter halten 10-15 Jahre und müssen erneuert werden (~2.500€ für 8 kWp). Nach 20 Jahren fallen Kosten für Wechselrichter-Tausch an." },
       { q: "Welche staatlichen Zuschüsse gibt es?", a: "Der wichtigste Vorteil ist der Nullsteuersatz nach § 12 Abs. 3 UStG: Seit 1. Januar 2023 fällt auf Lieferung und Installation einer Anlage bis 30 kWp keine Umsatzsteuer an – das sind 19 % weniger auf den Angebotspreis. Dazu kommen zinsgünstige KfW-Kredite und regionale Zuschüsse, die je nach Bundesland und Kommune stark schwanken. Vor der Beauftragung beim eigenen Netzbetreiber und der Kommune nachfragen." }
@@ -45,7 +63,7 @@ const year = new Date().getFullYear();
         </div>
         <div class="calc-group">
           <label for="strompreis">Strompreis (€/kWh)</label>
-          <input type="number" id="strompreis" min="0.10" max="1.00" value="0.31" step="0.01" />
+          <input type="number" id="strompreis" min="0.10" max="1.00" value={STROMPREIS_EURO_PRO_KWH.toFixed(2)} step="0.01" />
         </div>
         <div class="calc-group">
           <label for="eigenverbrauch">Eigenverbrauch (%)</label>
@@ -71,7 +89,7 @@ const year = new Date().getFullYear();
 
   <CalculatorGuide
     title="Solaranlagen wirtschaftlich planen"
-    content={`<p>Photovoltaikanlagen sind für Hauseigentümer weiterhin eine rentable Investition, aber die Rechnung ist enger geworden: Die Einspeisevergütung sinkt nach § 49 EEG halbjährlich um ein Prozent und liegt für neue Anlagen bis 10 kWp seit dem 1. August 2026 bei 7,70 ct/kWh. Eine Anlage von 5 bis 10 kWp amortisiert sich damit typischerweise in 15 bis 18 Jahren und läuft danach weitere 15 bis 20 Jahre – nicht kostenlos, aber mit geringen laufenden Kosten.</p>
+    content={`<p>Photovoltaikanlagen sind für Hauseigentümer weiterhin eine rentable Investition, aber die Rechnung ist enger geworden: Die Einspeisevergütung sinkt nach § 49 EEG halbjährlich um ein Prozent und liegt für neue Anlagen bis 10 kWp seit dem 1. August 2026 bei 7,70 ct/kWh. Eine Anlage von 5 bis 10 kWp amortisiert sich beim heutigen Strompreis von ${ct(STROMPREIS_CENT_PRO_KWH)} ct/kWh in ${amortSpanne} Jahren und läuft danach weitere 15 bis 20 Jahre – nicht kostenlos, aber mit geringen laufenden Kosten. Der Strompreis ist dabei der empfindlichste Hebel: Er bestimmt, was jede selbst verbrauchte Kilowattstunde wert ist, und wiegt damit deutlich schwerer als die Einspeisevergütung.</p>
 
 <p><strong>Die Vergütung endet nach 20 Jahren:</strong> Nach § 25 EEG zahlt der Netzbetreiber die Einspeisevergütung 20 Jahre lang, gerechnet ab dem Jahr nach der Inbetriebnahme. Maßgeblich ist der Satz, der bei Inbetriebnahme gilt – er bleibt für die vollen 20 Jahre unverändert, spätere Absenkungen betreffen Sie nicht mehr. Nach Ablauf bleibt die Ersparnis beim Stromzukauf; für den eingespeisten Rest gibt es dann nur noch, was ein Direktvermarkter zahlt. Wirtschaftlichkeitsrechnungen, die 25 Jahre lang Vergütung unterstellen, schönen das Ergebnis um mehrere tausend Euro.</p>
 
@@ -79,11 +97,11 @@ const year = new Date().getFullYear();
 
 <p><strong>Größer ist nicht anteilig besser:</strong> Oberhalb von 10 kWp sinkt die Vergütung auf 6,66 ct/kWh. Dabei gilt der niedrigere Satz nicht rückwirkend für die ganze Anlage – nach § 48 Abs. 2 EEG wird anteilig gemischt: Bei 15 kWp werden die ersten 10 kWp mit 7,70 ct und die restlichen 5 kWp mit 6,66 ct vergütet, im Schnitt also 7,35 ct/kWh. Eine größere Anlage lohnt sich trotzdem, wenn Sie den Mehrertrag selbst verbrauchen – über die Einspeisung allein trägt sie sich schlechter als eine kleine.</p>
 
-<p><strong>Eigenverbrauch optimieren:</strong> Ohne Speicher nutzen Sie etwa 30 % des PV-Stroms selbst (wenn tagsüber wenig im Haus verbraucht wird), der Rest wird ins Netz eingespeist. Mit Stromspeicher (Batterie 5-10 kWh) steigt der Eigenverbrauch auf 50-70 %. Ein Stromspeicher kostet extra ca. 5.000-8.000 €, rechnet sich aber bei hohem Strompreis (über 40 ct/kWh) in 15-20 Jahren. Noch besser: Wärmepumpe oder Wärmespeicher nutzen tagsüber den PV-Strom direkt.</p>
+<p><strong>Eigenverbrauch optimieren:</strong> Ohne Speicher nutzen Sie etwa 30 % des PV-Stroms selbst (wenn tagsüber wenig im Haus verbraucht wird), der Rest wird ins Netz eingespeist. Mit Stromspeicher (Batterie 5-10 kWh) steigt der Eigenverbrauch auf 50-70 %. Ein Stromspeicher kostet extra ca. 5.000-8.000 €. Ob er sich trägt, hängt am Strompreis: Jede zusätzlich selbst verbrauchte Kilowattstunde ist die Differenz zwischen Strompreis (im Haushaltsdurchschnitt ${ct(STROMPREIS_CENT_PRO_KWH)} ct/kWh) und Einspeisevergütung (7,70 ct/kWh) wert, derzeit also rund ${ct(STROMPREIS_CENT_PRO_KWH - 7.7)} ct. Noch besser als ein Speicher: Wärmepumpe oder Warmwasserspeicher nutzen tagsüber den PV-Strom direkt, ohne Umweg über eine Batterie.</p>
 
 <p><strong>Standort und Ausrichtung entscheidend:</strong> Südausrichtung ist ideal, West- oder Ostausrichtung ist mit 80-90 % Ertrag fast genauso gut. Norddächer sind wirtschaftlich unrentabel. Wichtig: Keine Verschattung durch Bäume, Nachbargebäude oder Schornsteine – selbst 10 % Schatten reduzieren den Ertrag um 30-40 %. Ein Fachmann kann vor der Installation mit einer Verschattungsanalyse prüfen, ob Ihr Dach geeignet ist.</p>
 
-<p><strong>Wirtschaftliche Bewertung über 25 Jahre:</strong> Eine 8-kWp-Anlage für 14.000 € erzeugt über 25 Jahre rund 179.000 kWh – die Module verlieren jährlich etwa 0,5 % Leistung. Bei 30 % Eigenverbrauch und einem Strompreis von 31 ct/kWh ergibt das rund 16.650 € ersparte Stromkosten plus 7.820 € Einspeisevergütung in den ersten 20 Jahren. Davon gehen etwa 140 € pro Jahr für Versicherung, Wartung, Zählermiete und die Rücklage für den Wechselrichter ab, der nach 10 bis 15 Jahren fällig wird. Unter dem Strich bleiben knapp 7.000 € Überschuss auf 14.000 € Einsatz. Das ist solide, aber deutlich weniger, als Rechnungen ohne Betriebskosten und mit 25 Jahren Vergütung ausweisen. Steigt der Strompreis, verschiebt sich das Ergebnis nach oben – dieser Rechner rechnet bewusst mit konstanten Preisen.</p>
+<p><strong>Wirtschaftliche Bewertung über 25 Jahre:</strong> Eine 8-kWp-Anlage für ${euro(BEISPIEL.investition)} erzeugt im ersten Jahr ${kwh(b.jahresertragKwh)} und danach jährlich etwa 0,5 % weniger, weil die Module altern. Bei 30 % Eigenverbrauch und einem Strompreis von ${ct(STROMPREIS_CENT_PRO_KWH)} ct/kWh spart sie im ersten Jahr ${euro(b.einsparungStrom)} Stromkosten und bringt ${euro(b.einspeiseerloese)} Einspeisevergütung. Davon gehen ${euro(b.betriebskosten)} pro Jahr für Versicherung, Wartung, Zählermiete und die Rücklage für den Wechselrichter ab, der nach 10 bis 15 Jahren fällig wird. Bezahlt ist die Anlage nach ${b.amortJahre} Jahren; über 25 Jahre bleiben unter dem Strich ${euro(b.ueberschuss25j)} Überschuss auf ${euro(BEISPIEL.investition)} Einsatz – wobei die Einspeisevergütung nur in den ersten 20 Jahren fließt. Das ist solide, aber deutlich weniger, als Rechnungen ohne Betriebskosten und mit 25 Jahren Vergütung ausweisen. Steigt der Strompreis, verschiebt sich das Ergebnis nach oben – dieser Rechner rechnet bewusst mit konstanten Preisen.</p>
 
 <p><strong>Zukunftssicherheit und Regelwerk:</strong> PV-Anlagen haben eine Garantie von 25 Jahren (Module: 90 % Leistung garantiert). Der Wechselrichter muss nach 10-15 Jahren erneuert werden. Der Nullsteuersatz auf Kauf und Installation gilt bereits seit dem 1. Januar 2023 (§ 12 Abs. 3 UStG, eingeführt mit dem Jahressteuergesetz 2022) und erfasst Anlagen bis 30 kWp; das Solarpaket I von 2024 hat davon unabhängig die Anmeldung vereinfacht. Eine Genehmigung braucht es für ein normales Hausdach nicht – anzumelden ist die Anlage aber in jedem Fall beim Netzbetreiber und im Marktstammdatenregister der Bundesnetzagentur.</p>`}
     relatedSlugs={['stromspeicher-rechner', 'waermepumpe-rechner', 'solarspeicher-dimensionierung']}
@@ -111,12 +129,13 @@ const year = new Date().getFullYear();
 
 <script type="module">
 const { berechnePhotovoltaik } = await import(window.__base + 'scripts/photovoltaik.js');
+const { STROMPREIS_EURO_PRO_KWH } = await import(window.__base + 'scripts/strompreis.js');
 function fmt(n) { return n.toLocaleString('de-DE', {minimumFractionDigits:2, maximumFractionDigits:2}) + ' €'; }
 function fmtKwh(n) { return n.toLocaleString('de-DE') + ' kWh'; }
 function berechne() {
   const leistungKwp = parseFloat(document.getElementById('leistung').value)||8;
   const investition = parseFloat(document.getElementById('investition').value)||14000;
-  const strompreis = parseFloat(document.getElementById('strompreis').value)||0.31;
+  const strompreis = parseFloat(document.getElementById('strompreis').value)||STROMPREIS_EURO_PRO_KWH;
   const eigenverbrauchAnteil = (parseFloat(document.getElementById('eigenverbrauch').value)||30) / 100;
   const r = berechnePhotovoltaik({ leistungKwp, investition, strompreis, eigenverbrauchAnteil });
   document.getElementById('amort').textContent = r.amortJahre ? `${r.amortJahre} Jahre` : '> 30 Jahre';

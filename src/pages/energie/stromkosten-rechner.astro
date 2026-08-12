@@ -3,13 +3,41 @@ import Layout from '../../layouts/Layout.astro';
 import CalculatorShell from '../../components/CalculatorShell.astro';
 import CalculatorGuide from '../../components/CalculatorGuide.astro';
 import { CALCULATORS, CATEGORIES } from '../../data/calculators';
+import {
+  STROMPREIS_CENT_PRO_KWH,
+  STROMPREIS_QUELLE,
+  STROMPREIS_REFERENZVERBRAUCH_KWH,
+  STROMPREIS_BESTANDTEILE,
+  STROMPREIS_UMLAGEN,
+  STROMPREIS_AMTLICH,
+  stromkostenProJahr,
+} from '../../../public/scripts/strompreis.js';
 const calc = CALCULATORS.find(c => c.slug === 'stromkosten-rechner')!;
 const cat = CATEGORIES[calc.category];
 const year = new Date().getFullYear();
+
+const euro = (b: number) => b.toLocaleString('de-DE', { maximumFractionDigits: 0 }) + ' €';
+const euro2 = (b: number) => b.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
+const ct = (b: number) => b.toLocaleString('de-DE', { minimumFractionDigits: 1, maximumFractionDigits: 3 });
+const kwh = (b: number) => b.toLocaleString('de-DE') + ' kWh';
+
+const HAUSHALTE = [
+  { label: '1 Person', verbrauchKwh: 1500 },
+  { label: '2 Personen', verbrauchKwh: 2500 },
+  { label: '3 Personen', verbrauchKwh: 3500 },
+  { label: '4 Personen', verbrauchKwh: 4500 },
+  { label: '5+ Personen', verbrauchKwh: 5500 },
+];
+
+// Die Vergleichstabelle entsteht zur Buildzeit aus demselben Modul, mit dem
+// der Rechner im Browser arbeitet. Text und Ergebnis können so nicht mehr
+// auseinanderlaufen – genau daran war diese Seite vorher gescheitert.
+const vergleich = HAUSHALTE.map(h => ({ ...h, ...stromkostenProJahr({ verbrauchKwh: h.verbrauchKwh }) }));
+const musterhaushalt = stromkostenProJahr({ verbrauchKwh: STROMPREIS_REFERENZVERBRAUCH_KWH });
 ---
 <Layout
   title={`Stromkosten-Rechner ${year}`}
-  description="Stromkosten 2026 berechnen: Jahresverbrauch in Euro umrechnen mit aktuellem Strompreis (36-40 ct/kWh). Vergleichstabelle für 1-5-Personen-Haushalte und konkrete Spartipps."
+  description={`Stromkosten ${year} berechnen: Jahresverbrauch in Euro umrechnen mit dem durchschnittlichen Haushaltsstrompreis von ${ct(STROMPREIS_CENT_PRO_KWH)} ct/kWh (${STROMPREIS_QUELLE}). Vergleichstabelle für 1-5-Personen-Haushalte und konkrete Spartipps.`}
   canonicalPath="/energie/stromkosten-rechner/"
   categoryColor={cat.color}
   categoryLight={cat.colorLight}
@@ -22,15 +50,16 @@ const year = new Date().getFullYear();
   <CalculatorShell
     calculator={calc}
     intro="Berechnen Sie Ihre jährlichen Stromkosten aus Verbrauch und Strompreis. So erkennen Sie Einsparpotenzial und können Angebote verschiedener Stromanbieter vergleichen."
-    sourceNote="Kosten = Verbrauch × Preis."
-    explanation="Der deutsche Durchschnittsstrompreis liegt bei ca. 35-45 Cent pro kWh inklusive aller Abgaben und Umlagen. Ein typischer Haushalt verbraucht 2.500-4.000 kWh pro Jahr."
+    sourceNote={`Kosten = Verbrauch × Preis. Voreingestellt sind ${ct(STROMPREIS_CENT_PRO_KWH)} ct/kWh – der durchschnittliche Strompreis für Haushalte 2026 nach der BDEW-Strompreisanalyse April 2026 (Datenstand 04/2026, abgerufen am 12.08.2026), bezogen auf einen Jahresverbrauch von ${kwh(STROMPREIS_REFERENZVERBRAUCH_KWH)} und einschließlich des anteiligen Grundpreises.`}
+    explanation={`Der durchschnittliche Haushaltsstrompreis liegt 2026 bei ${ct(STROMPREIS_CENT_PRO_KWH)} ct/kWh einschließlich aller Steuern, Abgaben und Umlagen sowie des anteiligen Grundpreises. Ein typischer Haushalt verbraucht 1.500 bis 5.500 kWh im Jahr, je nach Personenzahl.`}
     faqs={[
       { q: "Was ist eine kWh?", a: "Eine Kilowatt-Stunde (kWh) ist die Energiemenge, die ein 1 kW-Gerät in einer Stunde verbraucht. Beispiel: Ein 100W-Gerät verbraucht in 10 Stunden 1 kWh. Der Stromzähler zeigt den Verbrauch in kWh." },
       { q: "Wie hoch ist ein durchschnittlicher Stromverbrauch?", a: "1-Person-Haushalt: 1.500 kWh/Jahr, 2-Person: 2.500 kWh, 3-Person: 3.500 kWh, 4-Person: 4.500 kWh. Mit elektrischer Heizung oder Wärmepumpe kann der Verbrauch verdoppeln sich." },
-      { q: "Warum sind meine Stromkosten höher als berechnet?", a: "Der Grundpreis! Der Rechner zeigt nur die Stromkosten (kWh × Preis). Der Gesamtpreis in der Rechnung enthält auch die monatliche Grundgebühr (ca. 10-20€/Monat). Zusätzlich kommt Mehrwertsteuer hinzu." },
+      { q: "Ist der Grundpreis im Ergebnis enthalten?", a: `Anteilig ja. Der voreingestellte Durchschnittspreis von ${ct(STROMPREIS_CENT_PRO_KWH)} ct/kWh ist ein Vollpreis: Der BDEW legt ihn auf einen Jahresverbrauch von ${kwh(STROMPREIS_REFERENZVERBRAUCH_KWH)} um und rechnet die monatliche Grundgebühr darin ein, ebenso die Mehrwertsteuer. Sie dürfen den Grundpreis also nicht noch einmal aufschlagen. Zwei Einschränkungen: Bei deutlich kleinerem Verbrauch verteilt sich der Grundpreis auf weniger Kilowattstunden, die Rechnung fällt dann etwas zu niedrig aus – bei sehr großem Verbrauch umgekehrt. Und wer den Arbeitspreis aus der eigenen Rechnung einträgt, muss den Grundpreis selbst dazurechnen.` },
       { q: "Wie kann ich Strom sparen?", a: "LED-Lampen statt Glühbirnen, Geräte ausschalten (nicht nur Stand-by), Kühlschrank nicht neben Herd stellen, duschen statt baden (falls Boiler), Waschamaschine nur voll laden, bei neuen Geräten auf Effizienzklasse achten." },
       { q: "Lohnt sich eine Wärmepumpe wirtschaftlich?", a: "Bei hohen Strompreisen und altér Heizung: Ja. Wärmepumpen brauchen ca. 3x weniger Energie als Heizöl/Gas-Heizungen (COP 3-4). Mit Solaranlage noch besser. Kosten: 10.000-30.000€, amortisiert sich in 10-15 Jahren." },
-      { q: "Wie hat sich der Strompreis in Deutschland entwickelt?", a: "2020: ca. 31 ct/kWh, 2022 (Energiekrise): bis 50 ct/kWh, 2023: 38-42 ct/kWh, 2024: 35-40 ct/kWh, 2025: 34-38 ct/kWh, 2026: 36-40 ct/kWh. Der Preisanstieg kommt vor allem durch steigende Netzentgelte und den Ausbau der Stromnetze. Langfristig könnten Erneuerbare den Preis stabilisieren." },
+      { q: "Wie hoch ist der Strompreis 2026 wirklich?", a: `Es kommt darauf an, welche Zahl gemeint ist. Der BDEW ermittelt für 2026 einen Durchschnitt von ${ct(STROMPREIS_CENT_PRO_KWH)} ct/kWh – das ist der Preis der Tarife, die Sie heute abschließen können. Das Statistische Bundesamt kommt für das ${STROMPREIS_AMTLICH.zeitraum} auf ${ct(STROMPREIS_AMTLICH.centProKwh)} ct/kWh, weil es misst, was Haushalte in ihren bestehenden Verträgen tatsächlich zahlen. Die Lücke von rund ${ct(Math.round((STROMPREIS_AMTLICH.centProKwh - STROMPREIS_CENT_PRO_KWH) * 10) / 10)} ct/kWh ist ungefähr das, was ein Tarifwechsel bringen kann – bei ${kwh(STROMPREIS_REFERENZVERBRAUCH_KWH)} sind das gut ${euro(Math.round((STROMPREIS_AMTLICH.centProKwh - STROMPREIS_CENT_PRO_KWH) * STROMPREIS_REFERENZVERBRAUCH_KWH / 100))} im Jahr.` },
+      { q: "Warum ist der Strompreis 2026 gesunken?", a: `Vor allem wegen der Netzentgelte: Sie liegen 2026 bei ${ct(STROMPREIS_BESTANDTEILE.netzentgelt)} ct/kWh und damit 1,6 ct/kWh niedriger als im Vorjahr, weil der Bund seit 2026 einen Zuschuss zu den Übertragungsnetzentgelten zahlt. Auch Beschaffung und Vertrieb sind mit ${ct(STROMPREIS_BESTANDTEILE.beschaffungUndVertrieb)} ct/kWh leicht günstiger. Die Steuern, Abgaben und Umlagen sind mit ${ct(Math.round(STROMPREIS_BESTANDTEILE.steuernAbgabenUmlagen * 10) / 10)} ct/kWh unverändert geblieben.` },
       { q: "Welche Haushaltsgeräte verbrauchen am meisten Strom?", a: "Die größten Stromfresser: 1. Warmwasserboiler (800-1.500 kWh/a), 2. Kühl-Gefrierkombination (200-400 kWh/a), 3. Waschmaschine + Trockner (300-500 kWh/a), 4. Geschirrspüler (200-300 kWh/a), 5. Beleuchtung (200-400 kWh/a). Ein alter Kühlschrank (Klasse D) verbraucht bis 3x mehr als ein neues A-Gerät." }
     ]}
   >
@@ -52,7 +81,7 @@ const year = new Date().getFullYear();
         </div>
         <div class="calc-group">
           <label for="preis">Strompreis (Cent/kWh)</label>
-          <input type="number" id="preis" min="0" max="100" value="31" step="0.1" />
+          <input type="number" id="preis" min="0" max="100" value={STROMPREIS_CENT_PRO_KWH} step="0.1" />
         </div>
       </div>
       <div class="calc-result">
@@ -65,66 +94,45 @@ const year = new Date().getFullYear();
 
   <CalculatorGuide
     title="Stromkosten verstehen und optimieren"
-    content={`<p>Der <strong>Strompreis</strong> setzt sich aus mehreren Komponenten zusammen:
+    content={`<p>Der durchschnittliche Strompreis für Haushalte liegt 2026 bei <strong>${ct(STROMPREIS_CENT_PRO_KWH)} ct/kWh</strong>. Die Zahl stammt aus der BDEW-Strompreisanalyse April 2026 und bezieht sich auf einen Musterhaushalt mit ${kwh(STROMPREIS_REFERENZVERBRAUCH_KWH)} Jahresverbrauch; der Grundpreis ist anteilig eingerechnet. So verteilt sich der Preis:</p>
 <ul>
-  <li><strong>Strombeschaffung:</strong> 40-50% des Preises (Erzeugung + Großhandel)</li>
-  <li><strong>Netznutzung:</strong> 20-30% (Stromleitungen)</li>
-  <li><strong>Steuern & Abgaben:</strong> 20-30% (MwSt. 19%, EEG-Umlage 3,67 Cent)</li>
-  <li><strong>Betriebskosten:</strong> 5-10% (Verwaltung, Kundenservice)</li>
+  <li><strong>Strombeschaffung und Vertrieb:</strong> ${ct(STROMPREIS_BESTANDTEILE.beschaffungUndVertrieb)} ct/kWh (41,3 %)</li>
+  <li><strong>Netzentgelt:</strong> ${ct(STROMPREIS_BESTANDTEILE.netzentgelt)} ct/kWh (24,9 %)</li>
+  <li><strong>Steuern, Abgaben und Umlagen:</strong> ${ct(Math.round(STROMPREIS_BESTANDTEILE.steuernAbgabenUmlagen * 10) / 10)} ct/kWh (33,9 %)</li>
 </ul>
-</p>
 
-<p><strong>Strompreis 2026:</strong> Der Durchschnittspreis liegt bei ca. 28-35 Cent/kWh (brutto), je nach Anbieter und Vertrag. 2023-2024 waren die Preise deutlich höher (über 50 Cent/kWh).</p>
+<p><strong>Die Abgaben im Einzelnen:</strong> Mehrwertsteuer ${ct(STROMPREIS_UMLAGEN.mehrwertsteuer)} ct/kWh, Stromsteuer ${ct(STROMPREIS_UMLAGEN.stromsteuer)} ct/kWh, Konzessionsabgabe ${ct(STROMPREIS_UMLAGEN.konzessionsabgabe)} ct/kWh, Aufschlag für besondere Netznutzung ${ct(STROMPREIS_UMLAGEN.besondereNetznutzung)} ct/kWh, Offshore-Netzumlage ${ct(STROMPREIS_UMLAGEN.offshoreNetzumlage)} ct/kWh und KWKG-Umlage ${ct(STROMPREIS_UMLAGEN.kwkgUmlage)} ct/kWh. Eine EEG-Umlage taucht hier nicht mehr auf: Sie wurde zum 1. Juli 2022 auf null gesetzt und ist seither kein Bestandteil des Strompreises. Der Ausbau der erneuerbaren Energien wird seitdem aus dem Bundeshaushalt finanziert.</p>
 
-<p><strong>So setzen sich die Jahreskosten zusammen (3-Person-Haushalt mit 3.500 kWh):</strong>
-<ul>
-  <li>Stromkosten (kWh): 3.500 × 0,30€ = 1.050€</li>
-  <li>Grundpreis (monatlich): 15€ × 12 = 180€</li>
-  <li>Gesamtkosten netto: 1.230€</li>
-  <li>Mit MwSt. (19%): ca. 1.464€ brutto pro Jahr</li>
-</ul>
-</p>
+<p><strong>Warum der Preis 2026 gesunken ist:</strong> Der Rückgang gegenüber dem Vorjahr geht fast vollständig auf die Netzentgelte zurück, die um 1,6 ct/kWh gefallen sind – der Bund bezuschusst seit 2026 die Übertragungsnetzentgelte. Beschaffung und Vertrieb sind leicht günstiger, die Steuern und Abgaben unverändert.</p>
 
-<p><strong>Energiewende-Komponenten:</strong> Die EEG-Umlage (seit 2023 abgebaut) finanzierte den Ausbau erneuerbarer Energien. Heute kommt der Strom zu ca. 50% aus Erneuerbaren (Wind, Solar, Wasser) und der Rest aus Gas, Kohle und Kernkraft-Restlaufzeiten (Stand 2025/2026). Erneuerbare Energien werden immer günstiger, die Netzentgelte steigen jedoch durch den notwendigen Netzausbau.</p>
-
-<h3>Stromkosten nach Haushaltsgröße im Vergleich (Stand 2026)</h3>
+<h3>Stromkosten nach Haushaltsgröße (${ct(STROMPREIS_CENT_PRO_KWH)} ct/kWh, Stand 2026)</h3>
 <table>
-<thead><tr><th>Haushalt</th><th>Verbrauch (kWh/a)</th><th>Kosten bei 36 ct/kWh</th><th>Kosten bei 40 ct/kWh</th><th>+ Grundpreis (180 €/a)</th></tr></thead>
+<thead><tr><th>Haushalt</th><th>Verbrauch (kWh/a)</th><th>Kosten pro Jahr</th><th>Kosten pro Monat</th></tr></thead>
 <tbody>
-<tr><td>1 Person</td><td>1.500</td><td>540 €</td><td>600 €</td><td>720 – 780 €</td></tr>
-<tr><td>2 Personen</td><td>2.500</td><td>900 €</td><td>1.000 €</td><td>1.080 – 1.180 €</td></tr>
-<tr><td>3 Personen</td><td>3.500</td><td>1.260 €</td><td>1.400 €</td><td>1.440 – 1.580 €</td></tr>
-<tr><td>4 Personen</td><td>4.500</td><td>1.620 €</td><td>1.800 €</td><td>1.800 – 1.980 €</td></tr>
-<tr><td>5+ Personen</td><td>5.500</td><td>1.980 €</td><td>2.200 €</td><td>2.160 – 2.380 €</td></tr>
+${vergleich.map(z => `<tr><td>${z.label}</td><td>${z.verbrauchKwh.toLocaleString('de-DE')}</td><td>${euro2(z.jahr)}</td><td>${euro2(z.monat)}</td></tr>`).join('\n')}
 </tbody>
 </table>
-<p><small>Grundpreis variiert je nach Anbieter zwischen 120 und 240 Euro pro Jahr. In der Tabelle wurde ein Mittelwert von 180 Euro angesetzt.</small></p>
+<p><small>Der Grundpreis ist in den ${ct(STROMPREIS_CENT_PRO_KWH)} ct/kWh bereits anteilig enthalten und wird nicht zusätzlich addiert. Genau aufgeht die Rechnung beim Musterhaushalt mit ${kwh(STROMPREIS_REFERENZVERBRAUCH_KWH)} (${euro2(musterhaushalt.jahr)} im Jahr). Bei ${kwh(1500)} verteilt sich der Grundpreis auf weniger Kilowattstunden – dort liegen die tatsächlichen Kosten etwas über dem Tabellenwert, bei ${kwh(5500)} etwas darunter.</small></p>
 
-<h3>Strompreisentwicklung in Deutschland (2019–2026)</h3>
+<h3>Zwei offizielle Zahlen, zwei Bedeutungen</h3>
 <table>
-<thead><tr><th>Jahr</th><th>Durchschnittspreis (ct/kWh brutto)</th><th>Veränderung zum Vorjahr</th></tr></thead>
+<thead><tr><th>Quelle</th><th>Zeitraum</th><th>Preis</th><th>Was gemessen wird</th></tr></thead>
 <tbody>
-<tr><td>2019</td><td>30,5</td><td>—</td></tr>
-<tr><td>2020</td><td>31,4</td><td>+3,0 %</td></tr>
-<tr><td>2021</td><td>31,9</td><td>+1,6 %</td></tr>
-<tr><td>2022</td><td>42,0</td><td>+31,7 % (Energiekrise)</td></tr>
-<tr><td>2023</td><td>38,5</td><td>-8,3 %</td></tr>
-<tr><td>2024</td><td>36,5</td><td>-5,2 %</td></tr>
-<tr><td>2025</td><td>35,8</td><td>-1,9 %</td></tr>
-<tr><td>2026</td><td>37,5 (Prognose)</td><td>+4,7 % (Netzentgelte)</td></tr>
+<tr><td>BDEW-Strompreisanalyse</td><td>2026 (Datenstand 04/2026)</td><td>${ct(STROMPREIS_CENT_PRO_KWH)} ct/kWh</td><td>Tarife, die heute abschließbar sind – Tarifprodukte und Grundversorgung, gewichtet nach der Vertragsstruktur der Bundesnetzagentur, Musterhaushalt ${kwh(STROMPREIS_REFERENZVERBRAUCH_KWH)}</td></tr>
+<tr><td>Statistisches Bundesamt</td><td>${STROMPREIS_AMTLICH.zeitraum}</td><td>${ct(STROMPREIS_AMTLICH.centProKwh)} ct/kWh</td><td>Was Haushalte in bestehenden Verträgen tatsächlich zahlen, mengengewichtet, Verbrauchsband ${STROMPREIS_AMTLICH.verbrauchsband}</td></tr>
 </tbody>
 </table>
-<p>Der leichte Anstieg 2026 erklärt sich vor allem durch steigende Netzentgelte: Der Ausbau der Stromnetze für die Energiewende (Süd-Nord-Trassen, Offshore-Anbindungen) wird über die Netznutzungsgebühren auf die Verbraucher umgelegt. Die reinen Erzeugungskosten sinken dagegen weiter, insbesondere bei Solar- und Windstrom.</p>
+<p>Beide Zahlen sind korrekt und messen Verschiedenes. Der amtliche Wert liegt höher, weil viele Haushalte in älteren, teureren Verträgen und in der Grundversorgung sitzen. Die Differenz ist deshalb keine statistische Unschärfe, sondern der ungefähre Betrag, den ein Tarifwechsel bringen kann.</p>
 
 <h3>Regionale Preisunterschiede in Deutschland</h3>
-<p>Strompreise variieren in Deutschland je nach Bundesland um bis zu 20 %. In Schleswig-Holstein und Mecklenburg-Vorpommern zahlen Verbraucher durchschnittlich 39-42 ct/kWh, da die Region viel Windstrom produziert, aber die Netzentgelte für den Abtransport nach Süden hoch sind. In Bayern und Baden-Württemberg liegen die Preise bei 35-38 ct/kWh, im Ruhrgebiet und Rheinland teils bei 33-36 ct/kWh (mehr Wettbewerb, dichteres Netz). Großstädte haben in der Regel günstigere Grundversorger als ländliche Regionen.</p>
+<p>Der Durchschnitt verdeckt erhebliche regionale Unterschiede, die vor allem aus den Netzentgelten kommen: Sie werden je Netzgebiet festgelegt und sind dort am höchsten, wo viel erneuerbare Erzeugung an wenige Abnehmer angeschlossen ist. Deshalb zahlen Haushalte im windreichen Norden und Osten traditionell mehr als im dicht besiedelten Westen. Der Bundeszuschuss zu den Übertragungsnetzentgelten dämpft diesen Unterschied ab 2026, hebt ihn aber nicht auf. Den Preis für Ihr Netzgebiet nennt Ihr Netzbetreiber; er steht auch auf Ihrer Stromrechnung.</p>
 
 <h3>Die 5 wirksamsten Strom-Spartipps mit konkreter Ersparnis</h3>
-<p><strong>1. Alte Kühl-Gefrierkombination ersetzen:</strong> Ein 15 Jahre alter Kühlschrank verbraucht 350-450 kWh/a, ein neues A-Gerät nur 100-150 kWh/a. Ersparnis: 80-120 Euro pro Jahr bei 38 ct/kWh. Die Investition (400-600 Euro) amortisiert sich in 4-6 Jahren.</p>
-<p><strong>2. LED-Beleuchtung komplett umstellen:</strong> 10 Halogenspots (je 50W, 3h/Tag) verbrauchen 548 kWh/a (208 Euro). Ersetzt durch LED (je 5W): 55 kWh/a (21 Euro). Ersparnis: 187 Euro pro Jahr.</p>
-<p><strong>3. Stand-by konsequent abschalten:</strong> TV, Konsole, PC-Monitor, Router-Zweitgerät und Kaffeevollautomat im Stand-by verbrauchen zusammen 200-350 kWh/a. Mit Steckdosenleisten (schaltbar, 5-10 Euro) sparen Sie 75-130 Euro pro Jahr.</p>
-<p><strong>4. Waschmaschine bei 30 statt 60 Grad:</strong> Ein 60-Grad-Waschgang verbraucht ca. 1,2 kWh, bei 30 Grad nur 0,4 kWh. Bei 200 Waschgängen pro Jahr: Ersparnis 160 kWh = ca. 60 Euro.</p>
-<p><strong>5. Stromanbieter wechseln:</strong> Der Grundversorger ist fast immer teurer. Durch einen Wechsel zu einem günstigen Tarif sparen Sie oft 2-5 ct/kWh, bei 3.500 kWh also 70-175 Euro pro Jahr. Vergleichsportale zeigen aktuelle Angebote.</p>`}
+<p><strong>1. Alte Kühl-Gefrierkombination ersetzen:</strong> Ein 15 Jahre alter Kühlschrank verbraucht 350-450 kWh/a, ein neues A-Gerät nur 100-150 kWh/a. Bei ${ct(STROMPREIS_CENT_PRO_KWH)} ct/kWh sind das ${euro(250 * STROMPREIS_CENT_PRO_KWH / 100)} bis ${euro(300 * STROMPREIS_CENT_PRO_KWH / 100)} Ersparnis pro Jahr. Die Investition (400-600 Euro) amortisiert sich in 4-6 Jahren.</p>
+<p><strong>2. LED-Beleuchtung komplett umstellen:</strong> 10 Halogenspots (je 50 W, 3 h/Tag) verbrauchen 548 kWh/a, ersetzt durch LED (je 5 W) nur 55 kWh/a. Die eingesparten 493 kWh sind ${euro(493 * STROMPREIS_CENT_PRO_KWH / 100)} pro Jahr.</p>
+<p><strong>3. Stand-by konsequent abschalten:</strong> TV, Konsole, PC-Monitor, Router-Zweitgerät und Kaffeevollautomat im Stand-by verbrauchen zusammen 200-350 kWh/a. Mit schaltbaren Steckdosenleisten (5-10 Euro) sparen Sie ${euro(200 * STROMPREIS_CENT_PRO_KWH / 100)} bis ${euro(350 * STROMPREIS_CENT_PRO_KWH / 100)} pro Jahr.</p>
+<p><strong>4. Waschmaschine bei 30 statt 60 Grad:</strong> Ein 60-Grad-Waschgang verbraucht ca. 1,2 kWh, bei 30 Grad nur 0,4 kWh. Bei 200 Waschgängen pro Jahr sind das 160 kWh weniger, also ${euro(160 * STROMPREIS_CENT_PRO_KWH / 100)}.</p>
+<p><strong>5. Stromanbieter wechseln:</strong> Der Grundversorger ist fast immer teurer. Wie viel drin ist, zeigt der Abstand zwischen dem amtlichen Durchschnitt der Bestandsverträge (${ct(STROMPREIS_AMTLICH.centProKwh)} ct/kWh) und den heute abschließbaren Tarifen (${ct(STROMPREIS_CENT_PRO_KWH)} ct/kWh): bei ${kwh(STROMPREIS_REFERENZVERBRAUCH_KWH)} rund ${euro(Math.round((STROMPREIS_AMTLICH.centProKwh - STROMPREIS_CENT_PRO_KWH) * STROMPREIS_REFERENZVERBRAUCH_KWH / 100))} im Jahr.</p>`}
     relatedSlugs={['heizkosten-rechner', 'photovoltaik-rechner', 'waermepumpe-rechner']}
   />
 </Layout>
