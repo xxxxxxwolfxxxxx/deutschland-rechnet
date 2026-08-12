@@ -23,12 +23,12 @@ const year = new Date().getFullYear();
     calculator={calc}
     intro="Mit dem Grundbuch-Eintragung-Rechner berechnen Sie die Kosten für die Eintragung ins Grundbuch. So wissen Sie vorab, welche Notar- und Grundbuchgebühren bei Kauf, Umschuldung oder Erbschaft anfallen. Der Rechner zeigt Ihnen die gesetzlich festgelegten Gebühren aufgeschlüsselt nach Einzelposten."
     explanation="Die Gebühren für Grundbucheintragungen sind im Gerichts- und Notarkostengesetz (GNotKG) geregelt und nicht verhandelbar. Die Eintragung ist nach § 873 BGB Voraussetzung für den wirksamen Eigentumserwerb an Grundstücken. Ohne Grundbucheintragung findet kein Eigentumsübergang statt."
-    sourceNote="0,5-1% des Kaufpreises."
+    sourceNote="Wertgebühren nach Tabelle B (Anlage 2 zu § 34 GNotKG), Gebührensätze nach dem Kostenverzeichnis (Anlage 1 GNotKG). Umsatzsteuer nach KV 32014 nur auf die Notargebühr – Grundbuchgebühren sind Gerichtsgebühren und umsatzsteuerfrei."
     faqs={[
       { q: "Wann wird eine Grundbucheintragung notwendig?", a: "Bei jedem Immobilienkauf oder beim Aufnehmen eines Darlehens muss das Grundbuch aktualisiert werden. Auch bei Erbfällen oder Schenkungen ist eine Eintragung erforderlich. Dies dient der Rechtssicherheit für alle Beteiligten." },
       { q: "Was ist der Unterschied zwischen Hypothek und Grundschuld?", a: "Eine Hypothek ist direkt an die Schuld gebunden – ist diese getilgt, erlischt die Hypothek automatisch. Eine Grundschuld ist unabhängig von der Schuld und bleibt eingetragen, auch wenn das Darlehen abbezahlt ist – muss dann gelöscht werden." },
       { q: "Wie lange dauert eine Grundbucheintragung?", a: "Nach Notariatsurkundung dauert die Eintragung beim Grundbuchamt in der Regel 2-4 Wochen. In Ballungsgebieten kann es länger dauern. Die Bank zahlt den Kredit meist erst aus, wenn die Eintragung erfolgt ist." },
-      { q: "Kann ich die Kosten verhandeln?", a: "Die Gebühren für die Grundbucheintragung sind per Gesetz (GNotKG) festgelegt und können nicht verhandelt werden. Die Notargebühren dagegen sind in manchen Bundesländern gestaffelt – lohnt sich zu vergleichen." },
+      { q: "Kann ich die Kosten verhandeln?", a: "Nein. Sowohl die Grundbuchgebühren als auch die Notargebühren sind im GNotKG bundeseinheitlich festgelegt und für alle Notare identisch. Ein Preisvergleich zwischen Notaren bringt daher nichts: Vereinbarungen über die Höhe der Kosten sind nach § 125 GNotKG unwirksam. Beeinflussbar ist nur der Geschäftswert, etwa indem mitverkauftes Inventar im Kaufvertrag gesondert ausgewiesen wird." },
       { q: "Wer zahlt die Grundbucheintragung – Käufer oder Verkäufer?", a: "Üblicherweise trägt der Käufer die Kosten für Notariat und Grundbuchgebühren. Dies ist aber Verhandlungssache und kann im Kaufvertrag anders geregelt werden. Maklergebühren werden meist aufgeteilt." },
       { q: "Benötige ich eine Grundbucheintragung auch bei Umschuldung?", a: "Bei Umschuldung kann eine neue Eintragung nötig sein, wenn der alte Gläubiger nicht einverstanden ist oder die Bank das verlangt. Oft lässt sich eine Abtretung ohne neue Eintragung regeln – das ist günstiger." }
     ]}
@@ -36,52 +36,76 @@ const year = new Date().getFullYear();
     <div class="calc-form">
       <div class="calc-grid">
         <div class="calc-group">
-          <label for="betrag">Darlehensbetrag (€)</label>
-          <input type="number" id="betrag" min="10000" max="5000000" value="200000" step="5000" />
-        </div>
-        <div class="calc-group">
           <label for="typ">Eintragungsart</label>
           <select id="typ">
-            <option value="hypothek" selected>Hypothek</option>
-            <option value="grundschuld">Grundschuld</option>
-            <option value="rentenschuld">Rentenschuld</option>
+            <option value="grundschuldBuch" selected>Grundschuld/Hypothek als Buchrecht</option>
+            <option value="grundschuldBrief">Grundschuld/Hypothek als Briefrecht</option>
+            <option value="eigentuemer">Eigentümer eintragen (Kauf)</option>
+            <option value="auflassungsvormerkung">Auflassungsvormerkung eintragen</option>
+            <option value="loeschungVormerkung">Vormerkung löschen</option>
           </select>
+        </div>
+        <div class="calc-group">
+          <label for="betrag" id="betrag-label">Darlehensbetrag (€)</label>
+          <input type="number" id="betrag" min="0" max="30000000" value="200000" step="5000" />
+          <small id="wert-hinweis" style="color:var(--muted)"></small>
         </div>
       </div>
 
       <div class="calc-result">
-        <div class="label">Geschätzte Kosten</div>
+        <div class="label">Kosten der Eintragung</div>
         <div id="kosten">— €</div>
       </div>
-      <div id="details" style="margin-top:0.75rem;font-size:0.88rem;color:#666;display:flex;gap:1.5rem;flex-wrap:wrap;"></div>
+      <table class="result-table" style="width:100%;margin-top:0.75rem;font-size:0.92rem;">
+        <tbody id="aufstellung"></tbody>
+      </table>
     </div>
   </CalculatorShell>
 
   <CalculatorGuide
     title="Grundbuch verstehen und Eintragungen planen"
-    content="<p>Das Grundbuch ist eine offizielle Register aller Immobilien und ihrer Rechte. Jede Immobilie hat ein Grundbuchblatt, auf dem Eigentümer, Hypotheken, Grundschulden und andere Belastungen eingetragen sind. Eine Grundbucheintragung schafft Rechtssicherheit und ist bei Immobilienkauf, Kreditaufnahme oder Vererbung notwendig.</p>\n\n<p><strong>Eintragungsarten verstehen:</strong> Die häufigste Form ist die Grundschuld oder Hypothek als Sicherheit für ein Baudarlehen. Eine Hypothek ist zweckgebunden (an die Schuld gekoppelt), während eine Grundschuld flexibel ist und auch für andere Kredite genutzt werden kann. Dies erklärt die unterschiedlichen Gebühren im Rechner.</p>\n\n<p><strong>Kosten richtig kalkulieren:</strong> Die Gebühren für Grundbucheintragung bestehen aus Notargebühren und Grundbuchgebühren. Notare sind gesetzlich verpflichtet und schaffen Rechtssicherheit. Die Gebühren sind nach Kaufpreis gestaffelt – bei höheren Summen sinkt der Prozentsatz. Typischerweise fallen 1-2% des Kaufpreises an.</p>\n\n<p><strong>Wann die Eintragung erfolgt:</strong> Beim Hauskauf wird die Eintragung nach notarieller Beurkundung beim Grundbuchamt angemeldet. Dies dauert 2-4 Wochen. Die Bank gibt den Kredit erst frei, wenn die Eintragung erfolgt oder zumindest angemeldet ist. Ein Eintrag ins Grundbuch ist nicht öffentlich einsehbar – nur Eigentümer und Berechtigte können das sehen.</p>\n\n<p><strong>Sparpotenziale erkunden:</strong> Die Gebühren sind per Gesetz festgelegt und können nicht verhandelt werden. Allerdings: Sie können mit dem Kaufpreis verhandelt werden (z.B. Makler, Notarbeglaubigung für Möbel). Eine sorgfältige Vertragsgestaltung durch den Notar kann später Eintragungsprobleme vermeiden.</p>\n\n<p><strong>Besonderheiten und Irrtümer:</strong> Ein häufiger Irrtum ist, dass die Eintragung sofort erfolgt. Tatsächlich gibt es eine Bearbeitungsdauer. Auch: Die Eintragung ist NICHT öffentlich, anders als Flurkarte oder Katasterauszug. Wer Informationen braucht, muss einen beglaubigten Auszug beantragen.</p>"
+    content="<p>Das Grundbuch ist eine offizielle Register aller Immobilien und ihrer Rechte. Jede Immobilie hat ein Grundbuchblatt, auf dem Eigentümer, Hypotheken, Grundschulden und andere Belastungen eingetragen sind. Eine Grundbucheintragung schafft Rechtssicherheit und ist bei Immobilienkauf, Kreditaufnahme oder Vererbung notwendig.</p>\n\n<p><strong>Eintragungsarten verstehen:</strong> Die häufigste Form ist die Grundschuld oder Hypothek als Sicherheit für ein Baudarlehen. Eine Hypothek ist zweckgebunden (an die Schuld gekoppelt), während eine Grundschuld flexibel ist und auch für andere Kredite genutzt werden kann. Für die Gebühr ist dieser Unterschied allerdings unerheblich – teurer wird es nur als Briefrecht: Das Grundbuchamt berechnet für eine Briefgrundschuld eine 1,3-Gebühr (KV 14120) statt einer 1,0-Gebühr für das Buchrecht (KV 14121).</p>\n\n<p><strong>Kosten richtig kalkulieren:</strong> Die Gebühren für Grundbucheintragung bestehen aus Notargebühren und Grundbuchgebühren. Beide sind Wertgebühren nach Tabelle B des GNotKG: Aus dem Geschäftswert ergibt sich eine volle Gebühr, die das Kostenverzeichnis je Vorgang mit einem festen Satz multipliziert. Weil die Tabelle in immer größeren Stufen steigt, sinkt der Prozentsatz mit der Höhe des Werts. Für eine Grundschuld als Buchrecht sind es rund 0,6 % bei 100.000 € und nur noch etwa 0,4 % bei 1 Mio. €. Eigentumsumschreibung und Auflassungsvormerkung zusammen kosten beim Hauskauf rund 0,9 % des Kaufpreises bei 200.000 € und knapp 0,8 % bei 800.000 €. Der Rechner zeigt jeweils eine Eintragung mit der zugehörigen notariellen Gebühr; Vollzugs- und Betreuungsgebühren (KV 22110, 22200) sowie Auslagen kommen im Einzelfall hinzu.</p>\n\n<p><strong>Wann die Eintragung erfolgt:</strong> Beim Hauskauf wird die Eintragung nach notarieller Beurkundung beim Grundbuchamt angemeldet. Dies dauert 2-4 Wochen. Die Bank gibt den Kredit erst frei, wenn die Eintragung erfolgt oder zumindest angemeldet ist. Ein Eintrag ins Grundbuch ist nicht öffentlich einsehbar – nur Eigentümer und Berechtigte können das sehen.</p>\n\n<p><strong>Sparpotenziale erkunden:</strong> Die Gebühren sind per Gesetz festgelegt und können nicht verhandelt werden. Allerdings: Sie können mit dem Kaufpreis verhandelt werden (z.B. Makler, Notarbeglaubigung für Möbel). Eine sorgfältige Vertragsgestaltung durch den Notar kann später Eintragungsprobleme vermeiden.</p>\n\n<p><strong>Besonderheiten und Irrtümer:</strong> Ein häufiger Irrtum ist, dass die Eintragung sofort erfolgt. Tatsächlich gibt es eine Bearbeitungsdauer. Auch: Die Eintragung ist NICHT öffentlich, anders als Flurkarte oder Katasterauszug. Wer Informationen braucht, muss einen beglaubigten Auszug beantragen.</p>"
     relatedSlugs={['immobilienkauf-nebenkosten', 'hauskauf-rechner', 'grunderwerbsteuer-rechner']}
   />
 </Layout>
 
+<style>
+.result-table td { padding: 0.3rem 0; border-bottom: 1px solid var(--border); }
+.result-table tr:last-child td { border-bottom: none; font-weight: 600; }
+.result-table td:last-child { text-align: right; white-space: nowrap; }
+</style>
+
 <script type="module">
-function berechne() {
-  const betrag = parseFloat(document.getElementById('betrag').value)||200000;
-  const gebuehrSatz = 0.001 + 0.002;
-  const gebuehr = betrag * gebuehrSatz;
-  const notar = betrag * 0.01;
-  const grundbuch = betrag * 0.005;
-  const gesamt = notar + grundbuch + 20;
-  
-  document.getElementById('kosten').textContent = gesamt.toLocaleString('de-DE', {minimumFractionDigits:2}) + ' €';
-  document.getElementById('details').innerHTML =
-    `<span>Notarkosten: <strong>${notar.toLocaleString('de-DE')} €</strong></span>` +
-    `<span>Grundbuchgebühr: <strong>${grundbuch.toLocaleString('de-DE')} €</strong></span>` +
-    `<span>Beglaubigung: <strong>20 €</strong></span>` +
-    `<span>Gesamt: <strong>${gesamt.toLocaleString('de-DE')} €</strong></span>`;
+const { berechneGrundbuchkosten, EINTRAGUNGSARTEN } = await import(window.__base + 'scripts/grundbuch.js');
+function fmt(n) { return n.toLocaleString('de-DE', {minimumFractionDigits:2, maximumFractionDigits:2}) + ' €'; }
+function satzText(position) {
+  return position.festbetrag !== undefined
+    ? 'Festgebühr'
+    : position.satz.toLocaleString('de-DE', { minimumFractionDigits: 1 });
 }
-['betrag'].forEach(id =>
-  document.getElementById(id).addEventListener('input', berechne));
-document.getElementById('typ').addEventListener('change', berechne);
+function berechne() {
+  const art = document.getElementById('typ').value;
+  const geschaeftswert = parseFloat(document.getElementById('betrag').value) || 0;
+  const r = berechneGrundbuchkosten({ geschaeftswert, art });
+
+  document.getElementById('betrag-label').textContent = `${EINTRAGUNGSARTEN[r.art].wertLabel} (€)`;
+  document.getElementById('wert-hinweis').textContent = `Geschäftswert: ${r.wertGrundlage}`;
+  // Bei der Löschung ist die Grundbuchgebühr eine Festgebühr; der Anteil am
+  // Geschäftswert rundet dann auf 0 % und sagt nichts aus.
+  const zeigeProzent = r.gesamtProzent !== null && r.gesamtProzent >= 0.1;
+  document.getElementById('kosten').textContent = fmt(r.gesamt)
+    + (zeigeProzent ? ` (${r.gesamtProzent.toLocaleString('de-DE')} % des Werts)` : '');
+
+  const rows = [
+    [`Grundbuchamt: ${r.grundbuch.bezeichnung}`, `KV ${r.grundbuch.kv} · ${satzText(r.grundbuch)}`, fmt(r.grundbuch.betrag)],
+    [`Notar: ${r.notar.bezeichnung}`, `KV ${r.notar.kv} · ${satzText(r.notar)}`, fmt(r.notar.betrag)],
+    ['19 % Umsatzsteuer auf die Notargebühr', 'KV 32014', fmt(r.umsatzsteuer)],
+    ['Gesamt', '', fmt(r.gesamt)],
+  ];
+  document.getElementById('aufstellung').innerHTML = rows.map(([label, kv, betrag]) =>
+    `<tr><td>${label}</td><td style="color:var(--muted)">${kv}</td><td>${betrag}</td></tr>`
+  ).join('');
+}
+['betrag', 'typ'].forEach(id => document.getElementById(id).addEventListener('input', berechne));
 berechne();
 </script>
