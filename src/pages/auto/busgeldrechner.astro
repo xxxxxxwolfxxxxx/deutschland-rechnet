@@ -9,7 +9,7 @@ const year = new Date().getFullYear();
 ---
 <Layout
   title={`Bußgeldrechner ${year} – Bußgeldkatalog Deutschland`}
-description="Bußgeld, Punkte in Flensburg und Fahrverbot berechnen – Geschwindigkeit, Rotlicht, Handy, Alkohol und Parken nach aktuellem aktuellem Bußgeldkatalog."
+description="Bußgeld, Punkte und Fahrverbot berechnen – Geschwindigkeit, Rotlicht, Handy, Abstand, Alkohol und Parken nach den Regelsätzen der Bußgeldkatalog-Verordnung."
     canonicalPath="/auto/busgeldrechner/"
     categoryColor={cat.color}
     categoryLight={cat.colorLight}
@@ -21,15 +21,16 @@ description="Bußgeld, Punkte in Flensburg und Fahrverbot berechnen – Geschwin
     </div>
     <CalculatorShell
       calculator={calc}
-      intro="Mit dem Bußgeldrechner berechnen Sie die fälligen Strafen bei Verkehrsverstößen."
-      sourceNote="Bußgeldkatalog."
-      explanation="Geschwindigkeitsüberschreitungen, Rotlichtverstöße und Alkohol führen zu unterschiedlichen Strafen."
+      intro="Der Rechner nennt zu einem Verstoß den Regelsatz des Bußgeldkatalogs, die Punkte im Fahreignungsregister und die Dauer eines Fahrverbots."
+      sourceNote="Regelsätze nach der Anlage zur Bußgeldkatalog-Verordnung (BKatV) in der seit dem 9. November 2021 geltenden Fassung sowie Tabelle 1 und 2 des Anhangs. Punkte nach § 28 Abs. 3 Nr. 3 StVG in Verbindung mit Anlage 13 FeV. Die Sätze gelten für Pkw und Motorrad; für Lkw und Kraftomnibusse gelten höhere Werte."
+      explanation="Der Regelsatz ist der Ausgangspunkt, nicht das Urteil: Die Behörde darf ihn nach § 3 Abs. 1 BKatV bei Vorsatz oder Voreintragungen erhöhen und bei geringem Verschulden senken. Ein Fahrverbot steht nur bei den in § 4 BKatV genannten Tatbeständen im Regelfall an."
       faqs={[
-        { q: "Was sind Punkte in Flensburg?", a: "Das Flensburg-System vergeben Punkte für Verkehrsverstöße. Ab 8 Punkten wird die Fahrerlaubnis entzogen. Punkte verfallen nach 2-10 Jahren je nach Schweregrad. Mit den Fahreignungsseminaren können Punkte reduziert werden." },
-        { q: "Was ist ein Fahrverbot?", a: "Ein Fahrverbot ist ein vorübergehendes Verbot, Auto zu fahren (meist 1-3 Monate). Es kann mit Geldstrafen kombiniert sein. Nach Ablauf darf wieder gefahren werden. Fahrverbote vermeiden ist wichtiger als Punkte, weil sie sofort wirken." },
-        { q: "Kann ich Einspruch gegen einen Verwarnungsbetrag einlegen?", a: "Ja, innerhalb von 2 Wochen nach Erhalt. Ein Anwalt prüft oft, ob Blitzerfehler (nicht kalibriert, Messpfosten falsch) vorliegen. Bei Fehlern kann der Bußgeldbescheid aufgehoben werden." },
-        { q: "Unterscheiden sich Bußgelder nach Bundesland?", a: "Nein, der Bußgeldkatalog ist bundesweit einheitlich. Aber Fahrverbote, Punkte und deren Dauer sind im Straßenverkehrsgesetz (StVG) bundesweit gleich geregelt." },
-        { q: "Was ist ein 'qualifizierter Rotlichtverstoß'?", a: "Das ist ein Rotlichtverstoß, bei dem die Ampel länger als 1 Sekunde rot war. Das ist schwerer als 'einfache' Rotlichtverstöße und führt zu höheren Geldstrafen (100€ vs. 200€) und Punkten." }
+        { q: "Ab wann gibt es Punkte in Flensburg?", a: "Eingetragen wird eine Ordnungswidrigkeit erst ab 60 Euro Geldbuße (§ 28 Abs. 3 Nr. 3 StVG) und nur, wenn der Tatbestand in Anlage 13 der Fahrerlaubnis-Verordnung steht. Es gibt dann einen Punkt, bei einem Fahrverbot zwei. Wer 15 km/h innerorts zu schnell fährt, zahlt 50 Euro und bleibt punktfrei. Halte- und Parkverstöße bringen unabhängig vom Betrag keine Punkte." },
+        { q: "Wann verfallen die Punkte wieder?", a: "Nach der Tilgungsfrist des § 29 StVG: zweieinhalb Jahre bei einem Punkt, fünf Jahre bei zwei Punkten, zehn Jahre bei drei Punkten. Die Fristen laufen für jede Eintragung getrennt, ein späterer Verstoß verlängert die früheren nicht. Bei einem bis fünf Punkten lässt sich einmal in fünf Jahren durch ein Fahreignungsseminar ein Punkt abbauen." },
+        { q: "Wann droht ein Fahrverbot?", a: "Zwei Wege führen dorthin. Erstens die grobe Pflichtverletzung nach § 4 Abs. 1 BKatV – innerorts ab 31 km/h, außerorts ab 41 km/h, außerdem beim qualifizierten Rotlichtverstoß und bei Alkohol. Zweitens die Beharrlichkeit nach § 4 Abs. 2 BKatV: Wer binnen eines Jahres nach einer rechtskräftigen Geldbuße wegen mindestens 26 km/h erneut mindestens 26 km/h zu schnell ist, muss auch unterhalb dieser Schwellen mit einem Monat rechnen." },
+        { q: "Ab wie viel Promille wird aus dem Bußgeld eine Straftat?", a: "Für Kraftfahrzeugführer ab 1,1 Promille. Ab diesem Wert gilt die absolute Fahruntüchtigkeit als bewiesen, es folgt ein Strafverfahren nach § 316 StGB statt eines Bußgeldbescheids. Der oft genannte Wert von 1,6 Promille betrifft Radfahrer. Unterhalb von 1,1 Promille kann die Fahrt schon ab 0,3 Promille strafbar sein, wenn Ausfallerscheinungen hinzukommen." },
+        { q: "Was ist ein qualifizierter Rotlichtverstoß?", a: "Einer, bei dem die Ampel beim Überfahren schon länger als eine Sekunde rot war. Der Regelsatz steigt von 90 auf 200 Euro, dazu kommen zwei Punkte und ein Monat Fahrverbot. Entscheidend ist allein die Dauer der Rotphase – ob jemand gefährdet wurde, ist ein zusätzliches Merkmal, das den Satz noch einmal erhöht." },
+        { q: "Lohnt sich ein Einspruch?", a: "Der Einspruch ist innerhalb von zwei Wochen nach Zustellung möglich (§ 67 OWiG). Geprüft werden meist die Messung selbst, die Zuordnung des Fahrers und die Einhaltung der Verjährungsfrist. Der Bußgeldkatalog ist bundesweit einheitlich – dass eine andere Behörde milder rechnet, ist kein Einspruchsgrund." }
       ]}
     >
     <div class="calc-form">
@@ -67,19 +68,35 @@ description="Bußgeld, Punkte in Flensburg und Fahrverbot berechnen – Geschwin
           <button class="preset-btn" data-ueber="50">50 km/h</button>
           <button class="preset-btn" data-ueber="70">70 km/h</button>
         </div>
+        <div class="calc-group" style="margin-bottom:0.5rem;">
+          <label style="display:flex;align-items:center;gap:0.5rem;font-weight:400;cursor:pointer;">
+            <input type="checkbox" id="g-vor" style="width:auto;" />
+            Im letzten Jahr bereits wegen mindestens 26 km/h rechtskräftig verurteilt
+          </label>
+        </div>
+        <p class="hint-text">Einzutragen ist die Überschreitung <strong>nach Abzug der Messtoleranz</strong> – in der Regel 3 km/h bis Tempo 100, darüber 3 % des Messwerts. Die Sätze gelten für Pkw und Motorrad; für Lkw und Busse liegen sie deutlich höher.</p>
       </div>
 
       <!-- ROTLICHT -->
       <div class="tab-panel" id="tab-rotlicht">
-        <div class="calc-group">
-          <label for="r-typ">Art des Verstoßes</label>
-          <select id="r-typ">
-            <option value="einfach">Einfacher Rotlichtverstoß (Ampel &lt; 1 Sek. Rot)</option>
-            <option value="qualifiziert">Qualifizierter Rotlichtverstoß (≥ 1 Sek. Rot)</option>
-            <option value="gefaehrdung">Mit Gefährdung anderer</option>
-            <option value="sachschaden">Mit Sachschaden</option>
-          </select>
+        <div class="calc-grid">
+          <div class="calc-group">
+            <label for="r-phase">Dauer der Rotphase</label>
+            <select id="r-phase">
+              <option value="unter1s">Weniger als 1 Sekunde (einfacher Verstoß)</option>
+              <option value="ueber1s">Länger als 1 Sekunde (qualifizierter Verstoß)</option>
+            </select>
+          </div>
+          <div class="calc-group">
+            <label for="r-folge">Folge des Verstoßes</label>
+            <select id="r-folge">
+              <option value="keine">Ohne Gefährdung oder Schaden</option>
+              <option value="gefaehrdung">Mit Gefährdung anderer</option>
+              <option value="sachbeschaedigung">Mit Sachbeschädigung</option>
+            </select>
+          </div>
         </div>
+        <p class="hint-text">Rotphase und Folge sind zwei unabhängige Merkmale. Der Bußgeldkatalog kombiniert sie in den Nummern 132 bis 132.3.2 zu sechs Tatbeständen.</p>
       </div>
 
       <!-- HANDY -->
@@ -87,12 +104,13 @@ description="Bußgeld, Punkte in Flensburg und Fahrverbot berechnen – Geschwin
         <div class="calc-group">
           <label for="h-typ">Art des Verstoßes</label>
           <select id="h-typ">
-            <option value="pkw_motorrad">Handy/Smartphone während der Fahrt (Pkw/Motorrad)</option>
-            <option value="lkw_bus">Handy/Smartphone während der Fahrt (Lkw/Bus)</option>
-            <option value="fussgaenger">Handy als Fußgänger beim Überqueren der Fahrbahn</option>
+            <option value="kfz">Beim Führen eines Kraftfahrzeugs</option>
+            <option value="kfz_gefaehrdung">Beim Führen eines Kraftfahrzeugs, mit Gefährdung</option>
+            <option value="kfz_sachbeschaedigung">Beim Führen eines Kraftfahrzeugs, mit Sachbeschädigung</option>
+            <option value="radfahren">Beim Radfahren</option>
           </select>
         </div>
-        <p class="hint-text">§ 23 Abs. 1a StVO. Gilt für jedes Gerät, das der Hand gehalten werden muss. Freisprechen ohne Halten ist erlaubt.</p>
+        <p class="hint-text">§ 23 Abs. 1a StVO erfasst jedes elektronische Gerät, das aufgenommen oder gehalten wird – auch Tablet, Kamera oder E-Book-Reader. Die Freisprecheinrichtung bleibt erlaubt, solange das Gerät liegen bleibt. Für <strong>Fußgänger</strong> gilt die Vorschrift nicht; einen Regelsatz gibt es dafür nicht.</p>
       </div>
 
       <!-- ABSTAND -->
@@ -108,7 +126,7 @@ description="Bußgeld, Punkte in Flensburg und Fahrverbot berechnen – Geschwin
           </div>
         </div>
         <div id="a-halbe-tacho" class="hint-text"></div>
-        <p class="hint-text">Faustregel: Mindestabstand = halber Tachowert in Metern (§ 4 StVO).</p>
+        <p class="hint-text">Der erforderliche Abstand entspricht dem halben Tachowert in Metern (§ 4 Abs. 1 StVO). Tabelle 2 des Anhangs zur BKatV staffelt die Regelsätze nach Bruchteilen <strong>dieses halben Tachowertes</strong> – nicht des vollen Tachowertes.</p>
       </div>
 
       <!-- ALKOHOL -->
@@ -116,16 +134,18 @@ description="Bußgeld, Punkte in Flensburg und Fahrverbot berechnen – Geschwin
         <div class="calc-grid">
           <div class="calc-group">
             <label for="al-promille">Blutalkohol (‰)</label>
-            <input type="number" id="al-promille" min="0.3" max="1.59" value="0.6" step="0.1" />
+            <input type="number" id="al-promille" min="0" max="3" value="0.6" step="0.1" />
           </div>
-          <div class="calc-group" style="display:flex;align-items:center;padding-top:1.5rem;">
-            <label style="display:flex;align-items:center;gap:0.5rem;font-weight:400;cursor:pointer;">
-              <input type="checkbox" id="al-wdh" style="width:auto;" />
-              Wiederholungstäter
-            </label>
+          <div class="calc-group">
+            <label for="al-vor">Frühere Eintragungen im Fahreignungsregister</label>
+            <select id="al-vor">
+              <option value="0">Keine</option>
+              <option value="1">Eine Entscheidung nach § 24a StVG, § 316 oder § 315c StGB</option>
+              <option value="2">Mehrere solcher Entscheidungen</option>
+            </select>
           </div>
         </div>
-        <p class="hint-text">Ab <strong>1,6 ‰</strong> ist der Verstoß eine Straftat (§ 316 StGB) – dieser Rechner gilt nur für den Ordnungswidrigkeitenbereich (0,5–1,59 ‰).</p>
+        <p class="hint-text">Der Ordnungswidrigkeitenbereich des § 24a StVG reicht von 0,5 bis 1,09 ‰. Ab <strong>1,1 ‰</strong> gilt ein Kraftfahrzeugführer als absolut fahruntüchtig, die Tat ist dann eine Straftat nach § 316 StGB. Der Regelsatz steigt nicht mit der Promillezahl, sondern mit den Voreintragungen.</p>
       </div>
 
       <!-- PARKEN -->
@@ -133,17 +153,23 @@ description="Bußgeld, Punkte in Flensburg und Fahrverbot berechnen – Geschwin
         <div class="calc-group">
           <label for="p-typ">Art des Verstoßes</label>
           <select id="p-typ">
-            <option value="halteverbot">Im (eingeschränkten) Halteverbot</option>
-            <option value="halteverbot_behinderung">Im Halteverbot mit Behinderung anderer</option>
-            <option value="halteverbot_gefaehrdung">Im Halteverbot mit Gefährdung</option>
-            <option value="gehweg">Auf Gehweg / Fußgängerzone</option>
-            <option value="behindertenplatz">Auf Behindertenstellplatz ohne Berechtigung</option>
-            <option value="feuerwehrzufahrt">Feuerwehrzufahrt blockiert</option>
-            <option value="kreuzung_10m">Weniger als 10 m vor Kreuzung / Einmündung</option>
-            <option value="bushaltestelle">An Bushaltestelle (im Halteverbot)</option>
-            <option value="rettungsgasse">Rettungsgasse blockiert / nicht gebildet</option>
+            <option value="halten_unzulaessig">Unzulässig gehalten</option>
+            <option value="halten_behinderung">Unzulässig gehalten, mit Behinderung</option>
+            <option value="zweite_reihe">In zweiter Reihe gehalten</option>
+            <option value="halteverbot_parken">Geparkt, wo das Halten verboten ist</option>
+            <option value="halteverbot_parken_behinderung">Geparkt, wo das Halten verboten ist, mit Behinderung</option>
+            <option value="gehweg_radweg">Auf Geh- oder Radweg geparkt</option>
+            <option value="gehweg_radweg_behinderung">Auf Geh- oder Radweg geparkt, mit Behinderung</option>
+            <option value="feuerwehrzufahrt">In einer Feuerwehrzufahrt geparkt</option>
+            <option value="feuerwehrzufahrt_behinderung">Feuerwehrzufahrt, Rettungsfahrzeug behindert</option>
+            <option value="kreuzung_5m">Weniger als 5 m vor der Kreuzung geparkt</option>
+            <option value="bushaltestelle">An einer Haltestelle geparkt (Zeichen 224)</option>
+            <option value="schwerbehindertenparkplatz">Unberechtigt auf einem Schwerbehindertenparkplatz</option>
+            <option value="rettungsgasse_nicht_gebildet">Keine Rettungsgasse gebildet</option>
+            <option value="rettungsgasse_benutzt">Rettungsgasse unberechtigt befahren</option>
           </select>
         </div>
+        <p class="hint-text">Halten heißt kurzes, gewolltes Anhalten, Parken beginnt nach drei Minuten oder sobald das Fahrzeug verlassen wird (§ 12 Abs. 2 StVO). Für dieselbe Stelle gelten deshalb zwei verschiedene Regelsätze.</p>
       </div>
 
       <!-- ERGEBNIS -->
@@ -159,34 +185,39 @@ description="Bußgeld, Punkte in Flensburg und Fahrverbot berechnen – Geschwin
 
   <CalculatorGuide
     title="Bußgeldkatalog und Verkehrsrecht verstehen"
-    content={`<p>Der <strong>Bußgeldkatalog</strong> ist ein einheitliches Regelwerk für Bußgelder und Fahrverbote in Deutschland. Er wird regelmäßig angepasst und ist bindend für alle Behörden.</p>
+    content={`<p>Der <strong>Bußgeldkatalog</strong> steht als Anlage in der Bußgeldkatalog-Verordnung. Er nennt zu jedem Tatbestand einen Regelsatz, der bundesweit gilt und den die Behörden ihrer Entscheidung zugrunde legen. Die heutige Fassung stammt vom 9. November 2021; seitdem sind die Sätze unverändert.</p>
 
-<p><strong>Die wichtigsten Konsequenzen:</strong>
+<p><strong>Regelsatz heißt nicht Endbetrag.</strong> Nach § 3 Abs. 1 BKatV gilt er für den fahrlässig handelnden Ersttäter unter gewöhnlichen Umständen. Bei Vorsatz verdoppelt § 3 Abs. 4a BKatV den Satz, bei Voreintragungen darf die Behörde erhöhen, bei geringem Verschulden senken. Und wenn sie ausnahmsweise auf ein Fahrverbot verzichtet, soll sie das Bußgeld dafür angemessen anheben (§ 4 Abs. 4 BKatV).</p>
+
+<p><strong>Die drei Folgen im Überblick:</strong>
 <ul>
-  <li><strong>Bußgeld:</strong> Geldstrafe zwischen 15€ und 1.000€</li>
-  <li><strong>Punkte:</strong> 1-4 Punkte in Flensburg (ab 8 Punkten: Fahrerlaubnis weg)</li>
-  <li><strong>Fahrverbot:</strong> 1-3 Monate oder sogar dauerhaft bei schweren Verstößen</li>
+  <li><strong>Geldbuße:</strong> von 5 € beim Parkverstoß bis 2.000 € bei mehrfacher Alkohol- oder Drogenfahrt. Bis 55 € ergeht meist nur eine Verwarnung.</li>
+  <li><strong>Punkte:</strong> ein bis drei je Eintrag, für Ordnungswidrigkeiten höchstens zwei. Ab acht Punkten wird die Fahrerlaubnis entzogen.</li>
+  <li><strong>Fahrverbot:</strong> ein bis drei Monate. Es ist etwas anderes als die Entziehung der Fahrerlaubnis – der Führerschein kommt danach zurück, ohne neue Prüfung.</li>
 </ul>
 </p>
 
-<p><strong>Die Flensburg-Punkte verfallen nach:</strong>
+<p><strong>Punkte gibt es nicht für jeden Verstoß.</strong> Eingetragen wird nur, was in Anlage 13 der Fahrerlaubnis-Verordnung steht und mindestens 60 € Geldbuße nach sich zieht. Deshalb bleiben 50 € für 15 km/h innerorts punktfrei – und deshalb bleibt auch das Parken auf dem Gehweg mit 55 € punktfrei, obwohl es teurer ist als so manche Geschwindigkeitsüberschreitung.</p>
+
+<p><strong>Getilgt wird nach § 29 StVG:</strong>
 <ul>
-  <li>2 Jahren bei Vergehen (1-2 Punkte)</li>
-  <li>3 Jahren bei Ordnungswidrigkeiten (3-4 Punkte)</li>
-  <li>10 Jahren nach Wiedererlangung der Fahrerlaubnis (schwere Straftaten)</li>
+  <li>zweieinhalb Jahre bei einem Punkt</li>
+  <li>fünf Jahre bei zwei Punkten</li>
+  <li>zehn Jahre bei drei Punkten</li>
+</ul>
+Jede Eintragung läuft für sich; ein neuer Verstoß verlängert die Frist der älteren nicht. Bei einem Stand von einem bis fünf Punkten lässt sich einmal in fünf Jahren durch ein Fahreignungsseminar ein Punkt abbauen.</p>
+
+<p><strong>Einige Regelsätze zum Vergleich:</strong>
+<ul>
+  <li>Alkohol ab 0,5 ‰ (Nr. 241): 500 €, 2 Punkte, 1 Monat Fahrverbot</li>
+  <li>Fahrt unter Drogen (Nr. 243): 500 €, 2 Punkte, 1 Monat Fahrverbot</li>
+  <li>Überholen bei unklarer Verkehrslage mit Sachbeschädigung (Nr. 19.1.2): 300 €, 2 Punkte, 1 Monat Fahrverbot</li>
+  <li>Elektronisches Gerät am Steuer (Nr. 246.1): 100 €, 1 Punkt</li>
+  <li>Keine Rettungsgasse gebildet (Nr. 50): 200 €, 2 Punkte, 1 Monat Fahrverbot</li>
 </ul>
 </p>
 
-<p><strong>Wichtige Verstöße mit besonders hohen Strafen:</strong>
-<ul>
-  <li>Alkohol am Steuer (über 0,5‰): 500€, 2 Punkte, 1 Monat Fahrverbot</li>
-  <li>Drogenfahrt: 500€, 2 Punkte, 1 Monat Fahrverbot</li>
-  <li>Gefährdendes Überholen: bis 400€, 4 Punkte, 2 Monate Fahrverbot</li>
-  <li>Handy am Steuer: 100€, 1 Punkt</li>
-</ul>
-</p>
-
-<p><strong>Rechtsmittel:</strong> Innerhalb von 2 Wochen kann man gegen einen Bußgeldbescheid Einspruch erheben. Ein Verkehrsanwalt prüft oft, ob die Messung fehlerhaft war oder formale Fehler vorliegen.</p>`}
+<p><strong>Rechtsmittel:</strong> Gegen den Bußgeldbescheid ist innerhalb von zwei Wochen nach Zustellung Einspruch möglich (§ 67 OWiG). Gegen eine bloße Verwarnung gibt es keinen Einspruch – wer das Verwarnungsgeld nicht zahlt, bekommt stattdessen einen Bußgeldbescheid, gegen den er dann vorgehen kann.</p>`}
     relatedSlugs={['kfz-steuer-rechner', 'fahrtkosten-rechner', 'leasing-rechner']}
   />
 </Layout>
@@ -265,7 +296,7 @@ description="Bußgeld, Punkte in Flensburg und Fahrverbot berechnen – Geschwin
 </style>
 
 <script type="module">
-const { berechneGeschwindigkeit, berechneRotlicht, berechneHandy, berechneAbstand, berechneAlkohol, berechneParken }
+const { berechneGeschwindigkeit, berechneRotlicht, berechneHandy, berechneAbstand, berechneAlkohol, berechneParken, PROMILLE_STRAFTAT, PROMILLE_OWI }
   = await import(window.__base + 'scripts/busgeld.js');
 
 let aktivTab = 'geschwindigkeit';
@@ -290,16 +321,17 @@ document.querySelectorAll('.preset-btn').forEach(b => {
   });
 });
 
-function zeige({ bussgeld, punkte, fahrverbot, hinweisText }) {
+function zeige({ bussgeld, punkte, fahrverbot, nummer, hinweisText }) {
   document.getElementById('ergebnis').textContent =
     bussgeld != null ? bussgeld.toLocaleString('de-DE') + ' €' : '—';
   document.getElementById('result-box').style.background = (fahrverbot > 0) ? '#c8102e' : '';
 
   let det = '';
-  if (punkte > 0)    det += `<span>Punkte Flensburg: <span class="badge-punkte">${punkte}</span></span>`;
-  if (punkte === 0 && bussgeld != null) det += `<span>Punkte Flensburg: <strong>0</strong></span>`;
+  if (punkte > 0)    det += `<span>Punkte im Fahreignungsregister: <span class="badge-punkte">${punkte}</span></span>`;
+  if (punkte === 0 && bussgeld != null) det += `<span>Punkte im Fahreignungsregister: <strong>0</strong></span>`;
   if (fahrverbot > 0) det += `<span>Fahrverbot: <span class="badge-fv">${fahrverbot} Monat${fahrverbot > 1 ? 'e' : ''}</span></span>`;
   else if (bussgeld != null) det += `<span>Fahrverbot: <strong>—</strong></span>`;
+  if (nummer) det += `<span>Bußgeldkatalog: <strong>Nr. ${nummer}</strong></span>`;
   document.getElementById('details').innerHTML = det;
 
   const hw = document.getElementById('hinweis');
@@ -307,91 +339,100 @@ function zeige({ bussgeld, punkte, fahrverbot, hinweisText }) {
   else { hw.style.display = 'none'; }
 }
 
+function zeigeOhneVerstoss(text, erlaeuterung) {
+  document.getElementById('ergebnis').textContent = text;
+  document.getElementById('result-box').style.background = '#1e7e34';
+  document.getElementById('details').innerHTML = '';
+  const hw = document.getElementById('hinweis');
+  hw.style.display = 'block';
+  hw.innerHTML = erlaeuterung;
+}
+
 function berechne() {
   if (aktivTab === 'geschwindigkeit') {
     const ort = document.getElementById('g-ort').value;
     const ueberschreitung = parseFloat(document.getElementById('g-ueber').value) || 1;
+    const voreintragung = document.getElementById('g-vor').checked;
     // Preset-Highlighting
     document.querySelectorAll('.preset-btn').forEach(b =>
       b.classList.toggle('active', parseFloat(b.dataset.ueber) === ueberschreitung));
-    const r = berechneGeschwindigkeit({ ort, ueberschreitung });
+    const r = berechneGeschwindigkeit({ ort, ueberschreitung, voreintragung });
     let hw = '';
-    if (ueberschreitung > 70) hw = `<strong>Achtung:</strong> Bei mehr als 70 km/h Überschreitung droht im Wiederholungsfall eine Entziehung der Fahrerlaubnis (§ 4 StVG).`;
-    if (r.fahrverbot > 0) hw += (hw ? '<br>' : '') + `Das Fahrverbot gilt nur bei Ersttätern. Bei Wiederholungsverstößen (innerhalb eines Jahres) kann das Gericht höhere Strafen verhängen.`;
-    zeige({ ...r, hinweisText: hw });
-
-  } else if (aktivTab === 'rotlicht') {
-    const typ = document.getElementById('r-typ').value;
-    const r = berechneRotlicht({ typ });
-    let hw = '';
-    if (typ === 'qualifiziert' || typ === 'gefaehrdung' || typ === 'sachschaden') {
-      hw = `Ein qualifizierter Rotlichtverstoß (Ampel war länger als 1 Sekunde rot) bleibt <strong>2 Jahre im Verkehrszentralregister</strong> eingetragen. Ein einfacher Rotlichtverstoß nur 1 Jahr.`;
+    if (r.beharrlich && r.fahrverbot === 1) {
+      hw = `Das Fahrverbot folgt hier nicht aus der Höhe der Überschreitung, sondern aus <strong>§ 4 Abs. 2 BKatV</strong>: Wer binnen eines Jahres zum zweiten Mal mindestens 26 km/h zu schnell ist, handelt beharrlich. Die Dauer beträgt beim ersten Mal einen Monat.`;
+    } else if (r.fahrverbot > 0) {
+      hw = `Das Fahrverbot ist ein Regelfahrverbot nach § 4 Abs. 1 BKatV. Die Behörde kann davon absehen, muss das Bußgeld dann aber angemessen erhöhen (§ 4 Abs. 4 BKatV).`;
+    } else if (ueberschreitung >= 26 && !voreintragung) {
+      hw = `Ab 26 km/h wird es beim zweiten Mal teuer: Folgt binnen eines Jahres nach Rechtskraft eine weitere Überschreitung von mindestens 26 km/h, kommt nach § 4 Abs. 2 BKatV ein Fahrverbot hinzu.`;
     }
     zeige({ ...r, hinweisText: hw });
 
+  } else if (aktivTab === 'rotlicht') {
+    const rotphase = document.getElementById('r-phase').value;
+    const folge = document.getElementById('r-folge').value;
+    const r = berechneRotlicht({ rotphase, folge });
+    const hw = rotphase === 'ueber1s'
+      ? `Beim qualifizierten Rotlichtverstoß muss die Behörde nachweisen, dass die Ampel <strong>schon länger als eine Sekunde</strong> rot war. Gelingt das nicht, bleibt es beim einfachen Verstoß und damit bei 90 € ohne Fahrverbot.`
+      : `Maßgeblich ist der Zeitpunkt des Überfahrens der Haltlinie. War die Ampel da schon länger als eine Sekunde rot, gilt der qualifizierte Verstoß mit 200 € und einem Monat Fahrverbot.`;
+    zeige({ ...r, hinweisText: hw });
+
   } else if (aktivTab === 'handy') {
-    const typ = document.getElementById('h-typ').value;
-    const r = berechneHandy({ typ });
-    const hw = `Halten, Tippen oder Wischen genügt für einen Verstoß. Auch kurzes Hochheben des Smartphones am Steuer (z. B. zum Ablesen) ist strafbar. Bei Fußgängern gilt das Verbot nur beim Überqueren der Fahrbahn.`;
+    const situation = document.getElementById('h-typ').value;
+    const r = berechneHandy({ situation });
+    if (!r) { zeige({ bussgeld: null, punkte: 0, fahrverbot: 0 }); return; }
+    const hw = `Aufnehmen oder Halten des Geräts genügt; auf die Dauer der Nutzung kommt es nicht an. Erlaubt bleibt die Bedienung, solange das Gerät nicht in der Hand ist und der Blick nur kurz abgewendet wird (§ 23 Abs. 1a StVO).`;
     zeige({ ...r, hinweisText: hw });
 
   } else if (aktivTab === 'abstand') {
     const geschwindigkeit = parseFloat(document.getElementById('a-speed').value) || 120;
     const abstandMeter = parseFloat(document.getElementById('a-abstand').value) || 30;
-    const halbeTacho = geschwindigkeit / 2;
-    const abstandProzent = Math.round((abstandMeter / geschwindigkeit) * 10) * 10;
-    document.getElementById('a-halbe-tacho').textContent =
-      `Mindestabstand bei ${geschwindigkeit} km/h: ${halbeTacho} m — Ihr Abstand: ${abstandMeter} m (${Math.round(abstandMeter/geschwindigkeit*100)} % des Tachowertes)`;
+    const halberTacho = geschwindigkeit / 2;
+    const zehntel = (abstandMeter / halberTacho * 10).toLocaleString('de-DE', { maximumFractionDigits: 1 });
+    document.getElementById('a-halbe-tacho').innerHTML =
+      `Erforderlicher Abstand bei ${geschwindigkeit} km/h: <strong>${halberTacho.toLocaleString('de-DE')} m</strong> — gemessen: ${abstandMeter.toLocaleString('de-DE')} m, das sind <strong>${zehntel}/10</strong> des halben Tachowertes.`;
     const r = berechneAbstand({ geschwindigkeit, abstandMeter });
     if (!r) {
-      document.getElementById('ergebnis').textContent = 'Kein Verstoß';
-      document.getElementById('result-box').style.background = '#1e7e34';
-      document.getElementById('details').innerHTML = `<span style="color:#1e7e34"><strong>Abstand ausreichend</strong></span>`;
-      document.getElementById('hinweis').style.display = 'none';
+      zeigeOhneVerstoss('Kein Verstoß', `Der Abstand erreicht mindestens den halben Tachowert und ist damit ausreichend.`);
       return;
     }
-    zeige({ ...r, hinweisText: `Abstandsmessung erfolgt meist per Videoanlage. Der tatsächliche Abstand in Metern ergibt sich aus dem Messvideo.` });
+    zeige({ ...r, hinweisText: `Gemessen wird in der Regel per Videoanlage über eine festgelegte Strecke. Maßgeblich ist der Abstand über eine nicht nur ganz kurze Zeit – kurzes Auffahren wegen eines Einscherers wird nicht geahndet.` });
 
   } else if (aktivTab === 'alkohol') {
-    const promille = parseFloat(document.getElementById('al-promille').value) || 0.6;
-    const wiederholung = document.getElementById('al-wdh').checked;
-    if (promille >= 1.6) {
+    const promille = parseFloat(document.getElementById('al-promille').value);
+    const voreintragungen = parseInt(document.getElementById('al-vor').value, 10) || 0;
+    const r = berechneAlkohol({ promille: Number.isFinite(promille) ? promille : 0.6, voreintragungen });
+
+    if (r.art === 'straftat') {
       document.getElementById('ergebnis').textContent = 'Straftat';
       document.getElementById('result-box').style.background = '#c8102e';
-      document.getElementById('details').innerHTML = `<span style="color:#c8102e"><strong>§ 316 StGB – kein Bußgeld, sondern Strafverfahren</strong></span>`;
+      document.getElementById('details').innerHTML = `<span style="color:#c8102e"><strong>§ 316 StGB – kein Bußgeldbescheid, sondern Strafverfahren</strong></span>`;
       document.getElementById('hinweis').style.display = 'block';
-      document.getElementById('hinweis').innerHTML = `<strong>Ab 1,6 ‰ ist absolute Fahruntüchtigkeit gesetzlich vermutet.</strong> Es drohen Geldstrafe oder Freiheitsstrafe, in der Regel Entzug der Fahrerlaubnis für mindestens 6 Monate und MPU (Medizinisch-Psychologische Untersuchung).`;
+      document.getElementById('hinweis').innerHTML = `<strong>Ab ${PROMILLE_STRAFTAT.toLocaleString('de-DE', { minimumFractionDigits: 1 })} ‰ gilt ein Kraftfahrzeugführer als absolut fahruntüchtig.</strong> Es drohen Geld- oder Freiheitsstrafe, in der Regel die Entziehung der Fahrerlaubnis mit Sperrfrist und häufig eine medizinisch-psychologische Untersuchung. Der oft genannte Wert von 1,6 ‰ gilt für Radfahrer.`;
       return;
     }
-    if (promille < 0.5) {
-      document.getElementById('ergebnis').textContent = 'Kein Verstoß';
-      document.getElementById('result-box').style.background = '#1e7e34';
-      document.getElementById('details').innerHTML = `<span style="color:#1e7e34"><strong>Unter 0,5 ‰ – kein Verstoß (außer bei Fahranfängern in der Probezeit oder unter 21 Jahren: 0,0 ‰ gilt!)</strong></span>`;
-      document.getElementById('hinweis').style.display = 'block';
-      document.getElementById('hinweis').innerHTML = `<strong>Achtung Fahranfänger:</strong> Wer in der Probezeit oder unter 21 Jahre alt ist, unterliegt dem absoluten Alkoholverbot (0,0 ‰, § 24c StVG). Bei Verstoß: 250 € Bußgeld, 1 Punkt, Probezeitverlängerung.`;
+
+    if (r.art === 'kein_verstoss') {
+      zeigeOhneVerstoss('Kein Verstoß nach § 24a StVG', `Unterhalb von ${PROMILLE_OWI.toLocaleString('de-DE', { minimumFractionDigits: 1 })} ‰ greift § 24a StVG nicht. <strong>Zwei Ausnahmen:</strong> In der Probezeit und vor dem 21. Geburtstag gilt das absolute Alkoholverbot des § 24c StVG – 250 €, ein Punkt und Verlängerung der Probezeit. Und schon ab 0,3 ‰ kann eine Straftat vorliegen, wenn Ausfallerscheinungen hinzukommen.`);
       return;
     }
-    const r = berechneAlkohol({ promille, wiederholung });
-    if (!r) { zeige({ bussgeld: null, punkte: 0, fahrverbot: 0 }); return; }
-    const hw = `Das Fahrverbot ist im Bußgeldbescheid festgesetzt. Zusätzlich kann die Führerscheinstelle die Fahrerlaubnis entziehen und eine MPU anordnen. Bei Wiederholungsverstößen steigen die Strafen erheblich.`;
-    zeige({ ...r, hinweisText: hw });
+
+    zeige({ ...r, hinweisText: `Der Regelsatz steigt nicht mit der Promillezahl, sondern mit den Voreintragungen (Nummern 241 bis 241.2 des Bußgeldkatalogs). Unabhängig davon kann die Fahrerlaubnisbehörde die Fahreignung überprüfen.` });
 
   } else if (aktivTab === 'parken') {
     const typ = document.getElementById('p-typ').value;
     const r = berechneParken({ typ });
     if (!r) { zeige({ bussgeld: null, punkte: 0, fahrverbot: 0 }); return; }
-    const hw = typ === 'rettungsgasse'
-      ? `<strong>Rettungsgasse blockieren ist seit 2017 deutlich strenger geahndet.</strong> Bei Behinderung von Einsatzfahrzeugen drohen bis zu 320 €, 2 Punkte und 1 Monat Fahrverbot.`
-      : `Zusätzlich zum Bußgeld können Abschleppkosten entstehen (i. d. R. 150–300 €).`;
+    const hw = typ.startsWith('rettungsgasse')
+      ? `Die Rettungsgasse ist kein Parkverstoß, sondern eine grobe Pflichtverletzung nach § 4 Abs. 1 BKatV – daher Punkte und Fahrverbot. Mit Behinderung, Gefährdung oder Sachbeschädigung steigt der Satz auf bis zu 320 €.`
+      : `Halte- und Parkverstöße stehen nicht in Anlage 13 FeV und bleiben deshalb punktfrei, auch wenn der Regelsatz über 60 € liegt. Hinzu kommen können Abschleppkosten, die die Behörde gesondert in Rechnung stellt.`;
     zeige({ ...r, hinweisText: hw });
   }
 }
 
 // Event-Listener für alle Felder
-['g-ort','g-ueber','r-typ','h-typ','a-speed','a-abstand','al-promille','p-typ'].forEach(id => {
+['g-ort','g-ueber','g-vor','r-phase','r-folge','h-typ','a-speed','a-abstand','al-promille','al-vor','p-typ'].forEach(id => {
   document.getElementById(id)?.addEventListener('input', berechne);
   document.getElementById(id)?.addEventListener('change', berechne);
 });
-document.getElementById('al-wdh').addEventListener('change', berechne);
 berechne();
 </script>
