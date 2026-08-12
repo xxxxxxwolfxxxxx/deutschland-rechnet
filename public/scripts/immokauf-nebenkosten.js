@@ -5,30 +5,54 @@
 // 5,0 %). Sie kommen jetzt aus grunderwerbsteuer.js – dem einzigen Ort, an dem
 // sie gepflegt werden.
 import { STEUERSAETZE } from './grunderwerbsteuer.js';
-// Notar und Grundbuch waren pauschal 1,5 % des Kaufpreises. Es sind
-// Wertgebühren nach § 34 GNotKG und damit degressiv – siehe gnotkg.js.
+// Notar- und Grundbuchkosten nach dem Kostenverzeichnis (Anlage 1 GNotKG)
+// stehen in gnotkg.js: KV 21100 Beurkundung (2,0, mindestens 120 €), KV 22110
+// Vollzug (0,5), KV 22200 Betreuung (0,5), dazu die Umsatzsteuer nach KV 32014
+// sowie grundbuchseitig KV 14150 Vormerkung (0,5) und KV 14110 Eigentums-
+// umschreibung (1,0). Gerichtsgebühren sind nicht umsatzsteuerpflichtig.
 import { berechneNotarUndGrundbuch } from './gnotkg.js';
 
-// Maklerprovision je Seite, brutto inklusive 19 % Umsatzsteuer (3,0 % zzgl.
-// USt). Beim Kauf einer Wohnung oder eines Einfamilienhauses durch einen
-// Verbraucher teilen sich Käufer und Verkäufer die Provision, § 656c BGB –
-// 3,57 % sind also bereits der Käuferanteil und werden weder erneut
-// versteuert noch ein zweites Mal halbiert.
+// Marktüblicher Bruttosatz je Partei: 3,00 % netto zzgl. 19 % USt. Die
+// Beschriftung der Seite liest diesen Wert, damit sie nicht wieder gegen die
+// Rechnung auseinanderläuft.
 export const MAKLER_PROVISION_PROZENT_JE_SEITE = 3.57;
 
+const aufCent = (betrag) => Math.round(betrag * 100) / 100;
+
+/**
+ * Nebenkosten eines Immobilienkaufs.
+ *
+ * @param {object} eingaben
+ * @param {number} eingaben.kaufpreis Kaufpreis in Euro
+ * @param {string} eingaben.bundesland Kürzel wie in grunderwerbsteuer.js
+ * @param {boolean} [eingaben.mitMakler]
+ * @param {number} [eingaben.maklerProvisionProzentJeSeite] Provision, die EINE
+ *   Partei schuldet, als Bruttosatz inklusive 19 % Umsatzsteuer. Marktüblich
+ *   sind 3,57 % je Seite (3,00 % netto), also 7,14 % Gesamtprovision.
+ * @returns {{grunderwerbsteuer: number, notar: number, grundbuch: number,
+ *   maklerKaeufer: number, gesamt: number, gesamtProzent: number, gewSatz: number}}
+ */
 export function berechneImmokaufNebenkosten({
   kaufpreis,
   bundesland,
   mitMakler = true,
-  maklerProvisionProzent = MAKLER_PROVISION_PROZENT_JE_SEITE,
+  maklerProvisionProzentJeSeite = MAKLER_PROVISION_PROZENT_JE_SEITE,
 }) {
   const gewSatz = STEUERSAETZE[bundesland] ?? 5.0;
-  const grunderwerbsteuer = Math.round(kaufpreis * gewSatz / 100 * 100) / 100;
-  const notar = berechneNotarUndGrundbuch(kaufpreis).gesamt;
-  const maklerKaeufer = mitMakler
-    ? Math.round(kaufpreis * maklerProvisionProzent / 100 * 100) / 100
-    : 0;
-  const gesamt = Math.round((grunderwerbsteuer + notar + maklerKaeufer) * 100) / 100;
+  const grunderwerbsteuer = aufCent(kaufpreis * gewSatz / 100);
+
+  // Wertgebühren nach Tabelle B (§ 34 GNotKG), Geschäftswert ist der Kaufpreis.
+  const { notar, grundbuch } = berechneNotarUndGrundbuch(kaufpreis);
+
+  // Maklerprovision: Der Satz ist bereits brutto, er wird nicht noch einmal mit
+  // 1,19 multipliziert. Er gilt außerdem je Partei und wird nicht halbiert:
+  // § 656c Abs. 1 Satz 1 BGB verlangt bei Doppeltätigkeit, dass sich Käufer und
+  // Verkäufer in gleicher Höhe verpflichten – der Käufer zahlt also den vollen
+  // Satz, nicht dessen Hälfte. Übernimmt nur eine Seite den Maklervertrag,
+  // begrenzt § 656d Abs. 1 BGB die Erstattung ebenfalls auf diese Höhe.
+  const maklerKaeufer = mitMakler ? aufCent(kaufpreis * maklerProvisionProzentJeSeite / 100) : 0;
+
+  const gesamt = aufCent(grunderwerbsteuer + notar + grundbuch + maklerKaeufer);
   const gesamtProzent = Math.round(gesamt / kaufpreis * 1000) / 10;
-  return { grunderwerbsteuer, notar, maklerKaeufer, gesamt, gesamtProzent, gewSatz };
+  return { grunderwerbsteuer, notar, grundbuch, maklerKaeufer, gesamt, gesamtProzent, gewSatz };
 }
