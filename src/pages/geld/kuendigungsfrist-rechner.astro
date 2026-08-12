@@ -3,16 +3,39 @@ import Layout from '../../layouts/Layout.astro';
 import CalculatorShell from '../../components/CalculatorShell.astro';
 import CalculatorGuide from '../../components/CalculatorGuide.astro';
 import { CALCULATORS, CATEGORIES } from '../../data/calculators';
+import {
+  AG_FRISTEN,
+  KLAGEFRIST_WOCHEN,
+  KSCHG_WARTEZEIT_MONATE,
+  KUERZERE_FRIST_ZULAESSIG,
+  PROBEZEIT_FRIST_TAGE,
+  PROBEZEIT_MAX_MONATE,
+  berechneKuendigungsfrist,
+} from '../../../public/scripts/kuendigungsfrist.js';
+
 const calc = CALCULATORS.find(c => c.slug === 'kuendigungsfrist-rechner')!;
 const cat = CATEGORIES[calc.category];
 const year = new Date().getFullYear();
-// Standardwerte
+
 const heute = new Date().toISOString().split('T')[0];
-const dreiJahreHer = new Date(Date.now() - 3*365*24*3600*1000).toISOString().split('T')[0];
+const dreiJahreHer = new Date(Date.now() - 3 * 365 * 24 * 3600 * 1000).toISOString().split('T')[0];
+
+// Alle Beispiele im Fließtext kommen aus dem Rechenmodul, damit Text und
+// Ergebnis nicht auseinanderlaufen können.
+const datum = (iso: string) => iso.split('-').reverse().join('.');
+const beispiel = (eintritt: string, zugang: string, seite = 'arbeitgeber') =>
+  berechneKuendigungsfrist({ eintrittsdatum: eintritt, kuendigungsdatum: zugang, seite });
+
+const langjaehrig = beispiel('2019-03-01', '2025-01-10');
+const zumFuenfzehnten = beispiel('2024-01-01', '2025-03-15', 'arbeitnehmer');
+const zumMonatsende = beispiel('2024-01-01', '2025-04-01', 'arbeitnehmer');
+const stufen = AG_FRISTEN.filter(f => f.abJahre > 0);
+const hoechstfrist = stufen[stufen.length - 1];
+const grundfrist = AG_FRISTEN[0];
 ---
 <Layout
   title={`Kündigungsfrist-Rechner ${year}`}
-  description="Kuendigungsfrist berechnen nach § 622 BGB: Gesetzliche Fristen fuer Arbeitnehmer (4 Wochen) und Arbeitgeber (bis 7 Monate) mit Betriebszugehoerigkeit, Probezeit und exaktem Enddatum."
+  description="Kuendigungsfrist berechnen nach § 622 BGB: Fristen fuer Arbeitnehmer und Arbeitgeber, Probezeit, Betriebszugehoerigkeit und der frueheste Beendigungstermin mit Klagefrist nach § 4 KSchG."
   canonicalPath="/geld/kuendigungsfrist-rechner/"
   categoryColor={cat.color}
   categoryLight={cat.colorLight}
@@ -24,19 +47,22 @@ const dreiJahreHer = new Date(Date.now() - 3*365*24*3600*1000).toISOString().spl
   </div>
   <CalculatorShell
     calculator={calc}
-    intro="Mit dem Kündigungsfrist-Rechner berechnen Sie die gesetzliche Kündigungsfrist nach § 622 BGB. Geben Sie Ihre Betriebszugehörigkeit ein und erfahren Sie sofort, wann das Arbeitsverhältnis frühestens enden kann."
-    sourceNote="Gesetzliche Kündigungsfrist."
-    explanation="Die gesetzlichen Kündigungsfristen nach § 622 BGB steigen mit der Betriebszugehörigkeit: 4 Wochen (Grundfrist), 1 Monat (ab 2 Jahren), 2 Monate (ab 5 Jahren), 3 Monate (ab 8 Jahren) bis zu 7 Monate (ab 20 Jahren). In der Probezeit gilt eine verkürzte Frist von 2 Wochen."
+    intro="Der Rechner ermittelt die gesetzliche Kündigungsfrist nach § 622 BGB und den frühesten Tag, an dem das Arbeitsverhältnis enden kann. Maßgeblich ist der Tag, an dem die Kündigung zugeht – nicht der Tag, an dem sie abgeschickt wurde."
+    sourceNote={`Grundlage: § 622 BGB (Fristen), §§ 187, 188 BGB (Fristberechnung), § 1 Abs. 1 und § 4 KSchG (Wartezeit und Klagefrist). Stand: August 2026.`}
+    explanation={`Für den Arbeitnehmer gilt unabhängig von der Betriebszugehörigkeit die Grundfrist von vier Wochen zum Fünfzehnten oder zum Ende eines Kalendermonats. Nur für den Arbeitgeber verlängert sich die Frist mit der Dauer der Beschäftigung: von einem Monat ab zwei Jahren bis auf ${hoechstfrist.monate} Monate ab ${hoechstfrist.abJahre} Jahren. Ist eine Probezeit vereinbart, können beide Seiten in den ersten sechs Monaten mit zwei Wochen kündigen.`}
     faqs={[
-      { q: "Wie lange ist die Kündigungsfrist für Arbeitnehmer?", a: "Grundregel: 4 Wochen zum 15. oder zum Ende eines Kalendermonats. Bei weniger als 2 Jahren Betriebszugehörigkeit: 2 Wochen. Das ist in § 622 BGB festgelegt. Befristete Verträge enden automatisch." },
-      { q: "Wie lange ist die Kündigungsfrist für Arbeitgeber?", a: "Arbeitgeber müssen länger kündigen: 4 Wochen zum 15. oder Ende eines Kalendermonats (erste 2 Jahre), dann 1 Monat zum Ende eines Kalendermonats (ab 2 Jahren), dann 2 Monate (ab 5 Jahren), dann 3 Monate (ab 8 Jahren)." },
-      { q: "Was bedeutet 'zum Ende eines Kalendermonats'?", a: "Das Kündigungsdatum muss auf den letzten Tag eines Monats fallen. Beispiel: Kündigung am 15.3. gilt zum 30.4. (Ende April = 4 Wochen + zum Ende eines Monats). Am 1.4. gekündigt = zum 31.5. (zum Ende eines Kalendermonats nach 4 Wochen)." },
-      { q: "Können Arbeitsverträge kürzere Fristen festlegen?", a: "Ja, aber NICHT für den Arbeitnehmer! Eine kürzere Kündigungsfrist für den AN ist nicht erlaubt (außer in der Probezeit: 2 Wochen). Aber: Der AG darf längere Fristen im Vertrag festlegen, und der AN kann akzeptieren." },
-      { q: "Was ist die Probezeit-Kündigungsfrist?", a: "In der Probezeit (max. 6 Monate) können beide Seiten mit nur 2 Wochen zum beliebigen Tag kündigen. Nach der Probezeit gelten die längeren Fristen." },
-      { q: "Was ist mit außerordentlicher Kündigung?", a: "Ohne Grund brauchst du die normale Frist. Mit wichtigem Grund (Mobbing, unverschuldete finanzielle Notlage, etc.) kannst du sofort (außerordentlich) kündigen. Das FA prüft, ob der Grund berechtigt ist." },
-      { q: "Gilt die gesetzliche Kündigungsfrist auch bei Tarifverträgen?", a: "Tarifverträge können von den gesetzlichen Fristen abweichen, auch zuungunsten des Arbeitnehmers. Prüfen Sie daher immer Ihren Tarifvertrag. In vielen Branchen (z.B. Bau, Gastronomie) gelten kürzere Fristen. Der Tarifvertrag geht dem Gesetz vor, sofern er anwendbar ist." },
-      { q: "Kann ich während der Kündigungsfrist freigestellt werden?", a: "Ja, der Arbeitgeber kann Sie unwiderruflich oder widerruflich freistellen. Bei unwiderruflicher Freistellung werden Resturlaub und Überstunden angerechnet. Ihr Gehalt und alle Sozialversicherungsbeiträge laufen bis zum Ende der Kündigungsfrist weiter." },
-      { q: "Zählt die Kündigungsfrist ab Zugang oder ab Versand der Kündigung?", a: "Die Frist beginnt mit dem Zugang der Kündigung beim Empfänger, nicht mit dem Versand. Bei persönlicher Übergabe gilt der Moment der Übergabe, bei Briefpost der Tag, an dem der Brief im Briefkasten des Empfängers liegt (auch wenn er nicht sofort gelesen wird)." }
+      { q: "Wie lange ist die Kündigungsfrist für Arbeitnehmer?", a: `Vier Wochen zum Fünfzehnten oder zum Ende eines Kalendermonats (§ 622 Abs. 1 BGB) – und zwar unabhängig davon, wie lange Sie im Betrieb sind. Die verlängerten Fristen des § 622 Abs. 2 BGB gelten ausdrücklich nur "für eine Kündigung durch den Arbeitgeber". Kürzer ist es nur in einer vereinbarten Probezeit: dann zwei Wochen.` },
+      { q: "Wie lange ist die Kündigungsfrist für Arbeitgeber?", a: `In den ersten zwei Jahren ebenfalls vier Wochen zum Fünfzehnten oder zum Monatsende. Danach steigt die Frist mit der Betriebszugehörigkeit: ein Monat ab zwei Jahren, zwei Monate ab fünf, drei ab acht, vier ab zehn, fünf ab zwölf, sechs ab 15 und ${hoechstfrist.monate} Monate ab ${hoechstfrist.abJahre} Jahren – jeweils zum Ende eines Kalendermonats.` },
+      { q: "Was bedeutet 'zum Ende eines Kalendermonats'?", a: `Das Arbeitsverhältnis darf nicht an einem beliebigen Tag enden, sondern erst am nächsten zulässigen Termin nach Ablauf der Frist. Beispiel: Eine Kündigung geht am ${datum('2025-03-15')} zu, die Vier-Wochen-Frist läuft am ${datum(zumFuenfzehnten.fristablauf)} ab – das Arbeitsverhältnis endet am ${datum(zumFuenfzehnten.endDatum)}, weil der Fünfzehnte ein zulässiger Termin ist. Geht dieselbe Kündigung am ${datum('2025-04-01')} zu, endet die Frist am ${datum(zumMonatsende.fristablauf)}; dann ist der Fünfzehnte verstrichen und es wird der ${datum(zumMonatsende.endDatum)}.` },
+      { q: "Können Arbeitsverträge kürzere Fristen festlegen?", a: `Längere Fristen darf der Arbeitsvertrag jederzeit vorsehen – für den Arbeitnehmer allerdings nie eine längere als für den Arbeitgeber (§ 622 Abs. 6 BGB). Kürzere Fristen als die vier Wochen des Absatzes 1 sind einzelvertraglich nur in zwei Fällen erlaubt: bei Aushilfen bis zu drei Monaten und in Betrieben mit höchstens 20 Arbeitnehmern, dort aber nie unter vier Wochen (§ 622 Abs. 5 BGB). Ein Tarifvertrag darf dagegen auch kürzere Fristen regeln.` },
+      { q: "Was ist die Probezeit-Kündigungsfrist?", a: `Ist eine Probezeit vereinbart, können beide Seiten mit zwei Wochen zu jedem beliebigen Tag kündigen (§ 622 Abs. 3 BGB). Die Probezeit darf höchstens ${PROBEZEIT_MAX_MONATE} Monate dauern. Entscheidend ist der Zugang: Geht die Kündigung noch am letzten Tag der Probezeit zu, gilt die Zwei-Wochen-Frist – auch wenn das Arbeitsverhältnis dann erst nach dem Ende der Probezeit ausläuft.` },
+      { q: "Ist die Probezeit dasselbe wie die Wartezeit beim Kündigungsschutz?", a: `Nein, und diese Verwechslung ist teuer. Die Probezeit ist eine Vereinbarung im Arbeitsvertrag und verkürzt nur die Frist. Die Wartezeit von ${KSCHG_WARTEZEIT_MONATE} Monaten nach § 1 Abs. 1 KSchG läuft unabhängig davon und entscheidet, ob der Arbeitgeber überhaupt einen Kündigungsgrund braucht. Wer keine Probezeit vereinbart hat, genießt in den ersten sechs Monaten trotzdem noch keinen allgemeinen Kündigungsschutz.` },
+      { q: "Was gilt bei einer außerordentlichen Kündigung?", a: `Eine außerordentliche Kündigung nach § 626 BGB beendet das Arbeitsverhältnis ohne Frist, verlangt aber einen wichtigen Grund, bei dem die Fortsetzung bis zum Fristablauf unzumutbar ist. Sie kann nur innerhalb von zwei Wochen ab Kenntnis der maßgebenden Tatsachen erklärt werden (§ 626 Abs. 2 BGB). Ob der Grund trägt, entscheidet im Streitfall das Arbeitsgericht – nicht der Kündigende.` },
+      { q: "Muss die Kündigung schriftlich sein?", a: `Ja. Nach § 623 BGB bedarf die Kündigung der Schriftform, die elektronische Form ist ausdrücklich ausgeschlossen. Eine Kündigung per E-Mail, WhatsApp, SMS oder Fax ist deshalb unwirksam – nötig ist ein Papierdokument mit eigenhändiger Unterschrift im Original.` },
+      { q: "Bis wann muss ich gegen eine Kündigung klagen?", a: `Innerhalb von ${KLAGEFRIST_WOCHEN} Wochen nach Zugang der schriftlichen Kündigung muss die Klage beim Arbeitsgericht eingehen (§ 4 Satz 1 KSchG). Wird diese Frist versäumt, gilt die Kündigung nach § 7 KSchG als von Anfang an wirksam – selbst dann, wenn sie inhaltlich oder formal fehlerhaft war. Der Rechner nennt Ihnen das Fristende mit.` },
+      { q: "Gilt die gesetzliche Kündigungsfrist auch bei Tarifverträgen?", a: `Ein Tarifvertrag darf von den Absätzen 1 bis 3 des § 622 BGB abweichen, auch zu Lasten des Arbeitnehmers (§ 622 Abs. 4 BGB). In einigen Branchen gelten deshalb kürzere Fristen. Prüfen Sie also immer, ob ein Tarifvertrag auf Ihr Arbeitsverhältnis anwendbar ist. Unantastbar bleibt § 622 Abs. 6 BGB: Für den Arbeitnehmer darf keine längere Frist gelten als für den Arbeitgeber.` },
+      { q: "Zählt die Kündigungsfrist ab Zugang oder ab Versand der Kündigung?", a: `Ab Zugang beim Empfänger. Bei persönlicher Übergabe ist das der Moment der Übergabe, bei Briefpost der Tag, an dem der Brief im Briefkasten liegt und mit Kenntnisnahme zu rechnen ist – auch wenn er erst später gelesen wird. Der Zugangstag selbst zählt bei der Frist nicht mit (§ 187 Abs. 1 BGB). Nach dem Zugang richtet sich auch die Staffel der Betriebszugehörigkeit (BAG, Urteil vom 18.09.2003 – 2 AZR 330/02).` },
+      { q: "Kann ich während der Kündigungsfrist freigestellt werden?", a: `Ja, der Arbeitgeber kann Sie widerruflich oder unwiderruflich freistellen. Bei einer unwiderruflichen Freistellung werden Resturlaub und Überstunden angerechnet. Gehalt und Sozialversicherungsbeiträge laufen bis zum Ende der Kündigungsfrist weiter.` }
     ]}
   >
     <div class="calc-form">
@@ -49,86 +75,212 @@ const dreiJahreHer = new Date(Date.now() - 3*365*24*3600*1000).toISOString().spl
           </select>
         </div>
         <div class="calc-group">
-          <label for="eintrittsdatum">Eintrittsdatum</label>
+          <label for="eintrittsdatum">Erster Arbeitstag</label>
           <input type="date" id="eintrittsdatum" value={dreiJahreHer} />
         </div>
         <div class="calc-group">
-          <label for="kuendigungsdatum">Kündigungsdatum</label>
+          <label for="kuendigungsdatum">Zugang der Kündigung</label>
           <input type="date" id="kuendigungsdatum" value={heute} />
         </div>
       </div>
+      <div class="optionen">
+        <label class="check"><input type="checkbox" id="probezeit" /> Probezeit vereinbart</label>
+        <label class="check probe-dauer" id="probe-dauer-feld" hidden>
+          Dauer:
+          <select id="probezeitMonate">
+            {Array.from({ length: PROBEZEIT_MAX_MONATE }, (_, i) => i + 1).map(m => (
+              <option value={m} selected={m === PROBEZEIT_MAX_MONATE}>{m} Monat{m === 1 ? '' : 'e'}</option>
+            ))}
+          </select>
+        </label>
+      </div>
+
       <div class="calc-result">
         <div class="label">Kündigungsfrist</div>
-        <div id="fristText" style="font-size:1.4rem;font-weight:600;letter-spacing:-0.01em;">— </div>
+        <div id="fristText" class="frist-gross">—</div>
+        <div class="label" style="margin-top:0.75rem;">Letzter Tag des Arbeitsverhältnisses</div>
+        <div id="endDatum" class="frist-gross">—</div>
       </div>
-      <div id="details" style="margin-top:0.75rem;font-size:0.88rem;color:#888;display:flex;flex-direction:column;gap:0.4rem;"></div>
+      <div id="details" class="details"></div>
+
+      <div class="fristen">
+        <h3>Was jetzt noch läuft</h3>
+        <div id="schutz" class="hinweis"></div>
+        <div id="klage" class="hinweis"></div>
+      </div>
     </div>
   </CalculatorShell>
 
+  <section class="info-block">
+    <h2>Gesetzliche Fristen für die Kündigung durch den Arbeitgeber</h2>
+    <table class="kf-table">
+      <thead>
+        <tr><th>Betriebszugehörigkeit</th><th>Frist</th><th>Termin</th><th>Fundstelle</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>unter 2 Jahren</td>
+          <td>4 Wochen</td>
+          <td>zum 15. oder Monatsende</td>
+          <td>{grundfrist.grundlage}</td>
+        </tr>
+        {stufen.map(f => (
+          <tr>
+            <td>ab {f.abJahre} Jahren</td>
+            <td>{f.monate} Monat{f.monate === 1 ? '' : 'e'}</td>
+            <td>zum Monatsende</td>
+            <td>{f.grundlage}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+    <p class="fussnote">
+      Für die Kündigung durch den Arbeitnehmer bleibt es in allen Zeilen bei vier Wochen zum 15. oder zum Monatsende
+      ({grundfrist.grundlage}). In einer vereinbarten Probezeit gelten für beide Seiten {PROBEZEIT_FRIST_TAGE} Tage
+      (§ 622 Abs. 3 BGB).
+    </p>
+  </section>
+
+  <section class="info-block">
+    <h2>Wann eine kürzere Frist überhaupt vereinbart werden darf</h2>
+    <p>Einzelvertraglich lässt § 622 Abs. 5 BGB nur zwei Ausnahmen von der Grundfrist zu:</p>
+    <ul>
+      {KUERZERE_FRIST_ZULAESSIG.map(fall => <li>{fall}</li>)}
+    </ul>
+    <p>
+      Teilzeitkräfte zählen bei der Betriebsgröße nur anteilig: bis 20 Wochenstunden mit 0,5, bis 30 Wochenstunden
+      mit 0,75. Diese 20-Arbeitnehmer-Grenze hat nichts mit dem Kleinbetrieb des § 23 Abs. 1 KSchG zu tun – dort geht
+      es um zehn Arbeitnehmer und um die Frage, ob der Kündigungsschutz überhaupt gilt.
+    </p>
+  </section>
+
   <CalculatorGuide
     title="So funktionieren gesetzliche Kündigungsfristen"
-    content={`<p><strong>Kündigungsfristen in Deutschland sind gestaffelt</strong> und hängen von der Betriebszugehörigkeit ab. Die Faustregel: Je länger Sie beschäftigt sind, desto länger ist die Kündigungsfrist für den Arbeitgeber (aber nicht für Sie als Arbeitnehmer).</p>
+    content={`<p>Eine Kündigungsfrist besteht immer aus zwei Teilen: der <strong>Dauer</strong> und dem <strong>Termin</strong>. Erst läuft die Frist ab, dann endet das Arbeitsverhältnis am nächsten zulässigen Termin. Beides zusammen ergibt den letzten Arbeitstag – deshalb liegt er fast nie genau vier Wochen nach der Kündigung.</p>
 
-<h4>Übersicht: Gesetzliche Kündigungsfristen nach § 622 BGB</h4>
+<h4>Schritt für Schritt: die Frist des Arbeitgebers nach fast sechs Jahren</h4>
+<p>Ein Arbeitsverhältnis beginnt am ${datum('2019-03-01')}, die Kündigung des Arbeitgebers geht am ${datum('2025-01-10')} zu. Zu diesem Zeitpunkt hat das Arbeitsverhältnis ${langjaehrig.betriebsjahre} volle Jahre bestanden, damit greift die Stufe "${langjaehrig.fristText}" nach ${langjaehrig.grundlage}. Die Frist von ${langjaehrig.monate} Monaten läuft am ${datum(langjaehrig.fristablauf)} ab. Weil das Arbeitsverhältnis nur zum Monatsende enden darf, ist der letzte Arbeitstag der <strong>${datum(langjaehrig.endDatum)}</strong> – und nicht etwa der ${datum('2025-02-28')}.</p>
+
+<h4>Der Unterschied zwischen Fristablauf und Beendigungstermin</h4>
+<p>Die Vier-Wochen-Frist des § 622 Abs. 1 BGB kennt zwei mögliche Termine im Monat, die Monatsfristen des Absatzes 2 nur einen. Das führt zu Ergebnissen, die auf den ersten Blick überraschen:</p>
 <table>
   <thead>
-    <tr><th>Betriebszugehörigkeit</th><th>Frist Arbeitgeber</th><th>Frist Arbeitnehmer</th><th>Kündigungstermin</th></tr>
+    <tr><th>Zugang der Kündigung</th><th>Frist läuft ab am</th><th>Arbeitsverhältnis endet am</th></tr>
   </thead>
   <tbody>
-    <tr><td>Probezeit (bis 6 Monate)</td><td>2 Wochen</td><td>2 Wochen</td><td>Jeder Tag</td></tr>
-    <tr><td>Bis 2 Jahre</td><td>4 Wochen</td><td>4 Wochen</td><td>Zum 15. oder Monatsende</td></tr>
-    <tr><td>Ab 2 Jahren</td><td>1 Monat</td><td>4 Wochen</td><td>Zum Monatsende</td></tr>
-    <tr><td>Ab 5 Jahren</td><td>2 Monate</td><td>4 Wochen</td><td>Zum Monatsende</td></tr>
-    <tr><td>Ab 8 Jahren</td><td>3 Monate</td><td>4 Wochen</td><td>Zum Monatsende</td></tr>
-    <tr><td>Ab 10 Jahren</td><td>4 Monate</td><td>4 Wochen</td><td>Zum Monatsende</td></tr>
-    <tr><td>Ab 12 Jahren</td><td>5 Monate</td><td>4 Wochen</td><td>Zum Monatsende</td></tr>
-    <tr><td>Ab 15 Jahren</td><td>6 Monate</td><td>4 Wochen</td><td>Zum Monatsende</td></tr>
-    <tr><td>Ab 20 Jahren</td><td>7 Monate</td><td>4 Wochen</td><td>Zum Monatsende</td></tr>
+    <tr><td>${datum('2025-03-15')}</td><td>${datum(zumFuenfzehnten.fristablauf)}</td><td>${datum(zumFuenfzehnten.endDatum)}</td></tr>
+    <tr><td>${datum('2025-04-01')}</td><td>${datum(zumMonatsende.fristablauf)}</td><td>${datum(zumMonatsende.endDatum)}</td></tr>
+  </tbody>
+</table>
+<p>Im ersten Fall ist der Fünfzehnte des Folgemonats noch nicht verstrichen, wenn die Frist abläuft – das Arbeitsverhältnis endet also zur Monatsmitte. Im zweiten Fall ist er bereits vorbei, und es bleibt nur das Monatsende.</p>
+
+<h4>Fristberechnung nach §§ 187, 188 BGB</h4>
+<p>Der Tag des Zugangs zählt nicht mit (§ 187 Abs. 1 BGB). Eine Monatsfrist endet an dem Tag des Zielmonats, der dieselbe Zahl trägt wie der Zugangstag. Gibt es diesen Tag dort nicht, endet die Frist am letzten Tag des Monats (§ 188 Abs. 3 BGB): Eine Ein-Monats-Frist ab dem 31. Januar läuft am 28. Februar ab, in einem Schaltjahr am 29.</p>
+
+<h4>Probezeit und Wartezeit laufen unabhängig voneinander</h4>
+<p>Die <strong>Probezeit</strong> nach § 622 Abs. 3 BGB muss vereinbart sein, darf höchstens ${PROBEZEIT_MAX_MONATE} Monate dauern und verkürzt die Frist auf ${PROBEZEIT_FRIST_TAGE} Tage – ohne Bindung an einen Termin. Sie sagt nichts darüber aus, ob eine Kündigung einen Grund braucht.</p>
+<p>Die <strong>Wartezeit</strong> nach § 1 Abs. 1 KSchG beträgt ebenfalls sechs Monate, läuft aber automatisch ab dem ersten Arbeitstag. Erst danach muss eine Kündigung sozial gerechtfertigt sein. Beide Zeiträume sind oft gleich lang und werden deshalb ständig verwechselt: Eine auf drei Monate verkürzte Probezeit ändert nichts daran, dass der Kündigungsschutz erst nach sechs Monaten greift.</p>
+
+<h4>Was im Vertrag stehen darf – und was nicht</h4>
+<table>
+  <thead>
+    <tr><th>Regelung</th><th>Was gilt?</th><th>Rechtsgrundlage</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>Vertrag nennt längere Frist als das Gesetz</td><td>Der Vertrag gilt</td><td>§ 622 Abs. 5 Satz 3 BGB</td></tr>
+    <tr><td>Vertrag nennt kürzere Frist als das Gesetz</td><td>Das Gesetz gilt, außer in den Fällen des Absatzes 5</td><td>§ 622 Abs. 5 Satz 1 BGB</td></tr>
+    <tr><td>Arbeitnehmer soll länger gebunden sein als der Arbeitgeber</td><td>Unwirksam</td><td>§ 622 Abs. 6 BGB</td></tr>
+    <tr><td>Tarifvertrag weicht ab, auch nach unten</td><td>Der Tarifvertrag gilt</td><td>§ 622 Abs. 4 BGB</td></tr>
   </tbody>
 </table>
 
-<h4>Praktisches Beispiel: Kündigung nach 6 Jahren Betriebszugehörigkeit</h4>
-<p>Sie arbeiten seit dem 01.03.2019 im Unternehmen und der Arbeitgeber kündigt Ihnen am 10.01.2025. Ihre Betriebszugehörigkeit beträgt knapp 6 Jahre, daher gilt eine Frist von 2 Monaten zum Ende eines Kalendermonats. Die Kündigung geht Ihnen am 10. Januar zu, also endet das Arbeitsverhältnis frühestens am 31.03.2025.</p>
+<h4>Drei Wochen für die Kündigungsschutzklage</h4>
+<p>Wer sich gegen eine Kündigung wehren will, muss innerhalb von ${KLAGEFRIST_WOCHEN} Wochen ab Zugang Klage beim Arbeitsgericht erheben (§ 4 Satz 1 KSchG). Diese Frist gilt für <em>jeden</em> Unwirksamkeitsgrund – auch für eine zu kurz bemessene Kündigungsfrist oder eine fehlende Unterschrift. Läuft sie ab, gilt die Kündigung nach § 7 KSchG als von Anfang an wirksam. Die drei Wochen sind damit die härteste Frist im ganzen Kündigungsrecht, und sie läuft parallel zur Kündigungsfrist.</p>
 
-<h4>Kündigungsfrist vs. Arbeitsvertrag: Was gilt?</h4>
-<table>
-  <thead>
-    <tr><th>Situation</th><th>Was gilt?</th><th>Beispiel</th></tr>
-  </thead>
-  <tbody>
-    <tr><td>Vertrag nennt längere Frist als Gesetz</td><td>Vertrag gilt</td><td>Vertrag: 3 Monate, Gesetz: 4 Wochen → 3 Monate</td></tr>
-    <tr><td>Vertrag nennt kürzere Frist als Gesetz (AG kündigt)</td><td>Gesetz gilt</td><td>Vertrag: 2 Wochen, Gesetz: 2 Monate → 2 Monate</td></tr>
-    <tr><td>Tarifvertrag weicht ab</td><td>Tarifvertrag gilt</td><td>Bau-TV: kürzere Fristen erlaubt</td></tr>
-    <tr><td>Probezeit im Vertrag vereinbart</td><td>2 Wochen (max. 6 Monate)</td><td>Kündigung in Woche 3 → Frist: 2 Wochen</td></tr>
-  </tbody>
-</table>
-
-<p><strong>Wichtig: "Zum Ende eines Kalendermonats" bedeutet:</strong> Das Arbeitsverhältnis muss auf einen Monatsletzten enden (z.B. 30.04., 31.05.). Eine Kündigung am 15.03. mit 4-Wochen-Frist endet nicht am 12.04., sondern am 30.04. (zum Ende des nächsten Kalendermonats).</p>
-
-<p><strong>Probezeit:</strong> Die ersten 6 Monate können als Probezeit vereinbart werden. Beide Seiten können dann mit nur 2 Wochen kündigen, ohne an einen bestimmten Termin gebunden zu sein. Nach der Probezeit gelten die längeren gestaffelten Fristen. Die Betriebszugehörigkeit wird ab dem ersten Arbeitstag gezählt, nicht ab Ende der Probezeit.</p>
-
-<p><strong>Sonderfall Kleinbetrieb:</strong> In Betrieben mit bis zu 20 Beschäftigten dürfen laut § 622 Abs. 5 BGB kürzere Fristen vereinbart werden, jedoch nicht unter 4 Wochen. Die gestaffelten Fristen nach Betriebszugehörigkeit gelten trotzdem, sofern nichts anderes vereinbart wurde.</p>`}
+<p><strong>Formfehler lohnt den Blick:</strong> Nach § 623 BGB ist die Schriftform zwingend, die elektronische Form ausdrücklich ausgeschlossen. Eine Kündigung per E-Mail oder Messenger ist unwirksam – aber auch das muss innerhalb der drei Wochen geltend gemacht werden.</p>`}
     relatedSlugs={['abfindungsrechner', 'arbeitslosengeld-rechner', 'brutto-netto-rechner']}
   />
 </Layout>
 
+<style>
+.optionen { display:flex; flex-wrap:wrap; gap:1rem; align-items:center; margin-top:1rem; }
+.check { display:flex; align-items:center; gap:0.4rem; font-size:0.9rem; }
+.probe-dauer select { font-size:0.85rem; padding:0.15rem 0.3rem; }
+.frist-gross { font-size:1.4rem; font-weight:600; letter-spacing:-0.01em; }
+.details { margin-top:0.75rem; font-size:0.88rem; display:flex; flex-direction:column; gap:0.4rem; color:var(--muted); }
+.details strong { color:var(--text); }
+.fristen { margin-top:1.5rem; padding-top:1rem; border-top:1px solid var(--border); }
+.fristen h3 { font-size:1rem; margin:0 0 0.75rem; }
+.hinweis { font-size:0.88rem; line-height:1.55; margin-bottom:0.5rem; }
+.hinweis:empty { display:none; }
+.hinweis strong { color:var(--text); }
+.kf-table { width:100%; border-collapse:collapse; font-size:0.85rem; }
+.kf-table th { text-align:left; padding:0.3rem 0.5rem; border-bottom:1.5px solid var(--border); font-size:0.8rem; color:var(--muted); font-weight:600; }
+.kf-table td { padding:0.3rem 0.5rem; border-bottom:1px solid var(--border); }
+.kf-table tr:last-child td { border-bottom:none; }
+.kf-table td:last-child, .kf-table th:last-child { color:var(--muted); font-size:0.8rem; white-space:nowrap; }
+.info-block { margin:2rem 0; }
+.info-block h2 { font-size:1.2rem; margin-bottom:0.6rem; }
+.info-block p, .info-block li { font-size:0.92rem; line-height:1.65; }
+.info-block ul { padding-left:1.2rem; }
+.info-block li { margin-bottom:0.3rem; }
+.fussnote { font-size:0.85rem !important; color:var(--muted); margin-top:0.6rem; }
+</style>
+
 <script type="module">
 const { berechneKuendigungsfrist } = await import(window.__base + 'scripts/kuendigungsfrist.js');
+
+const el = id => document.getElementById(id);
+const datum = iso => iso.split('-').reverse().join('.');
+
 function berechne() {
-  const seite = document.getElementById('seite').value;
-  const eintrittsdatum = document.getElementById('eintrittsdatum').value;
-  const kuendigungsdatum = document.getElementById('kuendigungsdatum').value;
+  const eintrittsdatum = el('eintrittsdatum').value;
+  const kuendigungsdatum = el('kuendigungsdatum').value;
+  const probezeitVereinbart = el('probezeit').checked;
+  el('probe-dauer-feld').hidden = !probezeitVereinbart;
   if (!eintrittsdatum || !kuendigungsdatum) return;
-  const r = berechneKuendigungsfrist({ eintrittsdatum, kuendigungsdatum, seite });
-  document.getElementById('fristText').textContent = r.fristText;
-  const endFmt = r.endDatum.toLocaleDateString('de-DE', {day:'2-digit', month:'long', year:'numeric'});
-  document.getElementById('details').innerHTML =
-    `<span>Betriebszugehörigkeit: <strong>${r.betriebsjahre} Jahr${r.betriebsjahre !== 1 ? 'e' : ''}</strong></span>` +
-    `<span>Letzter Arbeitstag: <strong>${endFmt}</strong></span>` +
-    `<span style="font-size:0.82rem;color:#aaa">${r.hinweis}</span>`;
+
+  let r;
+  try {
+    r = berechneKuendigungsfrist({
+      eintrittsdatum,
+      kuendigungsdatum,
+      seite: el('seite').value,
+      probezeitVereinbart,
+      probezeitMonate: Number(el('probezeitMonate').value),
+    });
+  } catch (fehler) {
+    el('fristText').textContent = '—';
+    el('endDatum').textContent = '—';
+    el('details').innerHTML = `<span>${fehler.message}</span>`;
+    el('schutz').innerHTML = '';
+    el('klage').innerHTML = '';
+    return;
+  }
+
+  el('fristText').textContent = r.fristText;
+  el('endDatum').textContent = datum(r.endDatum);
+
+  const jahre = `${r.betriebsjahre} Jahr${r.betriebsjahre === 1 ? '' : 'e'}`;
+  el('details').innerHTML =
+    `<span>Betriebszugehörigkeit bei Zugang: <strong>${jahre}</strong></span>` +
+    `<span>Frist läuft ab am: <strong>${datum(r.fristablauf)}</strong></span>` +
+    (r.inProbezeit
+      ? `<span>Probezeit läuft bis: <strong>${datum(r.probezeitEnde)}</strong></span>`
+      : '') +
+    `<span>Rechtsgrundlage: <strong>${r.grundlage}</strong></span>` +
+    `<span>${r.hinweis}</span>`;
+
+  el('schutz').innerHTML = r.kuendigungsschutz.greift
+    ? `<strong>Kündigungsschutz:</strong> Das Arbeitsverhältnis bestand bei Zugang länger als sechs Monate. Die Kündigung muss sozial gerechtfertigt sein (§ 1 Abs. 1 KSchG) – vorausgesetzt, der Betrieb hat mehr als zehn Arbeitnehmer (§ 23 Abs. 1 KSchG).`
+    : `<strong>Kündigungsschutz:</strong> Die Wartezeit von sechs Monaten war bei Zugang noch nicht erfüllt; sie endet am ${datum(r.kuendigungsschutz.ab)}. Bis dahin braucht der Arbeitgeber keinen Kündigungsgrund nach dem KSchG.`;
+
+  el('klage').innerHTML =
+    `<strong>Klagefrist:</strong> Eine Kündigungsschutzklage muss bis zum <strong>${datum(r.klagefristEnde)}</strong> beim Arbeitsgericht eingehen (§ 4 Satz 1 KSchG). Danach gilt die Kündigung als wirksam, auch wenn sie fehlerhaft war (§ 7 KSchG).`;
 }
-['seite','eintrittsdatum','kuendigungsdatum'].forEach(id =>
-  document.getElementById(id).addEventListener('change', berechne)
+
+['seite', 'eintrittsdatum', 'kuendigungsdatum', 'probezeit', 'probezeitMonate'].forEach(id =>
+  el(id).addEventListener('change', berechne)
 );
 berechne();
 </script>
