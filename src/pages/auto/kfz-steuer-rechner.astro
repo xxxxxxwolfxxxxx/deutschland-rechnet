@@ -3,13 +3,28 @@ import Layout from '../../layouts/Layout.astro';
 import CalculatorShell from '../../components/CalculatorShell.astro';
 import CalculatorGuide from '../../components/CalculatorGuide.astro';
 import { CALCULATORS, CATEGORIES } from '../../data/calculators';
+import {
+  CO2_STAFFEL_AB_2021,
+  CO2_FREIBETRAG_AB_2021,
+  HUBRAUMSATZ_AB_2009,
+  ELEKTRO_BEFREIUNG,
+} from '../../../public/scripts/kfz-steuer.js';
 const calc = CALCULATORS.find(c => c.slug === 'kfz-steuer-rechner')!;
 const cat = CATEGORIES[calc.category];
 const year = new Date().getFullYear();
+
+const eur = (n: number) => n.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const staffelZeilen = CO2_STAFFEL_AB_2021.map((stufe: { bis: number; satz: number }, i: number) => {
+  const von = i === 0 ? CO2_FREIBETRAG_AB_2021 : CO2_STAFFEL_AB_2021[i - 1].bis;
+  const bereich = Number.isFinite(stufe.bis)
+    ? `über ${von} g/km bis ${stufe.bis} g/km`
+    : `über ${von} g/km`;
+  return `<tr><td>${bereich}</td><td>${eur(stufe.satz)} €</td></tr>`;
+}).join('');
 ---
 <Layout
   title={`Kfz-Steuer-Rechner ${year}`}
-  description="Kfz-Steuer für Benziner, Diesel und Elektrofahrzeuge kostenlos berechnen. Jahres- und Monatssteuer nach KraftStG."
+  description="Kfz-Steuer nach KraftStG berechnen: Hubraum, CO₂-Staffel und Erstzulassung für Benziner, Diesel, Elektro und Krafträder."
   canonicalPath="/auto/kfz-steuer-rechner/"
   categoryColor={cat.color}
   categoryLight={cat.colorLight}
@@ -21,82 +36,200 @@ const year = new Date().getFullYear();
   </div>
   <CalculatorShell
     calculator={calc}
-    intro="Mit dem Kfz-Steuer-Rechner berechnen Sie die jährliche Kfz-Steuer für Ihr Fahrzeug. Erfahren Sie, wie Hubraum, Kraftstoffart und CO₂-Ausstoß die Steuerlast bestimmen -- hilfreich beim Autokauf oder Halterwechsel."
-    sourceNote="Benziner: 2€/100 cm³, Diesel: 9,50€/100 cm³."
-    explanation="Nach dem Kraftfahrzeugsteuergesetz (KraftStG) setzt sich die Steuer aus Hubraum- und CO₂-Komponente zusammen: Benziner zahlen 2 € pro 100 cm³, Diesel 9,50 €. Elektrofahrzeuge sind nach § 3d KraftStG bis 2030 vollständig befreit."
+    intro="Wie hoch die Kfz-Steuer ausfällt, entscheidet der Tag der Erstzulassung. Für Fahrzeuge ab 2021 gilt eine sechsstufige CO₂-Staffel, für die Jahrgänge 2009 bis 2020 ein fester Satz von 2 € je Gramm über einem Freibetrag, für ältere Fahrzeuge die Schadstoffklasse. Der Rechner wählt anhand des Datums die richtige Vorschrift aus und weist den Rechenweg aus."
+    sourceNote="Kraftfahrzeugsteuergesetz (KraftStG), zuletzt geändert am 22.12.2025 (BGBl. 2025 I Nr. 342). Sätze nach § 9, Elektrobefreiung nach § 3d, Abrundung nach § 11 Abs. 5."
+    explanation="Die Steuer besteht bei Pkw aus einem Hubraumbetrag – 2,00 € je angefangene 100 cm³ beim Ottomotor, 9,50 € beim Dieselmotor – und einer CO₂-Komponente. Der CO₂-Freibetrag hängt am Datum der Erstzulassung, nicht an der Kraftstoffart: 120 g/km bis Ende 2011, 110 g/km für 2012 und 2013, seither 95 g/km. Ab dem 1. Januar 2021 wird der Betrag über dem Freibetrag gestaffelt, von 2,00 € bis 4,00 € je Gramm. Fahrzeuge mit Erstzulassung bis zum 30. Juni 2009 kennen keine CO₂-Komponente; bei ihnen bestimmt die Schadstoffklasse den Hubraumsatz."
     faqs={[
-      { q: "Wie setzt sich die Kfz-Steuer zusammen?", a: "Die Grundsteuer ist nach Hubraum gestaffelt (Benzin 2€, Diesel 9,50€ pro 100 cm³). Hinzu kommt die CO₂-Komponente: 2€ pro g/km über 95 g/km (Benzin) oder 120 g/km (Diesel). Für Elektrofahrzeuge gilt Steuerbefreiung bis 31.12.2030." },
-      { q: "Warum kostet Diesel mehr?", a: "Diesel stößt mehr CO₂ und Stickoxide aus. Deshalb wird Diesel mit 9,50€ pro 100 cm³ besteuert, während Benziner 2€ zahlen. Der Kostenvorteil wird durch die höhere Steuer aufgezehrt." },
-      { q: "Was ist die CO₂-Komponente?", a: "Fahrzeuge mit zu hohem CO₂-Ausstoß zahlen zusätzliche Steuern: 2€ für jeden g/km über dem Grenzwert (95 g/km Benzin, 120 g/km Diesel). Das soll Anreize für sparsamere Fahrzeuge setzen." },
-      { q: "Sind Elektrofahrzeuge wirklich steuerfrei?", a: "Neuzulassungen bis 31.12.2030 sind befreit. Nach Ablauf dieser Frist gilt: Für Elektrofahrzeuge mit über 40 kWh Batterie: 2€ pro 100 kg Leergewicht. Das ist deutlich günstiger als bei Benzin-/Dieselfahrzeugen." },
-      { q: "Wie muss ich die Steuer zahlen?", a: "Die Kfz-Steuer wird bei Zulassung für 12 Monate im Voraus gezahlt (ca. 2.400 Millionen Euro jährlich für den Staat). Die Zahlung erfolgt per Überweisung an die Zulassungsstelle." }
+      { q: "Wie setzt sich die Kfz-Steuer zusammen?", a: "Bei Pkw aus zwei Teilen: dem Hubraumbetrag (2,00 € je angefangene 100 cm³ bei Benzinern, 9,50 € bei Dieseln) und der CO₂-Komponente für jedes Gramm über dem Freibetrag. Der Freibetrag beträgt bei Erstzulassung ab 2014 einheitlich 95 g/km – für Benziner und Diesel gleichermaßen. Bei Krafträdern gibt es nur den Hubraumbetrag: 1,84 € je angefangene 25 cm³." },
+      { q: "Warum zahlen Diesel mehr?", a: "Weil § 9 Abs. 1 Nr. 2 KraftStG für Selbstzündungsmotoren 9,50 € je 100 cm³ vorsieht statt 2,00 €. Das ist ein Ausgleich für die niedrigere Energiesteuer auf Dieselkraftstoff, keine Bewertung des Ausstoßes: Die CO₂-Komponente ist für beide Kraftstoffarten identisch." },
+      { q: "Was ändert sich bei Erstzulassung ab 2021?", a: "Statt eines festen Satzes von 2,00 € je Gramm greift eine Staffel: Die ersten 20 Gramm über 95 g/km kosten 2,00 €, die nächsten 20 Gramm 2,20 € und so fort bis 4,00 € oberhalb von 195 g/km. Jedes Gramm wird mit dem Satz seiner eigenen Stufe belegt, nicht der gesamte Wert mit dem höchsten erreichten Satz." },
+      { q: "Sind Elektrofahrzeuge dauerhaft steuerfrei?", a: `Nein. § 3d KraftStG befreit sie für zehn Jahre ab dem Tag der Erstzulassung, sofern diese zwischen dem 18.05.2011 und dem 31.12.2030 liegt, längstens bis zum 31.12.2035. Danach gilt die Gewichtssteuer des § 9 Abs. 1 Nr. 3, ermäßigt um 50 % nach § 9 Abs. 2 – für ein Fahrzeug mit 2.000 kg zulässigem Gesamtgewicht sind das 56,25 € im Jahr.` },
+      { q: "Gibt es eine Ermäßigung für Schwerbehinderte?", a: "Ja, nach § 3a KraftStG. Die Merkzeichen H, Bl und aG befreien vollständig von der Steuer; der orangefarbene Flächenaufdruck im Ausweis halbiert sie. Die Vergünstigung gilt nur für ein Fahrzeug und nur auf schriftlichen Antrag – und die Halbierung entfällt, solange die unentgeltliche Beförderung im Nahverkehr in Anspruch genommen wird." },
+      { q: "Wie und wann wird gezahlt?", a: "Die Steuer ist nach § 11 Abs. 1 KraftStG jeweils für ein volles Jahr im Voraus zu entrichten; eine monatliche Zahlung sieht das Gesetz nicht vor. Nur oberhalb von 500 € Jahressteuer ist die halbjährliche Zahlung zulässig (mit 3 % Aufgeld), oberhalb von 1.000 € die vierteljährliche (mit 6 %). Erhoben wird die Steuer seit 2014 von der Zollverwaltung, nicht mehr von der Zulassungsstelle; die Zulassung setzt ein SEPA-Lastschriftmandat voraus." }
     ]}
   >
     <div class="calc-form">
       <div class="calc-grid">
         <div class="calc-group">
+          <label for="fahrzeugart">Fahrzeugart</label>
+          <select id="fahrzeugart">
+            <option value="pkw">Pkw</option>
+            <option value="kraftrad">Kraftrad</option>
+          </select>
+        </div>
+        <div class="calc-group" id="antrieb-group">
           <label for="antrieb">Antriebsart</label>
           <select id="antrieb">
-            <option value="benzin">Benzin</option>
-            <option value="diesel">Diesel</option>
+            <option value="benzin">Benzin (Fremdzündung)</option>
+            <option value="diesel">Diesel (Selbstzündung)</option>
             <option value="elektro">Elektro</option>
           </select>
         </div>
+        <div class="calc-group">
+          <label for="erstzulassung">Erstzulassung (Feld B im Fahrzeugschein)</label>
+          <input type="date" id="erstzulassung" value="2023-05-01" min="1960-01-01" />
+        </div>
         <div class="calc-group" id="hubraum-group">
-          <label for="hubraum">Hubraum (ccm)</label>
+          <label for="hubraum">Hubraum (cm³)</label>
           <input type="number" id="hubraum" min="0" max="10000" value="1400" step="50" />
         </div>
         <div class="calc-group" id="co2-group">
-          <label for="co2">CO2-Ausstoß (g/km)</label>
+          <label for="co2">CO₂-Ausstoß (g/km, Feld V.7)</label>
           <input type="number" id="co2" min="0" max="500" value="120" />
         </div>
+        <div class="calc-group" id="schadstoff-group" style="display:none;">
+          <label for="schadstoffklasse">Schadstoffklasse</label>
+          <select id="schadstoffklasse">
+            <option value="euro3">Euro 3 und besser</option>
+            <option value="euro2">Euro 2</option>
+            <option value="euro1">Euro 1</option>
+            <option value="euro0_ohne_fahrverbot">Euro 0, ohne Ozon-Fahrverbot</option>
+            <option value="euro0">Euro 0, übrige</option>
+          </select>
+        </div>
+        <div class="calc-group" id="gewicht-group" style="display:none;">
+          <label for="gesamtgewicht">Zulässiges Gesamtgewicht (kg)</label>
+          <input type="number" id="gesamtgewicht" min="0" max="3500" value="2000" step="50" />
+        </div>
+        <div class="calc-group">
+          <label for="ermaessigung">Vergünstigung nach § 3a</label>
+          <select id="ermaessigung">
+            <option value="keine">Keine</option>
+            <option value="haelfte">Orangefarbener Flächenaufdruck (50 %)</option>
+            <option value="befreiung">Merkzeichen H, Bl oder aG (befreit)</option>
+          </select>
+        </div>
       </div>
+
       <div class="calc-result">
         <div class="label">Kfz-Steuer pro Jahr</div>
         <div id="steuer-jahr">— €</div>
       </div>
-      <p id="steuer-monat" style="margin-top:0.5rem;font-size:0.85rem;color:#666;"></p>
+
+      <div id="rechenweg" style="margin-top:1.25rem;"></div>
     </div>
   </CalculatorShell>
 
   <CalculatorGuide
     title="Kfz-Steuer verstehen und sparen"
-    content={`<p>Die <strong>Kraftfahrzeugsteuer (Kfz-Steuer)</strong> ist eine Steuer auf die Haltung von Fahrzeugen in Deutschland. Sie wird von der Zulassungsstelle eingezogen und ergibt sich aus zwei Komponenten: der Grundsteuer (nach Hubraum und Antriebsart) und der CO₂-Komponente.</p>
+    content={`<p>Die <strong>Kraftfahrzeugsteuer</strong> knüpft an das Halten eines Fahrzeugs an (§ 1 KraftStG). Verwaltet wird sie seit dem 1. Juli 2014 von der Zollverwaltung; die Zulassungsstelle nimmt bei der Anmeldung nur das SEPA-Lastschriftmandat entgegen.</p>
 
-<p><strong>Die Berechnung für Benziner:</strong>
+<p><strong>Welche Vorschrift gilt, entscheidet allein die Erstzulassung.</strong> Drei Regime bestehen bis heute nebeneinander – ein Fahrzeug wechselt nie in ein neueres, auch wenn es den Halter wechselt:</p>
 <ul>
-  <li>Grundsteuer: 2€ pro 100 cm³ Hubraum</li>
-  <li>CO₂-Komponente: 2€ für jeden g/km über 95 g/km</li>
+  <li><strong>bis 30.06.2009</strong> – Hubraum mal Satz der Schadstoffklasse, von ${eur(6.75)} € (Benziner, Euro 3 und besser) bis ${eur(37.58)} € (Diesel ohne Schadstoffminderung) je angefangene 100 cm³. Ohne CO₂-Komponente.</li>
+  <li><strong>01.07.2009 bis 31.12.2020</strong> – Hubraum plus ${eur(2)} € je Gramm CO₂ über dem Freibetrag. Der Freibetrag beträgt 120 g/km bei Erstzulassung bis Ende 2011, 110 g/km für 2012 und 2013 und 95 g/km ab 2014.</li>
+  <li><strong>ab 01.01.2021</strong> – Hubraum plus die unten stehende Staffel ab ${CO2_FREIBETRAG_AB_2021} g/km.</li>
 </ul>
-</p>
 
-<p><strong>Die Berechnung für Diesel:</strong>
-<ul>
-  <li>Grundsteuer: 9,50€ pro 100 cm³ Hubraum</li>
-  <li>CO₂-Komponente: 2€ für jeden g/km über 120 g/km</li>
-</ul>
-</p>
+<p>Der Hubraumbetrag ist in allen Fällen seit 2009 unverändert: ${eur(HUBRAUMSATZ_AB_2009.benzin)} € je angefangene 100 cm³ für Fremdzündungsmotoren, ${eur(HUBRAUMSATZ_AB_2009.diesel)} € für Selbstzündungsmotoren. Angefangen heißt angefangen: Ein Motor mit 1.401 cm³ wird wie 1.500 cm³ besteuert.</p>
 
-<p><strong>Elektrofahrzeuge:</strong> Fahrzeuge mit Erstzulassung bis 31.12.2030 sind komplett befreit. Danach: 2€ pro 100 kg Leergewicht (maximaler Betrag).</p>
+<h3>Die CO₂-Staffel für Erstzulassungen ab 2021</h3>
+<table class="kfz-staffel">
+  <thead><tr><th>Emissionsbereich</th><th>je Gramm</th></tr></thead>
+  <tbody>${staffelZeilen}</tbody>
+</table>
+<p>Die Staffel wirkt in Teilmengen: Bei 150 g/km kosten die Gramm 96 bis 115 jeweils ${eur(2)} €, die Gramm 116 bis 135 jeweils ${eur(2.2)} € und die restlichen 15 Gramm jeweils ${eur(2.5)} € – zusammen ${eur(121.5)} €. Der Sprung in eine höhere Stufe verteuert also nur die Gramm oberhalb der Grenze.</p>
 
-<p><strong>Spartipp:</strong> Fahrzeuge mit niedrigerem Hubraum und CO₂-Ausstoß sparen deutlich Steuern. Ein 1.2L-Motor mit 110 g/km CO₂ kostet ca. 40% weniger Steuer als ein 3.0L-Diesel mit 200 g/km.</p>`}
-    relatedSlugs={['spritkosten-rechner', 'fahrtkosten-rechner', 'anfahrtskosten-rechner']}
+<h3>Elektrofahrzeuge</h3>
+<p>§ 3d KraftStG befreit reine Elektrofahrzeuge für <strong>zehn Jahre ab dem Tag der Erstzulassung</strong>, wenn diese zwischen dem ${ELEKTRO_BEFREIUNG.zulassungVon.split('-').reverse().join('.')} und dem ${ELEKTRO_BEFREIUNG.zulassungBis.split('-').reverse().join('.')} liegt, längstens bis zum ${ELEKTRO_BEFREIUNG.spaetestensBis.split('-').reverse().join('.')}. Das Zulassungsfenster wurde erst durch das Gesetz vom 22.12.2025 bis 2030 verlängert; ältere Quellen nennen noch den 31.12.2025 und das Enddatum 31.12.2030.</p>
+<p>Nach Ablauf der Befreiung zahlen Elektrofahrzeuge die Gewichtssteuer des § 9 Abs. 1 Nr. 3, ermäßigt um die Hälfte (§ 9 Abs. 2). Bei 2.000 kg zulässigem Gesamtgewicht sind das ${eur(56.25)} € im Jahr – ein Bruchteil dessen, was ein vergleichbarer Verbrenner kostet, aber eben nicht null.</p>
+
+<h3>Was der Rechner nicht abbildet</h3>
+<p>Wohnmobile werden nach Gesamtgewicht und Schadstoffklasse besteuert (§ 9 Abs. 1 Nr. 2a), Fahrzeuge über 3,5 t nach Nr. 4, Anhänger nach Nr. 5. Für Oldtimer- und rote Kennzeichen gilt ein Pauschalbetrag von ${eur(191.73)} € im Jahr, für solche nur für Krafträder ${eur(46.02)} € (§ 9 Abs. 4). Die Steuerentlastung von 30 € jährlich für Fahrzeuge bis 95 g/km nach § 10b galt nur für Erstzulassungen bis Ende 2024 und ist am 31.12.2025 ausgelaufen.</p>`}
+    relatedSlugs={['kfz-steuer-co2', 'spritkosten-rechner', 'fahrtkosten-rechner']}
   />
 </Layout>
 
 <script type="module">
 const { berechneKfzSteuer } = await import(window.__base + 'scripts/kfz-steuer.js');
-function fmt(n) { return n.toLocaleString('de-DE', {minimumFractionDigits:2, maximumFractionDigits:2}) + ' €'; }
+
+const EL = id => document.getElementById(id);
+const fmt = n => n.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
+const fmtDatum = iso => iso.split('-').reverse().join('.');
+
 function berechne() {
-  const antrieb = document.getElementById('antrieb').value;
-  const hubraum = parseInt(document.getElementById('hubraum').value)||0;
-  const co2 = parseInt(document.getElementById('co2').value)||0;
-  document.getElementById('hubraum-group').style.display = antrieb==='elektro' ? 'none' : '';
-  document.getElementById('co2-group').style.display = antrieb==='elektro' ? 'none' : '';
-  const r = berechneKfzSteuer({ antrieb, hubraum, co2 });
-  document.getElementById('steuer-jahr').textContent = r.hinweis || fmt(r.steuerJahr);
-  document.getElementById('steuer-monat').textContent = r.hinweis ? '' : 'Pro Monat: ' + fmt(r.steuerMonat);
+  const fahrzeugart = EL('fahrzeugart').value;
+  const antrieb = fahrzeugart === 'kraftrad' ? 'benzin' : EL('antrieb').value;
+  const erstzulassung = EL('erstzulassung').value;
+  const elektro = antrieb === 'elektro';
+  const alt = erstzulassung !== '' && erstzulassung < '2009-07-01';
+
+  EL('antrieb-group').style.display = fahrzeugart === 'kraftrad' ? 'none' : '';
+  EL('hubraum-group').style.display = elektro ? 'none' : '';
+  EL('co2-group').style.display = elektro || alt || fahrzeugart === 'kraftrad' ? 'none' : '';
+  EL('schadstoff-group').style.display = !elektro && alt && fahrzeugart === 'pkw' ? '' : 'none';
+  EL('gewicht-group').style.display = elektro ? '' : 'none';
+
+  if (!erstzulassung) {
+    EL('steuer-jahr').textContent = '— €';
+    EL('rechenweg').innerHTML = '<p class="hinweis">Bitte das Datum der Erstzulassung angeben – es bestimmt, welche Vorschrift gilt.</p>';
+    return;
+  }
+
+  const r = berechneKfzSteuer({
+    fahrzeugart, antrieb, erstzulassung,
+    hubraum: parseInt(EL('hubraum').value) || 0,
+    co2: parseInt(EL('co2').value) || 0,
+    gesamtgewicht: parseInt(EL('gesamtgewicht').value) || 0,
+    schadstoffklasse: EL('schadstoffklasse').value,
+    ermaessigung: EL('ermaessigung').value,
+  });
+
+  if (r.jahressteuer === null) {
+    EL('steuer-jahr').textContent = 'nicht abgebildet';
+    EL('rechenweg').innerHTML = r.hinweise.map(h => `<p class="hinweis">${h}</p>`).join('');
+    return;
+  }
+
+  EL('steuer-jahr').textContent = fmt(r.jahressteuerAbgerundet);
+
+  const zeilen = [];
+  if (r.steuerbefreit) {
+    zeilen.push(`<li>Steuerbefreit nach § 3d Abs. 1 KraftStG bis einschließlich <strong>${fmtDatum(r.befreiungBis)}</strong></li>`);
+  } else {
+    if (r.hubraumanteil > 0) zeilen.push(`<li>Hubraumbetrag: <strong>${fmt(r.hubraumanteil)}</strong></li>`);
+    if (r.co2Freibetrag !== null) {
+      zeilen.push(`<li>CO₂-Komponente über dem Freibetrag von ${r.co2Freibetrag} g/km: <strong>${fmt(r.co2anteil)}</strong></li>`);
+    }
+    if (r.gewichtsanteil > 0) {
+      zeilen.push(`<li>Gewichtssteuer nach § 9 Abs. 1 Nr. 3: ${fmt(r.gewichtsanteil)}, davon 50 % nach § 9 Abs. 2: <strong>${fmt(r.gewichtsanteil / 2)}</strong></li>`);
+    }
+    zeilen.push(`<li>Jahressteuer: ${fmt(r.jahressteuer)}, auf volle Euro abgerundet (§ 11 Abs. 5): <strong>${fmt(r.jahressteuerAbgerundet)}</strong></li>`);
+  }
+
+  const zahlweise = r.halbjaehrlich === null && r.vierteljaehrlich === null
+    ? '<p class="hinweis">Die Steuer ist für ein volles Jahr im Voraus zu entrichten (§ 11 Abs. 1 KraftStG). Eine unterjährige Zahlung ist erst ab mehr als 500 € Jahressteuer zulässig.</p>'
+    : `<p class="hinweis">Zulässige Entrichtungszeiträume nach § 11 Abs. 2: halbjährlich <strong>${fmt(r.halbjaehrlich)}</strong> (3 % Aufgeld)${r.vierteljaehrlich !== null ? `, vierteljährlich <strong>${fmt(r.vierteljaehrlich)}</strong> (6 % Aufgeld)` : ''}.</p>`;
+
+  EL('rechenweg').innerHTML =
+    `<h3 style="font-size:1rem;margin-bottom:0.5rem;">Rechenweg nach ${r.rechtsgrundlage}</h3>`
+    + `<ul style="margin:0 0 0.75rem 1.1rem;font-size:0.92rem;line-height:1.7;">${zeilen.join('')}</ul>`
+    + zahlweise
+    + r.hinweise.map(h => `<p class="hinweis">${h}</p>`).join('');
 }
-['antrieb','hubraum','co2'].forEach(id => document.getElementById(id).addEventListener('input', berechne));
+
+['fahrzeugart', 'antrieb', 'erstzulassung', 'hubraum', 'co2', 'schadstoffklasse', 'gesamtgewicht', 'ermaessigung']
+  .forEach(id => EL(id).addEventListener('input', berechne));
 berechne();
 </script>
+
+<style>
+  .hinweis { margin: 0.5rem 0; font-size: 0.85rem; color: #666; line-height: 1.6; }
+
+  :global(.kfz-staffel) {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.9rem;
+    margin: 0.75rem 0 1.25rem;
+  }
+  :global(.kfz-staffel th),
+  :global(.kfz-staffel td) {
+    padding: 0.45rem 0.5rem;
+    border-bottom: 1px solid var(--border, #e5e5e5);
+    text-align: left;
+  }
+  :global(.kfz-staffel th) { color: var(--muted, #888); font-weight: 600; }
+  :global(.kfz-staffel td:last-child),
+  :global(.kfz-staffel th:last-child) { text-align: right; font-variant-numeric: tabular-nums; }
+  :global(.kfz-staffel tr:last-child td) { border-bottom: none; }
+</style>
