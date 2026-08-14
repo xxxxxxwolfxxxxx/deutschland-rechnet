@@ -135,7 +135,7 @@ function berechne() {
     `<span>Zinskosten: <strong>${fmt(r.zinskosten)}</strong></span>` +
     `<span>÷ Anzahlung: <strong>${fmt(anzahlung)}</strong></span>` +
     `<span>÷ Restwert: <strong>${fmt(restwert)}</strong></span>` +
-    `<span>Effektivkosten/km: <strong>${r.kostenProKm.toFixed(2)} €</strong></span>`;
+    `<span>Effektivkosten/km: <strong>${fmt(r.kostenProKm)}</strong></span>`;
 }
 ['neupreis','anzahlung','restwert','zins'].forEach(id =>
   document.getElementById(id).addEventListener('input', berechne));
