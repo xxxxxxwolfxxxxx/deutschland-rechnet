@@ -66,6 +66,34 @@ const year = new Date().getFullYear();
           <label for="wertsteigerung">Jährliche Wertsteigerung Immobilie (%)</label>
           <input type="number" id="wertsteigerung" min="-5" max="10" value="2" step="0.5" />
         </div>
+        <div class="calc-group">
+          <label for="bundesland">Bundesland (Grunderwerbsteuer)</label>
+          <select id="bundesland">
+            <option value="BW">Baden-Württemberg</option>
+            <option value="BY">Bayern</option>
+            <option value="BE">Berlin</option>
+            <option value="BB">Brandenburg</option>
+            <option value="HB">Bremen</option>
+            <option value="HH">Hamburg</option>
+            <option value="HE">Hessen</option>
+            <option value="MV">Mecklenburg-Vorpommern</option>
+            <option value="NI">Niedersachsen</option>
+            <option value="NW" selected>Nordrhein-Westfalen</option>
+            <option value="RP">Rheinland-Pfalz</option>
+            <option value="SL">Saarland</option>
+            <option value="SN">Sachsen</option>
+            <option value="ST">Sachsen-Anhalt</option>
+            <option value="SH">Schleswig-Holstein</option>
+            <option value="TH">Thüringen</option>
+          </select>
+        </div>
+        <div class="calc-group">
+          <label for="makler">Maklerprovision</label>
+          <select id="makler">
+            <option value="ja" selected>mit Makler</option>
+            <option value="nein">ohne Makler</option>
+          </select>
+        </div>
       </div>
       <div class="calc-result">
         <div class="label">Ergebnis nach <span id="laufzeit-label">20</span> Jahren</div>
@@ -135,9 +163,11 @@ function berechne() {
   const laufzeit = parseInt(document.getElementById('laufzeit').value) || 20;
   const mietsteigerung = parseFloat(document.getElementById('mietsteigerung').value) || 2;
   const wertsteigerung = parseFloat(document.getElementById('wertsteigerung').value) || 2;
-  const r = vergleicheKaufenMieten({ kaufpreis, miete, eigenkapital, zins, laufzeit, mietsteigerung, wertsteigerung });
+  const bundesland = document.getElementById('bundesland').value;
+  const mitMakler = document.getElementById('makler').value === 'ja';
+  const r = vergleicheKaufenMieten({ kaufpreis, miete, eigenkapital, zins, laufzeit, mietsteigerung, wertsteigerung, bundesland, mitMakler });
   document.getElementById('laufzeit-label').textContent = laufzeit;
-  if (r.kaufenGuemstiger) {
+  if (r.kaufenGuenstiger) {
     document.getElementById('ergebnis').textContent = 'Kaufen ist günstiger!';
     document.getElementById('ergebnis').style.color = '#1e7e34';
   } else {
@@ -149,9 +179,15 @@ function berechne() {
     `<span>Kosten Mieten: <strong>${fmt(r.kostenMieten)}</strong></span>` +
     `<span>Differenz: <strong>${fmt(Math.abs(r.differenz))}</strong></span>` +
     `<span>Immobilienwert nach ${laufzeit}J: <strong>${fmt(r.immobilienwert)}</strong></span>` +
+    `<span>Restschuld nach ${laufzeit}J: <strong>${fmt(r.restschuld)}</strong></span>` +
+    `<span>Kaufnebenkosten: <strong>${fmt(r.nebenkosten)}</strong></span>` +
+    `<span>Instandhaltung (1 %/Jahr): <strong>${fmt(r.instandhaltungGesamt)}</strong></span>` +
+    `<span>Monatsrate: <strong>${fmt(r.rate)}</strong></span>` +
     `<span>Gesamtmieten: <strong>${fmt(r.gesamtmiete)}</strong></span>`;
 }
 ['kaufpreis','miete','eigenkapital','zins','laufzeit','mietsteigerung','wertsteigerung'].forEach(id =>
   document.getElementById(id).addEventListener('input', berechne));
+['bundesland','makler'].forEach(id =>
+  document.getElementById(id).addEventListener('change', berechne));
 berechne();
 </script>
