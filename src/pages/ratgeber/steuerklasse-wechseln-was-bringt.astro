@@ -1,0 +1,525 @@
+---
+import ArticleLayout from '../../layouts/ArticleLayout.astro';
+import { vergleicheKombinationen } from '../../../public/scripts/steuerklassenwahl.js';
+import { berechneElterngeld, HOECHSTBETRAG } from '../../../public/scripts/elterngeld.js';
+import { berechneSozialabgaben, BBG_KV_PV_JAHR, BBG_RV_AV_JAHR } from '../../../public/scripts/sozialversicherung.js';
+
+const base = import.meta.env.BASE_URL;
+
+// Alle Zahlen dieses Artikels kommen zur Buildzeit aus denselben Modulen, die
+// auch die Rechner laden. Es steht keine einzige Zahl von Hand im Text.
+//
+// Rechtsstand der Module: 2026-01-01. Beide sind deterministisch, ein
+// Stichtag ist deshalb nicht nötig.
+
+// Drei Paare mit identischem Haushaltseinkommen von 90.000 €, unterschiedlich
+// verteilt. Genau darum geht es: Die Verteilung ändert die Steuer nicht, den
+// Abzug schon.
+const HAUSHALT = 90_000;
+const paare = [
+  { id: 'gleich',   name: 'gleich verdienend', a: 45_000, b: 45_000 },
+  { id: 'sechzig',  name: '60 zu 40',          a: 54_000, b: 36_000 },
+  { id: 'siebzig',  name: '70 zu 30',          a: 63_000, b: 27_000 },
+];
+
+const gerechnet = paare.map((p) => ({
+  ...p,
+  ergebnis: vergleicheKombinationen({ bruttoJahrA: p.a, bruttoJahrB: p.b, kinder: 0 }),
+}));
+
+const gleich = gerechnet.find((p) => p.id === 'gleich')!;
+const sechzig = gerechnet.find((p) => p.id === 'sechzig')!;
+const siebzig = gerechnet.find((p) => p.id === 'siebzig')!;
+
+const kombi = (p: typeof sechzig, id: string) =>
+  p.ergebnis.kombinationen.find((k) => k.id === id)!;
+
+// Die Jahressteuer ist bei allen drei Paaren dieselbe – das ist die Aussage
+// des Splittingverfahrens und zugleich der Beleg der Kernthese.
+const jahressteuerAlle = gerechnet.map((p) => p.ergebnis.jahressteuer.gesamt);
+const jahressteuerIdentisch = new Set(jahressteuerAlle).size === 1;
+const jahressteuer = sechzig.ergebnis.jahressteuer;
+
+// Spannweite der unterjährigen Abzüge bei EINEM Paar und identischer Steuer.
+const abzuege60 = sechzig.ergebnis.kombinationen.map((k) => k.abzugJahr);
+const spanne60 = Math.max(...abzuege60) - Math.min(...abzuege60);
+
+// Die Reihenfolge-Falle: dasselbe Paar, dieselbe Steuer, nur III und V getauscht.
+const reihenfolgeDifferenz =
+  kombi(siebzig, 'V/III').abzugJahr - kombi(siebzig, 'III/V').abzugJahr;
+
+// Bei Gleichverdienern zieht III/V MEHR ein als IV/IV – das Gegenteil der
+// verbreiteten Annahme.
+const gleichMehrabzug = kombi(gleich, 'III/V').abzugJahr - kombi(gleich, 'IV/IV').abzugJahr;
+
+// Treffgenauigkeit des Faktorverfahrens über alle drei Paare.
+const faktorAbweichungen = gerechnet
+  .map((p) => kombi(p, 'IV/IV-Faktor'))
+  .filter((k) => k.anwendbar)
+  .map((k) => Math.abs(k.differenz));
+const faktorMaxAbweichung = Math.max(...faktorAbweichungen);
+
+// --- Elterngeld: der einzige Weg, auf dem der Wechsel echtes Geld bringt ---
+// Die Steuerklasse bestimmt nach § 2e BEEG den Steuerabzug und damit das
+// Bemessungsentgelt. Die Kurve wird hier abgetastet statt geschätzt.
+const EG_MONATE = 12;
+const egKurve: Array<{ brutto: number; V: number; IV: number; III: number; gewinn: number }> = [];
+for (let brutto = 2_000; brutto <= 5_000; brutto += 20) {
+  const wert = (klasse: number) =>
+    berechneElterngeld({ einnahmenMonat: brutto, steuerklasse: klasse, monate: EG_MONATE }).basiselterngeld;
+  const V = wert(5), IV = wert(4), III = wert(3);
+  egKurve.push({ brutto, V, IV, III, gewinn: III - V });
+}
+const egMax = egKurve.reduce((a, b) => (b.gewinn > a.gewinn ? b : a));
+// Ab hier bringt der Wechsel von IV auf III nichts mehr: Der Höchstbetrag greift.
+const egDeckelAbIV = egKurve.find((z) => z.IV >= z.III)!;
+const egBeispiele = [2_500, 3_500, 4_500].map((brutto) => egKurve.find((z) => z.brutto === brutto)!);
+
+// --- Nebenbefund: derselbe Haushalt, ein Verdiener statt zwei ---
+const steuerAllein = vergleicheKombinationen({ bruttoJahrA: HAUSHALT, bruttoJahrB: 0, kinder: 0 }).jahressteuer;
+const svJahr = (bruttoJahr: number) =>
+  bruttoJahr > 0 ? berechneSozialabgaben({ bruttoMonat: bruttoJahr / 12 }).gesamt * 12 : 0;
+const svAllein = svJahr(HAUSHALT);
+const svPaar = svJahr(sechzig.a) + svJahr(sechzig.b);
+const steuerNachteilAllein = steuerAllein.gesamt - jahressteuer.gesamt;
+const svVorteilAllein = svPaar - svAllein;
+const nettoVorteilAllein = svVorteilAllein - steuerNachteilAllein;
+
+// Die Ersparnis stammt nicht aus allen Zweigen: Die Rentenversicherung hat eine
+// eigene, höhere Bemessungsgrenze und ist bei diesem Einkommen nicht betroffen.
+// Ohne diese Aufschlüsselung läge der Schluss nahe, der Alleinverdiener erkaufe
+// den Vorteil mit Rentenansprüchen – er tut es bei 90.000 € nicht.
+const zweig = (bruttoJahr: number) =>
+  bruttoJahr > 0
+    ? berechneSozialabgaben({ bruttoMonat: bruttoJahr / 12 })
+    : { krankenversicherung: 0, pflegeversicherung: 0, rentenversicherung: 0, arbeitslosenversicherung: 0 };
+const zweigDifferenz = (feld: 'krankenversicherung' | 'pflegeversicherung' | 'rentenversicherung' | 'arbeitslosenversicherung') =>
+  (zweig(sechzig.a)[feld] + zweig(sechzig.b)[feld] - zweig(HAUSHALT)[feld]) * 12;
+const diffKvPv = zweigDifferenz('krankenversicherung') + zweigDifferenz('pflegeversicherung');
+const diffRvAv = zweigDifferenz('rentenversicherung') + zweigDifferenz('arbeitslosenversicherung');
+
+const eur = (betrag: number) =>
+  betrag.toLocaleString('de-DE', { minimumFractionDigits: 0, maximumFractionDigits: 0 }) + ' €';
+const eurGenau = (betrag: number) =>
+  betrag.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
+---
+<ArticleLayout
+  title="Steuerklasse wechseln: Was es wirklich bringt – und was nicht"
+  description={`Der Wechsel der Steuerklasse ändert die Jahressteuer um keinen Cent. Durchgerechnet für drei Paare mit ${eur(HAUSHALT)} Haushaltseinkommen – samt der einen Situation, in der er tatsächlich Geld bringt.`}
+  canonicalPath="/ratgeber/steuerklasse-wechseln-was-bringt/"
+  datum="2026-08-14"
+  lead={`Für dasselbe Paar liegen die vier wählbaren Kombinationen ${eur(spanne60)} auseinander – bei dem, was das Jahr über vom Lohn einbehalten wird. Die Steuer, die am Ende geschuldet wird, ist in allen vier Fällen dieselbe. Was ein Wechsel verschiebt, ist also nicht die Belastung, sondern ihr Zeitpunkt. Bis auf einen Fall.`}
+  quellen={[
+    { titel: '§ 32a Abs. 5 EStG – Splittingverfahren', url: 'https://www.gesetze-im-internet.de/estg/__32a.html' },
+    { titel: '§ 39 Abs. 6 EStG – Änderung der Steuerklasse im Kalenderjahr', url: 'https://www.gesetze-im-internet.de/estg/__39.html' },
+    { titel: '§ 39b Abs. 2 EStG – Lohnsteuerabzug je Steuerklasse', url: 'https://www.gesetze-im-internet.de/estg/__39b.html' },
+    { titel: '§ 39f EStG – Faktorverfahren', url: 'https://www.gesetze-im-internet.de/estg/__39f.html' },
+    { titel: '§ 46 Abs. 2 EStG – Pflicht zur Steuererklärung', url: 'https://www.gesetze-im-internet.de/estg/__46.html' },
+    { titel: '§ 2 BEEG – Höhe des Elterngeldes und Höchstbetrag', url: 'https://www.gesetze-im-internet.de/beeg/__2.html' },
+    { titel: '§ 2b BEEG – Bemessungszeitraum', url: 'https://www.gesetze-im-internet.de/beeg/__2b.html' },
+    { titel: '§ 2c BEEG – Einkommen aus nichtselbstständiger Erwerbstätigkeit', url: 'https://www.gesetze-im-internet.de/beeg/__2c.html' },
+  ]}
+>
+  <h2>Vier Kombinationen, eine Steuer</h2>
+
+  <p>
+    Ehepaare und eingetragene Lebenspartner können zwischen vier Kombinationen wählen:
+    IV/IV, III/V, V/III und IV/IV mit Faktor. Rechnet man ein Paar mit
+    {' '}{eur(sechzig.a)} und {eur(sechzig.b)} Jahresbrutto durch alle vier, ergibt sich
+    dieses Bild.
+  </p>
+
+  <div class="table-wrap">
+    <table>
+      <caption class="visually-hidden">Lohnsteuerabzug und Jahressteuer je Steuerklassenkombination</caption>
+      <thead>
+        <tr>
+          <th scope="col">Kombination</th>
+          <th scope="col" class="num">Abzug je Monat</th>
+          <th scope="col" class="num">Abzug im Jahr</th>
+          <th scope="col" class="num">geschuldete Steuer</th>
+          <th scope="col" class="num">Differenz</th>
+        </tr>
+      </thead>
+      <tbody>
+        {sechzig.ergebnis.kombinationen.map((k) => (
+          <tr>
+            <th scope="row">
+              {k.name}
+              {!k.anwendbar && <span class="klasse">hier nicht wählbar</span>}
+            </th>
+            <td class="num">{eurGenau(k.abzugMonat)}</td>
+            <td class="num">{eur(k.abzugJahr)}</td>
+            <td class="num">{eur(jahressteuer.gesamt)}</td>
+            <td class="num strong">
+              {k.differenz > 0 ? '+' + eur(k.differenz) : eur(k.differenz)}
+              <span class="anteil">{k.differenz > 0 ? 'Erstattung' : k.differenz < 0 ? 'Nachzahlung' : 'punktgenau'}</span>
+            </td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  </div>
+  <p class="tabellenhinweis">
+    Jahresarbeitslohn {eur(sechzig.a)} und {eur(sechzig.b)}, keine Kinder,
+    durchschnittlicher Zusatzbeitrag. Ein positiver Wert bedeutet, dass zu viel
+    einbehalten wurde und Geld zurückkommt.
+  </p>
+
+  <p>
+    Die vierte Spalte ist in jeder Zeile dieselbe. Das ist kein Rundungseffekt,
+    sondern der Kern der Sache: Die Steuerklasse steuert ausschließlich den
+    <em>Lohnsteuerabzug</em> – also die monatliche Vorauszahlung. Geschuldet wird
+    am Jahresende die Einkommensteuer nach dem Splittingverfahren des
+    § 32a Abs. 5 EStG, und die kennt keine Steuerklassen. Sie kennt nur die Summe
+    beider Einkommen.
+  </p>
+
+  <p>
+    Was als „Ersparnis durch Steuerklassenwechsel“ beworben wird, ist deshalb
+    keine Ersparnis. Es ist eine Verschiebung: Wer monatlich weniger abführt,
+    bekommt die Differenz als Nachzahlung präsentiert. Wer mehr abführt, bekommt
+    sie zurück. In der Tabelle liegen die vier Wege {eur(spanne60)} auseinander –
+    und am Ende alle bei {eur(jahressteuer.gesamt)}.
+  </p>
+
+  {jahressteuerIdentisch && (
+    <p>
+      Das gilt auch über Paare hinweg. Alle drei hier gerechneten Konstellationen –
+      {gerechnet.map((p, i) => (
+        <>{i === gerechnet.length - 1 ? ' und ' : i > 0 ? ', ' : ' '}{eur(p.a)} zu {eur(p.b)}</>
+      ))} – kommen auf dieselbe Jahressteuer von {eur(jahressteuer.gesamt)}. Wie sich
+      {' '}{eur(HAUSHALT)} Haushaltseinkommen auf zwei Personen verteilen, ist der
+      Einkommensteuer gleichgültig. Genau das ist die Wirkung des Splittings.
+    </p>
+  )}
+
+  <h2>Die Reihenfolge kostet mehr als die Kombination</h2>
+
+  <p>
+    Wer sich für III/V entscheidet, trifft eine zweite Entscheidung mit: wer von
+    beiden die III bekommt. Diese zweite ist die folgenreichere. Beim Paar mit
+    {' '}{eur(siebzig.a)} und {eur(siebzig.b)} sieht das so aus:
+  </p>
+
+  <div class="table-wrap">
+    <table>
+      <caption class="visually-hidden">Wirkung der Reihenfolge bei III/V</caption>
+      <thead>
+        <tr>
+          <th scope="col">Kombination</th>
+          <th scope="col" class="num">Abzug Partner A</th>
+          <th scope="col" class="num">Abzug Partner B</th>
+          <th scope="col" class="num">Abzug im Jahr</th>
+          <th scope="col" class="num">Differenz</th>
+        </tr>
+      </thead>
+      <tbody>
+        {['III/V', 'V/III'].map((id) => {
+          const k = kombi(siebzig, id);
+          return (
+            <tr>
+              <th scope="row">
+                {k.name}
+                <span class="klasse">
+                  {id === 'III/V' ? 'Mehrverdiener hat III' : 'Geringverdiener hat III'}
+                </span>
+              </th>
+              <td class="num">{eurGenau(k.partnerA.lohnsteuerMonat)}</td>
+              <td class="num">{eurGenau(k.partnerB.lohnsteuerMonat)}</td>
+              <td class="num">{eur(k.abzugJahr)}</td>
+              <td class="num strong">{k.differenz > 0 ? '+' + eur(k.differenz) : eur(k.differenz)}</td>
+            </tr>
+          );
+        })}
+      </tbody>
+    </table>
+  </div>
+  <p class="tabellenhinweis">
+    Partner A verdient {eur(siebzig.a)}, Partner B {eur(siebzig.b)}. Monatliche
+    Lohnsteuer ohne Solidaritätszuschlag.
+  </p>
+
+  <p>
+    {eur(reihenfolgeDifferenz)} Unterschied im Jahresabzug – bei exakt derselben
+    Steuerschuld. Bekommt der Geringverdiener die III, wird die günstige Klasse
+    auf das kleine Einkommen angewandt und die teure V auf das große. Das Ergebnis
+    ist ein zinsloses Darlehen an den Staat, das erst mit dem Steuerbescheid des
+    Folgejahres zurückkommt.
+  </p>
+
+  <p>
+    Die Kombination V/III ist dabei ohne Weiteres wählbar – das Gesetz kennt
+    keine Prüfung darauf, ob sie sinnvoll ist. Als Faustregel bleibt: III/V
+    verschiebt nur dann etwas in die gewünschte Richtung, wenn ein Einkommen
+    deutlich größer ist als das andere und die III an das größere geht.
+  </p>
+
+  <h2>Bei gleichen Einkommen ist III/V schlechter</h2>
+
+  <p>
+    Die verbreitete Annahme, III/V sei „die günstigere“ Kombination, hält bei
+    gleich verdienenden Paaren nicht stand. Für {eur(gleich.a)} und {eur(gleich.b)}
+    zieht III/V {eur(gleichMehrabzug)} im Jahr <em>mehr</em> ein als IV/IV –
+    {' '}{eurGenau(kombi(gleich, 'III/V').abzugMonat)} statt
+    {' '}{eurGenau(kombi(gleich, 'IV/IV').abzugMonat)} im Monat. IV/IV trifft die
+    Jahressteuer hier punktgenau, es bleibt keine Differenz.
+  </p>
+
+  <p>
+    Konsequenterweise steht Gleichverdienern das Faktorverfahren gar nicht offen.
+    Der Faktor nach § 39f Abs. 1 EStG wird nur gebildet, wenn er kleiner als 1
+    ist – und das ist er nur, wenn IV/IV mehr einbehält als geschuldet wird. Bei
+    zwei gleichen Einkommen tut es das nicht. Das Verfahren fehlt hier also nicht,
+    es wird schlicht nicht gebraucht.
+  </p>
+
+  <h2>Das Faktorverfahren trifft – und zieht trotzdem eine Pflicht nach sich</h2>
+
+  <p>
+    Wer die Liquidität von III/V will, ohne die Nachzahlung, wählt IV/IV mit
+    Faktor. Das Finanzamt teilt dabei die voraussichtliche Jahressteuer durch die
+    Lohnsteuer nach IV/IV und wendet den so gebildeten Faktor auf beide Löhne an.
+    In den drei hier gerechneten Fällen weicht der Abzug am Jahresende um
+    höchstens {eur(faktorMaxAbweichung)} von der tatsächlichen Steuerschuld ab.
+  </p>
+
+  <p>
+    Ein verbreitetes Missverständnis betrifft die Steuererklärung. Richtig ist,
+    dass III/V zur Abgabe verpflichtet. Übersehen wird meist, dass das
+    Faktorverfahren dieselbe Folge hat: § 46 Abs. 2 Nr. 3a EStG erfasst
+    ausdrücklich beide Fälle – die Besteuerung nach Klasse V oder VI <em>und</em>
+    den bei Klasse IV eingetragenen Faktor. Wer die Erklärung vermeiden will,
+    kommt nur mit dem schlichten IV/IV ohne Faktor aus.
+  </p>
+
+  <h2>Wo der Wechsel wirklich Geld bringt</h2>
+
+  <p>
+    Es gibt eine Ausnahme, und sie ist die eigentliche Antwort auf die Frage nach
+    dem richtigen Zeitpunkt: Lohnersatzleistungen bemessen sich am Netto, und das
+    Netto hängt an der Steuerklasse. Beim Elterngeld ist der Effekt am größten und
+    am besten greifbar, weil das Bemessungsentgelt nach § 2c BEEG mit den
+    Abzugsmerkmalen der Lohnabrechnung gebildet wird.
+  </p>
+
+  <div class="table-wrap">
+    <table>
+      <caption class="visually-hidden">Basiselterngeld je Steuerklasse</caption>
+      <thead>
+        <tr>
+          <th scope="col">Brutto je Monat</th>
+          <th scope="col" class="num">Klasse V</th>
+          <th scope="col" class="num">Klasse IV</th>
+          <th scope="col" class="num">Klasse III</th>
+          <th scope="col" class="num">V statt III kostet</th>
+        </tr>
+      </thead>
+      <tbody>
+        {egBeispiele.map((z) => (
+          <tr>
+            <th scope="row">{eur(z.brutto)}</th>
+            <td class="num">{eurGenau(z.V)}</td>
+            <td class="num">{eurGenau(z.IV)}</td>
+            <td class="num">{eurGenau(z.III)}</td>
+            <td class="num strong">
+              {eur(z.gewinn * EG_MONATE)}
+              <span class="anteil">über {EG_MONATE} Monate</span>
+            </td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  </div>
+  <p class="tabellenhinweis">
+    Basiselterngeld je Monat, ohne Geschwisterbonus und ohne Einkommen im
+    Bezugszeitraum. Berechnet nach §§ 2, 2c, 2e BEEG.
+  </p>
+
+  <p>
+    Der Vorteil ist nicht linear. Er wächst bis zu einem Bruttoeinkommen von rund
+    {' '}{eur(egMax.brutto)} im Monat auf {eurGenau(egMax.gewinn)} je Bezugsmonat –
+    über {EG_MONATE} Monate sind das {eur(egMax.gewinn * EG_MONATE)} – und fällt
+    danach wieder. Der Grund ist der Höchstbetrag des § 2 Abs. 1 Satz 2 BEEG von
+    {' '}{eur(HOECHSTBETRAG)}: Ab etwa {eur(egDeckelAbIV.brutto)} Brutto erreicht
+    schon die Klasse IV die Obergrenze, ein Wechsel auf III bringt von dort an
+    nichts mehr.
+  </p>
+
+  <p>
+    Entscheidend ist der Vorlauf, und hier wird es unangenehm konkret. Nach
+    § 2c Abs. 3 Satz 1 BEEG gelten grundsätzlich die Abzugsmerkmale des letzten
+    Monats im Bemessungszeitraum. Satz 2 kehrt das aber um, sobald sich ein
+    Merkmal geändert hat: Dann zählt die <em>abweichende</em> Angabe, wenn sie in
+    der überwiegenden Zahl der Kalendermonate gegolten hat. Ein später Wechsel
+    wird dadurch wirkungslos – die alte Klasse setzt sich durch, weil sie
+    überwog.
+  </p>
+
+  <p>
+    Der Bemessungszeitraum sind nach § 2b Abs. 1 BEEG die zwölf Kalendermonate vor
+    dem Geburtsmonat, wobei Monate mit Mutterschutz oder Mutterschaftsgeld
+    unberücksichtigt bleiben und den Zeitraum entsprechend nach hinten verschieben.
+    Die neue Klasse muss also in mehr als der Hälfte dieser zwölf Monate gegolten
+    haben. Dazu kommt, dass ein Wechsel nach § 39 Abs. 6 Satz 5 EStG erst vom
+    Beginn des Monats <em>nach</em> der Antragstellung wirkt. Wer diesen Hebel
+    nutzen will, muss deutlich mehr als ein halbes Jahr vor Beginn des
+    Mutterschutzes handeln.
+  </p>
+
+  <p class="hinweis">
+    Der Wechsel selbst ist unbürokratisch: Ehegatten können ihn nach
+    § 39 Abs. 6 Satz 3 EStG im Laufe des Kalenderjahres beantragen, ohne
+    Begrenzung auf einen Wechsel pro Jahr. Die Frist für die Berücksichtigung im
+    laufenden Jahr endet am 30. November.
+  </p>
+
+  <h2>Ein Nebenbefund zum Alleinverdiener</h2>
+
+  <p>
+    Beim Durchrechnen fällt eine Zahl auf, die der üblichen Erzählung über das
+    Ehegattensplitting widerspricht. Verdient eine Person die vollen
+    {' '}{eur(HAUSHALT)} allein, beträgt die Jahressteuer {eur(steuerAllein.gesamt)}
+    statt {eur(jahressteuer.gesamt)} – {eur(steuerNachteilAllein)} mehr für
+    dasselbe Haushaltseinkommen.
+  </p>
+
+  <p>
+    Die Ursache ist die Vorsorgepauschale. Sie bemisst sich an den
+    Sozialversicherungsbeiträgen, und die enden bei der
+    Beitragsbemessungsgrenze – in der Kranken- und Pflegeversicherung bei
+    {' '}{eur(BBG_KV_PV_JAHR)} im Jahr. Ein Einkommen von {eur(HAUSHALT)} liegt
+    darüber, zwei Einkommen von {eur(sechzig.a)} und {eur(sechzig.b)} liegen
+    beide darunter. Das Paar zahlt deshalb mehr Beiträge, kann mehr absetzen und
+    versteuert einen kleineren Betrag.
+  </p>
+
+  <p>
+    Wer daraus einen Nachteil des Alleinverdieners macht, greift allerdings zu
+    kurz. Dieselbe Kappung, die die Steuer erhöht, senkt die Beiträge: Der
+    Alleinverdiener zahlt {eur(svVorteilAllein)} weniger in die
+    Sozialversicherung. Unter dem Strich bleiben ihm {eur(nettoVorteilAllein)}
+    mehr im Jahr. Der Steuernachteil ist real, aber er ist der kleinere Teil einer
+    Rechnung, die insgesamt in die andere Richtung ausgeht.
+  </p>
+
+  <p>
+    Naheliegend wäre der Einwand, das gehe zulasten der Rente. Bei diesem
+    Einkommen tut es das nicht. Die Ersparnis stammt vollständig aus Kranken- und
+    Pflegeversicherung ({eur(diffKvPv)}); in Renten- und
+    Arbeitslosenversicherung beträgt die Differenz {eur(diffRvAv)}. Deren
+    Bemessungsgrenze liegt mit {eur(BBG_RV_AV_JAHR)} über dem hier gerechneten
+    Einkommen, sie greift also in keinem der beiden Fälle. Auf {eur(HAUSHALT)}
+    werden so oder so Rentenbeiträge fällig – beim Paar nur verteilt auf zwei
+    Konten statt auf eines. Anders sähe es aus, sobald ein Einkommen auch diese
+    Grenze überschreitet.
+  </p>
+
+  <h2>Was daraus folgt</h2>
+
+  <p>
+    Für die meisten Paare ist die Frage nach der „richtigen“ Steuerklasse eine
+    Frage nach der bevorzugten Zahlungsweise, nicht nach der Höhe der Steuer. Wer
+    monatlich mehr Geld zur Verfügung haben will und eine Nachzahlung einplanen
+    kann, nimmt III/V mit der III beim Mehrverdiener. Wer beides nicht will, nimmt
+    IV/IV mit Faktor und liegt am Jahresende um wenige Euro daneben. Bei annähernd
+    gleichen Einkommen genügt das schlichte IV/IV, das hier ohnehin am genauesten
+    trifft.
+  </p>
+
+  <p>
+    Echtes Geld bewegt der Wechsel nur dort, wo eine Lohnersatzleistung am Netto
+    hängt – bei Elterngeld, Arbeitslosengeld, Kranken- oder Mutterschaftsgeld. Und
+    dort entscheidet nicht die Wahl selbst, sondern wie früh sie getroffen wurde.
+  </p>
+
+  <p>
+    Beide Seiten lassen sich hier nachrechnen: die Kombinationen im
+    {' '}<a href={`${base}geld/steuerklasse-optimieren/`}>Steuerklassen-Rechner</a>,
+    die Auswirkung auf die Leistung im
+    {' '}<a href={`${base}familie/elterngeld-rechner/`}>Elterngeld-Rechner</a>.
+    Wie sich die Klasse auf das monatliche Netto auswirkt, zeigt der
+    {' '}<a href={`${base}geld/brutto-netto-rechner/`}>Brutto-Netto-Rechner</a>.
+  </p>
+
+  <p class="hinweis">
+    Die Jahressteuer wird hier nach § 39f Satz 3 EStG mit den Abzugsbeträgen des
+    § 39b Abs. 2 EStG geschätzt – so, wie es auch das Finanzamt für den Faktor
+    tut. Die tatsächliche Veranlagung setzt die Vorsorgeaufwendungen nach § 10
+    EStG an, die davon abweichen. Kinderfreibeträge, Kirchensteuer und weitere
+    Freibeträge sind nicht berücksichtigt. Der Artikel ersetzt keine
+    Steuerberatung.
+  </p>
+</ArticleLayout>
+
+<style>
+.table-wrap {
+  overflow-x: auto;
+  margin: 1.5rem 0 0.5rem;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.87rem;
+  background: white;
+}
+thead th {
+  background: var(--dark);
+  color: white;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-weight: 600;
+  padding: 0.7rem 0.6rem;
+  text-align: left;
+  white-space: nowrap;
+}
+tbody th {
+  text-align: left;
+  font-weight: 600;
+  padding: 0.6rem;
+  min-width: 12ch;
+}
+tbody td { padding: 0.6rem; }
+tbody tr:nth-child(even) { background: var(--surface); }
+tbody tr:hover { background: var(--cat-light, #f3f4f6); }
+.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.strong { font-weight: 700; }
+.klasse {
+  display: block;
+  font-weight: 400;
+  font-size: 0.75rem;
+  color: var(--text-light);
+}
+.anteil {
+  display: block;
+  font-weight: 400;
+  font-size: 0.75rem;
+  color: var(--text-light);
+}
+.tabellenhinweis {
+  font-size: 0.78rem !important;
+  color: var(--text-light);
+  margin: 0 0 1.5rem !important;
+}
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+.hinweis {
+  margin-top: 2rem;
+  padding: 0.9rem 1.1rem;
+  background: var(--surface);
+  border-left: 3px solid var(--gold);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  font-size: 0.85rem !important;
+  line-height: 1.6 !important;
+  color: var(--text-light);
+}
+</style>
