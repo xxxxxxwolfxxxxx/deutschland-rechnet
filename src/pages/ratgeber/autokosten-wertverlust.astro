@@ -1,0 +1,385 @@
+---
+import ArticleLayout from '../../layouts/ArticleLayout.astro';
+
+const base = import.meta.env.BASE_URL;
+
+// Marktdaten sind keine Rechtsgrößen: Sie stehen hier als datierte, belegte
+// Annahme mit Fundstelle, nicht als scheinbare Tatsache im Fließtext.
+//
+// Quelle: ADAC Autokostenübersicht Frühjahr/Sommer 2026 (Stand 04/2026),
+// https://assets.adac.de/Autodatenbank/Autokosten/autokostenuebersicht.pdf
+// Methodik: https://assets.adac.de/Autodatenbank/Autokosten/autokosten_grundlagen.pdf
+//
+// Standardannahmen des ADAC: 60 Monate Haltedauer, 15.000 km im Jahr, also
+// 75.000 km gesamt. Alle Beträge sind Euro je MONAT, die letzte Spalte Cent
+// je Kilometer. Finanzierungszinsen sind darin ausdrücklich NICHT enthalten.
+const ADAC_STAND = 'Frühjahr/Sommer 2026';
+const ADAC_HALTEDAUER_MONATE = 60;
+const ADAC_KM_PRO_JAHR = 15_000;
+
+// Kraftstoffpreise derselben Erhebung, Dreimonatsdurchschnitt.
+const ADAC_PREISE = { super: 1.92, diesel: 1.92, strom: 0.44 };
+
+type Modell = {
+  name: string;
+  klasse: string;
+  grundpreis: number;
+  fix: number;
+  werkstatt: number;
+  betrieb: number;
+  wertverlust: number;
+  gesamt: number;
+  centProKm: number;
+};
+
+const modelle: Modell[] = [
+  { name: 'Dacia Sandero SCe 65 Essential', klasse: 'Kleinwagen', grundpreis: 12_790, fix: 135, werkstatt: 51, betrieb: 152, wertverlust: 147, gesamt: 485, centProKm: 38.8 },
+  { name: 'Opel Corsa 1.2 DI Turbo Edition', klasse: 'Kleinwagen', grundpreis: 22_890, fix: 147, werkstatt: 76, betrieb: 144, wertverlust: 264, gesamt: 632, centProKm: 50.6 },
+  { name: 'VW Golf 1.5 TSI', klasse: 'Kompaktklasse', grundpreis: 29_395, fix: 116, werkstatt: 65, betrieb: 153, wertverlust: 340, gesamt: 674, centProKm: 54.0 },
+  { name: 'Opel Corsa Electric (50 kWh)', klasse: 'Kleinwagen, elektrisch', grundpreis: 29_990, fix: 127, werkstatt: 64, betrieb: 107, wertverlust: 384, gesamt: 682, centProKm: 54.6 },
+  { name: 'Alfa Romeo Giulia 2.2 Diesel Sprint Q4', klasse: 'Mittelklasse', grundpreis: 56_000, fix: 225, werkstatt: 109, betrieb: 160, wertverlust: 654, gesamt: 1148, centProKm: 91.8 },
+];
+
+const mitAnteil = modelle.map((m) => ({
+  ...m,
+  anteilWertverlust: m.wertverlust / m.gesamt,
+  anteilBetrieb: m.betrieb / m.gesamt,
+}));
+
+const guenstigstes = mitAnteil[0];
+const teuerstes = mitAnteil[mitAnteil.length - 1];
+const golf = mitAnteil.find((m) => m.name.startsWith('VW Golf'))!;
+
+// Derselbe Wagen als Benziner und als Diesel – der aussagekräftigste Vergleich,
+// weil alles außer dem Antrieb gleich bleibt.
+const golfBenziner = { name: 'Golf 1.5 TSI', kw: 85, grundpreis: 29_395, fix: 116, werkstatt: 65, betrieb: 153, wertverlust: 340, gesamt: 674, centProKm: 54.0 };
+const golfDiesel = { name: 'Golf 2.0 TDI', kw: 85, grundpreis: 32_995, fix: 136, werkstatt: 66, betrieb: 129, wertverlust: 386, gesamt: 717, centProKm: 57.3 };
+const spritVorteilDiesel = golfBenziner.betrieb - golfDiesel.betrieb;
+const fixNachteilDiesel = golfDiesel.fix - golfBenziner.fix;
+const wertverlustNachteilDiesel = golfDiesel.wertverlust - golfBenziner.wertverlust;
+const dieselMehrkosten = golfDiesel.gesamt - golfBenziner.gesamt;
+
+const eur = (n: number) => n.toLocaleString('de-DE', { maximumFractionDigits: 0 }) + ' €';
+const eurExakt = (n: number) =>
+  n.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
+const prozent = (n: number) => (n * 100).toLocaleString('de-DE', { maximumFractionDigits: 0 }) + ' %';
+const ct = (n: number) => n.toLocaleString('de-DE', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + ' ct';
+const ganz = (n: number) => n.toLocaleString('de-DE');
+---
+<ArticleLayout
+  title="Was ein Auto wirklich pro Kilometer kostet – und warum der Sprit der kleinere Posten ist"
+  description={`Der Wertverlust macht je nach Fahrzeug ${prozent(guenstigstes.anteilWertverlust)} bis ${prozent(teuerstes.anteilWertverlust)} der Autokosten aus – deutlich mehr als der Kraftstoff. Fünf Modelle nach ADAC-Daten aufgeschlüsselt.`}
+  canonicalPath="/ratgeber/autokosten-wertverlust/"
+  lead={`Beim Autokauf wird über den Verbrauch diskutiert, beim Tanken über den Literpreis geärgert. Der mit Abstand größte Posten steht auf keiner Rechnung: Der Wertverlust macht bei einem ${golf.name} ${prozent(golf.anteilWertverlust)} der monatlichen Kosten aus – gegenüber ${prozent(golf.anteilBetrieb)} für Kraftstoff, Öl und Pflege zusammen.`}
+  datum="2026-08-14"
+  quellen={[
+    { titel: 'ADAC Autokostenübersicht Frühjahr/Sommer 2026 (PDF)', url: 'https://assets.adac.de/Autodatenbank/Autokosten/autokostenuebersicht.pdf' },
+    { titel: 'ADAC: Grundlagen für die standardisierte Autokostenberechnung (PDF)', url: 'https://assets.adac.de/Autodatenbank/Autokosten/autokosten_grundlagen.pdf' },
+    { titel: 'ADAC: Wie viel kostet ein Auto wirklich?', url: 'https://www.adac.de/rund-ums-fahrzeug/auto-kaufen-verkaufen/autokosten/uebersicht/' },
+    { titel: 'KraftStG § 9 – Steuersätze (Grundlage der Fixkosten)', url: 'https://www.gesetze-im-internet.de/kraftstg/__9.html' },
+  ]}
+>
+  <p>
+    Die Frage „Was kostet mich das Auto?" wird fast immer zu klein beantwortet. Wer
+    Tankquittungen zusammenrechnet, erfasst je nach Fahrzeug nur ein Fünftel bis ein
+    Drittel der tatsächlichen Kosten. Der Rest fällt an, ohne dass jemals eine
+    Rechnung im Briefkasten liegt – und genau deshalb wird er übersehen.
+  </p>
+  <p>
+    Die folgenden Zahlen stammen aus der ADAC-Autokostenübersicht
+    {' '}{ADAC_STAND}. Sie unterstellt {ADAC_HALTEDAUER_MONATE} Monate Haltedauer und
+    {' '}{ganz(ADAC_KM_PRO_JAHR)} Kilometer im Jahr, insgesamt also
+    {' '}{ganz(ADAC_HALTEDAUER_MONATE / 12 * ADAC_KM_PRO_JAHR)} Kilometer. Ein Punkt
+    der Methodik ist wichtig: <strong>Finanzierungszinsen sind darin nicht
+    enthalten.</strong> Wer den Kauf finanziert, muss sie zusätzlich rechnen.
+  </p>
+
+  <h2>Vier Blöcke, und einer dominiert</h2>
+  <p>
+    Autokosten zerfallen in vier Gruppen: Wertverlust, Fixkosten (Versicherung,
+    Kfz-Steuer, Pauschalen), Werkstatt- und Reifenkosten sowie Betriebskosten
+    (Kraftstoff, Öl, Pflege). Die Aufteilung über fünf Fahrzeuge verschiedener
+    Preisklassen:
+  </p>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th scope="col">Modell</th>
+          <th scope="col" class="num">Neupreis</th>
+          <th scope="col" class="num">Wertverlust</th>
+          <th scope="col" class="num">Fix</th>
+          <th scope="col" class="num">Werkstatt</th>
+          <th scope="col" class="num">Betrieb</th>
+          <th scope="col" class="num">gesamt</th>
+          <th scope="col" class="num">je km</th>
+        </tr>
+      </thead>
+      <tbody>
+        {mitAnteil.map((m) => (
+          <tr>
+            <th scope="row">
+              {m.name}
+              <span class="klasse">{m.klasse}</span>
+            </th>
+            <td class="num">{eur(m.grundpreis)}</td>
+            <td class="num strong">
+              {eur(m.wertverlust)}
+              <span class="anteil">{prozent(m.anteilWertverlust)}</span>
+            </td>
+            <td class="num">{eur(m.fix)}</td>
+            <td class="num">{eur(m.werkstatt)}</td>
+            <td class="num">{eur(m.betrieb)}</td>
+            <td class="num strong">{eur(m.gesamt)}</td>
+            <td class="num">{ct(m.centProKm)}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  </div>
+  <p class="tabellenhinweis">
+    Alle Beträge in Euro je Monat, letzte Spalte in Cent je Kilometer.
+    Quelle: ADAC Autokostenübersicht {ADAC_STAND}.
+  </p>
+
+  <p>
+    Der Wertverlust ist in jeder Zeile der größte Einzelposten. Sein Anteil wächst mit
+    dem Preis: Beim {guenstigstes.name} sind es
+    {' '}{prozent(guenstigstes.anteilWertverlust)} der Gesamtkosten, beim
+    {' '}{teuerstes.name} schon {prozent(teuerstes.anteilWertverlust)}. Die
+    Betriebskosten – also das, worüber an der Zapfsäule geflucht wird – liegen
+    dagegen zwischen {prozent(teuerstes.anteilBetrieb)} und
+    {' '}{prozent(guenstigstes.anteilBetrieb)}.
+  </p>
+
+  <h2>Warum ein sparsameres Auto teurer sein kann</h2>
+  <p>
+    Aus dieser Verteilung folgt etwas Unbequemes: Ein Aufpreis, der sich über
+    geringeren Verbrauch amortisieren soll, muss gegen einen Posten anlaufen, der
+    zwei- bis viermal so groß ist wie der Kraftstoff. Das gelingt selten.
+  </p>
+  <p>
+    Der sauberste Beleg ist derselbe Wagen mit zwei Antrieben – gleiche Leistung
+    ({golfBenziner.kw} kW), gleiche Baureihe, gleiche Ausstattungslinie:
+  </p>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th scope="col">Golf, {golfBenziner.kw} kW</th>
+          <th scope="col" class="num">Neupreis</th>
+          <th scope="col" class="num">Betrieb</th>
+          <th scope="col" class="num">Fix</th>
+          <th scope="col" class="num">Wertverlust</th>
+          <th scope="col" class="num">gesamt</th>
+        </tr>
+      </thead>
+      <tbody>
+        {[golfBenziner, golfDiesel].map((g) => (
+          <tr>
+            <th scope="row">{g.name}</th>
+            <td class="num">{eur(g.grundpreis)}</td>
+            <td class="num">{eur(g.betrieb)}</td>
+            <td class="num">{eur(g.fix)}</td>
+            <td class="num">{eur(g.wertverlust)}</td>
+            <td class="num strong">{eur(g.gesamt)}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  </div>
+
+  <p>
+    Der Diesel spart tatsächlich beim Kraftstoff – {eur(spritVorteilDiesel)} im Monat.
+    Aber er kostet {eur(fixNachteilDiesel)} mehr an Fixkosten, im Wesentlichen wegen
+    der höheren Kfz-Steuer, und {eur(wertverlustNachteilDiesel)} mehr Wertverlust, weil
+    er in der Anschaffung teurer ist. Unter dem Strich ist er
+    {' '}<strong>{eur(dieselMehrkosten)} im Monat teurer</strong> – bei identischer
+    Fahrleistung und trotz geringeren Verbrauchs.
+  </p>
+  <p>
+    Verstärkt wird das durch eine Entwicklung, die vielen entgangen ist: Diesel und
+    Superbenzin kosten inzwischen praktisch dasselbe. Der ADAC rechnet in derselben
+    Erhebung mit {eurExakt(ADAC_PREISE.diesel)} je Liter Diesel und
+    {' '}{eurExakt(ADAC_PREISE.super)} je Liter Super. Der Preisvorteil an der
+    Zapfsäule, auf dem die ganze Dieselrechnung einmal beruhte, ist damit
+    verschwunden – die höhere Kfz-Steuer nach § 9 KraftStG ist geblieben.
+  </p>
+  <p>
+    Das kippt erst bei hoher Fahrleistung. Wer deutlich mehr als
+    {' '}{ganz(ADAC_KM_PRO_JAHR)} Kilometer im Jahr fährt, verschiebt das Verhältnis
+    zugunsten der verbrauchsabhängigen Posten. Unterhalb dieser Marke rechnet sich der
+    Diesel bei aktuellen Preisen in aller Regel nicht.
+  </p>
+
+  <h2>Was beim Stehen anfällt</h2>
+  <p>
+    Die zweite praktische Konsequenz betrifft Wenigfahrer. Wertverlust und Fixkosten
+    laufen unabhängig von der Fahrleistung weiter – ein Auto, das ein Jahr in der
+    Garage steht, verliert trotzdem an Wert und kostet weiterhin Versicherung und
+    Steuer. Nur Betriebskosten und ein Teil der Werkstattkosten hängen an den
+    gefahrenen Kilometern.
+  </p>
+  <p>
+    Beim {golf.name} sind das {eur(golf.wertverlust + golf.fix)} im Monat, die auch
+    dann anfallen, wenn das Auto nicht bewegt wird – gegenüber
+    {' '}{eur(golf.gesamt)} Gesamtkosten. Wer wenig fährt, zahlt deshalb einen
+    dramatisch höheren Preis je Kilometer: Dieselben Fixkosten verteilen sich auf
+    weniger Strecke. Bei halber Fahrleistung steigen die Kosten je Kilometer nicht auf
+    das Doppelte, aber deutlich – und genau in dieser Konstellation lohnt der Vergleich
+    mit Carsharing oder Mietwagen, der sonst reflexhaft abgetan wird.
+  </p>
+
+  <h2>Der Wertverlust ist nicht gleichmäßig</h2>
+  <p>
+    Die ADAC-Zahlen weisen den Wertverlust als Monatsdurchschnitt über fünf Jahre aus.
+    Tatsächlich verläuft er stark degressiv: Am steilsten fällt der Wert im ersten
+    Jahr, danach flacht die Kurve ab. Ein Neuwagen verliert typischerweise bereits mit
+    der Zulassung einen zweistelligen Prozentsatz – er ist ab diesem Moment ein
+    Gebrauchtwagen, unabhängig vom Tachostand.
+  </p>
+  <p>
+    Für die Rechnung heißt das: Der ausgewiesene Durchschnitt unterschätzt die ersten
+    Jahre und überschätzt die späteren. Wer ein Auto nach zwei Jahren wieder verkauft,
+    zahlt je Monat deutlich mehr Wertverlust als die Tabelle nahelegt. Wer es zehn
+    Jahre fährt, deutlich weniger – der Restwert nähert sich einem Sockel, unter den er
+    kaum noch fällt, während die Fixkosten unverändert weiterlaufen.
+  </p>
+  <p>
+    Das erklärt zwei verbreitete Strategien, die beide funktionieren, aber
+    unterschiedlich:
+  </p>
+  <ul>
+    <li>
+      <strong>Jung gebraucht kaufen.</strong> Ein zwei- bis dreijähriges Fahrzeug hat
+      den steilsten Teil der Kurve hinter sich, ist technisch aber praktisch neuwertig.
+      Der Käufer übernimmt ein Auto, dessen größter Kostenblock bereits von jemand
+      anderem getragen wurde.
+    </li>
+    <li>
+      <strong>Neu kaufen und lange behalten.</strong> Der steile Anfang wird in Kauf
+      genommen, dafür verteilt er sich über viele Jahre. Ab etwa dem achten Jahr
+      dominiert nicht mehr der Wertverlust, sondern steigen die Werkstattkosten – der
+      Punkt, an dem die Rechnung wieder kippt.
+    </li>
+  </ul>
+  <p>
+    Welche der beiden günstiger ist, hängt weniger vom Modell ab als von der
+    tatsächlichen Haltedauer. Wer alle drei Jahre wechselt, fährt mit Gebrauchtwagen
+    fast immer besser; wer Autos bis zum Ende fährt, mit dem Neuwagen oft ebenso gut.
+  </p>
+
+  <h2>Was daraus für die Kaufentscheidung folgt</h2>
+  <p>
+    Drei Schlüsse, die sich aus den Zahlen ergeben und nicht aus dem Bauchgefühl:
+  </p>
+  <ul>
+    <li>
+      <strong>Der Neupreis ist die wichtigste Stellschraube</strong>, weil der
+      Wertverlust an ihm hängt. Zwischen {guenstigstes.name} und {teuerstes.name}
+      liegen {ct(teuerstes.centProKm - guenstigstes.centProKm)} je Kilometer – über
+      {' '}{ganz(ADAC_HALTEDAUER_MONATE / 12 * ADAC_KM_PRO_JAHR)} Kilometer sind das
+      rund {eur((teuerstes.centProKm - guenstigstes.centProKm) / 100 * ADAC_HALTEDAUER_MONATE / 12 * ADAC_KM_PRO_JAHR)}.
+    </li>
+    <li>
+      <strong>Verbrauchsunterschiede entscheiden selten.</strong> Zwischen dem
+      sparsamsten und dem durstigsten Fahrzeug der Tabelle liegen beim Betrieb
+      {' '}{eur(Math.max(...mitAnteil.map(m => m.betrieb)) - Math.min(...mitAnteil.map(m => m.betrieb)))}
+      im Monat – weniger als der Wertverlustunterschied zwischen zwei Kleinwagen.
+    </li>
+    <li>
+      <strong>Die Haltedauer wirkt stärker als das Modell.</strong> Wertverlust ist in
+      den ersten Jahren am steilsten. Wer dasselbe Auto zehn statt fünf Jahre fährt,
+      senkt den größten Kostenblock deutlich – ohne beim Kauf irgendetwas anders zu
+      machen.
+    </li>
+  </ul>
+
+  <h2>Den eigenen Fall rechnen</h2>
+  <p>
+    Die ADAC-Werte gelten für Neuwagen unter Standardannahmen. Für das eigene Fahrzeug,
+    die eigene Fahrleistung und einen gebrauchten Wagen rechnen diese Rechner:
+  </p>
+  <ul>
+    <li><a href={`${base}auto/unterhaltskosten-auto/`}>Unterhaltskosten-Rechner</a> – alle vier Blöcke, getrennt nach fix und variabel</li>
+    <li><a href={`${base}auto/km-kostenrechner/`}>Kilometerkosten-Rechner</a> – Vollkosten je gefahrenem Kilometer</li>
+    <li><a href={`${base}auto/wartungskosten-auto/`}>Wartungskosten-Rechner</a> – Werkstatt, Verschleiß und Reifen nach Klasse und Alter</li>
+    <li><a href={`${base}auto/spritkosten-rechner/`}>Spritkosten-Rechner</a> – Betriebskosten für die eigene Strecke</li>
+    <li><a href={`${base}ratgeber/kfz-steuer-erstzulassung/`}>Kfz-Steuer nach Erstzulassung</a> – warum der Diesel bei den Fixkosten schlechter dasteht</li>
+  </ul>
+
+  <p class="hinweis">
+    Kostendaten: ADAC Autokostenübersicht {ADAC_STAND} (Stand 04/2026), Standardannahmen
+    {' '}{ADAC_HALTEDAUER_MONATE} Monate und {ganz(ADAC_KM_PRO_JAHR)} km im Jahr, ohne
+    Finanzierungszinsen. Kraftstoffpreise als Dreimonatsdurchschnitt derselben Erhebung.
+    Marktpreise schwanken regional und über die Zeit erheblich – die Anteile der
+    Kostenblöcke sind belastbarer als die absoluten Beträge.
+  </p>
+</ArticleLayout>
+
+<style>
+.table-wrap {
+  overflow-x: auto;
+  margin: 1.5rem 0 0.5rem;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.87rem;
+  background: white;
+}
+thead th {
+  background: var(--dark);
+  color: white;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-weight: 600;
+  padding: 0.7rem 0.6rem;
+  text-align: left;
+  white-space: nowrap;
+}
+tbody th {
+  text-align: left;
+  font-weight: 600;
+  padding: 0.6rem;
+  min-width: 14ch;
+}
+tbody td { padding: 0.6rem; }
+tbody tr:nth-child(even) { background: var(--surface); }
+tbody tr:hover { background: var(--cat-light, #f3f4f6); }
+.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.strong { font-weight: 700; }
+.klasse {
+  display: block;
+  font-weight: 400;
+  font-size: 0.75rem;
+  color: var(--text-light);
+}
+.anteil {
+  display: block;
+  font-weight: 400;
+  font-size: 0.75rem;
+  color: var(--text-light);
+}
+.tabellenhinweis {
+  font-size: 0.78rem !important;
+  color: var(--text-light);
+  margin: 0 0 1.5rem !important;
+}
+
+.hinweis {
+  margin-top: 2rem;
+  padding: 0.9rem 1.1rem;
+  background: var(--surface);
+  border-left: 3px solid var(--gold);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  font-size: 0.85rem !important;
+  line-height: 1.6 !important;
+  color: var(--text-light);
+}
+</style>
