@@ -8,19 +8,19 @@ const cat = CATEGORIES[calc.category];
 const year = new Date().getFullYear();
 
 const faqs = [
-  { q: 'Was ist Ehegattenunterhalt?', a: 'Ehegattenunterhalt ist eine Unterhaltsleistung, die ein Ehepartner dem anderen nach Trennung oder Scheidung zahlen muss, wenn dieser hilfsbedürftig ist.' },
-  { q: 'Wie wird Ehegattenunterhalt berechnet?', a: 'Als Grundlage dient die Düsseldorf-Tabelle. Der Unterhalt wird als prozentualer Anteil des unterhaltsrelevanten Nettoeinkommens berechnet.' },
-  { q: 'Was ist unterhaltsrelevantes Einkommen?', a: 'Das ist das bereinigte Nettoeinkommen abzüglich Verbindlichkeiten, Steuern und Sozialversicherungsbeiträge.' },
-  { q: 'Gilt eine Gehaltsgrenze?', a: 'Nein, es gibt keine Gehaltsgrenze für Unterhaltsansprüche. Der Anteil steigt aber, je höher das Einkommen wird.' },
-  { q: 'Wie lange wird Unterhalt gezahlt?', a: 'Ehegattenunterhalt wird in der Regel bis zur Wiederheirat oder zum Tode gezahlt. Es gibt aber Ausnahmen bei Unbilligkeit.' },
-  { q: 'Kann Unterhalt reduziert werden?', a: 'Ja, bei Einkommensminderung oder wenn es unbillig wäre. Eine Reduktion braucht einen Antrag beim Gericht.' },
-  { q: 'Was ist die 3/7-Regelung beim Ehegattenunterhalt?', a: 'Die 3/7-Methode teilt die Einkommensdifferenz: Der Unterhaltspflichtige behält 4/7 (ca. 57 %), der Berechtigte erhält 3/7 (ca. 43 %) der Differenz. Beispiel: Bei 2.500 € Differenz stehen dem Berechtigten rund 1.071 € zu.' },
-  { q: 'Wird der Kindesunterhalt vor dem Ehegattenunterhalt abgezogen?', a: 'Ja, Kindesunterhalt hat Vorrang. Erst wird der Kindesunterhalt nach Düsseldorfer Tabelle vom bereinigten Einkommen abgezogen, dann wird der Ehegattenunterhalt aus dem verbleibenden Betrag berechnet.' },
+  { q: 'Was ist Ehegattenunterhalt?', a: 'Ehegattenunterhalt ist eine Unterhaltsleistung, die ein Ehepartner dem anderen nach Trennung (§ 1361 BGB) oder Scheidung (§§ 1569 ff. BGB) schuldet, wenn dieser bedürftig ist und ein Unterhaltstatbestand vorliegt.' },
+  { q: 'Wie wird Ehegattenunterhalt berechnet?', a: 'Nach dem Halbteilungsgrundsatz: Der Bedarf jedes Ehegatten ist die Hälfte des gemeinsamen unterhaltsrelevanten Einkommens. Vorab wird das Erwerbseinkommen um einen Erwerbstätigenbonus von 1/10 gemindert. Der Unterhalt ist die Differenz zwischen diesem Bedarf und dem eigenen Einkommen des Berechtigten.' },
+  { q: 'Gilt noch die 3/7-Regelung?', a: 'In den meisten Oberlandesgerichtsbezirken nicht mehr. Die 3/7-Regel setzte einen Erwerbstätigenbonus von 1/7 voraus. Die Familiensenate haben ihn auf 1/10 gesenkt – in Nordrhein-Westfalen zum 1.1.2022; die Süddeutschen Leitlinien und die Frankfurter Unterhaltsgrundsätze verfahren ebenso. Aus 3/7 der Einkommensdifferenz (42,86 %) werden damit 45 %.' },
+  { q: 'Was ist unterhaltsrelevantes Einkommen?', a: 'Das bereinigte Nettoeinkommen: Nettoeinkommen abzüglich berufsbedingter Aufwendungen (pauschal 5 %), berücksichtigungsfähiger Schulden, zusätzlicher Altersvorsorge und – vorrangig – des Kindesunterhalts. Hinzugerechnet werden geldwerte Vorteile wie der Wohnvorteil einer selbst genutzten Immobilie.' },
+  { q: 'Gilt eine Obergrenze?', a: 'Für die Quotenberechnung ja. Oberhalb eines Bedarfs, der sich aus dem höchsten Einkommen der Düsseldorfer Tabelle ableitet – bei Erwerbseinkommen 5.040 € monatlich –, greift die Vermutung nicht mehr, dass das gesamte Einkommen für den Lebensunterhalt verbraucht wird. Der Bedarf muss dann konkret dargelegt werden.' },
+  { q: 'Wie lange wird Unterhalt gezahlt?', a: 'Trennungsunterhalt endet mit der Rechtskraft der Scheidung. Nachehelicher Unterhalt setzt einen eigenen Unterhaltstatbestand voraus (Kinderbetreuung, Alter, Krankheit, Erwerbslosigkeit) und wird nach § 1578b BGB häufig der Höhe nach begrenzt oder befristet.' },
+  { q: 'Wird der Kindesunterhalt vor dem Ehegattenunterhalt abgezogen?', a: 'Ja. Nach § 1609 BGB gehen minderjährige und privilegierte volljährige Kinder im Rang vor. Ihr Zahlbetrag wird vom Einkommen des Pflichtigen abgezogen, bevor der Erwerbstätigenbonus gebildet und der Ehegattenbedarf berechnet wird.' },
+  { q: 'Gilt der Erwerbstätigenbonus auch beim Selbstbehalt?', a: 'Nein. Der Bonus wird nur bei der Ermittlung des Bedarfs abgezogen, nicht bei der Prüfung der Leistungsfähigkeit. Dort wird das volle bereinigte Einkommen dem Selbstbehalt gegenübergestellt – 1.600 € bei Erwerbstätigen, 1.475 € bei Nichterwerbstätigen.' },
 ];
 ---
 <Layout
   title={`Ehegattenunterhalt-Rechner ${year}`}
-  description="Ehegattenunterhalt berechnen: Trennungsunterhalt und nachehelichen Unterhalt nach der 3/7-Regelung mit Düsseldorfer Tabelle. Selbstbehalt, Einkommensbereinigung und Beispielrechnungen."
+  description="Ehegattenunterhalt berechnen: Trennungsunterhalt und nachehelicher Unterhalt nach dem Halbteilungsgrundsatz mit Erwerbstätigenbonus von 1/10, Vorrang des Kindesunterhalts und Selbstbehalt 2026."
   canonicalPath="/familie/ehegattenunterhalt-rechner/"
   categoryColor={cat.color}
   categoryLight={cat.colorLight}
@@ -32,106 +32,217 @@ const faqs = [
   </div>
   <CalculatorShell
     calculator={calc}
-    intro="Mit dem Ehegattenunterhalt-Rechner berechnen Sie den Trennungsunterhalt und den nachehelichen Unterhalt. So erfahren Sie, welcher Betrag Ihnen zusteht oder was Sie zahlen müssen."
-    sourceNote="50% des gemeinsamen Einkommens."
-    explanation="Der Trennungsunterhalt richtet sich nach dem eheangemessenen Bedarf (§ 1361 BGB). Der nacheheliche Unterhalt ist nach § 1569 BGB zeitlich begrenzt und erfordert einen Unterhaltstatbestand wie Kinderbetreuung, Alter oder Krankheit."
+    intro="Berechnen Sie Trennungsunterhalt und nachehelichen Unterhalt nach dem Halbteilungsgrundsatz – mit Erwerbstätigenbonus von 1/10, vorrangigem Kindesunterhalt (§ 1609 BGB) und Prüfung der Leistungsfähigkeit."
+    sourceNote="Grundlage: Unterhaltsrechtliche Leitlinien der Familiensenate in Nordrhein-Westfalen Stand 01.01.2026, Nr. 15.2 und Nr. 21; Süddeutsche Leitlinien Stand 01.01.2026, Nr. 15.2 und Nr. 21.4; Frankfurter Unterhaltsgrundsätze Stand 01.01.2026. Erwartet werden bereinigte Nettoeinkommen. Vorsorgeunterhalt, Wohnvorteil und die Begrenzung nach § 1578b BGB bleiben unberücksichtigt. Keine Rechtsberatung."
+    explanation="Der Bedarf jedes Ehegatten beträgt die Hälfte des gemeinsamen unterhaltsrelevanten Einkommens (Halbteilungsgrundsatz). Erwerbseinkommen wird vorab um einen Erwerbstätigenbonus von 1/10 gemindert – Renten, Kapital- und Mieteinkünfte nicht. Der Unterhalt ist die Differenz zwischen diesem Bedarf und dem eigenen bonusbereinigten Einkommen des Berechtigten. Bei beidseitigem Erwerbseinkommen ergibt das 45 % der Einkommensdifferenz. Begrenzt wird der Anspruch durch die Leistungsfähigkeit: Dem Pflichtigen muss der Selbstbehalt von 1.600 € (erwerbstätig) beziehungsweise 1.475 € (nicht erwerbstätig) verbleiben – hier ohne Abzug des Bonus."
     faqs={faqs}
   >
     <div class="calc-form">
       <div class="calc-grid">
         <div class="calc-group">
-          <label for="einkommen1">Einkommen Unterhaltspflichtiger (€/Monat)</label>
+          <label for="einkommen1">Bereinigtes Netto Unterhaltspflichtiger (€/Monat)</label>
           <input type="number" id="einkommen1" min="0" max="100000" value="4000" step="100" />
         </div>
         <div class="calc-group">
-          <label for="einkommen2">Einkommen Unterhaltsberechtigter (€/Monat)</label>
+          <label for="art1">Einkommensart Unterhaltspflichtiger</label>
+          <select id="art1">
+            <option value="1" selected>Erwerbseinkommen</option>
+            <option value="0">Rente, Kapital oder Miete</option>
+          </select>
+        </div>
+        <div class="calc-group">
+          <label for="einkommen2">Bereinigtes Netto Unterhaltsberechtigter (€/Monat)</label>
           <input type="number" id="einkommen2" min="0" max="100000" value="1500" step="100" />
         </div>
         <div class="calc-group">
-          <label for="selbstbehalt">Selbstbehalt (€/Monat)</label>
-          <input type="number" id="selbstbehalt" min="1200" max="2000" value="1400" step="50" />
+          <label for="art2">Einkommensart Unterhaltsberechtigter</label>
+          <select id="art2">
+            <option value="1" selected>Erwerbseinkommen</option>
+            <option value="0">Rente, Kapital oder Miete</option>
+          </select>
+        </div>
+        <div class="calc-group">
+          <label for="kindesunterhalt">Vorrangiger Kindesunterhalt (€/Monat)</label>
+          <input type="number" id="kindesunterhalt" min="0" max="10000" value="0" step="50" />
         </div>
         <div class="calc-group">
           <label for="art">Unterhaltsart</label>
           <select id="art">
-            <option value="trennung" selected>Trennungsunterhalt</option>
-            <option value="nachehel">Nachehelicher Unterhalt</option>
+            <option value="trennung" selected>Trennungsunterhalt (§ 1361 BGB)</option>
+            <option value="nachehel">Nachehelicher Unterhalt (§§ 1569 ff. BGB)</option>
           </select>
         </div>
       </div>
 
-      <div class="calc-result">
-        <div class="label">Geschätzter Unterhalt</div>
-        <div id="unterhalt">— € / Monat</div>
+      <div class="calc-result" id="result-box">
+        <div class="label">Monatlicher Ehegattenunterhalt</div>
+        <div id="unterhalt">— €</div>
       </div>
-      <div id="details" style="margin-top:0.75rem;font-size:0.88rem;color:#666;display:flex;gap:1.5rem;flex-wrap:wrap;"></div>
+
+      <div id="rechenweg" style="margin-top:1.25rem;"></div>
+      <div id="art-hinweis" class="bl-hinweis"></div>
     </div>
   </CalculatorShell>
 
   <CalculatorGuide
     title="Ehegattenunterhalt – Ansprüche und Berechnungen"
-    content="Ehegattenunterhalt (Trennungsunterhalt und Unterhaltsleistungen nach Scheidung) ist ein wichtiges Thema beim Zusammenleben, bei Trennung oder Scheidung. Der Anspruch hängt von mehreren Faktoren ab: Ehedauer, Vermögensverhältnisse und wirtschaftliche Lage beider Partner.
+    content={`<p>Ehegattenunterhalt ist nicht gleich Ehegattenunterhalt: Trennungsunterhalt und nachehelicher Unterhalt sind zwei getrennte Ansprüche mit unterschiedlichen Voraussetzungen. Die Höhe wird in beiden Fällen nach derselben Methode ermittelt.</p>
 
-<h3>Die 3/7-Regelung: So wird der Ehegattenunterhalt berechnet</h3>
-Die gängigste Berechnungsmethode ist die sogenannte <strong>3/7-Methode</strong> (auch Differenzmethode genannt). Der Grundgedanke: Die Einkommensdifferenz beider Ehepartner wird im Verhältnis 3/7 zu 4/7 aufgeteilt. Der Unterhaltspflichtige behält 4/7 (ca. 57 %), der Berechtigte erhält 3/7 (ca. 43 %) der Differenz. Dieses Verhältnis enthält bereits den sogenannten Erwerbstätigenbonus von 1/7, der dem Arbeitenden als Anreiz zur Berufstätigkeit zusteht.
+<h3>Halbteilung mit Erwerbstätigenbonus – die 3/7-Regel ist überholt</h3>
+<p>Lange galt die <strong>3/7-Methode</strong>: Der Berechtigte erhielt 3/7 der Einkommensdifferenz, der Pflichtige behielt 4/7. Dahinter stand ein Erwerbstätigenbonus von 1/7. Diesen Bonus haben die Familiensenate auf <strong>1/10</strong> gesenkt – in Nordrhein-Westfalen zum 1.1.2022, ebenso in den Süddeutschen Leitlinien und den Frankfurter Unterhaltsgrundsätzen. Wer heute mit 3/7 rechnet, kommt zu niedrig heraus.</p>
 
-<h3>Konkrete Berechnungsbeispiele nach der 3/7-Methode</h3>
-<table><thead><tr><th>Einkommen Pflichtiger</th><th>Einkommen Berechtigter</th><th>Differenz</th><th>Unterhalt (3/7)</th><th>Verbleib Pflichtiger</th></tr></thead><tbody><tr><td>3.000 €</td><td>0 €</td><td>3.000 €</td><td>1.286 €</td><td>1.714 €</td></tr><tr><td>3.500 €</td><td>800 €</td><td>2.700 €</td><td>1.157 €</td><td>2.343 €</td></tr><tr><td>4.000 €</td><td>1.500 €</td><td>2.500 €</td><td>1.071 €</td><td>2.929 €</td></tr><tr><td>5.000 €</td><td>1.800 €</td><td>3.200 €</td><td>1.371 €</td><td>3.629 €</td></tr><tr><td>6.000 €</td><td>2.500 €</td><td>3.500 €</td><td>1.500 €</td><td>4.500 €</td></tr><tr><td>8.000 €</td><td>0 €</td><td>8.000 €</td><td>3.429 €</td><td>4.571 €</td></tr></tbody></table>
-<p><em>Bereinigtes Nettoeinkommen; ohne Kindesunterhalt. Selbstbehalt (1.510 € seit 2025) muss zusätzlich geprüft werden.</em></p>
+<p>Gerechnet wird in zwei Schritten statt mit einer Quote:</p>
+<ul>
+  <li><strong>Schritt 1 – Bedarf:</strong> Erwerbseinkommen beider Ehegatten je um 1/10 mindern, addieren, halbieren.</li>
+  <li><strong>Schritt 2 – Unterhalt:</strong> Vom Bedarf das eigene bonusbereinigte Einkommen des Berechtigten abziehen.</li>
+</ul>
+<p>Bei beidseitigem Erwerbseinkommen fällt das mit <strong>45 % der Einkommensdifferenz</strong> zusammen. Sobald eine Seite Renten-, Kapital- oder Mieteinkünfte bezieht, gilt die Quote nicht mehr, weil auf diese Einkünfte kein Bonus entfällt – deshalb die zwei Schritte.</p>
 
-<h3>Selbstbehalte und Rangfolge der Unterhaltsansprüche</h3>
-Der Unterhaltspflichtige muss nicht alles zahlen – der <strong>Selbstbehalt</strong> sichert das Existenzminimum:
-<table><thead><tr><th>Situation</th><th>Selbstbehalt (Stand 2025)</th></tr></thead><tbody><tr><td>Gegenüber minderjährigen Kindern</td><td>1.450 €</td></tr><tr><td>Gegenüber volljährigen Kindern</td><td>1.750 €</td></tr><tr><td>Gegenüber Ehegatten (erwerbstätig)</td><td>1.510 €</td></tr><tr><td>Gegenüber Ehegatten (nicht erwerbstätig)</td><td>1.385 €</td></tr></tbody></table>
-<p>Wichtig: <strong>Kindesunterhalt hat Vorrang</strong> vor dem Ehegattenunterhalt (§ 1609 BGB). Erst wird der Kindesunterhalt nach der Düsseldorfer Tabelle vom bereinigten Nettoeinkommen abgezogen, dann wird aus dem Rest der Ehegattenunterhalt berechnet.</p>
+<h3>Berechnungsbeispiele mit Erwerbstätigenbonus 1/10</h3>
+<table><thead><tr><th>Einkommen Pflichtiger</th><th>Einkommen Berechtigter</th><th>Differenz</th><th>Unterhalt (45 %)</th><th>Verbleib Pflichtiger</th></tr></thead><tbody><tr><td>3.000 €</td><td>0 €</td><td>3.000 €</td><td>1.350 €</td><td>1.650 €</td></tr><tr><td>3.500 €</td><td>800 €</td><td>2.700 €</td><td>1.215 €</td><td>2.285 €</td></tr><tr><td>4.000 €</td><td>1.500 €</td><td>2.500 €</td><td>1.125 €</td><td>2.875 €</td></tr><tr><td>5.000 €</td><td>1.800 €</td><td>3.200 €</td><td>1.440 €</td><td>3.560 €</td></tr><tr><td>6.000 €</td><td>2.500 €</td><td>3.500 €</td><td>1.575 €</td><td>4.425 €</td></tr><tr><td>8.000 €</td><td>0 €</td><td>8.000 €</td><td>3.600 €</td><td>4.400 €</td></tr></tbody></table>
+<p><em>Beidseitig Erwerbseinkommen, bereinigtes Netto, ohne Kindesunterhalt. Der Selbstbehalt von 1.600 € ist zusätzlich zu prüfen.</em></p>
+
+<h3>Selbstbehalte 2026 und Rangfolge</h3>
+<p>Der <strong>Selbstbehalt</strong> sichert das Existenzminimum des Pflichtigen. Die Werte wurden zum 1.1.2026 nicht erhöht:</p>
+<table><thead><tr><th>Situation</th><th>Selbstbehalt 2026</th></tr></thead><tbody><tr><td>Gegenüber minderjährigen Kindern (erwerbstätig)</td><td>1.450 €</td></tr><tr><td>Gegenüber minderjährigen Kindern (nicht erwerbstätig)</td><td>1.200 €</td></tr><tr><td>Gegenüber volljährigen Kindern</td><td>1.750 €</td></tr><tr><td>Gegenüber Ehegatten (erwerbstätig)</td><td>1.600 €</td></tr><tr><td>Gegenüber Ehegatten (nicht erwerbstätig)</td><td>1.475 €</td></tr></tbody></table>
+<p>Wichtig: <strong>Kindesunterhalt hat Vorrang</strong> (§ 1609 BGB). Der Zahlbetrag für minderjährige und privilegierte volljährige Kinder wird vom bereinigten Nettoeinkommen abgezogen, <em>bevor</em> der Erwerbstätigenbonus gebildet und der Ehegattenbedarf berechnet wird. Bei der Prüfung der Leistungsfähigkeit bleibt der Bonus dagegen außer Betracht.</p>
 
 <h3>Einkommensbereinigung: Was wird abgezogen?</h3>
-Vor der Unterhaltsberechnung wird das Einkommen bereinigt. Folgende Posten werden vom Bruttoeinkommen abgezogen:
-<ul><li>Steuern und Sozialversicherungsbeiträge</li><li>Berufsbedingte Aufwendungen (pauschal 5 % oder Nachweis)</li><li>Ehebedingte Schulden und Ratenzahlungen</li><li>Kindesunterhalt nach Düsseldorfer Tabelle</li><li>Altersvorsorge (bis zu 4 % des Bruttoeinkommens zusätzlich zur gesetzlichen Rente)</li><li>Kranken- und Pflegeversicherung bei Selbstständigen</li></ul>
-<p>Nicht abgezogen werden: freiwillige Überstunden (nur bei Überobligationsmäßigkeit), Mieteinnahmen ohne Abzüge und fiktives Einkommen bei absichtlicher Arbeitsreduzierung.</p>
+<ul><li>Steuern und Sozialversicherungsbeiträge</li><li>Berufsbedingte Aufwendungen (pauschal 5 % oder Nachweis)</li><li>Ehebedingte Schulden und Ratenzahlungen</li><li>Kindesunterhalt (Zahlbetrag) nach Düsseldorfer Tabelle</li><li>Zusätzliche Altersvorsorge bis zu 4 % des Bruttoeinkommens</li><li>Kranken- und Pflegeversicherung bei Selbstständigen</li></ul>
+<p>Hinzugerechnet wird der <strong>Wohnvorteil</strong>: Wer die gemeinsame Immobilie selbst nutzt, hat einen geldwerten Vorteil, der als Einkommen anzusetzen ist.</p>
 
-<h3>Trennungsunterhalt vs. nachehelicher Unterhalt</h3>
-Ein häufiges Missverständnis: Ehegattenunterhalt ist nicht gleich Ehegattenunterhalt. Es gibt zwei grundlegend verschiedene Ansprüche:
-<table><thead><tr><th>Merkmal</th><th>Trennungsunterhalt</th><th>Nachehelicher Unterhalt</th></tr></thead><tbody><tr><td>Zeitraum</td><td>Ab Trennung bis Scheidung</td><td>Ab Rechtskraft der Scheidung</td></tr><tr><td>Rechtsgrundlage</td><td>§ 1361 BGB</td><td>§§ 1569 ff. BGB</td></tr><tr><td>Erwerbsobliegenheit</td><td>Im 1. Trennungsjahr gering</td><td>Grundsätzlich volle Erwerbspflicht</td></tr><tr><td>Verzicht möglich?</td><td>Nein (unwirksam)</td><td>Ja, per Ehevertrag oder Vereinbarung</td></tr><tr><td>Befristung</td><td>Endet mit Scheidung</td><td>Häufig zeitlich begrenzt</td></tr></tbody></table>
+<h3>Trennungsunterhalt und nachehelicher Unterhalt im Vergleich</h3>
+<table><thead><tr><th>Merkmal</th><th>Trennungsunterhalt</th><th>Nachehelicher Unterhalt</th></tr></thead><tbody><tr><td>Zeitraum</td><td>Ab Trennung bis Rechtskraft der Scheidung</td><td>Ab Rechtskraft der Scheidung</td></tr><tr><td>Rechtsgrundlage</td><td>§ 1361 BGB</td><td>§§ 1569 ff. BGB</td></tr><tr><td>Unterhaltstatbestand nötig?</td><td>Nein</td><td>Ja (Betreuung, Alter, Krankheit, Erwerbslosigkeit)</td></tr><tr><td>Erwerbsobliegenheit</td><td>Im 1. Trennungsjahr gering</td><td>Grundsätzlich volle Erwerbspflicht</td></tr><tr><td>Verzicht im Voraus möglich?</td><td>Nein (§ 1614 BGB)</td><td>Ja, per Ehevertrag</td></tr><tr><td>Begrenzung/Befristung</td><td>Endet mit Scheidung</td><td>Häufig nach § 1578b BGB</td></tr></tbody></table>
 
 <h3>Häufige Fehler bei der Unterhaltsberechnung</h3>
-<ul><li><strong>Brutto statt Netto:</strong> Unterhalt wird immer vom bereinigten Nettoeinkommen berechnet, nicht vom Bruttogehalt.</li><li><strong>Bonus und Sonderzahlungen vergessen:</strong> Weihnachtsgeld, Urlaubsgeld und Boni werden anteilig auf 12 Monate umgelegt und erhöhen das unterhaltsrelevante Einkommen.</li><li><strong>Wohnvorteil nicht berücksichtigt:</strong> Wer in der gemeinsamen Immobilie wohnt, hat einen geldwerten Vorteil, der als Einkommen angerechnet wird.</li><li><strong>Steuerklassenwechsel unterlassen:</strong> Nach der Trennung müssen die Steuerklassen zum 1. Januar des Folgejahres gewechselt werden (von III/V auf IV/IV oder I).</li><li><strong>Mündliche Vereinbarungen:</strong> Unterhaltsvereinbarungen müssen notariell beurkundet werden – mündliche Absprachen sind nicht vollstreckbar.</li></ul>
+<ul><li><strong>Mit 3/7 statt 45 % rechnen:</strong> Der Erwerbstätigenbonus beträgt seit 2022 in den meisten OLG-Bezirken 1/10, nicht 1/7.</li><li><strong>Brutto statt Netto:</strong> Unterhalt wird immer vom bereinigten Nettoeinkommen berechnet.</li><li><strong>Bonus beim Selbstbehalt abziehen:</strong> Bei der Leistungsfähigkeit zählt das volle bereinigte Einkommen.</li><li><strong>Sonderzahlungen vergessen:</strong> Weihnachts- und Urlaubsgeld werden anteilig auf 12 Monate umgelegt.</li><li><strong>Wohnvorteil nicht berücksichtigt:</strong> Die selbst genutzte Immobilie erhöht das unterhaltsrelevante Einkommen.</li><li><strong>Kindesunterhalt nachrangig behandeln:</strong> Er wird vorab abgezogen, nicht danach.</li></ul>
 
-<h3>Steuerliche Aspekte des Ehegattenunterhalts</h3>
-Unterhaltszahlungen können steuerlich geltend gemacht werden – über das sogenannte <strong>Realsplitting</strong> (§ 10 Abs. 1a Nr. 1 EStG). Der Pflichtige kann bis zu 13.805 € jährlich als Sonderausgaben absetzen. Voraussetzung: Der Empfänger muss dem zustimmen (Anlage U) und die Zahlungen als sonstige Einkünfte versteuern. Alternativ können Unterhaltsleistungen als außergewöhnliche Belastungen nach § 33a EStG abgesetzt werden (maximal 11.604 € für 2024).
-
-Tipp: Bei Verhandlungen sollten aktuelle Einkommensnachweise der letzten 12 Monate vorliegen. Eine steuerliche Beratung kann die Gesamtbelastung für beide Seiten erheblich optimieren."
+<h3>Steuerliche Aspekte</h3>
+<p>Unterhaltszahlungen an den geschiedenen oder getrennt lebenden Ehegatten lassen sich über das <strong>Realsplitting</strong> (§ 10 Abs. 1a Nr. 1 EStG) bis zu 13.805 € jährlich als Sonderausgaben absetzen. Voraussetzung ist die Zustimmung des Empfängers (Anlage U); dieser versteuert die Zahlungen dann als sonstige Einkünfte. Alternativ kommt ein Abzug als außergewöhnliche Belastung nach § 33a EStG in Betracht – der Höchstbetrag ist an den Grundfreibetrag gekoppelt und beträgt <strong>12.348 € für 2026</strong> (2025: 12.096 €). Seit 2025 sind Unterhaltsleistungen dabei nur noch abziehbar, wenn sie per Überweisung erbracht werden; Barzahlungen erkennt das Finanzamt nicht mehr an.</p>`}
     relatedSlugs={['scheidungskosten-rechner', 'unterhaltsrechner']}
   />
 </Layout>
 
-<script type="module">
-function berechne() {
-  const einkommen1 = parseFloat(document.getElementById('einkommen1').value)||4000;
-  const einkommen2 = parseFloat(document.getElementById('einkommen2').value)||1500;
-  const selbstbehalt = parseFloat(document.getElementById('selbstbehalt').value)||1400;
-  const art = document.getElementById('art').value;
-  
-  const bedarf1 = einkommen1 * 0.5;
-  const bedarf2 = einkommen2 + selbstbehalt;
-  const restEinkommen = Math.max(0, einkommen1 - selbstbehalt);
-  
-  let unterhalt = 0;
-  if (einkommen1 > selbstbehalt) {
-    unterhalt = Math.max(0, Math.min(bedarf1 - einkommen2, restEinkommen * 0.5));
-  }
-  
-  const pruefBetrag = einkommen1 - selbstbehalt - unterhalt;
-  
-  document.getElementById('unterhalt').textContent = unterhalt > 0 ? unterhalt.toLocaleString('de-DE', {minimumFractionDigits:2}) + ' €' : '0 €';
-  document.getElementById('details').innerHTML =
-    `<span>Bedarf (50%): <strong>${bedarf1.toLocaleString('de-DE')} €</strong></span>` +
-    `<span>Selbstbehalt: <strong>${selbstbehalt.toLocaleString('de-DE')} €</strong></span>` +
-    `<span>Einkommen 1: <strong>${einkommen1.toLocaleString('de-DE')} €</strong></span>` +
-    `<span>Einkommen 2: <strong>${einkommen2.toLocaleString('de-DE')} €</strong></span>` +
-    `<span>Verbleibt 1: <strong>${pruefBetrag.toLocaleString('de-DE')} €</strong></span>`;
+<style>
+.rechenweg-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.87rem;
+  margin-top: 0.5rem;
 }
-['einkommen1','einkommen2','selbstbehalt'].forEach(id =>
-  document.getElementById(id).addEventListener('input', berechne));
-document.getElementById('art').addEventListener('change', berechne);
+.rechenweg-table tr td {
+  padding: 0.45rem 0.5rem;
+  border-bottom: 1px solid var(--border, #e5e5e5);
+  vertical-align: top;
+}
+.rechenweg-table tr:last-child td { border-bottom: none; }
+.rechenweg-table td:first-child { color: var(--muted, #888); width: 55%; }
+.rechenweg-table td:last-child { font-weight: 600; text-align: right; }
+.rechenweg-table tr.sum-row td { font-weight: 700; border-top: 2px solid var(--border, #e5e5e5); background: var(--surface, #f9f9f9); }
+.rechenweg-table tr.warn-row td { color: #c8102e; }
+.rechenweg-table tr.note-row td { font-weight: 400; text-align: left; color: var(--muted, #888); font-size: 0.82rem; }
+.rw-heading {
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted, #888);
+  margin: 1rem 0 0.35rem;
+}
+.bl-hinweis {
+  margin-top: 1rem;
+  padding: 0.75rem 1rem;
+  border-radius: var(--radius, 8px);
+  background: color-mix(in srgb, var(--accent, #c8102e) 6%, white);
+  border: 1px solid color-mix(in srgb, var(--accent, #c8102e) 20%, white);
+  font-size: 0.83rem;
+  color: var(--text, #333);
+  line-height: 1.55;
+}
+</style>
+
+<script type="module">
+const { berechneEhegattenunterhalt, ERWERBSTAETIGENBONUS, QUOTENUNTERHALT_HOECHSTBEDARF } =
+  await import(window.__base + 'scripts/ehegattenunterhalt.js');
+
+const $ = id => document.getElementById(id);
+
+function fmt(n) {
+  return n.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
+}
+
+const ART_HINWEIS = {
+  trennung: '<strong>Trennungsunterhalt (§ 1361 BGB)</strong><br>Er wird ab der Trennung bis zur Rechtskraft der Scheidung geschuldet und setzt keinen besonderen Unterhaltstatbestand voraus. Im ersten Trennungsjahr trifft den Berechtigten regelmäßig noch keine volle Erwerbsobliegenheit. Auf Trennungsunterhalt kann für die Zukunft nicht verzichtet werden (§ 1614 BGB).',
+  nachehel: '<strong>Nachehelicher Unterhalt (§§ 1569 ff. BGB)</strong><br>Er setzt einen eigenen Unterhaltstatbestand voraus – Betreuung eines Kindes, Alter, Krankheit oder Erwerbslosigkeit. Grundsätzlich gilt Eigenverantwortung und damit volle Erwerbsobliegenheit. Der Anspruch wird nach § 1578b BGB häufig der Höhe nach begrenzt oder befristet. Die Berechnung der Höhe entspricht der des Trennungsunterhalts.',
+};
+
+function berechne() {
+  const einkommenPflichtig = parseFloat($('einkommen1').value) || 0;
+  const einkommenBerechtigt = parseFloat($('einkommen2').value) || 0;
+  const erwerbseinkommenPflichtig = $('art1').value === '1';
+  const erwerbseinkommenBerechtigt = $('art2').value === '1';
+  const kindesunterhalt = parseFloat($('kindesunterhalt').value) || 0;
+
+  const r = berechneEhegattenunterhalt({
+    einkommenPflichtig, einkommenBerechtigt,
+    erwerbseinkommenPflichtig, erwerbseinkommenBerechtigt,
+    kindesunterhalt,
+  });
+
+  $('unterhalt').textContent = fmt(r.unterhalt);
+  $('result-box').style.background = r.mangelfall ? '#c8102e' : '';
+
+  const bonusProzent = ERWERBSTAETIGENBONUS * 100;
+  let html = '';
+
+  html += '<p class="rw-heading">Schritt 1 – Vorrangiger Kindesunterhalt (§ 1609 BGB)</p>';
+  html += '<table class="rechenweg-table"><tbody>';
+  html += `<tr><td>Bereinigtes Netto Unterhaltspflichtiger</td><td>${fmt(einkommenPflichtig)}</td></tr>`;
+  html += `<tr><td>Zahlbetrag Kindesunterhalt</td><td>− ${fmt(r.kindesunterhalt)}</td></tr>`;
+  html += `<tr class="sum-row"><td>Für den Ehegattenunterhalt verfügbar</td><td>${fmt(r.einkommenPflichtigNachKindesunterhalt)}</td></tr>`;
+  html += '</tbody></table>';
+
+  html += `<p class="rw-heading">Schritt 2 – Erwerbstätigenbonus 1/10</p>`;
+  html += '<table class="rechenweg-table"><tbody>';
+  html += `<tr><td>Pflichtiger${erwerbseinkommenPflichtig ? ` (− ${bonusProzent} % Bonus)` : ' (kein Erwerbseinkommen, kein Bonus)'}</td><td>${fmt(r.einkommenPflichtigBonus)}</td></tr>`;
+  html += `<tr><td>Berechtigter${erwerbseinkommenBerechtigt ? ` (− ${bonusProzent} % Bonus)` : ' (kein Erwerbseinkommen, kein Bonus)'}</td><td>${fmt(r.einkommenBerechtigtBonus)}</td></tr>`;
+  html += '</tbody></table>';
+
+  html += '<p class="rw-heading">Schritt 3 – Halbteilung</p>';
+  html += '<table class="rechenweg-table"><tbody>';
+  html += `<tr><td>Gemeinsames bereinigtes Einkommen</td><td>${fmt(r.einkommenPflichtigBonus + r.einkommenBerechtigtBonus)}</td></tr>`;
+  html += `<tr class="sum-row"><td>Bedarf je Ehegatte (Hälfte)</td><td>${fmt(r.bedarf)}</td></tr>`;
+  if (r.konkreteBedarfsberechnung) {
+    html += `<tr class="note-row"><td colspan="2">Der rechnerische Bedarf übersteigt ${fmt(QUOTENUNTERHALT_HOECHSTBEDARF)} – die Grenze, bis zu der die Quotenmethode trägt. Darüber hinaus muss der Bedarf konkret dargelegt werden; hier wird auf die Grenze gedeckelt.</td></tr>`;
+  }
+  html += `<tr><td>Eigenes Einkommen des Berechtigten</td><td>− ${fmt(r.einkommenBerechtigtBonus)}</td></tr>`;
+  html += `<tr class="sum-row"><td>Unterhaltsanspruch</td><td>${fmt(r.anspruchVorLeistungsfaehigkeit)}</td></tr>`;
+  html += '</tbody></table>';
+
+  html += '<p class="rw-heading">Schritt 4 – Leistungsfähigkeit</p>';
+  html += '<table class="rechenweg-table"><tbody>';
+  html += `<tr><td>Einkommen nach Kindesunterhalt (ohne Bonus)</td><td>${fmt(r.einkommenPflichtigNachKindesunterhalt)}</td></tr>`;
+  html += `<tr><td>Selbstbehalt gegenüber Ehegatten (${erwerbseinkommenPflichtig ? 'erwerbstätig' : 'nicht erwerbstätig'})</td><td>− ${fmt(r.selbstbehalt)}</td></tr>`;
+  html += `<tr class="sum-row"><td>Leistungsfähigkeit</td><td>${fmt(r.leistungsfaehigkeit)}</td></tr>`;
+  html += `<tr class="note-row"><td colspan="2">Bei der Leistungsfähigkeit bleibt der Erwerbstätigenbonus außer Betracht – maßgeblich ist das volle bereinigte Einkommen.</td></tr>`;
+  if (r.mangelfall) {
+    html += `<tr class="warn-row"><td colspan="2"><strong>Mangelfall:</strong> Der Anspruch von ${fmt(r.anspruchVorLeistungsfaehigkeit)} übersteigt die Leistungsfähigkeit. Der Unterhalt ist auf ${fmt(r.leistungsfaehigkeit)} begrenzt.</td></tr>`;
+  }
+  html += '</tbody></table>';
+
+  html += '<p class="rw-heading">Ergebnis</p>';
+  html += '<table class="rechenweg-table"><tbody>';
+  html += `<tr class="sum-row${r.mangelfall ? ' warn-row' : ''}"><td>Monatlicher Ehegattenunterhalt</td><td>${fmt(r.unterhalt)}</td></tr>`;
+  html += '</tbody></table>';
+
+  $('rechenweg').innerHTML = html;
+  $('art-hinweis').innerHTML = ART_HINWEIS[$('art').value];
+}
+
+['einkommen1','einkommen2','art1','art2','kindesunterhalt','art'].forEach(id => {
+  const el = $(id);
+  el.addEventListener('input', berechne);
+  el.addEventListener('change', berechne);
+});
 berechne();
 </script>
