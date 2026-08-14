@@ -51,12 +51,19 @@ export const BETRIEBSKOSTEN_ARTEN = [
   { nr: 17,     key: 'sonstiges',         label: 'Sonstige Betriebskosten',           euroProQmMonat: 0.07, bedingung: 'immer',    verteiler: 'wohnflaeche' },
 ];
 
-// § 1 Abs. 2 BetrKV: abschließend das, was der Vermieter NICHT umlegen darf.
+// Was der Vermieter NICHT umlegen darf.
+//
+// § 1 Abs. 2 BetrKV kennt dafür nur ZWEI Nummern: Verwaltungskosten (Nr. 1, die
+// Aufsicht und die Prüfung des Jahresabschlusses gehören ausdrücklich dazu) und
+// Instandhaltung/Instandsetzung (Nr. 2). Die Einschränkung beim Hauswart steht
+// nicht dort, sondern in der Betriebskostenart selbst – § 2 Nr. 14 BetrKV nimmt
+// Instandhaltung, Instandsetzung, Erneuerung, Schönheitsreparaturen und
+// Hausverwaltung von der Umlage aus. Die Liste führt beides zusammen; die
+// Fundstelle steht deshalb an jedem Eintrag.
 export const NICHT_UMLAGEFAEHIG = [
-  'Verwaltungskosten einschließlich der Kosten für die Hausverwaltung',
-  'Instandhaltung und Instandsetzung, also Reparaturen am Gebäude',
-  'Kosten der Aufsicht und der Prüfung des Jahresabschlusses',
-  'Schönheitsreparaturen, soweit sie der Hauswart ausführt (§ 2 Nr. 14 BetrKV)',
+  'Verwaltungskosten einschließlich der Hausverwaltung, der Aufsicht und der Prüfung des Jahresabschlusses (§ 1 Abs. 2 Nr. 1 BetrKV)',
+  'Instandhaltung und Instandsetzung, also die Beseitigung von Mängeln aus Abnutzung, Alterung und Witterung (§ 1 Abs. 2 Nr. 2 BetrKV)',
+  'Der Teil der Hauswartvergütung, der auf Instandhaltung, Instandsetzung, Erneuerung, Schönheitsreparaturen oder Hausverwaltung entfällt (§ 2 Nr. 14 BetrKV)',
 ];
 
 // § 2 Nr. 15 Buchst. a und b BetrKV: das Nutzungsentgelt für Kabelfernsehen war
