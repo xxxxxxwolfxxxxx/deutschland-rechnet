@@ -1,0 +1,486 @@
+---
+import ArticleLayout from '../../layouts/ArticleLayout.astro';
+import {
+  berechneNebenkosten,
+  abrechnungsfristEnde,
+  einwendungsfristEnde,
+  BETRIEBSKOSTENSPIEGEL,
+  KABEL_UMLAGE_ENDE,
+  GLASFASER_BEREITSTELLUNGSENTGELT,
+  HEIZKOSTEN_VERBRAUCHSANTEIL,
+  NEBENKOSTEN_STAND,
+} from '../../../public/scripts/nebenkosten.js';
+
+const base = import.meta.env.BASE_URL;
+
+// 70 m² als Bezugsgröße: nah an der durchschnittlichen Wohnfläche einer
+// Mietwohnung in Deutschland und groß genug, dass die Beträge nicht in
+// Rundungsrauschen verschwinden.
+const FLAECHE = 70;
+
+const grund = berechneNebenkosten({ flaeche: FLAECHE });
+const voll = berechneNebenkosten({ flaeche: FLAECHE, aufzug: true, garten: true, hauswart: true });
+const vollSpitze = berechneNebenkosten({
+  flaeche: FLAECHE, aufzug: true, garten: true, hauswart: true, heizungSpitze: true,
+});
+const spanneJahr = vollSpitze.gesamtJahr - grund.gesamtJahr;
+
+// Anteil je Position an der Gesamtsumme – daraus ergibt sich die Rangfolge,
+// die der Artikel behauptet.
+const positionen = grund.positionen
+  .map((p) => ({ ...p, anteil: p.monat / grund.gesamtMonat }))
+  .sort((a, b) => b.monat - a.monat);
+const groesste = positionen[0];
+const verbrauchsabhaengig = positionen.filter((p) => p.verteiler === 'verbrauch');
+const anteilVerbrauch = verbrauchsabhaengig.reduce((s, p) => s + p.anteil, 0);
+
+// Was einzelne Ausstattungsmerkmale kosten – jeweils gegen die Grundausstattung
+// gerechnet, damit sich die Beträge nicht überlagern.
+const ausstattung = [
+  { label: 'Aufzug', nr: '§ 2 Nr. 7', opt: { aufzug: true } },
+  { label: 'Gartenpflege', nr: '§ 2 Nr. 10', opt: { garten: true } },
+  { label: 'Hauswart', nr: '§ 2 Nr. 14', opt: { hauswart: true } },
+].map((a) => {
+  const mit = berechneNebenkosten({ flaeche: FLAECHE, ...a.opt });
+  const monat = mit.gesamtMonat - grund.gesamtMonat;
+  return { ...a, monat, jahr: monat * 12 };
+});
+const ausstattungGesamtJahr = voll.gesamtJahr - grund.gesamtJahr;
+
+// Fristen an einem durchgerechneten Fall. Feste Daten statt „heute“, damit die
+// Seite nicht jeden Tag eine andere Rechnung zeigt.
+const ABRECHNUNGSZEITRAUM_ENDE = '2025-12-31';
+const ZUGANG_ABRECHNUNG = '2026-03-15';
+const fristAbrechnung = abrechnungsfristEnde(ABRECHNUNGSZEITRAUM_ENDE);
+const fristEinwendung = einwendungsfristEnde(ZUGANG_ABRECHNUNG);
+// Der Fall, in dem die Nachforderung ausgeschlossen ist: Zugang nach Fristablauf.
+const verspaeteterZugang = '2027-02-10';
+const nachforderungAusgeschlossen = verspaeteterZugang > fristAbrechnung;
+
+const datum = (iso: string) =>
+  new Date(iso).toLocaleDateString('de-DE', { day: '2-digit', month: 'long', year: 'numeric' });
+
+const eur = (b: number) =>
+  b.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
+const eurGlatt = (b: number) =>
+  b.toLocaleString('de-DE', { maximumFractionDigits: 0 }) + ' €';
+const prozent = (b: number) =>
+  (b * 100).toLocaleString('de-DE', { maximumFractionDigits: 0 }) + ' %';
+const nr = (n: number | number[]) => (Array.isArray(n) ? `Nr. ${n.join(' und ')}` : `Nr. ${n}`);
+---
+<ArticleLayout
+  title="Nebenkosten: Was der Vermieter umlegen darf – und was nicht"
+  description={`Dieselbe ${FLAECHE}-m²-Wohnung kostet zwischen ${eurGlatt(grund.gesamtJahr)} und ${eurGlatt(vollSpitze.gesamtJahr)} Nebenkosten im Jahr. Alle Positionen des § 2 BetrKV einzeln aufgeschlüsselt – samt der beiden Fristen, die über bares Geld entscheiden.`}
+  canonicalPath="/ratgeber/nebenkosten-was-umlagefaehig-ist/"
+  datum="2026-08-14"
+  lead={`Dieselbe ${FLAECHE}-Quadratmeter-Wohnung kostet ${eurGlatt(grund.gesamtJahr)} Nebenkosten im Jahr – oder ${eurGlatt(vollSpitze.gesamtJahr)}, wenn Aufzug, Garten und Hauswart dazukommen und die Heizkosten über dem Schnitt liegen. Über den größeren Teil dieser ${eurGlatt(spanneJahr)} Differenz ist beim Einzug entschieden. Was danach noch Geld bewegt, sind zwei Fristen, die regelmäßig verwechselt werden.`}
+  quellen={[
+    { titel: '§ 556 BGB – Vereinbarungen über Betriebskosten, Fristen, Belegeinsicht', url: 'https://www.gesetze-im-internet.de/bgb/__556.html' },
+    { titel: '§ 556a BGB – Abrechnungsmaßstab', url: 'https://www.gesetze-im-internet.de/bgb/__556a.html' },
+    { titel: '§ 1 BetrKV – Begriff der Betriebskosten und Ausnahmen', url: 'https://www.gesetze-im-internet.de/betrkv/__1.html' },
+    { titel: '§ 2 BetrKV – Aufstellung der Betriebskosten', url: 'https://www.gesetze-im-internet.de/betrkv/__2.html' },
+    { titel: '§ 7 HeizkostenV – Verteilung der Kosten der Versorgung mit Wärme', url: 'https://www.gesetze-im-internet.de/heizkostenv/__7.html' },
+    { titel: '§ 72 TKG – Glasfaserbereitstellungsentgelt', url: 'https://www.gesetze-im-internet.de/tkg_2021/__72.html' },
+    { titel: `Betriebskostenspiegel des Deutschen Mieterbundes, Abrechnungsjahr ${BETRIEBSKOSTENSPIEGEL.abrechnungsjahr}`, url: 'https://www.mieterbund.de/service/betriebskostenspiegel/' },
+  ]}
+>
+  <h2>Woraus die Summe besteht</h2>
+
+  <p>
+    Was ein Vermieter überhaupt umlegen darf, steht in § 2 BetrKV – einer Liste
+    mit 17 Nummern, von denen die letzte ein eng gefasster Auffangtatbestand ist.
+    § 556 Abs. 1 BGB erlaubt allein die Umlage von Betriebskosten; was diese Liste
+    nicht erfasst, kann der Mietvertrag nicht dazu machen. Für eine
+    {' '}{FLAECHE}-Quadratmeter-Wohnung ohne Aufzug, Garten und Hauswart ergibt
+    sich daraus dieses Bild.
+  </p>
+
+  <div class="table-wrap">
+    <table>
+      <caption class="visually-hidden">Betriebskosten je Position bei {FLAECHE} m²</caption>
+      <thead>
+        <tr>
+          <th scope="col">Position</th>
+          <th scope="col">§ 2 BetrKV</th>
+          <th scope="col" class="num">je m² und Monat</th>
+          <th scope="col" class="num">je Monat</th>
+          <th scope="col" class="num">im Jahr</th>
+          <th scope="col" class="num">Anteil</th>
+        </tr>
+      </thead>
+      <tbody>
+        {positionen.map((p) => (
+          <tr>
+            <th scope="row">
+              {p.label}
+              <span class="klasse">
+                {p.verteiler === 'verbrauch' ? 'nach Verbrauch' : 'nach Wohnfläche'}
+              </span>
+            </th>
+            <td>{nr(p.nr)}</td>
+            <td class="num">{eur(p.euroProQmMonat)}</td>
+            <td class="num">{eur(p.monat)}</td>
+            <td class="num">{eur(p.jahr)}</td>
+            <td class="num strong">{prozent(p.anteil)}</td>
+          </tr>
+        ))}
+        <tr class="summe">
+          <th scope="row">zusammen</th>
+          <td></td>
+          <td class="num">{eur(grund.euroProQmMonat)}</td>
+          <td class="num strong">{eur(grund.gesamtMonat)}</td>
+          <td class="num strong">{eur(grund.gesamtJahr)}</td>
+          <td class="num">100 %</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="tabellenhinweis">
+    Richtwerte aus dem Betriebskostenspiegel des Deutschen Mieterbundes für das
+    Abrechnungsjahr {BETRIEBSKOSTENSPIEGEL.abrechnungsjahr}, veröffentlicht am
+    {' '}{datum(BETRIEBSKOSTENSPIEGEL.veroeffentlicht)}. Das sind Durchschnitte,
+    keine Rechtsgrößen – maßgeblich ist immer die eigene Abrechnung.
+  </p>
+
+  <p>
+    Eine Position dominiert alles andere: {groesste.label} macht allein
+    {' '}{prozent(groesste.anteil)} aus. Zusammen mit Wasser und Entwässerung sind
+    {' '}{prozent(anteilVerbrauch)} der Nebenkosten verbrauchsabhängig. Das ist die
+    gute Nachricht für alle, die sparen wollen – und zugleich die schlechte, denn
+    der Rest hängt an Dingen, die eine Mieterin nicht beeinflussen kann: der
+    Grundsteuer des Vermieters, seiner Gebäudeversicherung, dem Reinigungsvertrag.
+  </p>
+
+  <p>
+    Bei den Heizkosten schreibt § 7 Abs. 1 HeizkostenV vor, dass zwischen
+    {' '}{prozent(HEIZKOSTEN_VERBRAUCHSANTEIL.min)} und
+    {' '}{prozent(HEIZKOSTEN_VERBRAUCHSANTEIL.max)} nach dem erfassten Verbrauch
+    verteilt werden müssen. Der Rest geht nach Wohnfläche. Wer also seinen
+    Verbrauch halbiert, halbiert nicht seine Heizkostenrechnung – im ungünstigsten
+    Fall wirkt die Ersparnis nur auf die Hälfte des Betrags.
+  </p>
+
+  <h2>Was die Ausstattung kostet</h2>
+
+  <p>
+    Aufzug, Grünanlage und Hauswart erscheinen in Wohnungsanzeigen als Vorzüge.
+    In der Abrechnung sind sie Positionen mit einem Preis.
+  </p>
+
+  <div class="table-wrap">
+    <table>
+      <caption class="visually-hidden">Zusatzkosten je Ausstattungsmerkmal</caption>
+      <thead>
+        <tr>
+          <th scope="col">Merkmal</th>
+          <th scope="col">Grundlage</th>
+          <th scope="col" class="num">je Monat</th>
+          <th scope="col" class="num">im Jahr</th>
+        </tr>
+      </thead>
+      <tbody>
+        {ausstattung.map((a) => (
+          <tr>
+            <th scope="row">{a.label}</th>
+            <td>{a.nr} BetrKV</td>
+            <td class="num">{eur(a.monat)}</td>
+            <td class="num strong">{eur(a.jahr)}</td>
+          </tr>
+        ))}
+        <tr class="summe">
+          <th scope="row">alle drei zusammen</th>
+          <td></td>
+          <td class="num">{eur(voll.gesamtMonat - grund.gesamtMonat)}</td>
+          <td class="num strong">{eur(ausstattungGesamtJahr)}</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="tabellenhinweis">
+    Jeweils gegen die Grundausstattung gerechnet, {FLAECHE} m² Wohnfläche.
+  </p>
+
+  <p>
+    {eurGlatt(ausstattungGesamtJahr)} im Jahr für Merkmale, über die beim Einzug
+    entschieden wird und danach nicht mehr. Kommen überdurchschnittliche
+    Heizkosten hinzu, steigt die Jahressumme von {eurGlatt(grund.gesamtJahr)} auf
+    {' '}{eurGlatt(vollSpitze.gesamtJahr)} – bei
+    {' '}{eur(vollSpitze.euroProQmMonat)} je Quadratmeter und Monat liegt das über
+    den {eur(BETRIEBSKOSTENSPIEGEL.alleArtenGesamt)}, die selbst bei voller
+    Ausstattung üblich sind. Ein Wert in dieser Gegend ist der Anlass, in die
+    Belege zu sehen.
+  </p>
+
+  <h2>Die kurze Liste dessen, was nicht umlagefähig ist</h2>
+
+  <p>
+    § 1 Abs. 2 BetrKV nennt in nur zwei Nummern, was keine Betriebskosten sind –
+    und genau diese beiden Posten tauchen in fehlerhaften Abrechnungen am
+    häufigsten auf.
+  </p>
+
+  <ul class="liste">
+    <li>
+      <strong>Verwaltungskosten</strong> (Nr. 1): die Kosten der zur Verwaltung
+      erforderlichen Arbeitskräfte und Einrichtungen, der Aufsicht, der Prüfung
+      des Jahresabschlusses und der Geschäftsführung – ausdrücklich auch der Wert
+      der vom Vermieter persönlich geleisteten Verwaltungsarbeit.
+    </li>
+    <li>
+      <strong>Instandhaltung und Instandsetzung</strong> (Nr. 2): alles, was
+      aufgewendet werden muss, um Mängel aus Abnutzung, Alterung und Witterung zu
+      beseitigen.
+    </li>
+  </ul>
+
+  <p>
+    Die zweite Abgrenzung ist die praktisch wichtigere: Die Wartung einer Anlage
+    ist umlagefähig, ihre Reparatur nicht. Taucht in der Abrechnung eine
+    „Instandhaltungspauschale“ oder ein Posten für die Hausverwaltung auf, gehört
+    beides nicht dorthin – unabhängig davon, was im Mietvertrag steht, denn nach
+    § 556 Abs. 1 BGB sind nur Betriebskosten umlagefähig.
+  </p>
+
+  <p>
+    Ein dritter Ausschluss steht nicht in § 1, sondern in der Betriebskostenart
+    selbst: Nach § 2 Nr. 14 BetrKV gehört die Vergütung des Hauswarts nur insoweit
+    zu den Betriebskosten, als sie <em>nicht</em> auf Instandhaltung,
+    Instandsetzung, Erneuerung, Schönheitsreparaturen oder Hausverwaltung entfällt.
+    Wer einen Hauswart im Haus hat, zahlt also nur seine Betriebstätigkeit – und
+    die Abrechnung muss den Rest herausrechnen.
+  </p>
+
+  <p>
+    Umgekehrt ist die letzte Nummer der Liste kein Freibrief. § 2 Nr. 17 BetrKV
+    erfasst „sonstige Betriebskosten“, aber ausdrücklich nur solche im Sinne des
+    § 1 – also laufend entstehende Kosten. Was seiner Natur nach einmalig ist,
+    wird durch diese Auffangnummer nicht umlagefähig.
+  </p>
+
+  <p>
+    Ein Posten ist seit Kurzem ganz entfallen: Das Nutzungsentgelt für
+    Kabelfernsehen war bis zum {datum(KABEL_UMLAGE_ENDE)} als Betriebskostenart
+    umlagefähig. Seither trägt es nur noch, wer selbst einen Vertrag mit dem
+    Anbieter schließt. An seine Stelle kann nach § 72 TKG ein befristetes
+    Glasfaserbereitstellungsentgelt treten: höchstens
+    {' '}{eurGlatt(GLASFASER_BEREITSTELLUNGSENTGELT.maxEuroProJahr)} im Jahr für
+    bis zu {GLASFASER_BEREITSTELLUNGSENTGELT.maxJahre} Jahre, bei aufwändigen
+    Maßnahmen bis zu {GLASFASER_BEREITSTELLUNGSENTGELT.maxJahreVerlaengert} Jahre,
+    insgesamt aber nie mehr als
+    {' '}{eurGlatt(GLASFASER_BEREITSTELLUNGSENTGELT.maxEuroGesamt)}. Und nach
+    § 556 Abs. 3a BGB nur bei wirtschaftlicher Umsetzung – bei Maßnahmen über
+    {' '}{eurGlatt(GLASFASER_BEREITSTELLUNGSENTGELT.schwelleAufwaendig)} je Wohnung
+    muss der Vermieter zudem soweit möglich drei Angebote eingeholt und das
+    wirtschaftlichste gewählt haben.
+  </p>
+
+  <h2>Zwei Fristen, die regelmäßig verwechselt werden</h2>
+
+  <p>
+    Beide dauern zwölf Monate, und genau das führt zur Verwechslung – denn sie
+    laufen ab unterschiedlichen Zeitpunkten und treffen unterschiedliche
+    Beteiligte.
+  </p>
+
+  <div class="table-wrap">
+    <table>
+      <caption class="visually-hidden">Abrechnungsfrist und Einwendungsfrist im Vergleich</caption>
+      <thead>
+        <tr>
+          <th scope="col"></th>
+          <th scope="col">Abrechnungsfrist</th>
+          <th scope="col">Einwendungsfrist</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <th scope="row">Grundlage</th>
+          <td>§ 556 Abs. 3 Satz 2 BGB</td>
+          <td>§ 556 Abs. 3 Satz 5 BGB</td>
+        </tr>
+        <tr>
+          <th scope="row">gilt für</th>
+          <td>den Vermieter</td>
+          <td>den Mieter</td>
+        </tr>
+        <tr>
+          <th scope="row">läuft ab</th>
+          <td>Ende des Abrechnungszeitraums</td>
+          <td>Zugang der Abrechnung</td>
+        </tr>
+        <tr>
+          <th scope="row">im Beispiel ab</th>
+          <td>{datum(ABRECHNUNGSZEITRAUM_ENDE)}</td>
+          <td>{datum(ZUGANG_ABRECHNUNG)}</td>
+        </tr>
+        <tr>
+          <th scope="row">endet am</th>
+          <td class="strong">{datum(fristAbrechnung)}</td>
+          <td class="strong">{datum(fristEinwendung)}</td>
+        </tr>
+        <tr>
+          <th scope="row">Folge des Ablaufs</th>
+          <td>Nachforderung ausgeschlossen</td>
+          <td>Einwendungen ausgeschlossen</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="tabellenhinweis">
+    Beispiel: Abrechnungszeitraum ist das Kalenderjahr 2025, die Abrechnung geht
+    dem Mieter am {datum(ZUGANG_ABRECHNUNG)} zu.
+  </p>
+
+  <p>
+    Der praktisch wertvollste Satz des ganzen Paragrafen ist Satz 3: Nach Ablauf
+    der Abrechnungsfrist ist die Geltendmachung einer Nachforderung
+    ausgeschlossen. Geht die Abrechnung für 2025 also erst am
+    {' '}{datum(verspaeteterZugang)} zu – {nachforderungAusgeschlossen ? 'also nach' : 'also vor'}
+    {' '}dem {datum(fristAbrechnung)} –, muss eine darin ausgewiesene Nachzahlung
+    nicht geleistet werden. Die Ausnahme steht im selben Satz und ist eng: Sie
+    greift nur, wenn der Vermieter die Verspätung nicht zu vertreten hat.
+  </p>
+
+  <p>
+    Zwei Feinheiten daran werden häufig übersehen. Erstens entfällt nur die
+    <em>Nachforderung</em>, nicht die Abrechnungspflicht – und ein Guthaben bleibt
+    selbstverständlich bestehen. Eine verspätete Abrechnung mit Guthaben ist also
+    weiterhin auszuzahlen. Zweitens läuft die Einwendungsfrist des Mieters
+    unabhängig davon weiter: Sie beginnt mit dem Zugang, auch wenn dieser
+    verspätet war.
+  </p>
+
+  <p>
+    Ebenfalls im Gesetz, aber selten genutzt: § 556 Abs. 4 BGB gibt einen Anspruch
+    auf Einsicht in die Belege, die der Abrechnung zugrunde liegen. Der Vermieter
+    darf sie elektronisch bereitstellen. Und nach § 556 Abs. 5 BGB ist jede
+    Vereinbarung unwirksam, die von diesen Regeln zum Nachteil des Mieters
+    abweicht – eine Klausel im Mietvertrag, die die Abrechnungsfrist verlängert
+    oder die Einwendungsfrist verkürzt, ist damit gegenstandslos.
+  </p>
+
+  <h2>Wenn kein Verteilerschlüssel vereinbart ist</h2>
+
+  <p>
+    Fehlt im Mietvertrag eine Vereinbarung darüber, wie die Kosten auf die
+    Wohnungen verteilt werden, greift § 556a Abs. 1 BGB: Verteilt wird nach dem
+    Anteil der Wohnfläche. Für Kosten, die von einem erfassten Verbrauch abhängen,
+    ist dagegen der Verbrauch maßgeblich. In der ersten Tabelle steht der
+    jeweilige Maßstab unter dem Namen der Position – bei Heizung, Warmwasser und
+    Wasser gilt der Verbrauch, bei allem anderen die Fläche.
+  </p>
+
+  <h2>Was daraus folgt</h2>
+
+  <p>
+    Die Nebenkosten einer Wohnung stehen zum größten Teil fest, bevor jemand
+    eingezogen ist. Die Grundsteuer, die Gebäudeversicherung, der Aufzug, der
+    Hauswart – all das lässt sich später nicht mehr verhandeln, sondern nur noch
+    zahlen. Verhandelbar ist die Vorauszahlung, die nach § 556 Abs. 2 Satz 2 BGB
+    nur in angemessener Höhe vereinbart werden darf und die man vor
+    Vertragsschluss gegen die zu erwartenden Kosten halten sollte.
+  </p>
+
+  <p>
+    Nach dem Einzug bleiben zwei Dinge: der Verbrauch, der etwa
+    {' '}{prozent(anteilVerbrauch)} der Summe ausmacht, und der Kalender. Wer sich
+    notiert, wann die Abrechnung spätestens kommen muss und bis wann Einwendungen
+    möglich sind, hat den größeren Hebel als der, der ein Grad kälter wohnt.
+  </p>
+
+  <p>
+    Die eigene Abrechnung lässt sich mit dem
+    {' '}<a href={`${base}wohnen/nebenkosten-rechner/`}>Nebenkosten-Rechner</a>
+    {' '}gegen diese Richtwerte halten, die Heizkosten getrennt mit dem
+    {' '}<a href={`${base}energie/heizkosten-rechner/`}>Heizkosten-Rechner</a>.
+    Wie sich die Gesamtbelastung aus Kalt- und Warmmiete zusammensetzt, zeigt der
+    {' '}<a href={`${base}wohnen/mietrechner/`}>Mietrechner</a>.
+  </p>
+
+  <p class="hinweis">
+    Die Quadratmeterwerte sind Durchschnitte aus dem Betriebskostenspiegel für das
+    Abrechnungsjahr {BETRIEBSKOSTENSPIEGEL.abrechnungsjahr} (Datenstand dieser
+    Seite: {NEBENKOSTEN_STAND}) und keine Rechtsgrößen. Regionale Unterschiede
+    sind erheblich, besonders bei Grundsteuer, Wasser und Müll. Der Artikel gibt
+    die Rechtslage wieder und ersetzt keine Rechtsberatung; für die Prüfung einer
+    konkreten Abrechnung sind Mietervereine oder eine Anwaltskanzlei zuständig.
+  </p>
+</ArticleLayout>
+
+<style>
+.table-wrap {
+  overflow-x: auto;
+  margin: 1.5rem 0 0.5rem;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.87rem;
+  background: white;
+}
+thead th {
+  background: var(--dark);
+  color: white;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-weight: 600;
+  padding: 0.7rem 0.6rem;
+  text-align: left;
+  white-space: nowrap;
+}
+tbody th {
+  text-align: left;
+  font-weight: 600;
+  padding: 0.6rem;
+  min-width: 12ch;
+}
+tbody td { padding: 0.6rem; }
+tbody tr:nth-child(even) { background: var(--surface); }
+tbody tr:hover { background: var(--cat-light, #f3f4f6); }
+tbody tr.summe {
+  border-top: 2px solid var(--dark);
+  background: var(--surface);
+}
+.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.strong { font-weight: 700; }
+.klasse {
+  display: block;
+  font-weight: 400;
+  font-size: 0.75rem;
+  color: var(--text-light);
+}
+.tabellenhinweis {
+  font-size: 0.78rem !important;
+  color: var(--text-light);
+  margin: 0 0 1.5rem !important;
+}
+.liste {
+  margin: 1rem 0 1.5rem;
+  padding-left: 1.2rem;
+}
+.liste li {
+  margin-bottom: 0.5rem;
+  line-height: 1.6;
+}
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+.hinweis {
+  margin-top: 2rem;
+  padding: 0.9rem 1.1rem;
+  background: var(--surface);
+  border-left: 3px solid var(--gold);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  font-size: 0.85rem !important;
+  line-height: 1.6 !important;
+  color: var(--text-light);
+}
+</style>
