@@ -33,8 +33,8 @@ const year = new Date().getFullYear();
         a: "Ja, die meisten Umzüge erfordern mindestens eine Hin- und Rückfahrt. Wenn Sie mehrmals fahren müssen oder mit verschiedenen Fahrzeugen unterwegs sind, addieren Sie die Fahrten einfach hinzu."
       },
       {
-        q: "Ist die km-Pauschale nach § 9 EStG steuerlich absetzbar?",
-        a: "Die km-Pauschale von 0,30 € pro Kilometer ist im Geschäftsbetrieb steuerlich absetzbar. Bei privaten Umzügen gelten gegebenenfalls Besonderheiten – fragen Sie einen Steuerberater, ob Ihre Anfahrtskosten abzugsfähig sind."
+        q: "Ist die Kilometerpauschale steuerlich absetzbar?",
+        a: "Bei einer Auswärtstätigkeit – Dienstreise, Kundenbesuch, Montageeinsatz – können Sie 0,30 € je tatsächlich gefahrenem Kilometer als Werbungskosten ansetzen (§ 9 Abs. 1 Satz 3 Nr. 4a EStG). Nicht zu verwechseln mit der Entfernungspauschale für den Weg zur ersten Tätigkeitsstätte: die beträgt seit 2026 einheitlich 0,38 € und zählt nur die einfache Entfernung. Bei privaten Umzügen gelten Besonderheiten nach dem Bundesumzugskostengesetz – fragen Sie im Zweifel einen Steuerberater."
       },
       {
         q: "Wie genau sollte ich den Spritpreis eingeben?",
@@ -70,8 +70,8 @@ const year = new Date().getFullYear();
           <input type="number" id="spritpreis" min="1" max="3" value="1.70" step="0.01" />
         </div>
         <div class="calc-group">
-          <label for="fahrten">Anzahl Fahrten (Hin + Rück)</label>
-          <input type="number" id="fahrten" min="1" max="100" value="2" step="1" />
+          <label for="fahrten">Anzahl Hin- und Rückfahrten</label>
+          <input type="number" id="fahrten" min="1" max="100" value="1" step="1" />
         </div>
       </div>
 
@@ -111,14 +111,14 @@ function berechne() {
   const km = parseFloat(document.getElementById('km').value)||50;
   const fahrzeug = document.getElementById('fahrzeug').value;
   const spritpreis = parseFloat(document.getElementById('spritpreis').value)||1.70;
-  const fahrten = parseInt(document.getElementById('fahrten').value)||2;
+  const fahrten = parseInt(document.getElementById('fahrten').value)||1;
   const r = berechneAnfahrtskosten({ km, fahrzeug, spritpreis, fahrten });
   document.getElementById('kosten').textContent = fmt(r.gesamtkosten);
   document.getElementById('details').innerHTML =
     `<span>Verbrauch: <strong>${r.verbrauch} l/100km</strong></span>` +
     `<span>gefahrene km: <strong>${r.gesamtKm} km</strong></span>` +
     `<span>Spritkosten: <strong>${fmt(r.spritkosten)}</strong></span>` +
-    `<span>km-Pauschale (§9 EStG): <strong>${fmt(r.pauschale)}</strong></span>`;
+    `<span>Kilometerpauschale (§ 9 Abs. 1 S. 3 Nr. 4a EStG): <strong>${fmt(r.pauschale)}</strong></span>`;
 }
 ['km','spritpreis','fahrten'].forEach(id =>
   document.getElementById(id).addEventListener('input', berechne));
