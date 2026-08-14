@@ -1,0 +1,491 @@
+---
+import ArticleLayout from '../../layouts/ArticleLayout.astro';
+import { berechneKfzSteuer, ELEKTRO_BEFREIUNG } from '../../../public/scripts/kfz-steuer.js';
+import {
+  STROMPREIS_QUELLE,
+  LADESTROM_HEIM_CENT_PRO_KWH,
+  LADESTROM_AC_CENT_PRO_KWH,
+  LADESTROM_DC_CENT_PRO_KWH,
+  LADESTROM_ADHOC_AUTOBAHN_CENT_PRO_KWH,
+  LADESTROM_QUELLE,
+  LADESTROM_DATENSTAND,
+} from '../../../public/scripts/strompreis.js';
+
+const base = import.meta.env.BASE_URL;
+
+// Feste Stichtage: kfz-steuer.js fällt sonst auf Date.now() zurück und der Build
+// wäre nicht mehr deterministisch.
+const STICHTAG = '2026-08-14';
+const ERSTZULASSUNG = '2026-03-01';
+const HALTEDAUER_JAHRE = 8;
+const KM_PRO_JAHR = 15_000;
+
+// Fahrzeugdaten und Kraftstoffpreise: ADAC Autokostenübersicht Frühjahr/Sommer
+// 2026 (Stand 04/2026), zwei Varianten desselben Modells.
+// https://assets.adac.de/Autodatenbank/Autokosten/autokostenuebersicht.pdf
+const ADAC_STAND = 'Frühjahr/Sommer 2026';
+const ADAC_HALTEDAUER_MONATE = 60;
+const BENZINPREIS = 1.92;
+const ADAC_STROMPREIS = 0.44;
+const ADAC_PFLEGEPAUSCHALE_PRO_JAHR = 250;
+
+// Alle Monatsbeträge aus der ADAC-Übersicht.
+const corsaBenzin = {
+  name: 'Opel Corsa 1.2 DI Turbo Edition',
+  kurz: 'Corsa Benziner',
+  grundpreis: 22_890,
+  fix: 147, werkstatt: 76, betrieb: 144, wertverlust: 264, gesamt: 632,
+  hubraum: 1199, co2: 124,
+};
+const corsaElektro = {
+  name: 'Opel Corsa Electric (50 kWh)',
+  kurz: 'Corsa Electric',
+  grundpreis: 29_990,
+  fix: 127, werkstatt: 64, betrieb: 107, wertverlust: 384, gesamt: 682,
+  gesamtgewicht: 1905,
+};
+
+// Verbrauch wird aus den ADAC-Betriebskosten zurückgerechnet, statt ihn als
+// zweite, driftende Zahl danebenzustellen. Die Pflegepauschale muss vorher raus,
+// sie hängt nicht am Antrieb.
+const pflegeProMonat = ADAC_PFLEGEPAUSCHALE_PRO_JAHR / 12;
+const kmProMonat = KM_PRO_JAHR / 12;
+const verbrauchJe100km = {
+  benzin: ((corsaBenzin.betrieb - pflegeProMonat) / BENZINPREIS / kmProMonat) * 100,
+  strom: ((corsaElektro.betrieb - pflegeProMonat) / ADAC_STROMPREIS / kmProMonat) * 100,
+};
+
+const energieProJahr = {
+  benzin: (verbrauchJe100km.benzin / 100) * KM_PRO_JAHR * BENZINPREIS,
+};
+
+// Die drei Ladewege aus strompreis.js – dieselben Werte, die der
+// Elektroauto-Rechner verwendet.
+const ladewege = [
+  { label: 'Zu Hause (Wallbox oder Steckdose)', cent: LADESTROM_HEIM_CENT_PRO_KWH },
+  { label: 'Öffentlich, Normalladen (AC)', cent: LADESTROM_AC_CENT_PRO_KWH },
+  { label: 'Öffentlich, Schnellladen (DC)', cent: LADESTROM_DC_CENT_PRO_KWH },
+  { label: 'Ohne Vertrag am Autobahn-Schnelllader', cent: LADESTROM_ADHOC_AUTOBAHN_CENT_PRO_KWH },
+].map((l) => {
+  const kosten = (verbrauchJe100km.strom / 100) * KM_PRO_JAHR * (l.cent / 100);
+  return { ...l, kosten, ersparnis: energieProJahr.benzin - kosten };
+});
+
+const heimladen = ladewege[0];
+const schnellladen = ladewege[2];
+const adhoc = ladewege[ladewege.length - 1];
+
+// Kfz-Steuer aus demselben Modul, das der Kfz-Steuer-Rechner lädt.
+const steuerBenzin = berechneKfzSteuer({
+  hubraum: corsaBenzin.hubraum, co2: corsaBenzin.co2, antrieb: 'benzin',
+  erstzulassung: ERSTZULASSUNG, stichtag: STICHTAG,
+});
+const steuerElektro = berechneKfzSteuer({
+  antrieb: 'elektro', gesamtgewicht: corsaElektro.gesamtgewicht,
+  erstzulassung: ERSTZULASSUNG, stichtag: STICHTAG,
+});
+// Nach Ablauf der Befreiung: halbe Gewichtssteuer nach § 9 Abs. 2.
+const steuerElektroNachher = berechneKfzSteuer({
+  antrieb: 'elektro', gesamtgewicht: corsaElektro.gesamtgewicht,
+  erstzulassung: ERSTZULASSUNG, stichtag: '2036-06-01',
+});
+
+// Wie viel der zehn Jahre die Deckelung auf den 31.12.2035 tatsächlich kappt.
+const befreiungBis = new Date(steuerElektro.befreiungBis!);
+const erstzulassungDatum = new Date(ERSTZULASSUNG);
+const befreiungTage = Math.round((befreiungBis.getTime() - erstzulassungDatum.getTime()) / 86_400_000);
+const befreiungJahre = befreiungTage / 365.25;
+const verloreneMonate = Math.round((ELEKTRO_BEFREIUNG.jahre - befreiungJahre) * 12);
+
+// Die letzte noch begünstigte Erstzulassung – dort schlägt die Deckelung voll durch.
+const letzteZulassung = berechneKfzSteuer({
+  antrieb: 'elektro', gesamtgewicht: corsaElektro.gesamtgewicht,
+  erstzulassung: ELEKTRO_BEFREIUNG.zulassungBis, stichtag: STICHTAG,
+});
+const befreiungJahreSpaet =
+  (new Date(letzteZulassung.befreiungBis!).getTime()
+    - new Date(ELEKTRO_BEFREIUNG.zulassungBis).getTime()) / 86_400_000 / 365.25;
+
+// Restwert: eigene Auswertung der ADAC-Gebrauchtwagenpreise, siehe den Artikel
+// zur Wertverlustkurve. Der Anteil, der von der Preisdifferenz nach acht Jahren
+// noch im Fahrzeug steckt.
+const RESTWERT_NACH_ZWEI_JAHREN = 0.669;
+const JAEHRLICHE_VERLUSTQUOTE = 0.083;
+const RESTWERT_ELEKTRO_ZWEI_JAHRE = 0.630;
+const RESTWERT_VERBRENNER_ZWEI_JAHRE = 0.643;
+const RESTWERT_N = { elektro: 298, verbrenner: 1321 };
+
+const restwertquoteNachHaltedauer =
+  RESTWERT_NACH_ZWEI_JAHREN * (1 - JAEHRLICHE_VERLUSTQUOTE) ** (HALTEDAUER_JAHRE - 2);
+
+const aufpreis = corsaElektro.grundpreis - corsaBenzin.grundpreis;
+const aufpreisImRestwert = aufpreis * restwertquoteNachHaltedauer;
+const aufpreisVerbraucht = aufpreis - aufpreisImRestwert;
+const aufpreisProJahr = aufpreisVerbraucht / HALTEDAUER_JAHRE;
+
+const vorteilSteuerProJahr = steuerBenzin.jahressteuerAbgerundet - steuerElektro.jahressteuerAbgerundet;
+const vorteilWerkstattProJahr = (corsaBenzin.werkstatt - corsaElektro.werkstatt) * 12;
+
+const bilanz = ladewege.map((l) => {
+  const vorteil = l.ersparnis + vorteilSteuerProJahr + vorteilWerkstattProJahr;
+  return { ...l, vorteil, saldo: vorteil - aufpreisProJahr };
+});
+const bilanzHeim = bilanz[0];
+const bilanzAc = bilanz[1];
+
+const eur = (n: number) => n.toLocaleString('de-DE', { maximumFractionDigits: 0 }) + ' €';
+const eurGenau = (n: number) =>
+  n.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
+const eurVz = (n: number) => (n > 0 ? '+' : n < 0 ? '−' : '') + eur(Math.abs(n));
+const zahl = (n: number, stellen = 1) =>
+  n.toLocaleString('de-DE', { minimumFractionDigits: stellen, maximumFractionDigits: stellen });
+const prozent = (n: number, stellen = 1) => zahl(n * 100, stellen) + ' %';
+const ganz = (n: number) => n.toLocaleString('de-DE');
+const datum = (iso: string) => new Date(iso).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' });
+---
+<ArticleLayout
+  title="Elektroauto gegen Verbrenner: Die Rechnung entscheidet sich an der Steckdose"
+  description={`Derselbe Corsa mit zwei Antrieben, über ${HALTEDAUER_JAHRE} Jahre gerechnet. Wer zu Hause lädt, spart ${eur(bilanzHeim.saldo * HALTEDAUER_JAHRE)}. Wer öffentlich schnelllädt, zahlt drauf – und die Steuerbefreiung nach § 3d KraftStG ist kürzer, als sie aussieht.`}
+  canonicalPath="/ratgeber/elektroauto-gegen-verbrenner/"
+  lead={`Ob sich ein Elektroauto rechnet, hängt weniger vom Auto ab als davon, wo es lädt. Derselbe Opel Corsa kostet als Stromer über ${HALTEDAUER_JAHRE} Jahre ${eur(Math.abs(bilanzHeim.saldo * HALTEDAUER_JAHRE))} weniger, wenn zu Hause geladen wird – und ${eur(Math.abs(bilanz[2].saldo * HALTEDAUER_JAHRE))} mehr, wenn öffentlich schnellgeladen wird. Zwischen beiden Fällen liegt kein Auto, nur eine Steckdose.`}
+  datum="2026-08-14"
+  quellen={[
+    { titel: 'KraftStG § 3d – Steuerbefreiung für Elektrofahrzeuge', url: 'https://www.gesetze-im-internet.de/kraftstg/__3d.html' },
+    { titel: 'KraftStG § 9 – Steuersätze (Abs. 2: halbe Gewichtssteuer)', url: 'https://www.gesetze-im-internet.de/kraftstg/__9.html' },
+    { titel: 'ADAC Autokostenübersicht Frühjahr/Sommer 2026 (PDF)', url: 'https://assets.adac.de/Autodatenbank/Autokosten/autokostenuebersicht.pdf' },
+    { titel: 'ADAC Gebrauchtwagenpreise Frühjahr/Sommer 2026 (PDF, DAT-Notierungen)', url: 'https://assets.adac.de/Autodatenbank/Autokosten/gebrauchtwagenpreise.pdf' },
+    { titel: `${STROMPREIS_QUELLE} (Haushaltsstrompreis)`, url: 'https://www.bdew.de/service/daten-und-grafiken/bdew-strompreisanalyse/' },
+    { titel: `${LADESTROM_QUELLE} (öffentliche Ladepreise)`, url: 'https://www.lichtblick.de/ladesaeulencheck/' },
+  ]}
+>
+  <p>
+    Der Vergleich zwischen Elektroauto und Verbrenner scheitert meist an der
+    Vergleichbarkeit: verschiedene Klassen, verschiedene Ausstattungen, verschiedene
+    Annahmen. Diese Rechnung umgeht das, indem sie dasselbe Modell in zwei Antrieben
+    nimmt – den {corsaBenzin.name} und den {corsaElektro.name}, beide aus der
+    ADAC-Autokostenübersicht {ADAC_STAND}.
+  </p>
+  <p>
+    Gerechnet wird über {HALTEDAUER_JAHRE} Jahre bei {ganz(KM_PRO_JAHR)} Kilometern im
+    Jahr. Kfz-Steuer und Ladekosten kommen zur Bauzeit dieser Seite aus denselben
+    Modulen, die auch der
+    {' '}<a href={`${base}auto/kfz-steuer-rechner/`}>Kfz-Steuer-Rechner</a> und der
+    {' '}<a href={`${base}auto/elektroauto-tco-rechner/`}>Elektroauto-Rechner</a> laden.
+  </p>
+
+  <h2>Der Aufpreis, und was davon übrig bleibt</h2>
+  <p>
+    Der Stromer kostet {eur(aufpreis)} mehr – {eur(corsaElektro.grundpreis)} gegenüber
+    {' '}{eur(corsaBenzin.grundpreis)}. Diesen Betrag komplett gegenzurechnen wäre
+    falsch: Ein Teil steckt nach {HALTEDAUER_JAHRE} Jahren noch im Wiederverkaufswert.
+  </p>
+  <p>
+    Wie groß dieser Teil ist, lässt sich aus den DAT-Preisnotierungen ableiten, die wir
+    für den Artikel zur
+    {' '}<a href={`${base}ratgeber/gebrauchtwagen-alter-kosten/`}>Wertverlustkurve</a>
+    {' '}ausgewertet haben: rund {prozent(RESTWERT_NACH_ZWEI_JAHREN)} nach zwei Jahren,
+    danach etwa {prozent(JAEHRLICHE_VERLUSTQUOTE)} Verlust pro Jahr – nach
+    {' '}{HALTEDAUER_JAHRE} Jahren also {prozent(restwertquoteNachHaltedauer)} des
+    Neupreises. Vom Aufpreis sind damit {eur(aufpreisImRestwert)} noch vorhanden und
+    {' '}<strong>{eur(aufpreisVerbraucht)} tatsächlich ausgegeben</strong> – oder
+    {' '}{eur(aufpreisProJahr)} im Jahr, die der Antrieb wieder einspielen muss.
+  </p>
+  <p>
+    Dass hier für beide Antriebe dieselbe Restwertquote angesetzt wird, ist keine
+    Bequemlichkeit, sondern Ergebnis derselben Auswertung. In der Preisklasse von
+    {' '}{eur(30_000)} bis {eur(60_000)} halten Elektrofahrzeuge nach rund zwei Jahren im
+    Median {prozent(RESTWERT_ELEKTRO_ZWEI_JAHRE)} ihres Neupreises
+    ({ganz(RESTWERT_N.elektro)} Fahrzeuge), Verbrenner
+    {' '}{prozent(RESTWERT_VERBRENNER_ZWEI_JAHRE)} ({ganz(RESTWERT_N.verbrenner)}
+    {' '}Fahrzeuge). Der Abstand beträgt
+    {' '}{zahl((RESTWERT_VERBRENNER_ZWEI_JAHRE - RESTWERT_ELEKTRO_ZWEI_JAHRE) * 100, 1)}
+    {' '}Prozentpunkte. Die verbreitete Erzählung vom dramatischen Wertverfall der
+    Elektroautos findet in den Notierungen derzeit keine Entsprechung.
+  </p>
+
+  <h2>Die Steuer: null, aber nicht zehn Jahre</h2>
+  <p>
+    Der Benziner zahlt nach § 9 Abs. 1 Nr. 2 KraftStG
+    {' '}{eurGenau(steuerBenzin.hubraumanteil)} für {ganz(corsaBenzin.hubraum)}
+    {' '}Kubikzentimeter Hubraum und {eurGenau(steuerBenzin.co2anteil)} für
+    {' '}{corsaBenzin.co2} g/km CO₂, soweit sie den Freibetrag von
+    {' '}{steuerBenzin.co2Freibetrag} g/km übersteigen. Zusammen
+    {' '}{eurGenau(steuerBenzin.jahressteuer)}, erhoben werden nach § 11 Abs. 5 KraftStG
+    aber nur volle Euro, abgerundet:
+    {' '}<strong>{eur(steuerBenzin.jahressteuerAbgerundet)} im Jahr.</strong>
+  </p>
+  <p>
+    Der Stromer zahlt nach § 3d KraftStG nichts. Hier steckt allerdings ein Detail, das
+    fast jede Übersicht unterschlägt: <strong>Die Befreiung dauert zehn Jahre – aber
+    höchstens bis zum {datum(ELEKTRO_BEFREIUNG.spaetestensBis)}.</strong> Bei einer
+    Erstzulassung am {datum(ERSTZULASSUNG)} endet sie deshalb schon am
+    {' '}{datum(steuerElektro.befreiungBis!)}, nach {zahl(befreiungJahre)} Jahren statt
+    nach {ELEKTRO_BEFREIUNG.jahre} – {verloreneMonate} Monate weniger.
+  </p>
+  <p>
+    Der Effekt wächst mit jedem Monat, den man wartet. Das Zulassungsfenster reicht bis
+    zum {datum(ELEKTRO_BEFREIUNG.zulassungBis)}, die Höchstdauer endet aber unverändert
+    am {datum(ELEKTRO_BEFREIUNG.spaetestensBis)}: <strong>Wer am letzten begünstigten
+    Tag zulässt, bekommt statt zehn Jahren nur noch
+    {' '}{zahl(befreiungJahreSpaet, 0)} Jahre.</strong> Die beworbene Zehnjahresfrist gilt
+    in voller Länge nur noch für Fahrzeuge, die vor 2026 zugelassen wurden.
+  </p>
+  <p>
+    Zwei weitere Absätze derselben Norm sind beim Gebrauchtkauf bares Geld wert und
+    stehen in kaum einer Übersicht:
+  </p>
+  <ul>
+    <li>
+      <strong>Die Restbefreiung geht auf den Käufer über.</strong> Nach § 3d Abs. 2
+      Satz 2 KraftStG wird die Befreiung, soweit sie bei einem Halterwechsel noch nicht
+      abgelaufen ist, dem neuen Halter gewährt. Wer einen drei Jahre alten Stromer
+      kauft, fährt die verbleibenden Jahre steuerfrei weiter – die Befreiung hängt am
+      Fahrzeug, nicht am Halter. Gewährt wird sie allerdings je Fahrzeug nur einmal
+      (Satz 1).
+    </li>
+    <li>
+      <strong>Stilllegen verlängert nichts.</strong> Nach § 3d Abs. 3 KraftStG bleiben
+      Zeiten der Außerbetriebsetzung und die Monate außerhalb eines
+      Saisonkennzeichen-Zeitraums ohne Auswirkung auf die Befreiung. Die Frist läuft
+      kalendarisch ab dem Tag der Erstzulassung – ein abgemeldetes Jahr ist ein
+      verlorenes Jahr.
+    </li>
+  </ul>
+  <p>
+    Für diese Rechnung über {HALTEDAUER_JAHRE} Jahre spielt das keine Rolle – die
+    Befreiung trägt den gesamten Zeitraum. Wer länger fährt, zahlt danach die halbe
+    Gewichtssteuer nach § 9 Abs. 2 KraftStG: für den Corsa Electric mit
+    {' '}{ganz(corsaElektro.gesamtgewicht)} kg zulässigem Gesamtgewicht wären das
+    {' '}{eur(steuerElektroNachher.jahressteuerAbgerundet)} im Jahr, also weiterhin
+    weniger als der Benziner heute zahlt.
+  </p>
+
+  <h2>Der Punkt, an dem sich alles entscheidet</h2>
+  <p>
+    Aus den ADAC-Betriebskosten lässt sich der Verbrauch zurückrechnen – abzüglich der
+    Pflegepauschale von {eur(ADAC_PFLEGEPAUSCHALE_PRO_JAHR)} im Jahr, die für beide
+    Antriebe gleich anfällt. Das ergibt {zahl(verbrauchJe100km.benzin)} Liter je
+    100 Kilometer für den Benziner und {zahl(verbrauchJe100km.strom)} Kilowattstunden für
+    den Stromer. Beim Benziner bleiben die Kosten damit festgelegt:
+    {' '}{eur(energieProJahr.benzin)} im Jahr bei {zahl(BENZINPREIS, 2)} € je Liter.
+  </p>
+  <p>
+    Beim Stromer nicht. Der ADAC rechnet mit einem Mischpreis von
+    {' '}{zahl(ADAC_STROMPREIS, 2)} € je Kilowattstunde. Tatsächlich unterscheiden sich
+    die Ladewege erheblich – hier mit den Werten aus unserem Strompreis-Modul:
+  </p>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th scope="col">Wo geladen wird</th>
+          <th scope="col" class="num">Preis</th>
+          <th scope="col" class="num">Energie im Jahr</th>
+          <th scope="col" class="num">gegenüber Benzin</th>
+        </tr>
+      </thead>
+      <tbody>
+        {ladewege.map((l) => (
+          <tr class={l.ersparnis < 0 ? 'negativ' : undefined}>
+            <th scope="row">{l.label}</th>
+            <td class="num">{zahl(l.cent, 0)} ct/kWh</td>
+            <td class="num">{eur(l.kosten)}</td>
+            <td class="num strong">{eurVz(l.ersparnis)}</td>
+          </tr>
+        ))}
+        <tr class="referenz">
+          <th scope="row">{corsaBenzin.kurz}, zum Vergleich</th>
+          <td class="num">{zahl(BENZINPREIS, 2)} €/l</td>
+          <td class="num">{eur(energieProJahr.benzin)}</td>
+          <td class="num">–</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="tabellenhinweis">
+    Bei {ganz(KM_PRO_JAHR)} Kilometern im Jahr. Haushaltsstrompreis nach
+    {' '}{STROMPREIS_QUELLE}, öffentliche Ladepreise nach {LADESTROM_QUELLE},
+    Stand {LADESTROM_DATENSTAND}.
+  </p>
+
+  <p>
+    Zwischen der eigenen Wallbox und dem Autobahn-Schnelllader ohne Vertrag liegen
+    {' '}{eur(adhoc.kosten - heimladen.kosten)} im Jahr – bei identischem Fahrzeug und
+    identischer Fahrleistung. Das ist mehr, als die meisten Antriebsvergleiche
+    insgesamt an Unterschied ausweisen.
+  </p>
+
+  <h2>Die Gesamtrechnung</h2>
+  <p>
+    Neben der Energie wirken zwei weitere Posten zugunsten des Stromers: die Kfz-Steuer
+    ({eur(vorteilSteuerProJahr)} im Jahr) und die Werkstattkosten, die der ADAC mit
+    {' '}{eur(corsaElektro.werkstatt)} statt {eur(corsaBenzin.werkstatt)} im Monat
+    ansetzt – {eur(vorteilWerkstattProJahr)} im Jahr, im Wesentlichen wegen des
+    entfallenden Ölwechsels und der geringeren Bremsbelastung durch Rekuperation.
+    Dagegen steht der verbrauchte Teil des Aufpreises mit {eur(aufpreisProJahr)} im Jahr.
+  </p>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th scope="col">Ladeweg</th>
+          <th scope="col" class="num">Energie</th>
+          <th scope="col" class="num">Steuer</th>
+          <th scope="col" class="num">Werkstatt</th>
+          <th scope="col" class="num">Aufpreis</th>
+          <th scope="col" class="num">Saldo im Jahr</th>
+          <th scope="col" class="num">über {HALTEDAUER_JAHRE} Jahre</th>
+        </tr>
+      </thead>
+      <tbody>
+        {bilanz.map((b) => (
+          <tr class={b.saldo < 0 ? 'negativ' : 'positiv'}>
+            <th scope="row">{b.label}</th>
+            <td class="num">{eurVz(b.ersparnis)}</td>
+            <td class="num">{eurVz(vorteilSteuerProJahr)}</td>
+            <td class="num">{eurVz(vorteilWerkstattProJahr)}</td>
+            <td class="num">{eurVz(-aufpreisProJahr)}</td>
+            <td class="num strong">{eurVz(b.saldo)}</td>
+            <td class="num strong">{eurVz(b.saldo * HALTEDAUER_JAHRE)}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  </div>
+  <p class="tabellenhinweis">
+    Alle Werte aus Sicht des Elektroautos: Plus bedeutet Vorteil gegenüber dem
+    Benziner. Versicherung ist nicht enthalten, sie unterscheidet sich zwischen den
+    Varianten nur geringfügig und hängt stärker vom Fahrer ab als vom Antrieb.
+  </p>
+
+  <p>
+    Das Ergebnis ist eindeutig und unbequem zugleich:
+  </p>
+  <ul>
+    <li>
+      <strong>Wer zu Hause lädt</strong>, fährt den Stromer über {HALTEDAUER_JAHRE} Jahre
+      {' '}{eur(Math.abs(bilanzHeim.saldo * HALTEDAUER_JAHRE))} günstiger. Die Rechnung
+      geht auf, und zwar deutlich.
+    </li>
+    <li>
+      <strong>Wer öffentlich normallädt</strong>, landet bei
+      {' '}{eurVz(bilanzAc.saldo * HALTEDAUER_JAHRE)} – praktisch ein Nullsummenspiel,
+      das jede Abweichung bei Rabatt, Fahrleistung oder Strompreis kippen kann.
+    </li>
+    <li>
+      <strong>Wer überwiegend schnelllädt</strong>, zahlt drauf: beim öffentlichen
+      Schnellladen mit {zahl(schnellladen.cent, 0)} ct je Kilowattstunde
+      {' '}{eur(Math.abs(bilanz[2].saldo * HALTEDAUER_JAHRE))} über
+      {' '}{HALTEDAUER_JAHRE} Jahre, ohne Ladevertrag an der Autobahn sogar
+      {' '}{eur(Math.abs(bilanz[3].saldo * HALTEDAUER_JAHRE))}.
+    </li>
+  </ul>
+  <p>
+    Die entscheidende Frage vor dem Kauf lautet damit nicht „Elektro oder Verbrenner",
+    sondern: <strong>Habe ich einen eigenen Stellplatz mit Stromanschluss?</strong> Wer
+    ihn hat, trifft eine wirtschaftlich klare Entscheidung. Wer zur Miete ohne
+    Stellplatz wohnt, trifft eine, die sich über die Betriebskosten nicht begründen
+    lässt.
+  </p>
+
+  <h2>Was die Rechnung offen lässt</h2>
+  <ul>
+    <li>
+      <strong>Die Fahrleistung.</strong> Alle Vorteile außer der Steuer wachsen mit den
+      gefahrenen Kilometern, der Aufpreis nicht. Wer deutlich mehr als
+      {' '}{ganz(KM_PRO_JAHR)} Kilometer fährt, verschiebt die Rechnung zugunsten des
+      Stromers – auch beim öffentlichen Laden.
+    </li>
+    <li>
+      <strong>Die Batterie.</strong> Ein Austausch außerhalb der Garantie ist der eine
+      große Posten, den keine Durchschnittsrechnung abbildet. Die Herstellergarantien
+      laufen üblicherweise acht Jahre – also genau bis zum Ende dieses Zeitraums.
+    </li>
+    <li>
+      <strong>Der Ladeweg ist selten sortenrein.</strong> Wer zu Hause lädt, lädt auf
+      Reisen trotzdem öffentlich. Realistisch liegt der eigene Mischpreis zwischen den
+      Zeilen der ersten Tabelle – näher am Heimpreis, je seltener die Langstrecke.
+    </li>
+    <li>
+      <strong>Die Wallbox selbst.</strong> Anschaffung und Installation sind hier nicht
+      enthalten. Sie verschieben den Break-even um die Investitionssumme geteilt durch
+      den jährlichen Vorteil – bei Heimladen also um deutlich weniger als zwei Jahre.
+    </li>
+  </ul>
+
+  <h2>Den eigenen Fall rechnen</h2>
+  <ul>
+    <li><a href={`${base}auto/elektroauto-tco-rechner/`}>Elektroauto-Kostenrechner</a> – Gesamtkosten mit eigenem Ladepreis und eigener Fahrleistung</li>
+    <li><a href={`${base}auto/kfz-steuer-rechner/`}>Kfz-Steuer-Rechner</a> – auch für Elektrofahrzeuge nach § 3d und § 9 Abs. 2</li>
+    <li><a href={`${base}auto/spritkosten-vergleich/`}>Spritkosten-Vergleich</a> – zwei Fahrzeuge nebeneinander</li>
+    <li><a href={`${base}auto/e-auto-leasing-kostenrechner/`}>E-Auto-Leasingrechner</a> – wenn der Aufpreis gar nicht erst bezahlt wird</li>
+    <li><a href={`${base}ratgeber/autokosten-wertverlust/`}>Autokosten je Kilometer</a> – warum der Wertverlust jeden Antriebsvergleich dominiert</li>
+  </ul>
+
+  <p class="hinweis">
+    Fahrzeug- und Kostendaten: ADAC Autokostenübersicht {ADAC_STAND} (Stand 04/2026),
+    Standardannahmen {ADAC_HALTEDAUER_MONATE} Monate und {ganz(KM_PRO_JAHR)} km im Jahr,
+    ohne Finanzierungszinsen. Kfz-Steuer berechnet nach KraftStG in der Fassung vom
+    {' '}22.12.2025, Stichtag {datum(STICHTAG)}. Ladepreise: {STROMPREIS_QUELLE} und
+    {' '}{LADESTROM_QUELLE} ({LADESTROM_DATENSTAND}). Der Verbrauch ist aus den
+    ADAC-Betriebskosten zurückgerechnet; das zulässige Gesamtgewicht des Elektrofahrzeugs
+    ist eine Annahme und wirkt sich erst nach Ablauf der Steuerbefreiung aus.
+  </p>
+</ArticleLayout>
+
+<style>
+.table-wrap {
+  overflow-x: auto;
+  margin: 1.5rem 0 0.5rem;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.87rem;
+  background: white;
+}
+thead th {
+  background: var(--dark);
+  color: white;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-weight: 600;
+  padding: 0.7rem 0.6rem;
+  text-align: left;
+  white-space: nowrap;
+}
+tbody th {
+  text-align: left;
+  font-weight: 600;
+  padding: 0.6rem;
+  min-width: 16ch;
+}
+tbody td { padding: 0.6rem; }
+tbody tr:nth-child(even) { background: var(--surface); }
+tbody tr.negativ td.strong { color: var(--red); }
+tbody tr.referenz { background: #fdf6e3; }
+tbody tr.referenz th { font-style: italic; }
+.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.strong { font-weight: 700; }
+.tabellenhinweis {
+  font-size: 0.78rem !important;
+  color: var(--text-light);
+  margin: 0 0 1.5rem !important;
+}
+
+.hinweis {
+  margin-top: 2rem;
+  padding: 0.9rem 1.1rem;
+  background: var(--surface);
+  border-left: 3px solid var(--gold);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  font-size: 0.85rem !important;
+  line-height: 1.6 !important;
+  color: var(--text-light);
+}
+</style>
