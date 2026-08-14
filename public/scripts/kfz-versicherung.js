@@ -20,18 +20,11 @@ const SF_FAKTOR = {
 
 const REGION_FAKTOR = { 1: 0.8, 2: 1.0, 3: 1.2, 4: 1.4, 5: 1.6 };
 
-const VERSICHERUNG_FAKTOR = {
- haftpflicht: 1.0,
- teilkasko: 1.5,
- vollkasko: 2.5,
-};
-
 function berechneKfzVersicherung({ typ, sf, region, versicherung, alter }) {
   const basis = 400;
   const typFaktor = TYP_FAKTOR[typ] || 1.0;
   const sfFaktor = SF_FAKTOR[sf] || 1.0;
   const regionFaktor = REGION_FAKTOR[region] || 1.0;
-  const versFaktor = VERSICHERUNG_FAKTOR[versicherung] || 1.0;
   const alterFaktor = alter < 25 ? 1.8 : (alter < 35 ? 1.1 : 1.0);
   
   const haftpflicht = basis * typFaktor * sfFaktor * regionFaktor * 0.6;
