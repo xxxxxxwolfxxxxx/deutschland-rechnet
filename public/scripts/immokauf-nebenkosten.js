@@ -38,7 +38,9 @@ export function berechneImmokaufNebenkosten({
   mitMakler = true,
   maklerProvisionProzentJeSeite = MAKLER_PROVISION_PROZENT_JE_SEITE,
 }) {
-  const gewSatz = STEUERSAETZE[bundesland] ?? 5.0;
+  // Die Kürzel stehen in grunderwerbsteuer.js klein, manche Seiten liefern sie
+  // groß – ohne Normalisierung fiele der Lookup still auf 5,0 % zurück.
+  const gewSatz = STEUERSAETZE[String(bundesland ?? '').toLowerCase()] ?? 5.0;
   const grunderwerbsteuer = aufCent(kaufpreis * gewSatz / 100);
 
   // Wertgebühren nach Tabelle B (§ 34 GNotKG), Geschäftswert ist der Kaufpreis.
