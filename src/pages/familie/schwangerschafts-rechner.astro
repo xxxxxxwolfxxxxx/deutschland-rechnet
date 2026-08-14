@@ -93,7 +93,10 @@ function berechne() {
     `<span>Mutterschaftsgeld/Tag: <strong>${fmt(r.mutterschaftsgeldTag)}</strong></span>` +
     `<span>Mutterschaftsgeld/6 Wochen: <strong>${fmt(r.mutterschaftsgeldVorGeburt)}</strong></span>` +
     `<span>Mutterschaftsgeld/8 Wochen: <strong>${fmt(r.mutterschaftsgeldNachGeburt)}</strong></span>` +
-    `<span>Gesamt-Mutterschaftsgeld: <strong>${fmt(r.gesamt)}</strong></span>`;
+    (r.arbeitgeberzuschuss > 0
+      ? `<span>Arbeitgeberzuschuss (§ 20 MuSchG): <strong>${fmt(r.arbeitgeberzuschuss)}</strong></span>`
+      : '') +
+    `<span>Gesamt für die Schutzfrist: <strong>${fmt(r.gesamt)}</strong></span>`;
 }
 document.getElementById('letztePeriode').valueAsDate = new Date();
 document.getElementById('letztePeriode').addEventListener('change', berechne);
