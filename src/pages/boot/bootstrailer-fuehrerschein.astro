@@ -3,12 +3,14 @@ import Layout from '../../layouts/Layout.astro';
 import CalculatorShell from '../../components/CalculatorShell.astro';
 import CalculatorGuide from '../../components/CalculatorGuide.astro';
 import { CALCULATORS, CATEGORIES } from '../../data/calculators';
+import { TEMPO100_FAKTOREN } from '../../../public/scripts/bootstrailer.js';
 const calc = CALCULATORS.find(c => c.slug === 'bootstrailer-fuehrerschein')!;
 const cat = CATEGORIES[calc.category];
+const komma = (n: number) => n.toLocaleString('de-DE', { minimumFractionDigits: 1 });
 ---
 <Layout
   title="Bootstrailer-Führerschein: B, B96 oder BE?"
-  description="Prüfen Sie, ob Ihr Trailergespann mit Klasse B gefahren werden darf – oder ob B96 oder BE nötig ist. Nach zulässiger Gesamtmasse gemäß § 6 FeV."
+  description="Prüfen Sie, ob Ihr Trailergespann mit Klasse B gefahren werden darf – dazu Anhängelast, zulässige Kombinationsmasse und die Tempo-100-Bedingung."
   canonicalPath="/boot/bootstrailer-fuehrerschein/"
   categoryColor={cat.color}
   categoryLight={cat.colorLight}
@@ -20,102 +22,240 @@ const cat = CATEGORIES[calc.category];
   </div>
   <CalculatorShell
     calculator={calc}
-    intro="Ob Sie Ihr Boot mit dem vorhandenen Führerschein zum Wasser ziehen dürfen, entscheidet nicht das gewogene Gewicht, sondern die zulässige Gesamtmasse aus den Fahrzeugpapieren. Dieser Rechner sagt Ihnen, ob Klasse B genügt oder ob Sie B96 oder BE brauchen."
-    sourceNote="Rechtsgrundlage: § 6 Fahrerlaubnis-Verordnung (FeV), Rechtslage seit 19.01.2013. Ohne Gewähr – im Zweifel entscheidet die Fahrerlaubnisbehörde."
-    explanation="Anhänger bis 750 kg zGM sind mit Klasse B immer erlaubt. Darüber gilt: Zugfahrzeug-zGM plus Anhänger-zGM dürfen zusammen 3.500 kg nicht überschreiten. Bis 4.250 kg genügt die Schlüsselzahl 96 (Schulung ohne Prüfung), darüber ist BE mit praktischer Prüfung nötig."
+    intro="Ob Sie Ihr Boot zum Wasser ziehen dürfen, entscheiden drei Grenzen, nicht eine: die Fahrerlaubnisklasse, die zulässige Anhängelast des Zugfahrzeugs und die zulässige Gesamtmasse der Kombination. Der Rechner prüft alle drei – und dazu, ob das Gespann die Bedingung für Tempo 100 erfüllt."
+    sourceNote="§§ 6 und 6a Fahrerlaubnis-Verordnung (FeV), zuletzt geändert am 12.05.2026. Tempo 100 nach der Neunten Verordnung über Ausnahmen von den Vorschriften der StVO, zuletzt geändert am 19.12.2025. Ohne Gewähr – im Zweifel entscheidet die Fahrerlaubnisbehörde."
+    explanation="Anhänger bis 750 kg zGM sind mit Klasse B immer erlaubt, unabhängig vom Zugfahrzeug. Darüber gilt: Zugfahrzeug-zGM plus Anhänger-zGM dürfen zusammen 3.500 kg nicht überschreiten. Bis 4.250 kg genügt die Schlüsselzahl 96 (Fahrerschulung ohne Prüfung), darüber ist BE nötig; BE deckt Anhänger bis 3.500 kg zGM ohne Begrenzung der Kombination ab. Die Klasse sagt jedoch nichts darüber, ob das Zugfahrzeug den Trailer technisch ziehen darf – dafür zählen die Felder O.1 und F.3 der Zulassungsbescheinigung."
     faqs={[
       {
         q: "Zählt das tatsächliche Gewicht oder die zulässige Gesamtmasse?",
-        a: "Immer die zulässige Gesamtmasse (zGM) aus den Fahrzeugpapieren – Feld F.1 bzw. F.2 im Fahrzeugschein. Was tatsächlich auf der Waage steht, ist für die Führerscheinklasse ohne Bedeutung. Ein 900-kg-Boot auf einem Trailer mit 1.500 kg zGM wird nach 1.500 kg beurteilt."
+        a: "Immer die zulässige Gesamtmasse (zGM) aus den Fahrzeugpapieren – Feld F.1. Was auf der Waage steht, ist für die Führerscheinklasse ohne Bedeutung. Ein 900-kg-Boot auf einem Trailer mit 1.500 kg zGM wird nach 1.500 kg beurteilt. § 6 Abs. 1 Satz 2 FeV stellt zudem klar, dass die Kombination die schlichte Summe beider zGM ist – die Stützlast wird nicht doppelt gezählt."
       },
       {
         q: "Was genau ist die Schlüsselzahl 96?",
-        a: "Eine Erweiterung der Klasse B für Kombinationen zwischen 3.500 und 4.250 kg. Sie erfordert eine Fahrerschulung von sieben Zeitstunden (Theorie und Praxis), aber keine Prüfung. Sie wird als Zahl 96 hinter der Klasse B im Führerschein eingetragen."
+        a: "Keine eigene Klasse, sondern ein Zusatz zur Klasse B für Kombinationen über 3.500 bis 4.250 kg (§ 6a FeV). Nach Anlage 7a FeV setzt sie eine Fahrerschulung von mindestens sieben Stunden voraus, davon mindestens 2,5 Stunden Theorie – aber keine Prüfung. Sie wird als Zahl 96 hinter der Klasse B im Führerschein eingetragen."
+      },
+      {
+        q: "Reicht die Führerscheinklasse als Prüfung aus?",
+        a: "Nein. Zusätzlich müssen die zulässige Anhängelast des Zugfahrzeugs (Feld O.1 für gebremste Anhänger) und die zulässige Gesamtmasse der Kombination (Feld F.3) eingehalten werden. Feld F.3 liegt bei vielen Pkw unter der Summe aus eigener zGM und Anhängelast – wer nur die Führerscheinrechnung macht, übersieht genau diese Grenze."
       },
       {
         q: "Kann ich die zGM meines Trailers herabsetzen lassen?",
-        a: "Ja, eine Auflastung oder Ablastung ist bei vielen Trailern möglich und wird von einer Prüfstelle eingetragen. Eine Ablastung kann ein Gespann wieder in die Klasse B bringen – reduziert aber entsprechend die zulässige Zuladung."
+        a: "Ja, eine Ablastung ist bei vielen Trailern möglich und wird von einer Prüfstelle eingetragen. Sie kann ein Gespann zurück in die Klasse B bringen, reduziert aber entsprechend die zulässige Zuladung – bei einem Boot, das ohnehin leichter ist als die Zulassung hergibt, oft die einfachste Lösung."
       },
       {
         q: "Gilt das auch für alte Führerscheine von vor 1999?",
-        a: "Wer die alte Klasse 3 vor dem 01.01.1999 erworben hat, besitzt umfangreichere Rechte (unter anderem BE bis 12.000 kg Kombination). Dieser Rechner bildet die heutige Klasse B ab – mit einem Führerschein der alten Klasse 3 sind Sie in der Regel deutlich besser gestellt."
+        a: "Die vor dem 01.01.1999 erworbene Klasse 3 wird nach Anlage 3 FeV auf A1, B, BE, C1, C1E und CE umgestellt und ist damit deutlich besser gestellt. Genauer: C1E deckt Anhänger über 3.500 kg bis zu 12.000 kg Kombination ab, die Schlüsselzahl 79.06 erweitert BE auf Anhänger über 3.500 kg, und CE 79 gilt für Kombinationen dieser Art oberhalb von 12.000 kg. Dieser Rechner bildet die heutige Klasse B ab."
       },
       {
         q: "Darf ich mit dem Gespann 100 km/h fahren?",
-        a: "Nur mit Tempo-100-Zulassung für den Anhänger, geeigneten Reifen, Stoßdämpfern und einer entsprechenden Bescheinigung. Ohne diese Zulassung gilt auf Autobahnen 80 km/h. Die Führerscheinklasse hat damit nichts zu tun."
+        a: "Nur mit Tempo-100-Zulassung – und selbst dann nur auf Autobahnen und Kraftfahrstraßen. Auf allen übrigen Straßen außerhalb geschlossener Ortschaften bleibt es bei 80 km/h nach § 3 Abs. 3 StVO. Die entscheidende Bedingung ist eine Rechnung: Die zGM des Anhängers darf höchstens das 1,1-fache der Leermasse des Zugfahrzeugs betragen (1,2-fache mit Stabilisierungseinrichtung) – und ohne hydraulische Schwingungsdämpfer nur das 0,3-fache. Dazu kommen ABS, Reifen jünger als sechs Jahre, Eintragung und Plakette."
       }
     ]}
   >
     <div class="calc-form">
       <div class="calc-grid">
         <div class="calc-group">
-          <label for="zugfahrzeug">Zugfahrzeug – zul. Gesamtmasse (kg)</label>
-          <input type="number" id="zugfahrzeug" min="500" max="7500" value="2100" step="50" />
+          <label for="zugfahrzeug">Zugfahrzeug – zul. Gesamtmasse (Feld F.1, kg)</label>
+          <input type="number" id="zugfahrzeug" min="500" max="12000" value="2100" step="50" />
         </div>
         <div class="calc-group">
           <label for="anhaenger">Trailer inkl. Boot – zul. Gesamtmasse (kg)</label>
           <input type="number" id="anhaenger" min="100" max="5000" value="1300" step="50" />
         </div>
+        <div class="calc-group">
+          <label for="anhaengelast">Zul. Anhängelast gebremst (Feld O.1, kg)</label>
+          <input type="number" id="anhaengelast" min="0" max="5000" value="1500" step="50" />
+        </div>
+        <div class="calc-group">
+          <label for="kombinationmax">Zul. Masse der Kombination (Feld F.3, kg)</label>
+          <input type="number" id="kombinationmax" min="0" max="15000" value="0" step="50" />
+        </div>
       </div>
+
       <div class="calc-result">
         <div class="label">Erforderliche Führerscheinklasse</div>
         <div id="klasse">—</div>
       </div>
-      <p id="kombination" style="margin-top:0.5rem;font-size:0.9rem;font-weight:600;"></p>
-      <p id="hinweis" style="margin-top:0.35rem;font-size:0.85rem;color:#666;line-height:1.5;"></p>
+      <p id="kombination" class="kombi-zeile"></p>
+      <div id="hinweise"></div>
+
+      <h3 class="block-titel">Tempo 100 auf Autobahn und Kraftfahrstraße</h3>
+      <div class="calc-grid">
+        <div class="calc-group">
+          <label for="leermasse">Zugfahrzeug – Leermasse (Feld G, kg)</label>
+          <input type="number" id="leermasse" min="500" max="7500" value="1600" step="25" />
+        </div>
+        <div class="calc-group">
+          <label for="daempfer">Trailer mit hydraulischen Schwingungsdämpfern?</label>
+          <select id="daempfer">
+            <option value="1" selected>Ja</option>
+            <option value="0">Nein oder ungebremst</option>
+          </select>
+        </div>
+        <div class="calc-group">
+          <label for="stabi">Stabilisierungseinrichtung nach § 30a Abs. 2 StVZO?</label>
+          <select id="stabi">
+            <option value="0" selected>Nein</option>
+            <option value="1">Ja, mit Nachweis</option>
+          </select>
+        </div>
+      </div>
+      <div id="tempo100"></div>
     </div>
   </CalculatorShell>
 
   <CalculatorGuide
-    title="Trailergespann und Führerschein – worauf es ankommt"
-    content="
-    <p>Der Weg zum Wasser ist für viele Bootsbesitzer der unterschätzte Teil des Hobbys. Wer sein Boot trailert, bewegt ein Gespann, das rechtlich anders behandelt wird als ein einzelnes Fahrzeug – und die Grenzen verlaufen nicht dort, wo das Bauchgefühl sie vermutet.</p>
+    title="Trailergespann, Führerschein und Tempo 100"
+    content={`<p>Der Weg zum Wasser ist für viele Bootsbesitzer der unterschätzte Teil des Hobbys. Ein Gespann wird rechtlich anders behandelt als ein einzelnes Fahrzeug – und es gibt nicht eine Grenze, sondern drei, die unabhängig voneinander eingehalten werden müssen.</p>
 
-    <p><strong>Die entscheidende Zahl steht in den Papieren:</strong> Maßgeblich ist ausschließlich die zulässige Gesamtmasse, nicht das reale Gewicht. Das ist der häufigste und teuerste Irrtum. Ein Trailer mit 1.500 kg zGM zählt mit 1.500 kg, auch wenn er leer nur 200 kg wiegt und das Boot 900 kg. Bei einer Kontrolle wird nach Papieren beurteilt, nicht nach Waage.</p>
+<h3>Grenze 1: die Fahrerlaubnisklasse</h3>
+<p>Maßgeblich ist ausschließlich die zulässige Gesamtmasse, nicht das reale Gewicht. Ein Trailer mit 1.500 kg zGM zählt mit 1.500 kg, auch wenn er leer 200 kg wiegt und das Boot 900 kg. Bei einer Kontrolle wird nach Papieren beurteilt, nicht nach Waage.</p>
+<ul>
+  <li><strong>Anhänger bis 750 kg zGM</strong> sind mit Klasse B immer erlaubt – auch wenn die Kombination dadurch über 3.500 kg liegt. Ein Zugfahrzeug mit 3.500 kg zGM und ein 750-kg-Trailer ergeben 4.250 kg und bleiben Klasse B.</li>
+  <li><strong>Darüber</strong> gilt die Kombinationsrechnung: bis 3.500 kg Klasse B, bis 4.250 kg Schlüsselzahl 96, darüber BE.</li>
+  <li><strong>BE</strong> begrenzt den Anhänger auf 3.500 kg zGM, die Kombination dagegen gar nicht – rechnerisch sind damit 7.000 kg möglich.</li>
+  <li><strong>Über 3.500 kg Anhänger</strong> beginnt C1E mit einer Obergrenze von 12.000 kg für die Kombination.</li>
+</ul>
 
-    <p><strong>Die 750-kg-Regel:</strong> Anhänger bis 750 kg zGM sind mit Klasse B immer erlaubt, unabhängig vom Zugfahrzeug. Das deckt kleine Trailer mit Schlauchbooten, Jollen und leichten Angelbooten ab. Sobald der Trailer schwerer zugelassen ist, greift die Kombinationsrechnung.</p>
+<h3>Grenze 2: was das Zugfahrzeug ziehen darf</h3>
+<p>Die Fahrerlaubnis sagt nichts darüber, ob das Auto den Trailer bewegen darf. Dafür zählen zwei Felder der Zulassungsbescheinigung Teil I: <strong>O.1</strong> nennt die zulässige Anhängelast für gebremste Anhänger, <strong>F.3</strong> die zulässige Gesamtmasse der Kombination. F.3 ist bei vielen Pkw kleiner als F.1 plus O.1 – wer nur addiert, übersieht das. Ein Gespann kann von der Klasse B gedeckt und trotzdem unzulässig sein.</p>
 
-    <p><strong>Die Kombinationsrechnung:</strong> Zugfahrzeug-zGM plus Anhänger-zGM ergeben die Kombination. Bis 3.500 kg reicht B, bis 4.250 kg reicht B96, darüber ist BE nötig. Ein typischer Mittelklasse-Kombi mit 2.100 kg zGM lässt also noch 1.400 kg für den Trailer – das reicht für Boote bis etwa sieben Meter.</p>
+<h3>Grenze 3: Tempo 100</h3>
+<p>Ohne Tempo-100-Zulassung gilt außerhalb geschlossener Ortschaften durchgehend 80 km/h. Mit Zulassung sind 100 km/h erlaubt – aber nur auf Autobahnen und Kraftfahrstraßen; auf Landstraßen bleibt es auch mit Plakette bei 80.</p>
+<p>Die entscheidende Bedingung des § 1 Nr. 1 der Neunten Ausnahmeverordnung ist eine Rechnung, und ihre Bezugsgröße ist die <strong>Leermasse</strong> des Zugfahrzeugs (Feld G) – nicht dessen zulässige Gesamtmasse:</p>
+<table class="trailer-tabelle">
+  <thead><tr><th>Anhänger</th><th>Faktor auf die Leermasse</th></tr></thead>
+  <tbody>
+    <tr><td>ungebremst oder ohne hydraulische Schwingungsdämpfer</td><td>${komma(TEMPO100_FAKTOREN.ohneDaempfer)}</td></tr>
+    <tr><td>Wohnanhänger mit starrem Aufbau und Dämpfern</td><td>${komma(TEMPO100_FAKTOREN.wohnanhaenger)}</td></tr>
+    <tr><td>… zusätzlich mit Stabilisierungseinrichtung</td><td>${komma(TEMPO100_FAKTOREN.wohnanhaengerStabilisiert)}</td></tr>
+    <tr><td>andere Anhänger mit Dämpfern – auch Bootstrailer</td><td>${komma(TEMPO100_FAKTOREN.sonstiger)}</td></tr>
+    <tr><td>… zusätzlich mit Stabilisierungseinrichtung</td><td>${komma(TEMPO100_FAKTOREN.sonstigerStabilisiert)}</td></tr>
+  </tbody>
+</table>
+<p>Beim Bootstrailer kommt hinzu, dass die zGM des Anhängers zusätzlich weder die zGM des Zugfahrzeugs noch die zulässige Anhängelast überschreiten darf. Der Faktor ${komma(TEMPO100_FAKTOREN.ohneDaempfer)} für Trailer ohne hydraulische Schwingungsdämpfer ist die Hürde, an der die meisten Gespanne scheitern: Bei 1.600 kg Leermasse bleiben 480 kg – das trägt kaum ein Trailer mit Boot.</p>
 
-    <p><strong>B96 ist der günstige Zwischenschritt:</strong> Sieben Zeitstunden Schulung, keine Prüfung, kein Fahrlehrer-Marathon. Wer nur knapp über 3.500 kg liegt, spart sich damit die vollständige BE-Ausbildung mit praktischer Prüfung.</p>
+<h3>Ablastung als Alternative</h3>
+<p>Viele Trailer lassen sich auf eine niedrigere zGM ablasten. Das bringt ein Gespann zurück in die Klasse B und kann zugleich die Anhängelast einhalten – reduziert aber die zulässige Zuladung. Umgekehrt hilft eine Auflastung nicht gegen eine zu kleine Anhängelast des Zugfahrzeugs.</p>
 
-    <p><strong>Ablastung als Alternative:</strong> Viele Trailer lassen sich auf eine niedrigere zGM ablasten. Das bringt ein Gespann zurück in die Klasse B, reduziert aber die zulässige Zuladung – für ein Boot, das ohnehin leichter ist als die Trailer-Zulassung hergibt, oft die eleganteste Lösung.</p>
-
-    <p><strong>Stützlast nicht vergessen:</strong> Neben der Masse begrenzt die Stützlast der Anhängerkupplung, wie das Boot auf dem Trailer liegen darf. Sie steht in den Papieren des Zugfahrzeugs und liegt meist zwischen 50 und 100 kg. Eine zu geringe Stützlast lässt das Gespann bei höherem Tempo schlingern.</p>
-    "
+<h3>Stützlast</h3>
+<p>Die Stützlast begrenzt, wie das Boot auf dem Trailer liegen darf. Sie steht in den Papieren beider Fahrzeuge; nach § 4 der Neunten Ausnahmeverordnung gilt der kleinere der beiden Werte. Eine zu geringe Stützlast lässt das Gespann bei höherem Tempo schlingern.</p>`}
     relatedSlugs={['spritverbrauch-boot', 'rumpfgeschwindigkeit', 'kfz-steuer-rechner']}
   />
 </Layout>
 
 <script type="module">
-const { berechneBootstrailer } = await import(window.__base + 'scripts/bootstrailer.js');
+const { berechneBootstrailer, pruefeTempo100 } = await import(window.__base + 'scripts/bootstrailer.js');
+
+const EL = id => document.getElementById(id);
+const zahl = id => parseFloat(EL(id).value) || 0;
+const fmtKg = n => n.toLocaleString('de-DE') + ' kg';
 
 const KLASSEN_TEXT = {
-  B:    'Klasse B genügt',
-  B96:  'Klasse B96 erforderlich',
-  BE:   'Klasse BE erforderlich',
-  C1E:  'Außerhalb der Klasse B',
+  B: 'Klasse B genügt',
+  B96: 'Klasse B mit Schlüsselzahl 96',
+  BE: 'Klasse BE erforderlich',
+  C1: 'Klasse C1 erforderlich',
+  C1E: 'Klasse C1E erforderlich',
+  C: 'Klasse C erforderlich',
+  CE: 'Klasse CE erforderlich',
 };
 
-function fmtKg(n) { return n.toLocaleString('de-DE') + ' kg'; }
-
 function berechne() {
-  const zugfahrzeugKg = parseFloat(document.getElementById('zugfahrzeug').value) || 0;
-  const anhaengerKg = parseFloat(document.getElementById('anhaenger').value) || 0;
-  const r = berechneBootstrailer({ zugfahrzeugKg, anhaengerKg });
+  const zugfahrzeugKg = zahl('zugfahrzeug');
+  const anhaengerKg = zahl('anhaenger');
+  const anhaengelastKg = zahl('anhaengelast');
 
-  document.getElementById('klasse').textContent = KLASSEN_TEXT[r.klasse];
+  const r = berechneBootstrailer({
+    zugfahrzeugKg, anhaengerKg, anhaengelastKg,
+    kombinationMaxKg: zahl('kombinationmax'),
+  });
 
-  const kombiEl = document.getElementById('kombination');
-  kombiEl.textContent = `Kombination: ${fmtKg(r.kombinationKg)}`
-    + (r.spielraumKg > 0 ? ` · noch ${fmtKg(r.spielraumKg)} Spielraum` : '');
-  kombiEl.style.color = r.erlaubtMitB ? '#1e7e34' : '#b71c1c';
+  EL('klasse').textContent = KLASSEN_TEXT[r.klasse];
 
-  document.getElementById('hinweis').textContent = r.hinweis;
+  const teile = [`Kombination: ${fmtKg(r.kombinationKg)}`];
+  if (r.spielraumKombinationKg !== null) {
+    teile.push(`noch ${fmtKg(r.spielraumKombinationKg)} bis zur Klassengrenze`);
+  }
+  if (r.spielraumAnhaengerKg !== null && r.spielraumAnhaengerKg > 0) {
+    teile.push(`Trailer bis ${fmtKg(anhaengerKg + r.spielraumAnhaengerKg)} bliebe in dieser Klasse`);
+  }
+  if (r.maxAnhaengerTechnischKg !== null) {
+    teile.push(`technisch zulässig sind ${fmtKg(r.maxAnhaengerTechnischKg)}`);
+  }
+  const kombiEl = EL('kombination');
+  kombiEl.textContent = teile.join(' · ');
+  kombiEl.style.color = r.erlaubtMitB && r.zulaessig ? '#1e7e34' : '#b71c1c';
+
+  EL('hinweise').innerHTML = r.hinweise
+    .map(h => `<p class="hinweis">${h}</p>`).join('');
+
+  zeigeTempo100(anhaengerKg, zugfahrzeugKg, anhaengelastKg);
 }
 
-['zugfahrzeug','anhaenger'].forEach(id =>
-  document.getElementById(id).addEventListener('input', berechne)
-);
+function zeigeTempo100(anhaengerKg, zugfahrzeugKg, anhaengelastKg) {
+  const leermasse = zahl('leermasse');
+  if (leermasse <= 0) {
+    EL('tempo100').innerHTML = '<p class="hinweis">Für die Tempo-100-Prüfung wird die Leermasse des Zugfahrzeugs benötigt (Feld G).</p>';
+    return;
+  }
+
+  const t = pruefeTempo100({
+    anhaengerKg, zugfahrzeugKg, anhaengelastKg, leermasseZugfahrzeugKg: leermasse,
+    schwingungsdaempfer: EL('daempfer').value === '1',
+    stabilisierung: EL('stabi').value === '1',
+  });
+
+  const farbe = t.zulaessig ? '#1e7e34' : '#b71c1c';
+  const urteil = t.zulaessig
+    ? `Die Massebedingung ist erfüllt: höchstens ${fmtKg(t.maxAnhaengerKg)}, der Trailer wiegt ${fmtKg(anhaengerKg)}.`
+    : `Die Massebedingung ist nicht erfüllt: erlaubt wären ${fmtKg(t.maxAnhaengerKg)}, der Trailer liegt ${fmtKg(t.ueberschussKg)} darüber.`;
+
+  EL('tempo100').innerHTML =
+    `<p class="urteil" style="color:${farbe}">${urteil}</p>`
+    + `<p class="hinweis">Faktor ${t.faktor.toLocaleString('de-DE', { minimumFractionDigits: 1 })} × ${fmtKg(leermasse)} Leermasse`
+    + `, begrenzt durch zGM des Zugfahrzeugs und zulässige Anhängelast.</p>`
+    + `<p class="hinweis">${t.geltungsbereich}</p>`
+    + '<p class="hinweis">Zusätzlich müssen erfüllt sein:</p>'
+    + `<ul class="voraussetzungen">${t.voraussetzungen.map(v => `<li>${v}</li>`).join('')}</ul>`;
+}
+
+['zugfahrzeug', 'anhaenger', 'anhaengelast', 'kombinationmax', 'leermasse', 'daempfer', 'stabi']
+  .forEach(id => EL(id).addEventListener('input', berechne));
 berechne();
 </script>
+
+<style>
+  .kombi-zeile { margin-top: 0.5rem; font-size: 0.9rem; font-weight: 600; }
+  .urteil { margin: 0.5rem 0; font-size: 0.95rem; font-weight: 600; }
+  .block-titel {
+    font-size: 1rem;
+    margin: 1.75rem 0 0.75rem;
+    padding-top: 1.25rem;
+    border-top: 1px solid var(--border, #e5e5e5);
+  }
+  .hinweis { margin: 0.4rem 0; font-size: 0.85rem; color: #666; line-height: 1.6; }
+  .voraussetzungen {
+    margin: 0.25rem 0 0 1.1rem;
+    font-size: 0.83rem;
+    color: #666;
+    line-height: 1.65;
+  }
+
+  :global(.trailer-tabelle) {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.9rem;
+    margin: 0.75rem 0 1.25rem;
+  }
+  :global(.trailer-tabelle th),
+  :global(.trailer-tabelle td) {
+    padding: 0.45rem 0.5rem;
+    border-bottom: 1px solid var(--border, #e5e5e5);
+    text-align: left;
+  }
+  :global(.trailer-tabelle th) { color: var(--muted, #888); font-weight: 600; }
+  :global(.trailer-tabelle th:last-child),
+  :global(.trailer-tabelle td:last-child) { text-align: right; font-variant-numeric: tabular-nums; }
+  :global(.trailer-tabelle tr:last-child td) { border-bottom: none; }
+</style>
