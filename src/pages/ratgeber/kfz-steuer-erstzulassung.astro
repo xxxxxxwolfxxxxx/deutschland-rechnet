@@ -1,0 +1,512 @@
+---
+import ArticleLayout from '../../layouts/ArticleLayout.astro';
+import {
+  berechneKfzSteuer,
+  HUBRAUMSATZ_AB_2009,
+  CO2_STAFFEL_AB_2021,
+  CO2_FREIBETRAG_AB_2021,
+  SCHADSTOFFSAETZE_VOR_2009,
+  ELEKTRO_BEFREIUNG,
+} from '../../../public/scripts/kfz-steuer.js';
+
+const base = import.meta.env.BASE_URL;
+
+// Alle Zahlen dieses Artikels kommen aus demselben Modul wie der Rechner. Der
+// Stichtag ist fest gesetzt, damit der Build deterministisch bleibt – ohne ihn
+// zöge berechneKfzSteuer() Date.now() heran und die Seite änderte sich täglich.
+const STICHTAG = '2026-08-14';
+
+// Ein Fahrzeug der Kompaktklasse: 1,4-Liter-Benziner, 120 g/km nach WLTP.
+// Bewusst ein Allerweltsauto – der Effekt soll nicht am Extremfall hängen.
+const BEISPIEL = { hubraum: 1395, co2: 120, antrieb: 'benzin' as const };
+
+const regime = [
+  {
+    erstzulassung: '2008-05-01',
+    kurz: 'Mai 2008',
+    regel: 'Hubraum × Schadstoffklasse',
+    erlaeuterung: 'Euro 4, also der günstigste Satz dieser Gruppe',
+  },
+  {
+    erstzulassung: '2010-05-01',
+    kurz: 'Mai 2010',
+    regel: 'Hubraum + CO2 über 120 g/km',
+    erlaeuterung: 'Freibetrag 120 g/km – das Auto liegt genau darauf',
+  },
+  {
+    erstzulassung: '2013-05-01',
+    kurz: 'Mai 2013',
+    regel: 'Hubraum + CO2 über 110 g/km',
+    erlaeuterung: 'Freibetrag auf 110 g/km abgesenkt',
+  },
+  {
+    erstzulassung: '2015-05-01',
+    kurz: 'Mai 2015',
+    regel: 'Hubraum + CO2 über 95 g/km',
+    erlaeuterung: 'Freibetrag auf 95 g/km abgesenkt',
+  },
+  {
+    erstzulassung: '2022-05-01',
+    kurz: 'Mai 2022',
+    regel: 'Hubraum + CO2-Staffel ab 95 g/km',
+    erlaeuterung: 'sechsstufige Staffel statt festem Satz',
+  },
+].map((r) => ({
+  ...r,
+  ...berechneKfzSteuer({ ...BEISPIEL, erstzulassung: r.erstzulassung, stichtag: STICHTAG }),
+}));
+
+const guenstigste = regime.reduce((a, b) => (a.jahressteuer <= b.jahressteuer ? a : b));
+const teuerste = regime.reduce((a, b) => (a.jahressteuer >= b.jahressteuer ? a : b));
+const spanne = teuerste.jahressteuer - guenstigste.jahressteuer;
+const faktor = teuerste.jahressteuer / guenstigste.jahressteuer;
+
+const neuestes = regime[regime.length - 1];
+const zweitaeltestes = regime[1];
+
+// Derselbe Hubraum, einmal als Benziner und einmal als Diesel. Der Aufschlag
+// steckt im Hubraumsatz, nicht in der CO2-Komponente – das zeigt der Vergleich
+// bei identischem CO2-Wert.
+const HUBRAUM_DIESEL = 1968;
+const antriebsvergleich = (['benzin', 'diesel'] as const).map((antrieb) => ({
+  antrieb,
+  label: antrieb === 'benzin' ? 'Benziner' : 'Diesel',
+  satz: HUBRAUMSATZ_AB_2009[antrieb],
+  ...berechneKfzSteuer({
+    hubraum: HUBRAUM_DIESEL, co2: 120, antrieb,
+    erstzulassung: '2022-05-01', stichtag: STICHTAG,
+  }),
+}));
+const [alsBenziner, alsDiesel] = antriebsvergleich;
+const dieselMehr = alsDiesel.jahressteuer - alsBenziner.jahressteuer;
+const satzFaktor = HUBRAUMSATZ_AB_2009.diesel / HUBRAUMSATZ_AB_2009.benzin;
+
+// Ein Fahrzeug knapp über einer Stufengrenze: Nur die Gramm oberhalb der Grenze
+// werden teurer besteuert, nicht der gesamte Wert.
+const staffelBeispiel = [116, 136].map((co2) => ({
+  co2,
+  ...berechneKfzSteuer({ hubraum: 1395, co2, antrieb: 'benzin', erstzulassung: '2022-05-01', stichtag: STICHTAG }),
+}));
+const [knappUeber115, knappUeber135] = staffelBeispiel;
+
+// § 11 Abs. 2: unterjährige Zahlung erst ab einer bestimmten Jahressteuer und
+// gegen Aufgeld. Ein großer Diesel überschreitet die erste Schwelle.
+// Die Eingabewerte müssen hier stehen bleiben: berechneKfzSteuer gibt Hubraum
+// und CO2 nicht zurück, nur die daraus errechneten Anteile.
+const GROSSER_DIESEL = { hubraum: 2993, co2: 195, antrieb: 'diesel' as const };
+const grosserDiesel = berechneKfzSteuer({
+  ...GROSSER_DIESEL, erstzulassung: '2022-05-01', stichtag: STICHTAG,
+});
+const halbjahrGesamt = grosserDiesel.halbjaehrlich !== null
+  ? grosserDiesel.halbjaehrlich * 2 : null;
+const halbjahrAufschlag = halbjahrGesamt !== null
+  ? halbjahrGesamt - grosserDiesel.jahressteuerAbgerundet : null;
+
+// Elektro nach Ablauf der Befreiung: halbierte Gewichtssteuer, § 9 Abs. 2.
+// Erstzulassung 2011, die zehn Jahre sind also längst abgelaufen.
+const E_AUTO_GEWICHT_KG = 2100;
+const eAutoNachBefreiung = berechneKfzSteuer({
+  antrieb: 'elektro', gesamtgewicht: E_AUTO_GEWICHT_KG,
+  erstzulassung: '2011-06-01', stichtag: STICHTAG,
+});
+
+// § 9 Abs. 1 Nr. 1: Krafträder werden je angefangene 25 ccm besteuert und haben
+// überhaupt keine CO2-Komponente – eine eigene Systematik neben den drei Regimen.
+const KRAFTRAD_CCM = 650;
+const KRAFTRAD_EINHEIT_CCM = 25;
+const kraftrad = berechneKfzSteuer({
+  fahrzeugart: 'kraftrad', hubraum: KRAFTRAD_CCM,
+  erstzulassung: '2022-05-01', stichtag: STICHTAG,
+});
+// Das Modul exportiert den Kraftradsatz nicht – aus dem Ergebnis zurückgerechnet,
+// damit im Text keine zweite, driftende Kopie der Zahl steht.
+const kraftradSatz = kraftrad.hubraumanteil
+  / Math.ceil(KRAFTRAD_CCM / KRAFTRAD_EINHEIT_CCM);
+
+// § 3a: Merkzeichen H, Bl oder aG befreien vollständig, der orangefarbene
+// Flächenaufdruck halbiert. Gerechnet am Beispielauto mit Zulassung 2022.
+const mitHalbierung = berechneKfzSteuer({
+  ...BEISPIEL, erstzulassung: '2022-05-01', ermaessigung: 'haelfte', stichtag: STICHTAG,
+});
+
+const eur = (n: number) =>
+  n.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
+const eurKurz = (n: number) =>
+  n.toLocaleString('de-DE', { maximumFractionDigits: 0 }) + ' €';
+const zahl = (n: number, stellen = 1) =>
+  n.toLocaleString('de-DE', { minimumFractionDigits: stellen, maximumFractionDigits: stellen });
+const ganz = (n: number) => n.toLocaleString('de-DE');
+const deutschesDatum = (iso: string) => iso.split('-').reverse().join('.');
+---
+<ArticleLayout
+  title="Kfz-Steuer: Warum dasselbe Auto je nach Zulassungsdatum dreimal so viel kostet"
+  description={`Drei Steuerregime gelten in Deutschland nebeneinander, und welches greift, entscheidet allein die Erstzulassung. Dasselbe Fahrzeug kostet zwischen ${eur(guenstigste.jahressteuer)} und ${eur(teuerste.jahressteuer)} im Jahr.`}
+  canonicalPath="/ratgeber/kfz-steuer-erstzulassung/"
+  lead={`Ein identischer Kompaktwagen – ${ganz(BEISPIEL.hubraum)} Kubikzentimeter, ${BEISPIEL.co2} Gramm CO2 je Kilometer – kostet je nach Tag der Erstzulassung zwischen ${eur(guenstigste.jahressteuer)} und ${eur(teuerste.jahressteuer)} Kfz-Steuer im Jahr. Nicht weil sich das Auto unterscheidet, sondern weil in Deutschland drei Steuerregime gleichzeitig gelten und ein Fahrzeug nie in ein neueres wechselt.`}
+  datum="2026-08-14"
+  quellen={[
+    { titel: 'Kraftfahrzeugsteuergesetz (KraftStG) – § 9 Steuersätze', url: 'https://www.gesetze-im-internet.de/kraftstg/__9.html' },
+    { titel: 'KraftStG – § 3d Steuerbefreiung für Elektrofahrzeuge', url: 'https://www.gesetze-im-internet.de/kraftstg/__3d.html' },
+    { titel: 'KraftStG – § 11 Entrichtung der Steuer', url: 'https://www.gesetze-im-internet.de/kraftstg/__11.html' },
+    { titel: 'KraftStG – § 8 Bemessungsgrundlage', url: 'https://www.gesetze-im-internet.de/kraftstg/__8.html' },
+    { titel: 'Zoll: Kraftfahrzeugsteuer – Höhe der Steuer', url: 'https://www.zoll.de/DE/Privatpersonen/Kraftfahrzeugsteuer/Steuerberechnung/steuerberechnung_node.html' },
+  ]}
+>
+  <p>
+    Die meisten Übersichten zur Kfz-Steuer haben denselben Konstruktionsfehler: Sie
+    erklären <em>eine</em> Berechnung. Tatsächlich stehen in § 9 Abs. 1 Nr. 2 KraftStG
+    drei Bemessungsgrundlagen nebeneinander, und alle drei sind bis heute in Kraft.
+    Welche für ein Fahrzeug gilt, entscheidet nach § 8 Nr. 1 KraftStG allein der Tag
+    der Erstzulassung – Feld B der Zulassungsbescheinigung Teil I.
+  </p>
+  <p>
+    Das hat eine Konsequenz, die kaum irgendwo steht: <strong>Ein Auto wechselt nie
+    in ein neueres Regime.</strong> Ein 2008 zugelassener Wagen wird auch im Jahr 2040
+    noch nach Schadstoffklassen besteuert. Wer die Steuer für ein gebrauchtes Fahrzeug
+    schätzen will und dabei die heute geltende Staffel anwendet, rechnet regelmäßig
+    falsch – meist deutlich.
+  </p>
+
+  <h2>Dasselbe Auto, fünfmal gerechnet</h2>
+  <p>
+    Die folgende Tabelle nimmt ein einziges Fahrzeug – {ganz(BEISPIEL.hubraum)} ccm
+    Hubraum, Benziner, {BEISPIEL.co2} g/km CO2 – und ändert nur eine Größe: das Datum
+    der Erstzulassung. Alles andere bleibt identisch.
+  </p>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th scope="col">Erstzulassung</th>
+          <th scope="col">Berechnung</th>
+          <th scope="col" class="num">Hubraum</th>
+          <th scope="col" class="num">CO2</th>
+          <th scope="col" class="num">Jahressteuer</th>
+        </tr>
+      </thead>
+      <tbody>
+        {regime.map((r) => (
+          <tr>
+            <th scope="row">{r.kurz}</th>
+            <td class="klein">{r.regel}</td>
+            <td class="num">{eur(r.hubraumanteil)}</td>
+            <td class="num">{eur(r.co2anteil)}</td>
+            <td class="num strong">{eur(r.jahressteuer)}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  </div>
+
+  <p>
+    Zwischen dem günstigsten und dem teuersten Fall liegen {eur(spanne)} im Jahr,
+    das {zahl(faktor)}-Fache. Über eine Haltedauer von zehn Jahren summiert sich
+    das auf {eurKurz(spanne * 10)} – bei einem Auto, das in jeder technischen
+    Hinsicht dasselbe ist.
+  </p>
+
+  <h2>Warum ein Wagen von 2010 weniger zahlt als einer von 2022</h2>
+  <p>
+    Der auffälligste Wert der Tabelle ist {zweitaeltestes.kurz}:
+    {eur(zweitaeltestes.jahressteuer)}, und damit weniger als die Hälfte dessen,
+    was dasselbe Auto mit Zulassung {neuestes.kurz} kostet
+    ({eur(neuestes.jahressteuer)}). Das wirkt verkehrt herum – ein älteres,
+    schmutzigeres Fahrzeug zahlt weniger.
+  </p>
+  <p>
+    Die Erklärung steckt im CO2-Freibetrag. Als die CO2-Komponente 2009 eingeführt
+    wurde, blieben die ersten 120 Gramm je Kilometer steuerfrei. Unser Beispielauto
+    liegt mit {BEISPIEL.co2} g/km <strong>genau auf dieser Grenze</strong> und zahlt
+    deshalb überhaupt keine CO2-Steuer – übrig bleibt nur der Hubraumanteil von
+    {eur(zweitaeltestes.hubraumanteil)}. Der Gesetzgeber hat den Freibetrag danach
+    zweimal abgesenkt: 2012 auf 110 g/km, 2014 auf {CO2_FREIBETRAG_AB_2021} g/km.
+    Jede Absenkung galt nur für Neuzulassungen ab diesem Datum.
+  </p>
+  <p>
+    Für Gebrauchtwagenkäufer ist das eine handfeste Größe. Zwei äußerlich gleiche
+    Fahrzeuge desselben Modells, eines von 2011 und eines von 2014, unterscheiden
+    sich dauerhaft in der laufenden Steuer – und zwar für die gesamte restliche
+    Lebensdauer des Autos.
+  </p>
+
+  <h2>Der Dieselaufschlag steckt im Hubraum, nicht im CO2</h2>
+  <p>
+    Ein verbreitetes Missverständnis: Diesel würden wegen ihres Schadstoffausstoßes
+    höher besteuert. Tatsächlich ist die CO2-Komponente für beide Antriebsarten
+    identisch. Der Unterschied liegt allein im Hubraumsatz –
+    {eur(HUBRAUMSATZ_AB_2009.benzin)} je angefangene 100 ccm beim Benziner gegen
+    {eur(HUBRAUMSATZ_AB_2009.diesel)} beim Diesel, das
+    {zahl(satzFaktor, 2)}-Fache.
+  </p>
+  <p>
+    Was das ausmacht, zeigt derselbe Motorblock mit {ganz(HUBRAUM_DIESEL)} ccm bei
+    identischem CO2-Wert:
+  </p>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th scope="col">Antrieb</th>
+          <th scope="col" class="num">Satz je 100 ccm</th>
+          <th scope="col" class="num">Hubraumanteil</th>
+          <th scope="col" class="num">CO2-Anteil</th>
+          <th scope="col" class="num">Jahressteuer</th>
+        </tr>
+      </thead>
+      <tbody>
+        {antriebsvergleich.map((a) => (
+          <tr>
+            <th scope="row">{a.label}</th>
+            <td class="num">{eur(a.satz)}</td>
+            <td class="num">{eur(a.hubraumanteil)}</td>
+            <td class="num">{eur(a.co2anteil)}</td>
+            <td class="num strong">{eur(a.jahressteuer)}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  </div>
+
+  <p>
+    {eur(dieselMehr)} Unterschied im Jahr, und die CO2-Anteile sind auf den Cent
+    gleich. Die höhere Dieselsteuer ist ein Ausgleich für die niedrigere
+    Energiesteuer auf den Kraftstoff – sie hat mit dem Emissionsverhalten des
+    einzelnen Fahrzeugs nichts zu tun. Für die Kaufentscheidung heißt das: Der
+    Dieselvorteil an der Zapfsäule wird jedes Jahr um diesen Betrag gemindert,
+    und je größer der Hubraum, desto mehr.
+  </p>
+
+  <h2>Die CO2-Staffel besteuert nicht den ganzen Wert</h2>
+  <p>
+    Seit 2021 gilt für Neuzulassungen eine sechsstufige Staffel. Sie wird häufig
+    falsch verstanden – als würde bei Überschreiten einer Stufengrenze der gesamte
+    CO2-Wert teurer. Das Gegenteil ist der Fall: Es ist eine
+    <strong>Teilmengenstaffel</strong>. Jedes Gramm wird mit dem Satz seiner eigenen
+    Stufe belegt.
+  </p>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th scope="col">Stufe (g/km)</th>
+          <th scope="col" class="num">Satz je Gramm</th>
+        </tr>
+      </thead>
+      <tbody>
+        {CO2_STAFFEL_AB_2021.map((stufe, i) => {
+          const von = i === 0 ? CO2_FREIBETRAG_AB_2021 : CO2_STAFFEL_AB_2021[i - 1].bis;
+          return (
+            <tr>
+              <th scope="row">
+                {Number.isFinite(stufe.bis)
+                  ? `über ${von} bis ${stufe.bis}`
+                  : `über ${von}`}
+              </th>
+              <td class="num">{eur(stufe.satz)}</td>
+            </tr>
+          );
+        })}
+      </tbody>
+    </table>
+  </div>
+
+  <p>
+    Die ersten {CO2_FREIBETRAG_AB_2021} Gramm bleiben frei. Ein Fahrzeug mit
+    {knappUeber115.co2} g/km – also einem Gramm über der ersten Stufengrenze –
+    zahlt {eur(knappUeber115.co2anteil)} CO2-Steuer, eines mit
+    {knappUeber135.co2} g/km zahlt {eur(knappUeber135.co2anteil)}. Der Sprung über
+    eine Grenze kostet also nur den höheren Satz für die Gramm oberhalb, nicht für
+    alle. Wer bei der Modellwahl zwischen zwei Motorisierungen schwankt, sollte die
+    Stufengrenze deshalb nicht überbewerten – ein Gramm mehr ist wirklich nur ein
+    Gramm mehr.
+  </p>
+
+  <h2>Welche drei Felder Sie tatsächlich brauchen</h2>
+  <p>
+    Für eine belastbare Rechnung genügen drei Angaben, und alle stehen in der
+    Zulassungsbescheinigung Teil I:
+  </p>
+  <ul>
+    <li><strong>Feld B</strong> – Tag der Erstzulassung. Bestimmt das Regime und damit alles Weitere.</li>
+    <li><strong>Feld P.1</strong> – Hubraum in Kubikzentimetern. Jede angefangene Einheit von 100 ccm zählt voll.</li>
+    <li><strong>Feld V.7</strong> – CO2-Wert in g/km. Bei Fahrzeugen ab 2021 der WLTP-Wert; ältere Papiere nennen den NEFZ-Wert, der niedriger ausfällt.</li>
+  </ul>
+  <p>
+    Für Fahrzeuge vor Juli 2009 tritt an die Stelle des CO2-Werts die
+    emissionsbezogene Schlüsselnummer. Die Spanne ist dort erheblich: von
+    {eur(SCHADSTOFFSAETZE_VOR_2009.euro3.benzin)} je 100 ccm bei Euro 3 und besser
+    bis {eur(SCHADSTOFFSAETZE_VOR_2009.euro0.benzin)} bei Fahrzeugen ohne
+    Schadstoffklasse – beim Diesel von
+    {eur(SCHADSTOFFSAETZE_VOR_2009.euro3.diesel)} bis
+    {eur(SCHADSTOFFSAETZE_VOR_2009.euro0.diesel)}.
+  </p>
+
+  <h2>Zwei Gruppen, die aus der Systematik herausfallen</h2>
+  <p>
+    Die drei Regime gelten für Pkw. Zwei Fälle folgen einer eigenen Logik, und beide
+    werden regelmäßig übersehen.
+  </p>
+  <p>
+    <strong>Krafträder</strong> haben überhaupt keine CO2-Komponente. Nach § 9 Abs. 1
+    Nr. 1 KraftStG zählt allein der Hubraum, mit
+    {' '}{eur(kraftradSatz)} je angefangene {KRAFTRAD_EINHEIT_CCM} Kubikzentimeter – unabhängig vom
+    Zulassungsdatum und unabhängig vom Verbrauch. Eine {ganz(KRAFTRAD_CCM)}er kommt
+    damit auf {eur(kraftrad.jahressteuer)} im Jahr. Wer die Pkw-Staffel auf ein
+    Motorrad anwendet, rechnet an einer Norm vorbei, die für Krafträder nie galt.
+  </p>
+  <p>
+    <strong>Menschen mit Schwerbehinderung</strong> zahlen nach § 3a KraftStG weniger
+    oder gar nichts. Die Merkzeichen H (hilflos), Bl (blind) und aG (außergewöhnlich
+    gehbehindert) führen zur <em>vollständigen</em> Befreiung. Der orangefarbene
+    Flächenaufdruck im Schwerbehindertenausweis halbiert die Steuer – aus
+    {' '}{eur(neuestes.jahressteuer)} für unser Beispielauto würden dann
+    {' '}{eur(mitHalbierung.jahressteuer)}.
+  </p>
+  <p>
+    Zwei Einschränkungen gehören dazu: Die Vergünstigung gilt nur für <em>ein</em>
+    Fahrzeug und nur auf Antrag beim Hauptzollamt. Sie wird nicht automatisch gewährt,
+    auch wenn die Behörde den Ausweis längst kennt. Und wer die Halbierung in Anspruch
+    nimmt, darf die unentgeltliche Beförderung im öffentlichen Nahverkehr nicht
+    gleichzeitig nutzen – man muss sich für eines von beidem entscheiden.
+  </p>
+
+  <h2>Beim Halterwechsel wird taggenau abgerechnet</h2>
+  <p>
+    Ein häufiger Irrtum beim Gebrauchtwagenkauf: dass die bereits gezahlte Steuer des
+    Vorbesitzers auf den Käufer übergeht oder unter den Beteiligten aufgeteilt werden
+    müsste. Das ist nicht so. Die Steuerpflicht endet für den Verkäufer mit der
+    Abmeldung beziehungsweise der Umschreibung, und das Hauptzollamt erstattet ihm den
+    Rest des bereits gezahlten Jahres von sich aus. Der Käufer erhält einen eigenen
+    Bescheid ab dem Tag seiner Zulassung.
+  </p>
+  <p>
+    Praktisch heißt das: Die Kfz-Steuer gehört nicht in die Kaufpreisverhandlung. Was
+    dagegen sehr wohl hineingehört, ist die Höhe der künftigen Steuer – und die hängt,
+    wie oben gezeigt, am Zulassungsdatum des Fahrzeugs und damit an einer Größe, die
+    sich durch den Halterwechsel nicht ändert.
+  </p>
+
+  <h2>Monatlich zahlen ist nicht vorgesehen</h2>
+  <p>
+    Viele Vergleichsseiten weisen die Kfz-Steuer als Monatsbetrag aus. Das ist
+    rechnerisch nachvollziehbar, aber rechtlich irreführend: § 11 Abs. 1 KraftStG
+    verlangt die Zahlung <strong>für ein Jahr im Voraus</strong>. Eine monatliche
+    Entrichtung gibt es nicht.
+  </p>
+  <p>
+    Unterjährige Zahlung ist nur in zwei Fällen zulässig, und sie kostet extra. Ab
+    einer Jahressteuer von mehr als 500 € ist Halbjahreszahlung möglich, ab mehr als
+    1.000 € auch Vierteljahreszahlung – jeweils mit einem Aufgeld von 3 beziehungsweise
+    6 Prozent (§ 11 Abs. 2 KraftStG).
+    {grosserDiesel.halbjaehrlich !== null && halbjahrAufschlag !== null && (
+      <>
+        {' '}Ein 3,0-Liter-Diesel mit {GROSSER_DIESEL.co2} g/km kommt auf
+        {' '}{eur(grosserDiesel.jahressteuer)} im Jahr. Halbjährlich sind das zweimal
+        {' '}{eurKurz(grosserDiesel.halbjaehrlich)}, zusammen also
+        {' '}{eurKurz(halbjahrGesamt ?? 0)} – {eurKurz(halbjahrAufschlag)} mehr als bei
+        {' '}Jahreszahlung.
+      </>
+    )}
+  </p>
+  <p>
+    Ein Detail, das leicht untergeht: Nach § 11 Abs. 5 KraftStG wird die Steuer auf
+    volle Euro abgerundet. Der ausgewiesene Betrag im Steuerbescheid liegt deshalb
+    immer auf oder knapp unter dem rechnerischen Wert.
+  </p>
+
+  <h2>Elektroautos: befreit, aber nicht dauerhaft</h2>
+  <p>
+    Reine Elektrofahrzeuge sind nach § 3d Abs. 1 KraftStG von der Steuer befreit –
+    zehn Jahre ab dem Tag der Erstzulassung. Die Fassung vom 22. Dezember 2025 hat
+    das Zulassungsfenster bis zum {deutschesDatum(ELEKTRO_BEFREIUNG.zulassungBis)}
+    verlängert; die Befreiung endet spätestens am
+    {' '}{deutschesDatum(ELEKTRO_BEFREIUNG.spaetestensBis)}. Ältere Quellen nennen
+    hier noch den 31.12.2025 als Zulassungsende und den 31.12.2030 als Höchstdatum –
+    wer diese Zahlen liest, liest die überholte Fassung.
+  </p>
+  <p>
+    Wichtiger für die Kalkulation ist, was <em>danach</em> kommt. Elektrofahrzeuge
+    fallen nicht in die Hubraum-plus-CO2-Rechnung, sondern werden nach dem zulässigen
+    Gesamtgewicht besteuert (§ 9 Abs. 1 Nr. 3), und davon zahlen sie nach § 9 Abs. 2
+    nur die Hälfte. Ein E-Auto mit {E_AUTO_GEWICHT_KG.toLocaleString('de-DE')} kg
+    Gesamtgewicht, dessen Befreiung ausgelaufen ist, kommt damit auf
+    {' '}{eur(eAutoNachBefreiung.jahressteuer)} im Jahr.
+  </p>
+  <p>
+    Das ist kein hoher Betrag, aber es ist auch nicht null – und wer die
+    Gesamtkosten eines E-Autos über zwölf oder fünfzehn Jahre rechnet, sollte die
+    Jahre nach der Befreiung nicht mit einer Null ansetzen.
+  </p>
+
+  <h2>Den eigenen Fall rechnen</h2>
+  <p>
+    Die Beispiele oben nutzen ein konstruiertes Fahrzeug. Für das eigene Auto
+    rechnen diese Rechner mit denselben Sätzen und derselben Regime-Logik:
+  </p>
+  <ul>
+    <li><a href={`${base}auto/kfz-steuer-rechner/`}>Kfz-Steuer-Rechner</a> – alle drei Regime, Krafträder und Elektrofahrzeuge</li>
+    <li><a href={`${base}auto/kfz-steuer-co2/`}>Kfz-Steuer nach CO2</a> – die Staffel für Zulassungen ab 2021</li>
+    <li><a href={`${base}auto/unterhaltskosten-auto/`}>Unterhaltskosten-Rechner</a> – Steuer im Zusammenhang mit Versicherung, Sprit und Wertverlust</li>
+    <li><a href={`${base}auto/elektroauto-tco-rechner/`}>Elektroauto-Kostenrechner</a> – Gesamtkosten inklusive der Jahre nach der Steuerbefreiung</li>
+  </ul>
+
+  <p class="hinweis">
+    Stand {deutschesDatum(STICHTAG)}. Grundlage ist das KraftStG in der Fassung vom
+    26.09.2002, zuletzt geändert durch Art. 1 des Gesetzes vom 22.12.2025 (BGBl. 2025 I
+    Nr. 342). Nicht abgebildet sind Wohnmobile, Fahrzeuge über 3,5 t, Anhänger sowie
+    Oldtimer- und rote Kennzeichen. Maßgeblich ist der Steuerbescheid des Hauptzollamts;
+    dieser Artikel ersetzt keine steuerliche Beratung.
+  </p>
+</ArticleLayout>
+
+<style>
+.table-wrap {
+  overflow-x: auto;
+  margin: 1.5rem 0 1.25rem;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+  background: white;
+}
+thead th {
+  background: var(--dark);
+  color: white;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-weight: 600;
+  padding: 0.7rem 0.75rem;
+  text-align: left;
+  white-space: nowrap;
+}
+tbody th {
+  text-align: left;
+  font-weight: 600;
+  padding: 0.6rem 0.75rem;
+  white-space: nowrap;
+}
+tbody td { padding: 0.6rem 0.75rem; }
+tbody tr:nth-child(even) { background: var(--surface); }
+tbody tr:hover { background: var(--cat-light, #f3f4f6); }
+.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.strong { font-weight: 700; }
+.klein { font-size: 0.8rem; color: var(--text-light); }
+
+.hinweis {
+  margin-top: 2rem;
+  padding: 0.9rem 1.1rem;
+  background: var(--surface);
+  border-left: 3px solid var(--gold);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  font-size: 0.85rem !important;
+  line-height: 1.6 !important;
+  color: var(--text-light);
+}
+</style>
