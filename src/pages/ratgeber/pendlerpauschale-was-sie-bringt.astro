@@ -1,0 +1,421 @@
+---
+import ArticleLayout from '../../layouts/ArticleLayout.astro';
+import {
+  berechnefahrtkosten,
+  ENTFERNUNGSPAUSCHALE_JE_KM,
+  ENTFERNUNGSPAUSCHALE_HOECHSTBETRAG,
+} from '../../../public/scripts/fahrtkosten.js';
+import { einkommensteuer } from '../../../public/scripts/einkommensteuer.js';
+
+const base = import.meta.env.BASE_URL;
+
+// § 9a Satz 1 Nr. 1 Buchst. a EStG. Der Pauschbetrag ist der Grund, warum die
+// Entfernungspauschale unterhalb einer bestimmten Strecke gar nichts bewirkt –
+// er wird ohnehin abgezogen, auch ohne jeden Nachweis.
+const ARBEITNEHMER_PAUSCHBETRAG = 1230;
+const ARBEITSTAGE = 220;
+
+// Zwei Einkommen als Vergleichspaar: Die Ersparnis hängt am Grenzsteuersatz,
+// deshalb wird sie über zwei echte Tarifdurchläufe ermittelt und nicht über
+// einen geschätzten Prozentsatz.
+const ZVE_MITTEL = 45_000;
+const ZVE_HOCH = 70_000;
+
+const ersparnis = (zvE: number, abzug: number) =>
+  Math.round((einkommensteuer(zvE) - einkommensteuer(zvE - abzug)) * 100) / 100;
+
+const strecken = [10, 15, 20, 30, 50, 80].map((km) => {
+  const r = berechnefahrtkosten({ entfernungKm: km, arbeitstageProJahr: ARBEITSTAGE });
+  const wirksam = Math.max(0, r.jahresabzug - ARBEITNEHMER_PAUSCHBETRAG);
+  return {
+    km,
+    jahresabzug: r.jahresabzug,
+    wirksam,
+    ersparnisMittel: ersparnis(ZVE_MITTEL, wirksam),
+    ersparnisHoch: ersparnis(ZVE_HOCH, wirksam),
+  };
+});
+
+// Die Strecke, ab der die Pauschale den Pauschbetrag überhaupt übersteigt.
+const schwelleGenau = ARBEITNEHMER_PAUSCHBETRAG / (ENTFERNUNGSPAUSCHALE_JE_KM * ARBEITSTAGE);
+const schwelleKm = Math.ceil(schwelleGenau);
+
+const ohneWirkung = strecken.filter((s) => s.wirksam === 0);
+const beiDreissig = strecken.find((s) => s.km === 30)!;
+const anteilErstattet = beiDreissig.ersparnisMittel / beiDreissig.jahresabzug;
+
+// Homeoffice: Die Pauschale gibt es nur für Tage, an denen die Tätigkeitsstätte
+// tatsächlich aufgesucht wird (§ 9 Abs. 1 Satz 3 Nr. 4 Satz 2: "für jeden
+// Arbeitstag, an dem der Arbeitnehmer die erste Tätigkeitsstätte aufsucht").
+const HO_ENTFERNUNG_KM = 30;
+const homeoffice = [0, 1, 2, 3].map((tageProWoche) => {
+  const praesenztage = Math.round(ARBEITSTAGE * (5 - tageProWoche) / 5);
+  const r = berechnefahrtkosten({
+    entfernungKm: HO_ENTFERNUNG_KM, arbeitstageProJahr: praesenztage,
+  });
+  const wirksam = Math.max(0, r.jahresabzug - ARBEITNEHMER_PAUSCHBETRAG);
+  return {
+    tageProWoche, praesenztage,
+    jahresabzug: r.jahresabzug,
+    ersparnis: ersparnis(ZVE_MITTEL, wirksam),
+  };
+});
+const ohneHo = homeoffice[0];
+const mitZweiHo = homeoffice[2];
+
+// Der Höchstbetrag greift nur ohne eigenen Kraftwagen – für Bahnpendler also.
+const OEPNV_KM = 60;
+const oepnv = berechnefahrtkosten({
+  entfernungKm: OEPNV_KM, arbeitstageProJahr: ARBEITSTAGE, eigenerPkw: false,
+});
+const oepnvVerlust = oepnv.jahresabzugVorDeckelung - oepnv.jahresabzug;
+
+const eur = (n: number) =>
+  n.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
+const eurKurz = (n: number) =>
+  n.toLocaleString('de-DE', { maximumFractionDigits: 0 }) + ' €';
+const prozent = (n: number) =>
+  (n * 100).toLocaleString('de-DE', { maximumFractionDigits: 0 }) + ' %';
+---
+<ArticleLayout
+  title="Pendlerpauschale 2026: Warum sie bei zehn Kilometern nichts bringt"
+  description={`Seit 2026 gilt ein einheitlicher Satz von ${eur(ENTFERNUNGSPAUSCHALE_JE_KM)} je Entfernungskilometer. Was das konkret erstattet – und warum unterhalb von ${schwelleKm} Kilometern null herauskommt.`}
+  canonicalPath="/ratgeber/pendlerpauschale-was-sie-bringt/"
+  lead={`Seit dem 1. Januar 2026 gilt die Entfernungspauschale einheitlich mit ${eur(ENTFERNUNGSPAUSCHALE_JE_KM)} je Kilometer, auch für die ersten zwanzig. Das klingt nach mehr Geld für alle. Tatsächlich bekommt ein Pendler mit zehn Kilometern Arbeitsweg dadurch keinen Cent zurück – und wer dreißig Kilometer fährt, erhält von ${eurKurz(beiDreissig.jahresabzug)} Pauschale nur etwa ${prozent(anteilErstattet)} als Steuerersparnis.`}
+  datum="2026-08-14"
+  quellen={[
+    { titel: 'EStG § 9 Werbungskosten – Absatz 1 Satz 3 Nummer 4', url: 'https://www.gesetze-im-internet.de/estg/__9.html' },
+    { titel: 'EStG § 9a Pauschbeträge für Werbungskosten', url: 'https://www.gesetze-im-internet.de/estg/__9a.html' },
+    { titel: 'EStG § 32a Einkommensteuertarif', url: 'https://www.gesetze-im-internet.de/estg/__32a.html' },
+    { titel: 'EStG § 3 Nummer 15 und 37 – Jobticket und Dienstfahrrad', url: 'https://www.gesetze-im-internet.de/estg/__3.html' },
+  ]}
+>
+  <p>
+    Die Entfernungspauschale ist die bekannteste Position der Steuererklärung und
+    zugleich die am häufigsten missverstandene. Zwei Irrtümer halten sich hartnäckig:
+    dass jeder Pendler von ihr profitiert, und dass der eingetragene Betrag ungefähr
+    dem entspricht, was zurückkommt. Beides ist falsch, und beides lässt sich
+    nachrechnen.
+  </p>
+
+  <h2>Was sich zum 1. Januar 2026 geändert hat</h2>
+  <p>
+    Bis 2025 war die Pauschale gestaffelt: {eur(0.30)} für die ersten zwanzig
+    Entfernungskilometer, {eur(ENTFERNUNGSPAUSCHALE_JE_KM)} ab dem einundzwanzigsten.
+    Diese Staffelung steht nicht mehr im Gesetz. § 9 Abs. 1 Satz 3 Nr. 4 Satz 2 EStG
+    nennt jetzt einen einzigen Satz von {eur(ENTFERNUNGSPAUSCHALE_JE_KM)} „für jeden
+    vollen Kilometer der Entfernung".
+  </p>
+  <p>
+    Profitiert haben davon die Kurzstreckenpendler – jedenfalls auf dem Papier. Wer
+    zwanzig Kilometer fährt, setzt jetzt {eur(0.08 * 20)} mehr pro Arbeitstag an als
+    vorher. Ob daraus eine Erstattung wird, entscheidet allerdings eine ganz andere
+    Vorschrift.
+  </p>
+
+  <h2>Der Pauschbetrag, den kaum eine Übersicht erwähnt</h2>
+  <p>
+    Nach § 9a EStG zieht das Finanzamt jedem Arbeitnehmer einen
+    <strong>Arbeitnehmer-Pauschbetrag von {eurKurz(ARBEITNEHMER_PAUSCHBETRAG)}</strong>
+    ab – ohne Nachweis, ohne Antrag, ohne eine einzige Quittung. Werbungskosten wirken
+    sich deshalb erst aus, <em>soweit sie diesen Betrag übersteigen</em>. Die ersten
+    {' '}{eurKurz(ARBEITNEHMER_PAUSCHBETRAG)} an Fahrtkosten bekommt man nicht
+    zusätzlich; man bekommt sie ohnehin.
+  </p>
+  <p>
+    Daraus folgt eine harte Schwelle. Bei {ARBEITSTAGE} Arbeitstagen im Jahr erreicht
+    die Entfernungspauschale den Pauschbetrag erst bei
+    {' '}<strong>{schwelleKm} Kilometern</strong> einfacher Entfernung
+    ({schwelleGenau.toLocaleString('de-DE', { maximumFractionDigits: 1 })} km genau
+    gerechnet). Darunter ändert sie an der Steuerlast nichts – vorausgesetzt, es gibt
+    keine weiteren Werbungskosten.
+  </p>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th scope="col" class="num">Entfernung</th>
+          <th scope="col" class="num">Pauschale im Jahr</th>
+          <th scope="col" class="num">davon wirksam</th>
+          <th scope="col" class="num">Ersparnis bei {eurKurz(ZVE_MITTEL)}</th>
+          <th scope="col" class="num">bei {eurKurz(ZVE_HOCH)}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {strecken.map((s) => (
+          <tr>
+            <th scope="row" class="num">{s.km} km</th>
+            <td class="num">{eurKurz(s.jahresabzug)}</td>
+            <td class="num">{eurKurz(s.wirksam)}</td>
+            <td class={`num strong ${s.ersparnisMittel === 0 ? 'null' : ''}`}>
+              {eurKurz(s.ersparnisMittel)}
+            </td>
+            <td class="num">{eurKurz(s.ersparnisHoch)}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  </div>
+
+  <p>
+    Die Spalte ganz rechts zeigt zugleich den zweiten Effekt: Dieselbe Pauschale ist
+    bei höherem Einkommen mehr wert, weil sie am oberen Rand des Einkommens abgezogen
+    wird und dort ein höherer Grenzsteuersatz greift. Bei {ARBEITSTAGE} Arbeitstagen
+    und {beiDreissig.km} Kilometern sind es {eurKurz(beiDreissig.ersparnisMittel)}
+    gegenüber {eurKurz(beiDreissig.ersparnisHoch)} – ein Unterschied von
+    {' '}{eurKurz(beiDreissig.ersparnisHoch - beiDreissig.ersparnisMittel)} bei
+    identischem Arbeitsweg.
+  </p>
+
+  <h2>Abzug ist nicht Erstattung</h2>
+  <p>
+    Der zweite verbreitete Irrtum steckt in der Erwartung, ein Eintrag von
+    {' '}{eurKurz(beiDreissig.jahresabzug)} führe zu einer Rückzahlung in ähnlicher
+    Höhe. Die Entfernungspauschale mindert aber nicht die <em>Steuer</em>, sondern das
+    <em>zu versteuernde Einkommen</em>. Was tatsächlich zurückkommt, ist der
+    Steuerbetrag, der auf diesen Einkommensteil entfallen wäre.
+  </p>
+  <p>
+    Konkret: Bei {beiDreissig.km} Kilometern und {eurKurz(ZVE_MITTEL)} zu versteuerndem
+    Einkommen stehen {eurKurz(beiDreissig.jahresabzug)} Pauschale einer Ersparnis von
+    {' '}{eurKurz(beiDreissig.ersparnisMittel)} gegenüber. Das sind rund
+    {' '}{prozent(anteilErstattet)} des eingetragenen Betrags – der Rest ist entweder
+    vom Pauschbetrag geschluckt oder gehörte nie zur Steuer, sondern nur zur
+    Bemessungsgrundlage.
+  </p>
+
+  <h2>Einfache Entfernung, volle Kilometer, kürzeste Verbindung</h2>
+  <p>
+    Drei Details der Norm entscheiden über die Höhe, und alle drei werden regelmäßig
+    falsch angesetzt:
+  </p>
+  <ul>
+    <li>
+      <strong>Einfache Entfernung, nicht Hin- und Rückweg.</strong> Das Gesetz spricht
+      von der „Entfernung zwischen Wohnung und erster Tätigkeitsstätte". Wer 30 km
+      hinfährt und 30 km zurück, setzt 30 an, nicht 60.
+    </li>
+    <li>
+      <strong>Nur volle Kilometer.</strong> 24,8 km werden zu 24 km. Es wird
+      abgeschnitten, nicht gerundet.
+    </li>
+    <li>
+      <strong>Kürzeste Straßenverbindung.</strong> Eine längere Strecke ist nur dann
+      ansetzbar, wenn sie „offensichtlich verkehrsgünstiger" ist <em>und</em>
+      regelmäßig benutzt wird – beide Bedingungen zusammen. Eine Zeitersparnis von
+      wenigen Minuten genügt dafür nach ständiger Rechtsprechung nicht.
+    </li>
+  </ul>
+
+  <h2>Der 4.500-Euro-Deckel und wann er nicht gilt</h2>
+  <p>
+    § 9 Abs. 1 Satz 3 Nr. 4 Satz 2 EStG nennt einen Höchstbetrag von
+    {' '}{eurKurz(ENTFERNUNGSPAUSCHALE_HOECHSTBETRAG)} im Kalenderjahr. Der zweite
+    Halbsatz hebt ihn aber sofort wieder auf, „soweit der Arbeitnehmer einen eigenen
+    oder ihm zur Nutzung überlassenen Kraftwagen benutzt".
+  </p>
+  <p>
+    Praktisch heißt das: <strong>Für Autofahrer gibt es keine Obergrenze.</strong> Der
+    Deckel trifft Bahn- und Busfahrer, Mitfahrer in Fahrgemeinschaften und Radfahrer.
+    Bei {OEPNV_KM} Kilometern mit öffentlichen Verkehrsmitteln kommen rechnerisch
+    {' '}{eurKurz(oepnv.jahresabzugVorDeckelung)} zusammen, absetzbar sind aber nur
+    {' '}{eurKurz(oepnv.jahresabzug)} – {eurKurz(oepnvVerlust)} fallen weg.
+  </p>
+  <p>
+    Wer mit der Bahn pendelt, sollte deshalb prüfen, ob die tatsächlichen Ticketkosten
+    über dem Deckel liegen: Sie sind statt der Pauschale ansetzbar, und für sie gilt
+    der Höchstbetrag nicht.
+  </p>
+
+  <h2>Jeder Homeoffice-Tag kostet Pauschale</h2>
+  <p>
+    Das Gesetz knüpft die Pauschale an „jeden Arbeitstag, an dem der Arbeitnehmer die
+    erste Tätigkeitsstätte aufsucht". Ein Tag im Homeoffice ist kein solcher Tag – für
+    ihn gibt es keine Entfernungspauschale, sondern allenfalls die Tagespauschale für
+    häusliche Arbeit. Beides für denselben Tag geht nicht.
+  </p>
+  <p>
+    Was das ausmacht, zeigt derselbe Arbeitsweg von {HO_ENTFERNUNG_KM} Kilometern bei
+    unterschiedlich vielen Präsenztagen:
+  </p>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th scope="col">Homeoffice</th>
+          <th scope="col" class="num">Präsenztage</th>
+          <th scope="col" class="num">Pauschale</th>
+          <th scope="col" class="num">Ersparnis bei {eurKurz(ZVE_MITTEL)}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {homeoffice.map((h) => (
+          <tr>
+            <th scope="row">
+              {h.tageProWoche === 0 ? 'kein Homeoffice' : `${h.tageProWoche} Tag${h.tageProWoche > 1 ? 'e' : ''} je Woche`}
+            </th>
+            <td class="num">{h.praesenztage}</td>
+            <td class="num">{eurKurz(h.jahresabzug)}</td>
+            <td class="num strong">{eurKurz(h.ersparnis)}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  </div>
+
+  <p>
+    Zwei Homeoffice-Tage pro Woche kosten bei dieser Entfernung
+    {' '}{eurKurz(ohneHo.ersparnis - mitZweiHo.ersparnis)} Steuerersparnis im Jahr.
+    Das ist kein Argument gegen Homeoffice – die eingesparten Fahrtkosten sind
+    regelmäßig deutlich höher als der verlorene Steuervorteil. Aber es erklärt, warum
+    Erstattungen seit 2020 bei vielen spürbar kleiner ausfallen, ohne dass sich am
+    Gehalt oder am Wohnort etwas geändert hätte.
+  </p>
+  <p>
+    Wichtig für die Steuererklärung: Die Zahl der Arbeitstage ist eine Angabe, die das
+    Finanzamt prüfen kann. Bei einer Fünf-Tage-Woche werden üblicherweise 220 bis 230
+    Tage anerkannt; wer mehr ansetzt, sollte das begründen können, und wer regelmäßig
+    im Homeoffice arbeitet, muss die Präsenztage entsprechend kürzen.
+  </p>
+
+  <h2>Zwei Gruppen, für die andere Regeln gelten</h2>
+  <p>
+    <strong>Menschen mit Behinderung</strong> können nach § 9 Abs. 2 Satz 3 EStG statt
+    der Pauschale die <em>tatsächlichen</em> Wegekosten ansetzen – bei einem Grad der
+    Behinderung von mindestens 70, oder ab 50, wenn zugleich die Bewegungsfähigkeit im
+    Straßenverkehr erheblich beeinträchtigt ist. Bei den realen Vollkosten eines Autos
+    liegt dieser Weg fast immer über der Pauschale. Die Voraussetzungen sind durch
+    amtliche Unterlagen nachzuweisen.
+  </p>
+  <p>
+    <strong>Wer keine erste Tätigkeitsstätte hat</strong>, fällt gar nicht unter die
+    Entfernungspauschale, sondern unter das Reisekostenrecht – etwa Monteure,
+    Bauhandwerker oder Außendienstmitarbeiter mit wechselnden Einsatzorten. Der
+    Unterschied ist erheblich: Bei Reisekosten zählt <em>jeder gefahrene</em>
+    Kilometer, also Hin- und Rückweg, nicht die einfache Entfernung. Wer irrtümlich
+    die Entfernungspauschale ansetzt, verschenkt bei gleicher Fahrleistung rund die
+    Hälfte.
+  </p>
+
+  <h2>Jobticket mindert, Dienstrad nicht</h2>
+  <p>
+    Zwei Sätze derselben Vorschrift regeln zwei ähnliche Sachverhalte gegensätzlich –
+    und werden deshalb oft verwechselt.
+  </p>
+  <p>
+    Nach Satz 5 mindern <strong>steuerfreie Arbeitgeberleistungen für den Arbeitsweg
+    den abziehbaren Betrag</strong>. Wer ein steuerfreies Jobticket nach § 3 Nr. 15
+    EStG erhält, muss dessen Wert von der Entfernungspauschale abziehen. Der Vorteil
+    lässt sich nicht doppelt nutzen.
+  </p>
+  <p>
+    Nach Satz 7 gilt das für das <strong>Dienstfahrrad ausdrücklich nicht</strong>:
+    Steuerfreie Sachbezüge nach § 3 Nr. 37 EStG mindern den Abzug <em>nicht</em>. Wer
+    ein überlassenes Dienstrad fährt, setzt die volle Entfernungspauschale zusätzlich
+    an. Das ist eine bewusste Begünstigung des Gesetzgebers und einer der wenigen
+    Fälle, in denen sich zwei Steuervorteile addieren.
+  </p>
+
+  <h2>Wer unter der Schwelle liegt, sollte weitersammeln</h2>
+  <p>
+    Die praktische Konsequenz aus alledem wird selten gezogen: Der Pauschbetrag von
+    {' '}{eurKurz(ARBEITNEHMER_PAUSCHBETRAG)} gilt für <em>sämtliche</em>
+    Werbungskosten zusammen, nicht je Position. Wer mit dem Arbeitsweg allein darunter
+    bleibt, ist deshalb nicht chancenlos – er muss nur die übrigen Positionen
+    dazurechnen. Zu den häufigsten gehören:
+  </p>
+  <ul>
+    <li>Arbeitsmittel – Fachliteratur, Werkzeug, Büroausstattung, anteilig auch ein beruflich genutzter Computer</li>
+    <li>Fortbildungskosten einschließlich Fahrten, Übernachtung und Verpflegungsmehraufwand</li>
+    <li>Bewerbungskosten – Porto, Fotos, Fahrten zu Vorstellungsgesprächen</li>
+    <li>Beiträge zu Gewerkschaften und Berufsverbänden (§ 9 Abs. 1 Satz 3 Nr. 3 EStG)</li>
+    <li>Kontoführungsgebühren, pauschal meist mit 16 € anerkannt</li>
+    <li>Arbeitszimmer oder Tagespauschale für häusliche Arbeit</li>
+  </ul>
+  <p>
+    Ein Pendler mit zehn Kilometern Arbeitsweg kommt auf
+    {' '}{eurKurz(strecken[0].jahresabzug)} Entfernungspauschale. Ihm fehlen also nur
+    {' '}{eurKurz(ARBEITNEHMER_PAUSCHBETRAG - strecken[0].jahresabzug)} bis zum
+    Pauschbetrag – ab dort wirkt jeder weitere Euro. Genau in dieser Konstellation
+    lohnt sich das Sammeln von Belegen am meisten, und genau dort wird am häufigsten
+    darauf verzichtet, weil „die Pendlerpauschale ja eh nichts bringt".
+  </p>
+
+  <h2>Den eigenen Weg rechnen</h2>
+  <p>
+    Die Tabelle oben unterstellt {ARBEITSTAGE} Arbeitstage und keine weiteren
+    Werbungskosten. Für den eigenen Fall – andere Tagezahl, Homeoffice-Tage, weitere
+    Werbungskosten – rechnen diese Rechner:
+  </p>
+  <ul>
+    <li><a href={`${base}auto/fahrtkosten-rechner/`}>Pendlerpauschale-Rechner</a> – Jahresbetrag nach Entfernung und Arbeitstagen</li>
+    <li><a href={`${base}geld/homeoffice-pauschale/`}>Homeoffice-Pauschale</a> – jeder Homeoffice-Tag senkt die Zahl der Fahrten und damit die Pauschale</li>
+    <li><a href={`${base}geld/brutto-netto-rechner/`}>Brutto-Netto-Rechner</a> – wie sich ein zusätzlicher Abzug auf die Steuer auswirkt</li>
+    <li><a href={`${base}auto/km-kostenrechner/`}>Kilometerkosten-Rechner</a> – Vollkosten je Kilometer inklusive Verschleiß</li>
+  </ul>
+  <p>
+    Der Vergleich der letzten beiden mit der Pauschale ist ernüchternd und lohnt sich
+    trotzdem: Die {eur(ENTFERNUNGSPAUSCHALE_JE_KM)} sind ein pauschaler Abzug, kein
+    Ersatz der echten Kosten. Wer die tatsächlichen Vollkosten je Kilometer daneben
+    stellt, sieht, welchen Teil des Arbeitswegs die Steuer wirklich trägt – und welchen
+    nicht.
+  </p>
+
+  <p class="hinweis">
+    Rechtsstand 1. Januar 2026, Tarif nach § 32a EStG in der für 2026 geltenden
+    Fassung. Die Beispielrechnungen unterstellen einen ledigen Arbeitnehmer ohne
+    weitere Werbungskosten; Kirchensteuer und Solidaritätszuschlag sind nicht
+    berücksichtigt. Dieser Artikel ersetzt keine steuerliche Beratung.
+  </p>
+</ArticleLayout>
+
+<style>
+.table-wrap {
+  overflow-x: auto;
+  margin: 1.5rem 0 1.25rem;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+  background: white;
+}
+thead th {
+  background: var(--dark);
+  color: white;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-weight: 600;
+  padding: 0.7rem 0.75rem;
+  text-align: left;
+  white-space: nowrap;
+}
+tbody th {
+  text-align: left;
+  font-weight: 600;
+  padding: 0.6rem 0.75rem;
+  white-space: nowrap;
+}
+tbody td { padding: 0.6rem 0.75rem; }
+tbody tr:nth-child(even) { background: var(--surface); }
+tbody tr:hover { background: var(--cat-light, #f3f4f6); }
+.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.strong { font-weight: 700; }
+.null { color: var(--red); }
+
+.hinweis {
+  margin-top: 2rem;
+  padding: 0.9rem 1.1rem;
+  background: var(--surface);
+  border-left: 3px solid var(--gold);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  font-size: 0.85rem !important;
+  line-height: 1.6 !important;
+  color: var(--text-light);
+}
+</style>
