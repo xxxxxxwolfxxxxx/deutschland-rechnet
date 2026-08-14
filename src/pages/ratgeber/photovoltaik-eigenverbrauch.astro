@@ -1,0 +1,559 @@
+---
+import ArticleLayout from '../../layouts/ArticleLayout.astro';
+import {
+  berechnePhotovoltaik,
+  verguetungProKwh,
+  SPEZIFISCHER_ERTRAG,
+  VERGUETUNGSDAUER_JAHRE,
+  VERGUETUNG_GUELTIG_BIS,
+} from '../../../public/scripts/photovoltaik.js';
+import {
+  STROMPREIS_EURO_PRO_KWH,
+  STROMPREIS_CENT_PRO_KWH,
+  STROMPREIS_QUELLE,
+} from '../../../public/scripts/strompreis.js';
+
+const base = import.meta.env.BASE_URL;
+
+// Anlagenpreise sind Marktpreise, keine Rechtsgrößen. Sie stehen hier als
+// datierte Annahme und decken sich mit den Voreinstellungen des Rechners.
+// Erhebungsstand August 2026, schlüsselfertig inklusive Montage und
+// Inbetriebnahme, ohne Speicher. Die Spanne am Markt ist erheblich; die
+// spezifischen Kosten je kWp sinken mit der Anlagengröße.
+const PREIS_STAND = 'August 2026';
+const ANLAGEN = [
+  { kwp: 5, investition: 9_000 },
+  { kwp: 8, investition: 14_000 },
+  { kwp: 10, investition: 17_000 },
+  { kwp: 15, investition: 23_000 },
+];
+
+// Modellannahme, die im Artikel offengelegt wird: Ohne Speicher lässt sich nur
+// der Teil des Verbrauchs direkt decken, der zeitgleich zur Erzeugung anfällt.
+// Der Wert ist eine Annahme, keine Messgröße – deshalb wird unten auch
+// gezeigt, was bei anderen Werten herauskommt.
+const GLEICHZEITIGKEIT = 0.30;
+const HAUSHALT_KWH = 4_000;
+
+const REFERENZ = ANLAGEN.find((a) => a.kwp === 10)!;
+
+// --- Der Hebel: was eine Kilowattstunde wert ist, je nachdem wohin sie geht ---
+const verguetungReferenz = verguetungProKwh(REFERENZ.kwp);
+const hebel = STROMPREIS_EURO_PRO_KWH / verguetungReferenz;
+
+// --- Dieselbe Anlage, nur die Eigenverbrauchsquote variiert ---
+const quoten = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8].map((quote) => ({
+  quote,
+  ...berechnePhotovoltaik({
+    leistungKwp: REFERENZ.kwp,
+    investition: REFERENZ.investition,
+    strompreis: STROMPREIS_EURO_PRO_KWH,
+    eigenverbrauchAnteil: quote,
+  }),
+}));
+const quoteNiedrig = quoten.find((q) => q.quote === 0.1)!;
+const quoteHoch = quoten.find((q) => q.quote === 0.5)!;
+const quotenSpanne = quoteHoch.ueberschuss25j - quoteNiedrig.ueberschuss25j;
+
+// Die Schwelle, ab der die Anlage überhaupt ins Plus kommt. In Prozentschritten
+// abgetastet – die Tabelle oben geht in Zehnerschritten und wäre zu grob, um
+// daraus eine Schwelle abzulesen.
+const quoteTraegt = (() => {
+  for (let p = 1; p <= 100; p++) {
+    const r = berechnePhotovoltaik({
+      leistungKwp: REFERENZ.kwp,
+      investition: REFERENZ.investition,
+      strompreis: STROMPREIS_EURO_PRO_KWH,
+      eigenverbrauchAnteil: p / 100,
+    });
+    if (r.ueberschuss25j > 0) return p / 100;
+  }
+  return null;
+})();
+
+// --- Anlagengrößen bei GLEICHBLEIBENDEM Haushaltsverbrauch ---
+const beiVerbrauch = (verbrauchKwh: number, gleichzeitigkeit = GLEICHZEITIGKEIT) =>
+  ANLAGEN.map((a) => {
+    const ertrag = a.kwp * SPEZIFISCHER_ERTRAG;
+    const eigenverbrauchKwh = Math.min(verbrauchKwh * gleichzeitigkeit, ertrag);
+    const quote = eigenverbrauchKwh / ertrag;
+    return {
+      ...a,
+      quote,
+      proKwp: a.investition / a.kwp,
+      ...berechnePhotovoltaik({
+        leistungKwp: a.kwp,
+        investition: a.investition,
+        strompreis: STROMPREIS_EURO_PRO_KWH,
+        eigenverbrauchAnteil: quote,
+      }),
+    };
+  });
+
+const groessen = beiVerbrauch(HAUSHALT_KWH);
+const klein = groessen[0];
+const gross = groessen[groessen.length - 1];
+const mehrInvestition = gross.investition - klein.investition;
+const mehrUeberschussProJahr = gross.jahresueberschuss - klein.jahresueberschuss;
+const mehrAmortisation = mehrInvestition / mehrUeberschussProJahr;
+
+// Sensitivität der Modellannahme – bewusst im Artikel gezeigt, weil sie das
+// Ergebnis mit erzeugt.
+const sensitivitaet = [0.2, 0.3, 0.4].map((gz) => ({
+  gz,
+  reihe: beiVerbrauch(HAUSHALT_KWH, gz),
+}));
+
+// Der Gegenfall: wächst der Verbrauch, dreht sich das Bild.
+const verbrauchsstufen = [4_000, 6_000, 9_000, 12_000].map((v) => ({
+  verbrauch: v,
+  reihe: beiVerbrauch(v),
+}));
+const grossBeiHoch = verbrauchsstufen[verbrauchsstufen.length - 1].reihe.find((a) => a.kwp === gross.kwp)!;
+
+// --- Nach Ablauf der Vergütung bleibt nur der Eigenverbrauch ---
+const nachAblauf = groessen.map((a) => ({
+  kwp: a.kwp,
+  rest: a.einsparungStrom - a.betriebskosten,
+}));
+
+// --- Die Vergütungsstufen selbst ---
+const stufenBeispiele = [5, 10, 15, 30].map((kwp) => ({
+  kwp,
+  cent: verguetungProKwh(kwp) * 100,
+}));
+
+const eur = (b: number) =>
+  b.toLocaleString('de-DE', { minimumFractionDigits: 0, maximumFractionDigits: 0 }) + ' €';
+const ct = (b: number) =>
+  b.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' ct';
+const kwh = (b: number) => b.toLocaleString('de-DE', { maximumFractionDigits: 0 }) + ' kWh';
+const prozent = (b: number) =>
+  (b * 100).toLocaleString('de-DE', { minimumFractionDigits: 0, maximumFractionDigits: 0 }) + ' %';
+const jahre = (j: number | null) => (j === null ? 'nie' : `${j} Jahre`);
+/** Dativform für den Fließtext: „nach 9 Jahren“ statt „nach 9 Jahre“. */
+const jahrenDativ = (j: number | null) => (j === null ? 'nie' : `${j} Jahren`);
+const zahl = (b: number, stellen = 1) =>
+  b.toLocaleString('de-DE', { minimumFractionDigits: stellen, maximumFractionDigits: stellen });
+---
+<ArticleLayout
+  title="Photovoltaik: Der Eigenverbrauch entscheidet, nicht die Anlagengröße"
+  description={`Eine selbst verbrauchte Kilowattstunde ist ${zahl(hebel)}-mal so viel wert wie eine eingespeiste. Dieselbe ${REFERENZ.kwp}-kWp-Anlage bringt je nach Eigenverbrauchsquote ${eur(quoteNiedrig.ueberschuss25j)} oder ${eur(quoteHoch.ueberschuss25j)} über 25 Jahre.`}
+  canonicalPath="/ratgeber/photovoltaik-eigenverbrauch/"
+  datum="2026-08-14"
+  lead={`Zwei Haushalte kaufen dieselbe Anlage zum selben Preis und montieren sie auf dasselbe Dach. Nach 25 Jahren trennt sie ${eur(quotenSpanne)}. Der Unterschied liegt nicht in der Technik, sondern darin, wie viel des erzeugten Stroms im Haus bleibt – und diese Größe wird beim Kauf meist gar nicht besprochen.`}
+  quellen={[
+    { titel: '§ 48 EEG 2023 – anzulegende Werte für Solaranlagen', url: 'https://www.gesetze-im-internet.de/eeg_2014/__48.html' },
+    { titel: '§ 49 EEG 2023 – Absenkung der anzulegenden Werte', url: 'https://www.gesetze-im-internet.de/eeg_2014/__49.html' },
+    { titel: '§ 25 EEG 2023 – Dauer des Zahlungsanspruchs', url: 'https://www.gesetze-im-internet.de/eeg_2014/__25.html' },
+    { titel: 'Bundesnetzagentur – Fördersätze für Solaranlagen', url: 'https://www.bundesnetzagentur.de/DE/Fachthemen/ElektrizitaetundGas/ErneuerbareEnergien/EEG_Foerderung/start.html' },
+    { titel: STROMPREIS_QUELLE, url: 'https://www.bdew.de/energie/bdew-strompreisanalyse/' },
+  ]}
+>
+  <h2>Eine Kilowattstunde, zwei Preise</h2>
+
+  <p>
+    Der Strom vom eigenen Dach kann zwei Wege gehen. Bleibt er im Haus, ersetzt er
+    zugekauften Strom zu {ct(STROMPREIS_CENT_PRO_KWH)} je Kilowattstunde. Geht er
+    ins Netz, zahlt der Netzbetreiber für eine Anlage von {REFERENZ.kwp} kWp
+    {' '}{ct(verguetungReferenz * 100)}. Dieselbe Kilowattstunde, erzeugt von
+    derselben Anlage, ist im Haus also das {zahl(hebel)}-Fache wert.
+  </p>
+
+  <p>
+    Aus diesem Verhältnis folgt fast alles Weitere. Es bedeutet, dass die
+    entscheidende Kennzahl einer Anlage nicht ihre Leistung ist und auch nicht
+    ihr Ertrag, sondern der Anteil des Ertrags, der nicht ins Netz geht. Wie stark
+    das durchschlägt, zeigt sich, wenn man alles andere festhält.
+  </p>
+
+  <div class="table-wrap">
+    <table>
+      <caption class="visually-hidden">Wirtschaftlichkeit je Eigenverbrauchsquote</caption>
+      <thead>
+        <tr>
+          <th scope="col">Eigenverbrauch</th>
+          <th scope="col" class="num">Stromersparnis</th>
+          <th scope="col" class="num">Einspeisung</th>
+          <th scope="col" class="num">Überschuss je Jahr</th>
+          <th scope="col" class="num">bezahlt nach</th>
+          <th scope="col" class="num">nach 25 Jahren</th>
+        </tr>
+      </thead>
+      <tbody>
+        {quoten.map((q) => (
+          <tr>
+            <th scope="row">{prozent(q.quote)}</th>
+            <td class="num">{eur(q.einsparungStrom)}</td>
+            <td class="num">{eur(q.einspeiseerloese)}</td>
+            <td class="num">{eur(q.jahresueberschuss)}</td>
+            <td class="num">{jahre(q.amortJahre)}</td>
+            <td class="num strong">{eur(q.ueberschuss25j)}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  </div>
+  <p class="tabellenhinweis">
+    {REFERENZ.kwp}-kWp-Anlage für {eur(REFERENZ.investition)}, spezifischer Ertrag
+    {' '}{SPEZIFISCHER_ERTRAG} kWh je kWp und Jahr, Strompreis
+    {' '}{ct(STROMPREIS_CENT_PRO_KWH)}. Die letzte Spalte ist der Überschuss nach
+    Abzug der Investition, ohne Strompreissteigerung und ohne Zinsen.
+  </p>
+
+  <p>
+    Bei {prozent(quoteNiedrig.quote)} Eigenverbrauch trägt sich die Anlage
+    innerhalb von 30 Jahren nicht – über 25 Jahre steht ein Minus von
+    {' '}{eur(Math.abs(quoteNiedrig.ueberschuss25j))}. Bei
+    {' '}{prozent(quoteHoch.quote)} ist sie nach {jahrenDativ(quoteHoch.amortJahre)}
+    bezahlt und wirft {eur(quoteHoch.ueberschuss25j)} ab. Zwischen beiden liegen
+    {' '}{eur(quotenSpanne)} – bei identischer Hardware, identischem Dach und
+    identischem Preis. Die Schwelle, ab der die Anlage über 25 Jahre überhaupt ins
+    Plus kommt, liegt in dieser Rechnung bei
+    {' '}{quoteTraegt === null ? 'keiner erreichbaren Quote' : prozent(quoteTraegt)}
+    {' '}Eigenverbrauch.
+  </p>
+
+  <h2>Warum die größere Anlage die schlechtere sein kann</h2>
+
+  <p>
+    Damit stellt sich die Frage nach der Größe neu. Der Haushaltsverbrauch ändert
+    sich nicht dadurch, dass mehr Module auf dem Dach liegen. Was sich ändert, ist
+    der Anteil, der davon gedeckt wird – und der sinkt, weil der zusätzliche Strom
+    zu Zeiten anfällt, zu denen im Haus ohnehin schon genug erzeugt wird.
+  </p>
+
+  <div class="table-wrap">
+    <table>
+      <caption class="visually-hidden">Anlagengrößen bei gleichbleibendem Haushaltsverbrauch</caption>
+      <thead>
+        <tr>
+          <th scope="col">Größe</th>
+          <th scope="col" class="num">Preis</th>
+          <th scope="col" class="num">Ertrag</th>
+          <th scope="col" class="num">Eigenverbrauch</th>
+          <th scope="col" class="num">Überschuss je Jahr</th>
+          <th scope="col" class="num">bezahlt nach</th>
+          <th scope="col" class="num">nach 25 Jahren</th>
+        </tr>
+      </thead>
+      <tbody>
+        {groessen.map((a) => (
+          <tr>
+            <th scope="row">
+              {a.kwp} kWp
+              <span class="klasse">{eur(a.proKwp)} je kWp</span>
+            </th>
+            <td class="num">{eur(a.investition)}</td>
+            <td class="num">{kwh(a.jahresertragKwh)}</td>
+            <td class="num">
+              {prozent(a.quote)}
+              <span class="anteil">{kwh(a.eigenverbrauchKwh)}</span>
+            </td>
+            <td class="num">{eur(a.jahresueberschuss)}</td>
+            <td class="num">{jahre(a.amortJahre)}</td>
+            <td class="num strong">{eur(a.ueberschuss25j)}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  </div>
+  <p class="tabellenhinweis">
+    Haushaltsverbrauch durchgehend {kwh(HAUSHALT_KWH)} im Jahr. Angenommen wird,
+    dass sich ohne Speicher {prozent(GLEICHZEITIGKEIT)} davon direkt aus der
+    Anlage decken lassen – siehe den Hinweis zur Annahme weiter unten.
+    Anlagenpreise Stand {PREIS_STAND}.
+  </p>
+
+  <p>
+    Die Spalte „Überschuss je Jahr“ steigt mit der Größe, die letzte Spalte fällt.
+    Das ist kein Widerspruch, sondern der ganze Punkt: Die
+    {' '}{gross.kwp}-kWp-Anlage kostet {eur(mehrInvestition)} mehr als die
+    {' '}{klein.kwp}-kWp-Anlage und bringt dafür {eur(mehrUeberschussProJahr)} mehr
+    im Jahr. Diese Mehrinvestition wäre nach {mehrAmortisation.toFixed(0)} Jahren
+    zurückverdient – nur läuft die Einspeisevergütung, aus der der Mehrertrag
+    praktisch vollständig stammt, bloß {VERGUETUNGSDAUER_JAHRE} Jahre.
+  </p>
+
+  <p>
+    Anders gesagt: Die absolute Stromersparnis ist in allen vier Zeilen dieselbe,
+    nämlich {eur(klein.einsparungStrom)}. Jede zusätzliche Kilowattpeak bringt
+    ausschließlich Einspeisevergütung. Der Skaleneffekt beim Einkauf – von
+    {' '}{eur(klein.proKwp)} auf {eur(gross.proKwp)} je kWp – federt das ab, aber
+    er kehrt es nicht um.
+  </p>
+
+  <p class="hinweis">
+    <strong>Zur Annahme, die dieses Ergebnis mit erzeugt:</strong> Dass sich ohne
+    Speicher {prozent(GLEICHZEITIGKEIT)} des Verbrauchs direkt decken lassen, ist
+    eine Modellannahme, keine gemessene Größe. Sie ist zudem konservativ zugunsten
+    der kleinen Anlage: In der Praxis wächst die direkt verbrauchte Menge mit der
+    Anlagengröße noch etwas, weil auch in den Morgen- und Abendstunden mehr
+    anfällt. Wie empfindlich das Ergebnis darauf reagiert, steht in der nächsten
+    Tabelle.
+  </p>
+
+  <div class="table-wrap">
+    <table>
+      <caption class="visually-hidden">Überschuss nach 25 Jahren bei anderer Deckungsannahme</caption>
+      <thead>
+        <tr>
+          <th scope="col">direkt gedeckter Anteil</th>
+          {groessen.map((a) => <th scope="col" class="num">{a.kwp} kWp</th>)}
+        </tr>
+      </thead>
+      <tbody>
+        {sensitivitaet.map((s) => (
+          <tr>
+            <th scope="row">{prozent(s.gz)}</th>
+            {s.reihe.map((a) => (
+              <td class="num" class:list={[{ strong: a.ueberschuss25j === Math.max(...s.reihe.map((x) => x.ueberschuss25j)) }]}>
+                {eur(a.ueberschuss25j)}
+              </td>
+            ))}
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  </div>
+  <p class="tabellenhinweis">
+    Überschuss nach 25 Jahren, hervorgehoben ist je Zeile der beste Wert. Die
+    Rangfolge bleibt in allen drei Fällen dieselbe – nur bei
+    {' '}{prozent(sensitivitaet[0].gz)} rutschen die beiden größeren Anlagen ins
+    Minus.
+  </p>
+
+  <h2>Wann groß trotzdem richtig ist</h2>
+
+  <p>
+    Die Rechnung dreht sich, sobald der Verbrauch steigt. Eine Wärmepumpe oder ein
+    Elektroauto erhöhen den Strombedarf eines Haushalts erheblich – und damit die
+    Menge, die sich sinnvoll selbst verbrauchen lässt. Die folgende Tabelle
+    wiederholt deshalb dieselbe Rechnung für vier Verbrauchsniveaus.
+  </p>
+
+  <div class="table-wrap">
+    <table>
+      <caption class="visually-hidden">Überschuss nach 25 Jahren bei steigendem Haushaltsverbrauch</caption>
+      <thead>
+        <tr>
+          <th scope="col">Jahresverbrauch</th>
+          {groessen.map((a) => <th scope="col" class="num">{a.kwp} kWp</th>)}
+        </tr>
+      </thead>
+      <tbody>
+        {verbrauchsstufen.map((v) => (
+          <tr>
+            <th scope="row">{kwh(v.verbrauch)}</th>
+            {v.reihe.map((a) => (
+              <td class="num">
+                {eur(a.ueberschuss25j)}
+                <span class="anteil">{jahre(a.amortJahre)}</span>
+              </td>
+            ))}
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  </div>
+  <p class="tabellenhinweis">
+    Überschuss nach 25 Jahren und Amortisationsdauer, bei unverändert
+    {' '}{prozent(GLEICHZEITIGKEIT)} direkt gedecktem Anteil.
+  </p>
+
+  <p>
+    Bei {kwh(verbrauchsstufen[verbrauchsstufen.length - 1].verbrauch)} im Jahr ist
+    auch die {gross.kwp}-kWp-Anlage nach {jahrenDativ(grossBeiHoch.amortJahre)}
+    bezahlt statt nach {jahrenDativ(gross.amortJahre)}, und ihr Überschuss steigt von
+    {' '}{eur(gross.ueberschuss25j)} auf {eur(grossBeiHoch.ueberschuss25j)}. Wer
+    eine Wärmepumpe plant, sollte die Anlage also für den späteren Zustand
+    auslegen – nur eben mit dem Wissen, dass ohne diesen Mehrverbrauch die
+    zusätzlichen Module fast nichts einbringen.
+  </p>
+
+  <h2>Zwei Regeln, an denen sich Überschlagsrechnungen verrechnen</h2>
+
+  <p>
+    Die Einspeisevergütung wird häufig als ein einziger Satz behandelt, der über
+    die gesamte Lebensdauer läuft. Beides trifft nicht zu.
+  </p>
+
+  <p>
+    Erstens ist der anzulegende Wert nach § 48 Abs. 2 EEG gestaffelt, und die
+    Stufen wirken nicht als Alles-oder-nichts. Überschreitet eine Anlage die
+    Grenze von 10 kWp, bekommt sie nicht für die gesamte Leistung den niedrigeren
+    Satz: Nach Satz 2 ist der anzulegende Wert der nach installierter Leistung
+    gewichtete Durchschnitt. Eine {stufenBeispiele[2].kwp}-kWp-Anlage erhält also
+    für die ersten 10 kWp den höheren und nur für die restlichen den niedrigeren
+    Satz.
+  </p>
+
+  <div class="table-wrap">
+    <table>
+      <caption class="visually-hidden">Anzulegender Wert je Anlagengröße</caption>
+      <thead>
+        <tr>
+          <th scope="col">Anlagengröße</th>
+          {stufenBeispiele.map((s) => <th scope="col" class="num">{s.kwp} kWp</th>)}
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <th scope="row">anzulegender Wert</th>
+          {stufenBeispiele.map((s) => <td class="num">{ct(s.cent)}</td>)}
+        </tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="tabellenhinweis">
+    Teileinspeisung (Überschusseinspeisung) bei Anlagen an oder auf Gebäuden.
+    Gültig bis {VERGUETUNG_GUELTIG_BIS}; danach sinken die Sätze nach
+    § 49 Abs. 1 EEG erneut um 1 Prozent.
+  </p>
+
+  <p>
+    Zweitens endet die Vergütung. Nach § 25 Abs. 1 EEG wird sie für
+    {' '}{VERGUETUNGSDAUER_JAHRE} Jahre zuzüglich des Inbetriebnahmejahres
+    gezahlt. Wer eine Anlage über 25 Jahre rechnet und dabei durchgehend die
+    Einspeiseerlöse ansetzt, rechnet fünf Jahre zu viel. Was ab dem
+    {' '}{VERGUETUNGSDAUER_JAHRE + 1}. Jahr bleibt, ist die Stromersparnis abzüglich
+    der Betriebskosten – und hier zeigt sich der Größennachteil noch einmal
+    deutlicher:
+  </p>
+
+  <div class="table-wrap">
+    <table>
+      <caption class="visually-hidden">Jahresergebnis nach Ablauf der Vergütung</caption>
+      <thead>
+        <tr>
+          <th scope="col">Anlagengröße</th>
+          {nachAblauf.map((a) => <th scope="col" class="num">{a.kwp} kWp</th>)}
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <th scope="row">ab dem {VERGUETUNGSDAUER_JAHRE + 1}. Jahr</th>
+          {nachAblauf.map((a) => <td class="num">{eur(a.rest)}</td>)}
+        </tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="tabellenhinweis">
+    Stromersparnis abzüglich Betriebskosten für Versicherung, Wartung,
+    Zählermiete und Rücklage für den Wechselrichter, angesetzt mit rund 1 Prozent
+    der Investition im Jahr.
+  </p>
+
+  <p>
+    Die selbst verbrauchte Menge ist in allen vier Fällen dieselbe, die
+    Betriebskosten steigen mit der Investition. Nach Ablauf der Vergütung bringt
+    die kleine Anlage deshalb mehr als die große – {eur(nachAblauf[0].rest)} gegen
+    {' '}{eur(nachAblauf[nachAblauf.length - 1].rest)} im Jahr.
+  </p>
+
+  <h2>Was daraus folgt</h2>
+
+  <p>
+    Die Eigenverbrauchsquote ist der einzige Faktor in dieser Rechnung, den man
+    nach dem Kauf noch beeinflussen kann – über den Zeitpunkt, zu dem Waschmaschine,
+    Spülmaschine, Wärmepumpe oder Auto laufen, und über einen Speicher. Ein
+    Speicher ist teuer, aber er wirkt genau an der Stelle mit dem größten Hebel.
+    Ob sich das trägt, hängt am Preis je Kilowattstunde Speicherkapazität und
+    lässt sich mit dem
+    {' '}<a href={`${base}energie/stromspeicher-rechner/`}>Stromspeicher-Rechner</a>
+    {' '}und der
+    {' '}<a href={`${base}energie/solarspeicher-dimensionierung/`}>Speicher-Dimensionierung</a>
+    {' '}nachrechnen.
+  </p>
+
+  <p>
+    Für die Auslegung heißt das: erst den künftigen Verbrauch bestimmen, dann die
+    Anlage. Nicht umgekehrt. Und die Frage „Passt noch ein Modul aufs Dach?“ ist
+    nicht dieselbe wie die Frage, ob es sich lohnt. Beide Rechnungen lassen sich
+    mit eigenen Zahlen im
+    {' '}<a href={`${base}energie/photovoltaik-rechner/`}>Photovoltaik-Rechner</a>
+    {' '}wiederholen; wie viel Strom der Haushalt überhaupt braucht, zeigt der
+    {' '}<a href={`${base}energie/jahresenergieverbrauch/`}>Jahresenergieverbrauch</a>.
+  </p>
+
+  <p class="hinweis">
+    Alle Beträge sind nominal und in heutigen Preisen. Die Rechnung enthält weder
+    eine Strompreissteigerung noch Zinsen auf das eingesetzte Kapital – beides
+    würde das Ergebnis verschieben, die Strompreissteigerung zugunsten des
+    Eigenverbrauchs, die Kapitalkosten zulasten aller Varianten. Steuerliche
+    Wirkungen sind nicht berücksichtigt. Die Anlagenpreise sind Marktpreise mit
+    erheblicher Spanne, Stand {PREIS_STAND}, und keine Rechtsgrößen.
+  </p>
+</ArticleLayout>
+
+<style>
+.table-wrap {
+  overflow-x: auto;
+  margin: 1.5rem 0 0.5rem;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.87rem;
+  background: white;
+}
+thead th {
+  background: var(--dark);
+  color: white;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-weight: 600;
+  padding: 0.7rem 0.6rem;
+  text-align: left;
+  white-space: nowrap;
+}
+tbody th {
+  text-align: left;
+  font-weight: 600;
+  padding: 0.6rem;
+  min-width: 10ch;
+}
+tbody td { padding: 0.6rem; }
+tbody tr:nth-child(even) { background: var(--surface); }
+tbody tr:hover { background: var(--cat-light, #f3f4f6); }
+.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.strong { font-weight: 700; }
+.klasse {
+  display: block;
+  font-weight: 400;
+  font-size: 0.75rem;
+  color: var(--text-light);
+}
+.anteil {
+  display: block;
+  font-weight: 400;
+  font-size: 0.75rem;
+  color: var(--text-light);
+}
+.tabellenhinweis {
+  font-size: 0.78rem !important;
+  color: var(--text-light);
+  margin: 0 0 1.5rem !important;
+}
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+.hinweis {
+  margin-top: 2rem;
+  padding: 0.9rem 1.1rem;
+  background: var(--surface);
+  border-left: 3px solid var(--gold);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  font-size: 0.85rem !important;
+  line-height: 1.6 !important;
+  color: var(--text-light);
+}
+</style>
