@@ -3,14 +3,40 @@ import Layout from '../../layouts/Layout.astro';
 import CalculatorShell from '../../components/CalculatorShell.astro';
 import CalculatorGuide from '../../components/CalculatorGuide.astro';
 import { CALCULATORS, CATEGORIES } from '../../data/calculators';
+import {
+  FREIBETRAEGE,
+  STEUERSAETZE,
+  berechneErbschaftsteuer,
+} from '../../../public/scripts/erbschaftsteuer.js';
 const calc = CALCULATORS.find(c => c.slug === 'erbschaftsteuer-rechner')!;
 const cat = CATEGORIES[calc.category];
 const year = new Date().getFullYear();
 
+const euro = (n: number) => n.toLocaleString('de-DE', { maximumFractionDigits: 0 }) + ' €';
+
+// Satztabelle und Beispiele entstehen zur Buildzeit aus demselben Modul, mit
+// dem der Rechner arbeitet. Vorher standen im Text 400.000 € für Ehegatten
+// (§ 16 Abs. 1 Nr. 1 nennt 500.000) und "7 bis 30 %" als Satzspanne, obwohl
+// die Steuerklasse III bis 50 % geht.
+const satzZeilen = STEUERSAETZE.I.map((stufe, i) => {
+  const grenze = stufe.bis === Infinity
+    ? 'über 26.000.000 €'
+    : `bis ${euro(stufe.bis)}`;
+  return `<tr><td>${grenze}</td><td>${stufe.satz} %</td><td>${STEUERSAETZE.II[i].satz} %</td><td>${STEUERSAETZE.III[i].satz} %</td></tr>`;
+}).join('\n');
+
+// Ein Kind erbt 500.000 € – der meistgesuchte Fall.
+const beispielKind = berechneErbschaftsteuer({ nachlass: 500000, klasse: 'I2' });
+// Derselbe Betrag an eine nicht verwandte Person.
+const beispielDritter = berechneErbschaftsteuer({ nachlass: 500000, klasse: 'III' });
+// Härtefall: 100 € über der ersten Wertgrenze, siehe § 19 Abs. 3.
+const beispielHaerte = berechneErbschaftsteuer({ nachlass: 475100, klasse: 'I2' });
+
 const faqs = [
   { q: 'Wer muss Erbschaftsteuer zahlen?', a: 'Der Erbe muss Erbschaftsteuer zahlen. Steuerpflichtig sind Erwerbe von Todes wegen wie Vermögen, Grundstücke und Schulden.' },
-  { q: 'Welche Freibeträge gibt es?', a: 'Freibeträge nach Verwandtschaftsgrad: Kinder 400.000€, Ehepartner 400.000€, Enkel 200.000€, andere 20.000€.' },
-  { q: 'Wie sind die Steuersätze?', a: 'Die Sätze liegen zwischen 7-30% je nach Verwandtschaftsgrad und Höhe des Erbes. Nähere Verwandte zahlen niedrigere Sätze.' },
+  { q: 'Welche Freibeträge gibt es?', a: `Die persönlichen Freibeträge stehen in § 16 Abs. 1 ErbStG: Ehegatte und Lebenspartner ${euro(FREIBETRAEGE.I1)}, Kinder und Stiefkinder ${euro(FREIBETRAEGE.I2)}, Enkelkinder ${euro(FREIBETRAEGE.I3)}, Eltern und Großeltern beim Erbfall ${euro(FREIBETRAEGE.I4)}, Steuerklasse II ${euro(FREIBETRAEGE.II)} und alle übrigen Erwerber ebenfalls ${euro(FREIBETRAEGE.III)}. Auch entfernte Erben und nicht verwandte Personen haben also einen Freibetrag – null ist es nie.` },
+  { q: 'Wie sind die Steuersätze?', a: `Nach § 19 Abs. 1 ErbStG zwischen 7 % und 50 %. In der Steuerklasse I reichen sie von 7 bis 30 %, in der Klasse II von 15 bis 43 % und in der Klasse III von 30 bis 50 %. Anders als bei der Einkommensteuer wird nicht stufenweise gerechnet: Der Satz der erreichten Wertstufe gilt für den gesamten steuerpflichtigen Erwerb.` },
+  { q: 'Warum wird der ganze Betrag mit einem Satz besteuert?', a: `Weil § 19 Abs. 1 ErbStG dem Erwerb eine Wertstufe zuordnet und deren Satz auf die volle Summe anwendet. Ein Euro über einer Wertgrenze hebt deshalb den Satz für alles an. Damit daraus kein Sprung wird, begrenzt der Härteausgleich nach § 19 Abs. 3 den Mehrbetrag: Er wird nur erhoben, soweit er aus dem übersteigenden Betrag gedeckt werden kann – aus der Hälfte bei einem Satz bis 30 %, aus drei Vierteln darüber. Beispiel: Ein Kind erbt ${euro(475100)}, also ${euro(beispielHaerte.zuVersteuern)} über dem Freibetrag und damit 100 € über der Grenze von 75.000 €. Ohne Härteausgleich wären ${euro(beispielHaerte.steuerOhneAusgleich)} fällig, tatsächlich sind es ${euro(beispielHaerte.steuer)}.` },
   { q: 'Was ist Schenkungssteuer?', a: 'Schenkungssteuer fällt an, wenn Vermögen zu Lebzeiten übertragen wird. Die Sätze sind wie bei Erbschaftsteuer, Freibeträge alle 10 Jahre neu verfügbar.' },
   { q: 'Kann ich Schulden von der Steuer absetzen?', a: 'Ja, Schulden des Erblassers mindern die Erbmasse und damit die Steuerlast.' },
   { q: 'Gibt es Ausnahmen oder Vergünstigungen?', a: 'Ja: Ehewohnung ist unter Bedingungen steuerfrei, Betriebsvermögen, Kunstsammlungen und Grundstücke haben Vergünstigungen.' },
@@ -31,14 +57,14 @@ const faqs = [
   <CalculatorShell
     calculator={calc}
     intro="Mit dem Erbschaftsteuer-Rechner berechnen Sie die Erbschaftsteuer basierend auf dem Nachlasswert. Ermitteln Sie Freibeträge, Steuerklasse und die zu erwartende Steuerlast je nach Verwandtschaftsgrad."
-    sourceNote="Steuerklassen I-III."
-    explanation="Die Erbschaftsteuer ist im Erbschaftsteuer- und Schenkungsteuergesetz (ErbStG) geregelt. Freibeträge nach § 16 ErbStG: Ehepartner 500.000 €, Kinder 400.000 €, Geschwister 20.000 €. Steuersätze liegen je nach Steuerklasse und Erbbetrag zwischen 7 % und 50 %."
+    sourceNote="Steuerklassen nach § 15 Abs. 1 ErbStG, Freibeträge nach § 16 Abs. 1, Steuersätze nach § 19 Abs. 1 und Härteausgleich nach § 19 Abs. 3 (abgerufen am 13.08.2026). Nicht berücksichtigt: der Versorgungsfreibetrag nach § 17 und die Verschonung von Betriebs- und Wohnimmobilienvermögen nach §§ 13a, 13d."
+    explanation={`Maßgeblich ist nicht der gesamte Nachlass, sondern der Erwerb des einzelnen Erben (§ 10 ErbStG). Davon geht der persönliche Freibetrag nach § 16 Abs. 1 ab – für Ehegatten ${euro(FREIBETRAEGE.I1)}, für Kinder ${euro(FREIBETRAEGE.I2)}, für alle übrigen Erwerber ${euro(FREIBETRAEGE.III)}. Auf den Rest wird ein einziger Satz zwischen 7 % und 50 % angewendet, der sich nach der erreichten Wertstufe richtet.`}
     faqs={faqs}
   >
     <div class="calc-form">
       <div class="calc-grid">
         <div class="calc-group">
-          <label for="nachlass">Nachlasswert (€)</label>
+          <label for="nachlass">Wert Ihres Erwerbs (€)</label>
           <input type="number" id="nachlass" min="0" max="100000000" value="500000" step="10000" />
         </div>
         <div class="calc-group">
@@ -64,15 +90,29 @@ const faqs = [
 
   <CalculatorGuide
     title="Erbschaftsteuer – Vermögen richtig übertragen"
-    content="Erbschaftsteuer ist eine wichtige Besteuerung bei Vermögensübergang nach dem Tod. Die Berechnung berücksichtigt Verwandtschaftsgrade, Freibeträge und die Art des Vermögens.
+    content={`<p>Die Erbschaftsteuer trifft nicht den Nachlass, sondern jeden Erben einzeln (§ 10 ErbStG). Wer zu dritt erbt, rechnet mit seinem Anteil, nicht mit der Gesamtsumme – und jeder Erbe hat seinen eigenen Freibetrag.</p>
 
-Ein häufiges Missverständnis: Der Freibetrag regeneriert sich nicht jedes Jahr – er ist ein Gesamtbetrag pro Erbfall. Mehrfache Erbschaften in kurzer Zeit können über Steuerfreibeträge addiert werden, aber die 10-Jahres-Frist ist relevant.
+<p><strong>Ein Satz für den ganzen Betrag:</strong> Anders als bei der Einkommensteuer wird nicht Stufe für Stufe gerechnet. § 19 Abs. 1 ErbStG ordnet dem steuerpflichtigen Erwerb eine Wertstufe zu, und deren Satz gilt für die volle Summe. Ein Kind, das ${euro(500000)} erbt, zieht ${euro(FREIBETRAEGE.I2)} Freibetrag ab und versteuert ${euro(beispielKind.zuVersteuern)} mit ${beispielKind.satz} % – das sind ${euro(beispielKind.steuer)}. Eine nicht verwandte Person zahlt beim selben Betrag ${euro(beispielDritter.steuer)}, weil in der Steuerklasse III nur ${euro(FREIBETRAEGE.III)} frei bleiben und der Satz bei ${beispielDritter.satz} % liegt.</p>
 
-Besonderheiten: Grundstücksvermögen hat andere Bewertungsregeln als mobiles Vermögen. Kunst und Kulturgüter können unter Bedingungen steuerfrei sein. Betriebsvermögen hat Verschonung bis zu bestimmten Grenzen.
+<h3>Steuersätze nach § 19 Abs. 1 ErbStG</h3>
+<table>
+<thead><tr><th>Steuerpflichtiger Erwerb</th><th>Klasse I</th><th>Klasse II</th><th>Klasse III</th></tr></thead>
+<tbody>
+${satzZeilen}
+</tbody>
+</table>
 
-Planungstipp: Lebzeitige Schenkungen sind oft vorteilhafter als Erbschaften, da die Freibeträge alle 10 Jahre erneut nutzen können. Ein Testament sollte notariell beurkundet sein, um Rechtsstreitigkeiten zu vermeiden.
+<p><strong>Der Härteausgleich:</strong> Weil ein Euro über einer Wertgrenze den Satz für alles anhebt, entstünde an jeder Grenze ein Sprung. § 19 Abs. 3 ErbStG fängt ihn ab: Der Mehrbetrag wird nur erhoben, soweit er aus dem übersteigenden Betrag gedeckt werden kann – aus der Hälfte bei Sätzen bis 30 %, aus drei Vierteln darüber. Ein Kind mit ${euro(475100)} Erwerb liegt 100 € über der ersten Grenze; statt ${euro(beispielHaerte.steuerOhneAusgleich)} werden ${euro(beispielHaerte.steuer)} fällig. Der Rechner oben weist den Abzug aus, sobald er greift.</p>
 
-Bei internationalen Vermögen: Erbschaftsteuer hängt davon ab, wo Sie Ihren Wohnsitz haben und wo sich das Vermögen befindet. Spezialberatung ist oft notwendig."
+<p><strong>Was dieser Rechner nicht abbildet:</strong> Den besonderen Versorgungsfreibetrag nach § 17 ErbStG (Ehegatten ${euro(256000)}, Kinder je nach Alter ${euro(10300)} bis ${euro(52000)}) – er gilt nur bei Erwerben von Todes wegen und wird um steuerfreie Versorgungsbezüge gekürzt, bei gesetzlicher Witwenrente also oft vollständig. Ebenso wenig die Verschonung von Betriebsvermögen (§§ 13a, 13b), den Abschlag von 10 % für vermietete Wohnimmobilien (§ 13d) und die Steuerbefreiung des Familienheims (§ 13 Abs. 1 Nr. 4b und 4c), die an eine zehnjährige Selbstnutzung geknüpft ist. In diesen Fällen liegt die tatsächliche Steuer niedriger.</p>
+
+<p><strong>Die Zehnjahresfrist:</strong> Der Freibetrag steht nicht je Erbfall zu, sondern je Person und Zeitraum. § 14 ErbStG rechnet alle Erwerbe von derselben Person innerhalb von zehn Jahren zusammen; erst danach steht der Freibetrag erneut zur Verfügung. Wer zu Lebzeiten schenkt und die Frist einhält, kann ihn deshalb mehrfach nutzen – das ist der Grund, warum Schenkungen steuerlich oft günstiger sind als ein einziger Erbfall. Für Schenkungen gelten dieselben Sätze und Freibeträge, mit einer Ausnahme: Eltern und Großeltern fallen dabei in die Steuerklasse II statt I (§ 15 Abs. 1).</p>
+
+<p><strong>Bewertung des Vermögens:</strong> Grundstücke werden nach dem Bewertungsgesetz angesetzt, nicht mit einem Schätzwert. Kunst und Kulturgüter können unter Bedingungen steuerfrei bleiben, Betriebsvermögen ist nach §§ 13a, 13b weitgehend verschont. Für all das gilt: Der Rechner oben kennt nur den Wert, den Sie eingeben.</p>
+
+<p><strong>Bei internationalen Bezügen</strong> hängt die Steuerpflicht davon ab, wo Erblasser und Erbe ihren Wohnsitz haben und wo das Vermögen liegt (§ 2 ErbStG). Doppelbesteuerungsabkommen bestehen nur mit wenigen Staaten – hier lohnt eine Beratung.</p>
+
+<p>Dieser Rechner ersetzt keine Steuerberatung. Er zeigt die Systematik und eine belastbare Größenordnung; die verbindliche Festsetzung trifft das Finanzamt.</p>`}
     relatedSlugs={['renten-rechner', 'wohngeld-rechner']}
   />
 </Layout>
@@ -86,10 +126,16 @@ function berechne() {
   const r = berechneErbschaftsteuer({ nachlass, klasse });
   document.getElementById('steuer').textContent = fmt(r.steuer);
   document.getElementById('details').innerHTML =
+    `<span>Steuerklasse: <strong>${r.steuerklasse}</strong></span>` +
     `<span>Freibetrag: <strong>${fmt(r.freibetrag)}</strong></span>` +
     `<span>Zu versteuern: <strong>${fmt(r.zuVersteuern)}</strong></span>` +
-    `<span>Steuersatz: <strong>${r.satz}%</strong></span>` +
-    `<span>Effektiver Steuersatz: <strong>${r.effektiv}%</strong></span>`;
+    `<span>Steuersatz: <strong>${r.satz} %</strong></span>` +
+    `<span>Effektiver Steuersatz: <strong>${r.effektiv} %</strong></span>` +
+    // Der Härteausgleich greift nur knapp oberhalb einer Wertgrenze. Wenn er
+    // greift, ist er der Grund für einen Betrag, der sonst unerklärlich wäre.
+    (r.haerteausgleich
+      ? `<span>Härteausgleich § 19 Abs. 3 ErbStG: <strong>−${fmt(r.steuerOhneAusgleich - r.steuer)}</strong></span>`
+      : '');
 }
 ['nachlass'].forEach(id =>
   document.getElementById(id).addEventListener('input', berechne));
