@@ -156,7 +156,7 @@ function berechne() {
   const stklasse = document.getElementById('stklasse').value;
   const r = berechneGehaltserhoehung({ brutto, erhoehung, typ, stklasse });
   document.getElementById('gewinn').textContent = fmt(r.nettoGewinn);
-  const prozent = r.bruttoGewinn > 0 ? Math.round((1 - r.nettoGewinn / r.bruttoGewinn) * 100) : 0;
+  const prozent = Math.round(r.grenzbelastung);
   document.getElementById('details').innerHTML =
     `<span>Brutto-Erhöhung: <strong>${fmt(r.bruttoGewinn)}</strong></span>` +
     `<span>Netto-Erhöhung: <strong style="color:#1e7e34">${fmt(r.nettoGewinn)}</strong></span>` +
