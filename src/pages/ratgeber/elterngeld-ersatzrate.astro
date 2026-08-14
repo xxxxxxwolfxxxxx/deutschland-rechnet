@@ -1,0 +1,447 @@
+---
+import ArticleLayout from '../../layouts/ArticleLayout.astro';
+import {
+  berechneElterngeld,
+  elterngeldNetto,
+  ersatzrate,
+  SATZ_REGEL,
+  SATZ_MIN,
+  SATZ_MAX,
+  GERINGVERDIENER_GRENZE,
+  ABSENKUNGS_GRENZE,
+  SATZ_SCHRITT,
+  EINKOMMEN_SCHRITT,
+  HOECHSTBETRAG,
+  MINDESTBETRAG,
+  KAPPUNG_VORGEBURTLICH,
+  GESCHWISTERBONUS_SATZ,
+  GESCHWISTERBONUS_MINDESTBETRAG,
+  EINKOMMENSGRENZE,
+  BASISMONATE,
+  PARTNERMONATE,
+  BASISMONATE_FRUEHGEBURT,
+  SOZIALABGABEN_PAUSCHALEN,
+  ELTERNGELD_STAND,
+} from '../../../public/scripts/elterngeld.js';
+
+const base = import.meta.env.BASE_URL;
+
+// Alle Zahlen zur Buildzeit aus dem Modul, das auch der Rechner lädt.
+// Steuerklasse IV als Bezugsgröße – die Wirkung der Klasse ist Thema des
+// Steuerklassen-Artikels und wird hier nur verlinkt.
+const KLASSE = 4;
+const REFERENZ_BRUTTO = 3_000;
+
+const stufen = [1_200, 1_500, 2_000, 2_500, 3_000, 3_500, 4_000, 4_500, 5_000].map((brutto) => {
+  const netto = elterngeldNetto({ einnahmenMonat: brutto, steuerklasse: KLASSE });
+  const eg = berechneElterngeld({ einnahmenMonat: brutto, steuerklasse: KLASSE, monate: BASISMONATE });
+  return {
+    brutto,
+    netto,
+    rate: ersatzrate(netto),
+    betrag: eg.basiselterngeld,
+    quoteVomBrutto: eg.basiselterngeld / brutto,
+  };
+});
+const referenz = stufen.find((s) => s.brutto === REFERENZ_BRUTTO)!;
+
+// Die Schwellen in Bruttoeinkommen ausgedrückt – im Gesetz stehen sie als
+// Werte des Erwerbseinkommens, was die Regel praktisch unlesbar macht.
+const findeBrutto = (pred: (b: number) => boolean) => {
+  for (let b = 400; b <= 8_000; b += 1) if (pred(b)) return b;
+  return null;
+};
+const nettoBei = (b: number) => elterngeldNetto({ einnahmenMonat: b, steuerklasse: KLASSE });
+const betragBei = (b: number) =>
+  berechneElterngeld({ einnahmenMonat: b, steuerklasse: KLASSE, monate: BASISMONATE }).basiselterngeld;
+
+const bruttoAnhebungEnde = findeBrutto((b) => nettoBei(b) >= GERINGVERDIENER_GRENZE)!;
+const bruttoAbsenkungStart = findeBrutto((b) => nettoBei(b) > ABSENKUNGS_GRENZE)!;
+const bruttoRateMin = findeBrutto((b) => ersatzrate(nettoBei(b)) <= SATZ_MIN)!;
+const bruttoHoechstbetrag = findeBrutto((b) => betragBei(b) >= HOECHSTBETRAG)!;
+
+// --- ElterngeldPlus: der eigentliche Befund ---
+const PLUSMONATE = BASISMONATE * 2;
+const zuverdienste = [0, 500, 1_000, 1_500, 2_000, 2_500].map((bezug) => {
+  const eg = berechneElterngeld({
+    einnahmenMonat: REFERENZ_BRUTTO,
+    einnahmenBezugMonat: bezug,
+    steuerklasse: KLASSE,
+    monate: BASISMONATE,
+  });
+  const basisGesamt = eg.basiselterngeld * BASISMONATE;
+  const plusGesamt = eg.elterngeldPlus * PLUSMONATE;
+  return {
+    bezug,
+    basis: eg.basiselterngeld,
+    plus: eg.elterngeldPlus,
+    basisGesamt,
+    plusGesamt,
+    vorteil: plusGesamt - basisGesamt,
+  };
+});
+const besterVorteil = zuverdienste.reduce((a, b) => (b.vorteil > a.vorteil ? b : a));
+const ohneZuverdienst = zuverdienste.find((z) => z.bezug === 0)!;
+
+// --- Geschwisterbonus: ab wann schlagen die 10 % den Mindestbetrag? ---
+const bonusSchwelleBrutto = findeBrutto((b) => {
+  const ohne = betragBei(b);
+  const mit = berechneElterngeld({
+    einnahmenMonat: b, steuerklasse: KLASSE, monate: BASISMONATE, geschwisterbonus: true,
+  }).basiselterngeld;
+  return mit - ohne > GESCHWISTERBONUS_MINDESTBETRAG + 0.01;
+})!;
+
+const eur = (b: number) =>
+  b.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
+const eurGlatt = (b: number) => b.toLocaleString('de-DE', { maximumFractionDigits: 0 }) + ' €';
+const prozent = (b: number, stellen = 1) =>
+  (b * 100).toLocaleString('de-DE', { minimumFractionDigits: stellen, maximumFractionDigits: stellen }) + ' %';
+---
+<ArticleLayout
+  title="Elterngeld: Warum die 67 Prozent für die meisten 43 sind"
+  description={`Die Ersatzrate von 67 Prozent gilt nur in einem schmalen Einkommensfenster, und sie bezieht sich nicht aufs Brutto. Bei ${eurGlatt(REFERENZ_BRUTTO)} Monatsbrutto bleiben ${prozent(referenz.quoteVomBrutto, 0)} – plus der Irrtum über ElterngeldPlus, der bis zu ${eurGlatt(besterVorteil.vorteil)} kostet.`}
+  canonicalPath="/ratgeber/elterngeld-ersatzrate/"
+  datum="2026-08-14"
+  lead={`Zwei Sätze kennt jeder, der ein Kind erwartet: Elterngeld sind 67 Prozent, und ElterngeldPlus ist die Hälfte davon. Der erste stimmt für die wenigsten, der zweite stimmt nur, solange man nicht arbeitet – und wer sich darauf verlässt, verschenkt im gerechneten Fall ${eurGlatt(besterVorteil.vorteil)}.`}
+  quellen={[
+    { titel: '§ 2 BEEG – Höhe des Elterngeldes, Ersatzrate, Unterschiedsbetrag', url: 'https://www.gesetze-im-internet.de/beeg/__2.html' },
+    { titel: '§ 2a BEEG – Geschwisterbonus und Mehrlingszuschlag', url: 'https://www.gesetze-im-internet.de/beeg/__2a.html' },
+    { titel: '§ 2c BEEG – Einkommen aus nichtselbstständiger Erwerbstätigkeit', url: 'https://www.gesetze-im-internet.de/beeg/__2c.html' },
+    { titel: '§ 2f BEEG – Abzüge für Sozialabgaben', url: 'https://www.gesetze-im-internet.de/beeg/__2f.html' },
+    { titel: '§ 4 BEEG – Art und Dauer des Anspruchs', url: 'https://www.gesetze-im-internet.de/beeg/__4.html' },
+    { titel: '§ 4a BEEG – Basiselterngeld und Elterngeld Plus', url: 'https://www.gesetze-im-internet.de/beeg/__4a.html' },
+    { titel: '§ 1 BEEG – Berechtigte und Einkommensgrenze', url: 'https://www.gesetze-im-internet.de/beeg/__1.html' },
+  ]}
+>
+  <h2>Was tatsächlich ankommt</h2>
+
+  <p>
+    § 2 Abs. 1 Satz 1 BEEG nennt {prozent(SATZ_REGEL, 0)} – das ist die Zahl, die
+    hängen bleibt. Sie bezieht sich aber weder auf das Bruttogehalt noch auf das
+    Netto vom Kontoauszug, sondern auf eine eigens definierte Größe, und sie gilt
+    nur in einem schmalen Fenster. Was am Ende ankommt, sieht so aus.
+  </p>
+
+  <div class="table-wrap">
+    <table>
+      <caption class="visually-hidden">Basiselterngeld je Bruttoeinkommen</caption>
+      <thead>
+        <tr>
+          <th scope="col">Brutto je Monat</th>
+          <th scope="col" class="num">Einkommen nach BEEG</th>
+          <th scope="col" class="num">Ersatzrate</th>
+          <th scope="col" class="num">Basiselterngeld</th>
+          <th scope="col" class="num">vom Brutto</th>
+        </tr>
+      </thead>
+      <tbody>
+        {stufen.map((s) => (
+          <tr>
+            <th scope="row">{eurGlatt(s.brutto)}</th>
+            <td class="num">{eur(s.netto)}</td>
+            <td class="num">{prozent(s.rate)}</td>
+            <td class="num strong">{eur(s.betrag)}</td>
+            <td class="num">{prozent(s.quoteVomBrutto, 0)}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  </div>
+  <p class="tabellenhinweis">
+    Steuerklasse IV, ohne Kirchensteuer, ohne Geschwisterbonus, ohne Einkommen im
+    Bezugszeitraum. Rechtsstand {ELTERNGELD_STAND}.
+  </p>
+
+  <p>
+    In der Spalte „Ersatzrate“ steht in fast jeder Zeile
+    {' '}{prozent(SATZ_MIN, 0)}, nicht {prozent(SATZ_REGEL, 0)}. Und die letzte
+    Spalte, die den Betrag am Bruttogehalt misst, bewegt sich zwischen
+    {' '}{prozent(stufen[stufen.length - 1].quoteVomBrutto, 0)} und
+    {' '}{prozent(stufen[0].quoteVomBrutto, 0)}. Bei
+    {' '}{eurGlatt(REFERENZ_BRUTTO)} Monatsbrutto bleiben
+    {' '}{prozent(referenz.quoteVomBrutto, 0)} des Bruttos übrig – die
+    Regelersatzrate liegt um {Math.round((SATZ_REGEL - referenz.quoteVomBrutto) * 100)}
+    {' '}Prozentpunkte darüber.
+  </p>
+
+  <h2>Warum aus 67 Prozent 65 werden</h2>
+
+  <p>
+    § 2 Abs. 2 BEEG staffelt die Rate in beide Richtungen. Liegt das Einkommen
+    unter {eurGlatt(GERINGVERDIENER_GRENZE)}, steigt sie um
+    {' '}{(SATZ_SCHRITT * 100).toLocaleString('de-DE', { minimumFractionDigits: 1 })}
+    {' '}Prozentpunkte je {eurGlatt(EINKOMMEN_SCHRITT)}, um die der Betrag
+    unterschritten wird – bis auf {prozent(SATZ_MAX, 0)}. Liegt es über
+    {' '}{eurGlatt(ABSENKUNGS_GRENZE)}, sinkt sie in denselben Schritten, bis der
+    Boden von {prozent(SATZ_MIN, 0)} erreicht ist.
+  </p>
+
+  <p>
+    Der volle Satz gilt also exakt zwischen {eurGlatt(GERINGVERDIENER_GRENZE)} und
+    {' '}{eurGlatt(ABSENKUNGS_GRENZE)} Einkommen – und weil dieses Einkommen nicht
+    das Brutto ist, liegt das Fenster in Bruttogehalt umgerechnet zwischen rund
+    {' '}{eurGlatt(bruttoAnhebungEnde)} und {eurGlatt(bruttoAbsenkungStart)} im
+    Monat. Ab etwa {eurGlatt(bruttoRateMin)} Brutto ist die Rate auf
+    {' '}{prozent(SATZ_MIN, 0)} gefallen und bleibt dort. Für alle, die Vollzeit
+    arbeiten, ist die Regelersatzrate damit praktisch ohne Bedeutung.
+  </p>
+
+  <h2>Das „Einkommen“ ist nicht das Netto</h2>
+
+  <p>
+    Die zweite Spalte der Tabelle trägt die Bezeichnung „Einkommen nach BEEG“,
+    weil sie mit dem Netto der Gehaltsabrechnung nur entfernt verwandt ist. Nach
+    §§ 2c bis 2f BEEG wird sie eigens gebildet: Von den Einnahmen geht ein
+    Zwölftel des Arbeitnehmer-Pauschbetrags ab, dann die Steuern und dann
+    Sozialabgaben – aber nicht die tatsächlich gezahlten.
+  </p>
+
+  <p>
+    § 2f Abs. 1 Satz 2 BEEG rechnet mit runden Pauschalen:
+    {' '}{prozent(SOZIALABGABEN_PAUSCHALEN.krankenPflege, 0)} für Kranken- und
+    Pflegeversicherung, {prozent(SOZIALABGABEN_PAUSCHALEN.rente, 0)} für die
+    Rentenversicherung und {prozent(SOZIALABGABEN_PAUSCHALEN.arbeitsfoerderung, 0)}
+    {' '}für die Arbeitsförderung. Das sind keine echten Beitragssätze, und weil
+    das Gesetz andere Maßgaben ausdrücklich ausschließt, wirkt hier auch keine
+    Beitragsbemessungsgrenze. Wer ein sehr hohes Einkommen hat, bekommt deshalb
+    einen rechnerisch niedrigeren Wert angesetzt, als seine tatsächlichen Abgaben
+    rechtfertigen würden – für den Höchstbetrag spielt das allerdings keine Rolle
+    mehr.
+  </p>
+
+  <p>
+    Nach oben ist ohnehin früh Schluss: Der Höchstbetrag des § 2 Abs. 1 Satz 2
+    BEEG von {eurGlatt(HOECHSTBETRAG)} ist bei rund
+    {' '}{eurGlatt(bruttoHoechstbetrag)} Brutto erreicht. Jeder Euro darüber
+    erhöht das Elterngeld nicht mehr. Nach unten sichert § 2 Abs. 4 Satz 1 einen
+    Mindestbetrag von {eurGlatt(MINDESTBETRAG)} – auch für Eltern, die vor der
+    Geburt gar kein Einkommen hatten.
+  </p>
+
+  <h2>Der teure Irrtum: ElterngeldPlus ist nicht die Hälfte</h2>
+
+  <p>
+    § 4a Abs. 2 Satz 2 BEEG sagt nicht, dass ElterngeldPlus die Hälfte beträgt.
+    Es sagt, es betrage <em>höchstens</em> die Hälfte des Basiselterngeldes, das
+    zustünde, wenn während des Bezugs keine Einnahmen vorlägen. Dieser Deckel ist
+    eine feste Größe, die vom Einkommen vor der Geburt abhängt – und nicht davon,
+    was während des Bezugs dazuverdient wird.
+  </p>
+
+  <p>
+    Genau darin liegt der Unterschied. Beim Basiselterngeld wird ein Zuverdienst
+    voll gegengerechnet: Nach § 2 Abs. 3 Satz 1 BEEG bemisst sich die Leistung
+    dann nur noch nach dem <em>Unterschiedsbetrag</em> zwischen dem Einkommen vor
+    und während des Bezugs. Beim ElterngeldPlus gilt dieselbe Rechnung, aber der
+    Deckel bleibt, wo er ist – und wird bei Zuverdienst oft gar nicht erreicht.
+  </p>
+
+  <div class="table-wrap">
+    <table>
+      <caption class="visually-hidden">Basiselterngeld und ElterngeldPlus bei Zuverdienst</caption>
+      <thead>
+        <tr>
+          <th scope="col">Zuverdienst je Monat</th>
+          <th scope="col" class="num">Basiselterngeld</th>
+          <th scope="col" class="num">über {BASISMONATE} Monate</th>
+          <th scope="col" class="num">ElterngeldPlus</th>
+          <th scope="col" class="num">über {PLUSMONATE} Monate</th>
+          <th scope="col" class="num">Vorteil Plus</th>
+        </tr>
+      </thead>
+      <tbody>
+        {zuverdienste.map((z) => (
+          <tr>
+            <th scope="row">{z.bezug === 0 ? 'kein Zuverdienst' : eurGlatt(z.bezug)}</th>
+            <td class="num">{eur(z.basis)}</td>
+            <td class="num">{eurGlatt(z.basisGesamt)}</td>
+            <td class="num">{eur(z.plus)}</td>
+            <td class="num">{eurGlatt(z.plusGesamt)}</td>
+            <td class="num strong">{z.vorteil > 0 ? '+' + eurGlatt(z.vorteil) : eurGlatt(z.vorteil)}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  </div>
+  <p class="tabellenhinweis">
+    Einkommen vor der Geburt {eurGlatt(REFERENZ_BRUTTO)} brutto im Monat. Nach
+    § 4 Abs. 3 Satz 3 BEEG entspricht ein Basismonat zwei Monaten ElterngeldPlus –
+    verglichen wird deshalb {BASISMONATE} gegen {PLUSMONATE} Monate, also derselbe
+    Anspruch.
+  </p>
+
+  <p>
+    Ohne Zuverdienst bringt beides exakt dasselbe:
+    {' '}{eurGlatt(ohneZuverdienst.basisGesamt)}, nur zeitlich gestreckt. Dort
+    trifft der Merksatz von der Hälfte zu. Sobald aber während des Bezugs
+    gearbeitet wird, kippt das Verhältnis – bei
+    {' '}{eurGlatt(besterVorteil.bezug)} Zuverdienst im Monat stehen
+    {' '}{eurGlatt(besterVorteil.basisGesamt)} gegen
+    {' '}{eurGlatt(besterVorteil.plusGesamt)}. Das ist ein Unterschied von
+    {' '}{eurGlatt(besterVorteil.vorteil)} für denselben verbrauchten Anspruch.
+  </p>
+
+  <p>
+    ElterngeldPlus ist also keine gestreckte Variante für Leute mit Geduld,
+    sondern die vorgesehene Form für alle, die in Teilzeit zurückkehren. Wer in
+    dieser Lage Basismonate nimmt, zahlt für den Zuverdienst zweimal: einmal durch
+    die Anrechnung und einmal dadurch, dass die Monate schneller aufgebraucht
+    sind.
+  </p>
+
+  <h2>Geschwisterbonus: Prozent oder Mindestbetrag</h2>
+
+  <p>
+    Der Geschwisterbonus nach § 2a Abs. 1 Satz 1 BEEG beträgt
+    {' '}{prozent(GESCHWISTERBONUS_SATZ, 0)} des Elterngeldes, mindestens aber
+    {' '}{eurGlatt(GESCHWISTERBONUS_MINDESTBETRAG)}. Welche der beiden Größen
+    greift, hängt am Einkommen: Bis zu einem Bruttoeinkommen von rund
+    {' '}{eurGlatt(bonusSchwelleBrutto)} im Monat ist der Mindestbetrag der
+    höhere, darüber die Prozentregel. Für Familien mit kleinem Einkommen ist der
+    Bonus damit anteilig deutlich mehr wert.
+  </p>
+
+  <h2>Was sonst noch die Höhe verschiebt</h2>
+
+  <ul class="liste">
+    <li>
+      <strong>Einkommensgrenze:</strong> Nach § 1 Abs. 8 BEEG entfällt der
+      Anspruch oberhalb von {eurGlatt(EINKOMMENSGRENZE)} zu versteuerndem
+      Einkommen. Diese Grenze ist in mehreren Schritten gesenkt worden – frühere
+      Übersichten nennen noch 300.000 oder 250.000 Euro.
+    </li>
+    <li>
+      <strong>Kappung beim Zuverdienst:</strong> Beim Unterschiedsbetrag setzt
+      § 2 Abs. 3 Satz 2 BEEG das Einkommen vor der Geburt mit höchstens
+      {' '}{eurGlatt(KAPPUNG_VORGEBURTLICH)} an. Wer mehr verdient hat, dessen
+      Zuverdienst wirkt sich deshalb stärker aus, als die Bruttodifferenz vermuten
+      lässt.
+    </li>
+    <li>
+      <strong>Frühgeburt:</strong> § 4 Abs. 5 Satz 1 BEEG verlängert den Anspruch
+      gestaffelt – {BASISMONATE_FRUEHGEBURT.map((s, i) => (
+        <>{i > 0 ? ', ' : ''}bei {s.wochenVorher} Wochen vor dem Termin auf {s.monate} Basismonate</>
+      ))} statt {BASISMONATE}.
+    </li>
+    <li>
+      <strong>Partnermonate:</strong> Die {BASISMONATE} Basismonate des
+      § 4 Abs. 3 Satz 1 BEEG stehen den Eltern gemeinsam zu. Nach Satz 2 kommen
+      {' '}{PARTNERMONATE} weitere hinzu – aber nur, wenn das Erwerbseinkommen
+      eines Elternteils in zwei Lebensmonaten gemindert ist. Es genügt also nicht,
+      den Anspruch bloß aufzuteilen; ein Elternteil muss tatsächlich beruflich
+      zurückstecken.
+    </li>
+    <li>
+      <strong>Steuerklasse:</strong> Weil das Bemessungsentgelt über den
+      Steuerabzug gebildet wird, verschiebt die Steuerklasse das Elterngeld
+      erheblich – aber nur, wenn der Wechsel früh genug erfolgt. Das ist ein
+      eigenes Thema und steht im Artikel zur
+      {' '}<a href={`${base}ratgeber/steuerklasse-wechseln-was-bringt/`}>Steuerklassenwahl</a>.
+    </li>
+  </ul>
+
+  <h2>Was daraus folgt</h2>
+
+  <p>
+    Wer plant, sollte mit zwei Zahlen rechnen, die beide nicht im Merksatz
+    vorkommen: mit {prozent(SATZ_MIN, 0)} statt {prozent(SATZ_REGEL, 0)} und mit
+    einer Bezugsgröße, die spürbar unter dem gewohnten Netto liegt. Für ein
+    mittleres Vollzeiteinkommen landet man dann bei gut
+    {' '}{prozent(referenz.quoteVomBrutto, 0)} des Bruttogehalts – eine Zahl, die
+    sich für die Haushaltsplanung deutlich anders anfühlt als
+    {' '}{prozent(SATZ_REGEL, 0)}.
+  </p>
+
+  <p>
+    Die zweite Entscheidung ist die wichtigere und wird oft nebenbei getroffen:
+    Wer während des Bezugs arbeiten will, sollte ElterngeldPlus nehmen. Nicht
+    weil es länger läuft, sondern weil derselbe Anspruch dabei mehr Geld ergibt.
+  </p>
+
+  <p>
+    Die eigenen Zahlen lassen sich im
+    {' '}<a href={`${base}familie/elterngeld-rechner/`}>Elterngeld-Rechner</a>
+    {' '}einsetzen; was parallel an Kindergeld läuft, zeigt der
+    {' '}<a href={`${base}familie/kindergeld-rechner/`}>Kindergeld-Rechner</a>,
+    und die Fristen rund um die Geburt der
+    {' '}<a href={`${base}familie/mutterschutz-rechner/`}>Mutterschutz-Rechner</a>.
+  </p>
+
+  <p class="hinweis">
+    Gerechnet wird durchgehend für Einkommen aus nichtselbstständiger Arbeit.
+    Nicht abgebildet sind das Einkommen aus selbstständiger Tätigkeit nach § 2d
+    BEEG, die Verschiebung des Bemessungszeitraums nach § 2b Abs. 1 Satz 2 und
+    die Anrechnung von Mutterschaftsleistungen nach § 3 BEEG. Wer solche
+    Bestandteile hat, erhält hier einen Näherungswert. Rechtsstand
+    {' '}{ELTERNGELD_STAND}; verbindlich ist der Bescheid der Elterngeldstelle.
+  </p>
+</ArticleLayout>
+
+<style>
+.table-wrap {
+  overflow-x: auto;
+  margin: 1.5rem 0 0.5rem;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.87rem;
+  background: white;
+}
+thead th {
+  background: var(--dark);
+  color: white;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-weight: 600;
+  padding: 0.7rem 0.6rem;
+  text-align: left;
+  white-space: nowrap;
+}
+tbody th {
+  text-align: left;
+  font-weight: 600;
+  padding: 0.6rem;
+  min-width: 12ch;
+}
+tbody td { padding: 0.6rem; }
+tbody tr:nth-child(even) { background: var(--surface); }
+tbody tr:hover { background: var(--cat-light, #f3f4f6); }
+.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.strong { font-weight: 700; }
+.tabellenhinweis {
+  font-size: 0.78rem !important;
+  color: var(--text-light);
+  margin: 0 0 1.5rem !important;
+}
+.liste {
+  margin: 1rem 0 1.5rem;
+  padding-left: 1.2rem;
+}
+.liste li {
+  margin-bottom: 0.6rem;
+  line-height: 1.7;
+}
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+.hinweis {
+  margin-top: 2rem;
+  padding: 0.9rem 1.1rem;
+  background: var(--surface);
+  border-left: 3px solid var(--gold);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  font-size: 0.85rem !important;
+  line-height: 1.6 !important;
+  color: var(--text-light);
+}
+</style>
