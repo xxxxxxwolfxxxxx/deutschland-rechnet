@@ -9,7 +9,7 @@ const year = new Date().getFullYear();
 ---
 <Layout
   title={`Unterhaltsrechner ${year} – Düsseldorfer Tabelle & OLG-Leitlinien`}
-  description="Kindesunterhalt berechnen nach Düsseldorfer Tabelle 2026 – mit Bundesland-Auswahl (OLG-Leitlinien), Kindergeld-Anrechnung § 1612b BGB, Selbstbehalt und Rechenweg."
+  description="Kindesunterhalt berechnen nach der Düsseldorfer Tabelle 2026 – mit Bedarfskontrollbetrag, Kindergeld-Anrechnung § 1612b BGB, Selbstbehalt und vollständigem Rechenweg."
   canonicalPath="/familie/unterhaltsrechner/"
   categoryColor={cat.color}
   categoryLight={cat.colorLight}
@@ -21,61 +21,60 @@ const year = new Date().getFullYear();
   </div>
   <CalculatorShell
     calculator={calc}
-    intro={`Berechnen Sie den monatlichen Kindesunterhalt nach der Düsseldorfer Tabelle 2026 – mit Auswahl aller 21 OLG-Bezirke in Deutschland, Kindergeld-Anrechnung (§ 1612b BGB), Selbstbehalt-Prüfung und vollständigem Rechenweg. Der Rechner berücksichtigt die regionalen Unterschiede der OLG-Leitlinien, etwa die höheren Selbstbehalte in Hessen (OLG Frankfurt) und Bayern (OLG München).`}
-    sourceNote={`Grundlage: Düsseldorfer Tabelle 2026 (gültig ab 1.1.2026). Kindergeld 2026: 259 €/Kind (§ 66 Abs. 1 EStG). Selbstbehalt variiert je nach OLG-Bezirk. Die Betragsangaben für einzelne OLG-Leitlinien basieren auf zuletzt veröffentlichten Fassungen – bitte stets die aktuelle Version des zuständigen OLG prüfen. Keine Rechtsberatung.`}
-    explanation={`Der Unterhalt wird nach der Düsseldorfer Tabelle 2026 berechnet. Das bereinigte Nettoeinkommen ergibt sich aus dem Bruttoeinkommen abzüglich berufsbedingter Aufwendungen (5% bei AN, 10% bei Selbständigen) und Vorsorgeaufwendungen. Davon wird der Tabellenbetrag der entsprechenden Einkommensgruppe abgezogen. Das Kindergeld wird zur Hälfte angerechnet (§ 1612b BGB). Der Selbstbehalt beträgt gegenüber minderjährigen Kindern 1.540 € (berufsbedingt 1.900 €).`}
+    intro={`Berechnen Sie den monatlichen Kindesunterhalt nach der Düsseldorfer Tabelle 2026 – mit Einstufung nach der Zahl der Unterhaltsberechtigten, Prüfung des Bedarfskontrollbetrags, Kindergeld-Anrechnung nach § 1612b BGB, Selbstbehalt und vollständigem Rechenweg. Die Auswahl des Oberlandesgerichts zeigt, welche Leitlinien für Sie gelten.`}
+    sourceNote={`Grundlage: Düsseldorfer Tabelle Stand 01.01.2026 nebst Anmerkungen (OLG Düsseldorf) und Unterhaltsrechtliche Leitlinien der Familiensenate in Nordrhein-Westfalen Stand 01.01.2026, Nr. 21. Mindestunterhalt nach der Siebten Verordnung zur Änderung der Mindestunterhaltsverordnung vom 15.11.2024. Kindergeld 259 €/Monat (§ 66 Abs. 1 EStG). Erwartet wird ein bereits bereinigtes Nettoeinkommen. Keine Rechtsberatung.`}
+    explanation={`Die Düsseldorfer Tabelle ordnet dem bereinigten Nettoeinkommen eine von 15 Einkommensgruppen zu. Die erste Gruppe entspricht dem gesetzlichen Mindestunterhalt (2026: 486 € / 558 € / 653 € je nach Altersstufe), die folgenden Gruppen steigen bis Gruppe 5 um je 5 % und danach um je 8 % des Mindestunterhalts. Die Tabelle unterstellt zwei Unterhaltsberechtigte – bei einem Berechtigten wird eine Gruppe herauf-, bei dreien eine Gruppe herabgestuft. Anschließend wird geprüft, ob dem Pflichtigen der Bedarfskontrollbetrag seiner Gruppe verbleibt; andernfalls wird zurückgestuft. Vom Tabellenbetrag wird das Kindergeld abgezogen (§ 1612b BGB: bei minderjährigen Kindern zur Hälfte, bei volljährigen voll). Untergrenze ist der Selbstbehalt: 1.450 € für Erwerbstätige und 1.200 € für Nichterwerbstätige gegenüber minderjährigen Kindern, 1.750 € gegenüber sonstigen volljährigen Kindern.`}
     faqs={[
+      { q: "Was ist der Bedarfskontrollbetrag – und ist das der Selbstbehalt?", a: "Nein, beide sind zu unterscheiden. Der Selbstbehalt ist die absolute Untergrenze, die dem Unterhaltspflichtigen bleiben muss (§ 1603 BGB). Der Bedarfskontrollbetrag liegt darüber und dient der ausgewogenen Verteilung des Einkommens zwischen Pflichtigem und Berechtigten. Verbleibt er nach Abzug der Zahlbeträge nicht, wird in die nächstniedrigere Einkommensgruppe zurückgestuft – so lange, bis er gewahrt ist. Er wirkt also früher und anders als der Selbstbehalt." },
+      { q: "Warum ändert sich der Unterhalt, wenn ich die Zahl der Berechtigten ändere?", a: "Die Düsseldorfer Tabelle ist auf zwei Unterhaltsberechtigte zugeschnitten. Bei einer abweichenden Zahl wird nicht das Einkommen gekürzt, sondern die Einstufung verschoben: Bei nur einem Berechtigten erfolgt ein Zuschlag durch Einstufung in die nächsthöhere Gruppe, bei drei Berechtigten ein Abschlag durch Einstufung in die nächstniedrigere. Als Berechtigte zählen alle Unterhaltsberechtigten, also auch ein unterhaltsberechtigter Ehegatte." },
       { q: "Wie wird der Unterhalt bei wechselndem Einkommen berechnet?", a: "Bei schwankendem Einkommen wird das durchschnittliche Nettoeinkommen der letzten 12 Monate zugrunde gelegt. Bei erheblichen und dauerhaften Veränderungen kann eine Anpassung des Unterhalts beantragt werden." },
-      { q: "Was passiert wenn der Unterhaltspflichtige arbeitslos wird?", a: "Bei Arbeitslosigkeit muss der Unterhalt nicht entfallen. Arbeitslosengeld wird beim Unterhaltseinkommen berücksichtigt. Bei Arbeitslosengeld II gibt es besondere Regelungen – der Unterhalt kann unter bestimmten Voraussetzungen entfallen." },
-      { q: "Wie lange zahle ich Unterhalt für mein Kind?", a: "Der Unterhaltsanspruch besteht mindestens bis zum vollendeten 18. Lebensjahr. Bei schulischer Ausbildung (inkl. Universität) verlängert sich der Anspruch bis zum Abschluss der ersten beruflichen Ausbildung, max. jedoch bis zum 25. Lebensjahr." },
-      { q: "Kann der Unterhalt erhöht oder reduziert werden?", a: "Ja, bei wesentlichen Veränderungen der Lebensumstände (z.B. erheblich geändertes Einkommen des Unterhaltspflichtigen oder geänderte Bedürfnisse des Kindes) kann eine Anpassung beantragt werden. Dazu ist meist eine einvernehmliche Regelung oder eine gerichtliche Entscheidung nötig." },
-      { q: "Was sind Mehrbedarf und Sonderbedarf beim Kindesunterhalt?", a: "Mehrbedarf ist ein regelmäßig anfallender Bedarf, der über den Tabellenbetrag hinausgeht – etwa Kosten für Kindergarten, Nachhilfe, Musikunterricht oder eine Privatschule (§ 1610 Abs. 2 BGB). Sonderbedarf hingegen ist ein einmaliger, unvorhergesehener und außergewöhnlich hoher Bedarf, z. B. eine Zahnspange, eine notwendige Klassenfahrt oder unerwartete Krankheitskosten (§ 1613 Abs. 2 BGB). Beide Elternteile tragen Mehr- und Sonderbedarf anteilig nach ihren Einkommensverhältnissen – nicht nur der Barunterhaltspflichtige. Sonderbedarf kann bis zu einem Jahr rückwirkend geltend gemacht werden." },
-      { q: "Wie wird der Unterhalt beim Wechselmodell berechnet?", a: "Beim echten Wechselmodell (beide Elternteile betreuen das Kind annähernd zu gleichen Teilen, z. B. im 7/7-Rhythmus) entfällt die klassische Aufteilung in Bar- und Betreuungsunterhalt. Stattdessen haften beide Eltern anteilig nach ihren Einkünften für den gesamten Bedarf des Kindes (BGH, Beschluss vom 11.01.2017, XII ZB 565/15). Der Bedarf wird anhand der zusammengerechneten Einkommen beider Eltern aus der Düsseldorfer Tabelle abgelesen. Das Kindergeld wird hälftig verrechnet. In der Praxis führt das Wechselmodell oft zu einem Ausgleichsanspruch des geringer verdienenden Elternteils gegen den besser verdienenden." }
+      { q: "Was gilt für volljährige Kinder?", a: "Volljährige im Haushalt eines Elternteils fallen in die 4. Altersstufe der Tabelle. Wohnt das volljährige Kind – etwa zum Studium – in einem eigenen Haushalt, gilt statt der Tabelle ein Festbedarf von 990 € monatlich, darin 440 € Warmmiete. In beiden Fällen wird das volle Kindergeld angerechnet. Für den Bedarf des Volljährigen haften zudem beide Elternteile anteilig nach ihren Einkommen (§ 1606 Abs. 3 BGB); dieser Rechner bildet nur die Haftung eines Elternteils ab." },
+      { q: "Wann ist ein volljähriges Kind privilegiert?", a: "Nach § 1603 Abs. 2 Satz 2 BGB sind unverheiratete Kinder bis zur Vollendung des 21. Lebensjahres minderjährigen Kindern gleichgestellt, wenn sie im Haushalt eines Elternteils leben und sich in allgemeiner Schulausbildung befinden. Für sie gilt der niedrigere notwendige Selbstbehalt von 1.450 € statt 1.750 € – der Unterhaltspflichtige muss also mehr leisten." },
+      { q: "Wie lange zahle ich Unterhalt für mein Kind?", a: "Der Unterhaltsanspruch besteht mindestens bis zum vollendeten 18. Lebensjahr. Bei schulischer oder beruflicher Ausbildung (einschließlich Studium) verlängert sich der Anspruch bis zum Abschluss der ersten berufsqualifizierenden Ausbildung. Eine feste Altersgrenze von 25 Jahren gibt es im Unterhaltsrecht nicht – sie stammt aus dem Kindergeldrecht (§ 32 Abs. 4 EStG)." },
+      { q: "Was sind Mehrbedarf und Sonderbedarf beim Kindesunterhalt?", a: "Mehrbedarf ist ein regelmäßig anfallender Bedarf, der über den Tabellenbetrag hinausgeht – etwa Kosten für Kindergarten, Nachhilfe, Musikunterricht oder eine Privatschule (§ 1610 Abs. 2 BGB). Sonderbedarf hingegen ist ein einmaliger, unvorhergesehener und außergewöhnlich hoher Bedarf, z. B. eine Zahnspange oder unerwartete Krankheitskosten (§ 1613 Abs. 2 BGB). Beide Elternteile tragen Mehr- und Sonderbedarf anteilig nach ihren Einkommensverhältnissen – nicht nur der Barunterhaltspflichtige. Sonderbedarf kann bis zu einem Jahr rückwirkend geltend gemacht werden." },
+      { q: "Wie wird der Unterhalt beim Wechselmodell berechnet?", a: "Beim echten Wechselmodell (beide Elternteile betreuen das Kind annähernd zu gleichen Teilen) entfällt die klassische Aufteilung in Bar- und Betreuungsunterhalt. Stattdessen haften beide Eltern anteilig nach ihren Einkünften für den gesamten Bedarf des Kindes (BGH, Beschluss vom 11.01.2017, XII ZB 565/15). Der Bedarf wird anhand der zusammengerechneten Einkommen beider Eltern aus der Düsseldorfer Tabelle abgelesen. Dieser Rechner bildet das Residenzmodell ab, nicht das Wechselmodell." }
     ]}
   >
     <div class="calc-form">
       <div class="calc-grid">
         <div class="calc-group">
-          <label for="bundesland">Bundesland</label>
+          <label for="bundesland">Zuständiges Oberlandesgericht</label>
           <select id="bundesland">
-            <option value="NW_D">Nordrhein-Westfalen (OLG Düsseldorf)</option>
-            <option value="NW_K">Nordrhein-Westfalen (OLG Köln)</option>
-            <option value="NW_H">Nordrhein-Westfalen (OLG Hamm)</option>
-            <option value="BY">Bayern (OLG München)</option>
-            <option value="BE">Berlin (Kammergericht)</option>
-            <option value="BB">Brandenburg (OLG Brandenburg)</option>
-            <option value="HB">Bremen (OLG Bremen)</option>
-            <option value="HH">Hamburg (OLG Hamburg)</option>
-            <option value="HE">Hessen (OLG Frankfurt)</option>
-            <option value="MV">Mecklenburg-Vorpommern (OLG Rostock)</option>
-            <option value="NI_C">Niedersachsen (OLG Celle)</option>
-            <option value="NI_O">Niedersachsen (OLG Oldenburg)</option>
-            <option value="RP_K">Rheinland-Pfalz (OLG Koblenz)</option>
-            <option value="RP_Z">Rheinland-Pfalz (OLG Zweibrücken)</option>
-            <option value="SL">Saarland (OLG Saarbrücken)</option>
-            <option value="SN">Sachsen (OLG Dresden)</option>
-            <option value="ST">Sachsen-Anhalt (OLG Naumburg)</option>
-            <option value="SH">Schleswig-Holstein (OLG Schleswig)</option>
-            <option value="TH">Thüringen (OLG Jena)</option>
-            <option value="BW_S">Baden-Württemberg (OLG Stuttgart)</option>
-            <option value="BW_K">Baden-Württemberg (OLG Karlsruhe)</option>
+            <option value="NW">Nordrhein-Westfalen</option>
+            <option value="BW">Baden-Württemberg</option>
+            <option value="BY">Bayern</option>
+            <option value="BE">Berlin</option>
+            <option value="BB">Brandenburg</option>
+            <option value="HB">Bremen</option>
+            <option value="HH">Hamburg</option>
+            <option value="HE">Hessen</option>
+            <option value="MV">Mecklenburg-Vorpommern</option>
+            <option value="NI">Niedersachsen</option>
+            <option value="RP_K">Rheinland-Pfalz (Bezirk Koblenz)</option>
+            <option value="RP_Z">Rheinland-Pfalz (Bezirk Zweibrücken)</option>
+            <option value="SL">Saarland</option>
+            <option value="SN">Sachsen</option>
+            <option value="ST">Sachsen-Anhalt</option>
+            <option value="SH">Schleswig-Holstein</option>
+            <option value="TH">Thüringen</option>
           </select>
         </div>
         <div class="calc-group">
           <label for="alter">Alter des Kindes</label>
-          <input type="number" id="alter" min="0" max="25" value="8" />
+          <input type="number" id="alter" min="0" max="27" value="8" />
         </div>
         <div class="calc-group">
           <label for="einkommen">Bereinigtes Nettoeinkommen (€/Monat)</label>
-          <input type="number" id="einkommen" min="0" max="20000" value="2500" step="50" />
+          <input type="number" id="einkommen" min="0" max="30000" value="3000" step="50" />
         </div>
         <div class="calc-group">
-          <label for="kinderanzahl">Anzahl unterhaltsberechtigter Kinder</label>
+          <label for="kinderanzahl">Anzahl aller Unterhaltsberechtigten</label>
           <select id="kinderanzahl">
-            <option value="1" selected>1 Kind</option>
-            <option value="2">2 Kinder</option>
-            <option value="3">3 Kinder</option>
-            <option value="4">4 Kinder</option>
+            <option value="1">1 Berechtigter</option>
+            <option value="2" selected>2 Berechtigte (Tabellenannahme)</option>
+            <option value="3">3 Berechtigte</option>
+            <option value="4">4 Berechtigte</option>
+            <option value="5">5 Berechtigte</option>
           </select>
         </div>
         <div class="calc-group">
@@ -86,10 +85,17 @@ const year = new Date().getFullYear();
           </select>
         </div>
         <div class="calc-group">
-          <label for="betreuung">Wohnt das Kind beim anderen Elternteil?</label>
-          <select id="betreuung">
-            <option value="1" selected>Ja (Residenzmodell)</option>
-            <option value="0">Nein (volljährig / eigener Haushalt)</option>
+          <label for="wohnsituation">Wohnsituation des Kindes</label>
+          <select id="wohnsituation">
+            <option value="elternhaushalt" selected>Im Haushalt eines Elternteils</option>
+            <option value="eigen">Eigener Haushalt (nur ab 18, z. B. Studium)</option>
+          </select>
+        </div>
+        <div class="calc-group" id="gruppe-schule" style="display:none;">
+          <label for="schulausbildung">In allgemeiner Schulausbildung?</label>
+          <select id="schulausbildung">
+            <option value="0" selected>Nein</option>
+            <option value="1">Ja (privilegiert, § 1603 Abs. 2 S. 2 BGB)</option>
           </select>
         </div>
       </div>
@@ -97,7 +103,7 @@ const year = new Date().getFullYear();
       <div id="olg-badge" class="olg-badge"></div>
 
       <div class="calc-result" id="result-box">
-        <div class="label">Monatlicher Barunterhalt</div>
+        <div class="label">Monatlicher Zahlbetrag</div>
         <div id="ergebnis">— €</div>
       </div>
 
@@ -109,21 +115,26 @@ const year = new Date().getFullYear();
 
   <CalculatorGuide
     title="Kindesunterhalt nach der Düsseldorfer Tabelle"
-    content={`<p>Die <strong>Düsseldorfer Tabelle</strong> ist die am weitesten verbreitete Richtlinie zur Berechnung des Kindesunterhalts in Deutschland. Sie wird regelmäßig aktualisiert (2026 ab 1.1.2026) und berücksichtigt steigende Lebenshaltungskosten.</p>
+    content={`<p>Die <strong>Düsseldorfer Tabelle</strong> ist kein Gesetz, sondern eine Leitlinie des Oberlandesgerichts Düsseldorf, der die Familiensenate aller Oberlandesgerichte folgen. Ihre erste Einkommensgruppe ist an den gesetzlichen Mindestunterhalt der Mindestunterhaltsverordnung gebunden. Die Fassung mit Stand 1.1.2026 hat die Bedarfssätze minderjähriger Kinder um jeweils 4 € angehoben.</p>
 
-<p><strong>Die Berechnung erfolgt in mehreren Schritten:</strong>
+<p><strong>Die Berechnung erfolgt in fünf Schritten:</strong>
 <ul>
-  <li><strong>Schritt 1:</strong> Bereinigung des Nettoeinkommens (Abzug von 5-10% berufsbedingter Aufwendungen)</li>
-  <li><strong>Schritt 2:</strong> Feststellung der Einkommensgruppe in der Düsseldorfer Tabelle (0-2.000€, 2.001-2.500€, etc.)</li>
-  <li><strong>Schritt 3:</strong> Ablesen des Unterhaltsbedarfs aus der Tabelle (z.B. 492€ für ein Kind bis 6 Jahren bei 1.500€ Einkommen)</li>
-  <li><strong>Schritt 4:</strong> Anrechnung des halben Kindergelds (§ 1612b BGB)</li>
-  <li><strong>Schritt 5:</strong> Überprüfung des Selbstbehalts (mind. 1.540€ für minderjährige Kinder)</li>
+  <li><strong>Schritt 1:</strong> Bereinigung des Nettoeinkommens – Abzug berufsbedingter Aufwendungen (pauschal 5 %), berücksichtigungsfähiger Schulden und zusätzlicher Altersvorsorge</li>
+  <li><strong>Schritt 2:</strong> Ablesen der Einkommensgruppe (Gruppe 1 bis 2.100 €, Gruppe 15 bis 11.200 €) und Anpassung nach der Zahl der Unterhaltsberechtigten</li>
+  <li><strong>Schritt 3:</strong> Prüfung des Bedarfskontrollbetrags – gegebenenfalls Rückstufung in eine niedrigere Gruppe</li>
+  <li><strong>Schritt 4:</strong> Anrechnung des Kindergelds (§ 1612b BGB) – bei minderjährigen Kindern die Hälfte von 259 €, also 129,50 €</li>
+  <li><strong>Schritt 5:</strong> Prüfung des Selbstbehalts (§ 1603 BGB)</li>
 </ul>
 </p>
 
-<p><strong>Unterschiede zwischen OLG-Leitlinien:</strong> Neben der Düsseldorfer Tabelle gibt es regionale OLG-Leitlinien mit leicht unterschiedlichen Selbstbehalt-Sätzen und Kindergeld-Regelungen. Der Unterhaltsanspruch richtet sich nach dem Wohnort des Kindes und seinem Alter.</p>
+<h3>Die Bedarfssätze 2026 im Überblick</h3>
+<p>Der Mindestunterhalt der ersten Einkommensgruppe beträgt seit dem 1.1.2026 <strong>486 €</strong> (0–5 Jahre), <strong>558 €</strong> (6–11 Jahre) und <strong>653 €</strong> (12–17 Jahre). Für volljährige Kinder im Elternhaushalt gilt mit <strong>698 €</strong> ein Satz von 125 % des Mindestunterhalts der zweiten Altersstufe. Die Sätze der Gruppen 2 bis 5 liegen um jeweils 5 Prozentpunkte, die der Gruppen 6 bis 15 um jeweils 8 Prozentpunkte des Mindestunterhalts höher; in Gruppe 15 ist der Bedarf damit doppelt so hoch wie in Gruppe 1. Studierende mit eigenem Haushalt haben einen von der Tabelle unabhängigen Festbedarf von <strong>990 €</strong>, darin 440 € Warmmiete.</p>
 
-<p><strong>2026 Werte:</strong> Kindergeld pro Kind: 259 €/Monat (§ 66 Abs. 1 EStG). Unterhaltsbedarfssatz für Kinder bis 6 Jahre: 492€, 6-12 Jahre: 571€, 12-18 Jahre: 695€, über 18 Jahre (Studium): 934€. Diese Sätze sind bei 1.500€ bereinigtem Einkommen des Unterhaltspflichtigen – höhere Einkommen führen zu höheren Unterhaltsbeträgen.</p>`}
+<h3>Selbstbehalt und Bedarfskontrollbetrag</h3>
+<p>Beide Begriffe werden häufig verwechselt. Der <strong>Selbstbehalt</strong> ist die absolute Untergrenze der Inanspruchnahme: 1.450 € gegenüber minderjährigen Kindern bei Erwerbstätigen, 1.200 € bei Nichterwerbstätigen, 1.750 € gegenüber sonstigen volljährigen Kindern. Diese Werte wurden zum 1.1.2026 <em>nicht</em> erhöht. Der <strong>Bedarfskontrollbetrag</strong> liegt darüber und steigt mit der Einkommensgruppe – von 1.750 € in Gruppe 2 bis 5.050 € in Gruppe 15. Verbleibt er dem Pflichtigen nach Abzug der Zahlbeträge nicht, wird zurückgestuft, bis er gewahrt ist.</p>
+
+<h3>Welche Leitlinien gelten wo?</h3>
+<p>Neben der Düsseldorfer Tabelle veröffentlichen die Oberlandesgerichte eigene unterhaltsrechtliche Leitlinien – teils gemeinsam: die <strong>Leitlinien NRW</strong> (Düsseldorf, Hamm, Köln), die <strong>Süddeutschen Leitlinien</strong> (Bamberg, Karlsruhe, München, Nürnberg, Stuttgart, Zweibrücken) und die <strong>Leitlinien Niedersachsen</strong> (Braunschweig, Celle, Oldenburg). In den Bedarfssätzen und Selbstbehalten stimmen sie 2026 bundesweit überein; Unterschiede betreffen Einzelheiten der Einkommensbereinigung, etwa die Behandlung von Fahrtkosten oder Wohnvorteilen.</p>`}
     relatedSlugs={['ehegattenunterhalt-rechner', 'elterngeld-rechner', 'kindergeld-rechner']}
   />
 </Layout>
@@ -145,6 +156,7 @@ const year = new Date().getFullYear();
 .rechenweg-table td:last-child { font-weight: 600; text-align: right; }
 .rechenweg-table tr.sum-row td { font-weight: 700; border-top: 2px solid var(--border, #e5e5e5); background: var(--surface, #f9f9f9); }
 .rechenweg-table tr.warn-row td { color: #c8102e; }
+.rechenweg-table tr.note-row td { font-weight: 400; text-align: left; color: var(--muted, #888); font-size: 0.82rem; }
 .rw-heading {
   font-size: 0.75rem;
   font-weight: 700;
@@ -163,7 +175,6 @@ const year = new Date().getFullYear();
   color: var(--text, #333);
   line-height: 1.55;
 }
-.bl-hinweis ul { margin: 0.4rem 0 0 1.2rem; padding: 0; font-size: 0.82rem; }
 .olg-badge {
   display: inline-flex;
   align-items: center;
@@ -177,204 +188,146 @@ const year = new Date().getFullYear();
   color: var(--muted, #777);
   margin-bottom: 0.75rem;
 }
-.olg-badge.abweichend {
-  background: color-mix(in srgb, var(--accent, #c8102e) 8%, white);
-  border-color: color-mix(in srgb, var(--accent, #c8102e) 30%, white);
-  color: var(--accent, #c8102e);
-}
 </style>
 
 <script type="module">
-// Düsseldorfer Tabelle 2026 – [einkommensgrenze, [0-5, 6-11, 12-17, 18+]]
-const TABELLE = [
-  [1900,  [433,  497,  580,  625]],
-  [2300,  [480,  551,  645,  693]],
-  [2700,  [527,  605,  710,  763]],
-  [3100,  [575,  661,  775,  833]],
-  [3700,  [634,  729,  854,  919]],
-  [4300,  [694,  799,  935, 1006]],
-  [4900,  [755,  869, 1018, 1094]],
-  [5500,  [816,  939, 1099, 1182]],
-  [6400,  [893, 1028, 1204, 1295]],
-  [7200,  [963, 1109, 1298, 1396]],
-  [Infinity, [1045, 1203, 1409, 1515]],
-];
-const STUFEN_LABEL = ['0–5 Jahre', '6–11 Jahre', '12–17 Jahre', 'ab 18 Jahre'];
-const KINDERGELD = 255; // 2026
+const { berechneKindesunterhalt, DT_2026, KINDERGELD } =
+  await import(window.__base + 'scripts/unterhalt.js');
 
-// OLG-Daten: selbstbehaltErw / selbstbehaltNichtErw / tabellenname / hinweis / abweichend
-// Quellen: Aktuelle OLG-Leitlinien (Stand 2025/2026, ohne Gewähr – bitte aktuell prüfen)
+// Zuordnung Bundesland → Oberlandesgericht und geltende Leitlinien, Stand
+// 01.01.2026. Die Bedarfssätze und Selbstbehalte stimmen in allen Leitlinien
+// überein; sie unterscheiden sich in Einzelheiten der Einkommensbereinigung.
 const OLG = {
-  NW_D: { olg: 'OLG Düsseldorf', tabelle: 'Düsseldorfer Tabelle', sbE: 1450, sbN: 1200,
-    hinweis: 'Die Düsseldorfer Tabelle gilt in NRW (OLG-Bezirk Düsseldorf) direkt. Sie ist bundesweit die am häufigsten angewendete Leitlinie.',
-    abweichend: false },
-  NW_K: { olg: 'OLG Köln', tabelle: 'Kölner Leitlinien', sbE: 1450, sbN: 1200,
-    hinweis: 'Das OLG Köln folgt in der Regel der Düsseldorfer Tabelle. Abweichungen möglich – aktuelle Kölner Leitlinien prüfen.',
-    abweichend: false },
-  NW_H: { olg: 'OLG Hamm', tabelle: 'Hammer Leitlinien', sbE: 1450, sbN: 1200,
-    hinweis: 'Das OLG Hamm folgt überwiegend der Düsseldorfer Tabelle. Die Hammer Leitlinien können in Einzelheiten abweichen.',
-    abweichend: false },
-  BY: { olg: 'OLG München', tabelle: 'Münchner Leitlinien', sbE: 1510, sbN: 1200,
-    hinweis: 'Das OLG München wendet eigene Unterhaltsrechtliche Leitlinien an (Münchner Leitlinien). Der Selbstbehalt für Erwerbstätige ist mit 1.510 € etwas höher als in der Düsseldorfer Tabelle. Die Bedarfssätze entsprechen der Düsseldorfer Tabelle.',
-    abweichend: true },
-  BE: { olg: 'Kammergericht Berlin', tabelle: 'Berliner Leitlinien', sbE: 1450, sbN: 1200,
-    hinweis: 'Das Kammergericht Berlin (KG) publiziert eigene Unterhaltsrechtliche Leitlinien. Die Bedarfssätze folgen der Düsseldorfer Tabelle; der Selbstbehalt entspricht den Düsseldorfer Werten. Bitte aktuelle KG-Leitlinien prüfen.',
-    abweichend: false },
-  BB: { olg: 'OLG Brandenburg', tabelle: 'Brandenburger Leitlinien', sbE: 1450, sbN: 1200,
-    hinweis: 'Das OLG Brandenburg folgt der Düsseldorfer Tabelle. Bitte aktuelle Leitlinien des OLG Brandenburg prüfen.',
-    abweichend: false },
-  HB: { olg: 'OLG Bremen', tabelle: 'Bremer Leitlinien', sbE: 1450, sbN: 1200,
-    hinweis: 'Das Hanseatische OLG Bremen folgt überwiegend der Düsseldorfer Tabelle. Aktuelle Bremer Leitlinien prüfen.',
-    abweichend: false },
-  HH: { olg: 'OLG Hamburg', tabelle: 'Hamburger Leitlinien', sbE: 1450, sbN: 1200,
-    hinweis: 'Das Hanseatische OLG Hamburg (HamOLG) veröffentlicht eigene Hamburger Leitlinien. Die Bedarfssätze entsprechen der Düsseldorfer Tabelle; der Selbstbehalt folgt den Düsseldorfer Werten. Aktuelle Hamburger Leitlinien prüfen.',
-    abweichend: false },
-  HE: { olg: 'OLG Frankfurt am Main', tabelle: 'Frankfurter Leitlinien', sbE: 1600, sbN: 1400,
-    hinweis: 'Das OLG Frankfurt am Main (zuständig für Hessen und Thüringen) wendet die Frankfurter Leitlinien an. Der Selbstbehalt ist mit 1.600 € (erwerbstätig) / 1.400 € (nicht erwerbstätig) deutlich höher als in der Düsseldorfer Tabelle. Dies kann den Unterhaltsbetrag erheblich beeinflussen.',
-    abweichend: true },
-  MV: { olg: 'OLG Rostock', tabelle: 'Rostocker Tabelle', sbE: 1450, sbN: 1200,
-    hinweis: 'Das OLG Rostock veröffentlicht eigene Unterhaltsrechtliche Leitlinien, bekannt als „Rostocker Tabelle". Die Bedarfssätze entsprechen der Düsseldorfer Tabelle. Der Selbstbehalt entspricht den Düsseldorfer Werten. Besonderheit: Die Rostocker Leitlinien enthalten teils detailliertere Regelungen zur Einkommensbereinigung (z. B. Fahrtkosten). Aktuelle Fassung der Rostocker Tabelle prüfen.',
-    abweichend: false },
-  NI_C: { olg: 'OLG Celle', tabelle: 'Celler Leitlinien', sbE: 1450, sbN: 1200,
-    hinweis: 'Das OLG Celle folgt der Düsseldorfer Tabelle. Die Celler Leitlinien können in Einzelheiten abweichen.',
-    abweichend: false },
-  NI_O: { olg: 'OLG Oldenburg', tabelle: 'Oldenburger Leitlinien', sbE: 1450, sbN: 1200,
-    hinweis: 'Das OLG Oldenburg folgt der Düsseldorfer Tabelle. Aktuelle Oldenburger Leitlinien prüfen.',
-    abweichend: false },
-  RP_K: { olg: 'OLG Koblenz', tabelle: 'Koblenzer Leitlinien', sbE: 1450, sbN: 1200,
-    hinweis: 'Das OLG Koblenz folgt der Düsseldorfer Tabelle. Aktuelle Koblenzer Leitlinien prüfen.',
-    abweichend: false },
-  RP_Z: { olg: 'OLG Zweibrücken', tabelle: 'Zweibrücker Leitlinien', sbE: 1450, sbN: 1200,
-    hinweis: 'Das OLG Zweibrücken folgt der Düsseldorfer Tabelle. Aktuelle Leitlinien prüfen.',
-    abweichend: false },
-  SL: { olg: 'OLG Saarbrücken', tabelle: 'Saarbrücker Leitlinien', sbE: 1450, sbN: 1200,
-    hinweis: 'Das OLG Saarbrücken folgt der Düsseldorfer Tabelle. Aktuelle Saarbrücker Leitlinien prüfen.',
-    abweichend: false },
-  SN: { olg: 'OLG Dresden', tabelle: 'Dresdner Leitlinien', sbE: 1450, sbN: 1200,
-    hinweis: 'Das OLG Dresden folgt der Düsseldorfer Tabelle. Aktuelle Dresdner Leitlinien prüfen.',
-    abweichend: false },
-  ST: { olg: 'OLG Naumburg', tabelle: 'Naumburger Leitlinien', sbE: 1450, sbN: 1200,
-    hinweis: 'Das OLG Naumburg folgt der Düsseldorfer Tabelle. Aktuelle Naumburger Leitlinien prüfen.',
-    abweichend: false },
-  SH: { olg: 'OLG Schleswig', tabelle: 'Schleswiger Leitlinien', sbE: 1450, sbN: 1200,
-    hinweis: 'Das OLG Schleswig folgt der Düsseldorfer Tabelle. Aktuelle Schleswiger Leitlinien prüfen.',
-    abweichend: false },
-  TH: { olg: 'OLG Jena', tabelle: 'Jenaer Leitlinien', sbE: 1450, sbN: 1200,
-    hinweis: 'Das OLG Jena folgt der Düsseldorfer Tabelle. Aktuelle Jenaer Leitlinien prüfen.',
-    abweichend: false },
-  BW_S: { olg: 'OLG Stuttgart', tabelle: 'Süddeutsche Leitlinien', sbE: 1450, sbN: 1200,
-    hinweis: 'OLG Stuttgart und OLG Karlsruhe veröffentlichen gemeinsam die Süddeutschen Leitlinien zum Unterhaltsrecht. Die Bedarfssätze entsprechen der Düsseldorfer Tabelle. Aktuelle Fassung der Süddeutschen Leitlinien prüfen.',
-    abweichend: false },
-  BW_K: { olg: 'OLG Karlsruhe', tabelle: 'Süddeutsche Leitlinien', sbE: 1450, sbN: 1200,
-    hinweis: 'OLG Stuttgart und OLG Karlsruhe veröffentlichen gemeinsam die Süddeutschen Leitlinien zum Unterhaltsrecht. Die Bedarfssätze entsprechen der Düsseldorfer Tabelle. Aktuelle Fassung der Süddeutschen Leitlinien prüfen.',
-    abweichend: false },
+  NW:   { olg: 'OLG Düsseldorf, Hamm und Köln', ll: 'Leitlinien NRW' },
+  BW:   { olg: 'OLG Stuttgart und Karlsruhe', ll: 'Süddeutsche Leitlinien' },
+  BY:   { olg: 'OLG München, Nürnberg und Bamberg', ll: 'Süddeutsche Leitlinien' },
+  BE:   { olg: 'Kammergericht Berlin', ll: 'Leitlinien des Kammergerichts' },
+  BB:   { olg: 'OLG Brandenburg', ll: 'Brandenburger Leitlinien' },
+  HB:   { olg: 'Hanseatisches OLG Bremen', ll: 'Bremer Leitlinien' },
+  HH:   { olg: 'Hanseatisches OLG Hamburg', ll: 'Hamburger Leitlinien' },
+  HE:   { olg: 'OLG Frankfurt am Main', ll: 'Frankfurter Unterhaltsgrundsätze' },
+  MV:   { olg: 'OLG Rostock', ll: 'Rostocker Leitlinien' },
+  NI:   { olg: 'OLG Braunschweig, Celle und Oldenburg', ll: 'Leitlinien Niedersachsen' },
+  RP_K: { olg: 'OLG Koblenz', ll: 'Koblenzer Leitlinien' },
+  RP_Z: { olg: 'Pfälzisches OLG Zweibrücken', ll: 'Süddeutsche Leitlinien' },
+  SL:   { olg: 'OLG Saarbrücken', ll: 'Saarbrücker Leitlinien' },
+  SN:   { olg: 'OLG Dresden', ll: 'Dresdner Leitlinien' },
+  ST:   { olg: 'OLG Naumburg', ll: 'Naumburger Leitlinien' },
+  SH:   { olg: 'OLG Schleswig', ll: 'Schleswiger Leitlinien' },
+  TH:   { olg: 'Thüringer OLG Jena', ll: 'Jenaer Leitlinien' },
 };
 
-function stufe(alter) { return alter <= 5 ? 0 : alter <= 11 ? 1 : alter <= 17 ? 2 : 3; }
+const $ = id => document.getElementById(id);
 
 function fmt(n) {
   return n.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
 }
+function fmtGlatt(n) {
+  return n.toLocaleString('de-DE', { maximumFractionDigits: 0 }) + ' €';
+}
 
 function berechne() {
-  const blKey = document.getElementById('bundesland').value;
-  const olg = OLG[blKey];
-  const alter = parseInt(document.getElementById('alter').value) || 0;
-  const einkommenRoh = parseFloat(document.getElementById('einkommen').value) || 0;
-  const kinderAnzahl = parseInt(document.getElementById('kinderanzahl').value) || 1;
-  const erwerbstaetig = document.getElementById('erwerbstaetig').value === '1';
-  const residenz = document.getElementById('betreuung').value === '1';
-  const s = stufe(alter);
-  const volljährig = alter >= 18;
+  const olg = OLG[$('bundesland').value];
+  const alterKind = parseInt($('alter').value) || 0;
+  const nettoEinkommen = parseFloat($('einkommen').value) || 0;
+  const anzahlBerechtigte = parseInt($('kinderanzahl').value) || 2;
+  const erwerbstaetig = $('erwerbstaetig').value === '1';
+  const eigenerHausstand = $('wohnsituation').value === 'eigen';
+  const schulausbildung = $('schulausbildung').value === '1';
 
-  // OLG-Badge aktualisieren
-  const badge = document.getElementById('olg-badge');
-  badge.textContent = `📋 ${olg.olg} · ${olg.tabelle}`;
-  badge.className = 'olg-badge' + (olg.abweichend ? ' abweichend' : '');
+  // Die Privilegierung nach § 1603 Abs. 2 S. 2 BGB kommt nur zwischen 18 und
+  // 20 Jahren im Elternhaushalt in Betracht – sonst ist die Frage gegenstandslos.
+  const schuleRelevant = alterKind >= 18 && alterKind < 21 && !eigenerHausstand;
+  $('gruppe-schule').style.display = schuleRelevant ? '' : 'none';
 
-  // Bereinigtes Einkommen: 200 € Abzug pro weiterem Kind
-  const einkommenBereinigt = Math.max(0, einkommenRoh - (kinderAnzahl - 1) * 200);
+  const r = berechneKindesunterhalt({
+    nettoEinkommen, alterKind, anzahlBerechtigte,
+    erwerbstaetig, eigenerHausstand,
+    schulausbildung: schulausbildung && schuleRelevant,
+  });
 
-  // Tabelle: Einkommensgruppe finden
-  let gruppeIdx = TABELLE.length - 1;
-  for (let i = 0; i < TABELLE.length; i++) {
-    if (einkommenBereinigt <= TABELLE[i][0]) { gruppeIdx = i; break; }
-  }
-  const tabellenBetrag = TABELLE[gruppeIdx][1][s];
-  const gruppeNr = gruppeIdx + 1;
+  $('olg-badge').textContent = `📋 ${olg.olg} · ${olg.ll}`;
+  $('ergebnis').textContent = fmt(r.zahlbetrag);
+  $('result-box').style.background = r.mangelfall ? '#c8102e' : '';
 
-  // Kindergeld-Anrechnung § 1612b BGB
-  let kindergeldAnrechnung, kindergeldArt;
-  if (residenz && !volljährig) {
-    kindergeldAnrechnung = KINDERGELD / 2;
-    kindergeldArt = '½ Kindergeld (minderjährig, § 1612b BGB)';
-  } else {
-    kindergeldAnrechnung = KINDERGELD;
-    kindergeldArt = 'Volles Kindergeld (volljährig / eigener Haushalt, § 1612b BGB)';
-  }
-  const barunterhalt = Math.max(0, tabellenBetrag - kindergeldAnrechnung);
-
-  // OLG-spezifischer Selbstbehalt § 1603 BGB
-  const selbstbehalt = erwerbstaetig ? olg.sbE : olg.sbN;
-  const verfügbar = einkommenBereinigt - selbstbehalt;
-  const mangelfall = verfügbar < barunterhalt;
-  const zahlung = mangelfall ? Math.max(0, verfügbar) : barunterhalt;
-
-  // Ergebnis
-  document.getElementById('ergebnis').textContent = fmt(zahlung);
-  document.getElementById('result-box').style.background = mangelfall ? '#c8102e' : '';
-
-  // Rechenweg
   let html = '';
 
-  html += '<p class="rw-heading">Schritt 1 – Einkommensbereinigung</p>';
+  html += '<p class="rw-heading">Schritt 1 – Bedarf nach der Düsseldorfer Tabelle 2026</p>';
   html += '<table class="rechenweg-table"><tbody>';
-  html += `<tr><td>Nettoeinkommen (eingegeben)</td><td>${fmt(einkommenRoh)}</td></tr>`;
-  if (kinderAnzahl > 1) {
-    html += `<tr><td>Abzug weitere Kinder (${kinderAnzahl - 1} × 200 €)</td><td>− ${fmt((kinderAnzahl - 1) * 200)}</td></tr>`;
+  html += `<tr><td>Bereinigtes Nettoeinkommen</td><td>${fmt(nettoEinkommen)}</td></tr>`;
+  html += `<tr><td>Altersstufe des Kindes</td><td>${r.altersstufe}. Stufe (${r.altersstufeLabel})</td></tr>`;
+
+  if (r.einkommensgruppe === null) {
+    html += `<tr><td>Volljährig mit eigenem Haushalt</td><td>Festbedarf statt Tabelle</td></tr>`;
+    html += `<tr class="note-row"><td colspan="2">Für volljährige Kinder außerhalb des Elternhaushalts gilt ein einheitlicher Bedarf von 990 €, darin 440 € Warmmiete und bis zu 100 € berufsbedingte Aufwendungen.</td></tr>`;
+  } else {
+    if (r.einkommensgruppeVorRueckstufung !== r.einkommensgruppe || anzahlBerechtigte !== 2) {
+      html += `<tr><td>Einstufung bei ${anzahlBerechtigte} Berechtigten (Tabelle unterstellt 2)</td><td>Gruppe ${r.einkommensgruppeVorRueckstufung}</td></tr>`;
+    }
+    html += `<tr><td>Einkommensgruppe</td><td>${r.einkommensgruppe} (bis ${fmtGlatt(DT_2026[r.einkommensgruppe - 1].bis)})</td></tr>`;
   }
-  html += `<tr class="sum-row"><td>Bereinigtes Einkommen</td><td>${fmt(einkommenBereinigt)}</td></tr>`;
+  html += `<tr class="sum-row"><td>Tabellenbetrag (Bedarf)</td><td>${fmt(r.bedarf)}</td></tr>`;
+  if (r.ueberTabelle) {
+    html += `<tr class="note-row"><td colspan="2">Das Einkommen liegt über der höchsten Einkommensgruppe (11.200 €). Oberhalb der Tabelle bemisst sich der Unterhalt nach den Umständen des Einzelfalls; hier wird der Satz der Gruppe 15 ausgewiesen.</td></tr>`;
+  }
   html += '</tbody></table>';
 
-  html += `<p class="rw-heading">Schritt 2 – ${olg.tabelle} 2026</p>`;
+  if (r.einkommensgruppe !== null) {
+    html += '<p class="rw-heading">Schritt 2 – Bedarfskontrollbetrag</p>';
+    html += '<table class="rechenweg-table"><tbody>';
+    html += `<tr><td>Bedarfskontrollbetrag der Gruppe ${r.einkommensgruppe}</td><td>${fmt(r.bedarfskontrollbetrag)}</td></tr>`;
+    html += `<tr><td>Verbleibt nach Abzug aller Zahlbeträge</td><td>${fmt(Math.max(0, nettoEinkommen - r.zahlbetrag * r.anzahlBerechtigte))}</td></tr>`;
+    if (r.rueckstufung) {
+      html += `<tr class="note-row"><td colspan="2">In Gruppe ${r.einkommensgruppeVorRueckstufung} wäre der Bedarfskontrollbetrag nicht gewahrt gewesen. Deshalb erfolgte die Rückstufung auf Gruppe ${r.einkommensgruppe}.</td></tr>`;
+    } else {
+      html += `<tr class="note-row"><td colspan="2">Der Bedarfskontrollbetrag ist gewahrt – eine Rückstufung ist nicht erforderlich.</td></tr>`;
+    }
+    html += '</tbody></table>';
+  }
+
+  html += '<p class="rw-heading">Schritt 3 – Kindergeldanrechnung (§ 1612b BGB)</p>';
   html += '<table class="rechenweg-table"><tbody>';
-  html += `<tr><td>Altersgruppe des Kindes</td><td>${STUFEN_LABEL[s]}</td></tr>`;
-  html += `<tr><td>Einkommensgruppe</td><td>${gruppeNr} (bis ${TABELLE[gruppeIdx][0] === Infinity ? '∞' : fmt(TABELLE[gruppeIdx][0]).replace(',00 €', ' €')})</td></tr>`;
-  html += `<tr class="sum-row"><td>Tabellenbetrag (Bedarf)</td><td>${fmt(tabellenBetrag)}</td></tr>`;
+  html += `<tr><td>Tabellenbetrag</td><td>${fmt(r.bedarf)}</td></tr>`;
+  const kgArt = r.volljaehrig
+    ? `Volles Kindergeld (volljährig, ${fmtGlatt(KINDERGELD)})`
+    : `Halbes Kindergeld (minderjährig, ${fmtGlatt(KINDERGELD)})`;
+  html += `<tr><td>${kgArt}</td><td>− ${fmt(r.kindergeldAnrechnung)}</td></tr>`;
+  html += `<tr class="sum-row"><td>Zahlbetrag vor Selbstbehaltsprüfung</td><td>${fmt(r.bedarf - r.kindergeldAnrechnung)}</td></tr>`;
   html += '</tbody></table>';
 
-  html += '<p class="rw-heading">Schritt 3 – Kindergeld-Anrechnung (§ 1612b BGB)</p>';
+  html += '<p class="rw-heading">Schritt 4 – Selbstbehalt (§ 1603 BGB)</p>';
   html += '<table class="rechenweg-table"><tbody>';
-  html += `<tr><td>Tabellenbetrag</td><td>${fmt(tabellenBetrag)}</td></tr>`;
-  html += `<tr><td>${kindergeldArt}</td><td>− ${fmt(kindergeldAnrechnung)}</td></tr>`;
-  html += `<tr class="sum-row"><td>Barunterhalt nach Kindergeld</td><td>${fmt(barunterhalt)}</td></tr>`;
-  html += '</tbody></table>';
-
-  html += '<p class="rw-heading">Schritt 4 – Selbstbehalt-Prüfung (§ 1603 BGB)</p>';
-  html += '<table class="rechenweg-table"><tbody>';
-  html += `<tr><td>Bereinigtes Einkommen</td><td>${fmt(einkommenBereinigt)}</td></tr>`;
-  html += `<tr><td>Selbstbehalt ${olg.olg} (${erwerbstaetig ? 'erwerbstätig' : 'nicht erwerbstätig'})</td><td>− ${fmt(selbstbehalt)}</td></tr>`;
-  html += `<tr class="sum-row${verfügbar < 0 ? ' warn-row' : ''}"><td>Verbleibend nach Selbstbehalt</td><td>${fmt(Math.max(0, verfügbar))}</td></tr>`;
-  if (mangelfall) {
-    html += `<tr class="warn-row"><td colspan="2"><strong>Mangelfall:</strong> Verfügbares Einkommen (${fmt(Math.max(0, verfügbar))}) reicht nicht für den vollen Barunterhalt (${fmt(barunterhalt)}). Im Mangelfall müssen alle zumutbaren Maßnahmen ergriffen werden, um die Leistungsfähigkeit zu steigern (§ 1603 Abs. 2 BGB).</td></tr>`;
+  const sbArt = r.volljaehrig && !r.privilegiert
+    ? 'Angemessener Selbstbehalt (volljähriges Kind)'
+    : `Notwendiger Selbstbehalt (${erwerbstaetig ? 'erwerbstätig' : 'nicht erwerbstätig'})`;
+  html += `<tr><td>Bereinigtes Nettoeinkommen</td><td>${fmt(nettoEinkommen)}</td></tr>`;
+  html += `<tr><td>${sbArt}</td><td>− ${fmt(r.selbstbehalt)}</td></tr>`;
+  html += `<tr class="sum-row"><td>Verteilbar auf ${r.anzahlBerechtigte} Berechtigte</td><td>${fmt(r.verteilbar)}</td></tr>`;
+  if (r.privilegiert) {
+    html += `<tr class="note-row"><td colspan="2">Das Kind ist nach § 1603 Abs. 2 Satz 2 BGB privilegiert (unter 21, im Elternhaushalt, in allgemeiner Schulausbildung) und minderjährigen Kindern gleichgestellt.</td></tr>`;
+  }
+  if (r.mangelfall) {
+    html += `<tr class="warn-row"><td colspan="2"><strong>Mangelfall:</strong> Das verteilbare Einkommen reicht nicht für den vollen Zahlbetrag. Gegenüber minderjährigen Kindern trifft den Pflichtigen dann eine gesteigerte Erwerbsobliegenheit (§ 1603 Abs. 2 BGB).</td></tr>`;
   }
   html += '</tbody></table>';
 
   html += '<p class="rw-heading">Ergebnis</p>';
   html += '<table class="rechenweg-table"><tbody>';
-  html += `<tr class="sum-row${mangelfall ? ' warn-row' : ''}"><td>${mangelfall ? 'Leistbarer Unterhalt (Mangelfall)' : 'Zu zahlender Barunterhalt'}</td><td>${fmt(zahlung)}</td></tr>`;
+  html += `<tr class="sum-row${r.mangelfall ? ' warn-row' : ''}"><td>${r.mangelfall ? 'Leistbarer Zahlbetrag (Mangelfall)' : 'Monatlicher Zahlbetrag'}</td><td>${fmt(r.zahlbetrag)}</td></tr>`;
   html += '</tbody></table>';
 
-  document.getElementById('rechenweg').innerHTML = html;
+  $('rechenweg').innerHTML = html;
 
-  // OLG-Hinweis
-  const hinweisEl = document.getElementById('olg-hinweis');
+  const hinweisEl = $('olg-hinweis');
   hinweisEl.style.display = 'block';
-  hinweisEl.innerHTML = `<strong>${olg.olg} – ${olg.tabelle}</strong><br>${olg.hinweis}${olg.abweichend ? '<br><em style="color:#c8102e">⚠ Dieser OLG-Bezirk weicht in den Selbstbehalten von der Düsseldorfer Tabelle ab.</em>' : ''}`;
+  hinweisEl.innerHTML = `<strong>${olg.olg} – ${olg.ll}</strong><br>`
+    + `Bedarfssätze und Selbstbehalte stimmen 2026 in allen unterhaltsrechtlichen Leitlinien mit der Düsseldorfer Tabelle überein. `
+    + `Die Leitlinien unterscheiden sich in Einzelheiten der Einkommensbereinigung – etwa bei Fahrtkosten, Wohnvorteil oder der Behandlung von Überstunden. `
+    + `Für den konkreten Fall gilt die jeweils aktuelle Fassung der ${olg.ll}.`;
 }
 
-['bundesland','alter','einkommen','kinderanzahl','erwerbstaetig','betreuung'].forEach(id => {
-  const el = document.getElementById(id);
+['bundesland','alter','einkommen','kinderanzahl','erwerbstaetig','wohnsituation','schulausbildung'].forEach(id => {
+  const el = $(id);
   el.addEventListener('input', berechne);
   el.addEventListener('change', berechne);
 });
