@@ -1,0 +1,532 @@
+---
+import ArticleLayout from '../../layouts/ArticleLayout.astro';
+import {
+  BEITRAGSSAETZE,
+  BBG_KV_PV_MONAT,
+  PFLEGE_ARBEITGEBERANTEIL,
+  PFLEGE_ARBEITGEBERANTEIL_SACHSEN,
+  pflegeGesamtsatz,
+  pflegeArbeitnehmerSatz,
+  SV_STAND,
+} from '../../../public/scripts/sozialversicherung.js';
+import {
+  PFLEGEGELD,
+  PFLEGESACHLEISTUNG,
+  VOLLSTATIONAER,
+  VOLLSTATIONAER_ZUSCHUSS_GRAD1,
+  ENTLASTUNGSBETRAG,
+  LEISTUNGSZUSCHLAG_STUFEN,
+  HEIMKOSTEN,
+  EIGENANTEIL_STAND,
+  PFLEGELEISTUNGEN_STAND,
+  berechneHeimEigenanteil,
+} from '../../../public/scripts/pflegeleistungen.js';
+import { BUNDESLAENDER, bundeslandName } from '../../../public/scripts/bundeslaender.js';
+
+const base = import.meta.env.BASE_URL;
+
+// Alle Zahlen zur Buildzeit aus denselben Modulen, die auch die Rechner laden.
+// Referenzeinkommen bewusst rund gewählt; die Aussagen hängen nicht daran,
+// weil der Beitrag streng proportional zum Entgelt ist.
+const REFERENZ_BRUTTO = 3_000;
+const REFERENZ_LAND = 'NW';
+const GRADE = [2, 3, 4, 5] as const;
+
+const beitragsstufen = [0, 1, 2, 3, 4, 5].map((kinder) => {
+  const gesamt = pflegeGesamtsatz({ kinder });
+  const arbeitnehmer = pflegeArbeitnehmerSatz({ kinder, bundesland: REFERENZ_LAND });
+  return {
+    kinder,
+    gesamt,
+    arbeitnehmer,
+    betrag: REFERENZ_BRUTTO * arbeitnehmer,
+    sachsen: REFERENZ_BRUTTO * pflegeArbeitnehmerSatz({ kinder, bundesland: 'SN' }),
+  };
+});
+const kinderlos = beitragsstufen[0];
+const fuenfKinder = beitragsstufen[5];
+const beitragsspanneMonat = kinderlos.betrag - fuenfKinder.betrag;
+const beitragsspanneJahr = beitragsspanneMonat * 12;
+const hoechstbeitrag = BBG_KV_PV_MONAT * kinderlos.arbeitnehmer;
+const sachsenAufschlagJahr =
+  REFERENZ_BRUTTO * 12 * (PFLEGE_ARBEITGEBERANTEIL - PFLEGE_ARBEITGEBERANTEIL_SACHSEN);
+
+// Der Eigenanteil im Heim, gestaffelt nach der Verweildauer. Ein Monat je
+// Stufe genügt, weil § 43c innerhalb einer Stufe nichts verändert.
+const STUFEN_MONATE = [6, 18, 30, 48];
+const heimstufen = STUFEN_MONATE.map((monate) => ({
+  monate,
+  ...berechneHeimEigenanteil({ monateImHeim: monate }),
+}));
+const ersteStufe = heimstufen[0];
+const letzteStufe = heimstufen[heimstufen.length - 1];
+const absenkungMonat = ersteStufe.eigenanteil - letzteStufe.eigenanteil;
+
+// Verhältnis von Beitrag und Eigenanteil – die Kernzahl des Artikels.
+const vielfaches = ersteStufe.eigenanteil / kinderlos.betrag;
+
+// Die Länder im ersten und im vierten Jahr. Sortiert nach der Belastung im
+// vierten Jahr, weil sich dort zeigt, wie ungleich der Zuschlag wirkt.
+const laenderReihe = Object.keys(BUNDESLAENDER)
+  .map((land) => {
+    const erstes = berechneHeimEigenanteil({ land, monateImHeim: 6 });
+    const viertes = berechneHeimEigenanteil({ land, monateImHeim: 48 });
+    return {
+      land,
+      name: bundeslandName(land),
+      eee: erstes.eee,
+      fix: erstes.unterkunftVerpflegung + erstes.investition,
+      erstes: erstes.eigenanteil,
+      viertes: viertes.eigenanteil,
+      fixQuoteViertes: (erstes.unterkunftVerpflegung + erstes.investition) / viertes.eigenanteil,
+    };
+  })
+  .sort((a, b) => b.viertes - a.viertes);
+
+const teuerstesViertes = laenderReihe[0];
+const guenstigstesViertes = laenderReihe[laenderReihe.length - 1];
+const spreizungViertes = teuerstesViertes.viertes - guenstigstesViertes.viertes;
+
+// Das Land mit dem niedrigsten EEE – der Beleg dafür, dass ein kleiner
+// Pflegeanteil nicht vor einem hohen Eigenanteil schützt.
+const niedrigsterEee = [...laenderReihe].sort((a, b) => a.eee - b.eee)[0];
+const niedrigsterEeeRangViertes = laenderReihe.findIndex((l) => l.land === niedrigsterEee.land) + 1;
+const fixQuoteMin = Math.min(...laenderReihe.map((l) => l.fixQuoteViertes));
+const fixQuoteMax = Math.max(...laenderReihe.map((l) => l.fixQuoteViertes));
+
+const groessteLuecke = GRADE.map((g) => PFLEGESACHLEISTUNG[g] - PFLEGEGELD[g]);
+const maxSachDifferenz = Math.max(...groessteLuecke);
+const maxSachGrad = GRADE[groessteLuecke.indexOf(maxSachDifferenz)];
+
+const eur = (b: number) =>
+  b.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
+const eurGlatt = (b: number) => b.toLocaleString('de-DE', { maximumFractionDigits: 0 }) + ' €';
+const prozent = (b: number, stellen = 1) =>
+  (b * 100).toLocaleString('de-DE', { minimumFractionDigits: stellen, maximumFractionDigits: stellen }) + ' %';
+const zahl = (b: number, stellen = 0) =>
+  b.toLocaleString('de-DE', { minimumFractionDigits: stellen, maximumFractionDigits: stellen });
+const eigenanteilStandJahr = EIGENANTEIL_STAND.slice(0, 4);
+const datumLang = (iso: string) =>
+  new Date(iso).toLocaleDateString('de-DE', { day: 'numeric', month: 'long', year: 'numeric' });
+---
+<ArticleLayout
+  title="Pflegeversicherung: Der Beitrag ist die kleine Zahl"
+  description={`Ein Kinderloser mit ${eurGlatt(REFERENZ_BRUTTO)} Monatsbrutto zahlt ${eurGlatt(kinderlos.betrag)} im Monat. Im Pflegeheim bleiben ihm ${eurGlatt(ersteStufe.eigenanteil)} monatlich selbst – das ${zahl(vielfaches)}-Fache. Beitrag, Leistung und Eigenanteil durchgerechnet.`}
+  canonicalPath="/ratgeber/pflegeversicherung-beitrag-und-luecke/"
+  datum="2026-08-15"
+  lead={`Die Pflegeversicherung wird als Beitragslast wahrgenommen: ${prozent(BEITRAGSSAETZE.pflegeversicherung)} vom Brutto, für Kinderlose mehr. Bei ${eurGlatt(REFERENZ_BRUTTO)} Monatsbrutto entfallen davon ${eurGlatt(kinderlos.betrag)} auf den Beschäftigten. Wer später ins Heim zieht, zahlt im ersten Jahr ${eurGlatt(ersteStufe.eigenanteil)} monatlich aus eigener Tasche. Das ist keine Lücke im System – es ist das System.`}
+  quellen={[
+    { titel: '§ 55 SGB XI – Beitragssatz, Zuschlag für Kinderlose, Abschläge', url: 'https://www.gesetze-im-internet.de/sgb_11/__55.html' },
+    { titel: '§ 1 PBAV 2025 – Festsetzung des Beitragssatzes auf 3,6 Prozent', url: 'https://www.gesetze-im-internet.de/pbav_2025/__1.html' },
+    { titel: '§ 58 SGB XI – Tragung der Beiträge, Sonderregel ohne Feiertagsstreichung', url: 'https://www.gesetze-im-internet.de/sgb_11/__58.html' },
+    { titel: '§ 36 SGB XI – Pflegesachleistung', url: 'https://www.gesetze-im-internet.de/sgb_11/__36.html' },
+    { titel: '§ 37 SGB XI – Pflegegeld für selbst beschaffte Pflegehilfen', url: 'https://www.gesetze-im-internet.de/sgb_11/__37.html' },
+    { titel: '§ 43 SGB XI – Vollstationäre Pflege', url: 'https://www.gesetze-im-internet.de/sgb_11/__43.html' },
+    { titel: '§ 43c SGB XI – Begrenzung des Eigenanteils nach Verweildauer', url: 'https://www.gesetze-im-internet.de/sgb_11/__43c.html' },
+    { titel: '§ 45b SGB XI – Entlastungsbetrag', url: 'https://www.gesetze-im-internet.de/sgb_11/__45b.html' },
+    { titel: `vdek: Finanzielle Belastung im Pflegeheim, Bund und Bundesländer, Stand 1. Juli ${eigenanteilStandJahr}`, url: 'https://www.vdek.com/presse/daten/f_pflegeversicherung.html' },
+  ]}
+>
+  <h2>Was der Beitrag kostet</h2>
+
+  <p>
+    Der Beitragssatz steht in § 55 Abs. 1 Satz 1 SGB XI, und dort steht immer
+    noch 3,4 Prozent. Maßgeblich ist er trotzdem nicht: Absatz 1a erlaubt der
+    Bundesregierung, den Satz per Rechtsverordnung anzuheben, und § 1 der
+    Pflege-Beitragssatz-Anpassungsverordnung 2025 hat ihn zum 1. Januar 2025 auf
+    {' '}{prozent(BEITRAGSSAETZE.pflegeversicherung)} festgesetzt. Wer die Zahl im
+    Gesetzestext nachschlägt, findet also die falsche.
+  </p>
+
+  <p>
+    Von diesem Satz aus geht es in zwei Richtungen. Kinderlose ab 23 Jahren
+    zahlen {zahl(BEITRAGSSAETZE.pflegeZuschlagKinderlose * 100, 1)}
+    {' '}Prozentpunkte mehr, und ab dem zweiten Kind sinkt der Satz um je
+    {' '}{zahl(BEITRAGSSAETZE.pflegeAbschlagJeKind * 100, 2)} Prozentpunkte, bis
+    zum fünften. Entscheidend ist, wer diese Bewegung trägt: nach § 58 Abs. 1
+    Satz 3 SGB XI der Beschäftigte allein. Der Arbeitgeberanteil liegt in jedem
+    Fall bei {prozent(PFLEGE_ARBEITGEBERANTEIL)} – ob jemand fünf Kinder hat oder
+    keines, ändert für ihn nichts.
+  </p>
+
+  <div class="table-wrap">
+    <table>
+      <caption class="visually-hidden">Beitragssatz und Arbeitnehmeranteil nach Kinderzahl</caption>
+      <thead>
+        <tr>
+          <th scope="col">Kinder unter 25</th>
+          <th scope="col" class="num">Beitragssatz</th>
+          <th scope="col" class="num">Ihr Anteil</th>
+          <th scope="col" class="num">bei {eurGlatt(REFERENZ_BRUTTO)} brutto</th>
+          <th scope="col" class="num">in Sachsen</th>
+        </tr>
+      </thead>
+      <tbody>
+        {beitragsstufen.map((s) => (
+          <tr>
+            <th scope="row">{s.kinder === 0 ? 'keine' : s.kinder === 5 ? '5 oder mehr' : s.kinder}</th>
+            <td class="num">{prozent(s.gesamt, 2)}</td>
+            <td class="num">{prozent(s.arbeitnehmer, 2)}</td>
+            <td class="num strong">{eur(s.betrag)}</td>
+            <td class="num">{eur(s.sachsen)}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  </div>
+
+  <p class="tabellenhinweis">
+    Arbeitnehmeranteil ohne Krankenversicherung. Rechenstand {datumLang(SV_STAND)}.
+  </p>
+
+  <p>
+    Zwischen kinderlos und fünf Kindern liegen {eur(beitragsspanneMonat)} im
+    Monat, also {eurGlatt(beitragsspanneJahr)} im Jahr. Das ist die größte
+    Stellschraube im ganzen Beitragsrecht der Pflegeversicherung – und die
+    einzige, die niemand kurzfristig betätigt.
+  </p>
+
+  <h2>Warum Sachsen anders rechnet</h2>
+
+  <p>
+    Als die Pflegeversicherung 1995 eingeführt wurde, sollten die Länder zum
+    Ausgleich der Arbeitgeberbelastung je einen Feiertag streichen; § 58 Abs. 2
+    SGB XI sagt das ausdrücklich. Sachsen behielt den Buß- und Bettag. Die Folge
+    steht in Absatz 3: Wo kein Feiertag gestrichen wurde, tragen die
+    Beschäftigten einen Prozentpunkt allein. Der Arbeitgeberanteil beträgt dort
+    {' '}{prozent(PFLEGE_ARBEITGEBERANTEIL_SACHSEN)} statt
+    {' '}{prozent(PFLEGE_ARBEITGEBERANTEIL)}.
+  </p>
+
+  <p>
+    Bei {eurGlatt(REFERENZ_BRUTTO)} Brutto sind das
+    {' '}{eur(REFERENZ_BRUTTO * (PFLEGE_ARBEITGEBERANTEIL - PFLEGE_ARBEITGEBERANTEIL_SACHSEN))}
+    {' '}mehr im Monat, {eurGlatt(sachsenAufschlagJahr)} im Jahr. Die Regel knüpft
+    an den Beschäftigungsort an, nicht an den Wohnort – wer in Sachsen arbeitet
+    und in Thüringen wohnt, zahlt den Aufschlag.
+  </p>
+
+  <h2>Die Grenze nach oben</h2>
+
+  <p>
+    Beitragspflichtig ist das Entgelt nur bis zur Beitragsbemessungsgrenze von
+    {' '}{eurGlatt(BBG_KV_PV_MONAT)} im Monat. Der höchstmögliche
+    Arbeitnehmerbeitrag eines Kinderlosen liegt damit bei
+    {' '}{eur(hoechstbeitrag)} monatlich. Nach oben ist die Belastung also gedeckelt –
+    nach unten proportional. Was jemand über der Grenze verdient, bleibt
+    beitragsfrei.
+  </p>
+
+  <p>
+    Für die Leistung spielt beides keine Rolle. Sie hängt allein vom Pflegegrad
+    ab. Wer sein Leben lang den Höchstbeitrag gezahlt hat, bekommt im Pflegefall
+    exakt denselben Betrag wie jemand mit halbem Einkommen.
+  </p>
+
+  <h2>Was die Kasse zahlt</h2>
+
+  <p>
+    Bei häuslicher Pflege gibt es zwei Wege, und sie sind unterschiedlich viel
+    wert. Wer die Pflege durch Angehörige selbst organisiert, erhält Pflegegeld
+    nach § 37 SGB XI. Wer einen Pflegedienst beauftragt, hat Anspruch auf
+    Sachleistungen nach § 36 SGB XI – und die liegen erheblich höher.
+  </p>
+
+  <div class="table-wrap">
+    <table>
+      <caption class="visually-hidden">Leistungen der Pflegeversicherung je Pflegegrad</caption>
+      <thead>
+        <tr>
+          <th scope="col">Pflegegrad</th>
+          <th scope="col" class="num">Pflegegeld</th>
+          <th scope="col" class="num">Sachleistung</th>
+          <th scope="col" class="num">Differenz</th>
+          <th scope="col" class="num">im Heim</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <th scope="row">1</th>
+          <td class="num">—</td>
+          <td class="num">—</td>
+          <td class="num">—</td>
+          <td class="num">{eurGlatt(VOLLSTATIONAER_ZUSCHUSS_GRAD1)}</td>
+        </tr>
+        {GRADE.map((g) => (
+          <tr>
+            <th scope="row">{g}</th>
+            <td class="num">{eurGlatt(PFLEGEGELD[g])}</td>
+            <td class="num">{eurGlatt(PFLEGESACHLEISTUNG[g])}</td>
+            <td class="num strong">{eurGlatt(PFLEGESACHLEISTUNG[g] - PFLEGEGELD[g])}</td>
+            <td class="num">{eurGlatt(VOLLSTATIONAER[g])}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  </div>
+
+  <p class="tabellenhinweis">
+    Monatliche Beträge, Rechtsstand {datumLang(PFLEGELEISTUNGEN_STAND)}. Pflegegrad 1
+    begründet weder Anspruch auf Pflegegeld noch auf Sachleistungen; im Heim
+    erhält er einen Zuschuss nach § 43 Abs. 3 SGB XI.
+  </p>
+
+  <p>
+    Bei Pflegegrad {maxSachGrad} unterscheiden sich beide Wege um
+    {' '}{eurGlatt(maxSachDifferenz)} im Monat. Das ist kein Zuschlag für
+    Professionalität, sondern die Logik der Sachleistung: Sie deckt Rechnungen
+    ab, das Pflegegeld ist eine Anerkennung für Angehörige. Wer beides mischt,
+    bekommt beides anteilig. Unabhängig davon gibt es in allen Pflegegraden den
+    Entlastungsbetrag von {eurGlatt(ENTLASTUNGSBETRAG)} monatlich nach § 45b
+    SGB XI – zweckgebunden und nur gegen Belege.
+  </p>
+
+  <h2>Der Eigenanteil im Heim</h2>
+
+  <p>
+    Im Heim übernimmt die Kasse nur die pflegebedingten Aufwendungen, und auch
+    die nur bis zum Pauschalbetrag. Alles andere zahlt der Bewohner: den
+    einrichtungseinheitlichen Eigenanteil, der über den Pauschalbetrag
+    hinausgeht, dazu Unterkunft, Verpflegung und die Investitionskosten des
+    Hauses. Nach den Erhebungen des vdek zum 1. Juli {eigenanteilStandJahr} sieht
+    das bundesweit so aus.
+  </p>
+
+  <div class="table-wrap">
+    <table>
+      <caption class="visually-hidden">Eigenanteil im Pflegeheim nach Verweildauer</caption>
+      <thead>
+        <tr>
+          <th scope="col">Im Heim seit</th>
+          <th scope="col" class="num">Zuschlag § 43c</th>
+          <th scope="col" class="num">Pflegeanteil</th>
+          <th scope="col" class="num">Unterkunft, Verpflegung</th>
+          <th scope="col" class="num">Investition</th>
+          <th scope="col" class="num">Eigenanteil</th>
+        </tr>
+      </thead>
+      <tbody>
+        {heimstufen.map((s) => (
+          <tr>
+            <th scope="row">{s.monate} Monaten</th>
+            <td class="num">{prozent(s.zuschlagSatz, 0)}</td>
+            <td class="num">{eurGlatt(s.eee - s.zuschlag)}</td>
+            <td class="num">{eurGlatt(s.unterkunftVerpflegung)}</td>
+            <td class="num">{eurGlatt(s.investition)}</td>
+            <td class="num strong">{eurGlatt(s.eigenanteil)}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  </div>
+
+  <p class="tabellenhinweis">
+    Bundesdurchschnitt, Stand {datumLang(EIGENANTEIL_STAND)}. Der Zuschlag nach § 43c SGB XI
+    bemisst sich am einrichtungseinheitlichen Eigenanteil einschließlich der
+    Ausbildungskosten; die veröffentlichten Zuschlagsbeträge des vdek entsprechen
+    für alle 16 Länder genau
+    {' '}{LEISTUNGSZUSCHLAG_STUFEN.map((s, i) => (
+      <>{i > 0 ? ', ' : ''}{prozent(s.satz, 0)}</>
+    ))} dieses Betrags.
+  </p>
+
+  <p>
+    Der Vergleich mit dem Beitrag ist ernüchternd. Der Kinderlose aus der ersten
+    Tabelle zahlt {eur(kinderlos.betrag)} im Monat; sein Eigenanteil im ersten
+    Heimjahr beträgt {eurGlatt(ersteStufe.eigenanteil)}. Das ist das
+    {' '}{zahl(vielfaches)}-Fache. Selbst der Höchstbeitrag von
+    {' '}{eur(hoechstbeitrag)} deckt nur
+    {' '}{prozent(hoechstbeitrag / ersteStufe.eigenanteil, 0)} eines Heimmonats.
+  </p>
+
+  <h2>Der gesetzliche Eigenanteil sinkt mit der Verweildauer</h2>
+
+  <p>
+    § 43c SGB XI staffelt einen Leistungszuschlag nach der Verweildauer:
+    {' '}{prozent(LEISTUNGSZUSCHLAG_STUFEN[0].satz, 0)} im ersten Jahr, danach
+    {' '}{prozent(LEISTUNGSZUSCHLAG_STUFEN[1].satz, 0)}, ab dem dritten
+    {' '}{prozent(LEISTUNGSZUSCHLAG_STUFEN[2].satz, 0)} und ab dem vierten
+    {' '}{prozent(LEISTUNGSZUSCHLAG_STUFEN[3].satz, 0)}. Der Eigenanteil sinkt
+    dadurch im Bundesdurchschnitt von {eurGlatt(ersteStufe.eigenanteil)} auf
+    {' '}{eurGlatt(letzteStufe.eigenanteil)} – {eurGlatt(absenkungMonat)} weniger
+    im Monat, {eurGlatt(absenkungMonat * 12)} im Jahr.
+  </p>
+
+  <p>
+    Das ist kontraintuitiv genug, um es zu betonen: Der gesetzliche Eigenanteil
+    wird mit der Zeit kleiner, nicht größer. Die Staffel knüpft an die Dauer des
+    Leistungsbezugs an, nicht an das Heim – ein Umzug in eine andere Einrichtung
+    setzt sie nicht zurück.
+  </p>
+
+  <p>
+    Ein Vorbehalt gehört dazu: Die Tabelle vergleicht vier Stufen zum selben
+    Stichtag. In der Realität steigen die Heimentgelte im Zeitverlauf, und die
+    Staffel wirkt dann als Bremse, nicht als Rückgang. Wer heute einzieht, sollte
+    mit einer sinkenden Quote rechnen, nicht mit einer sinkenden Rechnung.
+  </p>
+
+  <h2>Warum die Entlastung nicht dort greift, wo es teuer ist</h2>
+
+  <p>
+    Der Zuschlag mindert allein den Pflegeanteil. Unterkunft, Verpflegung und
+    Investitionskosten bleiben unverändert – und genau die unterscheiden sich
+    zwischen den Ländern erheblich. Im vierten Jahr stammen deshalb zwischen
+    {' '}{prozent(fixQuoteMin, 0)} und {prozent(fixQuoteMax, 0)} des Eigenanteils
+    aus Posten, die mit Pflege nichts zu tun haben.
+  </p>
+
+  <div class="table-wrap">
+    <table>
+      <caption class="visually-hidden">Eigenanteil im Pflegeheim nach Bundesland</caption>
+      <thead>
+        <tr>
+          <th scope="col">Bundesland</th>
+          <th scope="col" class="num">Pflegeanteil (EEE)</th>
+          <th scope="col" class="num">Unterkunft, Verpflegung, Investition</th>
+          <th scope="col" class="num">1. Jahr</th>
+          <th scope="col" class="num">ab 4. Jahr</th>
+        </tr>
+      </thead>
+      <tbody>
+        {laenderReihe.map((l) => (
+          <tr>
+            <th scope="row">{l.name}</th>
+            <td class="num">{eurGlatt(l.eee)}</td>
+            <td class="num">{eurGlatt(l.fix)}</td>
+            <td class="num">{eurGlatt(l.erstes)}</td>
+            <td class="num strong">{eurGlatt(l.viertes)}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  </div>
+
+  <p class="tabellenhinweis">
+    Landesdurchschnitte des vdek zum {datumLang(EIGENANTEIL_STAND)}, sortiert nach der
+    Belastung ab dem vierten Jahr. Innerhalb eines Landes weicht das einzelne
+    Heim davon ab.
+  </p>
+
+  <p>
+    {niedrigsterEee.name} ist der Beleg. Das Land hat mit
+    {' '}{eurGlatt(niedrigsterEee.eee)} den niedrigsten Pflegeanteil aller 16
+    Länder – und liegt bei der Belastung ab dem vierten Jahr trotzdem auf Platz
+    {' '}{niedrigsterEeeRangViertes}, weil Unterkunft, Verpflegung und
+    Investitionskosten dort zusammen {eurGlatt(niedrigsterEee.fix)} ausmachen. Ein
+    kleiner Pflegeanteil bedeutet eben auch: wenig, woran der Zuschlag ansetzen
+    kann.
+  </p>
+
+  <p>
+    Zwischen {teuerstesViertes.name} mit {eurGlatt(teuerstesViertes.viertes)} und
+    {' '}{guenstigstesViertes.name} mit {eurGlatt(guenstigstesViertes.viertes)}
+    {' '}liegen ab dem vierten Jahr {eurGlatt(spreizungViertes)} im Monat. Der
+    Beitrag ist bundeseinheitlich – bis auf den sächsischen Prozentpunkt, der in
+    die andere Richtung weist als die dortigen Heimkosten.
+  </p>
+
+  <h2>Was daraus folgt</h2>
+
+  <p>
+    Die Pflegeversicherung ist als Teilkasko angelegt, und die Zahlen zeigen, wie
+    weit das trägt: Sie deckt die pflegebedingten Aufwendungen bis zu einer
+    Pauschale, alles Übrige nicht. Wer für den Fall vorsorgen will, sollte nicht
+    mit der Differenz zwischen Pflegegeld und tatsächlichen Kosten rechnen,
+    sondern mit dem Eigenanteil im Heim – und dabei berücksichtigen, dass der
+    Leistungszuschlag ihn ab dem vierten Jahr um {eurGlatt(absenkungMonat)}
+    monatlich entlastet, gerechnet bei gleichbleibenden Heimentgelten.
+  </p>
+
+  <p>
+    Für die Beitragsseite bleibt wenig zu entscheiden. Wirklich verändern lässt
+    sich nur eines: Der Abschlag für Kinder verlangt einen Nachweis nach § 55
+    Abs. 3a SGB XI. Wird er nicht über das automatisierte Verfahren erbracht und
+    auch nicht binnen sechs Monaten nach der Geburt nachgereicht, wirkt er erst
+    ab dem Folgemonat des Nachweises; rückwirkend erstattet wird dann nichts. Am
+    teuersten ist das beim ersten Kind, denn ohne nachgewiesene Elterneigenschaft
+    gilt man als kinderlos und zahlt den Zuschlag –
+    {' '}{eur(REFERENZ_BRUTTO * (beitragsstufen[0].arbeitnehmer - beitragsstufen[1].arbeitnehmer))}
+    {' '}im Monat im gerechneten Fall. Jedes weitere Kind bis zum fünften ist
+    danach {eur(REFERENZ_BRUTTO * (beitragsstufen[1].arbeitnehmer - beitragsstufen[2].arbeitnehmer))}
+    {' '}monatlich wert.
+  </p>
+
+  <p>
+    Den eigenen Beitrag rechnet der
+    {' '}<a href={`${base}versicherungen/pflege-rechner/`}>Pflegeversicherungs-Rechner</a>,
+    die gesamte Abgabenlast der
+    {' '}<a href={`${base}geld/brutto-netto-rechner/`}>Brutto-Netto-Rechner</a>.
+    Wie die Steuerklasse den monatlichen Abzug verschiebt, steht im Artikel zur
+    {' '}<a href={`${base}ratgeber/steuerklasse-wechseln-was-bringt/`}>Steuerklassenwahl</a>.
+  </p>
+
+  <p class="hinweis">
+    Gerechnet wird für versicherungspflichtig Beschäftigte in der sozialen
+    Pflegeversicherung. Nicht abgebildet sind die private Pflegepflichtversicherung,
+    der Übergangsbereich nach § 20 Abs. 2 SGB IV, Beiträge aus Renten und
+    Versorgungsbezügen sowie die Beitragstragung bei Kurzarbeit. Die Heimkosten
+    sind Landesdurchschnitte; das einzelne Heim rechnet anders ab. Rechtsstand der
+    Beiträge {datumLang(SV_STAND)}, der Leistungsbeträge {datumLang(PFLEGELEISTUNGEN_STAND)}.
+  </p>
+</ArticleLayout>
+
+<style>
+.table-wrap {
+  overflow-x: auto;
+  margin: 1.5rem 0 0.5rem;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.87rem;
+  background: white;
+}
+thead th {
+  background: var(--dark);
+  color: white;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-weight: 600;
+  padding: 0.7rem 0.6rem;
+  text-align: left;
+  white-space: nowrap;
+}
+tbody th {
+  text-align: left;
+  font-weight: 600;
+  padding: 0.6rem;
+  min-width: 12ch;
+}
+tbody td { padding: 0.6rem; }
+tbody tr:nth-child(even) { background: var(--surface); }
+tbody tr:hover { background: var(--cat-light, #f3f4f6); }
+.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.strong { font-weight: 700; }
+.tabellenhinweis {
+  font-size: 0.78rem !important;
+  color: var(--text-light);
+  margin: 0 0 1.5rem !important;
+}
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+.hinweis {
+  margin-top: 2rem;
+  padding: 0.9rem 1.1rem;
+  background: var(--surface);
+  border-left: 3px solid var(--gold);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  font-size: 0.85rem !important;
+  line-height: 1.6 !important;
+  color: var(--text-light);
+}
+</style>
