@@ -7,12 +7,10 @@
 //     und das Saarland mit 6,65 statt 6,5 % stand.
 //   * die Maklerprovision als nackte Zahl.
 // Alle drei kommen jetzt aus den Modulen, in denen sie gepflegt werden.
-import { STEUERSAETZE } from './grunderwerbsteuer.js';
+import { grunderwerbsteuersatz } from './grunderwerbsteuer.js';
 import { berechneNotarUndGrundbuch } from './gnotkg.js';
 import { MAKLER_PROVISION_PROZENT_JE_SEITE } from './immokauf-nebenkosten.js';
 
-// Bundessatz nach § 11 Abs. 1 GrEStG, falls das Länderkürzel unbekannt ist.
-const GEW_BUNDESSATZ = 3.5;
 
 function aufCent(betrag) {
   return Math.round(betrag * 100) / 100;
@@ -40,8 +38,7 @@ function tilgungsdauerMonate(darlehen, monatszins, rate) {
 }
 
 export function berechneHauskauf({ kaufpreis, bundesland, eigenkapital, zins, tilgung, laufzeit, makler }) {
-  const kuerzel = String(bundesland ?? '').toLowerCase();
-  const gewSatz = STEUERSAETZE[kuerzel] ?? GEW_BUNDESSATZ;
+  const gewSatz = grunderwerbsteuersatz(bundesland);
   const grunderwerbsteuer = aufCent(kaufpreis * gewSatz / 100);
 
   const notarUndGrundbuch = berechneNotarUndGrundbuch(kaufpreis).gesamt;

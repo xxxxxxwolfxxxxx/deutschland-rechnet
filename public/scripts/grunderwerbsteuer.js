@@ -33,8 +33,34 @@ export const STEUERSAETZE = Object.fromEntries(
   Object.entries(BUNDESLAENDER).map(([kuerzel, land]) => [kuerzel, land.satz])
 );
 
+/**
+ * Bundesgesetzlicher Steuersatz nach § 11 Abs. 1 GrEStG.
+ *
+ * Er gilt, solange ein Land nichts Abweichendes bestimmt hat – seit Art. 105
+ * Abs. 2a Satz 2 GG dürfen die Länder das, und alle sechzehn haben es getan.
+ * Als Rückfallwert ist er trotzdem der einzig begründbare; die vorherigen
+ * 5,0 Prozent waren gegriffen.
+ */
+export const BUNDESSATZ = 3.5;
+
+/**
+ * Steuersatz eines Bundeslandes in Prozent.
+ *
+ * Die Kürzel stehen hier klein, einige Seiten führen sie groß. Ohne
+ * Normalisierung lieferte der Lookup für 'BY' still 5,0 statt 3,5 Prozent –
+ * bei 400.000 € Kaufpreis ein Fehler von 6.000 €.
+ *
+ * @param {string} bundesland Kürzel aus BUNDESLAENDER, Groß- oder Kleinschreibung
+ * @returns {number} Satz in Prozent
+ */
+export function grunderwerbsteuersatz(bundesland) {
+  return STEUERSAETZE[String(bundesland ?? '').toLowerCase()] ?? BUNDESSATZ;
+}
+
 export function berechneGrunderwerbsteuer({ kaufpreis, bundesland }) {
-  const satz = STEUERSAETZE[bundesland] ?? 5.0;
-  const steuer = Math.round(kaufpreis * satz / 100);
+  const satz = grunderwerbsteuersatz(bundesland);
+  // § 11 Abs. 2 GrEStG: auf volle Euro nach unten abzurunden. Vorher stand
+  // hier Math.round – bei 250.010 € in Nordrhein-Westfalen ein Euro zu viel.
+  const steuer = Math.floor(kaufpreis * satz / 100);
   return { steuer, satz };
 }

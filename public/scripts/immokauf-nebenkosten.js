@@ -4,7 +4,7 @@
 // zwei Änderungen hinterher (Bremen 5,0 statt 5,5 %, Thüringen 6,5 statt
 // 5,0 %). Sie kommen jetzt aus grunderwerbsteuer.js – dem einzigen Ort, an dem
 // sie gepflegt werden.
-import { STEUERSAETZE } from './grunderwerbsteuer.js';
+import { grunderwerbsteuersatz } from './grunderwerbsteuer.js';
 // Notar- und Grundbuchkosten nach dem Kostenverzeichnis (Anlage 1 GNotKG)
 // stehen in gnotkg.js: KV 21100 Beurkundung (2,0, mindestens 120 €), KV 22110
 // Vollzug (0,5), KV 22200 Betreuung (0,5), dazu die Umsatzsteuer nach KV 32014
@@ -38,9 +38,8 @@ export function berechneImmokaufNebenkosten({
   mitMakler = true,
   maklerProvisionProzentJeSeite = MAKLER_PROVISION_PROZENT_JE_SEITE,
 }) {
-  // Die Kürzel stehen in grunderwerbsteuer.js klein, manche Seiten liefern sie
-  // groß – ohne Normalisierung fiele der Lookup still auf 5,0 % zurück.
-  const gewSatz = STEUERSAETZE[String(bundesland ?? '').toLowerCase()] ?? 5.0;
+  // Normalisierung und Rückfallwert stehen zentral in grunderwerbsteuer.js.
+  const gewSatz = grunderwerbsteuersatz(bundesland);
   const grunderwerbsteuer = aufCent(kaufpreis * gewSatz / 100);
 
   // Wertgebühren nach Tabelle B (§ 34 GNotKG), Geschäftswert ist der Kaufpreis.
