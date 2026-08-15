@@ -1,0 +1,420 @@
+---
+import ArticleLayout from '../../layouts/ArticleLayout.astro';
+import {
+  berechneBootstrailer,
+  pruefeTempo100,
+  TEMPO100_FAKTOREN,
+} from '../../../public/scripts/bootstrailer.js';
+
+const base = import.meta.env.BASE_URL;
+
+// Alle Zahlen zur Buildzeit aus dem Modul, das auch der Rechner lädt. Bewusst
+// keine konkreten Fahrzeugmodelle: Leermasse, zulässige Gesamtmasse und
+// Anhängelast stehen im Fahrzeugschein und unterscheiden sich innerhalb einer
+// Baureihe erheblich. Der Artikel rechnet deshalb die Grenzen selbst durch,
+// über die Größen, die der Leser in den Feldern F.1, G und O.1 nachschlägt.
+const ZUG_STUFEN = [1_600, 1_900, 2_200, 2_500, 3_000, 3_500];
+const TRAILER_STUFEN = [750, 1_000, 1_300, 1_600, 2_000, 2_600, 3_500];
+const LEERMASSEN = [1_200, 1_400, 1_600, 1_800, 2_000, 2_200, 2_600];
+
+const matrix = ZUG_STUFEN.map((zug) => ({
+  zug,
+  zellen: TRAILER_STUFEN.map((haenger) => ({
+    haenger,
+    klasse: berechneBootstrailer({ zugfahrzeugKg: zug, anhaengerKg: haenger }).klasse,
+  })),
+}));
+
+// Der größte Anhänger, den die reine Klasse B noch deckt. Die 750-kg-Regel gilt
+// unabhängig neben der Kombinationsgrenze und bildet deshalb den Boden.
+const bGrenzen = ZUG_STUFEN.map((zug) => {
+  const probe = berechneBootstrailer({ zugfahrzeugKg: zug, anhaengerKg: 751 });
+  const maxB = probe.klasse === 'B' ? 751 + (probe.spielraumAnhaengerKg ?? 0) : 750;
+  const probe96 = berechneBootstrailer({ zugfahrzeugKg: zug, anhaengerKg: Math.max(751, 3_500 - zug + 1) });
+  return {
+    zug,
+    maxB,
+    maxB96: probe96.klasse === 'B96'
+      ? Math.max(751, 3_500 - zug + 1) + (probe96.spielraumAnhaengerKg ?? 0)
+      : null,
+  };
+});
+const leichtestesZug = bGrenzen[0];
+const schweresZug = bGrenzen.find((g) => g.zug === 2_500)!;
+const umkehrDifferenz = leichtestesZug.maxB - schweresZug.maxB;
+
+// Tempo 100: die einzige rechenbare Bedingung der Verordnung.
+const tempoReihe = LEERMASSEN.map((leermasse) => {
+  const ohne = pruefeTempo100({ anhaengerKg: 1, leermasseZugfahrzeugKg: leermasse, bremse: true, schwingungsdaempfer: false });
+  const mit = pruefeTempo100({ anhaengerKg: 1, leermasseZugfahrzeugKg: leermasse, bremse: true, schwingungsdaempfer: true });
+  const stabi = pruefeTempo100({ anhaengerKg: 1, leermasseZugfahrzeugKg: leermasse, bremse: true, schwingungsdaempfer: true, stabilisierung: true });
+  const wohn = pruefeTempo100({ anhaengerKg: 1, leermasseZugfahrzeugKg: leermasse, bremse: true, schwingungsdaempfer: true, anhaengerart: 'wohnanhaenger' });
+  return { leermasse, ohne: ohne.maxAnhaengerKg, mit: mit.maxAnhaengerKg, stabi: stabi.maxAnhaengerKg, wohn: wohn.maxAnhaengerKg };
+});
+const daempferFaktor = TEMPO100_FAKTOREN.sonstiger / TEMPO100_FAKTOREN.ohneDaempfer;
+const referenzLeermasse = 1_600;
+const referenzTempo = tempoReihe.find((t) => t.leermasse === referenzLeermasse)!;
+
+// Welche der beiden Grenzen zuerst bindet – Fahrerlaubnis oder Tempo 100.
+// Gerechnet für die reine Klasse B und einen gebremsten Trailer mit
+// hydraulischen Schwingungsdämpfern.
+const bindung = ZUG_STUFEN.map((zug) => {
+  const maxB = bGrenzen.find((g) => g.zug === zug)!.maxB;
+  let schwelle: number | null = null;
+  for (let leer = 800; leer <= zug; leer += 10) {
+    const max100 = pruefeTempo100({ anhaengerKg: 1, leermasseZugfahrzeugKg: leer, bremse: true, schwingungsdaempfer: true }).maxAnhaengerKg;
+    if (max100 > maxB) { schwelle = leer; break; }
+  }
+  // Die Schwelle als Anteil an der zulässigen Gesamtmasse ist die ehrlichere
+  // Größe: Sie sagt, wie viel Zuladung ein Fahrzeug haben müsste, damit noch
+  // Tempo 100 statt der Fahrerlaubnis begrenzt – ohne etwas über konkrete
+  // Modelle zu behaupten.
+  return { zug, maxB, schwelle, quote: schwelle === null ? null : schwelle / zug };
+});
+
+const kg = (b: number) => b.toLocaleString('de-DE') + ' kg';
+const zahl = (b: number, stellen = 1) =>
+  b.toLocaleString('de-DE', { minimumFractionDigits: stellen, maximumFractionDigits: stellen });
+const prozent = (b: number) => (b * 100).toLocaleString('de-DE', { maximumFractionDigits: 0 }) + ' %';
+---
+<ArticleLayout
+  title="Bootstrailer: Warum das größere Zugfahrzeug den kleineren Trailer erlaubt"
+  description={`Klasse B deckt bei ${kg(leichtestesZug.zug)} Zugfahrzeug einen Trailer von ${kg(leichtestesZug.maxB)}, bei ${kg(schweresZug.zug)} nur noch ${kg(schweresZug.maxB)}. Und über Tempo 100 entscheidet nicht das Gewicht, sondern ob der Trailer Schwingungsdämpfer hat.`}
+  canonicalPath="/ratgeber/bootstrailer-fuehrerschein-tempo-100/"
+  datum="2026-08-15"
+  lead={`Drei Grenzen entscheiden über ein Trailergespann, und sie stehen in drei verschiedenen Verordnungen. Zwei davon führen zu einem Ergebnis, das dem Bauchgefühl widerspricht: Das schwerere Zugfahrzeug darf mit Klasse B den leichteren Trailer ziehen – ${kg(umkehrDifferenz)} weniger –, und über Tempo 100 entscheidet ein Bauteil, das viele Bootstrailer gar nicht haben.`}
+  quellen={[
+    { titel: '§ 6 FeV – Einteilung der Fahrerlaubnisklassen', url: 'https://www.gesetze-im-internet.de/fev_2010/__6.html' },
+    { titel: '§ 6a FeV – Klasse B mit der Schlüsselzahl 96', url: 'https://www.gesetze-im-internet.de/fev_2010/__6a.html' },
+    { titel: 'Anlage 7a FeV – Umfang der Fahrerschulung für die Schlüsselzahl 96', url: 'https://www.gesetze-im-internet.de/fev_2010/anlage_7a.html' },
+    { titel: '§ 1 der Neunten Ausnahmeverordnung zur StVO – Voraussetzungen für Tempo 100', url: 'https://www.gesetze-im-internet.de/stvoausnv_9/__1.html' },
+    { titel: '§ 3 StVO – zulässige Höchstgeschwindigkeit', url: 'https://www.gesetze-im-internet.de/stvo_2013/__3.html' },
+  ]}
+>
+  <h2>Drei Grenzen, nicht eine</h2>
+
+  <p>
+    Wer ein Boot auf dem Trailer bewegen will, stößt auf drei voneinander
+    unabhängige Schranken. Erstens die Fahrerlaubnis: Welche Klasse deckt die
+    Kombination? Zweitens die Technik des Zugfahrzeugs: die zulässige
+    Anhängelast im Feld O.1 und die zulässige Gesamtmasse der Kombination im
+    Feld F.3. Drittens die Geschwindigkeit: Ohne Tempo-100-Zulassung sind
+    außerorts 80 km/h das Maximum.
+  </p>
+
+  <p>
+    Die drei greifen unabhängig voneinander. Ein Gespann kann von der
+    Fahrerlaubnis gedeckt sein und die Anhängelast trotzdem überschreiten – die
+    Klasse hilft darüber nicht hinweg. Maßgeblich ist überall die zulässige
+    Gesamtmasse aus den Papieren, nicht das gewogene Gewicht. Und die zulässige
+    Gesamtmasse der Kombination ist nach § 6 Abs. 1 FeV die schlichte Summe der
+    Einzelwerte, „ohne Berücksichtigung von Stütz- und Aufliegelasten“. Die
+    Stützlast wird also nicht doppelt gezählt – ein verbreiteter Irrtum.
+  </p>
+
+  <h2>Welche Klasse welches Gespann deckt</h2>
+
+  <div class="table-wrap">
+    <table>
+      <caption class="visually-hidden">Erforderliche Fahrerlaubnisklasse nach Zugfahrzeug und Trailer</caption>
+      <thead>
+        <tr>
+          <th scope="col">zGM Zugfahrzeug</th>
+          {TRAILER_STUFEN.map((t) => (
+            <th scope="col" class="num">{kg(t)}</th>
+          ))}
+        </tr>
+      </thead>
+      <tbody>
+        {matrix.map((zeile) => (
+          <tr>
+            <th scope="row">{kg(zeile.zug)}</th>
+            {zeile.zellen.map((z) => (
+              <td class={`num ${z.klasse === 'B' ? 'strong' : ''}`}>{z.klasse}</td>
+            ))}
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  </div>
+
+  <p class="tabellenhinweis">
+    Spalten: zulässige Gesamtmasse des Trailers samt Boot. Fett hervorgehoben,
+    wo die reine Klasse B genügt. Fahrerlaubnisse alten Rechts sind nicht
+    abgebildet – die vor dem 1. Januar 1999 erworbene Klasse 3 ist durchweg
+    besser gestellt.
+  </p>
+
+  <p>
+    In der Tabelle steckt der erste kontraintuitive Befund. Klasse B deckt
+    Kombinationen bis {kg(3_500)}, und weil das eine feste Grenze für die Summe
+    ist, schrumpft der zulässige Trailer mit jedem Kilogramm, das das
+    Zugfahrzeug zulegt.
+  </p>
+
+  <div class="table-wrap">
+    <table>
+      <caption class="visually-hidden">Größter Trailer je Zugfahrzeug in Klasse B und B96</caption>
+      <thead>
+        <tr>
+          <th scope="col">zGM Zugfahrzeug</th>
+          <th scope="col" class="num">größter Trailer mit B</th>
+          <th scope="col" class="num">mit Schlüsselzahl 96</th>
+        </tr>
+      </thead>
+      <tbody>
+        {bGrenzen.map((g) => (
+          <tr>
+            <th scope="row">{kg(g.zug)}</th>
+            <td class="num strong">{kg(g.maxB)}</td>
+            <td class="num">{g.maxB96 === null ? '—' : kg(g.maxB96)}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  </div>
+
+  <p class="tabellenhinweis">
+    Die mittlere Spalte fällt nicht unter {kg(750)}, weil Anhänger bis zu diesem
+    Wert mit Klasse B immer erlaubt sind – unabhängig vom Zugfahrzeug und von der
+    Kombination. Und bei einem Zugfahrzeug von {kg(3_500)} gibt es keinen Bereich
+    für die Schlüsselzahl 96 mehr: Schon ein Anhänger von {kg(751)} überschritte
+    die {kg(4_250)} der Kombination.
+  </p>
+
+  <p>
+    Zwischen einem Zugfahrzeug von {kg(leichtestesZug.zug)} und einem von
+    {' '}{kg(schweresZug.zug)} liegen {kg(umkehrDifferenz)} zulässige
+    Trailermasse – zugunsten des leichteren Fahrzeugs. Wer vom Kombi auf einen
+    schweren SUV umsteigt und dabei glaubt, mehr ziehen zu dürfen, verwechselt
+    zwei Dinge: Die Anhängelast des Fahrzeugs steigt tatsächlich, die
+    fahrerlaubnisrechtliche Grenze sinkt. Welche der beiden zuerst bindet, ist
+    genau die Frage, die man vor dem Kauf klären sollte.
+  </p>
+
+  <h2>Was die Schlüsselzahl 96 wirklich ist</h2>
+
+  <p>
+    Zwischen {kg(3_500)} und {kg(4_250)} Kombinationsmasse liegt nach § 6a FeV
+    die Schlüsselzahl 96. Sie ist keine eigene Klasse, sondern ein Zusatz zur
+    vorhandenen Klasse B – und sie kostet keine Prüfung. Nach Anlage 7a genügt
+    eine Fahrerschulung von mindestens sieben Stunden: 2,5 Stunden Theorie, 3,5
+    Stunden Übungen und eine Stunde fahrpraktischer Teil. Am Ende bescheinigt die
+    Fahrschule die Teilnahme; eine Prüfung bei der Fahrerlaubnisbehörde findet
+    nicht statt.
+  </p>
+
+  <p>
+    Erst darüber beginnt die Klasse BE mit praktischer Prüfung. BE begrenzt den
+    Anhänger auf {kg(3_500)} zulässige Gesamtmasse, die Kombination dagegen
+    nicht. Und wer einen Trailer über {kg(3_500)} zieht, landet nach § 6 FeV
+    selbst mit einem Zugfahrzeug der Klasse B in der Klasse C1E – nicht in BE.
+    Das übersehen viele Übersichten.
+  </p>
+
+  <h2>Tempo 100 hängt an einem Bauteil</h2>
+
+  <p>
+    Die Neunte Ausnahmeverordnung zur StVO erlaubt 100 km/h nur, wenn die
+    zulässige Gesamtmasse des Anhängers ein Vielfaches der <em>Leermasse</em> des
+    Zugfahrzeugs nicht übersteigt. Nicht der zulässigen Gesamtmasse – der
+    Leermasse, Feld G. Und der Faktor hängt davon ab, wie der Anhänger gebaut
+    ist.
+  </p>
+
+  <div class="table-wrap">
+    <table>
+      <caption class="visually-hidden">Größter Anhänger für Tempo 100 nach Leermasse des Zugfahrzeugs</caption>
+      <thead>
+        <tr>
+          <th scope="col">Leermasse Zugfahrzeug</th>
+          <th scope="col" class="num">ohne Dämpfer ({zahl(TEMPO100_FAKTOREN.ohneDaempfer)})</th>
+          <th scope="col" class="num">Wohnanhänger ({zahl(TEMPO100_FAKTOREN.wohnanhaenger)})</th>
+          <th scope="col" class="num">mit Dämpfern ({zahl(TEMPO100_FAKTOREN.sonstiger)})</th>
+          <th scope="col" class="num">+ Stabilisierung ({zahl(TEMPO100_FAKTOREN.sonstigerStabilisiert)})</th>
+        </tr>
+      </thead>
+      <tbody>
+        {tempoReihe.map((t) => (
+          <tr>
+            <th scope="row">{kg(t.leermasse)}</th>
+            <td class="num">{kg(t.ohne)}</td>
+            <td class="num">{kg(t.wohn)}</td>
+            <td class="num strong">{kg(t.mit)}</td>
+            <td class="num">{kg(t.stabi)}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  </div>
+
+  <p class="tabellenhinweis">
+    Faktoren nach § 1 Nr. 1 Buchst. a bis d der Neunten Ausnahmeverordnung.
+    Bootstrailer fallen unter Buchstabe c, Wohnanhänger mit starrem Aufbau unter
+    Buchstabe b. Für Buchstabe c gilt zusätzlich eine Obergrenze: Der Anhänger
+    darf weder die zulässige Gesamtmasse des Zugfahrzeugs noch dessen zulässige
+    Anhängelast übersteigen – bei einer Anhängelast unterhalb der Tabellenwerte
+    ist sie die schärfere Grenze.
+  </p>
+
+  <p>
+    Der Sprung zwischen der Spalte ohne Dämpfer und der mit Dämpfern ist der
+    eigentliche Punkt: Der Faktor steigt von {zahl(TEMPO100_FAKTOREN.ohneDaempfer)} auf
+    {' '}{zahl(TEMPO100_FAKTOREN.sonstiger)}, also auf das
+    {' '}{zahl(daempferFaktor, 1)}-Fache. Bei einer Leermasse von
+    {' '}{kg(referenzLeermasse)} sind das {kg(referenzTempo.ohne)} gegenüber
+    {' '}{kg(referenzTempo.mit)}. Der niedrige Faktor gilt für alle Anhänger ohne
+    Bremse und für gebremste Anhänger <em>ohne hydraulische
+    Schwingungsdämpfer</em> – und genau die fehlen an vielen einfachen
+    Bootstrailern. Über Tempo 100 entscheidet damit nicht, wie schwer das Boot
+    ist, sondern ob am Trailer Stoßdämpfer sitzen.
+  </p>
+
+  <p>
+    Alles Weitere ist keine Rechenaufgabe, sondern eine Liste von Bedingungen:
+    ABS im Zugfahrzeug, Anhängerreifen jünger als sechs Jahre und mindestens für
+    120 km/h freigegeben, eine Bestätigung durch einen Sachverständigen, der
+    Eintrag in die Fahrzeugpapiere des Anhängers und die gesiegelte Plakette an
+    dessen Rückseite. Fehlt eines davon, gilt Tempo 80 – auch wenn die
+    Rechnung aufgeht.
+  </p>
+
+  <h2>Welche Grenze zuerst bindet</h2>
+
+  <p>
+    Für die reine Klasse B lässt sich das ausrechnen. Der Trailer darf höchstens
+    {' '}{kg(3_500)} minus die zulässige Gesamtmasse des Zugfahrzeugs wiegen;
+    Tempo 100 erlaubt ihm höchstens das
+    {' '}{zahl(TEMPO100_FAKTOREN.sonstiger)}-Fache der Leermasse. Wo sich die
+    beiden kreuzen, wechselt die bindende Grenze.
+  </p>
+
+  <div class="table-wrap">
+    <table>
+      <caption class="visually-hidden">Ab welcher Leermasse die Fahrerlaubnis schärfer begrenzt als Tempo 100</caption>
+      <thead>
+        <tr>
+          <th scope="col">zGM Zugfahrzeug</th>
+          <th scope="col" class="num">Klasse B erlaubt</th>
+          <th scope="col" class="num">Fahrerlaubnis bindet ab Leermasse</th>
+          <th scope="col" class="num">das sind vom zulässigen Gesamtgewicht</th>
+        </tr>
+      </thead>
+      <tbody>
+        {bindung.map((b) => (
+          <tr>
+            <th scope="row">{kg(b.zug)}</th>
+            <td class="num">{kg(b.maxB)}</td>
+            <td class="num strong">{b.schwelle === null ? 'gar nicht' : kg(b.schwelle)}</td>
+            <td class="num">{b.quote === null ? '—' : prozent(b.quote)}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  </div>
+
+  <p class="tabellenhinweis">
+    Gerechnet für einen gebremsten Trailer mit hydraulischen Schwingungsdämpfern
+    ohne Stabilisierungseinrichtung. Ohne Dämpfer ist Tempo 100 immer die
+    schärfere Grenze.
+  </p>
+
+  <p>
+    Die letzte Spalte macht es greifbar. Bei einem Zugfahrzeug von
+    {' '}{kg(bindung[1].zug)} müsste die Leermasse unter
+    {' '}{prozent(bindung[1].quote!)} des zulässigen Gesamtgewichts liegen, damit
+    noch Tempo 100 die schärfere Grenze ist – das entspräche einer Zuladung von
+    fast einem Viertel. Bei {kg(bindung[3].zug)} sind es nur noch
+    {' '}{prozent(bindung[3].quote!)}. Je schwerer das Fahrzeug, desto sicherer
+    bindet also die Fahrerlaubnis. Die naheliegende Reihenfolge beim Planen ist
+    deshalb: erst Leermasse und Anhängelast im Schein nachschlagen, dann die
+    Fahrerlaubnis prüfen – nicht umgekehrt.
+  </p>
+
+  <h2>Was Tempo 100 nicht bringt</h2>
+
+  <p>
+    Die Ausnahme gilt ausschließlich auf Autobahnen und Kraftfahrstraßen. Auf
+    allen übrigen Straßen außerhalb geschlossener Ortschaften bleibt es bei
+    80 km/h nach § 3 Abs. 3 Nr. 2 Buchst. a StVO – dort ändert die Plakette
+    nichts. Wer einen Trailer überwiegend über Landstraßen zum See zieht,
+    gewinnt durch die Zulassung also gar nichts.
+  </p>
+
+  <p>
+    Das eigene Gespann rechnet der
+    {' '}<a href={`${base}boot/bootstrailer-fuehrerschein/`}>Bootstrailer-Rechner</a>
+    {' '}durch – samt der technischen Grenzen aus den Feldern O.1 und F.3. Was
+    das Boot im Betrieb kostet, zeigt der
+    {' '}<a href={`${base}boot/spritverbrauch-boot/`}>Spritverbrauchs-Rechner</a>,
+    und wie viel Kette am Ankerplatz nötig ist, der
+    {' '}<a href={`${base}boot/ankerkette-rechner/`}>Ankerketten-Rechner</a>.
+  </p>
+
+  <p class="hinweis">
+    Nicht abgebildet sind Fahrerlaubnisse alten Rechts nach Anlage 3 FeV,
+    Sattelanhänger, das Mindestalter und die Frage, ob das Zugfahrzeug den
+    Trailer auch am Berg anfahren kann. Verbindlich sind die Eintragungen in
+    Fahrzeugschein und Führerschein.
+  </p>
+</ArticleLayout>
+
+<style>
+.table-wrap {
+  overflow-x: auto;
+  margin: 1.5rem 0 0.5rem;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.87rem;
+  background: white;
+}
+thead th {
+  background: var(--dark);
+  color: white;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-weight: 600;
+  padding: 0.7rem 0.6rem;
+  text-align: left;
+  white-space: nowrap;
+}
+tbody th {
+  text-align: left;
+  font-weight: 600;
+  padding: 0.6rem;
+  min-width: 12ch;
+}
+tbody td { padding: 0.6rem; }
+tbody tr:nth-child(even) { background: var(--surface); }
+tbody tr:hover { background: var(--cat-light, #f3f4f6); }
+.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.strong { font-weight: 700; }
+.tabellenhinweis {
+  font-size: 0.78rem !important;
+  color: var(--text-light);
+  margin: 0 0 1.5rem !important;
+}
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+.hinweis {
+  margin-top: 2rem;
+  padding: 0.9rem 1.1rem;
+  background: var(--surface);
+  border-left: 3px solid var(--gold);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  font-size: 0.85rem !important;
+  line-height: 1.6 !important;
+  color: var(--text-light);
+}
+</style>
