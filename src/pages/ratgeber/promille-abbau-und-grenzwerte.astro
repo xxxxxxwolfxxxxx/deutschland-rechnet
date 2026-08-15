@@ -1,0 +1,451 @@
+---
+import ArticleLayout from '../../layouts/ArticleLayout.astro';
+import {
+  berechnePromille,
+  alkoholGramm,
+  abbaudauerStunden,
+  VERTEILUNGSFAKTOR,
+  ABBAU_PRO_STUNDE,
+  GETRAENKE_VORLAGEN,
+} from '../../../public/scripts/promille.js';
+import {
+  berechneAlkohol,
+  PROMILLE_OWI,
+  PROMILLE_STRAFTAT,
+  BKAT_STAND,
+} from '../../../public/scripts/busgeld.js';
+
+const base = import.meta.env.BASE_URL;
+
+// Alle Zahlen zur Buildzeit aus denselben Modulen, die auch die Rechner laden.
+// Zwei Referenzpersonen, weil der Verteilungsfaktor nach Widmark am Geschlecht
+// hängt und die Unterschiede sonst untergehen.
+const PERSONEN = [
+  { id: 'm', label: '80 kg, männlich', gewichtKg: 80, geschlecht: 'm' as const },
+  { id: 'w', label: '65 kg, weiblich', gewichtKg: 65, geschlecht: 'w' as const },
+];
+
+const getraenkeReihe = GETRAENKE_VORLAGEN.map((g) => ({
+  label: g.label,
+  gramm: alkoholGramm(g),
+  werte: PERSONEN.map((p) => ({
+    id: p.id,
+    bak: berechnePromille({ getraenke: [g], gewichtKg: p.gewichtKg, geschlecht: p.geschlecht, stundenNachBeginn: 0 }).bak,
+  })),
+}));
+
+// Ein Bier ist die Einheit, in der die meisten denken – deshalb der Verlauf
+// über mehrere Gläser desselben Getränks.
+const BIER = GETRAENKE_VORLAGEN[0];
+const bierReihe = [1, 2, 3, 4, 5].map((anzahl) => {
+  const getraenke = Array.from({ length: anzahl }, () => BIER);
+  return {
+    anzahl,
+    gramm: alkoholGramm(BIER) * anzahl,
+    werte: PERSONEN.map((p) => ({
+      id: p.id,
+      bak: berechnePromille({ getraenke, gewichtKg: p.gewichtKg, geschlecht: p.geschlecht, stundenNachBeginn: 0 }).bak,
+    })),
+  };
+});
+
+// Die kleinste Menge, mit der die Referenzpersonen die Grenze des § 24a StVG
+// erreichen – abgetastet in Zehntelgläsern, damit die Schwelle nicht auf einem
+// zu groben Raster abgelesen wird.
+const schwellen = PERSONEN.map((p) => {
+  for (let zehntel = 1; zehntel <= 100; zehntel++) {
+    const menge = { mengeML: (BIER.mengeML * zehntel) / 10, volProzent: BIER.volProzent };
+    const r = berechnePromille({ getraenke: [menge], gewichtKg: p.gewichtKg, geschlecht: p.geschlecht, stundenNachBeginn: 0 });
+    if (r.bak >= PROMILLE_OWI) return { id: p.id, label: p.label, gewichtKg: p.gewichtKg, glaeser: zehntel / 10, bak: r.bak };
+  }
+  return null;
+}).filter((s): s is NonNullable<typeof s> => s !== null);
+
+const abbauReihe = [0.5, 0.8, PROMILLE_STRAFTAT, 1.5, 2.0].map((bak) => ({
+  bak,
+  bisNull: abbaudauerStunden(bak),
+  bisOwi: abbaudauerStunden(bak, PROMILLE_OWI),
+  nachAcht: Math.max(0, bak - 8 * ABBAU_PRO_STUNDE),
+}));
+const SCHLAFSTUNDEN = 8;
+const nochOwi = abbauReihe.filter((z) => z.nachAcht >= PROMILLE_OWI);
+const kritisch = nochOwi[0];
+
+// Die Sanktionen hängen nicht an der Höhe der Konzentration, sondern an der
+// Zahl der Voreintragungen. Die Gegenprobe steht weiter unten im Text.
+const stufen = [0, 1, 2].map((voreintragungen) => ({
+  voreintragungen,
+  ...berechneAlkohol({ promille: 0.8, voreintragungen }),
+}));
+const gleichAbGrenze = [PROMILLE_OWI, 0.8, 1.0].map((p) => ({
+  promille: p,
+  bussgeld: berechneAlkohol({ promille: p, voreintragungen: 0 }).bussgeld,
+}));
+const bussgeldIdentisch = new Set(gleichAbGrenze.map((g) => g.bussgeld)).size === 1;
+const ersteStufe = stufen[0];
+const zweiteStufe = stufen[1];
+
+const promille = (b: number, stellen = 2) =>
+  b.toLocaleString('de-DE', { minimumFractionDigits: stellen, maximumFractionDigits: stellen });
+const stunden = (h: number) =>
+  h.toLocaleString('de-DE', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+const gramm = (g: number) =>
+  g.toLocaleString('de-DE', { maximumFractionDigits: 1 }) + ' g';
+const eur = (b: number) => b.toLocaleString('de-DE', { maximumFractionDigits: 0 }) + ' €';
+---
+<ArticleLayout
+  title="Promille: Zwei am Abend sind 0,8 am Morgen"
+  description={`Die Widmark-Formel rechnet den Spitzenwert, entscheidend ist der Abbau: ${promille(ABBAU_PRO_STUNDE)} Promille je Stunde. Nach acht Stunden Schlaf bleibt von ${promille(kritisch.bak)} Promille noch ${promille(kritisch.nachAcht)} – und damit eine Ordnungswidrigkeit.`}
+  canonicalPath="/ratgeber/promille-abbau-und-grenzwerte/"
+  datum="2026-08-15"
+  lead={`Promille-Tabellen beantworten die falsche Frage. Wie viel jemand getrunken hat, lässt sich überschlagen; wie lange es dauert, bis der Alkohol wieder weg ist, wird dagegen systematisch unterschätzt. Der Körper baut rund ${promille(ABBAU_PRO_STUNDE)} Promille pro Stunde ab – acht Stunden Schlaf schaffen also nicht mehr als ${promille(SCHLAFSTUNDEN * ABBAU_PRO_STUNDE)} Promille.`}
+  quellen={[
+    { titel: '§ 24a StVG – 0,5-Promille-Grenze', url: 'https://www.gesetze-im-internet.de/stvg/__24a.html' },
+    { titel: '§ 24c StVG – Alkoholverbot für Fahranfänger und unter 21-Jährige', url: 'https://www.gesetze-im-internet.de/stvg/__24c.html' },
+    { titel: '§ 316 StGB – Trunkenheit im Verkehr', url: 'https://www.gesetze-im-internet.de/stgb/__316.html' },
+    { titel: '§ 315c StGB – Gefährdung des Straßenverkehrs', url: 'https://www.gesetze-im-internet.de/stgb/__315c.html' },
+    { titel: '§ 13 FeV – Klärung von Eignungszweifeln bei Alkoholproblematik', url: 'https://www.gesetze-im-internet.de/fev_2010/__13.html' },
+    { titel: 'Bußgeldkatalog-Verordnung (BKatV), Anlage', url: 'https://www.gesetze-im-internet.de/bkatv_2013/' },
+  ]}
+>
+  <h2>Was die Formel rechnet</h2>
+
+  <p>
+    Die Widmark-Formel teilt die aufgenommene Alkoholmenge durch das
+    Körpergewicht mal einen Verteilungsfaktor – {promille(VERTEILUNGSFAKTOR.m, 1)}
+    {' '}bei Männern, {promille(VERTEILUNGSFAKTOR.w, 1)} bei Frauen. Der Faktor
+    bildet ab, in wie viel Körperwasser sich der Alkohol verteilt. Er ist der
+    Grund, warum dieselbe Menge bei zwei Menschen unterschiedlich wirkt, noch
+    bevor das Gewicht ins Spiel kommt.
+  </p>
+
+  <div class="table-wrap">
+    <table>
+      <caption class="visually-hidden">Blutalkoholkonzentration nach einem Getränk</caption>
+      <thead>
+        <tr>
+          <th scope="col">Getränk</th>
+          <th scope="col" class="num">reiner Alkohol</th>
+          {PERSONEN.map((p) => (
+            <th scope="col" class="num">{p.label}</th>
+          ))}
+        </tr>
+      </thead>
+      <tbody>
+        {getraenkeReihe.map((g) => (
+          <tr>
+            <th scope="row">{g.label}</th>
+            <td class="num">{gramm(g.gramm)}</td>
+            {g.werte.map((w) => (
+              <td class="num">{promille(w.bak)} ‰</td>
+            ))}
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  </div>
+
+  <p class="tabellenhinweis">
+    Spitzenwert unmittelbar nach der Aufnahme, ohne Abbau. Ein halber Liter Bier
+    und ein Achtel Wein enthalten fast dieselbe Menge reinen Alkohol – die
+    Getränkeart ist für die Rechnung ohne Bedeutung, nur die Menge zählt.
+  </p>
+
+  <p>
+    Interessanter ist der Verlauf über mehrere Gläser, weil dort sichtbar wird,
+    wie schnell die Grenze des § 24a StVG erreicht ist.
+  </p>
+
+  <div class="table-wrap">
+    <table>
+      <caption class="visually-hidden">Blutalkoholkonzentration nach mehreren Bier</caption>
+      <thead>
+        <tr>
+          <th scope="col">{BIER.label}</th>
+          <th scope="col" class="num">reiner Alkohol</th>
+          {PERSONEN.map((p) => (
+            <th scope="col" class="num">{p.label}</th>
+          ))}
+        </tr>
+      </thead>
+      <tbody>
+        {bierReihe.map((z) => (
+          <tr>
+            <th scope="row">{z.anzahl}×</th>
+            <td class="num">{gramm(z.gramm)}</td>
+            {z.werte.map((w) => (
+              <td class={`num ${w.bak >= PROMILLE_STRAFTAT ? 'strong' : ''}`}>{promille(w.bak)} ‰</td>
+            ))}
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  </div>
+
+  <p class="tabellenhinweis">
+    Fett, wo der Wert die Schwelle von {promille(PROMILLE_STRAFTAT, 1)} Promille
+    erreicht, ab der die Rechtsprechung von absoluter Fahruntüchtigkeit ausgeht.
+    Auch hier ohne Abbau; wer über mehrere Stunden trinkt, liegt niedriger.
+  </p>
+
+  <p>
+    Die Grenze von {promille(PROMILLE_OWI, 1)} Promille wird früher erreicht,
+    als die meisten annehmen. Die {schwellen[0].gewichtKg} Kilogramm schwere
+    Referenzperson erreicht sie nach {promille(schwellen[0].glaeser, 1)} Gläsern
+    Bier, die {schwellen[1].gewichtKg} Kilogramm schwere nach
+    {' '}{promille(schwellen[1].glaeser, 1)}. Das ist kein Argument für eine
+    bestimmte Menge, sondern gegen die Vorstellung, es gebe eine unbedenkliche.
+  </p>
+
+  <h2>Der Abbau ist die eigentliche Größe</h2>
+
+  <p>
+    Alkohol wird linear abgebaut, mit rund {promille(ABBAU_PRO_STUNDE)} Promille
+    je Stunde. Anders als bei der Aufnahme hilft dagegen nichts: kein Kaffee,
+    keine kalte Dusche, keine Bewegung. Die Zahl ist ein Mittelwert und streut
+    individuell, aber die Größenordnung ändert das nicht.
+  </p>
+
+  <div class="table-wrap">
+    <table>
+      <caption class="visually-hidden">Abbaudauer und Restwert nach acht Stunden</caption>
+      <thead>
+        <tr>
+          <th scope="col">Ausgangswert</th>
+          <th scope="col" class="num">bis {promille(PROMILLE_OWI, 1)} ‰</th>
+          <th scope="col" class="num">bis 0,0 ‰</th>
+          <th scope="col" class="num">nach {SCHLAFSTUNDEN} Stunden Schlaf</th>
+        </tr>
+      </thead>
+      <tbody>
+        {abbauReihe.map((z) => (
+          <tr>
+            <th scope="row">{promille(z.bak)} ‰</th>
+            <td class="num">{stunden(z.bisOwi)} h</td>
+            <td class="num">{stunden(z.bisNull)} h</td>
+            <td class={`num ${z.nachAcht >= PROMILLE_OWI ? 'strong' : ''}`}>{promille(z.nachAcht)} ‰</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  </div>
+
+  <p class="tabellenhinweis">
+    Gerechnet mit {promille(ABBAU_PRO_STUNDE)} Promille je Stunde. Fett, wo der
+    Restwert am Morgen noch die Grenze des § 24a StVG erreicht.
+  </p>
+
+  <p>
+    Das ist der praktisch wichtigste Befund des ganzen Artikels. Wer abends
+    {' '}{promille(kritisch.bak)} Promille erreicht und acht Stunden schläft, hat
+    am Morgen noch {promille(kritisch.nachAcht)} Promille – und begeht damit beim
+    Losfahren eine Ordnungswidrigkeit. Vollständig abgebaut wären
+    {' '}{promille(kritisch.bak)} Promille erst nach {stunden(kritisch.bisNull)}
+    {' '}Stunden. Nüchtern fühlt man sich lange vorher.
+  </p>
+
+  <h2>Vier Grenzen, nicht eine</h2>
+
+  <p>
+    Die 0,5 ist die bekannteste Zahl, aber weder die erste noch die einzige.
+    Vier Schwellen liegen übereinander: Drei stehen im Gesetz, die vierte hat
+    die Rechtsprechung entwickelt.
+  </p>
+
+  <ul class="liste">
+    <li>
+      <strong>Null für Fahranfänger und unter 21-Jährige:</strong> § 24c StVG
+      verbietet es, in der Probezeit oder vor Vollendung des 21. Lebensjahres
+      alkoholisiert loszufahren. Formuliert ist das nicht als Grenzwert, sondern
+      als Verbot – es genügt, „unter der Wirkung eines alkoholischen Getränks“ zu
+      stehen.
+    </li>
+    <li>
+      <strong>{promille(PROMILLE_OWI, 1)} Promille:</strong> Ab hier greift
+      § 24a Abs. 1 StVG, die Ordnungswidrigkeit. Der Wortlaut nennt zwei
+      gleichrangige Werte: {promille(PROMILLE_OWI, 1)} Promille im Blut oder
+      0,25 mg/l in der Atemluft.
+    </li>
+    <li>
+      <strong>{promille(PROMILLE_STRAFTAT, 1)} Promille:</strong> Ab hier gilt
+      man als absolut fahruntüchtig, und die Tat ist eine Straftat nach § 316
+      StGB. Diese Zahl steht allerdings in keinem Gesetz – § 316 StGB verlangt
+      nur, dass jemand „nicht in der Lage ist, das Fahrzeug sicher zu führen“.
+      Die {promille(PROMILLE_STRAFTAT, 1)} sind ein von der Rechtsprechung
+      entwickelter Wert, ab dem dieser Nachweis nicht mehr nötig ist.
+    </li>
+    <li>
+      <strong>1,6 Promille:</strong> Bei diesem Wert ordnet die Behörde nach
+      § 13 Satz 1 Nr. 2 Buchst. c FeV eine medizinisch-psychologische
+      Untersuchung an. Das ist keine Strafe, sondern eine Frage der Eignung – und
+      es ist der Punkt, an dem die Fahrerlaubnis dauerhaft auf dem Spiel steht.
+    </li>
+  </ul>
+
+  <p>
+    Die dritte Schwelle wird am häufigsten missverstanden. Weil
+    {' '}{promille(PROMILLE_STRAFTAT, 1)} Promille nicht im Gesetz steht, ist es
+    keine Untergrenze: Eine Straftat nach § 316 StGB kann auch bei deutlich
+    weniger vorliegen, wenn Ausfallerscheinungen hinzukommen – Schlangenlinien,
+    ein Unfall, auffälliges Verhalten in der Kontrolle. Kommt eine konkrete
+    Gefährdung dazu, greift § 315c StGB mit noch höherem Strafrahmen.
+  </p>
+
+  <h2>Die Sanktion hängt nicht an der Höhe</h2>
+
+  <p>
+    Innerhalb des Ordnungswidrigkeitenbereichs, also zwischen
+    {' '}{promille(PROMILLE_OWI, 1)} und {promille(PROMILLE_STRAFTAT, 1)}
+    {' '}Promille, kennt der Bußgeldkatalog überhaupt keine Abstufung nach der
+    Konzentration.
+    {bussgeldIdentisch ? ' Bei ' : ' Bereits bei '}
+    {gleichAbGrenze.map((g, i) => (
+      <>{i > 0 ? ', ' : ''}{promille(g.promille)} ‰</>
+    ))} fällt dasselbe Bußgeld an. Gestaffelt wird stattdessen nach der Zahl der
+    Voreintragungen.
+  </p>
+
+  <div class="table-wrap">
+    <table>
+      <caption class="visually-hidden">Sanktionen nach dem Bußgeldkatalog</caption>
+      <thead>
+        <tr>
+          <th scope="col">Fall</th>
+          <th scope="col" class="num">Bußgeld</th>
+          <th scope="col" class="num">Fahrverbot</th>
+          <th scope="col" class="num">Punkte</th>
+          <th scope="col" class="num">BKat-Nr.</th>
+        </tr>
+      </thead>
+      <tbody>
+        {stufen.map((s) => (
+          <tr>
+            <th scope="row">{s.label}</th>
+            <td class="num strong">{eur(s.bussgeld!)}</td>
+            <td class="num">{s.fahrverbot} {s.fahrverbot === 1 ? 'Monat' : 'Monate'}</td>
+            <td class="num">{s.punkte}</td>
+            <td class="num">{s.nummer}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  </div>
+
+  <p class="tabellenhinweis">
+    Regelsätze der Anlage zur BKatV in der seit dem {BKAT_STAND} geltenden
+    Fassung. Die Punkte stehen nicht im Bußgeldkatalog, sondern folgen aus
+    § 28 Abs. 3 StVG in Verbindung mit Anlage 13 FeV.
+  </p>
+
+  <p>
+    Vom ersten zum zweiten Mal verdoppelt sich das Bußgeld von
+    {' '}{eur(ersteStufe.bussgeld!)} auf {eur(zweiteStufe.bussgeld!)}, und das
+    Fahrverbot verlängert sich von {ersteStufe.fahrverbot} auf
+    {' '}{zweiteStufe.fahrverbot} Monate. Wer die Grenze also knapp
+    überschreitet, zahlt genauso viel wie jemand mit doppelt so hohem Wert – aber
+    beim zweiten Mal wird es für beide erheblich teurer.
+  </p>
+
+  <h2>Wofür die Rechnung nicht taugt</h2>
+
+  <p>
+    Für die Entscheidung, ob man noch fahren kann. Die Formel kennt weder das
+    Resorptionsdefizit – ein Teil des Alkohols erreicht das Blut nie, abhängig
+    von Mageninhalt und Trinkgeschwindigkeit – noch die Resorptionsphase, in der
+    der Wert erst noch steigt. Der Verteilungsfaktor ist ein Durchschnitt, der
+    Abbauwert ebenfalls. Zwei Menschen mit gleichem Gewicht und gleicher Menge
+    landen bei spürbar verschiedenen Werten, und eine Blutprobe misst nicht das,
+    was die Formel schätzt.
+  </p>
+
+  <p>
+    Wofür sie taugt: für die Einordnung im Nachhinein und für die Planung des
+    nächsten Morgens. Die Abbautabelle oben ist dabei die belastbarere Hälfte,
+    weil sie nur von einer einzigen Größe abhängt und nicht von der Frage, wie
+    viel des Getrunkenen tatsächlich ankam.
+  </p>
+
+  <p>
+    Die eigenen Werte lassen sich im
+    {' '}<a href={`${base}gesundheit/promille-rechner/`}>Promille-Rechner</a>
+    {' '}einsetzen; was ein Verstoß kostet, zeigt der
+    {' '}<a href={`${base}auto/busgeldrechner/`}>Bußgeldrechner</a>.
+  </p>
+
+  <p class="hinweis">
+    Der Artikel ersetzt keine Rechtsberatung und erst recht keine Entscheidung
+    gegen das Fahren. Nicht abgebildet sind die abweichenden Grenzen für
+    Radfahrer, die Rückrechnung auf den Tatzeitpunkt, die strafrechtlichen
+    Folgen nach §§ 69, 69a StGB und die versicherungsrechtliche Seite. Die
+    Kennzahlen der Widmark-Formel sind forensische Konventionswerte, keine
+    Rechtsnormen; Rechtsstand der Sanktionen ist der {BKAT_STAND}.
+  </p>
+</ArticleLayout>
+
+<style>
+.table-wrap {
+  overflow-x: auto;
+  margin: 1.5rem 0 0.5rem;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.87rem;
+  background: white;
+}
+thead th {
+  background: var(--dark);
+  color: white;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-weight: 600;
+  padding: 0.7rem 0.6rem;
+  text-align: left;
+  white-space: nowrap;
+}
+tbody th {
+  text-align: left;
+  font-weight: 600;
+  padding: 0.6rem;
+  min-width: 12ch;
+}
+tbody td { padding: 0.6rem; }
+tbody tr:nth-child(even) { background: var(--surface); }
+tbody tr:hover { background: var(--cat-light, #f3f4f6); }
+.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.strong { font-weight: 700; }
+.tabellenhinweis {
+  font-size: 0.78rem !important;
+  color: var(--text-light);
+  margin: 0 0 1.5rem !important;
+}
+.liste {
+  margin: 1rem 0 1.5rem;
+  padding-left: 1.2rem;
+}
+.liste li {
+  margin-bottom: 0.6rem;
+  line-height: 1.7;
+}
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+.hinweis {
+  margin-top: 2rem;
+  padding: 0.9rem 1.1rem;
+  background: var(--surface);
+  border-left: 3px solid var(--gold);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  font-size: 0.85rem !important;
+  line-height: 1.6 !important;
+  color: var(--text-light);
+}
+</style>
