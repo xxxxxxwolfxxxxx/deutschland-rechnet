@@ -3,13 +3,52 @@ import Layout from '../../layouts/Layout.astro';
 import CalculatorShell from '../../components/CalculatorShell.astro';
 import CalculatorGuide from '../../components/CalculatorGuide.astro';
 import { CALCULATORS, CATEGORIES } from '../../data/calculators';
+import { bundeslaenderAlphabetisch } from '../../../public/scripts/bundeslaender.js';
+import {
+  BEITRAGSSAETZE,
+  BBG_KV_PV_MONAT,
+  PFLEGE_ARBEITGEBERANTEIL,
+  PFLEGE_ARBEITGEBERANTEIL_SACHSEN,
+  pflegeGesamtsatz,
+} from '../../../public/scripts/sozialversicherung.js';
+import {
+  PFLEGEGELD,
+  PFLEGESACHLEISTUNG,
+  VOLLSTATIONAER,
+  VOLLSTATIONAER_ZUSCHUSS_GRAD1,
+  ENTLASTUNGSBETRAG,
+  EIGENANTEIL_STAND,
+  berechneHeimEigenanteil,
+} from '../../../public/scripts/pflegeleistungen.js';
+
 const calc = CALCULATORS.find(c => c.slug === 'pflege-rechner')!;
 const cat = CATEGORIES[calc.category];
 const year = new Date().getFullYear();
+const laender = bundeslaenderAlphabetisch();
+
+// Alle Beträge im Fließtext kommen aus den Modulen, nicht aus dem Kopf. Die
+// vorige Fassung dieser Seite nannte 332 € Pflegegeld für Pflegegrad 1 – der
+// begründet gar keinen Anspruch auf Pflegegeld – und rechnete mit einem
+// Beitragssatz von 3,4 %, den die PBAV 2025 zum 1. Januar 2025 auf 3,6 %
+// angehoben hat.
+const euro = (b: number) => b.toLocaleString('de-DE', { maximumFractionDigits: 0 }) + ' €';
+const prozent = (satz: number, stellen = 1) =>
+  (satz * 100).toLocaleString('de-DE', { minimumFractionDigits: stellen, maximumFractionDigits: stellen }) + ' %';
+
+const satzKinderlos = pflegeGesamtsatz({ kinder: 0 });
+const satzEinKind = pflegeGesamtsatz({ kinder: 1 });
+const satzFuenfKinder = pflegeGesamtsatz({ kinder: 5 });
+
+const heimKurz = berechneHeimEigenanteil({ monateImHeim: 6 });
+const heimLang = berechneHeimEigenanteil({ monateImHeim: 48 });
+const heimStandJahr = EIGENANTEIL_STAND.slice(0, 4);
+const luecke = heimKurz.eigenanteil;
+
+const grade = [2, 3, 4, 5] as const;
 ---
 <Layout
   title={`Pflegeversicherung Rechner ${year}`}
-  description="Pflegeversicherung Beitrag berechnen – monatliche Prämie für private Pflegezusatzversicherung."
+  description="Beitrag zur gesetzlichen Pflegeversicherung berechnen – mit Kinderzahl, Beitragsbemessungsgrenze und der Sonderregel für Sachsen."
   canonicalPath="/versicherungen/pflege-rechner/"
   categoryColor={cat.color}
   categoryLight={cat.colorLight}
@@ -21,53 +60,56 @@ const year = new Date().getFullYear();
   </div>
   <CalculatorShell
     calculator={calc}
-    intro="Mit dem Pflegeversicherung-Rechner berechnen Sie Ihren monatlichen Pflegeversicherungsbeitrag. Die gesetzliche Pflegeversicherung ist Pflicht, private Zusatzversicherung ist optional."
-    sourceNote="Berechnung basiert auf den Beitragssätzen 2026."
-    explanation="Die Pflegeversicherung ist eine Versicherung gegen das Risiko der Pflegebedürftigkeit. Sie zahlt Leistungen bei Bestätigung einer Pflegestufe."
+    intro="Der Rechner zeigt Ihren Beitrag zur sozialen Pflegeversicherung – getrennt nach Arbeitnehmer- und Arbeitgeberanteil. Der Beitragssatz hängt davon ab, wie viele Kinder unter 25 Jahren Sie haben; in Sachsen gilt außerdem eine abweichende Verteilung zwischen Arbeitnehmer und Arbeitgeber."
+    sourceNote="Beitragssatz 3,6 % nach § 55 Abs. 1 SGB XI i. V. m. § 1 PBAV 2025, Zuschlag und Abschläge nach § 55 Abs. 3 SGB XI, Tragung nach § 58 SGB XI, Beitragsbemessungsgrenze nach der Sozialversicherungsrechengrößen-Verordnung 2026."
+    explanation="Die soziale Pflegeversicherung ist eine Pflichtversicherung. Der Beitrag bemisst sich am Arbeitsentgelt bis zur Beitragsbemessungsgrenze; die Leistungen sind dagegen pauschal und hängen allein vom Pflegegrad ab."
     faqs={[
-      { q: "Wie hoch sind die Beiträge zur Pflegeversicherung?", a: "2026 beträgt der Beitragssatz 3,40% (regulär) bzw. 4,0% für Kinderlose ab 23 Jahren. Der Arbeitgeber zahlt die Hälfte." },
-      { q: "Was ist der Unterschied zwischen gesetzlich und privat?", a: "Gesetzliche Pflege ist Pflicht für alle Versicherten und die Leistungen sind begrenzt. Private Zusatzversicherung ergänzt die Leistungen." },
-      { q: "Lohnt sich eine Pflegezusatzversicherung?", a: "Ja, besonders für Selbstständige und Privatversicherte. Die gesetzliche Leistung deckt oft nur 30-50% der realen Pflegekosten." },
-      { q: "Ab wann zahlt die Pflegeversicherung?", a: "Bei anerkannter Pflegebedürftigkeit, die von einem MDK (Medizinischer Dienst) bewertet werden muss." },
-      { q: "Gibt es Wartezeiten?", a: "Ja, bei privaten Zusatzversicherungen typischerweise 5 Jahre. Bei Bestätigung von Vorerkrankungen kann es Äußchlüsse geben." }
+      { q: "Wie hoch ist der Beitragssatz zur Pflegeversicherung?", a: `Er beträgt ${prozent(BEITRAGSSAETZE.pflegeversicherung)} (§ 55 Abs. 1 SGB XI i. V. m. § 1 PBAV 2025). Kinderlose ab 23 Jahren zahlen ${prozent(BEITRAGSSAETZE.pflegeZuschlagKinderlose, 1)} mehr, also ${prozent(satzKinderlos)}. Ab dem zweiten Kind sinkt der Satz um je ${prozent(BEITRAGSSAETZE.pflegeAbschlagJeKind, 2)} bis zum fünften Kind.` },
+      { q: "Trägt der Arbeitgeber die Hälfte?", a: `Nur vom Grundbeitrag. § 58 Abs. 1 Satz 3 SGB XI weist den Zuschlag für Kinderlose ausdrücklich dem Beschäftigten zu, und die Abschläge für Kinder entlasten ebenfalls nur ihn. Der Arbeitgeberanteil bleibt deshalb in allen Fällen bei ${prozent(PFLEGE_ARBEITGEBERANTEIL)} – außer in Sachsen.` },
+      { q: "Warum zahlt man in Sachsen mehr?", a: `Nach § 58 Abs. 3 SGB XI trägt der Beschäftigte einen Prozentpunkt allein, wenn das Bundesland keinen Feiertag gestrichen hat. Das trifft nur auf Sachsen zu, das den Buß- und Bettag behalten hat. Der Arbeitgeberanteil beträgt dort ${prozent(PFLEGE_ARBEITGEBERANTEIL_SACHSEN)} statt ${prozent(PFLEGE_ARBEITGEBERANTEIL)}.` },
+      { q: "Bis zu welchem Einkommen steigt der Beitrag?", a: `Bis zur Beitragsbemessungsgrenze von ${euro(BBG_KV_PV_MONAT)} im Monat (Stand 2026). Was darüber verdient wird, bleibt beitragsfrei – die Leistung steigt dadurch aber ebenso wenig wie bei jedem anderen Einkommen.` },
+      { q: "Was zahlt die Pflegeversicherung im Heim?", a: `Bei vollstationärer Pflege ${euro(VOLLSTATIONAER[2])} bis ${euro(VOLLSTATIONAER[5])} im Monat je nach Pflegegrad (§ 43 Abs. 2 SGB XI). Der Rest bleibt beim Bewohner: im Bundesdurchschnitt ${euro(luecke)} monatlich im ersten Jahr (vdek, Stand ${heimStandJahr}).` }
     ]}
   >
     <div class="calc-form">
       <div class="calc-grid">
         <div class="calc-group">
-          <label for="bruttogehalt">Bruttogehalt (monatlich, €)</label>
-          <input type="number" id="bruttogehalt" min="0" max="100000" value="3000" step="100" />
+          <label for="brutto">Bruttogehalt (monatlich, €)</label>
+          <input type="number" id="brutto" min="0" max="100000" value="3000" step="100" />
         </div>
         <div class="calc-group">
-          <label for="versichertenstatus">Versichertenstatus</label>
-          <select id="versichertenstatus">
-            <option value="angestellt" selected>Angestellt (gesetzlich)</option>
-            <option value="selbst">Selbstständig/Privat</option>
-            <option value="beamter">Beamter</option>
+          <label for="kinder">Kinder unter 25 Jahren</label>
+          <select id="kinder">
+            <option value="0" selected>keine</option>
+            <option value="1">1 Kind</option>
+            <option value="2">2 Kinder</option>
+            <option value="3">3 Kinder</option>
+            <option value="4">4 Kinder</option>
+            <option value="5">5 Kinder oder mehr</option>
           </select>
         </div>
         <div class="calc-group">
-          <label for="kinderlos">
-            <input type="checkbox" id="kinderlos" /> Kinderlos (Zuschlag 0,6%)?
+          <label for="bundesland">Bundesland des Beschäftigungsorts</label>
+          <select id="bundesland">
+            {laender.map((l) => (
+              <option value={l.kuerzel} selected={l.kuerzel === 'NW'}>{l.name}</option>
+            ))}
+          </select>
+        </div>
+        <div class="calc-group">
+          <label for="unter23">
+            <input type="checkbox" id="unter23" /> Unter 23 Jahre alt
           </label>
-        </div>
-        <div class="calc-group">
-          <label for="zusatzversicherung">Private Pflegezusatzversicherung</label>
-          <select id="zusatzversicherung">
-            <option value="keine" selected>Keine</option>
-            <option value="standard">Standard (Basis-Schutz)</option>
-            <option value="premium">Premium (80%+ Deckung)</option>
-          </select>
         </div>
       </div>
 
       <div class="calc-result">
-        <div class="label">Gesetzlicher Pflegbeitrag (monatlich)</div>
-        <div id="gesetzlich">— €</div>
+        <div class="label">Ihr Anteil (monatlich)</div>
+        <div id="arbeitnehmer">— €</div>
       </div>
       <div class="calc-result">
-        <div class="label">Private Zusatzversicherung</div>
-        <div id="zusatz">— €</div>
+        <div class="label">Arbeitgeberanteil (monatlich)</div>
+        <div id="arbeitgeber">— €</div>
       </div>
       <div class="calc-result" style="background:#e3f2fd;">
         <div class="label">Gesamtbeitrag monatlich</div>
@@ -78,56 +120,69 @@ const year = new Date().getFullYear();
   </CalculatorShell>
 
   <CalculatorGuide
-    title="Pflegeversicherung: Vorsorge für den Ernstfall"
-    content="<p>Die gesetzliche Pflegeversicherung ist eine Pflichtversicherung in Deutschland, die seit 1995 besteht. Sie sichert das Risiko der Pflegebedürftigkeit ab, deckt aber bei Weitem nicht alle anfallenden Kosten. Die Differenz zwischen den tatsächlichen Pflegekosten und den Leistungen der gesetzlichen Versicherung wird als Pflegelücke bezeichnet und kann mehrere tausend Euro monatlich betragen.</p>
+    title="Pflegeversicherung: Was der Beitrag deckt – und was nicht"
+    content={`<p>Die soziale Pflegeversicherung besteht seit 1995 und ist eine Pflichtversicherung. Sie ist ausdrücklich als Teilkaskoversicherung angelegt: Sie zahlt feste Beträge je Pflegegrad, nicht die tatsächlich anfallenden Kosten. Die Differenz heißt Pflegelücke und trägt der Pflegebedürftige selbst, notfalls über die Sozialhilfe.</p>
 
-<p><strong>Die fünf Pflegegrade im Überblick:</strong> Seit 2017 gibt es statt der früheren drei Pflegestufen fünf Pflegegrade. Pflegegrad 1 bezeichnet geringe Beeinträchtigungen mit einem Pflegegeld von 332 Euro monatlich. Pflegegrad 2 umfasst erhebliche Beeinträchtigungen mit 761 Euro Pflegegeld. Bei Pflegegrad 3 erhalten Versicherte 1.432 Euro, bei Pflegegrad 4 sind es 1.778 Euro und bei Pflegegrad 5, der schwersten Beeinträchtigung, werden 2.200 Euro monatlich gezahlt. Die tatsächlichen Kosten für stationäre Pflege liegen jedoch oft bei 3.500 bis 4.500 Euro monatlich.</p>
+<p><strong>Die Leistungen bei häuslicher Pflege:</strong> Wer die Pflege durch Angehörige selbst sicherstellt, erhält Pflegegeld nach § 37 SGB XI – ${grade.map((g) => `${euro(PFLEGEGELD[g])} bei Pflegegrad ${g}`).join(', ')}. Wer stattdessen einen Pflegedienst beauftragt, hat Anspruch auf Sachleistungen nach § 36 SGB XI, und die liegen deutlich höher: ${grade.map((g) => `${euro(PFLEGESACHLEISTUNG[g])} bei Grad ${g}`).join(', ')}. Beides lässt sich anteilig kombinieren. Pflegegrad 1 begründet weder einen Anspruch auf Pflegegeld noch auf Sachleistungen; er bringt den Entlastungsbetrag von ${euro(ENTLASTUNGSBETRAG)} monatlich nach § 45b SGB XI, den allerdings auch alle höheren Grade zusätzlich erhalten.</p>
 
-<p><strong>Pflegegeld vs. Pflegesachleistungen:</strong> Pflegebedürftige können zwischen Pflegegeld für die Versorgung durch Angehörige und Pflegesachleistungen für professionelle Pflegedienste wählen. Eine Kombination beider Leistungsarten ist ebenfalls möglich. Pflegesachleistungen sind höher als das Pflegegeld, da sie die Kosten professioneller Pflegekräfte teilweise abdecken sollen.</p>
+<p><strong>Die Leistungen im Heim:</strong> Bei vollstationärer Pflege übernimmt die Kasse nach § 43 Abs. 2 SGB XI ${grade.map((g) => `${euro(VOLLSTATIONAER[g])} bei Grad ${g}`).join(', ')}; Pflegegrad 1 erhält lediglich einen Zuschuss von ${euro(VOLLSTATIONAER_ZUSCHUSS_GRAD1)}. Diese Beträge decken ausschließlich die pflegebedingten Aufwendungen. Unterkunft, Verpflegung und Investitionskosten zahlt der Bewohner vollständig selbst – im Bundesdurchschnitt ${euro(heimKurz.unterkunftVerpflegung + heimKurz.investition)} im Monat.</p>
 
-<p><strong>Private Pflegezusatzversicherung und Pflege-Bahr:</strong> Um die Pflegelücke zu schließen, bieten private Versicherer Pflegezusatzversicherungen an. Der staatlich geförderte Pflege-Bahr ist eine Pflegetagegeldversicherung, bei der der Staat monatlich 5 Euro Zulage zahlt, wenn der Versicherte mindestens 10 Euro monatlich einzahlt. Allerdings sind die Leistungen des Pflege-Bahr für eine echte Absicherung meist zu gering. Sinnvoller ist häufig eine ungeförderte Pflegetagegeldversicherung mit höheren Leistungen.</p>
+<p><strong>Der Eigenanteil sinkt mit der Verweildauer:</strong> § 43c SGB XI gibt einen Leistungszuschlag auf den einrichtungseinheitlichen Eigenanteil – 15 Prozent im ersten Jahr, danach 30, ab dem dritten Jahr 50 und ab dem vierten 75 Prozent. Im Bundesdurchschnitt sinkt die monatliche Belastung dadurch von ${euro(heimKurz.eigenanteil)} auf ${euro(heimLang.eigenanteil)}. Der Zuschlag greift aber nur am Pflegeanteil; Unterkunft, Verpflegung und Investitionskosten bleiben unverändert.</p>
 
-<p><strong>Demografische Entwicklung als Risikofaktor:</strong> Deutschland altert rapide. Die Zahl der Pflegebedürftigen ist von rund 2,5 Millionen im Jahr 2015 auf über 5 Millionen im Jahr 2025 gestiegen. Experten rechnen damit, dass bis 2050 über 6 Millionen Menschen pflegebedürftig sein werden. Je früher Sie eine private Pflegezusatzversicherung abschließen, desto günstiger sind die Beiträge und desto wahrscheinlicher werden Sie im Ernstfall angenommen.</p>
+<p><strong>Was der Beitrag mit alldem zu tun hat:</strong> nichts. Der Beitrag richtet sich nach dem Einkommen bis zur Beitragsbemessungsgrenze, die Leistung nach dem Pflegegrad. Wer doppelt so viel verdient, zahlt bis zur Grenze doppelt so viel und bekommt im Pflegefall denselben Betrag. Ebenso wenig spielt es für die Leistung eine Rolle, in welchem Bundesland man wohnt – für den Eigenanteil dagegen sehr wohl.</p>
 
-<p><strong>Praxistipp:</strong> Schließen Sie eine Pflegezusatzversicherung möglichst vor dem 45. Lebensjahr ab. Achten Sie auf Tarife ohne vereinfachte Gesundheitsprüfung beim Pflege-Bahr, die dafür aber geringere Leistungen bieten. Vergleichen Sie die monatliche Leistung pro Pflegegrad und prüfen Sie, ob Beitragsbefreiung im Leistungsfall enthalten ist.</p>"
+<p><strong>Praxishinweis:</strong> Der Abschlag für Kinder verlangt einen Nachweis (§ 55 Abs. 3a SGB XI). Wird er nicht über das automatisierte Verfahren erbracht und auch nicht binnen sechs Monaten nach der Geburt nachgereicht, wirkt er erst ab dem Folgemonat des Nachweises – rückwirkend erstattet wird dann nichts.</p>`}
     relatedSlugs={['elementar-rechner', 'rechtsschutz-rechner', 'zahnzusatz-rechner']}
   />
 </Layout>
 
 <script type="module">
+const { pflegeGesamtsatz, pflegeArbeitnehmerSatz, BBG_KV_PV_MONAT, PFLEGE_ARBEITGEBERANTEIL, PFLEGE_ARBEITGEBERANTEIL_SACHSEN, BEITRAGSSAETZE } =
+  await import(window.__base + 'scripts/sozialversicherung.js');
+
+const euro = (b) => b.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
+const prozent = (s, stellen = 2) =>
+  (s * 100).toLocaleString('de-DE', { minimumFractionDigits: stellen, maximumFractionDigits: stellen }) + ' %';
+
 function berechne() {
-  const bruttogehalt = parseFloat(document.getElementById('bruttogehalt').value)||3000;
-  const status = document.getElementById('versichertenstatus').value;
-  const kinderlos = document.getElementById('kinderlos').checked;
-  const zusatz = document.getElementById('zusatzversicherung').value;
+  const brutto = parseFloat(document.getElementById('brutto').value) || 0;
+  const kinderEingabe = parseInt(document.getElementById('kinder').value, 10) || 0;
+  const bundesland = document.getElementById('bundesland').value;
+  const unter23 = document.getElementById('unter23').checked;
 
-  let beitragssatz = 0.034; // 3,4%
-  if (kinderlos) beitragssatz += 0.006; // Zusatz für kinderlos
+  // § 55 Abs. 3 Satz 1 SGB XI: Der Zuschlag greift erst nach Ablauf des Monats,
+  // in dem das 23. Lebensjahr vollendet wird. Die Abschläge für Kinder gelten
+  // dagegen nach Satz 5 auch für jüngere Eltern.
+  const zuschlagEntfaellt = kinderEingabe === 0 && unter23;
+  const gesamtsatz = zuschlagEntfaellt
+    ? BEITRAGSSAETZE.pflegeversicherung
+    : pflegeGesamtsatz({ kinder: kinderEingabe });
+  const arbeitgeberSatz = bundesland === 'SN' ? PFLEGE_ARBEITGEBERANTEIL_SACHSEN : PFLEGE_ARBEITGEBERANTEIL;
+  const arbeitnehmerSatz = zuschlagEntfaellt
+    ? gesamtsatz - arbeitgeberSatz
+    : pflegeArbeitnehmerSatz({ kinder: kinderEingabe, bundesland });
 
-  // Beamte und Selbstständige zahlen vollständig
-  const anteil = (status === 'beamter') ? 1.0 : 0.5; // Arbeitnehmer zahlen 50%
+  const basis = Math.min(brutto, BBG_KV_PV_MONAT);
+  const arbeitnehmer = basis * arbeitnehmerSatz;
+  const arbeitgeber = basis * arbeitgeberSatz;
 
-  const gesetzlich = bruttogehalt * beitragssatz * anteil;
+  document.getElementById('arbeitnehmer').textContent = euro(arbeitnehmer);
+  document.getElementById('arbeitgeber').textContent = euro(arbeitgeber);
+  document.getElementById('gesamt').textContent = euro(arbeitnehmer + arbeitgeber);
 
-  let zusatzBeitrag = 0;
-  if (zusatz === 'standard') zusatzBeitrag = 15;
-  else if (zusatz === 'premium') zusatzBeitrag = 30;
-
-  const gesamt = gesetzlich + zusatzBeitrag;
-
-  document.getElementById('gesetzlich').textContent = gesetzlich.toLocaleString('de-DE', {minimumFractionDigits:2, maximumFractionDigits:2}) + ' €';
-  document.getElementById('zusatz').textContent = zusatzBeitrag.toLocaleString('de-DE', {minimumFractionDigits:2}) + ' €';
-  document.getElementById('gesamt').textContent = gesamt.toLocaleString('de-DE', {minimumFractionDigits:2, maximumFractionDigits:2}) + ' €';
+  const ueberGrenze = brutto > BBG_KV_PV_MONAT;
   document.getElementById('details').innerHTML = `
-    <div>Jahresbeitrag (gesetzlich): <strong>${(gesetzlich * 12).toLocaleString('de-DE', {minimumFractionDigits:2})} €</strong></div>
-    ${zusatzBeitrag > 0 ? `<div>Jahresbeitrag (zusätzlich): <strong>${(zusatzBeitrag * 12).toLocaleString('de-DE')} €</strong></div>` : ''}
+    <div>Beitragssatz insgesamt: <strong>${prozent(gesamtsatz)}</strong> – davon Sie ${prozent(arbeitnehmerSatz)}, Arbeitgeber ${prozent(arbeitgeberSatz)}</div>
+    <div>Ihr Jahresbeitrag: <strong>${euro(arbeitnehmer * 12)}</strong></div>
+    ${ueberGrenze ? `<div>Gerechnet wird nur bis zur Beitragsbemessungsgrenze von ${euro(BBG_KV_PV_MONAT)}; ${euro(brutto - BBG_KV_PV_MONAT)} Ihres Bruttogehalts bleiben beitragsfrei.</div>` : ''}
+    ${bundesland === 'SN' ? '<div>In Sachsen tragen Beschäftigte einen Prozentpunkt allein (§ 58 Abs. 3 SGB XI).</div>' : ''}
   `;
 }
 
-['bruttogehalt','versichertenstatus','kinderlos','zusatzversicherung'].forEach(id => {
+['brutto', 'kinder', 'bundesland', 'unter23'].forEach((id) => {
   const el = document.getElementById(id);
-  if (el.type === 'checkbox') el.addEventListener('change', berechne);
-  else el.addEventListener('input', berechne);
+  const ereignis = el.tagName === 'SELECT' || el.type === 'checkbox' ? 'change' : 'input';
+  el.addEventListener(ereignis, berechne);
 });
 berechne();
 </script>
