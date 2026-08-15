@@ -1,0 +1,427 @@
+---
+import ArticleLayout from '../../layouts/ArticleLayout.astro';
+import {
+  VPI_BASISJAHR,
+  VPI_STAND,
+  VPI_VORJAHR,
+  ABTEILUNGEN,
+  GESAMTINDEX,
+  anstiegSeitBasis,
+  jahresrate,
+  kaufkraft,
+} from '../../../public/scripts/verbraucherpreise.js';
+import { berechneInflation } from '../../../public/scripts/inflation.js';
+
+const base = import.meta.env.BASE_URL;
+
+// Alle Zahlen zur Buildzeit aus dem Modul mit den Destatis-Daten. Der
+// Referenzbetrag ist bewusst 100 €, weil sich daraus jede andere Summe im Kopf
+// hochrechnen lässt.
+const REFERENZ = 100;
+
+const reihe = [...ABTEILUNGEN]
+  .map((a) => ({
+    ...a,
+    seitBasis: anstiegSeitBasis(a),
+    jahr: jahresrate(a),
+    kaufkraft: kaufkraft(REFERENZ, a),
+  }))
+  .sort((a, b) => b.seitBasis - a.seitBasis);
+
+const teuerste = reihe[0];
+const guenstigste = reihe[reihe.length - 1];
+const spanneProzentpunkte = (teuerste.seitBasis - guenstigste.seitBasis) * 100;
+const gesamt = {
+  ...GESAMTINDEX,
+  seitBasis: anstiegSeitBasis(GESAMTINDEX),
+  jahr: jahresrate(GESAMTINDEX),
+  kaufkraft: kaufkraft(REFERENZ, GESAMTINDEX),
+};
+const unterBasis = reihe.filter((a) => a.aktuell < 100);
+const ueberGesamt = reihe.filter((a) => a.seitBasis > gesamt.seitBasis);
+
+// Der verbreitete Denkfehler: den Anstieg vom Betrag abziehen, statt durch den
+// Index zu teilen. Die Differenz ist keine Rundung.
+const falscheKaufkraft = REFERENZ * (1 - gesamt.seitBasis);
+const kaufkraftFehler = gesamt.kaufkraft - falscheKaufkraft;
+
+// Die Jahresrate schreibt der Rechner fort. Über zehn Jahre zeigt sich, wie
+// stark die Wahl der Rate durchschlägt.
+const JAHRE = 10;
+const fortschreibung = [
+  { label: 'Gesamtindex (Jahresrate)', rate: gesamt.jahr },
+  { label: `${teuerste.kurz} (Jahresrate)`, rate: teuerste.jahr },
+  { label: `${guenstigste.kurz} (Jahresrate)`, rate: guenstigste.jahr },
+].map((z) => ({
+  ...z,
+  ergebnis: berechneInflation({ betrag: 10_000, inflationsrateProzent: z.rate * 100, jahre: JAHRE }),
+}));
+// Wie lange es dauert, bis eine Rate die Kaufkraft halbiert. Geschlossen
+// lösbar, statt sich an eine Jahreszahl heranzutasten.
+const halbierung = (rate: number) => Math.log(2) / Math.log(1 + rate);
+const halbierungsRaten = [0.01, 0.02, gesamt.jahr, 0.05, teuerste.jahr]
+  .filter((r, i, alle) => alle.indexOf(r) === i)
+  .sort((a, b) => a - b)
+  .map((rate) => ({ rate, jahre: halbierung(rate) }));
+
+// Der Beleg dafür, dass eine niedrige Jahresrate nichts zurücknimmt: die
+// Abteilung mit der kleinsten Jahresrate, die trotzdem weit über dem Basisjahr
+// liegt.
+const kleinsteJahresrate = [...reihe]
+  .filter((a) => a.jahr > 0 && a.seitBasis > gesamt.seitBasis)
+  .sort((a, b) => a.jahr - b.jahr)[0];
+
+const spanneFortschreibung =
+  Math.max(...fortschreibung.map((f) => f.ergebnis.kaufkraftHeute)) -
+  Math.min(...fortschreibung.map((f) => f.ergebnis.kaufkraftHeute));
+
+const eur = (b: number) =>
+  b.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
+const eurGlatt = (b: number) => b.toLocaleString('de-DE', { maximumFractionDigits: 0 }) + ' €';
+const prozent = (b: number, stellen = 1) => {
+  const wert = (b * 100).toLocaleString('de-DE', { minimumFractionDigits: stellen, maximumFractionDigits: stellen });
+  return (b > 0 ? '+' : '') + wert + ' %';
+};
+const prozentSchlicht = (b: number, stellen = 1) =>
+  (b * 100).toLocaleString('de-DE', { minimumFractionDigits: stellen, maximumFractionDigits: stellen }) + ' %';
+const WORTZAHL = ['null', 'eine', 'zwei', 'drei', 'vier', 'fünf', 'sechs', 'sieben', 'acht', 'neun', 'zehn', 'elf', 'zwölf'];
+const punkte = (b: number, stellen = 1) =>
+  b.toLocaleString('de-DE', { minimumFractionDigits: stellen, maximumFractionDigits: stellen });
+const monatLang = (iso: string) => {
+  const [jahr, monat] = iso.split('-');
+  return new Date(Number(jahr), Number(monat) - 1, 1).toLocaleDateString('de-DE', { month: 'long', year: 'numeric' });
+};
+---
+<ArticleLayout
+  title="Die Inflationsrate erlebt niemand"
+  description={`Seit ${VPI_BASISJAHR} ist der Warenkorb um ${prozent(gesamt.seitBasis)} teurer geworden. Hinter dem Durchschnitt liegen ${punkte(spanneProzentpunkte)} Prozentpunkte Spanne – von ${prozent(guenstigste.seitBasis)} bis ${prozent(teuerste.seitBasis)}.`}
+  canonicalPath="/ratgeber/inflation-was-die-rate-verschweigt/"
+  datum="2026-08-15"
+  lead={`Die Inflationsrate ist ein gewichteter Durchschnitt über zwölf Ausgabenbereiche. Zwischen dem teuersten und dem günstigsten liegen ${punkte(spanneProzentpunkte)} Prozentpunkte – und eine Abteilung ist heute sogar billiger als ${VPI_BASISJAHR}. Wer die Durchschnittsrate auf sein eigenes Geld anwendet, rechnet mit einem Warenkorb, den er nicht hat.`}
+  quellen={[
+    { titel: `Statistisches Bundesamt: Verbraucherpreisindex, Gesamtindex und 12 Abteilungen (Stand ${monatLang(VPI_STAND)})`, url: 'https://www.destatis.de/DE/Themen/Wirtschaft/Preise/Verbraucherpreisindex/Tabellen/Verbraucherpreise-12Kategorien.html' },
+    { titel: 'Statistisches Bundesamt: Verbraucherpreisindex und Inflationsrate – Methodik', url: 'https://www.destatis.de/DE/Themen/Wirtschaft/Preise/Verbraucherpreisindex/_inhalt.html' },
+  ]}
+>
+  <h2>Ein Durchschnitt aus zwölf Teilen</h2>
+
+  <p>
+    Der Verbraucherpreisindex misst, was ein fester Warenkorb kostet, und setzt
+    den Jahresdurchschnitt {VPI_BASISJAHR} auf 100. Der Gesamtindex steht im
+    {' '}{monatLang(VPI_STAND)} bei {punkte(gesamt.aktuell)} – der Warenkorb ist
+    also um {prozentSchlicht(gesamt.seitBasis)} teurer geworden. Diese eine Zahl ist der
+    nach Ausgabenanteilen gewichtete Durchschnitt aus zwölf Abteilungen, und die
+    laufen weit auseinander.
+  </p>
+
+  <div class="table-wrap">
+    <table>
+      <caption class="visually-hidden">Verbraucherpreisindex nach Abteilungen</caption>
+      <thead>
+        <tr>
+          <th scope="col">Abteilung</th>
+          <th scope="col" class="num">Index</th>
+          <th scope="col" class="num">seit {VPI_BASISJAHR}</th>
+          <th scope="col" class="num">gegenüber Vorjahr</th>
+          <th scope="col" class="num">{eurGlatt(REFERENZ)} von {VPI_BASISJAHR} sind heute</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr class="hervor">
+          <th scope="row">{gesamt.name}</th>
+          <td class="num">{punkte(gesamt.aktuell)}</td>
+          <td class="num strong">{prozent(gesamt.seitBasis)}</td>
+          <td class="num">{prozent(gesamt.jahr, 2)}</td>
+          <td class="num">{eur(gesamt.kaufkraft)}</td>
+        </tr>
+        {reihe.map((a) => (
+          <tr>
+            <th scope="row">{a.name}</th>
+            <td class="num">{punkte(a.aktuell)}</td>
+            <td class={`num ${a.aktuell < 100 ? 'strong' : ''}`}>{prozent(a.seitBasis)}</td>
+            <td class="num">{prozent(a.jahr, 2)}</td>
+            <td class="num">{eur(a.kaufkraft)}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  </div>
+
+  <p class="tabellenhinweis">
+    Statistisches Bundesamt, Stand {monatLang(VPI_STAND)}, Basis
+    {' '}{VPI_BASISJAHR} = 100. Die Veränderung gegenüber dem Vorjahr vergleicht
+    denselben Monat des Jahres {VPI_VORJAHR.slice(0, 4)}, damit Saisoneffekte
+    herausfallen.
+  </p>
+
+  <p>
+    {teuerste.name} liegt {prozentSchlicht(teuerste.seitBasis)} über dem
+    Basisjahr, {guenstigste.name} bei {prozent(guenstigste.seitBasis)}. Das sind
+    {' '}{punkte(spanneProzentpunkte)} Prozentpunkte Abstand um einen
+    Durchschnitt von {prozentSchlicht(gesamt.seitBasis)}.
+    {unterBasis.length === 1 ? ' Eine Abteilung liegt sogar unter dem Basisjahr: ' : ' Unter dem Basisjahr liegen: '}
+    {unterBasis.map((a, i) => (
+      <>{i > 0 ? ', ' : ''}{a.name}</>
+    ))} – dort sind {eurGlatt(REFERENZ)} von {VPI_BASISJAHR} heute
+    {' '}{eur(unterBasis[0].kaufkraft)} wert, also mehr als damals.
+  </p>
+
+  <p>
+    Nur {WORTZAHL[ueberGesamt.length] ?? ueberGesamt.length} der zwölf
+    Abteilungen liegen überhaupt über dem Gesamtindex. Dass die gefühlte
+    Teuerung trotzdem regelmäßig höher ausfällt
+    als die gemeldete, hat einen einfachen Grund: Darunter sind die Posten, die
+    man häufig und bewusst bezahlt
+    – {ueberGesamt.slice(0, 3).map((a, i) => (
+      <>{i > 0 ? ', ' : ''}{a.kurz}</>
+    ))}. Was sich kaum verteuert hat, zahlt man dagegen selten oder per
+    Dauerauftrag.
+  </p>
+
+  <h2>Der Rechenfehler bei der Kaufkraft</h2>
+
+  <p>
+    Die letzte Spalte der Tabelle wird häufig falsch gebildet. Wenn die Preise um
+    {' '}{prozentSchlicht(gesamt.seitBasis)} gestiegen sind, ist die Kaufkraft von
+    {' '}{eurGlatt(REFERENZ)} nicht um denselben Prozentsatz gefallen. Der
+    verbreitete Ansatz – {eurGlatt(REFERENZ)} minus
+    {' '}{punkte(gesamt.seitBasis * 100)} Prozent – ergibt
+    {' '}{eur(falscheKaufkraft)}. Richtig ist die Division durch den Index:
+    {' '}{eur(gesamt.kaufkraft)}. Die Differenz von {eur(kaufkraftFehler)} je
+    hundert Euro ist keine Rundung, sondern ein systematischer Fehler, der mit
+    der Teuerung wächst.
+  </p>
+
+  <p>
+    Der Grund ist derselbe wie beim Rabatt: Ein Aufschlag von 25 Prozent wird
+    nicht durch einen Abschlag von 25 Prozent rückgängig gemacht. Wer wissen
+    will, was ein alter Betrag heute wert ist, muss durch den Index teilen, nicht
+    den Anstieg abziehen.
+  </p>
+
+  <h2>Welche Rate man fortschreibt</h2>
+
+  <p>
+    Ein Inflationsrechner braucht eine Rate als Eingabe, und genau darin steckt
+    die eigentliche Entscheidung. Über zehn Jahre führt die Wahl zu Ergebnissen,
+    die weit auseinanderliegen – hier für {eurGlatt(10_000)}, fortgeschrieben mit
+    den aktuellen Jahresraten aus der Tabelle.
+  </p>
+
+  <div class="table-wrap">
+    <table>
+      <caption class="visually-hidden">Kaufkraft von 10.000 Euro nach zehn Jahren</caption>
+      <thead>
+        <tr>
+          <th scope="col">fortgeschrieben mit</th>
+          <th scope="col" class="num">Rate</th>
+          <th scope="col" class="num">Kaufkraft nach {JAHRE} Jahren</th>
+          <th scope="col" class="num">Verlust</th>
+        </tr>
+      </thead>
+      <tbody>
+        {fortschreibung.map((f) => (
+          <tr>
+            <th scope="row">{f.label}</th>
+            <td class="num">{prozent(f.rate, 2)}</td>
+            <td class="num strong">{eurGlatt(f.ergebnis.kaufkraftHeute)}</td>
+            <td class="num">{eurGlatt(f.ergebnis.verlust)}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  </div>
+
+  <p class="tabellenhinweis">
+    Gerechnet mit den Veränderungsraten des laufenden Jahres, konstant
+    fortgeschrieben. Das ist eine Modellannahme und keine Prognose: Keine
+    Abteilung hat sich in den vergangenen Jahren mit gleichbleibender Rate
+    entwickelt.
+  </p>
+
+  <p>
+    Zwischen der günstigsten und der teuersten Fortschreibung liegen nach zehn
+    Jahren {eurGlatt(spanneFortschreibung)}. Wer eine Rate einsetzt, trifft
+    deshalb keine technische, sondern eine inhaltliche Entscheidung: Er legt
+    fest, welchen Warenkorb er unterstellt. Für Miete und Nebenkosten ist die
+    Abteilung Wohnen die passendere Größe, für ein Fahrzeugbudget der Verkehr,
+    für eine Rentenlücke am ehesten der Gesamtindex.
+  </p>
+
+  <h2>Eine sinkende Rate senkt keine Preise</h2>
+
+  <p>
+    Der häufigste Irrtum im Umgang mit der Inflationsrate betrifft nicht ihre
+    Höhe, sondern ihre Richtung. Fällt die Rate, heißt das nicht, dass etwas
+    billiger wird – es heißt nur, dass der Anstieg langsamer geworden ist. Der
+    erreichte Preis bleibt.
+  </p>
+
+  <p>
+    Die Tabelle oben liefert das Beispiel gleich mit. Die Abteilung
+    {' '}{kleinsteJahresrate.kurz} ist gegenüber dem Vorjahr nur um
+    {' '}{prozentSchlicht(kleinsteJahresrate.jahr, 2)} gestiegen – eine Rate, die
+    nach Entwarnung klingt. Gegenüber {VPI_BASISJAHR} liegt die Abteilung
+    trotzdem {prozentSchlicht(kleinsteJahresrate.seitBasis)} höher. Wer
+    {' '}{eurGlatt(REFERENZ)} dafür ausgibt, bekommt heute Waren im Wert von
+    {' '}{eur(kleinsteJahresrate.kaufkraft)} zu Preisen von
+    {' '}{VPI_BASISJAHR}. Damit die Preise auf das Niveau des Basisjahres
+    zurückkehrten, bräuchte es nicht eine niedrige Rate, sondern jahrelang
+    negative.
+  </p>
+
+  <h2>Wann sich die Kaufkraft halbiert</h2>
+
+  <p>
+    Weil Inflation multiplikativ wirkt, lässt sich für jede Rate ausrechnen, nach
+    wie vielen Jahren ein Betrag nur noch die halbe Kaufkraft hat.
+  </p>
+
+  <div class="table-wrap">
+    <table>
+      <caption class="visually-hidden">Halbierungsdauer der Kaufkraft nach Inflationsrate</caption>
+      <thead>
+        <tr>
+          <th scope="col">jährliche Rate</th>
+          <th scope="col" class="num">Kaufkraft halbiert nach</th>
+          <th scope="col" class="num">{eurGlatt(10_000)} sind dann noch</th>
+        </tr>
+      </thead>
+      <tbody>
+        {halbierungsRaten.map((h) => (
+          <tr>
+            <th scope="row">{prozentSchlicht(h.rate, 2)}</th>
+            <td class="num strong">{punkte(h.jahre, 0)} Jahren</td>
+            <td class="num">{eurGlatt(berechneInflation({ betrag: 10_000, inflationsrateProzent: h.rate * 100, jahre: Math.round(h.jahre) }).kaufkraftHeute)}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  </div>
+
+  <p class="tabellenhinweis">
+    Die Halbierungsdauer folgt aus dem Zinseszins und ist unabhängig vom Betrag.
+    Die letzte Spalte rundet die Jahre auf ganze Werte, deshalb liegt sie nicht
+    exakt bei der Hälfte.
+  </p>
+
+  <p>
+    Bei der aktuellen Jahresrate des Gesamtindex dauert es
+    {' '}{punkte(halbierung(gesamt.jahr), 0)} Jahre, bei der Rate der teuersten
+    Abteilung {punkte(halbierung(teuerste.jahr), 0)}. Für alles, was über Jahrzehnte
+    läuft – Rentenlücke, Kapitallebensversicherung, ein Sparplan für die Kinder –
+    ist das die entscheidende Größe, und sie hängt vollständig an einer Zahl, die
+    man selbst wählt.
+  </p>
+
+  <h2>Was der Index nicht misst</h2>
+
+  <ul class="liste">
+    <li>
+      <strong>Den eigenen Warenkorb.</strong> Die Gewichte des Index stammen aus
+      den durchschnittlichen Konsumausgaben aller Haushalte. Ein Haushalt ohne
+      Auto trägt die {prozentSchlicht(teuerste.seitBasis)} beim Verkehr nicht mit, ein
+      Pendler dagegen überproportional.
+    </li>
+    <li>
+      <strong>Qualitätsänderungen unmittelbar.</strong> Wird ein Produkt besser
+      oder größer, rechnet die Statistik den Qualitätsanteil heraus. Der
+      gemessene Preisanstieg fällt dadurch niedriger aus als der Betrag auf dem
+      Kassenzettel.
+    </li>
+    <li>
+      <strong>Vermögenspreise.</strong> Kaufpreise für Immobilien und
+      Wertpapiere gehören nicht in den Warenkorb, Mieten dagegen schon. Wer die
+      Entwicklung von Immobilienpreisen sucht, findet sie nicht im
+      Verbraucherpreisindex.
+    </li>
+  </ul>
+
+  <p>
+    Die eigene Rechnung führt der
+    {' '}<a href={`${base}einheiten/inflationsrechner/`}>Inflationsrechner</a>
+    {' '}durch – mit einer Rate aus der ersten Tabelle statt einer gegriffenen
+    Zahl. Was daneben an Kaufkraft durch Steuern und Abgaben verloren geht, zeigt
+    der {' '}<a href={`${base}geld/brutto-netto-rechner/`}>Brutto-Netto-Rechner</a>.
+  </p>
+
+  <p class="hinweis">
+    Alle Indexstände stammen vom Statistischen Bundesamt, Stand
+    {' '}{monatLang(VPI_STAND)}, Basis {VPI_BASISJAHR} = 100. Die Werte werden
+    turnusmäßig revidiert; maßgeblich ist die jeweils aktuelle Veröffentlichung.
+    Die Fortschreibung über zehn Jahre unterstellt eine konstante Rate und ist
+    ausdrücklich keine Prognose.
+  </p>
+</ArticleLayout>
+
+<style>
+.table-wrap {
+  overflow-x: auto;
+  margin: 1.5rem 0 0.5rem;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.87rem;
+  background: white;
+}
+thead th {
+  background: var(--dark);
+  color: white;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-weight: 600;
+  padding: 0.7rem 0.6rem;
+  text-align: left;
+  white-space: nowrap;
+}
+tbody th {
+  text-align: left;
+  font-weight: 600;
+  padding: 0.6rem;
+  min-width: 12ch;
+}
+tbody td { padding: 0.6rem; }
+tbody tr:nth-child(even) { background: var(--surface); }
+tbody tr:hover { background: var(--cat-light, #f3f4f6); }
+tbody tr.hervor {
+  background: var(--surface);
+  border-bottom: 2px solid var(--dark);
+}
+.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.strong { font-weight: 700; }
+.tabellenhinweis {
+  font-size: 0.78rem !important;
+  color: var(--text-light);
+  margin: 0 0 1.5rem !important;
+}
+.liste {
+  margin: 1rem 0 1.5rem;
+  padding-left: 1.2rem;
+}
+.liste li {
+  margin-bottom: 0.6rem;
+  line-height: 1.7;
+}
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+.hinweis {
+  margin-top: 2rem;
+  padding: 0.9rem 1.1rem;
+  background: var(--surface);
+  border-left: 3px solid var(--gold);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  font-size: 0.85rem !important;
+  line-height: 1.6 !important;
+  color: var(--text-light);
+}
+</style>
