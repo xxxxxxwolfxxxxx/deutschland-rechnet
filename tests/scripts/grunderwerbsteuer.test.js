@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { berechneGrunderwerbsteuer, STEUERSAETZE, BUNDESLAENDER } from '../../public/scripts/grunderwerbsteuer.js';
+import { berechneGrunderwerbsteuer, STEUERSAETZE, BUNDESLAENDER, grunderwerbsteuersatz, BUNDESSATZ } from '../../public/scripts/grunderwerbsteuer.js';
 
 describe('berechneGrunderwerbsteuer', () => {
   it('Bayern: 3,5% auf 300.000 € = 10.500 €', () => {
@@ -54,5 +54,43 @@ describe('BUNDESLAENDER-Metadaten', () => {
     expect(Math.min(...saetze)).toBe(3.5);
     expect(Math.max(...saetze)).toBe(6.5);
     expect(BUNDESLAENDER.by.satz).toBe(3.5);
+  });
+});
+
+// Zwei Fehler, die eine Nachprüfung der Ratgeberartikel am 15.08.2026 zutage
+// gefördert hat.
+describe('Kürzelschreibweise und Rundung', () => {
+  it('erkennt Kürzel unabhängig von der Schreibweise', () => {
+    // Vorher lieferte 'BY' still 5,0 statt 3,5 Prozent – bei 400.000 €
+    // Kaufpreis ein Fehler von 6.000 €.
+    for (const kuerzel of Object.keys(BUNDESLAENDER)) {
+      expect(grunderwerbsteuersatz(kuerzel.toUpperCase())).toBe(BUNDESLAENDER[kuerzel].satz);
+      expect(grunderwerbsteuersatz(kuerzel)).toBe(BUNDESLAENDER[kuerzel].satz);
+    }
+  });
+
+  it('Bayern liefert 3,5 % – auch groß geschrieben', () => {
+    expect(berechneGrunderwerbsteuer({ kaufpreis: 400_000, bundesland: 'BY' }).steuer).toBe(14_000);
+    expect(berechneGrunderwerbsteuer({ kaufpreis: 400_000, bundesland: 'by' }).steuer).toBe(14_000);
+  });
+
+  it('fällt bei unbekanntem Kürzel auf den Bundessatz des § 11 Abs. 1 GrEStG zurück', () => {
+    expect(grunderwerbsteuersatz('XX')).toBe(BUNDESSATZ);
+    expect(BUNDESSATZ).toBe(3.5);
+  });
+
+  it('rundet nach § 11 Abs. 2 GrEStG auf volle Euro ab, nicht kaufmännisch', () => {
+    // 250.010 € × 6,5 % = 16.250,65 € – kaufmännisch wären es 16.251 €.
+    const r = berechneGrunderwerbsteuer({ kaufpreis: 250_010, bundesland: 'nw' });
+    expect(r.steuer).toBe(16_250);
+  });
+
+  it('ergibt für jedes Land einen ganzzahligen Betrag, der nie aufrundet', () => {
+    for (const kuerzel of Object.keys(BUNDESLAENDER)) {
+      const kaufpreis = 333_333;
+      const r = berechneGrunderwerbsteuer({ kaufpreis, bundesland: kuerzel });
+      expect(Number.isInteger(r.steuer)).toBe(true);
+      expect(r.steuer).toBeLessThanOrEqual((kaufpreis * r.satz) / 100);
+    }
   });
 });

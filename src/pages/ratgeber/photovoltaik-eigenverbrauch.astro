@@ -11,6 +11,7 @@ import {
   STROMPREIS_EURO_PRO_KWH,
   STROMPREIS_CENT_PRO_KWH,
   STROMPREIS_QUELLE,
+  STROMPREIS_QUELLE_URL,
 } from '../../../public/scripts/strompreis.js';
 
 const base = import.meta.env.BASE_URL;
@@ -147,7 +148,7 @@ const zahl = (b: number, stellen = 1) =>
     { titel: '§ 49 EEG 2023 – Absenkung der anzulegenden Werte', url: 'https://www.gesetze-im-internet.de/eeg_2014/__49.html' },
     { titel: '§ 25 EEG 2023 – Dauer des Zahlungsanspruchs', url: 'https://www.gesetze-im-internet.de/eeg_2014/__25.html' },
     { titel: 'Bundesnetzagentur – Fördersätze für Solaranlagen', url: 'https://www.bundesnetzagentur.de/DE/Fachthemen/ElektrizitaetundGas/ErneuerbareEnergien/EEG_Foerderung/start.html' },
-    { titel: STROMPREIS_QUELLE, url: 'https://www.bdew.de/energie/bdew-strompreisanalyse/' },
+    { titel: STROMPREIS_QUELLE, url: STROMPREIS_QUELLE_URL },
   ]}
 >
   <h2>Eine Kilowattstunde, zwei Preise</h2>
