@@ -1,6 +1,7 @@
 ---
 import Layout from '../layouts/Layout.astro';
 import CategoryGrid from '../components/CategoryGrid.astro';
+import { LIVE_CALCULATOR_COUNT } from '../data/calculators';
 
 const base = import.meta.env.BASE_URL;
 const siteUrl = import.meta.env.SITE ?? 'https://deutschland-rechnet.de';
@@ -14,7 +15,7 @@ const faqSchema = {
       'name': 'Welche Rechner gibt es?',
       'acceptedAnswer': {
         '@type': 'Answer',
-        'text': 'Über 90 Rechner in den Bereichen Gehalt & Steuern, Familie & Soziales, Wohnen & Immobilien, Auto & Mobilität, Energie und Gesundheit. Alle Rechner berechnen nach aktuellen deutschen Gesetzen und Sätzen.'
+        'text': `${LIVE_CALCULATOR_COUNT} Rechner in den Bereichen Gehalt & Steuern, Familie & Soziales, Wohnen & Immobilien, Auto & Mobilität, Energie und Gesundheit. Alle Rechner berechnen nach aktuellen deutschen Gesetzen und Sätzen.`
       }
     },
     {
@@ -46,7 +47,7 @@ const faqSchema = {
 ---
 <Layout
   title="Kostenlose Rechner für Deutschland"
-  description="105+ kostenlose Online-Rechner: Brutto-Netto, Steuern, Kredit, Energie, Versicherungen, Familie. Sofortiges Ergebnis, keine Anmeldung nötig."
+  description={`${LIVE_CALCULATOR_COUNT} kostenlose Online-Rechner: Brutto-Netto, Steuern, Kredit, Energie, Versicherungen, Familie. Sofortiges Ergebnis, keine Anmeldung nötig.`}
   canonicalPath="/"
 >
   <script type="application/ld+json" set:html={JSON.stringify(faqSchema)} />
@@ -59,7 +60,7 @@ const faqSchema = {
       <p class="site-hero-label">Dein kostenloses Rechner-Portal</p>
       <h1>Deutschland <em>rechnet</em></h1>
       <p class="site-hero-sub">
-        105+ kostenlose Rechner: Gehalt, Steuern, Kredit, Versicherungen, Energie.
+        {LIVE_CALCULATOR_COUNT} kostenlose Rechner: Gehalt, Steuern, Kredit, Versicherungen, Energie.
         Sofort im Browser, ohne Anmeldung.
       </p>
     </div>
@@ -69,7 +70,7 @@ const faqSchema = {
 
   <section class="intro-section">
     <h2>Kostenlose Online-Rechner für finanzielle Entscheidungen</h2>
-    <p>Ob <a href={`${base}geld/brutto-netto-rechner/`}>Gehaltsverhandlung mit Netto-Berechnung</a>, <a href={`${base}wohnen/`}>Hauskauf und Nebenkosten</a>, <a href={`${base}energie/stromkosten-rechner/`}>Energiekosten sparen</a> oder <a href={`${base}geld/einkommensteuer-berechnung/`}>Steuererklärung</a> – richtige Zahlen sind die Grundlage guter Entscheidungen. Deutschland rechnet bietet über 90 Rechner für Gehalt, Steuern, Wohnen, Energie, Familie und mehr – alle aktuellen deutschen Gesetzen und Tarife für 2026.</p>
+    <p>Ob <a href={`${base}geld/brutto-netto-rechner/`}>Gehaltsverhandlung mit Netto-Berechnung</a>, <a href={`${base}wohnen/`}>Hauskauf und Nebenkosten</a>, <a href={`${base}energie/stromkosten-rechner/`}>Energiekosten sparen</a> oder <a href={`${base}geld/einkommensteuer-berechnung/`}>Steuererklärung</a> – richtige Zahlen sind die Grundlage guter Entscheidungen. Deutschland rechnet bietet {LIVE_CALCULATOR_COUNT} Rechner für Gehalt, Steuern, Wohnen, Energie, Familie und mehr – alle nach aktuellen deutschen Gesetzen und Tarifen für 2026.</p>
 
     <div class="benefits-grid">
       <div class="benefit-card">
@@ -100,7 +101,7 @@ const faqSchema = {
     <div class="faq-items">
       <div class="faq-item">
         <h4>Welche Rechner gibt es?</h4>
-        <p>Über 90 Rechner in den Bereichen Gehalt & Steuern, Familie & Soziales, Wohnen & Immobilien, Auto & Mobilität, Energie und Gesundheit. Alle Rechner berechnen nach aktuellen deutschen Gesetzen und Sätzen.</p>
+        <p>{LIVE_CALCULATOR_COUNT} Rechner in den Bereichen Gehalt & Steuern, Familie & Soziales, Wohnen & Immobilien, Auto & Mobilität, Energie und Gesundheit. Alle Rechner berechnen nach aktuellen deutschen Gesetzen und Sätzen.</p>
       </div>
       <div class="faq-item">
         <h4>Ist die Berechnung rechtlich bindend?</h4>

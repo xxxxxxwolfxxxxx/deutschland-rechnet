@@ -169,6 +169,13 @@ export function getByCategory(category: Category): Calculator[] {
   return CALCULATORS.filter(c => c.category === category && c.live);
 }
 
+// Wie viele Rechner tatsaechlich erreichbar sind. Die Zahl stand vorher an drei
+// Stellen von Hand im Text – und zwar in drei verschiedenen Hoehen ('105+',
+// 'ueber 90', 'ueber 100'), weil beim Hinzufuegen neuer Rechner niemand alle
+// Stellen mitgepflegt hat. Sie kommt jetzt aus dieser Liste, damit sie sich mit
+// dem naechsten Eintrag von selbst mitzaehlt.
+export const LIVE_CALCULATOR_COUNT: number = CALCULATORS.filter(c => c.live).length;
+
 export function getRelated(current: Calculator, limit = 6): Calculator[] {
   const inCategory = CALCULATORS.filter(c => c.category === current.category && c.live);
   const position = inCategory.findIndex(c => c.slug === current.slug);
