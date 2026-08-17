@@ -163,7 +163,7 @@ const navLinks = [
       </div>
       <div class="footer-legal">
         <p>© {year} Deutschland rechnet</p>
-        <p><a href={`${base}impressum/`}>Impressum</a> · <a href={`${base}datenschutz/`}>Datenschutz</a> · <a href={`${base}agb/`}>AGB</a> · <a href={`${base}ueber-uns/`}>Über uns</a></p>
+        <p><a href={`${base}impressum/`}>Impressum</a> · <a href={`${base}datenschutz/`}>Datenschutz</a> · <a href={`${base}agb/`}>AGB</a> · <a href={`${base}ueber-uns/`}>Über uns</a> · <button type="button" id="cookie-settings" class="footer-linkbtn">Cookie-Einstellungen</button></p>
       </div>
     </div>
     <div class="container footer-partners">
@@ -181,7 +181,7 @@ const navLinks = [
 
   <div id="cookie-banner" class="cookie-banner" style="display:none;" role="dialog" aria-label="Cookie-Einstellungen">
     <div class="cookie-inner">
-      <p>Wir verwenden Cookies, um Werbeanzeigen über Google AdSense anzuzeigen. Ihre Rechnerdaten werden niemals übertragen. <a href={`${base}datenschutz/`}>Mehr erfahren</a></p>
+      <p>Wir setzen Cookies ein, um Ihnen über Google AdSense personalisierte Werbeanzeigen zu zeigen. Ohne Ihre Zustimmung sehen Sie nur nicht-personalisierte Anzeigen. Ihre Rechnerdaten werden niemals übertragen. <a href={`${base}datenschutz/`}>Mehr erfahren</a></p>
       <div class="cookie-buttons">
         <button id="cookie-accept" class="cookie-btn cookie-accept">Akzeptieren</button>
         <button id="cookie-reject" class="cookie-btn cookie-reject">Nur notwendige</button>
@@ -225,16 +225,47 @@ const navLinks = [
   <script is:inline>
     (function() {
       var banner = document.getElementById('cookie-banner');
-      var consent = localStorage.getItem('cookie-consent');
-      if (!consent) { banner.style.display = 'flex'; }
-      document.getElementById('cookie-accept').addEventListener('click', function() {
-        localStorage.setItem('cookie-consent', 'granted');
+      var acceptBtn = document.getElementById('cookie-accept');
+      var rejectBtn = document.getElementById('cookie-reject');
+      var settingsBtn = document.getElementById('cookie-settings');
+
+      function openBanner() {
+        banner.style.display = 'flex';
+        acceptBtn.focus();
+      }
+      function closeBanner() {
         banner.style.display = 'none';
+      }
+
+      if (!localStorage.getItem('cookie-consent')) { banner.style.display = 'flex'; }
+
+      acceptBtn.addEventListener('click', function() {
+        localStorage.setItem('cookie-consent', 'granted');
+        closeBanner();
         gtag('consent', 'update', { ad_storage: 'granted', ad_user_data: 'granted', ad_personalization: 'granted', analytics_storage: 'granted' });
       });
-      document.getElementById('cookie-reject').addEventListener('click', function() {
+
+      rejectBtn.addEventListener('click', function() {
         localStorage.setItem('cookie-consent', 'denied');
-        banner.style.display = 'none';
+        closeBanner();
+        /*
+          Das Update ist auch beim Ablehnen Pflicht: Wer den Banner ueber den
+          Footer erneut oeffnet, hat womoeglich vorher zugestimmt. Ohne diesen
+          Aufruf bliebe der Consent Mode bis zum naechsten Seitenaufruf auf
+          'granted' stehen – der Widerruf haette also keine sofortige Wirkung.
+        */
+        gtag('consent', 'update', { ad_storage: 'denied', ad_user_data: 'denied', ad_personalization: 'denied', analytics_storage: 'denied' });
+      });
+
+      /* Widerruf nach Art. 7 Abs. 3 DSGVO: so einfach erreichbar wie die Erteilung. */
+      settingsBtn.addEventListener('click', openBanner);
+
+      document.addEventListener('keydown', function(e) {
+        /* Escape schliesst nur, wenn bereits eine Entscheidung gespeichert ist. */
+        if (e.key === 'Escape' && banner.style.display === 'flex' && localStorage.getItem('cookie-consent')) {
+          closeBanner();
+          settingsBtn.focus();
+        }
       });
     })();
   </script>
@@ -426,6 +457,16 @@ footer::before {
 .footer-legal p { margin: 0.25rem 0; }
 .footer-legal a { color: rgba(255,255,255,0.4); text-decoration: none; }
 .footer-legal a:hover { color: white; }
+.footer-linkbtn {
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  color: rgba(255,255,255,0.4);
+  cursor: pointer;
+}
+.footer-linkbtn:hover { color: white; }
+.footer-linkbtn:focus-visible { outline: 2px solid white; outline-offset: 2px; }
 .footer-partners {
   margin-top: 1.5rem;
   padding-top: 1rem;
