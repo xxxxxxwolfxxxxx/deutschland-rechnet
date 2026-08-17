@@ -6,43 +6,40 @@ import { LIVE_CALCULATOR_COUNT } from '../data/calculators';
 const base = import.meta.env.BASE_URL;
 const siteUrl = import.meta.env.SITE ?? 'https://deutschland-rechnet.de';
 
+// Einzige Quelle fuer die FAQ. Google verlangt, dass FAQPage-Markup und
+// sichtbarer Text uebereinstimmen – deshalb werden beide unten aus dieser Liste
+// erzeugt statt nebeneinander gepflegt. Vorher stand jede Antwort zweimal im
+// Quelltext, einmal im Schema und einmal im Markup.
+const faqItems: ReadonlyArray<{ question: string; answer: string }> = [
+  {
+    question: 'Welche Rechner gibt es?',
+    answer: `${LIVE_CALCULATOR_COUNT} Rechner in den Bereichen Gehalt & Steuern, Familie & Soziales, Wohnen & Immobilien, Auto & Mobilität, Energie und Gesundheit. Alle Rechner berechnen nach aktuellen deutschen Gesetzen und Sätzen.`
+  },
+  {
+    question: 'Ist die Berechnung rechtlich bindend?',
+    answer: 'Nein. Die Rechner sind Orientierungshilfen für Privatpersonen. Für rechtsgültige Auskünfte konsultieren Sie einen Steuerberater oder Anwalt. Individuelle Fälle mit besonderen Umständen können abweichen.'
+  },
+  {
+    question: 'Werden meine Daten gespeichert?',
+    answer: 'Nein. Alle Berechnungen finden im Browser statt. Ihre Eingaben werden nicht an Server übertragen, nicht gespeichert und nicht weitergegeben.'
+  },
+  {
+    question: 'Wie aktuell sind die Rechner?',
+    answer: 'Alle Rechner werden regelmäßig aktualisiert. Die 2026-Version berücksichtigt Änderungen bei Steuersätzen, Sozialversicherungsbeiträgen und Gesetzen ab 1. Januar 2026.'
+  }
+];
+
 const faqSchema = {
   '@context': 'https://schema.org',
   '@type': 'FAQPage',
-  'mainEntity': [
-    {
-      '@type': 'Question',
-      'name': 'Welche Rechner gibt es?',
-      'acceptedAnswer': {
-        '@type': 'Answer',
-        'text': `${LIVE_CALCULATOR_COUNT} Rechner in den Bereichen Gehalt & Steuern, Familie & Soziales, Wohnen & Immobilien, Auto & Mobilität, Energie und Gesundheit. Alle Rechner berechnen nach aktuellen deutschen Gesetzen und Sätzen.`
-      }
-    },
-    {
-      '@type': 'Question',
-      'name': 'Ist die Berechnung rechtlich bindend?',
-      'acceptedAnswer': {
-        '@type': 'Answer',
-        'text': 'Nein. Die Rechner sind Orientierungshilfen für Privatpersonen. Für rechtsgültige Auskünfte konsultieren Sie einen Steuerberater oder Anwalt. Individuelle Fälle mit besonderen Umständen können abweichen.'
-      }
-    },
-    {
-      '@type': 'Question',
-      'name': 'Werden meine Daten gespeichert?',
-      'acceptedAnswer': {
-        '@type': 'Answer',
-        'text': 'Nein. Alle Berechnungen finden im Browser statt. Ihre Eingaben werden nicht an Server übertragen, nicht gespeichert und nicht weitergegeben.'
-      }
-    },
-    {
-      '@type': 'Question',
-      'name': 'Wie aktuell sind die Rechner?',
-      'acceptedAnswer': {
-        '@type': 'Answer',
-        'text': 'Alle Rechner werden regelmäßig aktualisiert. Die 2026-Version berücksichtigt Änderungen bei Steuersätzen, Sozialversicherungsbeiträgen und Gesetzen ab 1. Januar 2026.'
-      }
+  'mainEntity': faqItems.map(item => ({
+    '@type': 'Question',
+    'name': item.question,
+    'acceptedAnswer': {
+      '@type': 'Answer',
+      'text': item.answer
     }
-  ]
+  }))
 };
 ---
 <Layout
@@ -99,22 +96,12 @@ const faqSchema = {
   <section class="faq-section">
     <h2>Häufig gestellte Fragen</h2>
     <div class="faq-items">
-      <div class="faq-item">
-        <h4>Welche Rechner gibt es?</h4>
-        <p>{LIVE_CALCULATOR_COUNT} Rechner in den Bereichen Gehalt & Steuern, Familie & Soziales, Wohnen & Immobilien, Auto & Mobilität, Energie und Gesundheit. Alle Rechner berechnen nach aktuellen deutschen Gesetzen und Sätzen.</p>
-      </div>
-      <div class="faq-item">
-        <h4>Ist die Berechnung rechtlich bindend?</h4>
-        <p>Nein. Die Rechner sind Orientierungshilfen für Privatpersonen. Für rechtsgültige Auskünfte konsultieren Sie einen Steuerberater oder Anwalt. Individuelle Fälle mit besonderen Umständen können abweichen.</p>
-      </div>
-      <div class="faq-item">
-        <h4>Werden meine Daten gespeichert?</h4>
-        <p>Nein. Alle Berechnungen finden im Browser statt. Ihre Eingaben werden nicht an Server übertragen, nicht gespeichert und nicht weitergegeben.</p>
-      </div>
-      <div class="faq-item">
-        <h4>Wie aktuell sind die Rechner?</h4>
-        <p>Alle Rechner werden regelmäßig aktualisiert. Die 2026-Version berücksichtigt Änderungen bei Steuersätzen, Sozialversicherungsbeiträgen und Gesetzen ab 1. Januar 2026.</p>
-      </div>
+      {faqItems.map(item => (
+        <div class="faq-item">
+          <h4>{item.question}</h4>
+          <p>{item.answer}</p>
+        </div>
+      ))}
     </div>
   </section>
 
