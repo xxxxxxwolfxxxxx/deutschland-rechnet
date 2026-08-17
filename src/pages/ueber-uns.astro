@@ -1,5 +1,6 @@
 ---
 import Layout from '../layouts/Layout.astro';
+import { LIVE_CALCULATOR_COUNT } from '../data/calculators';
 const base = import.meta.env.BASE_URL;
 ---
 <Layout
@@ -17,7 +18,7 @@ const base = import.meta.env.BASE_URL;
         Deutschland rechnet entstand aus einer einfachen Beobachtung: Viele finanzielle Entscheidungen in Deutschland – von der Gehaltsverhandlung über den Hauskauf bis zur Steuererklärung – scheitern an fehlender Transparenz. Wer sein Nettogehalt nicht kennt, verhandelt blind. Wer Nebenkosten beim Immobilienkauf nicht einplant, erlebt böse Überraschungen.
       </p>
       <p>
-        Wir bieten über 100 kostenlose Rechner, die komplexe deutsche Regelungen verständlich machen. Jeder Rechner erklärt nicht nur das Ergebnis, sondern auch den Hintergrund: Welche Gesetze gelten, wie die Berechnung funktioniert und was Sie beachten sollten.
+        Wir bieten {LIVE_CALCULATOR_COUNT} kostenlose Rechner, die komplexe deutsche Regelungen verständlich machen. Jeder Rechner erklärt nicht nur das Ergebnis, sondern auch den Hintergrund: Welche Gesetze gelten, wie die Berechnung funktioniert und was Sie beachten sollten.
       </p>
     </section>
 
