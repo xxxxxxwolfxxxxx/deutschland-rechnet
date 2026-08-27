@@ -115,25 +115,58 @@ describe('berechneGeschwindigkeit – beharrlicher Verstoß nach § 4 Abs. 2 BKa
 });
 
 describe('berechneGeschwindigkeit – Punkte nach Anlage 13 FeV', () => {
-  it('vergibt unterhalb von 60 Euro Geldbuße keinen Punkt', () => {
+  /*
+    Anlage 13 FeV bewertet ausschliesslich die dort aufgezaehlten Tatbestaende.
+    Fuer Pkw und Motorrad (Tabelle 1 Buchst. c) sind das:
+      Nr. 3.2.2 (ein Punkt):   11.3.4, 11.3.5, 11.3.6 – 11.3.6 nur ausserorts
+      Nr. 2.2.3 (zwei Punkte): 11.3.6 bis 11.3.10    – 11.3.6 nur innerorts
+    Die Stufen 11.3.1 bis 11.3.3, also bis 20 km/h Ueberschreitung, sind in
+    keiner der beiden Listen aufgefuehrt.
+  */
+  it('vergibt bis 20 km/h Überschreitung keinen Punkt', () => {
     expect(berechneGeschwindigkeit({ ort: 'innerorts', ueberschreitung: 15 }).punkte).toBe(0);
     expect(berechneGeschwindigkeit({ ort: 'ausserorts', ueberschreitung: 15 }).punkte).toBe(0);
+    // 11.3.3: 70 Euro innerorts, 60 Euro ausserorts – beide erreichen die
+    // Eintragungsgrenze, die Stufe steht aber in keiner Liste der Anlage 13.
+    expect(berechneGeschwindigkeit({ ort: 'innerorts', ueberschreitung: 20 }).punkte).toBe(0);
+    expect(berechneGeschwindigkeit({ ort: 'ausserorts', ueberschreitung: 20 }).punkte).toBe(0);
   });
 
-  it('vergibt ab 60 Euro Geldbuße einen Punkt', () => {
-    expect(berechneGeschwindigkeit({ ort: 'innerorts', ueberschreitung: 20 }).punkte).toBe(1);
-    expect(berechneGeschwindigkeit({ ort: 'ausserorts', ueberschreitung: 20 }).punkte).toBe(1);
-    expect(berechneGeschwindigkeit({ ort: 'ausserorts', ueberschreitung: 40 }).punkte).toBe(1);
+  it('vergibt ab 21 km/h Überschreitung einen Punkt', () => {
+    expect(berechneGeschwindigkeit({ ort: 'innerorts', ueberschreitung: 21 }).punkte).toBe(1);
+    expect(berechneGeschwindigkeit({ ort: 'innerorts', ueberschreitung: 30 }).punkte).toBe(1);
+    expect(berechneGeschwindigkeit({ ort: 'ausserorts', ueberschreitung: 21 }).punkte).toBe(1);
+    expect(berechneGeschwindigkeit({ ort: 'ausserorts', ueberschreitung: 30 }).punkte).toBe(1);
   });
 
-  it('vergibt zwei Punkte, sobald ein Fahrverbot verhängt wird', () => {
+  it('bewertet die Stufe 11.3.6 je nach Ortslage unterschiedlich', () => {
+    // 31 bis 40 km/h: innerorts Nr. 2.2.3, ausserorts Nr. 3.2.2.
     expect(berechneGeschwindigkeit({ ort: 'innerorts', ueberschreitung: 35 }).punkte).toBe(2);
+    expect(berechneGeschwindigkeit({ ort: 'ausserorts', ueberschreitung: 35 }).punkte).toBe(1);
+    expect(berechneGeschwindigkeit({ ort: 'ausserorts', ueberschreitung: 40 }).punkte).toBe(1);
+    expect(berechneGeschwindigkeit({ ort: 'ausserorts', ueberschreitung: 41 }).punkte).toBe(2);
+  });
+
+  it('vergibt ab 11.3.7 in beiden Ortslagen zwei Punkte', () => {
+    expect(berechneGeschwindigkeit({ ort: 'innerorts', ueberschreitung: 45 }).punkte).toBe(2);
+    expect(berechneGeschwindigkeit({ ort: 'innerorts', ueberschreitung: 100 }).punkte).toBe(2);
+    expect(berechneGeschwindigkeit({ ort: 'ausserorts', ueberschreitung: 100 }).punkte).toBe(2);
+  });
+
+  it('lässt die Punktzahl vom Beharrlichkeits-Fahrverbot unberührt', () => {
+    /*
+      Das Fahrverbot nach § 4 Abs. 2 BKatV aendert den Tatbestand nicht. Die
+      Tat bleibt 11.3.5 und wird nach Nr. 3.2.2 mit einem Punkt bewertet;
+      eine Generalklausel fuer fahrverbotsbewehrte Ordnungswidrigkeiten
+      kennt die Anlage 13 nicht.
+    */
     const beharrlich = berechneGeschwindigkeit({
       ort: 'innerorts',
       ueberschreitung: 28,
       voreintragung: true,
     });
-    expect(beharrlich.punkte).toBe(2);
+    expect(beharrlich.fahrverbot).toBe(1);
+    expect(beharrlich.punkte).toBe(1);
   });
 
   it('nennt die Nummer der Tabelle 1 Buchstabe c', () => {
@@ -372,16 +405,21 @@ describe('berechneParken – Nummern 50 ff. BKat', () => {
     expect(berechneParken({ typ: 'schwerbehindertenparkplatz' }).bussgeld).toBe(55);
   });
 
-  it('vergibt für Park- und Halteverstöße keine Punkte', () => {
+  it('vergibt für die meisten Park- und Halteverstöße keine Punkte', () => {
     for (const typ of [
       'halten_unzulaessig',
       'halteverbot_parken',
-      'gehweg_radweg_behinderung',
-      'feuerwehrzufahrt_behinderung',
       'schwerbehindertenparkplatz',
     ]) {
       expect(berechneParken({ typ }).punkte).toBe(0);
     }
+  });
+
+  it('vergibt einen Punkt für die in Anlage 13 aufgeführten Parkverstöße', () => {
+    // Nr. 3.2.7 FeV nennt Nr. 53.1 BKat (Feuerwehrzufahrt mit Behinderung),
+    // Nr. 3.2.7b nennt Nr. 52a.1 BKat (Gehweg oder Radweg mit Behinderung).
+    expect(berechneParken({ typ: 'feuerwehrzufahrt_behinderung' }).punkte).toBe(1);
+    expect(berechneParken({ typ: 'gehweg_radweg_behinderung' }).punkte).toBe(1);
   });
 
   it('ahndet die nicht gebildete Rettungsgasse mit 200 Euro und Fahrverbot', () => {

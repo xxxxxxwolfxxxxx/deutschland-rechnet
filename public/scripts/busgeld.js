@@ -28,7 +28,7 @@ export const PROMILLE_OWI = 0.5;
 
 // Ab dieser Geldbuße wird die Tat in das Fahreignungsregister eingetragen,
 // § 28 Abs. 3 Nr. 3 Buchst. a StVG.
-const EINTRAGUNGSGRENZE_EURO = 60;
+export const EINTRAGUNGSGRENZE_EURO = 60;
 
 /**
  * Punkte im Fahreignungsregister nach Anlage 13 FeV.
@@ -38,6 +38,11 @@ const EINTRAGUNGSGRENZE_EURO = 60;
  * in Anlage 13 FeV aufgeführten Tatbestände – Halten und Parken gehören nicht
  * dazu und tragen ihre Punktzahl deshalb in den Daten selbst.
  *
+ * ACHTUNG: Diese Ableitung aus Betrag und Fahrverbot ist eine Näherung, die
+ * nur trägt, solange der Tatbestand überhaupt in Anlage 13 steht und dort
+ * nicht nach Ortslage unterschieden wird. Für die Geschwindigkeit trifft
+ * beides nicht zu – dort rechnet punkteGeschwindigkeit().
+ *
  * @param {number} bussgeld Regelsatz in Euro
  * @param {number} fahrverbot Dauer des Fahrverbots in Monaten
  * @returns {number} Punkte
@@ -45,6 +50,34 @@ const EINTRAGUNGSGRENZE_EURO = 60;
 function punkteNachAnlage13(bussgeld, fahrverbot) {
   if (fahrverbot > 0) return 2;
   return bussgeld >= EINTRAGUNGSGRENZE_EURO ? 1 : 0;
+}
+
+/**
+ * Punkte für Geschwindigkeitsüberschreitungen mit Pkw und Motorrad.
+ *
+ * Anlage 13 FeV bewertet ausschließlich die dort aufgezählten Tatbestände;
+ * eine Generalklausel für fahrverbotsbewehrte Ordnungswidrigkeiten gibt es
+ * nicht. Für Tabelle 1 Buchstabe c gilt:
+ *
+ *   Nr. 3.2.2 (ein Punkt):   11.3.4, 11.3.5, 11.3.6 – 11.3.6 nur außerorts
+ *   Nr. 2.2.3 (zwei Punkte): 11.3.6 bis 11.3.10     – 11.3.6 nur innerorts
+ *
+ * Die Stufen 11.3.1 bis 11.3.3 stehen in keiner der beiden Listen. Bis
+ * 20 km/h Überschreitung gibt es deshalb keinen Punkt, obwohl der Regelsatz
+ * mit 70 € innerorts und 60 € außerorts die Eintragungsgrenze erreicht.
+ *
+ * Das Fahrverbot wegen Beharrlichkeit nach § 4 Abs. 2 BKatV ändert den
+ * Tatbestand nicht und damit auch die Punktzahl nicht.
+ *
+ * @param {number} stufe laufende Nummer der Tabelle, 1 bis 10 für 11.3.1 ff.
+ * @param {string} ort 'innerorts' oder 'ausserorts'
+ * @returns {number} Punkte
+ */
+function punkteGeschwindigkeit(stufe, ort) {
+  if (stufe <= 3) return 0;
+  if (stufe <= 5) return 1;
+  if (stufe === 6) return ort === 'ausserorts' ? 1 : 2;
+  return 2;
 }
 
 // Tabelle 1 Buchstabe c des Anhangs zur BKatV: Geschwindigkeitsüberschreitung
@@ -82,8 +115,8 @@ const GESCHWINDIGKEIT = {
 // § 4 Abs. 2 Satz 2 BKatV: Wer innerhalb eines Jahres nach Rechtskraft einer
 // Geldbuße wegen mindestens 26 km/h erneut mindestens 26 km/h zu schnell ist,
 // handelt beharrlich. Das Fahrverbot beträgt beim ersten Mal einen Monat.
-const BEHARRLICH_AB_KMH = 26;
-const BEHARRLICH_FAHRVERBOT_MONATE = 1;
+export const BEHARRLICH_AB_KMH = 26;
+export const BEHARRLICH_FAHRVERBOT_MONATE = 1;
 
 // Nummern 132 bis 132.3.2 BKat. Die Rotphase und die Folge des Verstoßes sind
 // zwei unabhängige Merkmale; der Katalog kombiniert sie zu sechs Tatbeständen.
@@ -159,9 +192,11 @@ const PARKEN = {
   halteverbot_parken: { bussgeld: 25, punkte: 0, fahrverbot: 0, nummer: '52', label: 'Geparkt, wo das Halten verboten ist' },
   halteverbot_parken_behinderung: { bussgeld: 40, punkte: 0, fahrverbot: 0, nummer: '52.1', label: 'Geparkt, wo das Halten verboten ist, mit Behinderung' },
   gehweg_radweg: { bussgeld: 55, punkte: 0, fahrverbot: 0, nummer: '52a', label: 'Auf Geh- oder Radweg geparkt' },
-  gehweg_radweg_behinderung: { bussgeld: 70, punkte: 0, fahrverbot: 0, nummer: '52a.1', label: 'Auf Geh- oder Radweg geparkt, mit Behinderung' },
+  // Anlage 13 Nr. 3.2.7b FeV nennt 52a.1 ausdruecklich.
+  gehweg_radweg_behinderung: { bussgeld: 70, punkte: 1, fahrverbot: 0, nummer: '52a.1', label: 'Auf Geh- oder Radweg geparkt, mit Behinderung' },
   feuerwehrzufahrt: { bussgeld: 55, punkte: 0, fahrverbot: 0, nummer: '53', label: 'In einer Feuerwehrzufahrt geparkt' },
-  feuerwehrzufahrt_behinderung: { bussgeld: 100, punkte: 0, fahrverbot: 0, nummer: '53.1', label: 'In einer Feuerwehrzufahrt geparkt, Rettungsfahrzeug behindert' },
+  // Anlage 13 Nr. 3.2.7 FeV nennt 53.1 ausdruecklich.
+  feuerwehrzufahrt_behinderung: { bussgeld: 100, punkte: 1, fahrverbot: 0, nummer: '53.1', label: 'In einer Feuerwehrzufahrt geparkt, Rettungsfahrzeug behindert' },
   kreuzung_5m: { bussgeld: 10, punkte: 0, fahrverbot: 0, nummer: '54', label: 'Weniger als 5 m vor der Kreuzung geparkt' },
   bushaltestelle: { bussgeld: 55, punkte: 0, fahrverbot: 0, nummer: '54.4', label: 'An einer Haltestelle geparkt (Zeichen 224)' },
   schwerbehindertenparkplatz: { bussgeld: 55, punkte: 0, fahrverbot: 0, nummer: '55', label: 'Unberechtigt auf einem Schwerbehindertenparkplatz geparkt' },
@@ -195,7 +230,7 @@ export function berechneGeschwindigkeit({ ort, ueberschreitung, voreintragung = 
 
   return {
     bussgeld,
-    punkte: punkteNachAnlage13(bussgeld, fahrverbot),
+    punkte: punkteGeschwindigkeit(index + 1, ort),
     fahrverbot,
     beharrlich,
     nummer,
