@@ -21,29 +21,29 @@ const year = new Date().getFullYear();
   </div>
   <CalculatorShell
     calculator={calc}
-    intro="Mit dem Promille-Rechner berechnen Sie Ihren Blutalkoholgehalt nach der Widmark-Formel. Fügen Sie verschiedene Getränke hinzu und sehen Sie sofort, wie sich Ihr Blutalkoholspiegel entwickelt. So können Sie einschätzen, ob Sie noch fahrtüchtig sind oder wie lange der Alkoholabbau dauert."
-    sourceNote="Widmark-Formel."
-    explanation="Die Widmark-Formel ist die international anerkannte Standardmethode zur Schätzung der Blutalkoholkonzentration und wird auch in der forensischen Medizin eingesetzt. Der geschlechtsspezifische Körperwasserfaktor (0,68 für Männer, 0,55 für Frauen) berücksichtigt den unterschiedlichen Wasseranteil im Körper. In Deutschland gilt ab 0,5 Promille ein absolutes Fahrverbot, und bereits ab 0,3 Promille können bei auffälligem Fahren Strafen verhängt werden."
+    intro="Der Promille-Rechner schätzt den Blutalkoholgehalt nach der Widmark-Formel – als nachträgliche Orientierung darüber, wie viel Alkohol getrunken wurde und wie lange der Körper für den Abbau braucht. Das Ergebnis ist eine grobe Schätzung mit erheblicher Streuung und darf nicht als Entscheidungsgrundlage dafür dienen, ob jemand ein Fahrzeug führen kann. Wer Alkohol getrunken hat, fährt nicht."
+    sourceNote="Widmark-Formel. Schätzwert ohne Gewähr, nicht zur Beurteilung der Fahrtüchtigkeit geeignet."
+    explanation="Die Widmark-Formel ist die Standardmethode zur Schätzung der Blutalkoholkonzentration und wird auch in der Rechtsmedizin eingesetzt. Der geschlechtsspezifische Körperwasserfaktor (0,68 für Männer, 0,55 für Frauen) berücksichtigt den unterschiedlichen Wasseranteil im Körper. Der berechnete Wert weicht individuell stark ab: Trinkgeschwindigkeit, Mageninhalt, Medikamente und die persönliche Abbaurate beeinflussen ihn. Eine gemessene Blutalkoholkonzentration lässt sich damit nicht vorhersagen."
     faqs={[
       {
         q: "Warum unterscheidet sich die Blutalkoholkonzentration nach Geschlecht?",
         a: "Frauen haben weniger Wasser im Körper und metabolisieren Alkohol langsamer, daher steigt ihr Blutalkohol schneller. Der Widmark-Faktor beträgt 0,55 (Frauen) vs. 0,68 (Männer)."
       },
       {
-        q: "Ist die Widmark-Formel genau?",
-        a: "Die Formel ist eine zuverlässige Schätzung mit 10-15% Genauigkeit. Die tatsächliche BAK hängt von Magen-Füllung, Alkoholabbau-Rate, Magenschleimhaut-Zustand und Metabolik ab."
+        q: "Wie genau ist die Widmark-Formel?",
+        a: "Sie liefert einen Schätzwert, keinen Messwert. Die Abweichung zur tatsächlich gemessenen Blutalkoholkonzentration kann erheblich sein, weil Mageninhalt, Trinkgeschwindigkeit, Medikamente und die individuelle Abbaurate einfließen. Verlässlich ist allein eine Blutprobe."
       },
       {
         q: "Wie schnell baut der Körper Alkohol ab?",
-        a: "Der Abbau erfolgt mit etwa 0,1-0,15 Promille pro Stunde, hauptsächlich durch die Leber. Dieser Wert ist sehr individuell, Fitmacher wie Essen und Schlaf beeinflussen ihn."
+        a: "Der Abbau erfolgt fast vollständig über die Leber, mit etwa 0,1 bis 0,15 Promille pro Stunde. Der Wert ist individuell und lässt sich nicht beschleunigen – auch nicht durch Essen, Schlaf oder Bewegung."
       },
       {
-        q: "Ist 0,5 Promille wirklich die Grenze zum Autofahren?",
-        a: "Ja, ab 0,5 Promille ist Autofahren strafbar. Bereits ab 0,3 Promille können Augenblicke oder auffälliges Fahren zu Konsequenzen führen. Die sichere Grenze für Fahrtüchtigkeit ist 0,0 Promille."
+        q: "Welche Promillegrenzen gelten in Deutschland?",
+        a: "Ab 0,5 Promille liegt eine Ordnungswidrigkeit nach § 24a StVG vor (Bußgeld, Punkte, Fahrverbot). Ab 1,1 Promille gilt man als absolut fahruntüchtig – das ist eine Straftat nach § 316 StGB. Schon ab 0,3 Promille kann eine Straftat vorliegen, wenn Ausfallerscheinungen hinzukommen. Für Fahranfänger in der Probezeit und alle unter 21 gilt 0,0 Promille."
       },
       {
-        q: "Warum wird die Fahruntüchtigkeit bei höherer BAK viel schlimmer?",
-        a: "Mit höherer Alkoholkonzentration beeinflussen Alkohl das Urteilsvermögen, Reaktionszeit und Feinmotorik exponentiell – nicht linear. Ab 1,0 Promille ist kritische Intoxikation zu befürchten."
+        q: "Kann ich mit dem Rechner prüfen, ob ich noch fahren darf?",
+        a: "Nein. Der Rechner schätzt nur einen Durchschnittswert und ersetzt keine Messung. Alkohol beeinträchtigt Reaktionszeit, Urteilsvermögen und Sehleistung schon deutlich unter jeder gesetzlichen Grenze. Wer getrunken hat, sollte das Fahrzeug stehen lassen – unabhängig davon, was hier angezeigt wird."
       },
       {
         q: "Kann Kaffee oder kaltes Duschen helfen, schneller nüchtern zu werden?",
@@ -87,18 +87,20 @@ const year = new Date().getFullYear();
         <div id="bak-wert">0,00 ‰</div>
       </div>
       <div id="bak-info" style="margin-top:0.5rem;font-size:0.85rem;color:#666;"></div>
-      <p id="bak-hinweis" class="bak-warn" style="display:none;">Achtung: Fahruntüchtigkeit ab 0,5 ‰ (0,3 ‰ bei auffälligem Fahren).</p>
+      <p id="bak-hinweis" class="bak-warn" style="display:none;">Kein Fahrzeug führen. Der angezeigte Wert ist eine Schätzung und sagt nichts darüber aus, ob Sie fahren dürfen.</p>
     </div>
   </CalculatorShell>
   <CalculatorGuide
     title="Blutalkoholkonzentration verstehen"
-    content="Die Blutalkoholkonzentration (BAK) ist ein exakter biochemischer Parameter – ein Maß für die Menge Alkohol im Blut. Die Widmark-Formel ist die Standard-Berechnungsmethode und wird in Rechtsmedizin und Polizei weltweit verwendet.
+    content="Die Blutalkoholkonzentration (BAK) misst die Menge Alkohol im Blut. Die Widmark-Formel schätzt diesen Wert aus Trinkmenge, Körpergewicht und Geschlecht – sie ist eine Näherung, kein Messverfahren. Verlässlich bestimmen lässt sich die BAK nur über eine Blutprobe.
 
-**Die Absorption und der Metabolismus:** Nach dem Trinken wird Alkohol schnell absorbiert, besonders auf leeren Magen. Der Abbau erfolgt hauptsächlich in der Leber mit einer relativ konstanten Rate (etwa 0,1-0,15 Promille/Stunde), während der Alkoholspiegel steigt oder fällt je nach Trinkgeschwindigkeit versus Abbaugeschwindigkeit.
+**Absorption und Abbau:** Nach dem Trinken gelangt Alkohol schnell ins Blut, auf leeren Magen besonders schnell. Der Abbau läuft fast vollständig über die Leber, mit etwa 0,1 bis 0,15 Promille pro Stunde. Diese Rate ist weitgehend konstant und lässt sich nicht steigern – weder durch Kaffee noch durch Essen, Schlaf oder Sport.
 
-**Besonderheiten bei Frauen und älteren Menschen:** Frauen werden schneller betrunken, weil weniger Wasser im Körper Alkohol verdünnt. Ältere Menschen haben zudem geringere Leber-Kapazität. Beide Gruppen sollten den Rechner mit Vorsicht nutzen und bei Unsicherheit einen Arzt konsultieren.
+**Warum die Schätzung streut:** Frauen erreichen bei gleicher Trinkmenge höhere Werte, weil weniger Körperwasser den Alkohol verdünnt. Ältere Menschen bauen langsamer ab, ebenso Menschen mit eingeschränkter Leberfunktion. Auch Medikamente verschieben das Ergebnis. Die Abweichung zwischen geschätztem und gemessenem Wert kann in beide Richtungen deutlich ausfallen.
 
-**Sicherheit und Gesetze:** In Deutschland ist Autofahren ab 0,5 Promille strafbar. Aber auch unter 0,5 Promille können Beeinträchtigungen auftreten – 0,2 Promille reduziert bereits die Sicht. Die sicherste Wahl ist absolut 0,0 Promille beim Fahren."
+**Die gesetzlichen Grenzen:** Ab 0,5 Promille liegt eine Ordnungswidrigkeit nach § 24a StVG vor, ab 1,1 Promille eine Straftat nach § 316 StGB wegen absoluter Fahruntüchtigkeit. Bereits ab 0,3 Promille kann eine Straftat vorliegen, wenn Ausfallerscheinungen dazukommen. Für Fahranfänger in der Probezeit und alle unter 21 Jahren gilt ein absolutes Alkoholverbot am Steuer.
+
+**Was dieser Rechner nicht kann:** Er sagt nicht, ob jemand fahren darf. Reaktionszeit, Sehleistung und Risikoeinschätzung sind längst vor jeder gesetzlichen Grenze beeinträchtigt. Wer Alkohol getrunken hat, lässt das Fahrzeug stehen."
     relatedSlugs={['blutdruck-bewerter', 'schlaf-rechner', 'kalorien-rechner']}
   />
 </Layout>
@@ -166,7 +168,10 @@ function berechne() {
   document.getElementById('bak-info').textContent = getraenke.length
     ? `Reiner Alkohol: ${r.alkoholGramm} g · Rohwert: ${r.rohWert} ‰ · Abbau: ${r.abbau} ‰`
     : 'Fügen Sie Getränke hinzu.';
-  document.getElementById('bak-hinweis').style.display = r.bak >= 0.3 ? '' : 'none';
+  /* Der Warnhinweis haengt nicht an einem Grenzwert: Jeder Wert ueber null ist
+     ein Grund, das Fahrzeug stehen zu lassen. Eine Schwelle wuerde suggerieren,
+     darunter sei das Fahren unbedenklich. */
+  document.getElementById('bak-hinweis').style.display = r.bak > 0 ? '' : 'none';
 }
 
 function renderListe() {
