@@ -23,6 +23,14 @@ export interface Artikel {
 
 export const ARTIKEL: Artikel[] = [
   {
+    slug: 'kindesunterhalt-volljaehrigkeit',
+    titel: 'Kindesunterhalt: Warum der 18. Geburtstag den Zahlbetrag senkt',
+    teaser: 'Der Bedarf steigt, der überwiesene Betrag sinkt – in allen fünfzehn Einkommensgruppen, um 39,50 bis 77,50 € im Monat. Dazu die Spanne von 856 €, in der jeder zusätzliche Euro vollständig an die Kinder geht, und der Euro an der Gruppengrenze, der 1.080 € im Jahr auslöst.',
+    datum: '2026-08-27',
+    thema: 'Familie',
+    rechner: ['unterhaltsrechner', 'ehegattenunterhalt-rechner', 'kindergeld-rechner'],
+  },
+  {
     slug: 'wohngeld-mietenstufe-gegen-einkommen',
     titel: 'Wohngeld: Bei 300 € Miete zahlen alle sieben Mietenstufen dasselbe',
     teaser: 'Die Mietenstufe wirkt nur als Deckel – unterhalb davon ergeben Stufe I und Stufe VII denselben Betrag. Wo sie wirkt, ist der Sprung von I auf VII bis zu 295 € im Monat wert – so viel wie 459 € mehr Monatsbrutto. Dazu die Schwelle, an der ein Euro Mehrverdienst 63 € mehr Wohngeld bringt.',

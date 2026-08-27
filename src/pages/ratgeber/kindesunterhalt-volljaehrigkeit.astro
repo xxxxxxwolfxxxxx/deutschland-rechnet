@@ -1,0 +1,409 @@
+---
+import ArticleLayout from '../../layouts/ArticleLayout.astro';
+import {
+  berechneKindesunterhalt,
+  DT_2026,
+  KINDERGELD,
+  MINDESTUNTERHALT,
+  SELBSTBEHALT,
+  BEDARF_EIGENER_HAUSSTAND,
+} from '../../../public/scripts/unterhalt.js';
+
+const base = import.meta.env.BASE_URL;
+
+// Alle Zahlen zur Buildzeit aus demselben Modul, das auch der Rechner laedt.
+const eur = (b: number) =>
+  b.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
+const eurGlatt = (b: number) => b.toLocaleString('de-DE', { maximumFractionDigits: 0 }) + ' €';
+const ZAHLWORT = ['null', 'ein', 'zwei', 'drei', 'vier', 'fünf', 'sechs', 'sieben', 'acht', 'neun', 'zehn'];
+const zahlwort = (n: number) => ZAHLWORT[n] ?? String(n);
+
+const unterhalt = (opts: Record<string, unknown>) =>
+  berechneKindesunterhalt(opts as any);
+
+// --- 1. Der 18. Geburtstag, je Einkommensgruppe -------------------------
+// Direkt aus den Tabellensaetzen, nicht ueber einen konkreten Fall: Sobald man
+// ein Einkommen einsetzt, ueberlagern Selbstbehalt und Bedarfskontrollbetrag
+// den Effekt und stufen in den unteren Gruppen zurueck. Die Zeile stuende dann
+// unter einer Gruppe, mit deren Saetzen sie gar nicht gerechnet wurde.
+const ANRECHNUNG_MINDERJAEHRIG = KINDERGELD / 2;
+const geburtstag = DT_2026.map((g) => {
+  const zahl17 = g.saetze[2] - ANRECHNUNG_MINDERJAEHRIG;
+  const zahl18 = g.saetze[3] - KINDERGELD;
+  return {
+    gruppe: g.gruppe,
+    bis: g.bis,
+    bedarf17: g.saetze[2],
+    bedarf18: g.saetze[3],
+    zahl17,
+    zahl18,
+    differenz: zahl18 - zahl17,
+  };
+});
+const kleinsterVerlust = geburtstag.reduce((a, b) => (b.differenz > a.differenz ? b : a));
+const groessterVerlust = geburtstag.reduce((a, b) => (b.differenz < a.differenz ? b : a));
+const alleNegativ = geburtstag.every((g) => g.differenz < 0);
+
+// Gegenprobe an einem konkreten Fall: In den unteren Gruppen kommt der Wechsel
+// vom notwendigen zum angemessenen Selbstbehalt hinzu und vergroessert den
+// Rueckgang noch.
+const UNTERE_GRUPPE_NETTO = DT_2026[0].bis;
+const untenMit17 = unterhalt({ nettoEinkommen: UNTERE_GRUPPE_NETTO, alterKind: 17, anzahlBerechtigte: 2 });
+const untenMit18 = unterhalt({ nettoEinkommen: UNTERE_GRUPPE_NETTO, alterKind: 18, anzahlBerechtigte: 2 });
+const untenDifferenz = untenMit18.zahlbetrag - untenMit17.zahlbetrag;
+
+// Ab welchem Prozentsatz wuerde sich der Effekt drehen? Der Bedarf steigt beim
+// Uebergang zur vierten Altersstufe um die Differenz der Basissaetze, die
+// Anrechnung um das halbe Kindergeld.
+const BASIS_DIFFERENZ = Math.ceil(MINDESTUNTERHALT[1] * 1.25) - MINDESTUNTERHALT[2];
+const NOETIGER_PROZENTSATZ = (ANRECHNUNG_MINDERJAEHRIG / BASIS_DIFFERENZ) * 100;
+
+// --- 2. Mangelfall: Grenzbelastung --------------------------------------
+const MANGEL_KIND_ALTER = 8;
+function mangelEnde(berechtigte: number) {
+  for (let e = SELBSTBEHALT.notwendigErwerbstaetig; e <= 9000; e++) {
+    if (!unterhalt({ nettoEinkommen: e, alterKind: MANGEL_KIND_ALTER, anzahlBerechtigte: berechtigte }).mangelfall) {
+      return e;
+    }
+  }
+  return null;
+}
+const mangelGrenzen = [1, 2, 3].map((n) => ({ kinder: n, ende: (mangelEnde(n) ?? 0) - 1 }));
+const mangelZwei = mangelGrenzen[1];
+const mangelSpanne = mangelZwei.ende - SELBSTBEHALT.notwendigErwerbstaetig;
+
+const mangelReihe = [
+  SELBSTBEHALT.notwendigErwerbstaetig,
+  1600, 1800, 2000, 2200,
+  mangelZwei.ende,
+  mangelZwei.ende + 1,
+  2500,
+].map((e) => {
+  const r = unterhalt({ nettoEinkommen: e, alterKind: MANGEL_KIND_ALTER, anzahlBerechtigte: 2 });
+  return { netto: e, gesamt: r.zahlbetrag * 2, bleibt: e - r.zahlbetrag * 2, mangelfall: r.mangelfall };
+});
+
+// --- 3. Die Sprungstellen an den Gruppengrenzen ---------------------------
+const spruenge: Array<{ ab: number; von: number; auf: number; delta: number; gruppe: number }> = [];
+{
+  let vorher = unterhalt({ nettoEinkommen: 2600, alterKind: MANGEL_KIND_ALTER, anzahlBerechtigte: 2 });
+  for (let e = 2601; e <= DT_2026[DT_2026.length - 1].bis; e++) {
+    const jetzt = unterhalt({ nettoEinkommen: e, alterKind: MANGEL_KIND_ALTER, anzahlBerechtigte: 2 });
+    if (jetzt.zahlbetrag - vorher.zahlbetrag > 1) {
+      spruenge.push({
+        ab: e,
+        von: vorher.zahlbetrag,
+        auf: jetzt.zahlbetrag,
+        delta: jetzt.zahlbetrag - vorher.zahlbetrag,
+        gruppe: jetzt.einkommensgruppe as number,
+      });
+    }
+    vorher = jetzt;
+  }
+}
+const groessterSprung = spruenge.reduce((a, b) => (b.delta > a.delta ? b : a));
+// Der groesste Sprung tritt mehrfach auf – "der groesste" waere sonst irrefuehrend.
+const maxSpruengeAnzahl = spruenge.filter((s) => s.delta === groessterSprung.delta).length;
+// Unterhalb welcher Stelle liegen die Sprungstellen nicht auf den Tabellengrenzen?
+// Dort stuft der Bedarfskontrollbetrag zurueck.
+const TABELLENGRENZEN = new Set(DT_2026.map((g) => g.bis + 1));
+const ersterEchterSprung = spruenge.find((s) => TABELLENGRENZEN.has(s.ab)) ?? spruenge[0];
+const krummeSpruenge = spruenge.filter((s) => !TABELLENGRENZEN.has(s.ab)).length;
+
+// --- 4. Eigener Hausstand gegen Elternhaushalt ---------------------------
+const hausstandZahlbetrag = BEDARF_EIGENER_HAUSSTAND - KINDERGELD;
+let hausstandSchwelle: number | null = null;
+for (let e = 2000; e <= DT_2026[DT_2026.length - 1].bis; e++) {
+  const zuhause = unterhalt({ nettoEinkommen: e, alterKind: 19, anzahlBerechtigte: 1 }).zahlbetrag;
+  if (zuhause > hausstandZahlbetrag) { hausstandSchwelle = e; break; }
+}
+const hausstandOben = unterhalt({
+  nettoEinkommen: DT_2026[DT_2026.length - 1].bis,
+  alterKind: 19,
+  anzahlBerechtigte: 1,
+}).zahlbetrag;
+
+// --- 5. Zahl der Berechtigten --------------------------------------------
+const BERECHTIGTE_NETTO = 3500;
+const berechtigteReihe = [1, 2, 3, 4].map((n) => {
+  const r = unterhalt({ nettoEinkommen: BERECHTIGTE_NETTO, alterKind: MANGEL_KIND_ALTER, anzahlBerechtigte: n });
+  return {
+    anzahl: n,
+    gruppe: r.einkommensgruppe as number,
+    vorRueckstufung: r.einkommensgruppeVorRueckstufung as number,
+    rueckstufung: r.rueckstufung,
+    jeKind: r.zahlbetrag,
+    gesamt: r.zahlbetrag * n,
+  };
+});
+
+const quellen = [
+  { titel: 'Düsseldorfer Tabelle Stand 01.01.2026 nebst Anmerkungen (OLG Düsseldorf)', url: 'https://www.olg-duesseldorf.nrw.de/infos/Duesseldorfer_Tabelle/' },
+  { titel: '§ 1612b BGB – Anrechnung des Kindergeldes', url: 'https://www.gesetze-im-internet.de/bgb/__1612b.html' },
+  { titel: '§ 1603 BGB – Leistungsfähigkeit und Selbstbehalt', url: 'https://www.gesetze-im-internet.de/bgb/__1603.html' },
+  { titel: '§ 1610 BGB – Maß des Unterhalts', url: 'https://www.gesetze-im-internet.de/bgb/__1610.html' },
+  { titel: '§ 66 EStG – Höhe des Kindergeldes', url: 'https://www.gesetze-im-internet.de/estg/__66.html' },
+  { titel: 'Mindestunterhaltsverordnung (MinUhV)', url: 'https://www.gesetze-im-internet.de/minuhv/' },
+  { titel: 'Unterhaltsrechtliche Leitlinien der Familiensenate in NRW, Stand 01.01.2026', url: 'https://www.olg-hamm.nrw.de/infos/Leitlinien-NRW/LL-NRW-2026.pdf' },
+];
+---
+<ArticleLayout
+  title="Kindesunterhalt: Warum der 18. Geburtstag den Zahlbetrag senkt"
+  description="Mit der Volljährigkeit steigt der Bedarf des Kindes – der Zahlbetrag sinkt trotzdem, in jeder der 15 Einkommensgruppen. Dazu die Einkommensspanne, in der jeder zusätzliche Euro vollständig an die Kinder geht."
+  canonicalPath="/ratgeber/kindesunterhalt-volljaehrigkeit/"
+  datum="2026-08-27"
+  lead={`Der Bedarf eines volljährigen Kindes liegt über dem eines siebzehnjährigen – in der Düsseldorfer Tabelle um ${eurGlatt(BASIS_DIFFERENZ)} in der ersten Gruppe. Der Betrag, den der unterhaltspflichtige Elternteil überweist, sinkt am 18. Geburtstag trotzdem. Und zwar in allen fünfzehn Einkommensgruppen.`}
+  quellen={quellen}
+>
+  <h2>Was die Düsseldorfer Tabelle ist – und was nicht</h2>
+  <p>
+    Die Düsseldorfer Tabelle ist kein Gesetz. Sie ist eine Leitlinie des Oberlandesgerichts
+    Düsseldorf, der die Familiensenate der übrigen Oberlandesgerichte folgen. Verbindlich ist
+    allein § 1610 BGB, der den Unterhalt nach der „Lebensstellung des Bedürftigen" bemisst –
+    die Tabelle übersetzt diesen unbestimmten Rechtsbegriff in Zahlen.
+  </p>
+  <p>
+    Ihre erste Einkommensgruppe ist an den Mindestunterhalt der Mindestunterhaltsverordnung
+    gebunden: {eurGlatt(MINDESTUNTERHALT[0])} für Kinder bis fünf Jahre,
+    {' '}{eurGlatt(MINDESTUNTERHALT[1])} von sechs bis elf, {eurGlatt(MINDESTUNTERHALT[2])} von
+    zwölf bis siebzehn. Die vierte Altersstufe ab 18 Jahren hat keinen eigenen Mindestunterhalt;
+    ihr Satz sind 125 Prozent der zweiten Stufe, also {eurGlatt(DT_2026[0].saetze[3])}. Die
+    Gruppen 2 bis 15 leiten sich als Prozentsätze der ersten ab.
+  </p>
+
+  <h2>Der 18. Geburtstag kostet das Kind Geld</h2>
+  <p>
+    Am Tag der Volljährigkeit ändern sich zwei Dinge gleichzeitig. Der Bedarf steigt, weil das
+    Kind in die vierte Altersstufe wechselt. Und das Kindergeld wird nicht mehr zur Hälfte,
+    sondern vollständig auf den Barbedarf angerechnet.
+  </p>
+  <p>
+    Der Grund für die hälftige Anrechnung steht in § 1612b Abs. 1 BGB, und er ist nicht das
+    Alter: Halbiert wird, „wenn ein Elternteil seine Unterhaltspflicht durch Betreuung des
+    Kindes erfüllt". Mit der Volljährigkeit endet dieser Betreuungsunterhalt – und damit die
+    Voraussetzung der Halbierung. Aus {eur(KINDERGELD / 2)} Anrechnung werden
+    {' '}{eur(KINDERGELD)}.
+  </p>
+  <p>
+    Die Anrechnung steigt also um {eur(KINDERGELD / 2)}. Der Bedarf steigt um
+    {' '}{eurGlatt(BASIS_DIFFERENZ)}, multipliziert mit dem Prozentsatz der Einkommensgruppe. Damit sich beides
+    ausgliche, müsste dieser Prozentsatz {NOETIGER_PROZENTSATZ.toLocaleString('de-DE', { maximumFractionDigits: 0 })} Prozent
+    erreichen. Die Tabelle endet bei 200.
+  </p>
+
+  <table>
+    <caption class="visually-hidden">
+      Tabellenbetrag nach Kindergeldanrechnung mit 17 und mit 18 Jahren, je Einkommensgruppe
+    </caption>
+    <thead>
+      <tr>
+        <th scope="col">Gruppe</th>
+        <th scope="col" class="num">Netto bis</th>
+        <th scope="col" class="num">Bedarf 17 J.</th>
+        <th scope="col" class="num">Bedarf 18 J.</th>
+        <th scope="col" class="num">Nach Anrechnung 17 J.</th>
+        <th scope="col" class="num">Nach Anrechnung 18 J.</th>
+        <th scope="col" class="num">Differenz</th>
+      </tr>
+    </thead>
+    <tbody>
+      {geburtstag.map((g) => (
+        <tr>
+          <th scope="row">{g.gruppe}</th>
+          <td class="num">{eurGlatt(g.bis)}</td>
+          <td class="num">{eurGlatt(g.bedarf17)}</td>
+          <td class="num">{eurGlatt(g.bedarf18)}</td>
+          <td class="num">{eur(g.zahl17)}</td>
+          <td class="num">{eur(g.zahl18)}</td>
+          <td class="num strong">{eur(g.differenz)}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+
+  <p>
+    {alleNegativ ? 'In keiner einzigen Gruppe steigt der Betrag.' : ''} Am größten ist der
+    Rückgang in Gruppe {groessterVerlust.gruppe} mit
+    {' '}{eur(Math.abs(groessterVerlust.differenz))} im Monat, am kleinsten in Gruppe
+    {' '}{kleinsterVerlust.gruppe} mit {eur(Math.abs(kleinsterVerlust.differenz))}. Er schrumpft
+    nach oben hin, weil der Prozentsatz der Gruppe auf die Bedarfsdifferenz wirkt, die
+    Kindergeldanrechnung aber in jeder Gruppe um denselben Betrag steigt.
+  </p>
+  <p>
+    Diese Tabelle zeigt den Effekt für sich genommen. Im konkreten Fall kommt in den unteren
+    Gruppen ein zweiter hinzu: Gegenüber einem volljährigen Kind gilt nicht mehr der notwendige
+    Selbstbehalt von {eurGlatt(SELBSTBEHALT.notwendigErwerbstaetig)}, sondern der angemessene
+    von {eurGlatt(SELBSTBEHALT.angemessen)}. Bei {eurGlatt(UNTERE_GRUPPE_NETTO)} bereinigtem
+    Netto und zwei Kindern fällt der Zahlbetrag deshalb nicht um
+    {' '}{eur(Math.abs(groessterVerlust.differenz))}, sondern von {eur(untenMit17.zahlbetrag)}
+    {' '}auf {eur(untenMit18.zahlbetrag)} – ein Rückgang von {eur(Math.abs(untenDifferenz))}.
+  </p>
+  <p>
+    Das Geld verschwindet nicht: Das Kindergeld wird beim volljährigen Kind in voller Höhe zu
+    seinem eigenen Einkommen gerechnet. Rechnerisch steht es genauso da. Nur der Betrag, der
+    vom unterhaltspflichtigen Elternteil überwiesen wird, ist kleiner – und das ist die Zahl,
+    über die gestritten wird.
+  </p>
+
+  <h2>Die Spanne, in der Mehrverdienst nichts bringt</h2>
+  <p>
+    Unterhalb des Selbstbehalts ist der Pflichtige nicht leistungsfähig, § 1603 BGB. Oberhalb
+    davon wird alles, was über den Selbstbehalt hinausgeht, auf die Berechtigten verteilt,
+    solange der Tabellenbetrag nicht erreicht ist. In diesem Bereich behält der Pflichtige von
+    jedem zusätzlichen Euro nichts.
+  </p>
+
+  <table>
+    <caption class="visually-hidden">
+      Zwei Kinder von 6 bis 11 Jahren: Zahlbetrag und verbleibendes Einkommen
+    </caption>
+    <thead>
+      <tr>
+        <th scope="col" class="num">Bereinigtes Netto</th>
+        <th scope="col" class="num">Zahlt für zwei Kinder</th>
+        <th scope="col" class="num">Behält</th>
+      </tr>
+    </thead>
+    <tbody>
+      {mangelReihe.map((z) => (
+        <tr>
+          <th scope="row" class="num">{eurGlatt(z.netto)}</th>
+          <td class="num">{eur(z.gesamt)}</td>
+          <td class="num strong">{eur(z.bleibt)}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+
+  <p>
+    Zwischen {eurGlatt(SELBSTBEHALT.notwendigErwerbstaetig)} und {eurGlatt(mangelZwei.ende)}
+    {' '}bereinigtem Netto – einer Spanne von {eurGlatt(mangelSpanne)} – bleibt dem Pflichtigen
+    mit zwei Kindern immer exakt derselbe Betrag. Die Grenzbelastung liegt bei 100 Prozent.
+    Erst ab {eurGlatt(mangelZwei.ende + 1)} ist der volle Tabellenbetrag gedeckt, und jeder
+    weitere Euro bleibt zunächst beim Pflichtigen. Mit einem Kind endet dieser Bereich schon
+    bei {eurGlatt(mangelGrenzen[0].ende)}, mit drei Kindern erst bei
+    {' '}{eurGlatt(mangelGrenzen[2].ende)}.
+  </p>
+
+  <h2>Ein Euro an der Gruppengrenze</h2>
+  <p>
+    Oberhalb des Mangelfalls ist der Zahlbetrag eine Treppe: Innerhalb einer Einkommensgruppe
+    ändert er sich überhaupt nicht, an der Grenze springt er. Für zwei Kinder von sechs bis elf
+    Jahren liegen zwischen {eurGlatt(2600)} und {eurGlatt(DT_2026[DT_2026.length - 1].bis)}
+    {' '}genau {spruenge.length} solcher Stufen.
+  </p>
+  <table>
+    <caption class="visually-hidden">Sprungstellen des Zahlbetrags an den Gruppengrenzen</caption>
+    <thead>
+      <tr>
+        <th scope="col" class="num">Ab Netto</th>
+        <th scope="col" class="num">Gruppe</th>
+        <th scope="col" class="num">Je Kind vorher</th>
+        <th scope="col" class="num">Je Kind nachher</th>
+        <th scope="col" class="num">Für zwei Kinder mehr</th>
+      </tr>
+    </thead>
+    <tbody>
+      {spruenge.map((s) => (
+        <tr>
+          <th scope="row" class="num">{eurGlatt(s.ab)}</th>
+          <td class="num">{s.gruppe}</td>
+          <td class="num">{eur(s.von)}</td>
+          <td class="num">{eur(s.auf)}</td>
+          <td class="num strong">{eur(s.delta * 2)}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+  <p>
+    Auffällig ist, wo die Stufen liegen. Die Gruppengrenzen der Tabelle sind glatte Beträge –
+    {eurGlatt(DT_2026[0].bis)}, {eurGlatt(DT_2026[1].bis)}, {eurGlatt(DT_2026[2].bis)}. Die
+    ersten {krummeSpruenge} Sprünge fallen aber auf krumme Werte wie
+    {' '}{eurGlatt(spruenge[0].ab)}. Der Grund ist der Bedarfskontrollbetrag: Bis dorthin bliebe
+    dem Pflichtigen nach Abzug beider Zahlbeträge zu wenig, also wird zurückgestuft. Erst ab
+    {' '}{eurGlatt(ersterEchterSprung.ab)} fallen Sprungstelle und Tabellengrenze zusammen.
+  </p>
+  <p>
+    Der größte Sprung beträgt {eur(groessterSprung.delta * 2)} im Monat für zwei Kinder –
+    {' '}{eur(groessterSprung.delta * 2 * 12)} im Jahr, ausgelöst von einem einzigen Euro mehr
+    bereinigtem Netto. Er tritt an {zahlwort(maxSpruengeAnzahl)} Gruppengrenzen auf, erstmals bei
+    {' '}{eurGlatt(groessterSprung.ab)}. Das ist der Grund, warum um die Bereinigung des
+    Einkommens – berufsbedingte Aufwendungen, Altersvorsorge, Schulden – härter gestritten wird
+    als um die Tabelle selbst.
+  </p>
+
+  <h2>Der Student mit eigener Wohnung bekommt weniger als der zu Hause</h2>
+  <p>
+    Ein volljähriges Kind außerhalb des Elternhaushalts hat einen von der Tabelle unabhängigen
+    Festbedarf von {eurGlatt(BEDARF_EIGENER_HAUSSTAND)}, darin {eurGlatt(440)} Warmmiete. Nach
+    Abzug des vollen Kindergelds bleiben {eur(hausstandZahlbetrag)} – unabhängig davon, was der
+    unterhaltspflichtige Elternteil verdient.
+  </p>
+  <p>
+    Ein gleichaltriges Kind, das bei einem Elternteil wohnt, wird dagegen nach der Tabelle
+    berechnet. Ab {eurGlatt(hausstandSchwelle ?? 0)} bereinigtem Netto liegt dessen Zahlbetrag
+    über dem Festbetrag. An der Obergrenze der Tabelle,
+    {' '}{eurGlatt(DT_2026[DT_2026.length - 1].bis)}, sind es {eur(hausstandOben)} gegenüber
+    {' '}{eur(hausstandZahlbetrag)} – ein Unterschied von
+    {' '}{eur(hausstandOben - hausstandZahlbetrag)} zugunsten des Kindes, das nicht ausgezogen
+    ist. Der Festbedarf ist ein Bedarfssatz, keine Beteiligung am Lebensstandard des Zahlenden.
+  </p>
+
+  <h2>Geschwister verschieben die Gruppe, nicht das Einkommen</h2>
+  <p>
+    Die Tabelle unterstellt zwei Unterhaltsberechtigte. Bei einer anderen Zahl wird nicht das
+    Einkommen gekürzt, sondern die Einstufung verschoben: bei einem Berechtigten eine Gruppe
+    hinauf, bei dreien eine hinab. Zusätzlich greift der Bedarfskontrollbetrag – bleibt er dem
+    Pflichtigen nach Abzug aller Zahlbeträge nicht, wird weiter zurückgestuft.
+  </p>
+  <table>
+    <caption class="visually-hidden">
+      Zahlbetrag je Kind nach Zahl der Unterhaltsberechtigten
+    </caption>
+    <thead>
+      <tr>
+        <th scope="col" class="num">Berechtigte</th>
+        <th scope="col" class="num">Gruppe</th>
+        <th scope="col" class="num">Je Kind</th>
+        <th scope="col" class="num">Gesamt</th>
+      </tr>
+    </thead>
+    <tbody>
+      {berechtigteReihe.map((b) => (
+        <tr>
+          <th scope="row" class="num">{b.anzahl}</th>
+          <td class="num">
+            {b.rueckstufung ? `${b.vorRueckstufung} → ${b.gruppe}` : b.gruppe}
+          </td>
+          <td class="num">{eur(b.jeKind)}</td>
+          <td class="num strong">{eur(b.gesamt)}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+  <p>
+    Bei {eurGlatt(BERECHTIGTE_NETTO)} bereinigtem Netto und Kindern der Altersstufe sechs bis elf Jahre
+    fällt der Betrag je Kind von {eur(berechtigteReihe[0].jeKind)} auf
+    {' '}{eur(berechtigteReihe[3].jeKind)}, sobald vier Berechtigte zu versorgen sind. Die
+    Gesamtlast steigt dabei von {eur(berechtigteReihe[0].gesamt)} auf
+    {' '}{eur(berechtigteReihe[3].gesamt)}. Beim vierten Berechtigten wirkt zusätzlich der
+    Bedarfskontrollbetrag und stuft von Gruppe {berechtigteReihe[3].vorRueckstufung} auf Gruppe
+    {' '}{berechtigteReihe[3].gruppe} zurück.
+  </p>
+
+  <h2>Was diese Rechnung nicht abbildet</h2>
+  <p>
+    Alle Beträge setzen ein bereits <em>bereinigtes</em> Nettoeinkommen voraus – der Streit
+    beginnt in der Praxis genau dort. Nicht enthalten sind Mehr- und Sonderbedarf nach
+    §§ 1610 Abs. 2, 1613 Abs. 2 BGB, das Wechselmodell, die anteilige Haftung beider Eltern
+    beim volljährigen Kind nach § 1606 Abs. 3 BGB sowie eigene Einkünfte des Kindes. Die
+    Rückstufung unterstellt außerdem gleich hohe Zahlbeträge für alle Berechtigten; bei stark
+    unterschiedlichem Alter der Kinder ist das eine Näherung.
+  </p>
+  <p>
+    Die Zahlen dieses Artikels stammen aus demselben Rechenmodul wie der
+    {' '}<a href={`${base}familie/unterhaltsrechner/`}>Unterhaltsrechner</a>. Wer den eigenen
+    Fall durchspielen will, findet dort die Eingabefelder für Alter, Einkommen und Zahl der
+    Berechtigten.
+  </p>
+</ArticleLayout>
