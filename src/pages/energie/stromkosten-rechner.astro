@@ -20,6 +20,15 @@ const euro = (b: number) => b.toLocaleString('de-DE', { maximumFractionDigits: 0
 const euro2 = (b: number) => b.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
 const ct = (b: number) => b.toLocaleString('de-DE', { minimumFractionDigits: 1, maximumFractionDigits: 3 });
 const kwh = (b: number) => b.toLocaleString('de-DE') + ' kWh';
+// Anteil am Gesamtpreis zur Buildzeit rechnen statt tippen. Vorher standen
+// hier 41,3 / 24,9 / 33,9 Prozent im Text - Werte, die weder zu den Betraegen
+// aus dem Modul passten noch untereinander (sie implizierten Gesamtsummen
+// zwischen 36,73 und 37,19 ct).
+const anteil = (b: number) =>
+  ((b / STROMPREIS_CENT_PRO_KWH) * 100).toLocaleString('de-DE', {
+    minimumFractionDigits: 1,
+    maximumFractionDigits: 1,
+  });
 
 const HAUSHALTE = [
   { label: '1 Person', verbrauchKwh: 1500 },
@@ -96,9 +105,9 @@ const musterhaushalt = stromkostenProJahr({ verbrauchKwh: STROMPREIS_REFERENZVER
     title="Stromkosten verstehen und optimieren"
     content={`<p>Der durchschnittliche Strompreis für Haushalte liegt 2026 bei <strong>${ct(STROMPREIS_CENT_PRO_KWH)} ct/kWh</strong>. Die Zahl stammt aus der BDEW-Strompreisanalyse April 2026 und bezieht sich auf einen Musterhaushalt mit ${kwh(STROMPREIS_REFERENZVERBRAUCH_KWH)} Jahresverbrauch; der Grundpreis ist anteilig eingerechnet. So verteilt sich der Preis:</p>
 <ul>
-  <li><strong>Strombeschaffung und Vertrieb:</strong> ${ct(STROMPREIS_BESTANDTEILE.beschaffungUndVertrieb)} ct/kWh (41,3 %)</li>
-  <li><strong>Netzentgelt:</strong> ${ct(STROMPREIS_BESTANDTEILE.netzentgelt)} ct/kWh (24,9 %)</li>
-  <li><strong>Steuern, Abgaben und Umlagen:</strong> ${ct(Math.round(STROMPREIS_BESTANDTEILE.steuernAbgabenUmlagen * 10) / 10)} ct/kWh (33,9 %)</li>
+  <li><strong>Strombeschaffung und Vertrieb:</strong> ${ct(STROMPREIS_BESTANDTEILE.beschaffungUndVertrieb)} ct/kWh (${anteil(STROMPREIS_BESTANDTEILE.beschaffungUndVertrieb)} %)</li>
+  <li><strong>Netzentgelt:</strong> ${ct(STROMPREIS_BESTANDTEILE.netzentgelt)} ct/kWh (${anteil(STROMPREIS_BESTANDTEILE.netzentgelt)} %)</li>
+  <li><strong>Steuern, Abgaben und Umlagen:</strong> ${ct(Math.round(STROMPREIS_BESTANDTEILE.steuernAbgabenUmlagen * 10) / 10)} ct/kWh (${anteil(STROMPREIS_BESTANDTEILE.steuernAbgabenUmlagen)} %)</li>
 </ul>
 
 <p><strong>Die Abgaben im Einzelnen:</strong> Mehrwertsteuer ${ct(STROMPREIS_UMLAGEN.mehrwertsteuer)} ct/kWh, Stromsteuer ${ct(STROMPREIS_UMLAGEN.stromsteuer)} ct/kWh, Konzessionsabgabe ${ct(STROMPREIS_UMLAGEN.konzessionsabgabe)} ct/kWh, Aufschlag für besondere Netznutzung ${ct(STROMPREIS_UMLAGEN.besondereNetznutzung)} ct/kWh, Offshore-Netzumlage ${ct(STROMPREIS_UMLAGEN.offshoreNetzumlage)} ct/kWh und KWKG-Umlage ${ct(STROMPREIS_UMLAGEN.kwkgUmlage)} ct/kWh. Eine EEG-Umlage taucht hier nicht mehr auf: Sie wurde zum 1. Juli 2022 auf null gesetzt und ist seither kein Bestandteil des Strompreises. Der Ausbau der erneuerbaren Energien wird seitdem aus dem Bundeshaushalt finanziert.</p>
