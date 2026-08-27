@@ -1,0 +1,589 @@
+---
+import ArticleLayout from '../../layouts/ArticleLayout.astro';
+import {
+  AG_FRISTEN,
+  GRUNDFRIST_TAGE,
+  KLAGEFRIST_WOCHEN,
+  KSCHG_WARTEZEIT_MONATE,
+  KUERZERE_FRIST_ZULAESSIG,
+  PROBEZEIT_FRIST_TAGE,
+  PROBEZEIT_MAX_MONATE,
+  berechneKuendigungsfrist,
+  kuendigungsschutzAb,
+  probezeitEnde,
+} from '../../../public/scripts/kuendigungsfrist.js';
+
+const base = import.meta.env.BASE_URL;
+
+// Feste Stichtage. Das Modul kennt kein Date.now(), aber die Rechnung haengt am
+// Kalender – ohne feste Daten wuerde der Text bei jedem Build ein anderer.
+const ZUGANG = '2026-09-01';
+const SCANJAHR = 2027;
+
+// --- Werkzeug -------------------------------------------------------------
+const utc = (iso: string) => Date.UTC(+iso.slice(0, 4), +iso.slice(5, 7) - 1, +iso.slice(8, 10));
+const tageZwischen = (a: string, b: string) => Math.round((utc(b) - utc(a)) / 86400000);
+const plus = (iso: string, n: number) => new Date(utc(iso) + n * 86400000).toISOString().slice(0, 10);
+const reihe = (start: string, n: number) => Array.from({ length: n }, (_, k) => plus(start, k));
+const datum = (iso: string) => iso.split('-').reverse().join('.');
+const zahl = (n: number) => n.toLocaleString('de-DE');
+const komma = (n: number, s = 1) =>
+  n.toLocaleString('de-DE', { minimumFractionDigits: s, maximumFractionDigits: s });
+const ZAHLWORT = ['null', 'ein', 'zwei', 'drei', 'vier', 'fünf', 'sechs', 'sieben', 'acht', 'neun',
+  'zehn', 'elf', 'zwölf', 'dreizehn', 'vierzehn', 'fünfzehn', 'sechzehn'];
+const zahlwort = (n: number) => ZAHLWORT[n] ?? zahl(n);
+
+type Ergebnis = ReturnType<typeof berechneKuendigungsfrist>;
+const frist = (o: Record<string, unknown>): Ergebnis => berechneKuendigungsfrist(o as any);
+const ende = (o: Record<string, unknown>) => frist(o).endDatum;
+
+// --- 1. Die Asymmetrie: Absatz 2 gilt nur fuer eine Seite -----------------
+// Fuer jede Stufe ein Eintritt am 1. September, damit der Jahrestag exakt auf
+// den Zugangstag faellt und die Betriebsjahre glatt aufgehen.
+const HOECHSTSTUFE = AG_FRISTEN[AG_FRISTEN.length - 1];
+const stufenReihe = AG_FRISTEN.map((s) => {
+  const jahre = Math.max(s.abJahre, 1);
+  const eintritt = `${+ZUGANG.slice(0, 4) - jahre}-09-01`;
+  const ag = frist({ eintrittsdatum: eintritt, kuendigungsdatum: ZUGANG, seite: 'arbeitgeber' });
+  const an = frist({ eintrittsdatum: eintritt, kuendigungsdatum: ZUGANG, seite: 'arbeitnehmer' });
+  return {
+    jahre: ag.betriebsjahre,
+    text: ag.fristText,
+    grundlage: ag.grundlage,
+    agEnde: ag.endDatum,
+    agTage: tageZwischen(ZUGANG, ag.endDatum),
+    anEnde: an.endDatum,
+    anTage: tageZwischen(ZUGANG, an.endDatum),
+  };
+});
+const oben = stufenReihe[stufenReihe.length - 1];
+const anTage = stufenReihe[0].anTage;
+const anEnde = stufenReihe[0].anEnde;
+const anImmerGleich = stufenReihe.every((z) => z.anEnde === anEnde);
+const faktor = oben.agTage / anTage;
+const abstandOben = oben.agTage - anTage;
+
+// --- 2. Wie lang die Grundfrist wirklich ist ------------------------------
+// Vier Wochen zum 15. oder zum Monatsende: zwischen Fristablauf und dem
+// naechsten zulaessigen Termin liegt Leerlauf. Tageweise ueber ein Jahr.
+const GRUND_EINTRITT = `${SCANJAHR - 1}-06-01`;
+const grundTage = reihe(`${SCANJAHR}-01-01`, 365).map((z) => {
+  const r = frist({ eintrittsdatum: GRUND_EINTRITT, kuendigungsdatum: z, seite: 'arbeitnehmer' });
+  return {
+    zugang: z,
+    ablauf: r.fristablauf,
+    ende: r.endDatum,
+    dauer: tageZwischen(z, r.endDatum),
+    leerlauf: tageZwischen(r.fristablauf, r.endDatum),
+  };
+});
+const dauerMin = Math.min(...grundTage.map((t) => t.dauer));
+const dauerMax = Math.max(...grundTage.map((t) => t.dauer));
+const dauerMittel = grundTage.reduce((s, t) => s + t.dauer, 0) / grundTage.length;
+const leerlaufMax = Math.max(...grundTage.map((t) => t.leerlauf));
+
+// Sprungstellen: an welchen Tagen aendert ein Tag Verzoegerung das Enddatum?
+const grundSpruenge = reihe(`${SCANJAHR}-01-01`, 365)
+  .map((z) => {
+    const a = ende({ eintrittsdatum: GRUND_EINTRITT, kuendigungsdatum: z, seite: 'arbeitnehmer' });
+    const b = ende({ eintrittsdatum: GRUND_EINTRITT, kuendigungsdatum: plus(z, 1), seite: 'arbeitnehmer' });
+    return { zugang: z, vorher: a, nachher: b, sprung: tageZwischen(a, b) };
+  })
+  .filter((s) => s.sprung > 0);
+const groessterGrundsprung = grundSpruenge.reduce((a, b) => (b.sprung > a.sprung ? b : a));
+const paarFrueh = grundTage.find((t) => t.zugang === groessterGrundsprung.zugang)!;
+const paarSpaet = grundTage.find((t) => t.zugang === plus(groessterGrundsprung.zugang, 1))!;
+
+// --- 3. Monatsfristen: nur der Kalendermonat zaehlt ------------------------
+const MONATS_EINTRITT = `${SCANJAHR - 9}-01-15`;
+const monatsProbe = frist({ eintrittsdatum: MONATS_EINTRITT, kuendigungsdatum: `${SCANJAHR}-03-01` });
+const monatsBeispiele = [`${SCANJAHR}-03-01`, `${SCANJAHR}-03-15`, `${SCANJAHR}-03-30`, `${SCANJAHR}-03-31`, `${SCANJAHR}-04-01`]
+  .map((z) => {
+    const r = frist({ eintrittsdatum: MONATS_EINTRITT, kuendigungsdatum: z });
+    return { zugang: z, ablauf: r.fristablauf, ende: r.endDatum, monate: r.monate };
+  });
+const monatsSprung = tageZwischen(monatsBeispiele[3].ende, monatsBeispiele[4].ende);
+
+// Gegenprobe: bleibt das Enddatum innerhalb jedes Kalendermonats konstant?
+const monatsSprungtage = reihe(`${SCANJAHR}-01-01`, 365).filter((z) => {
+  const a = ende({ eintrittsdatum: MONATS_EINTRITT, kuendigungsdatum: z });
+  const b = ende({ eintrittsdatum: MONATS_EINTRITT, kuendigungsdatum: plus(z, 1) });
+  return a !== b;
+});
+const nurMonatsletzte = monatsSprungtage.every((z) => plus(z, 1).slice(8) === '01');
+const monatsSprungMax = Math.max(...monatsSprungtage.map((z) =>
+  tageZwischen(
+    ende({ eintrittsdatum: MONATS_EINTRITT, kuendigungsdatum: z }),
+    ende({ eintrittsdatum: MONATS_EINTRITT, kuendigungsdatum: plus(z, 1) }),
+  )));
+
+// --- 4. Der Jahrestag als Sprungstelle ------------------------------------
+const JAHRESTAG = `${SCANJAHR}-09-01`;
+const jahrestagReihe = AG_FRISTEN.filter((s) => s.abJahre > 0).map((s) => {
+  const eintritt = `${SCANJAHR - s.abJahre}-09-01`;
+  const vor = frist({ eintrittsdatum: eintritt, kuendigungsdatum: plus(JAHRESTAG, -1) });
+  const nach = frist({ eintrittsdatum: eintritt, kuendigungsdatum: JAHRESTAG });
+  return {
+    grenze: s.abJahre,
+    eintritt,
+    vorJahre: vor.betriebsjahre,
+    vorText: vor.fristText,
+    vorEnde: vor.endDatum,
+    nachText: nach.fristText,
+    nachEnde: nach.endDatum,
+    sprung: tageZwischen(vor.endDatum, nach.endDatum),
+  };
+});
+const jahrestagOhneErste = jahrestagReihe.slice(1);
+const jahrestagMin = Math.min(...jahrestagOhneErste.map((j) => j.sprung));
+const jahrestagMax = Math.max(...jahrestagOhneErste.map((j) => j.sprung));
+const jahrestagErste = jahrestagReihe[0];
+const jahrestagZwanzig = jahrestagReihe[jahrestagReihe.length - 1];
+
+// --- 5. Probezeit und Wartezeit kippen am selben Tag ----------------------
+const P_EINTRITT = '2026-03-01';
+const pEnde = probezeitEnde(P_EINTRITT);
+const pSchutz = kuendigungsschutzAb(P_EINTRITT);
+const pDrin = frist({ eintrittsdatum: P_EINTRITT, kuendigungsdatum: pEnde, probezeitVereinbart: true });
+const pDraussen = frist({ eintrittsdatum: P_EINTRITT, kuendigungsdatum: plus(pEnde, 1), probezeitVereinbart: true });
+const pSprung = tageZwischen(pDrin.endDatum, pDraussen.endDatum);
+// Faellt der erste Tag des Kuendigungsschutzes immer auf den Tag nach der
+// Probezeit? Ueber zwei volle Jahrgaenge von Eintrittstagen geprueft.
+const probeTage = reihe('2026-01-01', 730);
+const klippeIstEine = probeTage.every((e) => kuendigungsschutzAb(e) === plus(probezeitEnde(e), 1));
+const probeSpruenge = reihe('2026-01-01', 365).map((e) => {
+  const pe = probezeitEnde(e);
+  const a = ende({ eintrittsdatum: e, kuendigungsdatum: pe, probezeitVereinbart: true });
+  const b = ende({ eintrittsdatum: e, kuendigungsdatum: plus(pe, 1), probezeitVereinbart: true });
+  return { eintritt: e, probeEnde: pe, a, b, sprung: tageZwischen(a, b) };
+});
+const probeMax = probeSpruenge.reduce((a, b) => (b.sprung > a.sprung ? b : a));
+
+// --- 6. Die Klagefrist laeuft in jedem Fall gleich schnell ----------------
+const klageReihe = stufenReihe.map((z, i) => {
+  const jahre = Math.max(AG_FRISTEN[i].abJahre, 1);
+  const r = frist({ eintrittsdatum: `${+ZUGANG.slice(0, 4) - jahre}-09-01`, kuendigungsdatum: ZUGANG });
+  return { jahre: r.betriebsjahre, klage: r.klagefristEnde, ende: r.endDatum, luecke: tageZwischen(r.klagefristEnde, r.endDatum) };
+});
+const klageEnde = klageReihe[0].klage;
+const klageTage = tageZwischen(ZUGANG, klageEnde);
+const klageImmerGleich = klageReihe.every((k) => k.klage === klageEnde);
+const klageLueckeOben = klageReihe[klageReihe.length - 1].luecke;
+
+// --- 7. Der aufgehobene Absatz 2 Satz 2 -----------------------------------
+// Nach altem Recht zaehlten Zeiten vor dem 25. Lebensjahr nicht mit. Wer mit
+// 18 anfing, verlor sieben Jahre. Das Modul kennt kein Geburtsdatum und rechnet
+// deshalb die Fassung, die seit 2019 gilt.
+const ALTERSSCHWELLE = 25;
+const EINSTIEGSALTER = 18;
+const VERLORENE_JAHRE = ALTERSSCHWELLE - EINSTIEGSALTER;
+const jungEintritt = `${+ZUGANG.slice(0, 4) - HOECHSTSTUFE.abJahre}-09-01`;
+const altEintritt = `${+jungEintritt.slice(0, 4) + VERLORENE_JAHRE}-09-01`;
+const heuteGerechnet = frist({ eintrittsdatum: jungEintritt, kuendigungsdatum: ZUGANG });
+const altGerechnet = frist({ eintrittsdatum: altEintritt, kuendigungsdatum: ZUGANG });
+const altDifferenz = tageZwischen(altGerechnet.endDatum, heuteGerechnet.endDatum);
+
+const quellen = [
+  { titel: '§ 622 BGB – Kündigungsfristen bei Arbeitsverhältnissen', url: 'https://www.gesetze-im-internet.de/bgb/__622.html' },
+  { titel: '§ 187 BGB – Fristbeginn', url: 'https://www.gesetze-im-internet.de/bgb/__187.html' },
+  { titel: '§ 188 BGB – Fristende', url: 'https://www.gesetze-im-internet.de/bgb/__188.html' },
+  { titel: '§ 130 BGB – Wirksamwerden der Willenserklärung gegenüber Abwesenden', url: 'https://www.gesetze-im-internet.de/bgb/__130.html' },
+  { titel: '§ 193 BGB – Sonn- und Feiertag; Sonnabend', url: 'https://www.gesetze-im-internet.de/bgb/__193.html' },
+  { titel: '§ 623 BGB – Schriftform der Kündigung', url: 'https://www.gesetze-im-internet.de/bgb/__623.html' },
+  { titel: '§ 626 BGB – Fristlose Kündigung aus wichtigem Grund', url: 'https://www.gesetze-im-internet.de/bgb/__626.html' },
+  { titel: '§ 1 KSchG – Sozial ungerechtfertigte Kündigungen (Wartezeit)', url: 'https://www.gesetze-im-internet.de/kschg/__1.html' },
+  { titel: '§ 4 KSchG – Anrufung des Arbeitsgerichts', url: 'https://www.gesetze-im-internet.de/kschg/__4.html' },
+  { titel: '§ 7 KSchG – Wirksamwerden der Kündigung', url: 'https://www.gesetze-im-internet.de/kschg/__7.html' },
+  { titel: '§ 15 KSchG – Unzulässigkeit der Kündigung (Sonderkündigungsschutz)', url: 'https://www.gesetze-im-internet.de/kschg/__15.html' },
+  { titel: '§ 23 KSchG – Geltungsbereich (Kleinbetriebe)', url: 'https://www.gesetze-im-internet.de/kschg/__23.html' },
+  { titel: 'Artikel 4d Qualifizierungschancengesetz vom 18.12.2018 (BGBl. I S. 2651) – Aufhebung des § 622 Abs. 2 Satz 2 BGB', url: 'https://www.buzer.de/4d_Qualifizierungschancengesetz.htm' },
+  { titel: 'EuGH, Urteil vom 19.01.2010 – C-555/07 (Kücükdeveci)', url: 'https://dejure.org/2010,4' },
+];
+---
+<ArticleLayout
+  title="Kündigungsfrist: Warum der Arbeitgeber achtmal so lange warten muss"
+  description={`Die Staffel des § 622 Abs. 2 BGB gilt nur für die Kündigung durch den Arbeitgeber. Nach ${zahl(oben.jahre)} Jahren trennen beide Seiten ${zahl(abstandOben)} Tage. Dazu: warum vier Wochen zwischen ${zahl(dauerMin)} und ${zahl(dauerMax)} Tagen dauern und warum der Tag im Monat für den Arbeitgeber egal ist.`}
+  canonicalPath="/ratgeber/kuendigungsfrist-arbeitgeber-arbeitnehmer/"
+  datum="2026-08-27"
+  lead={`Zwei Menschen, ein Arbeitsverhältnis, derselbe Brief am selben Tag: Kündigt der Arbeitnehmer nach ${zahl(oben.jahre)} Jahren am ${datum(ZUGANG)}, ist er am ${datum(anEnde)} draußen – nach ${zahl(anTage)} Tagen. Kündigt der Arbeitgeber, endet dasselbe Arbeitsverhältnis erst am ${datum(oben.agEnde)}, nach ${zahl(oben.agTage)} Tagen. Der Unterschied steht in einem einzigen Halbsatz des § 622 BGB.`}
+  quellen={quellen}
+>
+  <h2>Der Halbsatz, an dem alles hängt</h2>
+  <p>
+    § 622 Abs. 1 BGB nennt eine Frist, die für beide Seiten gilt: vier Wochen zum Fünfzehnten
+    oder zum Ende eines Kalendermonats. Absatz 2 staffelt diese Frist dann nach der Dauer der
+    Beschäftigung – bis auf {zahlwort(HOECHSTSTUFE.monate)} Monate ab
+    {' '}{zahl(HOECHSTSTUFE.abJahre)} Jahren. Der Absatz beginnt aber mit den Worten
+    „Für eine Kündigung durch den Arbeitgeber".
+  </p>
+  <p>
+    Diese sechs Wörter sind der ganze Unterschied. Wer selbst kündigt, bleibt sein Arbeitsleben
+    lang bei den vier Wochen des Absatzes 1. Wer gekündigt wird, rückt vom zweiten Jahr an mit
+    wachsender Betriebszugehörigkeit Stufe für Stufe nach oben. Die Tabelle zeigt beide Seiten
+    für denselben Zugangstag, den {datum(ZUGANG)}.
+  </p>
+
+  <table>
+    <caption class="visually-hidden">
+      Frühester Beendigungstermin bei Zugang am {datum(ZUGANG)}, getrennt nach kündigender Seite
+    </caption>
+    <thead>
+      <tr>
+        <th scope="col" class="num">Betriebs&shy;zugehörigkeit</th>
+        <th scope="col">Frist des Arbeitgebers</th>
+        <th scope="col" class="num">Ende bei AG-Kündigung</th>
+        <th scope="col" class="num">Tage</th>
+        <th scope="col" class="num">Ende bei AN-Kündigung</th>
+        <th scope="col" class="num">Tage</th>
+        <th scope="col" class="num">Abstand</th>
+      </tr>
+    </thead>
+    <tbody>
+      {stufenReihe.map((z) => (
+        <tr>
+          <th scope="row" class="num">{zahl(z.jahre)} {z.jahre === 1 ? 'Jahr' : 'Jahre'}</th>
+          <td>{z.text}</td>
+          <td class="num">{datum(z.agEnde)}</td>
+          <td class="num">{zahl(z.agTage)}</td>
+          <td class="num">{datum(z.anEnde)}</td>
+          <td class="num">{zahl(z.anTage)}</td>
+          <td class="num strong">{zahl(z.agTage - z.anTage)} Tage</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+
+  <p>
+    {anImmerGleich
+      ? 'Die Spalte für die Kündigung durch den Arbeitnehmer bewegt sich nicht: Dort steht in jeder Zeile dasselbe Datum.'
+      : ''}
+    {' '}Nach {zahl(oben.jahre)} Jahren dauert die Frist des Arbeitgebers
+    {' '}{komma(faktor)}-mal so lange wie die des Arbeitnehmers – {zahl(oben.agTage)} statt
+    {' '}{zahl(anTage)} Tage. Das sind {zahl(abstandOben)} Tage Abstand, rund
+    {' '}{zahlwort(Math.round(abstandOben / 30))} Monate. In den ersten beiden Jahren ist der
+    Abstand dagegen null: Solange die Staffel nicht greift, gilt für beide Seiten dieselbe
+    Grundfrist.
+  </p>
+  <p>
+    Die Asymmetrie ist gewollt. Absatz 2 ist Bestandsschutz für den Arbeitnehmer, nicht Symmetrie
+    zwischen Vertragsparteien. Umgekehrt greift § 622 Abs. 6 BGB: Für die Kündigung durch den
+    Arbeitnehmer darf <em>keine längere</em> Frist vereinbart werden als für die Kündigung durch
+    den Arbeitgeber. Ein Arbeitsvertrag darf die gesetzliche Staffel also auf beide Seiten
+    ausdehnen – aber niemals nur auf den Arbeitnehmer.
+  </p>
+
+  <h2>Vier Wochen dauern zwischen {zahl(dauerMin)} und {zahl(dauerMax)} Tagen</h2>
+  <p>
+    „Vier Wochen zum Fünfzehnten oder zum Monatsende" sind zwei Regeln in einem Satz. Die erste
+    ist die Frist selbst: {zahl(GRUNDFRIST_TAGE)} Tage, gerechnet ab dem Tag nach dem Zugang
+    (§ 187 Abs. 1 BGB). Die zweite ist ein Terminfilter: Läuft die Frist an einem beliebigen
+    Kalendertag ab, endet das Arbeitsverhältnis trotzdem erst am nächsten Fünfzehnten oder am
+    nächsten Monatsletzten. Dazwischen liegt Leerlauf: Tage, die die Frist faktisch verlängern,
+    ohne in ihr zu stehen.
+  </p>
+  <p>
+    Über alle {zahl(grundTage.length)} Zugangstage des Jahres {SCANJAHR} gerechnet, schwankt die
+    tatsächliche Dauer zwischen {zahl(dauerMin)} und {zahl(dauerMax)} Tagen, im Mittel sind es
+    {' '}{komma(dauerMittel)}. Der Leerlauf wird nie länger als {zahl(leerlaufMax)} Tage, denn
+    weiter als bis zum nächsten der beiden Termine ist es nie hin.
+  </p>
+
+  <table>
+    <caption class="visually-hidden">
+      Zwei benachbarte Zugangstage der Grundfrist im Vergleich
+    </caption>
+    <thead>
+      <tr>
+        <th scope="col" class="num">Zugang</th>
+        <th scope="col" class="num">Fristablauf</th>
+        <th scope="col" class="num">Nächster Termin</th>
+        <th scope="col" class="num">Tatsächliche Dauer</th>
+      </tr>
+    </thead>
+    <tbody>
+      {[paarFrueh, paarSpaet].map((t) => (
+        <tr>
+          <th scope="row" class="num">{datum(t.zugang)}</th>
+          <td class="num">{datum(t.ablauf)}</td>
+          <td class="num">{datum(t.ende)}</td>
+          <td class="num strong">{zahl(t.dauer)} Tage</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+
+  <p>
+    Ein einziger Tag Verzögerung – vom {datum(paarFrueh.zugang)} auf den
+    {' '}{datum(paarSpaet.zugang)} – verschiebt das Ende um {zahl(groessterGrundsprung.sprung)} Tage
+    nach hinten, vom {datum(paarFrueh.ende)} auf den {datum(paarSpaet.ende)}. Der Grund ist der
+    Fristablauf: Am {datum(paarFrueh.ablauf)} fällt er noch genau auf einen zulässigen Termin, am
+    {' '}{datum(paarSpaet.ablauf)} ist der Fünfzehnte um einen Tag verpasst und es bleibt nur das
+    Monatsende. An {zahlwort(grundSpruenge.length)} Tagen im Jahr kostet Zögern auf diese Weise
+    etwas; an den übrigen {zahl(grundTage.length - grundSpruenge.length)} kostet es nichts.
+  </p>
+
+  <h2>Für den Arbeitgeber zählt nur der Monat, für den Arbeitnehmer jeder Tag</h2>
+  <p>
+    Sobald die Staffel des Absatzes 2 greift, verschwindet der Fünfzehnte als Termin. Übrig
+    bleibt das Monatsende – und damit ändert sich die Logik grundlegend. Beispiel: ein
+    Arbeitsverhältnis, das beim Zugang seit {zahl(monatsProbe.betriebsjahre)} Jahren besteht und
+    damit in der Stufe „{monatsProbe.fristText}" nach {monatsProbe.grundlage} steht.
+  </p>
+
+  <table>
+    <caption class="visually-hidden">
+      Enddatum bei {monatsProbe.monate} Monaten Frist, je nach Zugangstag im März und April {SCANJAHR}
+    </caption>
+    <thead>
+      <tr>
+        <th scope="col" class="num">Zugang</th>
+        <th scope="col" class="num">Fristablauf</th>
+        <th scope="col" class="num">Arbeitsverhältnis endet</th>
+      </tr>
+    </thead>
+    <tbody>
+      {monatsBeispiele.map((m) => (
+        <tr>
+          <th scope="row" class="num">{datum(m.zugang)}</th>
+          <td class="num">{datum(m.ablauf)}</td>
+          <td class="num strong">{datum(m.ende)}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+
+  <p>
+    Die ersten {zahlwort(monatsBeispiele.length - 1)} Zeilen enden auf denselben Tag. Ein
+    Arbeitgeber, der den Brief am {datum(monatsBeispiele[3].zugang)} statt am
+    {' '}{datum(monatsBeispiele[0].zugang)} zustellen lässt, verliert keinen einzigen Tag – er
+    gewinnt {zahl(tageZwischen(monatsBeispiele[0].zugang, monatsBeispiele[3].zugang))} Tage
+    Bedenkzeit, ohne dass sich am Enddatum etwas ändert. Wer den
+    {' '}{datum(monatsBeispiele[4].zugang)} erwischt, verliert {zahl(monatsSprung)} Tage auf
+    einmal.
+  </p>
+  <p>
+    Die Gegenprobe über das ganze Jahr {SCANJAHR} bestätigt das:
+    {' '}{nurMonatsletzte
+      ? `Das Enddatum ändert sich an genau ${zahlwort(monatsSprungtage.length)} Tagen im Jahr, und jeder davon ist der Letzte eines Monats.`
+      : `Das Enddatum ändert sich an ${zahlwort(monatsSprungtage.length)} Tagen im Jahr.`}
+    {' '}Der größte dieser Sprünge beträgt {zahl(monatsSprungMax)} Tage. Innerhalb eines
+    Kalendermonats ist der Zugangstag für die Fristlänge vollständig bedeutungslos – anders als
+    bei der Grundfrist, wo jeder Tag zählt und der Fünfzehnte einen zweiten Ausgang öffnet.
+  </p>
+  <p>
+    Für den Gekündigten heißt das: Die Frage „Wann genau ist die Kündigung angekommen?" entscheidet
+    bei einer Monatsfrist fast nie über das Enddatum. Sie entscheidet aber immer über die
+    Klagefrist – und über die Stufe, in der man steht.
+  </p>
+
+  <h2>Der teuerste Tag des Jahres ist der eigene Jahrestag</h2>
+  <p>
+    Für die Staffel zählt die Beschäftigungsdauer im Zeitpunkt des Zugangs. Fällt der Zugang einen
+    Tag vor den Jahrestag, der die nächste Stufe auslöst, gilt noch die kürzere Frist. Die Tabelle
+    zeigt jede Stufengrenze für einen Eintritt am 1. September – einmal mit Zugang am
+    {' '}{datum(plus(JAHRESTAG, -1))}, einmal am {datum(JAHRESTAG)}.
+  </p>
+
+  <table>
+    <caption class="visually-hidden">
+      Enddatum je Stufengrenze, einen Tag vor und am Jahrestag des Eintritts
+    </caption>
+    <thead>
+      <tr>
+        <th scope="col" class="num">Stufe ab</th>
+        <th scope="col">Frist am {datum(plus(JAHRESTAG, -1))}</th>
+        <th scope="col" class="num">Ende</th>
+        <th scope="col">Frist am {datum(JAHRESTAG)}</th>
+        <th scope="col" class="num">Ende</th>
+        <th scope="col" class="num">Differenz</th>
+      </tr>
+    </thead>
+    <tbody>
+      {jahrestagReihe.map((j) => (
+        <tr>
+          <th scope="row" class="num">{zahl(j.grenze)} Jahre</th>
+          <td>{j.vorText}</td>
+          <td class="num">{datum(j.vorEnde)}</td>
+          <td>{j.nachText}</td>
+          <td class="num">{datum(j.nachEnde)}</td>
+          <td class="num strong">{zahl(j.sprung)} Tage</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+
+  <p>
+    Ab der {zahl(jahrestagOhneErste[0].grenze)}-Jahres-Grenze kostet ein einziger Tag Verzögerung
+    zwischen {zahl(jahrestagMin)} und {zahl(jahrestagMax)} Tagen – rund
+    {' '}{zahlwort(Math.round(jahrestagMax / 30))} Monate, nicht einen. Der Grund ist, dass zwei
+    Effekte zusammenfallen: Die Stufe legt einen Fristmonat drauf, und weil der Zugang zugleich in
+    den nächsten Kalendermonat rutscht, verschiebt sich auch der Termin um einen Monat. An der
+    {' '}{zahl(jahrestagErste.grenze)}-Jahres-Grenze ist der Sprung mit
+    {' '}{zahl(jahrestagErste.sprung)} Tagen kleiner, weil die neue Stufe
+    („{jahrestagErste.nachText}") kaum länger ist als die Grundfrist, die vorher galt; dort wirkt
+    fast nur der Kalender.
+  </p>
+  <p>
+    Das ist keine Empfehlung, Kündigungen zu terminieren. Es erklärt aber, warum in
+    Aufhebungsverhandlungen um Tage gefeilscht wird: Bei einem Eintritt am
+    {' '}{datum(jahrestagZwanzig.eintritt)} entscheidet der Unterschied zwischen dem
+    {' '}{datum(plus(JAHRESTAG, -1))} und dem {datum(JAHRESTAG)} über
+    {' '}{zahl(jahrestagZwanzig.sprung)} Tage Gehalt.
+  </p>
+
+  <h2>Probezeit und Kündigungsschutz kippen am selben Tag</h2>
+  <p>
+    Zwei Fristen laufen parallel und werden ständig verwechselt. Die Probezeit ist eine
+    Vereinbarung im Arbeitsvertrag; sie verkürzt nur die Kündigungsfrist auf
+    {' '}{zahl(PROBEZEIT_FRIST_TAGE)} Tage und darf höchstens {zahlwort(PROBEZEIT_MAX_MONATE)}
+    {' '}Monate dauern (§ 622 Abs. 3 BGB). Die Wartezeit von {zahlwort(KSCHG_WARTEZEIT_MONATE)}
+    {' '}Monaten nach § 1 Abs. 1 KSchG entscheidet über etwas ganz anderes: ob der Arbeitgeber
+    überhaupt einen Kündigungsgrund braucht.
+  </p>
+  <p>
+    Rechnerisch fallen beide Kanten aber zusammen.
+    {' '}{klippeIstEine
+      ? `Für alle ${zahl(probeTage.length)} geprüften Eintrittstage gilt: Der erste Tag des allgemeinen Kündigungsschutzes ist exakt der Tag nach dem Ende einer sechsmonatigen Probezeit.`
+      : `Beide Fristen laufen ähnlich, decken sich aber nicht in jedem Fall.`}
+    {' '}Bei einem Eintritt am {datum(P_EINTRITT)} endet die Probezeit am {datum(pEnde)}, der
+    Kündigungsschutz beginnt am {datum(pSchutz)}.
+  </p>
+  <p>
+    Eine Kündigung, die am {datum(pEnde)} zugeht, beendet das Arbeitsverhältnis am
+    {' '}{datum(pDrin.endDatum)} und braucht keinen Grund. Dieselbe Kündigung einen Tag später,
+    am {datum(pSchutz)}, wirkt erst zum {datum(pDraussen.endDatum)} – {zahl(pSprung)} Tage später
+    – und muss sozial gerechtfertigt sein. Ein Tag Verzögerung ändert nicht nur die Frist,
+    sondern die Beweislast. Über alle Eintrittstage des Jahres 2026 wird dieser Sprung maximal
+    {' '}{zahl(probeMax.sprung)} Tage groß, etwa bei einem Eintritt am {datum(probeMax.eintritt)}.
+  </p>
+  <p>
+    Wichtig ist der Zugang, nicht das Ende: Geht die Kündigung noch am letzten Tag der Probezeit
+    zu, gilt die Zwei-Wochen-Frist – auch wenn das Arbeitsverhältnis erst danach ausläuft. Und wer
+    gar keine Probezeit vereinbart hat, hat trotzdem in den ersten
+    {' '}{zahlwort(KSCHG_WARTEZEIT_MONATE)} Monaten keinen allgemeinen Kündigungsschutz. Die
+    Wartezeit läuft unabhängig von jeder Vereinbarung.
+  </p>
+
+  <h2>Die Klagefrist ist längst abgelaufen, wenn der Job endet</h2>
+  <p>
+    § 4 Satz 1 KSchG gibt {zahlwort(KLAGEFRIST_WOCHEN)} Wochen ab Zugang der schriftlichen
+    Kündigung, um Klage zu erheben. Diese Frist hängt an nichts – nicht an der
+    Betriebszugehörigkeit, nicht an der Kündigungsfrist, nicht am Enddatum.
+  </p>
+
+  <table>
+    <caption class="visually-hidden">
+      Klagefrist und Beendigungstermin bei Zugang am {datum(ZUGANG)}
+    </caption>
+    <thead>
+      <tr>
+        <th scope="col" class="num">Betriebs&shy;zugehörigkeit</th>
+        <th scope="col" class="num">Klagefrist endet</th>
+        <th scope="col" class="num">Arbeitsverhältnis endet</th>
+        <th scope="col" class="num">Dazwischen</th>
+      </tr>
+    </thead>
+    <tbody>
+      {klageReihe.map((k) => (
+        <tr>
+          <th scope="row" class="num">{zahl(k.jahre)} {k.jahre === 1 ? 'Jahr' : 'Jahre'}</th>
+          <td class="num">{datum(k.klage)}</td>
+          <td class="num">{datum(k.ende)}</td>
+          <td class="num strong">{zahl(k.luecke)} Tage</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+
+  <p>
+    {klageImmerGleich
+      ? `Die Spalte mit dem Ende der Klagefrist steht in jeder Zeile auf demselben Datum: dem ${datum(klageEnde)}, ${zahl(klageTage)} Tage nach Zugang.`
+      : ''}
+    {' '}Wer {zahl(oben.jahre)} Jahre im Betrieb war, muss also {zahl(klageLueckeOben)} Tage vor
+    seinem letzten Arbeitstag entschieden haben, ob er klagt – mitten in der laufenden
+    Kündigungsfrist, während er noch arbeitet und Gehalt bekommt. Genau deshalb wird die Frist so
+    oft verschlafen: Es fühlt sich nicht dringend an.
+  </p>
+  <p>
+    Die Folge steht in § 7 KSchG: Wird die Klage nicht rechtzeitig erhoben, gilt die Kündigung als
+    von Anfang an rechtswirksam. Auch eine offensichtlich unwirksame Kündigung wird dann wirksam.
+    Die Frist will deshalb genau nachgerechnet werden: Fällt ihr letzter Tag auf einen Samstag,
+    Sonntag oder Feiertag, endet sie nach § 193 BGB erst mit Ablauf des nächsten Werktags. Diese
+    Verschiebung rechnet der Rechner nicht mit; sie kann die Frist nur verlängern, nie verkürzen.
+  </p>
+  <p>
+    Und sie gilt weiter, als man erwarten würde. § 23 Abs. 1 KSchG nimmt
+    Kleinbetriebe vom Kündigungsschutz aus – aber ausdrücklich „mit Ausnahme der §§ 4 bis 7". Die
+    Drei-Wochen-Frist läuft also auch dort, wo es überhaupt keinen allgemeinen Kündigungsschutz
+    gibt.
+  </p>
+
+  <h2>Der Satz, den es nicht mehr gibt</h2>
+  <p>
+    In § 622 Abs. 2 BGB stand bis Ende 2018 ein zweiter Satz: Zeiten, die vor der Vollendung des
+    {' '}{ALTERSSCHWELLE}. Lebensjahres lagen, wurden bei der Berechnung der Beschäftigungsdauer
+    nicht berücksichtigt. Wer mit {EINSTIEGSALTER} anfing, sammelte
+    {' '}{zahlwort(VERLORENE_JAHRE)} Jahre, die für die Frist nicht zählten.
+  </p>
+  <p>
+    Der Europäische Gerichtshof hat diese Regelung am 19. Januar 2010 in der Sache Kücükdeveci
+    (C-555/07) als Verstoß gegen das unionsrechtliche Verbot der Altersdiskriminierung eingestuft
+    und den nationalen Gerichten aufgegeben, sie unangewendet zu lassen. Im Gesetzestext stand sie
+    trotzdem weiter – bis Artikel 4d des Qualifizierungschancengesetzes vom 18. Dezember 2018
+    (BGBl. I S. 2651) sie mit Wirkung zum 1. Januar 2019 aufhob. Zwischen Urteil und Streichung
+    lagen fast neun Jahre.
+  </p>
+  <p>
+    Das Rechenmodul hinter diesem Artikel kennt kein Geburtsdatum. Es zählt allein die vollendeten
+    Kalenderjahre zwischen Eintritt und Zugang der Kündigung – die einzige Rechnung, die heute
+    zulässig ist. Was der gestrichene Satz bedeutet hätte, lässt sich am Beispiel oben zeigen: Wer
+    mit {EINSTIEGSALTER} eingestiegen und nach {zahl(heuteGerechnet.betriebsjahre)} Jahren gekündigt
+    worden wäre, hätte nach altem Recht nur {zahl(altGerechnet.betriebsjahre)} Jahre angerechnet
+    bekommen. Statt „{heuteGerechnet.fristText}" gälte „{altGerechnet.fristText}", und das
+    Arbeitsverhältnis endete am {datum(altGerechnet.endDatum)} statt am
+    {' '}{datum(heuteGerechnet.endDatum)} – {zahl(altDifferenz)} Tage früher.
+  </p>
+  <p>
+    Wer im Netz noch eine Tabelle findet, die nach dem Alter fragt, rechnet mit einer Fassung, die
+    seit über sieben Jahren nicht mehr im Gesetz steht.
+  </p>
+
+  <h2>Was diese Rechnung nicht abbildet</h2>
+  <p>
+    Alle Werte oben sind gesetzliche Mindestfristen. Ein Arbeits- oder Tarifvertrag darf längere
+    Fristen vorsehen; ein Tarifvertrag darf nach § 622 Abs. 4 BGB sogar kürzere regeln, ein
+    Einzelvertrag dagegen nur in zwei eng begrenzten Fällen:
+  </p>
+  <ul>
+    {KUERZERE_FRIST_ZULAESSIG.map((f) => <li>{f}</li>)}
+  </ul>
+  <p>
+    Nicht abgebildet ist außerdem die Betriebsgröße. Nach § 23 Abs. 1 KSchG gilt der
+    Kündigungsschutz nicht für Arbeitsverhältnisse, die nach dem 31. Dezember 2003 begonnen haben,
+    wenn im Betrieb in der Regel zehn oder weniger Arbeitnehmer ohne die Auszubildenden
+    beschäftigt sind; für ältere Arbeitsverhältnisse liegt die Schwelle bei fünf. Teilzeitkräfte
+    zählen dabei anteilig. In einem solchen Betrieb läuft die Wartezeit ins Leere – der Rechner
+    weist sie trotzdem aus, weil er die Beschäftigtenzahl nicht kennt.
+  </p>
+  <p>
+    Ebenfalls nicht abgebildet: der Sonderkündigungsschutz nach § 15 KSchG und den Spezialgesetzen für
+    Schwangere, Schwerbehinderte, Betriebsratsmitglieder und Beschäftigte in Elternzeit; die
+    außerordentliche Kündigung nach § 626 BGB, die ohne Frist wirkt, aber einen wichtigen Grund
+    und die Zwei-Wochen-Erklärungsfrist des Absatzes 2 voraussetzt; und die Schriftform des
+    § 623 BGB – eine Kündigung per E-Mail oder Messenger ist nichtig, ganz gleich, welche Frist
+    darin steht.
+  </p>
+  <p>
+    Maßgeblich ist in allen Rechnungen der Zugang, nicht die Absendung. Zugegangen ist eine
+    schriftliche Kündigung nach § 130 Abs. 1 BGB, wenn sie so in den Machtbereich des Empfängers
+    gelangt ist, dass unter gewöhnlichen Umständen mit ihrer Kenntnisnahme zu rechnen ist. Welcher
+    Kalendertag das ist, entscheidet über alles, was oben steht – und ein einziger Tag kann, wie
+    gezeigt, zwei Fristmonate wert sein.
+  </p>
+  <p>
+    Alle Zahlen dieses Artikels stammen aus demselben Rechenmodul wie der
+    {' '}<a href={`${base}geld/kuendigungsfrist-rechner/`}>Kündigungsfrist-Rechner</a>. Wer den
+    eigenen Fall durchrechnen will, gibt dort Eintrittsdatum, Zugangsdatum und die kündigende
+    Seite ein und bekommt Frist, Fristablauf, Beendigungstermin und das Ende der Klagefrist.
+  </p>
+</ArticleLayout>
