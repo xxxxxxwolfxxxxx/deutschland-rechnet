@@ -1,0 +1,529 @@
+---
+import ArticleLayout from '../../layouts/ArticleLayout.astro';
+import {
+  berechneGeschwindigkeit,
+  berechneAbstand,
+  berechneRotlicht,
+  berechneHandy,
+  BKAT_STAND,
+  EINTRAGUNGSGRENZE_EURO,
+  BEHARRLICH_AB_KMH,
+  BEHARRLICH_FAHRVERBOT_MONATE,
+} from '../../../public/scripts/busgeld.js';
+
+const base = import.meta.env.BASE_URL;
+
+// Alle Zahlen zur Buildzeit aus demselben Modul, das auch der Rechner laedt.
+const eur = (b: number) => b.toLocaleString('de-DE', { maximumFractionDigits: 0 }) + ' €';
+const ZAHLWORT = [
+  'null', 'ein', 'zwei', 'drei', 'vier', 'fünf', 'sechs', 'sieben', 'acht', 'neun', 'zehn',
+  'elf', 'zwölf', 'dreizehn', 'vierzehn', 'fünfzehn', 'sechzehn', 'siebzehn', 'achtzehn',
+  'neunzehn', 'zwanzig',
+];
+const zahlwort = (n: number) => ZAHLWORT[n] ?? String(n);
+const PUNKT_AKK = ['keinen Punkt', 'einen Punkt'];
+const punkteAkk = (n: number) => PUNKT_AKK[n] ?? `${zahlwort(n)} Punkte`;
+// Tabellenform (Ziffer) und Fliesstextform (Zahlwort im passenden Kasus) getrennt.
+const monate = (n: number) => (n === 0 ? '–' : n === 1 ? '1 Monat' : `${n} Monate`);
+const monateAkk = (n: number) => (n === 1 ? 'einen Monat' : `${zahlwort(n)} Monate`);
+const monateDat = (n: number) => (n === 1 ? 'einem Monat' : `${zahlwort(n)} Monaten`);
+
+type Tempo = { bussgeld: number; punkte: number; fahrverbot: number; beharrlich: boolean; nummer: string };
+const geschw = (ort: string, u: number, vor = false) =>
+  (berechneGeschwindigkeit as any)({ ort, ueberschreitung: u, voreintragung: vor }) as Tempo;
+
+type Abst = { bussgeld: number; punkte: number; fahrverbot: number; nummer: string; anteilHalberTacho: number };
+const abst = (v: number, m: number) =>
+  (berechneAbstand as any)({ geschwindigkeit: v, abstandMeter: m }) as Abst | null;
+
+const OBERGRENZE_SCAN = 95;
+
+// --- 1. Die Stufen der Geschwindigkeitstabelle -----------------------------
+// Nicht aus einer grob abgetasteten Reihe abgelesen, sondern km/h fuer km/h
+// gesucht: eine neue Stufe beginnt dort, wo die laufende Nummer wechselt.
+type Stufe = { von: number; bis: number | null; bussgeld: number; fahrverbot: number; nummer: string };
+function stufen(ort: string): Stufe[] {
+  const out: Stufe[] = [];
+  let start = 1;
+  let prev = geschw(ort, 1);
+  for (let u = 2; u <= OBERGRENZE_SCAN; u++) {
+    const r = geschw(ort, u);
+    if (r.nummer !== prev.nummer) {
+      out.push({ von: start, bis: u - 1, bussgeld: prev.bussgeld, fahrverbot: prev.fahrverbot, nummer: prev.nummer });
+      start = u;
+      prev = r;
+    }
+  }
+  out.push({ von: start, bis: null, bussgeld: prev.bussgeld, fahrverbot: prev.fahrverbot, nummer: prev.nummer });
+  return out;
+}
+const innen = stufen('innerorts');
+const aussen = stufen('ausserorts');
+// Beide Ortslagen teilen sich die Zeilen der Tabelle 1 Buchstabe c. Wenn das
+// nicht mehr stimmt, darf die gemeinsame Tabelle unten nicht gebaut werden.
+const gleicheStufen =
+  innen.length === aussen.length && innen.every((s, i) => s.von === aussen[i].von && s.bis === aussen[i].bis);
+const tempoZeilen = innen.map((s, i) => ({
+  von: s.von,
+  bis: s.bis,
+  nummer: s.nummer,
+  innen: s.bussgeld,
+  aussen: aussen[i].bussgeld,
+  fvInnen: s.fahrverbot,
+  fvAussen: aussen[i].fahrverbot,
+  aufschlag: s.bussgeld - aussen[i].bussgeld,
+}));
+
+// Erste Ueberschreitung mit Regelfahrverbot, fein gesucht.
+function fahrverbotAb(ort: string): number {
+  for (let u = 1; u <= OBERGRENZE_SCAN; u++) if (geschw(ort, u).fahrverbot > 0) return u;
+  return 0;
+}
+const fvInnerorts = fahrverbotAb('innerorts');
+const fvAusserorts = fahrverbotAb('ausserorts');
+const fvAbstandKmh = fvAusserorts - fvInnerorts;
+
+// Was kostet ein einziges km/h an der teuersten Stelle?
+let teuersterKmh = { delta: 0, ort: 'innerorts', ab: 0, von: 0, auf: 0 };
+for (const ort of ['innerorts', 'ausserorts']) {
+  for (let u = 2; u <= OBERGRENZE_SCAN; u++) {
+    const von = geschw(ort, u - 1).bussgeld;
+    const auf = geschw(ort, u).bussgeld;
+    if (auf - von > teuersterKmh.delta) teuersterKmh = { delta: auf - von, ort, ab: u, von, auf };
+  }
+}
+// Und an der Fahrverbotsschwelle innerorts?
+const vorFv = geschw('innerorts', fvInnerorts - 1);
+const abFv = geschw('innerorts', fvInnerorts);
+
+// --- 2. Dieselbe Schwelle, relativ gerechnet ------------------------------
+// Modellannahme: ein ausgeschildertes Tempolimit, Ueberschreitung nach Abzug
+// der Messtoleranz. Der Katalog selbst kennt nur absolute km/h.
+const LIMITS = [
+  { ort: 'innerorts', limit: 30 },
+  { ort: 'innerorts', limit: 50 },
+  { ort: 'ausserorts', limit: 70 },
+  { ort: 'ausserorts', limit: 100 },
+  { ort: 'ausserorts', limit: 120 },
+];
+const relativ = LIMITS.map((l) => {
+  const schwelle = fahrverbotAb(l.ort);
+  return {
+    ...l,
+    schwelle,
+    tempo: l.limit + schwelle,
+    prozent: (schwelle / l.limit) * 100,
+    bussgeld: geschw(l.ort, schwelle).bussgeld,
+    fahrverbot: geschw(l.ort, schwelle).fahrverbot,
+  };
+});
+const relMax = relativ.reduce((a, b) => (b.prozent > a.prozent ? b : a));
+const relMin = relativ.reduce((a, b) => (b.prozent < a.prozent ? b : a));
+
+// --- 3. Beharrlichkeit ----------------------------------------------------
+// Fenster, in dem die Voreintragung ein Fahrverbot ausloest, das der Katalog
+// fuer sich genommen nicht vorsieht.
+function beharrFenster(ort: string) {
+  const treffer: number[] = [];
+  for (let u = 1; u <= OBERGRENZE_SCAN; u++) {
+    if (geschw(ort, u, true).fahrverbot !== geschw(ort, u).fahrverbot) treffer.push(u);
+  }
+  return { von: treffer[0], bis: treffer[treffer.length - 1], anzahl: treffer.length };
+}
+const behInnen = beharrFenster('innerorts');
+const behAussen = beharrFenster('ausserorts');
+const behGeldGleich = [behInnen, behAussen].every((f) =>
+  ['innerorts', 'ausserorts'].every((ort) =>
+    geschw(ort, f.von, true).bussgeld === geschw(ort, f.von).bussgeld,
+  ),
+);
+const behBeispiel = geschw('innerorts', behInnen.von);
+const behBeispielWdh = geschw('innerorts', behInnen.von, true);
+
+// --- 4. Die 80-km/h-Kante beim Abstand ------------------------------------
+const KANTE_UNTEN = 80;
+const KANTE_OBEN = 81;
+const KANTE_METER = [4, 8, 12, 20, 30, 39];
+const kante = KANTE_METER.map((m) => {
+  const a = abst(KANTE_UNTEN, m)!;
+  const b = abst(KANTE_OBEN, m)!;
+  return { m, a, b, delta: b.bussgeld - a.bussgeld };
+});
+const kanteMax = kante.reduce((x, y) => (y.delta > x.delta ? y : x));
+const kanteFaktor = kanteMax.b.bussgeld / kanteMax.a.bussgeld;
+const kantePunktWechsel = kante.filter((z) => z.b.punkte > z.a.punkte).length;
+const halberTachoUnten = KANTE_UNTEN / 2;
+const halberTachoOben = KANTE_OBEN / 2;
+
+// --- 5. Abstandsstufen in Metern bei einem Tempo --------------------------
+type MeterStufe = { von: number; bis: number | null; bussgeld: number; punkte: number; fahrverbot: number; nummer: string };
+function meterStufen(v: number): { stufen: MeterStufe[]; ohneVerstoss: number } {
+  const out: MeterStufe[] = [];
+  const grenze = Math.ceil(v / 2);
+  let prev = abst(v, 0)!;
+  let start = 0;
+  for (let m = 1; m <= grenze; m++) {
+    const r = abst(v, m);
+    if (!r) {
+      out.push({ von: start, bis: m - 1, bussgeld: prev.bussgeld, punkte: prev.punkte, fahrverbot: prev.fahrverbot, nummer: prev.nummer });
+      return { stufen: out, ohneVerstoss: m };
+    }
+    if (r.nummer !== prev.nummer) {
+      out.push({ von: start, bis: m - 1, bussgeld: prev.bussgeld, punkte: prev.punkte, fahrverbot: prev.fahrverbot, nummer: prev.nummer });
+      start = m;
+      prev = r;
+    }
+  }
+  out.push({ von: start, bis: grenze, bussgeld: prev.bussgeld, punkte: prev.punkte, fahrverbot: prev.fahrverbot, nummer: prev.nummer });
+  return { stufen: out, ohneVerstoss: grenze };
+}
+const TEMPO_ABSTAND = 130;
+const abstand130 = meterStufen(TEMPO_ABSTAND);
+// Groesster Meterabstand, bei dem noch ein Fahrverbot droht.
+let letzterMeterMitFv = 0;
+for (let m = Math.ceil(TEMPO_ABSTAND / 2); m >= 0; m--) {
+  const r = abst(TEMPO_ABSTAND, m);
+  if (r && r.fahrverbot > 0) { letzterMeterMitFv = m; break; }
+}
+const mitFv = abst(TEMPO_ABSTAND, letzterMeterMitFv)!;
+const ohneFv = abst(TEMPO_ABSTAND, letzterMeterMitFv + 1)!;
+// Ein Meter, in Zeit umgerechnet: reine Weg-Zeit-Umrechnung des Tempos.
+const msProMeter = (1 / (TEMPO_ABSTAND / 3.6)) * 1000;
+
+// --- 6. Ein km/h Fahrtgeschwindigkeit an der 100er-Kante ------------------
+const BUCHSTABE_METER = 14;
+const bAlt = abst(100, BUCHSTABE_METER)!;
+const bNeu = abst(101, BUCHSTABE_METER)!;
+const buchstabeGeldGleich = bAlt.bussgeld === bNeu.bussgeld;
+
+// --- 7. Punkte haengen nicht am Betrag allein -----------------------------
+const handyRad = (berechneHandy as any)({ situation: 'radfahren' });
+const handyAuto = (berechneHandy as any)({ situation: 'kfz' });
+const rotEinfach = (berechneRotlicht as any)({ rotphase: 'unter1s', folge: 'keine' });
+const rotQualifiziert = (berechneRotlicht as any)({ rotphase: 'ueber1s', folge: 'keine' });
+
+const quellen = [
+  { titel: 'Bußgeldkatalog-Verordnung (BKatV)', url: 'https://www.gesetze-im-internet.de/bkatv_2013/' },
+  { titel: 'Anlage zur BKatV – Bußgeldkatalog (BKat)', url: 'https://www.gesetze-im-internet.de/bkatv_2013/anlage.html' },
+  { titel: 'Anhang zur BKatV – Tabelle 1: Geschwindigkeitsüberschreitungen', url: 'https://www.gesetze-im-internet.de/bkatv_2013/anhang.html' },
+  { titel: 'Anhang zur BKatV – Tabelle 2: Abstandsverstöße', url: 'https://www.gesetze-im-internet.de/bkatv_2013/anhang_1.html' },
+  { titel: '§ 1 BKatV – Bußgeldkatalog und Verwarnungsgeld', url: 'https://www.gesetze-im-internet.de/bkatv_2013/__1.html' },
+  { titel: '§ 3 BKatV – Bußgeldregelsätze', url: 'https://www.gesetze-im-internet.de/bkatv_2013/__3.html' },
+  { titel: '§ 4 BKatV – Regelfahrverbot', url: 'https://www.gesetze-im-internet.de/bkatv_2013/__4.html' },
+  { titel: '§ 25 StVG – Fahrverbot', url: 'https://www.gesetze-im-internet.de/stvg/__25.html' },
+  { titel: '§ 28 StVG – Fahreignungsregister und Eintragungsgrenze', url: 'https://www.gesetze-im-internet.de/stvg/__28.html' },
+  { titel: '§ 4 StVG – Fahreignungs-Bewertungssystem', url: 'https://www.gesetze-im-internet.de/stvg/__4.html' },
+  { titel: 'Anlage 13 FeV – Bewertung der Straftaten und Ordnungswidrigkeiten', url: 'https://www.gesetze-im-internet.de/fev_2010/anlage_13.html' },
+  { titel: '§ 3 StVO – Geschwindigkeit', url: 'https://www.gesetze-im-internet.de/stvo_2013/__3.html' },
+  { titel: '§ 4 StVO – Abstand', url: 'https://www.gesetze-im-internet.de/stvo_2013/__4.html' },
+  { titel: '§ 23 StVO – Sonstige Pflichten von Fahrzeugführenden', url: 'https://www.gesetze-im-internet.de/stvo_2013/__23.html' },
+];
+---
+<ArticleLayout
+  title="Bußgeldkatalog: Wo ein einziges km/h den Preis vervielfacht"
+  description={`Der Bußgeldkatalog ist keine Kurve, sondern eine Treppe. An der teuersten Stufe kostet ein km/h ${eur(teuersterKmh.delta)} – und beim Abstand entscheidet der Sprung von ${KANTE_UNTEN} auf ${KANTE_OBEN} km/h über bis zu ${eur(kanteMax.delta)}.`}
+  canonicalPath="/ratgeber/bussgeldkatalog-schwellenwerte/"
+  datum="2026-08-27"
+  lead={`Innerorts trennt ein einziger Kilometer pro Stunde ${eur(vorFv.bussgeld)} von ${eur(abFv.bussgeld)} – und genau dort beginnt das Fahrverbot. Der Bußgeldkatalog rechnet nicht linear, sondern in Stufen, und die interessanten Zahlen stehen nicht in den Stufen, sondern an ihren Kanten.`}
+  quellen={quellen}
+>
+  <h2>Drei Sanktionen, drei Rechtsgrundlagen</h2>
+  <p>
+    Ein Bußgeldbescheid nennt bis zu drei Folgen, und sie stammen aus drei verschiedenen
+    Vorschriften. Der Geldbetrag ist der Regelsatz des Bußgeldkatalogs, der Anlage zur
+    Bußgeldkatalog-Verordnung; die hier verwendete Fassung gilt seit dem {BKAT_STAND}. Das
+    Fahrverbot steht nicht in jeder Katalogzeile, sondern folgt aus § 4 BKatV in Verbindung mit
+    § 25 StVG. Und die Punkte stehen überhaupt nicht im Bußgeldkatalog – sie ergeben sich aus
+    § 28 Abs. 3 StVG und der Anlage 13 zur Fahrerlaubnis-Verordnung.
+  </p>
+  <p>
+    Für den Punkt müssen zwei Bedingungen zusammenkommen. Erstens muss der Tatbestand in
+    Anlage 13 FeV überhaupt aufgeführt sein – diese Liste ist abschließend, der Betrag allein
+    genügt nicht. Zweitens muss entweder ein Fahrverbot angeordnet oder eine Geldbuße von
+    mindestens {eur(EINTRAGUNGSGRENZE_EURO)} festgesetzt worden sein, § 28 Abs. 3 Nr. 3
+    Buchst. a StVG. Deshalb bleibt das Handy am Lenker eines Fahrrads mit
+    {' '}{eur(handyRad.bussgeld)} punktfrei, während dieselbe Handlung am Steuer eines Autos
+    {' '}{eur(handyAuto.bussgeld)} kostet und {punkteAkk(handyAuto.punkte)} nach sich zieht.
+  </p>
+  <p>
+    Unterhalb dieser Grenze liegt noch eine zweite. Nach § 1 Abs. 1 Satz 2 BKatV wird bei einem
+    Regelsatz bis {eur(EINTRAGUNGSGRENZE_EURO - 5)} kein Bußgeld festgesetzt, sondern ein
+    Verwarnungsgeld erhoben. Der Satz für das Handy am Fahrrad liegt mit
+    {' '}{eur(handyRad.bussgeld)} genau auf dieser Schwelle – gerade
+    {' '}{eur(EINTRAGUNGSGRENZE_EURO - handyRad.bussgeld)} unter der Eintragungsgrenze.
+  </p>
+  <p>
+    Diese drei Größen laufen nicht parallel. Der Rest dieses Artikels sucht die Stellen, an
+    denen sie auseinanderfallen.
+  </p>
+
+  <h2>Die Geschwindigkeitstabelle ist eine Treppe</h2>
+  <p>
+    Für Pkw und Motorräder gilt Tabelle 1 Buchstabe c des Anhangs zur BKatV. Sie hat
+    {' '}{zahlwort(tempoZeilen.length)} Stufen, und innerhalb einer Stufe ändert sich nichts:
+    Wer innerorts {tempoZeilen[3].von} km/h zu schnell ist, zahlt genauso viel wie jemand mit
+    {' '}{tempoZeilen[3].bis} km/h. Der Preis eines zusätzlichen km/h ist innerhalb der Stufe
+    null – und an ihrer Kante maximal.
+  </p>
+
+  <table>
+    <caption class="visually-hidden">
+      Regelsätze und Regelfahrverbote für Pkw und Motorrad nach Tabelle 1 Buchstabe c des
+      Anhangs zur BKatV, getrennt nach innerorts und außerorts
+    </caption>
+    <thead>
+      <tr>
+        <th scope="col">Nr.</th>
+        <th scope="col" class="num">Überschreitung</th>
+        <th scope="col" class="num">Innerorts</th>
+        <th scope="col" class="num">Außerorts</th>
+        <th scope="col" class="num">Aufschlag innerorts</th>
+        <th scope="col" class="num">Fahrverbot innerorts</th>
+        <th scope="col" class="num">Fahrverbot außerorts</th>
+      </tr>
+    </thead>
+    <tbody>
+      {gleicheStufen && tempoZeilen.map((z) => (
+        <tr>
+          <th scope="row">{z.nummer}</th>
+          <td class="num">{z.bis === null ? `über ${z.von - 1} km/h` : `${z.von} – ${z.bis} km/h`}</td>
+          <td class="num">{eur(z.innen)}</td>
+          <td class="num">{eur(z.aussen)}</td>
+          <td class="num">{eur(z.aufschlag)}</td>
+          <td class="num strong">{monate(z.fvInnen)}</td>
+          <td class="num strong">{monate(z.fvAussen)}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+
+  <p>
+    Der teuerste einzelne Kilometer pro Stunde in dieser Tabelle liegt {teuersterKmh.ort} beim
+    Schritt von {teuersterKmh.ab - 1} auf {teuersterKmh.ab} km/h Überschreitung: Der Regelsatz
+    steigt von {eur(teuersterKmh.von)} auf {eur(teuersterKmh.auf)}, also um
+    {' '}{eur(teuersterKmh.delta)}. Der folgenreichste ist ein anderer. Innerorts von
+    {' '}{fvInnerorts - 1} auf {fvInnerorts} km/h kostet nur {eur(abFv.bussgeld - vorFv.bussgeld)}
+    {' '}mehr – aber ab hier sieht der Katalog ein Regelfahrverbot von
+    {' '}{monateDat(abFv.fahrverbot)} vor, wo vorher keines stand.
+  </p>
+
+  <h2>Zwischen innerorts und außerorts liegen zehn km/h</h2>
+  <p>
+    Beim Geld ist der Unterschied zwischen den beiden Ortslagen überschaubar: Der Aufschlag für
+    innerorts reicht von {eur(Math.min(...tempoZeilen.map((z) => z.aufschlag)))} in der
+    niedrigsten bis {eur(Math.max(...tempoZeilen.map((z) => z.aufschlag)))} in den oberen
+    Stufen. Beim Fahrverbot ist er dagegen groß. Innerorts beginnt es bei
+    {' '}{fvInnerorts} km/h Überschreitung, außerorts erst bei {fvAusserorts} km/h – eine
+    Differenz von {zahlwort(fvAbstandKmh)} Kilometern pro Stunde.
+  </p>
+  <p>
+    Wer außerorts {fvInnerorts} km/h zu schnell fährt, zahlt
+    {' '}{eur(geschw('ausserorts', fvInnerorts).bussgeld)} und darf weiterfahren. Dieselbe
+    Überschreitung innerorts kostet {eur(geschw('innerorts', fvInnerorts).bussgeld)} und
+    {' '}{monateAkk(geschw('innerorts', fvInnerorts).fahrverbot)} Fahrverbot. Über die härteste
+    Rechtsfolge der ganzen Tabelle entscheidet damit kein Messwert, sondern die Ortstafel.
+  </p>
+
+  <h2>Relativ gerechnet steht die Tabelle auf dem Kopf</h2>
+  <p>
+    Der Katalog kennt nur absolute Kilometer pro Stunde. Wie schwer eine Überschreitung wiegt,
+    hängt aber davon ab, wie hoch das Limit war, das sie überschreitet. Setzt man die
+    Fahrverbotsschwelle ins Verhältnis zum jeweils geltenden Tempolimit, kippt das Bild.
+  </p>
+
+  <table>
+    <caption class="visually-hidden">
+      Fahrverbotsschwelle des Bußgeldkatalogs, umgerechnet auf verschiedene Tempolimits
+    </caption>
+    <thead>
+      <tr>
+        <th scope="col" class="num">Tempolimit</th>
+        <th scope="col">Ortslage</th>
+        <th scope="col" class="num">Fahrverbot ab Überschreitung</th>
+        <th scope="col" class="num">Das entspricht Tempo</th>
+        <th scope="col" class="num">Überschreitung in Prozent</th>
+      </tr>
+    </thead>
+    <tbody>
+      {relativ.map((r) => (
+        <tr>
+          <th scope="row" class="num">{r.limit} km/h</th>
+          <td>{r.ort === 'innerorts' ? 'innerorts' : 'außerorts'}</td>
+          <td class="num">{r.schwelle} km/h</td>
+          <td class="num">{r.tempo} km/h</td>
+          <td class="num strong">{r.prozent.toLocaleString('de-DE', { maximumFractionDigits: 0 })} %</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+
+  <p>
+    In einer Zone mit Tempo {relMax.limit} muss man das Limit um
+    {' '}{relMax.prozent.toLocaleString('de-DE', { maximumFractionDigits: 0 })} Prozent
+    überschreiten, ehe ein Regelfahrverbot in Betracht kommt – also mehr als doppelt so schnell
+    fahren wie erlaubt. Bei einem Tempolimit von {relMin.limit} entspricht dieselbe absolute
+    Schwelle nur noch rund
+    {' '}{relMin.prozent.toLocaleString('de-DE', { maximumFractionDigits: 0 })} Prozent. Beide
+    Fälle lösen dieselbe Rechtsfolge aus. Der Katalog trifft diese Unterscheidung nicht: Er kennt
+    nur zwei Ortslagen und absolute Kilometer pro Stunde, kein Verhältnis zum Limit.
+  </p>
+
+  <h2>Beharrlichkeit kostet keinen Cent extra</h2>
+  <p>
+    § 4 Abs. 2 Satz 2 BKatV kennt einen zweiten Weg zum Fahrverbot. Wer innerhalb eines Jahres
+    nach Rechtskraft einer Geldbuße wegen mindestens {BEHARRLICH_AB_KMH} km/h erneut mindestens
+    {' '}{BEHARRLICH_AB_KMH} km/h zu schnell ist, handelt beharrlich; das Fahrverbot beträgt beim
+    ersten Mal {monateAkk(BEHARRLICH_FAHRVERBOT_MONATE)}.
+  </p>
+  <p>
+    Interessant ist, wo diese Regel überhaupt etwas ändert. Oberhalb der Regelfahrverbotsgrenze
+    steht das Fahrverbot ohnehin im Katalog. Wirksam wird die Beharrlichkeit deshalb nur in dem
+    Fenster dazwischen: innerorts zwischen {behInnen.von} und {behInnen.bis} km/h, außerorts
+    zwischen {behAussen.von} und {behAussen.bis} km/h – ein Fenster von
+    {' '}{zahlwort(behInnen.anzahl)} beziehungsweise {zahlwort(behAussen.anzahl)} Kilometern pro
+    Stunde.
+  </p>
+  <p>
+    {behGeldGleich
+      ? 'Am Geld ändert die Wiederholung dabei nichts.'
+      : 'Die Wiederholung verschiebt auch den Regelsatz.'} Innerorts
+    {' '}{behInnen.von} km/h zu schnell kostet beim ersten Mal
+    {' '}{eur(behBeispiel.bussgeld)} ohne Fahrverbot. Genau dieselbe Fahrt, begangen innerhalb
+    eines Jahres nach Rechtskraft der ersten Geldbuße, kostet weiterhin
+    {' '}{eur(behBeispielWdh.bussgeld)} – und dazu {monateAkk(behBeispielWdh.fahrverbot)}
+    {' '}Fahrverbot. Die zweite Tat ist nicht teurer, sie ist nur teuer auf eine andere Art.
+  </p>
+
+  <h2>Der teuerste km/h steht nicht in der Geschwindigkeitstabelle</h2>
+  <p>
+    Beim Abstand knüpft der Katalog nicht an die Überschreitung an, sondern an die gefahrene
+    Geschwindigkeit selbst – und zwar mit einer harten Kante. Nummer 12.1 BKat sieht für
+    Abstandsverstöße bei einer Geschwindigkeit bis {KANTE_UNTEN} km/h einen einzigen Regelsatz
+    vor, unabhängig davon, wie dicht aufgefahren wurde. Erst bei mehr als {KANTE_UNTEN} km/h
+    greifen die gestaffelten Sätze der Tabelle 2 des Anhangs, die nach Bruchteilen des halben
+    Tachowertes bemessen sind.
+  </p>
+
+  <table>
+    <caption class="visually-hidden">
+      Regelsatz für denselben gemessenen Abstand bei 80 und bei 81 km/h
+    </caption>
+    <thead>
+      <tr>
+        <th scope="col" class="num">Gemessener Abstand</th>
+        <th scope="col" class="num">Bei {KANTE_UNTEN} km/h</th>
+        <th scope="col" class="num">Punkte</th>
+        <th scope="col" class="num">Bei {KANTE_OBEN} km/h</th>
+        <th scope="col" class="num">Punkte</th>
+        <th scope="col" class="num">Mehrbetrag</th>
+      </tr>
+    </thead>
+    <tbody>
+      {kante.map((z) => (
+        <tr>
+          <th scope="row" class="num">{z.m} m</th>
+          <td class="num">{eur(z.a.bussgeld)}</td>
+          <td class="num">{z.a.punkte}</td>
+          <td class="num">{eur(z.b.bussgeld)}</td>
+          <td class="num">{z.b.punkte}</td>
+          <td class="num strong">{eur(z.delta)}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+
+  <p>
+    Bei {KANTE_UNTEN} km/h beträgt der erforderliche Abstand {halberTachoUnten} Meter, bei
+    {' '}{KANTE_OBEN} km/h sind es {halberTachoOben.toLocaleString('de-DE')} Meter. Der Unterschied
+    im Abstand ist damit ein halber Meter, der Unterschied in der Sanktion beträgt bis zu
+    {' '}{eur(kanteMax.delta)}: Bei {kanteMax.m} Metern Abstand stehen {eur(kanteMax.a.bussgeld)}
+    {' '}gegen {eur(kanteMax.b.bussgeld)}, das {kanteFaktor.toLocaleString('de-DE', { maximumFractionDigits: 1 })}-Fache.
+    In {zahlwort(kantePunktWechsel)} der {zahlwort(kante.length)} Zeilen kommt außerdem ein Punkt
+    hinzu, der bei {KANTE_UNTEN} km/h nicht anfällt. Ein einziges km/h auf dem Tacho, und die
+    Bemessungsgrundlage ist eine andere.
+  </p>
+  <p>
+    Dieselbe Mechanik wiederholt sich an den Grenzen von 100 und 130 km/h, wo Tabelle 2 von
+    Buchstabe a auf b und von b auf c wechselt. Bei {BUCHSTABE_METER} Metern Abstand liegt der
+    Regelsatz mit 100 km/h bei {eur(bAlt.bussgeld)}; das bringt {punkteAkk(bAlt.punkte)} ein, aber
+    kein Fahrverbot. Bei 101 km/h {buchstabeGeldGleich ? 'sind es dieselben' : 'sind es'}
+    {' '}{eur(bNeu.bussgeld)} – aber {punkteAkk(bNeu.punkte)} und
+    {' '}{monateAkk(bNeu.fahrverbot)} Fahrverbot. Der Betrag ändert sich nicht, die Folge schon.
+  </p>
+
+  <h2>Ein Meter ist ein Monat</h2>
+  <p>
+    Wie fein die Stufen beim Abstand tatsächlich liegen, zeigt sich, wenn man sie für ein festes
+    Tempo in Meter zurückrechnet. Bei {TEMPO_ABSTAND} km/h beträgt der halbe Tachowert
+    {' '}{TEMPO_ABSTAND / 2} Meter; ab {abstand130.ohneVerstoss} Metern liegt kein Verstoß mehr vor.
+  </p>
+
+  <table>
+    <caption class="visually-hidden">
+      Abstandsstufen bei {TEMPO_ABSTAND} km/h, umgerechnet in Meter
+    </caption>
+    <thead>
+      <tr>
+        <th scope="col">Nr.</th>
+        <th scope="col" class="num">Gemessener Abstand</th>
+        <th scope="col" class="num">Regelsatz</th>
+        <th scope="col" class="num">Punkte</th>
+        <th scope="col" class="num">Fahrverbot</th>
+      </tr>
+    </thead>
+    <tbody>
+      {abstand130.stufen.slice().reverse().map((s) => (
+        <tr>
+          <th scope="row">{s.nummer}</th>
+          <td class="num">{s.von === 0 ? `bis ${s.bis} m` : `${s.von} – ${s.bis} m`}</td>
+          <td class="num">{eur(s.bussgeld)}</td>
+          <td class="num">{s.punkte}</td>
+          <td class="num strong">{monate(s.fahrverbot)}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+
+  <p>
+    Die entscheidende Zeile ist der Übergang in der Mitte. Bei
+    {' '}{letzterMeterMitFv + 1} Metern Abstand kostet die Fahrt {eur(ohneFv.bussgeld)} und bringt
+    {' '}{punkteAkk(ohneFv.punkte)} ein. Bei {letzterMeterMitFv} Metern sind es
+    {' '}{eur(mitFv.bussgeld)}, {punkteAkk(mitFv.punkte)} und
+    {' '}{monateAkk(mitFv.fahrverbot)} Fahrverbot. Ein Meter trennt die beiden Zeilen. Bei
+    {' '}{TEMPO_ABSTAND} km/h legt ein Fahrzeug diesen Meter in
+    {' '}{msProMeter.toLocaleString('de-DE', { maximumFractionDigits: 0 })} Millisekunden zurück –
+    so kurz ist die Spanne zwischen einer Geldbuße ohne Fahrverbot und einer mit.
+  </p>
+  <p>
+    Dieselbe Bauart hat der Rotlichtverstoß, dort entscheidet eine einzige Sekunde. Eine Rotphase von
+    unter einer Sekunde kostet {eur(rotEinfach.bussgeld)} und bringt {punkteAkk(rotEinfach.punkte)} ein;
+    ab einer Sekunde sind es {eur(rotQualifiziert.bussgeld)}, {punkteAkk(rotQualifiziert.punkte)}
+    {' '}und {monateAkk(rotQualifiziert.fahrverbot)} Fahrverbot. Der Katalog arbeitet an seinen
+    wichtigsten Stellen mit Schwellen, nicht mit Übergängen.
+  </p>
+
+  <h2>Was diese Rechnung nicht abbildet</h2>
+  <p>
+    Alle Werte sind Regelsätze. Sie gehen nach § 1 Abs. 2 BKatV von gewöhnlichen Tatumständen
+    und – in Abschnitt I des Bußgeldkatalogs, aus dem alle hier gezeigten Zahlen stammen – von
+    fahrlässiger Begehung aus. Etwaige Eintragungen im Fahreignungsregister sind darin
+    grundsätzlich nicht berücksichtigt, § 3 Abs. 1 BKatV. Wird ausnahmsweise von einem Fahrverbot
+    abgesehen, soll das Bußgeld nach § 4 Abs. 4 BKatV angemessen erhöht werden.
+  </p>
+  <p>
+    Die Geschwindigkeitswerte gelten für Pkw und Motorräder. Für schwere Lastkraftwagen,
+    Fahrzeuge mit Anhänger und Kraftomnibusse gelten die deutlich höheren Sätze der Tabelle 1
+    Buchstaben a und b, die hier nicht abgebildet sind.
+    Alle Überschreitungen verstehen sich nach Abzug der Messtoleranz. Die Abstandsrechnung setzt
+    voraus, dass Geschwindigkeit und Abstand gleichzeitig gemessen wurden – der halbe Tachowert
+    ist die Bezugsgröße der Tabelle 2, nicht der volle. Nicht enthalten sind schließlich
+    Gebühren und Auslagen des Verfahrens sowie die Folgen, die sich aus dem erreichten
+    Punktestand nach § 4 Abs. 5 StVG ergeben.
+  </p>
+  <p>
+    Die Zahlen dieses Artikels stammen aus demselben Rechenmodul wie der
+    {' '}<a href={`${base}auto/busgeldrechner/`}>Bußgeldrechner</a>. Wer einen konkreten Fall
+    durchspielen will – Geschwindigkeit, Abstand, Rotlicht oder Handy am Steuer –, findet dort
+    die Eingabefelder.
+  </p>
+</ArticleLayout>

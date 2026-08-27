@@ -23,6 +23,30 @@ export interface Artikel {
 
 export const ARTIKEL: Artikel[] = [
   {
+    slug: 'bussgeldkatalog-schwellenwerte',
+    titel: 'Bußgeldkatalog: Wo ein einziges km/h den Preis vervielfacht',
+    teaser: 'Innerorts trennt ein Kilometer pro Stunde 180 € von 260 € und dem ersten Fahrverbot. Der teuerste km/h steht aber beim Abstand: Von 80 auf 81 km/h springt derselbe gemessene Abstand von pauschal 25 € auf bis zu 320 €. Und bei 130 km/h trennt ein Meter – 28 Millisekunden – eine Geldbuße ohne Fahrverbot von einer mit.',
+    datum: '2026-08-27',
+    thema: 'Auto',
+    rechner: ['busgeldrechner'],
+  },
+  {
+    slug: 'kuendigungsfrist-arbeitgeber-arbeitnehmer',
+    titel: 'Kündigungsfrist: Warum der Arbeitgeber achtmal so lange warten muss',
+    teaser: 'Die Staffel des § 622 Abs. 2 BGB gilt nur für die Kündigung durch den Arbeitgeber – wer selbst kündigt, bleibt sein Arbeitsleben lang bei vier Wochen. Nach 20 Jahren sind das 241 gegen 29 Tage. Dazu die Rechnung, warum „vier Wochen" real zwischen 28 und 43 Tagen dauern, und der Satz, den der EuGH kippte und der neun Jahre später verschwand.',
+    datum: '2026-08-27',
+    thema: 'Geld',
+    rechner: ['kuendigungsfrist-rechner', 'abfindungsrechner', 'arbeitslosengeld-rechner'],
+  },
+  {
+    slug: 'strompreis-zusammensetzung',
+    titel: 'Woraus der Strompreis besteht – und warum ein Anbieterwechsel nur die Hälfte trifft',
+    teaser: 'Von 37,00 ct je Kilowattstunde entfallen 18,05 ct auf Beschaffung und Vertrieb – der einzige Teil, über den ein Tarifwechsel verhandelt. Die übrigen 51,2 Prozent stehen fest, bevor ein Vertrag unterschrieben ist: Ein Prozent Rabatt senkt die Jahresrechnung um 0,49 Prozent. Dazu die Frage, warum „34 Prozent Steuern und Abgaben" nicht heißt, dass der Staat 34 Prozent bekommt.',
+    datum: '2026-08-27',
+    thema: 'Energie',
+    rechner: ['stromkosten-rechner', 'waermepumpe-rechner', 'stromspeicher-rechner', 'heizkosten-vergleich'],
+  },
+  {
     slug: 'kindesunterhalt-volljaehrigkeit',
     titel: 'Kindesunterhalt: Warum der 18. Geburtstag den Zahlbetrag senkt',
     teaser: 'Der Bedarf steigt, der überwiesene Betrag sinkt – in allen fünfzehn Einkommensgruppen, um 39,50 bis 77,50 € im Monat. Dazu die Spanne von 856 €, in der jeder zusätzliche Euro vollständig an die Kinder geht, und der Euro an der Gruppengrenze, der 1.080 € im Jahr auslöst.',
