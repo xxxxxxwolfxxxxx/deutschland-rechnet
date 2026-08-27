@@ -46,6 +46,76 @@ export const MEHRBETRAG_AB_13 = 65;
 /** § 12 Abs. 5 WoGG. */
 export const MIETENSTUFEN = [1, 2, 3, 4, 5, 6, 7];
 
+/**
+ * Mietenniveau je Mietenstufe (§ 12 Abs. 5 WoGG).
+ *
+ * Das Mietenniveau ist nach § 12 Abs. 2 WoGG die durchschnittliche prozentuale
+ * Abweichung der Quadratmetermieten vom Bundesdurchschnitt – gemessen aber nur
+ * an Wohnraum, für den Mietzuschuss geleistet wird. Es ist also das Mietenniveau
+ * der Wohngeldhaushalte, nicht das des Wohnungsmarkts.
+ *
+ * `ab` ist die Untergrenze der Klasse in Prozent, `bis` die Obergrenze
+ * (ausschließlich). `null` steht für die beiden offenen Ränder.
+ */
+export const MIETENNIVEAU_KLASSEN = {
+  1: { ab: null, bis: -15 },
+  2: { ab: -15, bis: -5 },
+  3: { ab: -5, bis: 5 },
+  4: { ab: 5, bis: 15 },
+  5: { ab: 15, bis: 25 },
+  6: { ab: 25, bis: 35 },
+  7: { ab: 35, bis: null },
+};
+
+/**
+ * Die Zuordnung der Gemeinden zu den Mietenstufen (Anlage zu § 1 Abs. 3 WoGV).
+ *
+ * Die Anlage führt Gemeinden ab 10 000 Einwohnern einzeln auf; für kleinere
+ * Gemeinden gilt die Stufe ihres Kreises (§ 12 Abs. 3 WoGG). Die Inseln ohne
+ * Festlandanschluss haben nach § 12 Abs. 4a WoGG eine gemeinsame Stufe.
+ *
+ * `verteilung` und `verteilungKreise` sind eine eigene Auszählung der 1 881
+ * Datenzeilen der Anlage in der Fassung ab dem 01.01.2023. Sie halten fest, wie
+ * ungleich die sieben Stufen belegt sind – die Höchstbeträge der Anlage 1 sagen
+ * darüber nichts.
+ */
+export const MIETENSTUFEN_ANLAGE = {
+  stand: '2023-01-01',
+  fundstelle: 'BGBl. I 2022, S. 2166–2210',
+  /** Stichtage der Wohngeldstatistik, auf der die Zuordnung beruht. */
+  datenbasis: ['2019-12-31', '2020-12-31'],
+  gebietsstand: '2021-03-31',
+  eintraege: 1881,
+  gemeinden: 1601,
+  kreise: 279,
+  verteilung: { 1: 525, 2: 543, 3: 359, 4: 235, 5: 113, 6: 68, 7: 38 },
+  verteilungKreise: { 1: 168, 2: 66, 3: 22, 4: 16, 5: 3, 6: 2, 7: 2 },
+};
+
+/**
+ * Mietenstufen fünfzehn großer Städte (Anlage zu § 1 Abs. 3 WoGV).
+ *
+ * Nur zur Anschauung – maßgeblich ist immer der Eintrag der eigenen Gemeinde
+ * in der Anlage.
+ */
+export const MIETENSTUFEN_STAEDTE = [
+  { ort: 'Leipzig', stufe: 2 },
+  { ort: 'Dortmund', stufe: 3 },
+  { ort: 'Dresden', stufe: 3 },
+  { ort: 'Duisburg', stufe: 3 },
+  { ort: 'Essen', stufe: 3 },
+  { ort: 'Berlin', stufe: 4 },
+  { ort: 'Bremen', stufe: 4 },
+  { ort: 'Hannover', stufe: 5 },
+  { ort: 'Nürnberg', stufe: 5 },
+  { ort: 'Düsseldorf', stufe: 6 },
+  { ort: 'Frankfurt am Main', stufe: 6 },
+  { ort: 'Hamburg', stufe: 6 },
+  { ort: 'Köln', stufe: 6 },
+  { ort: 'Stuttgart', stufe: 6 },
+  { ort: 'München', stufe: 7 },
+];
+
 /** Größter Haushalt, für den Anlage 2 Koeffizienten nennt. */
 export const MAX_HAUSHALTSGROESSE_FORMEL = 12;
 
@@ -68,7 +138,7 @@ export const HOECHSTBETRAEGE = {
   7: { betraege: [677, 820, 975, 1139, 1302], mehrbetrag: 163 },
 };
 
-/** Werte für a, b und c (§ 19 Abs. 1 Satz 3 WoGG, Anlage 2). */
+/** Werte für a, b und c (§ 19 Abs. 1 Satz 4 WoGG, Anlage 2). */
 export const KOEFFIZIENTEN = {
   1: { a: 0.04, b: 4.797e-4, c: 4.08e-5 },
   2: { a: 0.03, b: 3.571e-4, c: 3.04e-5 },

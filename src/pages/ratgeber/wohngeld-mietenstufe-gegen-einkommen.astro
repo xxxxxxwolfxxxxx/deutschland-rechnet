@@ -1,0 +1,758 @@
+---
+import ArticleLayout from '../../layouts/ArticleLayout.astro';
+import {
+  berechneWohngeld,
+  monatlichesGesamteinkommen,
+  hoechstbetrag,
+  klimakomponente,
+  heizkostenentlastung,
+  HOECHSTBETRAEGE,
+  MIETENSTUFEN,
+  MIETENNIVEAU_KLASSEN,
+  MIETENSTUFEN_ANLAGE,
+  MIETENSTUFEN_STAEDTE,
+  MINDESTWERTE,
+  ABZUGSPAUSCHALE,
+  WOHNGELD_FAKTOR,
+  WOHNGELD_STAND,
+} from '../../../public/scripts/wohngeld.js';
+import { ARBEITNEHMER_PAUSCHBETRAG, jahreslohnsteuer } from '../../../public/scripts/lohnsteuer.js';
+
+const base = import.meta.env.BASE_URL;
+
+// Alle Zahlen zur Buildzeit aus demselben Modul, das auch der Rechner lädt.
+// Referenzhaushalt: eine Person, weil dort die Höchstbeträge am kleinsten und
+// die Stufeneffekte am deutlichsten sichtbar sind. Die Struktur der Formel ist
+// für jede Haushaltsgröße dieselbe – nur a, b und c ändern sich.
+const ARTIKEL_DATUM = '2026-08-27';
+const HAUSHALT = 1;
+const REFERENZ_BRUTTO = 1_500;
+const REFERENZ_MIETE = 700;
+const MIETEN_PROBE = [300, 500, 700] as const;
+const ROEMISCH = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII'] as const;
+
+const wg = (mietenstufe: number, kaltmiete: number, bruttoMonat: number, zahltSteuern = true) =>
+  berechneWohngeld({
+    haushaltsgroesse: HAUSHALT,
+    mietenstufe,
+    kaltmiete,
+    bruttoMonat,
+    zahltSteuern,
+  });
+
+// Der Deckel für die Miete: Höchstbetrag nach Anlage 1 plus Klimakomponente.
+const deckel = (stufe: number) =>
+  hoechstbetrag({ haushaltsgroesse: HAUSHALT, mietenstufe: stufe }) + klimakomponente(HAUSHALT);
+
+// Kernbefund 1: dieselbe Miete durch alle sieben Stufen.
+const stufenTabelle = MIETENSTUFEN.map((stufe) => ({
+  stufe,
+  deckel: deckel(stufe),
+  betraege: MIETEN_PROBE.map((miete) => wg(stufe, miete, REFERENZ_BRUTTO).wohngeld),
+}));
+const verschiedeneBetraege = MIETEN_PROBE.map(
+  (_, i) => new Set(stufenTabelle.map((z) => z.betraege[i])).size,
+);
+const wohngeldBeiKleinerMiete = stufenTabelle[0].betraege[0];
+
+// Was ein Euro Miete unterhalb des Deckels bringt. Über eine breite Spanne
+// gemessen, damit die Rundung auf volle Euro nicht durchschlägt – und beide
+// Stützstellen unterhalb des kleinsten Deckels, sonst misst Stufe I die
+// Kappung mit statt der Quote.
+const MESS_MIETE = [150, 350] as const;
+const ersatzquote = (stufe: number, brutto: number) =>
+  (wg(stufe, MESS_MIETE[1], brutto).wohngeld - wg(stufe, MESS_MIETE[0], brutto).wohngeld) /
+  (MESS_MIETE[1] - MESS_MIETE[0]);
+const quoteReferenz = ersatzquote(7, REFERENZ_BRUTTO);
+const quoteStufeI = ersatzquote(1, REFERENZ_BRUTTO);
+const heizkostenWert = quoteReferenz * heizkostenentlastung(HAUSHALT);
+
+// Kernbefund 2: was der Sprung von Stufe I auf VII wert ist – nach Einkommen.
+const SPRUNG_BRUTTO = [600, 800, 1_200, 1_600, 2_000] as const;
+const sprungTabelle = SPRUNG_BRUTTO.map((brutto) => {
+  const niedrig = wg(1, REFERENZ_MIETE, brutto).wohngeld;
+  const hoch = wg(7, REFERENZ_MIETE, brutto).wohngeld;
+  return { brutto, niedrig, hoch, differenz: hoch - niedrig };
+});
+const sprungOben = sprungTabelle[0];
+const sprungUnten = sprungTabelle[sprungTabelle.length - 1];
+
+// Das Einkommensäquivalent: um wie viel darf jemand in Stufe VII mehr
+// verdienen, um dasselbe Wohngeld zu bekommen wie in Stufe I?
+const zielWohngeld = wg(1, REFERENZ_MIETE, REFERENZ_BRUTTO).wohngeld;
+const aequivalentBrutto = (() => {
+  for (let b = REFERENZ_BRUTTO; b <= 6_000; b += 1) {
+    if (wg(7, REFERENZ_MIETE, b).wohngeld <= zielWohngeld) return b;
+  }
+  return null;
+})()!;
+const aequivalentMehr = aequivalentBrutto - REFERENZ_BRUTTO;
+
+// Gegenprobe: Umzug in die teurere Stadt, Miete jeweils am Deckel.
+const UMZUG_VON = 4;
+const UMZUG_NACH = 6;
+const UMZUG_BRUTTO = 1_800;
+const umzug = [UMZUG_VON, UMZUG_NACH].map((stufe) => {
+  const miete = deckel(stufe);
+  const ergebnis = wg(stufe, miete, UMZUG_BRUTTO);
+  return { stufe, miete, wohngeld: ergebnis.wohngeld, eigenanteil: miete - ergebnis.wohngeld };
+});
+const mieteMehr = umzug[1].miete - umzug[0].miete;
+const wohngeldMehr = umzug[1].wohngeld - umzug[0].wohngeld;
+const eigenanteilMehr = umzug[1].eigenanteil - umzug[0].eigenanteil;
+
+// Die Einkommensachse. Der Knick liegt dort, wo das Gesamteinkommen den
+// Mindestwert der Anlage 3 Nr. 1 erreicht – analytisch aus den Konstanten,
+// nicht aus einer abgetasteten Tabelle.
+const abzugsquote = 3 * ABZUGSPAUSCHALE;
+const knickBrutto =
+  (MINDESTWERTE[HAUSHALT].Y * 12) / (1 - abzugsquote) / 12 + ARBEITNEHMER_PAUSCHBETRAG / 12;
+const knickProbe = monatlichesGesamteinkommen({ bruttoMonat: knickBrutto });
+
+const VERLAUF_STUFE = 4;
+const VERLAUF_MIETE = 500;
+const plateauWohngeld = wg(VERLAUF_STUFE, VERLAUF_MIETE, 0).wohngeld;
+const letzterAnspruch = (() => {
+  let letzte = 0;
+  for (let b = 0; b <= 6_000; b += 1) {
+    if (wg(VERLAUF_STUFE, VERLAUF_MIETE, b).wohngeld > 0) letzte = b;
+    else if (b > 1_000) break;
+  }
+  return letzte;
+})();
+const letzterAnspruchWohngeld = wg(VERLAUF_STUFE, VERLAUF_MIETE, letzterAnspruch).wohngeld;
+const VERLAUF_BRUTTO = [700, 1_100, 1_500, 1_900, 2_200] as const;
+const verlaufTabelle = VERLAUF_BRUTTO.map((brutto) => {
+  const hier = wg(VERLAUF_STUFE, VERLAUF_MIETE, brutto).wohngeld;
+  const dort = wg(VERLAUF_STUFE, VERLAUF_MIETE, brutto + 100).wohngeld;
+  return { brutto, wohngeld: hier, verlust: hier - dort };
+});
+const entzugMin = verlaufTabelle[0].verlust;
+const entzugMax = verlaufTabelle[verlaufTabelle.length - 1].verlust;
+
+// Der Sprung nach oben: § 16 Satz 1 Nr. 1 WoGG ist eine Alles-oder-nichts-Regel.
+const steuerSchwelle = (() => {
+  for (let b = 800; b <= 4_000; b += 1) {
+    if (jahreslohnsteuer({ jahresarbeitslohn: b * 12, steuerklasse: 1, kinder: 0 }) > 0) return b;
+  }
+  return null;
+})()!;
+const steuerBetragJahr = jahreslohnsteuer({
+  jahresarbeitslohn: steuerSchwelle * 12,
+  steuerklasse: 1,
+  kinder: 0,
+});
+const ohnePauschale = wg(VERLAUF_STUFE, VERLAUF_MIETE, steuerSchwelle - 1, false);
+const mitPauschale = wg(VERLAUF_STUFE, VERLAUF_MIETE, steuerSchwelle, true);
+const pauschaleSprung = mitPauschale.wohngeld - ohnePauschale.wohngeld;
+
+// Die Anlage zur Wohngeldverordnung: eigene Auszählung.
+const anlage = MIETENSTUFEN_ANLAGE;
+const anteil = (n: number) => n / anlage.eintraege;
+const anteilIbisIII = anteil(anlage.verteilung[1] + anlage.verteilung[2] + anlage.verteilung[3]);
+const anteilVIundVII = anteil(anlage.verteilung[6] + anlage.verteilung[7]);
+const kreiseInI = anlage.verteilungKreise[1];
+
+const staedte = MIETENSTUFEN_STAEDTE.map((s) => ({ ...s, deckel: deckel(s.stufe) }));
+const berlin = staedte.find((s) => s.ort === 'Berlin')!;
+const hannover = staedte.find((s) => s.ort === 'Hannover')!;
+const berlinHannoverDiff = hannover.deckel - berlin.deckel;
+
+const eur = (b: number) =>
+  b.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
+const eurGlatt = (b: number) => b.toLocaleString('de-DE', { maximumFractionDigits: 0 }) + ' €';
+const prozent = (b: number, stellen = 1) =>
+  (b * 100).toLocaleString('de-DE', { minimumFractionDigits: stellen, maximumFractionDigits: stellen }) +
+  ' %';
+const zahl = (b: number, stellen = 0) =>
+  b.toLocaleString('de-DE', { minimumFractionDigits: stellen, maximumFractionDigits: stellen });
+const datumLang = (iso: string) =>
+  new Date(iso).toLocaleDateString('de-DE', { day: 'numeric', month: 'long', year: 'numeric' });
+const jahr = (iso: string) => iso.slice(0, 4);
+---
+
+<ArticleLayout
+  title={`Wohngeld: Bei ${eurGlatt(MIETEN_PROBE[0])} Miete zahlen alle sieben Mietenstufen dasselbe`}
+  description={`Die Mietenstufe wirkt nur als Deckel: Bei ${eurGlatt(MIETEN_PROBE[0])} Kaltmiete ergibt Stufe I denselben Betrag wie Stufe VII – ${eurGlatt(wohngeldBeiKleinerMiete)}. Wo sie wirkt, ist ein Stufensprung bis zu ${eurGlatt(sprungOben.differenz)} im Monat wert. Alle sieben Stufen durchgerechnet.`}
+  canonicalPath="/ratgeber/wohngeld-mietenstufe-gegen-einkommen/"
+  datum={ARTIKEL_DATUM}
+  lead={`Wohngeld hängt an zwei Zahlen: der Miete und dem Einkommen. Beide wirken völlig verschieden. Das Einkommen geht in eine Kurve ein, die mit jedem verdienten Euro steiler wird. Die Mietenstufe dagegen ist kein Faktor, sondern eine Obergrenze – und wer darunter liegt, für den ändert sie keinen Cent. Durchgerechnet für einen Einpersonenhaushalt, mit den Werten des Rechtsstands ${datumLang(WOHNGELD_STAND)}.`}
+  quellen={[
+    { titel: '§ 11 WoGG – Zu berücksichtigende Miete und Belastung', url: 'https://www.gesetze-im-internet.de/wogg/__11.html' },
+    { titel: '§ 12 WoGG – Höchstbeträge, Mietenstufen, Heizkostenentlastung, Klimakomponente', url: 'https://www.gesetze-im-internet.de/wogg/__12.html' },
+    { titel: '§ 16 WoGG – Abzugsbeträge für Steuern und Sozialversicherungsbeiträge', url: 'https://www.gesetze-im-internet.de/wogg/__16.html' },
+    { titel: '§ 19 WoGG – Höhe des Wohngeldes', url: 'https://www.gesetze-im-internet.de/wogg/__19.html' },
+    { titel: 'Anlage 1 zum WoGG – Höchstbeträge für Miete und Belastung', url: 'https://www.gesetze-im-internet.de/wogg/anlage_1.html' },
+    { titel: 'Anlage 2 zum WoGG – Werte für a, b und c', url: 'https://www.gesetze-im-internet.de/wogg/anlage_2.html' },
+    { titel: 'Anlage 3 zum WoGG – Rechenschritte und Rundungen', url: 'https://www.gesetze-im-internet.de/wogg/anlage_3.html' },
+    { titel: '§ 1 Abs. 3 WoGV – Mietenstufen der Gemeinden', url: 'https://www.gesetze-im-internet.de/wogv/__1.html' },
+    { titel: `Anlage zur WoGV – Mietenstufen der Gemeinden nach Ländern ab 1. Januar ${jahr(anlage.stand)}`, url: 'https://www.gesetze-im-internet.de/wogv/anlage.html' },
+    { titel: '§ 14 WoGG – Jahreseinkommen', url: 'https://www.gesetze-im-internet.de/wogg/__14.html' },
+    { titel: '§ 9a EStG – Pauschbeträge für Werbungskosten', url: 'https://www.gesetze-im-internet.de/estg/__9a.html' },
+    { titel: '§ 32a EStG – Einkommensteuertarif', url: 'https://www.gesetze-im-internet.de/estg/__32a.html' },
+    { titel: '§ 39b EStG – Einbehaltung der Lohnsteuer', url: 'https://www.gesetze-im-internet.de/estg/__39b.html' },
+  ]}
+>
+  <h2>Zwei Größen, zwei Mechanismen</h2>
+
+  <p>
+    Die gesamte Wohngeldberechnung steht in einer einzigen Zeile. § 19 Abs. 1
+    Satz 1 WoGG sagt: Das ungerundete monatliche Wohngeld beträgt
+    {' '}{zahl(WOHNGELD_FAKTOR, 2)} × (M − (a + b × M + c × Y) × Y) Euro. M ist die zu
+    berücksichtigende Miete, Y das monatliche Gesamteinkommen; a, b und c hängen
+    allein von der Haushaltsgröße ab und stehen in Anlage 2.
+  </p>
+
+  <p>
+    An dieser Formel fällt zweierlei auf. Erstens taucht die Mietenstufe darin
+    gar nicht auf – sie steckt ausschließlich in der Frage, wie groß M werden
+    darf. Zweitens steht Y zweimal da, einmal davon multipliziert mit sich
+    selbst. Das Einkommen wirkt also quadratisch, die Miete linear. Beide
+    Größen bewegen das Ergebnis, aber nach völlig verschiedenen Regeln.
+  </p>
+
+  <h2>Die Mietenstufe ist eine Obergrenze</h2>
+
+  <p>
+    § 11 Abs. 1 WoGG begrenzt die Miete auf den Höchstbetrag der Anlage 1,
+    erhöht um die Klimakomponente. Für einen Einpersonenhaushalt reicht dieser
+    Deckel von {eur(deckel(1))} in Stufe I bis {eur(deckel(7))} in
+    Stufe VII. Alles darüber zählt nicht mit – und alles darunter zählt in jeder
+    Stufe gleich viel.
+  </p>
+
+  <p>
+    Das lässt sich vorführen. Derselbe Haushalt, dasselbe Einkommen von
+    {' '}{eurGlatt(REFERENZ_BRUTTO)} brutto im Monat, drei Mieten, sieben Stufen:
+  </p>
+
+  <div class="table-wrap">
+    <table>
+      <caption class="visually-hidden">
+        Wohngeld eines Einpersonenhaushalts nach Mietenstufe und Kaltmiete
+      </caption>
+      <thead>
+        <tr>
+          <th scope="col">Mietenstufe</th>
+          <th scope="col" class="num">Deckel für die Miete</th>
+          {MIETEN_PROBE.map((m) => (
+            <th scope="col" class="num">bei {eurGlatt(m)} Miete</th>
+          ))}
+        </tr>
+      </thead>
+      <tbody>
+        {stufenTabelle.map((z) => (
+          <tr>
+            <th scope="row">{ROEMISCH[z.stufe - 1]}</th>
+            <td class="num">{eur(z.deckel)}</td>
+            {z.betraege.map((b) => (
+              <td class="num strong">{eurGlatt(b)}</td>
+            ))}
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  </div>
+
+  <p class="tabellenhinweis">
+    Einpersonenhaushalt, {eurGlatt(REFERENZ_BRUTTO)} Bruttoeinkommen im Monat,
+    alle drei Abzugspauschalen des § 16 WoGG angesetzt. Rechtsstand
+    {' '}{datumLang(WOHNGELD_STAND)}.
+  </p>
+
+  <p>
+    Die erste Spalte ist die interessante. Bei {eurGlatt(MIETEN_PROBE[0])} Miete
+    steht in allen sieben Zeilen derselbe Betrag: {eurGlatt(wohngeldBeiKleinerMiete)}.
+    Ein Haushalt in einer Gemeinde der Stufe I bekommt exakt so viel wie einer in
+    München. Bei {eurGlatt(MIETEN_PROBE[1])} bleiben von sieben Zeilen nur
+    {' '}{zahl(verschiedeneBetraege[1])} verschiedene Beträge übrig: Ab Stufe IV
+    liegt der Deckel über der tatsächlichen Miete und spielt keine Rolle mehr.
+    Erst bei
+    {' '}{eurGlatt(MIETEN_PROBE[2])} trennen sich alle sieben.
+  </p>
+
+  <p>
+    Die Mietenstufe belohnt also nicht das Wohnen in einer teuren Gegend. Sie
+    hebt nur eine Schranke an, gegen die man erst einmal stoßen muss.
+  </p>
+
+  <h2>Woraus der Deckel besteht – und was der Zuschlag wert ist</h2>
+
+  <p>
+    Der Deckel setzt sich aus zwei Teilen zusammen. Der Höchstbetrag nach
+    Anlage 1 beträgt für einen Einpersonenhaushalt in Stufe IV
+    {' '}{eurGlatt(hoechstbetrag({ haushaltsgroesse: HAUSHALT, mietenstufe: 4 }))};
+    dazu kommt die Klimakomponente nach § 12 Abs. 7 WoGG mit
+    {' '}{eur(klimakomponente(HAUSHALT))}. Die Heizkostenentlastung nach § 12 Abs. 6
+    WoGG – {eur(heizkostenentlastung(HAUSHALT))} – wird dagegen nach § 11 Abs. 1
+    WoGG erst nach der Deckelung addiert. Sie unterliegt der Obergrenze also
+    nicht und kommt auch dann noch obendrauf, wenn die Miete längst gekappt ist.
+  </p>
+
+  <p>
+    Von einem Zuschlag auf die Miete kommt allerdings nur ein Bruchteil beim
+    Haushalt an. Unterhalb des Deckels bringt jeder Euro Miete bei
+    {' '}{eurGlatt(REFERENZ_BRUTTO)} Brutto {eur(quoteReferenz)} mehr Wohngeld,
+    also rund {prozent(quoteReferenz, 0)}. Diese Quote hängt nicht an der
+    Mietenstufe: In Stufe I sind es dieselben {eur(quoteStufeI)}. Sie hängt am
+    Einkommen, denn in der Formel steht vor M der Ausdruck
+    {' '}{zahl(WOHNGELD_FAKTOR, 2)} × (1 − b × Y). Die
+    {' '}{eur(heizkostenentlastung(HAUSHALT))} Heizkostenentlastung sind unter
+    diesen Bedingungen rund {eurGlatt(heizkostenWert)} im Monat wert, nicht
+    {' '}{eur(heizkostenentlastung(HAUSHALT))}. Was das Gesetz auf die Miete
+    aufschlägt, geht durch dieselbe Formel wie die Miete selbst.
+  </p>
+
+  <h2>Was die Stufe misst – und was nicht</h2>
+
+  <p>
+    Nach § 12 Abs. 2 WoGG richtet sich die Zugehörigkeit einer Gemeinde nach dem
+    Mietenniveau, und das ist die durchschnittliche prozentuale Abweichung der
+    Quadratmetermieten vom Bundesdurchschnitt. Entscheidend ist der Halbsatz
+    davor: Gemessen wird an Wohnraum, „für den Mietzuschuss geleistet wird". Die
+    Mietenstufe bildet nicht den Wohnungsmarkt ab, sondern die Mieten der
+    Wohngeldhaushalte.
+  </p>
+
+  <p>
+    Die sieben Stufen sind Klassen dieser Abweichung: Stufe I liegt mehr als
+    {' '}{zahl(Math.abs(MIETENNIVEAU_KLASSEN[1].bis!))} Prozent unter dem
+    Bundesdurchschnitt, Stufe VII mindestens
+    {' '}{zahl(MIETENNIVEAU_KLASSEN[7].ab!)} Prozent darüber; dazwischen liegen
+    Klassen von je zehn Prozentpunkten Breite. Nach oben ist Stufe VII offen –
+    egal wie weit eine Gemeinde über dem Durchschnitt liegt, der Höchstbetrag
+    nach Anlage 1 endet bei {eurGlatt(HOECHSTBETRAEGE[7].betraege[0])}.
+  </p>
+
+  <p>
+    Welche Gemeinde in welcher Stufe liegt, steht in der Anlage zu § 1 Abs. 3 der
+    Wohngeldverordnung. Sie führt Gemeinden ab 10 000 Einwohnern einzeln auf; für
+    kleinere gilt die Stufe ihres Kreises. Eine Auszählung ihrer
+    {' '}{zahl(anlage.eintraege)} Einträge – {zahl(anlage.gemeinden)} Gemeinden,
+    {' '}{zahl(anlage.kreise)} Kreise und eine gemeinsam eingestufte Inselgruppe –
+    zeigt, wie ungleich die Stufen belegt sind:
+  </p>
+
+  <div class="table-wrap">
+    <table>
+      <caption class="visually-hidden">
+        Belegung der Mietenstufen in der Anlage zur Wohngeldverordnung
+      </caption>
+      <thead>
+        <tr>
+          <th scope="col">Mietenstufe</th>
+          <th scope="col" class="num">Einträge</th>
+          <th scope="col" class="num">Anteil</th>
+          <th scope="col" class="num">darunter Kreise</th>
+          <th scope="col" class="num">Deckel, 1 Person</th>
+        </tr>
+      </thead>
+      <tbody>
+        {MIETENSTUFEN.map((stufe) => (
+          <tr>
+            <th scope="row">{ROEMISCH[stufe - 1]}</th>
+            <td class="num">{zahl(anlage.verteilung[stufe])}</td>
+            <td class="num">{prozent(anteil(anlage.verteilung[stufe]))}</td>
+            <td class="num">{zahl(anlage.verteilungKreise[stufe])}</td>
+            <td class="num">{eur(deckel(stufe))}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  </div>
+
+  <p class="tabellenhinweis">
+    Eigene Auszählung der Anlage zu § 1 Abs. 3 WoGV in der Fassung ab
+    {' '}{datumLang(anlage.stand)}, Fundstelle {anlage.fundstelle}. Die
+    {' '}{zahl(anlage.eintraege)} Einträge umfassen {zahl(anlage.gemeinden)} Gemeinden,
+    {' '}{zahl(anlage.kreise)} Kreise und die nach § 12 Abs. 4a WoGG gemeinsam
+    eingestufte Gruppe der Inseln ohne Festlandanschluss.
+  </p>
+
+  <p>
+    {prozent(anteilIbisIII)} aller Einträge liegen in den Stufen I bis III, nur
+    {' '}{prozent(anteilVIundVII)} in VI oder VII. Bei den Kreisen, die für sämtliche
+    Gemeinden unter 10 000 Einwohnern gelten, ist die Schieflage noch deutlicher:
+    {' '}{zahl(kreiseInI)} der {zahl(anlage.kreise)} Kreise stehen in Stufe I. Wer
+    außerhalb der Ballungsräume wohnt, rechnet fast immer mit dem niedrigsten
+    Deckel.
+  </p>
+
+  <p>
+    Weil die Stufe an den Mieten der Wohngeldhaushalte hängt und nicht an den
+    Angebotsmieten, fällt die Zuordnung mitunter anders aus, als der Ruf einer
+    Stadt vermuten lässt:
+  </p>
+
+  <div class="table-wrap">
+    <table>
+      <caption class="visually-hidden">Mietenstufen fünfzehn großer Städte</caption>
+      <thead>
+        <tr>
+          <th scope="col">Stadt</th>
+          <th scope="col" class="num">Mietenstufe</th>
+          <th scope="col" class="num">Deckel, 1 Person</th>
+        </tr>
+      </thead>
+      <tbody>
+        {staedte.map((s) => (
+          <tr>
+            <th scope="row">{s.ort}</th>
+            <td class="num">{ROEMISCH[s.stufe - 1]}</td>
+            <td class="num">{eur(s.deckel)}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  </div>
+
+  <p class="tabellenhinweis">
+    Anlage zu § 1 Abs. 3 WoGV, Fassung ab {datumLang(anlage.stand)}. Maßgeblich
+    ist immer der Eintrag der eigenen Gemeinde.
+  </p>
+
+  <p>
+    {berlin.ort} steht in Stufe {ROEMISCH[berlin.stufe - 1]},
+    {' '}{hannover.ort} eine Stufe darüber. Für einen Einpersonenhaushalt bedeutet
+    das einen um {eur(berlinHannoverDiff)} höheren Deckel in
+    {' '}{hannover.ort}. Der Grund liegt nicht in der Gegenwart: Die Zuordnung gilt
+    seit {datumLang(anlage.stand)} und beruht nach der Vorbemerkung der Anlage auf
+    der Wohngeldstatistik zum {datumLang(anlage.datenbasis[0])} und zum
+    {' '}{datumLang(anlage.datenbasis[1])}. Der Deckel des Jahres
+    {' '}{jahr(ARTIKEL_DATUM)} folgt Mieten aus {jahr(anlage.datenbasis[0])} und
+    {' '}{jahr(anlage.datenbasis[1])}.
+  </p>
+
+  <h2>Was ein Stufensprung wert ist</h2>
+
+  <p>
+    Wo die Miete über dem Deckel liegt, wirkt die Stufe – aber nicht gleichmäßig.
+    Derselbe Haushalt mit {eurGlatt(REFERENZ_MIETE)} Kaltmiete, einmal in Stufe I
+    und einmal in Stufe VII, bei steigendem Einkommen:
+  </p>
+
+  <div class="table-wrap">
+    <table>
+      <caption class="visually-hidden">
+        Wohngeld in Stufe I und Stufe VII nach Bruttoeinkommen
+      </caption>
+      <thead>
+        <tr>
+          <th scope="col">Brutto im Monat</th>
+          <th scope="col" class="num">Stufe I</th>
+          <th scope="col" class="num">Stufe VII</th>
+          <th scope="col" class="num">Unterschied</th>
+        </tr>
+      </thead>
+      <tbody>
+        {sprungTabelle.map((z) => (
+          <tr>
+            <th scope="row">{eurGlatt(z.brutto)}</th>
+            <td class="num">{eurGlatt(z.niedrig)}</td>
+            <td class="num">{eurGlatt(z.hoch)}</td>
+            <td class="num strong">{eurGlatt(z.differenz)}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  </div>
+
+  <p class="tabellenhinweis">
+    Einpersonenhaushalt, {eurGlatt(REFERENZ_MIETE)} Kaltmiete – in beiden Stufen
+    über dem Deckel.
+  </p>
+
+  <p>
+    Der Unterschied schrumpft von {eurGlatt(sprungOben.differenz)} auf
+    {' '}{eurGlatt(sprungUnten.differenz)}, während das Einkommen steigt. Das ist
+    kein Zufall, sondern folgt aus der Formel: Der Deckelunterschied wird mit
+    {' '}{zahl(WOHNGELD_FAKTOR, 2)} × (1 − b × Y) multipliziert, und dieser Faktor
+    fällt mit jedem Euro Einkommen. Die Mietenstufe ist beim kleinsten
+    Einkommen am meisten wert.
+  </p>
+
+  <p>
+    Man kann den Sprung auch in Einkommen ausdrücken. Ein Haushalt in Stufe I mit
+    {' '}{eurGlatt(REFERENZ_BRUTTO)} Brutto bekommt {eurGlatt(zielWohngeld)}
+    {' '}Wohngeld. Denselben Betrag erhält ein Haushalt in Stufe VII bei gleicher
+    Miete erst bei {eurGlatt(aequivalentBrutto)} Brutto. Der Sprung von der
+    niedrigsten in die höchste Stufe wiegt an dieser Stelle
+    {' '}{eurGlatt(aequivalentMehr)} Monatsbrutto auf, also
+    {' '}{eurGlatt(aequivalentMehr * 12)} im Jahr.
+  </p>
+
+  <h2>Der Umzug rechnet sich trotzdem nicht</h2>
+
+  <p>
+    Daraus folgt nicht, dass ein Umzug in eine höhere Mietenstufe lohnt. Denn wer
+    dorthin zieht, zahlt in aller Regel auch die höhere Miete. Der Vergleich
+    zweier Haushalte, deren Miete jeweils genau am Deckel ihrer Stufe liegt:
+  </p>
+
+  <div class="table-wrap">
+    <table>
+      <caption class="visually-hidden">
+        Eigenanteil an der Miete in Stufe IV und Stufe VI
+      </caption>
+      <thead>
+        <tr>
+          <th scope="col">Mietenstufe</th>
+          <th scope="col" class="num">Miete am Deckel</th>
+          <th scope="col" class="num">Wohngeld</th>
+          <th scope="col" class="num">selbst zu zahlen</th>
+        </tr>
+      </thead>
+      <tbody>
+        {umzug.map((z) => (
+          <tr>
+            <th scope="row">{ROEMISCH[z.stufe - 1]}</th>
+            <td class="num">{eur(z.miete)}</td>
+            <td class="num">{eurGlatt(z.wohngeld)}</td>
+            <td class="num strong">{eur(z.eigenanteil)}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  </div>
+
+  <p class="tabellenhinweis">
+    Einpersonenhaushalt, {eurGlatt(UMZUG_BRUTTO)} Bruttoeinkommen im Monat.
+  </p>
+
+  <p>
+    Der Deckel steigt um {eur(mieteMehr)}, das Wohngeld nur um
+    {' '}{eurGlatt(wohngeldMehr)} – es deckt also
+    {' '}{prozent(wohngeldMehr / mieteMehr, 0)} der Mehrmiete. Den Rest,
+    {' '}{eur(eigenanteilMehr)} im Monat, trägt der Haushalt selbst. Zum vorigen
+    Abschnitt ist das kein Widerspruch: Dort blieb die Miete gleich und nur die
+    Stufe änderte sich, hier ändern sich beide.
+  </p>
+
+  <h2>Die andere Achse: das Einkommen</h2>
+
+  <p>
+    Auf der Einkommensseite verläuft die Sache in drei Abschnitten. Am Anfang
+    steht ein Plateau: Anlage 3 Nr. 1 zum WoGG ersetzt zu kleine Werte für M
+    und Y durch Mindestwerte – für Y bei einem Einpersonenhaushalt
+    {' '}{eurGlatt(MINDESTWERTE[HAUSHALT].Y)}. Solange das tatsächliche
+    Gesamteinkommen darunter liegt, ändert Mehrverdienst am Wohngeld nichts.
+  </p>
+
+  <p>
+    Dieser Punkt lässt sich ausrechnen. § 14 WoGG stellt auf die Einkünfte im
+    Sinne des § 2 EStG ab, beim Arbeitnehmer also auf den Lohn abzüglich der
+    Werbungskosten; angesetzt ist der Arbeitnehmer-Pauschbetrag nach § 9a Satz 1
+    Nr. 1 Buchst. a EStG von {eurGlatt(ARBEITNEHMER_PAUSCHBETRAG)} im Jahr. Davon
+    zieht § 16 WoGG die Pauschale von {prozent(abzugsquote, 0)} ab. Der Mindestwert
+    von {eurGlatt(MINDESTWERTE[HAUSHALT].Y)} wird damit bei {eur(knickBrutto)}
+    {' '}Monatsbrutto erreicht; die Gegenprobe mit dem Rechenmodul ergibt an dieser
+    Stelle {eur(knickProbe)} Gesamteinkommen. Bis dahin bleibt das Wohngeld bei
+    {' '}{eurGlatt(plateauWohngeld)} stehen, gerechnet für Stufe
+    {' '}{ROEMISCH[VERLAUF_STUFE - 1]} und {eurGlatt(VERLAUF_MIETE)} Miete.
+  </p>
+
+  <p>
+    Danach fällt das Wohngeld, und zwar zunehmend schneller:
+  </p>
+
+  <div class="table-wrap">
+    <table>
+      <caption class="visually-hidden">
+        Wohngeldverlust je 100 Euro zusätzlichem Bruttoeinkommen
+      </caption>
+      <thead>
+        <tr>
+          <th scope="col">Brutto im Monat</th>
+          <th scope="col" class="num">Wohngeld</th>
+          <th scope="col" class="num">Verlust je {eurGlatt(100)} mehr</th>
+        </tr>
+      </thead>
+      <tbody>
+        {verlaufTabelle.map((z) => (
+          <tr>
+            <th scope="row">{eurGlatt(z.brutto)}</th>
+            <td class="num">{eurGlatt(z.wohngeld)}</td>
+            <td class="num strong">{eurGlatt(z.verlust)}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  </div>
+
+  <p class="tabellenhinweis">
+    Einpersonenhaushalt, Stufe {ROEMISCH[VERLAUF_STUFE - 1]},
+    {' '}{eurGlatt(VERLAUF_MIETE)} Kaltmiete.
+  </p>
+
+  <p>
+    Vom ersten bis zum letzten Schritt wächst der Entzug von
+    {' '}{eurGlatt(entzugMin)} auf {eurGlatt(entzugMax)} je hundert Euro
+    Mehrverdienst. Das ist die Wirkung des quadratischen Glieds: Y steht in der
+    Formel zweimal, deshalb steigt die Steigung. Bei
+    {' '}{eurGlatt(letzterAnspruch)} Brutto beträgt das Wohngeld noch
+    {' '}{eurGlatt(letzterAnspruchWohngeld)}; einen Euro Brutto darüber besteht kein
+    Anspruch mehr. Gezeigt ist hier allein der Wohngeldteil; was derselbe
+    Mehrverdienst an Steuern und Sozialabgaben auslöst, kommt hinzu.
+  </p>
+
+  <h2>Der Sprung nach oben</h2>
+
+  <p>
+    Eine Stelle im Gesetz bewegt sich in die Gegenrichtung. § 16 Satz 1 WoGG
+    zieht je {prozent(ABZUGSPAUSCHALE, 0)} vom Jahreseinkommen ab, wenn Steuern
+    vom Einkommen, Pflichtbeiträge zur Kranken- und Pflegeversicherung oder zur
+    Rentenversicherung zu leisten sind. Die Vorschrift kennt keine Abstufung: Sie
+    fragt nur, ob solche Zahlungen zu erwarten sind, nicht wie hoch sie ausfallen.
+  </p>
+
+  <p>
+    Für die Steuer ergibt das eine Schwelle. Nach dem Lohnsteuertarif fällt in
+    Steuerklasse I ohne Kinder ab {eurGlatt(steuerSchwelle)} Monatsbrutto erstmals
+    Lohnsteuer an – {eurGlatt(steuerBetragJahr)} im Jahr. Einen Euro Brutto darunter
+    ist sie null, und damit auch die Pauschale:
+  </p>
+
+  <div class="table-wrap">
+    <table>
+      <caption class="visually-hidden">
+        Wohngeld an der Schwelle zur Lohnsteuerpflicht
+      </caption>
+      <thead>
+        <tr>
+          <th scope="col">Brutto im Monat</th>
+          <th scope="col" class="num">Abzug nach § 16</th>
+          <th scope="col" class="num">Gesamteinkommen Y</th>
+          <th scope="col" class="num">Wohngeld</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <th scope="row">{eurGlatt(steuerSchwelle - 1)}</th>
+          <td class="num">{prozent(2 * ABZUGSPAUSCHALE, 0)}</td>
+          <td class="num">{eur(ohnePauschale.gesamteinkommen)}</td>
+          <td class="num">{eurGlatt(ohnePauschale.wohngeld)}</td>
+        </tr>
+        <tr>
+          <th scope="row">{eurGlatt(steuerSchwelle)}</th>
+          <td class="num">{prozent(3 * ABZUGSPAUSCHALE, 0)}</td>
+          <td class="num">{eur(mitPauschale.gesamteinkommen)}</td>
+          <td class="num strong">{eurGlatt(mitPauschale.wohngeld)}</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p class="tabellenhinweis">
+    Einpersonenhaushalt, Stufe {ROEMISCH[VERLAUF_STUFE - 1]},
+    {' '}{eurGlatt(VERLAUF_MIETE)} Kaltmiete, Steuerklasse I ohne Kinder.
+    Krankenversicherungs- und Rentenbeiträge in beiden Zeilen angesetzt.
+  </p>
+
+  <p>
+    Ein Euro mehr Brutto und {eurGlatt(steuerBetragJahr)} Lohnsteuer im Jahr bringen
+    {' '}{eurGlatt(pauschaleSprung)} mehr Wohngeld im Monat, also
+    {' '}{eurGlatt(pauschaleSprung * 12)} im Jahr. Der Sprung entsteht nicht dadurch,
+    dass die Steuer das Einkommen mindert – {eurGlatt(steuerBetragJahr)} im Jahr täten
+    das kaum. Er entsteht, weil eine Alles-oder-nichts-Pauschale von
+    {' '}{prozent(ABZUGSPAUSCHALE, 0)} umspringt.
+  </p>
+
+  <p>
+    Ob im Bewilligungszeitraum Steuern zu leisten sind, prognostiziert die
+    Wohngeldbehörde; maßgeblich sind die Verhältnisse des einzelnen Falls, nicht
+    das Rechenbeispiel. Die Struktur bleibt aber dieselbe: An der Steuerschwelle
+    hat das Wohngeld eine Kante, und sie zeigt nach oben.
+  </p>
+
+  <h2>Was das für die eigene Rechnung heißt</h2>
+
+  <p>
+    Drei Fragen in dieser Reihenfolge. Liegt die Kaltmiete über dem Deckel der
+    eigenen Stufe? Wenn nein, ist die Mietenstufe für die Höhe des Wohngeldes
+    ohne Bedeutung. Liegt das Gesamteinkommen unter dem Mindestwert der Anlage 3?
+    Dann ändert Mehrverdienst nichts. Und sind alle drei Pauschalen des § 16
+    angesetzt? Fehlt eine davon, fällt das Wohngeld deutlich niedriger aus als
+    jede Überschlagsrechnung erwarten lässt.
+  </p>
+
+  <p>
+    Die eigenen Werte lassen sich im
+    {' '}<a href={`${base}familie/wohngeld-rechner/`}>Wohngeld-Rechner</a> einsetzen;
+    er verwendet dasselbe Rechenmodul wie dieser Artikel. Was vom selben Brutto
+    nach Steuern und Sozialabgaben übrig bleibt, rechnet der
+    {' '}<a href={`${base}geld/brutto-netto-rechner/`}>Brutto-Netto-Rechner</a>.
+  </p>
+
+  <p class="hinweis">
+    Gerechnet wird für Mietzuschuss an abhängig Beschäftigte, Rechtsstand
+    {' '}{datumLang(WOHNGELD_STAND)}; die Höchstbeträge werden nach § 43 WoGG alle
+    zwei Jahre angepasst. Das Gesamteinkommen ist aus dem Bruttoeinkommen
+    abgeleitet, mit dem Arbeitnehmer-Pauschbetrag als einziger Werbungskosten und
+    allen drei Pauschalen des § 16 WoGG, soweit nicht anders angegeben. Nicht
+    abgebildet sind die Abzüge nach § 11 Abs. 2 und 3 WoGG, die Belastung bei
+    Wohneigentum nach § 10 WoGG sowie die Freibeträge des § 17 Nr. 1, 2 und 4
+    WoGG. Der Ausschluss nach § 7 WoGG bei Bezug von Bürgergeld oder
+    Grundsicherung bleibt außer Betracht. Wer wirklich Wohngeld erhält,
+    entscheidet die Wohngeldbehörde.
+  </p>
+</ArticleLayout>
+
+<style>
+.table-wrap {
+  overflow-x: auto;
+  margin: 1.5rem 0 0.5rem;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.87rem;
+  background: white;
+}
+thead th {
+  background: var(--dark);
+  color: white;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-weight: 600;
+  padding: 0.7rem 0.6rem;
+  text-align: left;
+  white-space: nowrap;
+}
+tbody th {
+  text-align: left;
+  font-weight: 600;
+  padding: 0.6rem;
+  min-width: 10ch;
+}
+tbody td { padding: 0.6rem; }
+tbody tr:nth-child(even) { background: var(--surface); }
+tbody tr:hover { background: var(--cat-light, #f3f4f6); }
+.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.strong { font-weight: 700; }
+.tabellenhinweis {
+  font-size: 0.78rem !important;
+  color: var(--text-light);
+  margin: 0 0 1.5rem !important;
+}
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+.hinweis {
+  margin-top: 2rem;
+  padding: 0.9rem 1.1rem;
+  background: var(--surface);
+  border-left: 3px solid var(--gold);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  font-size: 0.85rem !important;
+  line-height: 1.6 !important;
+  color: var(--text-light);
+}
+</style>
