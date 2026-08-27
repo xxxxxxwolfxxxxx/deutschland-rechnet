@@ -1,0 +1,671 @@
+---
+import ArticleLayout from '../../layouts/ArticleLayout.astro';
+import {
+  STROMPREIS_CENT_PRO_KWH,
+  STROMPREIS_UMLAGEN,
+  STROMPREIS_BESTANDTEILE,
+  STROMPREIS_AMTLICH,
+  STROMPREIS_QUELLE,
+  STROMPREIS_QUELLE_URL,
+  STROMPREIS_DATENSTAND,
+  STROMPREIS_REFERENZVERBRAUCH_KWH,
+  WAERMEPUMPENSTROM_SPANNE,
+  LADESTROM_AC_CENT_PRO_KWH,
+  LADESTROM_DC_CENT_PRO_KWH,
+  LADESTROM_ADHOC_AUTOBAHN_CENT_PRO_KWH,
+  stromkostenProJahr,
+} from '../../../public/scripts/strompreis.js';
+
+const base = import.meta.env.BASE_URL;
+
+// Formatierung
+// ct(): Werte, die so im Modul stehen – bis zu drei Nachkommastellen.
+// ctD(): abgeleitete Werte. Drei Stellen taeuschten hier eine Genauigkeit vor,
+// die die Quelle mit zwei Nachkommastellen nicht hergibt.
+const ct = (b: number) =>
+  b.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 3 });
+const ctD = (b: number) =>
+  b.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const ctG = (b: number) => b.toLocaleString('de-DE', { maximumFractionDigits: 3 });
+// Feste drei Stellen: In dieser Spalte stehen Betraege unter einem Cent neben
+// solchen darueber – ohne feste Stellenzahl liest sich die Spalte falsch.
+const ct3 = (b: number) =>
+  b.toLocaleString('de-DE', { minimumFractionDigits: 3, maximumFractionDigits: 3 });
+const pz = (b: number) => b.toLocaleString('de-DE', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+const pz2 = (b: number) => b.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const pz0 = (b: number) => b.toLocaleString('de-DE', { maximumFractionDigits: 0 });
+const ZAHLWORT = ['null', 'ein', 'zwei', 'drei', 'vier', 'fünf', 'sechs', 'sieben', 'acht'];
+const zahlwort = (n: number) => ZAHLWORT[n] ?? String(n);
+const eur = (b: number) =>
+  b.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
+const eurGlatt = (b: number) => b.toLocaleString('de-DE', { maximumFractionDigits: 0 }) + ' €';
+const kwh = (b: number) => b.toLocaleString('de-DE') + ' kWh';
+
+const U = STROMPREIS_UMLAGEN;
+const B = STROMPREIS_BESTANDTEILE;
+const V = STROMPREIS_REFERENZVERBRAUCH_KWH;
+
+// --- 1. Summenprobe -------------------------------------------------------
+// Erst prüfen, ob die Aufschlüsselung überhaupt aufgeht: Die sechs Einzelposten
+// müssen den Abgabenblock ergeben, die drei Blöcke den Gesamtpreis.
+const umlagenSumme = Object.values(U).reduce((a, b) => a + b, 0);
+const bestandteileSumme = B.beschaffungUndVertrieb + B.netzentgelt + B.steuernAbgabenUmlagen;
+const rundungsdifferenz = bestandteileSumme - STROMPREIS_CENT_PRO_KWH;
+const abgabenblockStimmt = Math.abs(umlagenSumme - B.steuernAbgabenUmlagen) < 1e-9;
+
+// --- 2. Der implizite Umsatzsteuersatz ------------------------------------
+// Alle Blöcke außer der Mehrwertsteuer sind Nettowerte. Der Satz wird nicht
+// getippt, sondern aus dem Modul zurückgerechnet – und gegen § 12 Abs. 1 UStG
+// gehalten. Weicht er ab, stimmt die Aufschlüsselung nicht.
+const nettoSumme = bestandteileSumme - U.mehrwertsteuer;
+const ustSatz = U.mehrwertsteuer / nettoSumme;
+const ustAuf = (netto: number) => netto * ustSatz;
+const brutto = (netto: number) => netto * (1 + ustSatz);
+
+// Anteile immer auf die Summe der Bestandteile, nicht auf die gerundete
+// Schlagzeilenzahl – sonst ergeben die Prozentwerte in Summe nicht 100.
+const anteil = (x: number) => (x / bestandteileSumme) * 100;
+const jahr = (centProKwh: number, verbrauch = V) => (centProKwh * verbrauch) / 100;
+
+const bloecke = [
+  { label: 'Beschaffung und Vertrieb', cent: B.beschaffungUndVertrieb },
+  { label: 'Netzentgelt', cent: B.netzentgelt },
+  { label: 'Steuern, Abgaben und Umlagen', cent: B.steuernAbgabenUmlagen },
+];
+
+// --- 3. Der Sockel --------------------------------------------------------
+// Jeder Block trägt die Umsatzsteuer, die auf ihn entfällt. Erst so wird
+// sichtbar, wie viel von der Rechnung feststeht, bevor der Tarif gewählt ist.
+const beschaffungBrutto = brutto(B.beschaffungUndVertrieb);
+const netzBrutto = brutto(B.netzentgelt);
+const abgabenNetto = umlagenSumme - U.mehrwertsteuer;
+const abgabenBrutto = brutto(abgabenNetto);
+const sockelBrutto = netzBrutto + abgabenBrutto;
+
+const bruttoBloecke = [
+  { label: 'Beschaffung und Vertrieb', cent: beschaffungBrutto, gesetzt: false },
+  { label: 'Netzentgelt', cent: netzBrutto, gesetzt: true },
+  { label: 'Stromsteuer, Konzessionsabgabe und Umlagen', cent: abgabenBrutto, gesetzt: true },
+];
+
+// --- 4. Der Hebel eines Anbieterwechsels ----------------------------------
+const hebel = beschaffungBrutto / bestandteileSumme; // Prozent Rechnung je Prozent Rabatt
+const rabattFuerZehnProzent = 10 / hebel;
+const WECHSEL_RABATT = 20;
+const rabatte = [10, WECHSEL_RABATT, 30, 50].map((r) => {
+  const sparCent = (beschaffungBrutto * r) / 100;
+  return { rabatt: r, sparCent, sparAnteil: (sparCent / bestandteileSumme) * 100, sparJahr: jahr(sparCent) };
+});
+
+// --- 5. Gegenprobe an der amtlichen Statistik -----------------------------
+// Wie oft wiegt eine eingesparte Kilowattstunde einen Tarifwechsel auf?
+const wechselErsparnisCent = (beschaffungBrutto * WECHSEL_RABATT) / 100;
+const kwhGegenWechsel = bestandteileSumme / wechselErsparnisCent;
+
+const luecke = STROMPREIS_AMTLICH.centProKwh - STROMPREIS_CENT_PRO_KWH;
+const lueckeAnteil = (luecke / STROMPREIS_AMTLICH.centProKwh) * 100;
+const lueckeJahr = jahr(luecke);
+const lueckeNetto = luecke / (1 + ustSatz);
+const lueckeAlsRabatt = (lueckeNetto / B.beschaffungUndVertrieb) * 100;
+// Dieselbe Luecke auf den BDEW-Preis bezogen. Die beiden Prozentwerte haben
+// verschiedene Nenner und duerfen nicht gegeneinander gestellt werden.
+const lueckeAnteilBdew = (luecke / bestandteileSumme) * 100;
+
+// --- 6. Steuer, Abgabe, Umlage – drei verschiedene Empfänger --------------
+const steuernIeS = U.mehrwertsteuer + U.stromsteuer;          // Bund bzw. Bund und Länder
+const kommunalabgabe = U.konzessionsabgabe;                   // Gemeinde, keine Steuer
+const echteUmlagen = U.besondereNetznutzung + U.offshoreNetzumlage + U.kwkgUmlage;
+const empfaenger = [
+  { label: 'Steuern (Umsatz- und Stromsteuer)', cent: steuernIeS },
+  { label: 'Konzessionsabgabe an die Gemeinde', cent: kommunalabgabe },
+  { label: 'Umlagen an Netz- und Anlagenbetreiber', cent: echteUmlagen },
+];
+const staatsanteil = steuernIeS + kommunalabgabe;
+const differenzProzentpunkte = anteil(B.steuernAbgabenUmlagen) - anteil(staatsanteil);
+
+// --- 7. Umsatzsteuer auf andere Abgaben -----------------------------------
+const ustAufAbgaben = ustAuf(abgabenNetto);
+const ustAufSockel = ustAuf(abgabenNetto + B.netzentgelt);
+// Nicht zufaellig identisch mit dem Sockelanteil am Preis: Die Umsatzsteuer ist
+// proportional, der Faktor (1 + Satz) kuerzt sich aus dem Verhaeltnis heraus.
+const anteilDerUstAufSockel = (ustAufSockel / U.mehrwertsteuer) * 100;
+const ustAufStromsteuer = ustAuf(U.stromsteuer);
+const ustAufNetz = ustAuf(B.netzentgelt);
+const anteilDerUstAufAbgaben = (ustAufAbgaben / U.mehrwertsteuer) * 100;
+
+const posten = [
+  { label: 'Beschaffung und Vertrieb', cent: B.beschaffungUndVertrieb, ust: true },
+  { label: 'Netzentgelt', cent: B.netzentgelt, ust: true },
+  { label: 'Stromsteuer', cent: U.stromsteuer, ust: true },
+  { label: 'Konzessionsabgabe', cent: U.konzessionsabgabe, ust: true },
+  { label: 'Aufschlag für besondere Netznutzung', cent: U.besondereNetznutzung, ust: true },
+  { label: 'Offshore-Netzumlage', cent: U.offshoreNetzumlage, ust: true },
+  { label: 'KWKG-Umlage', cent: U.kwkgUmlage, ust: true },
+  { label: 'Umsatzsteuer auf alles Vorstehende', cent: U.mehrwertsteuer, ust: false },
+];
+
+// --- 8. Konzessionsabgabe: die Höchstbeträge der KAV ----------------------
+// Diese vier Werte stehen nicht im Rechenmodul, weil das Modul nur den
+// bundesweiten Durchschnitt führt. Sie stammen unverändert aus § 2 Abs. 2
+// Nr. 1 KAV (Tarifkunden, Strom) und stehen im Quellenverzeichnis. Der
+// Durchschnittswert des Moduls wird unten gegen diese Spanne geprüft.
+const KAV_STUFEN = [
+  { gemeinde: 'bis 25.000 Einwohner', cent: 1.32 },
+  { gemeinde: 'bis 100.000 Einwohner', cent: 1.59 },
+  { gemeinde: 'bis 500.000 Einwohner', cent: 1.99 },
+  { gemeinde: 'über 500.000 Einwohner', cent: 2.39 },
+];
+const KAV_SCHWACHLAST = 0.61;
+const kavMin = KAV_STUFEN[0].cent;
+const kavMax = KAV_STUFEN[KAV_STUFEN.length - 1].cent;
+const kavSpanne = kavMax - kavMin;
+const kavSpanneJahrBrutto = jahr(brutto(kavSpanne));
+const kavPlausibel = U.konzessionsabgabe > kavMin && U.konzessionsabgabe < kavMax;
+const kavUntereStufe = [...KAV_STUFEN].reverse().find((s) => s.cent < U.konzessionsabgabe)!;
+const kavObereStufe = KAV_STUFEN.find((s) => s.cent > U.konzessionsabgabe)!;
+
+// --- 9. Sensitivität nach Jahresverbrauch ---------------------------------
+const HAUSHALTE = [
+  { label: '1 Person', verbrauchKwh: 1500 },
+  { label: '2 Personen', verbrauchKwh: 2500 },
+  { label: '3 Personen', verbrauchKwh: V },
+  { label: '4 Personen', verbrauchKwh: 4500 },
+  { label: '5 und mehr', verbrauchKwh: 5500 },
+];
+const sensitivitaet = HAUSHALTE.map((h) => ({
+  ...h,
+  gesamt: stromkostenProJahr({ verbrauchKwh: h.verbrauchKwh }).jahr,
+  sockel: jahr(sockelBrutto, h.verbrauchKwh),
+  beschaffung: jahr(beschaffungBrutto, h.verbrauchKwh),
+  wechsel: jahr(wechselErsparnisCent, h.verbrauchKwh),
+}));
+
+// --- 10. Derselbe Strom, fünf Preise --------------------------------------
+const wege = [
+  { label: 'Wärmepumpentarif (oberer Rand der Marktspanne)', cent: WAERMEPUMPENSTROM_SPANNE.max },
+  { label: 'Haushaltsstrom im Durchschnitt', cent: STROMPREIS_CENT_PRO_KWH },
+  { label: 'Öffentlich laden, Normalladen (AC)', cent: LADESTROM_AC_CENT_PRO_KWH },
+  { label: 'Öffentlich laden, Schnellladen (DC)', cent: LADESTROM_DC_CENT_PRO_KWH },
+  { label: 'Ohne Vertrag an der Autobahn', cent: LADESTROM_ADHOC_AUTOBAHN_CENT_PRO_KWH },
+].map((w) => ({ ...w, ust: w.cent - w.cent / (1 + ustSatz) }));
+const adhocAufpreis = LADESTROM_ADHOC_AUTOBAHN_CENT_PRO_KWH - STROMPREIS_CENT_PRO_KWH;
+const adhocAufpreisUst = adhocAufpreis - adhocAufpreis / (1 + ustSatz);
+
+const quellen = [
+  { titel: `${STROMPREIS_QUELLE} (Datenstand ${STROMPREIS_DATENSTAND})`, url: STROMPREIS_QUELLE_URL },
+  { titel: STROMPREIS_AMTLICH.quelle, url: STROMPREIS_AMTLICH.quelleUrl },
+  { titel: '§ 3 StromStG – Steuertarif der Stromsteuer', url: 'https://www.gesetze-im-internet.de/stromstg/__3.html' },
+  { titel: '§ 12 UStG – Steuersätze der Umsatzsteuer', url: 'https://www.gesetze-im-internet.de/ustg_1980/__12.html' },
+  { titel: '§ 2 KAV – Bemessung und zulässige Höhe der Konzessionsabgaben', url: 'https://www.gesetze-im-internet.de/kav/__2.html' },
+  { titel: '§ 19 StromNEV – Sonderformen der Netznutzung', url: 'https://www.gesetze-im-internet.de/stromnev/__19.html' },
+  { titel: 'Energiefinanzierungsgesetz (EnFG) – Umlagen und Zahlungen des Bundes', url: 'https://www.gesetze-im-internet.de/enfg/' },
+  { titel: '§ 60 EEG 2023 – (weggefallen), vormals EEG-Umlage', url: 'https://www.gesetze-im-internet.de/eeg_2014/__60.html' },
+  { titel: '§ 14a EnWG – steuerbare Verbrauchseinrichtungen', url: 'https://www.gesetze-im-internet.de/enwg_2005/__14a.html' },
+  { titel: 'Art. 106 GG – Verteilung des Steueraufkommens', url: 'https://www.gesetze-im-internet.de/gg/art_106.html' },
+  { titel: 'Bundesnetzagentur – Netzentgelte Strom', url: 'https://www.bundesnetzagentur.de/DE/Fachthemen/ElektrizitaetundGas/Netzentgelte/start.html' },
+  { titel: 'Bundesnetzagentur – Monitoringberichte Energie', url: 'https://www.bundesnetzagentur.de/DE/Fachthemen/ElektrizitaetundGas/Monitoringberichte/start.html' },
+];
+---
+<ArticleLayout
+  title="Woraus der Strompreis besteht – und warum ein Anbieterwechsel nur die Hälfte trifft"
+  description={`Der Haushaltsstrompreis liegt bei ${ct(STROMPREIS_CENT_PRO_KWH)} ct/kWh. Nur ${pz(anteil(beschaffungBrutto))} Prozent davon hängen am Tarif – der Rest ist gesetzt, bevor der Vertrag unterschrieben ist. Mit Summenprobe, Wechselhebel und Sensitivitätstabelle.`}
+  canonicalPath="/ratgeber/strompreis-zusammensetzung/"
+  datum="2026-08-27"
+  lead={`Ein Haushalt zahlt für Strom im Schnitt ${ct(STROMPREIS_CENT_PRO_KWH)} Cent je Kilowattstunde. Auf Beschaffung und Vertrieb – den einzigen Teil, über den ein Anbieterwechsel überhaupt verhandelt – entfallen davon ${ct(B.beschaffungUndVertrieb)} Cent. Rechnet man die Umsatzsteuer hinzu, die auf diesem Teil liegt, sind es ${ctD(beschaffungBrutto)} Cent oder ${pz(anteil(beschaffungBrutto))} Prozent der Rechnung. Die übrigen ${pz(anteil(sockelBrutto))} Prozent stehen fest, bevor irgendjemand einen Tarif aussucht.`}
+  quellen={quellen}
+>
+  <h2>Zuerst die Probe: Geht die Aufschlüsselung überhaupt auf?</h2>
+  <p>
+    Preisaufschlüsselungen kursieren zu Hunderten, und die wenigsten addieren sich. Die Zahlen
+    dieses Artikels stammen aus der {STROMPREIS_QUELLE};
+    sie liegen als Rechenmodul auf dieser Website und speisen auch den Stromkosten-Rechner. Bevor
+    daraus ein Argument wird, muss die Summe stimmen.
+  </p>
+  <p>
+    Sie stimmt – bis auf {ct(Math.abs(rundungsdifferenz))} Cent. Die sechs Einzelposten der
+    Steuern, Abgaben und Umlagen ergeben zusammen {ct(umlagenSumme)} Cent und damit
+    {abgabenblockStimmt ? ' exakt ' : ' nicht '}den ausgewiesenen Abgabenblock. Die drei großen
+    Blöcke summieren sich auf {ct(bestandteileSumme)} Cent gegenüber einem Gesamtpreis von
+    {' '}{ct(STROMPREIS_CENT_PRO_KWH)} Cent. Die Differenz von {ct(Math.abs(rundungsdifferenz))} Cent
+    je Kilowattstunde – bei {kwh(V)} im Jahr sind das
+    {' '}{jahr(Math.abs(rundungsdifferenz)).toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Euro –
+    ist eine Rundungsdifferenz, auf die der BDEW selbst hinweist.
+  </p>
+  <p>
+    Die zweite Probe betrifft die Mehrwertsteuer. Alle übrigen Blöcke sind Nettowerte; die
+    Umsatzsteuer steht separat mit {ct(U.mehrwertsteuer)} Cent. Teilt man diesen Betrag durch die
+    Nettosumme von {ct(nettoSumme)} Cent, ergibt sich ein Satz von
+    {' '}{pz2(ustSatz * 100)} Prozent. Der gesetzliche Regelsatz nach § 12 Abs. 1 UStG beträgt
+    19 Prozent. Die Aufschlüsselung ist also in sich schlüssig – und mit diesem zurückgerechneten
+    Satz lässt sich jedem Block die Umsatzsteuer zuordnen, die auf ihm liegt.
+  </p>
+
+  <h2>Die drei Blöcke</h2>
+  <table>
+    <caption class="visually-hidden">
+      Bestandteile des Haushaltsstrompreises in Cent je Kilowattstunde
+    </caption>
+    <thead>
+      <tr>
+        <th scope="col">Bestandteil</th>
+        <th scope="col" class="num">ct/kWh</th>
+        <th scope="col" class="num">Anteil</th>
+        <th scope="col" class="num">Bei {kwh(V)} im Jahr</th>
+      </tr>
+    </thead>
+    <tbody>
+      {bloecke.map((b) => (
+        <tr>
+          <th scope="row">{b.label}</th>
+          <td class="num">{ct(b.cent)}</td>
+          <td class="num">{pz(anteil(b.cent))} %</td>
+          <td class="num">{eur(jahr(b.cent))}</td>
+        </tr>
+      ))}
+      <tr>
+        <th scope="row">Summe</th>
+        <td class="num strong">{ct(bestandteileSumme)}</td>
+        <td class="num strong">{pz(anteil(bestandteileSumme))} %</td>
+        <td class="num strong">{eur(jahr(bestandteileSumme))}</td>
+      </tr>
+    </tbody>
+  </table>
+  <p>
+    So stellt der BDEW den Preis dar, und so wird er üblicherweise zitiert: gut vier Zehntel für
+    den Strom selbst, ein Viertel für das Netz, ein Drittel für den Staat. Diese Darstellung hat
+    aber einen Haken. Die gesamte Mehrwertsteuer steckt im dritten Block – auch der Teil davon,
+    der auf dem Beschaffungspreis und auf dem Netzentgelt liegt. Wer wissen will, was ein
+    Tarifwechsel bewegt, muss die Umsatzsteuer dorthin zurücklegen, wo sie entsteht.
+  </p>
+
+  <h2>Der Sockel: {ctD(sockelBrutto)} Cent, bevor eine Kilowattstunde beschafft ist</h2>
+  <table>
+    <caption class="visually-hidden">
+      Bestandteile des Strompreises einschließlich der jeweils darauf entfallenden Umsatzsteuer
+    </caption>
+    <thead>
+      <tr>
+        <th scope="col">Bestandteil samt der Umsatzsteuer darauf</th>
+        <th scope="col" class="num">ct/kWh</th>
+        <th scope="col" class="num">Anteil</th>
+        <th scope="col" class="num">Beeinflussbar?</th>
+      </tr>
+    </thead>
+    <tbody>
+      {bruttoBloecke.map((b) => (
+        <tr>
+          <th scope="row">{b.label}</th>
+          <td class="num">{ctD(b.cent)}</td>
+          <td class="num">{pz(anteil(b.cent))} %</td>
+          <td class="num">{b.gesetzt ? 'nein' : 'über den Tarif'}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+  <p>
+    Netzentgelt und Abgaben ergeben zusammen {ctD(sockelBrutto)} Cent je Kilowattstunde. Das sind
+    {' '}{pz(anteil(sockelBrutto))} Prozent des Preises und bei {kwh(V)} im Jahr
+    {' '}{eur(jahr(sockelBrutto))}. Fiele der Preis für Beschaffung und Vertrieb rechnerisch auf
+    null, bliebe genau dieser Betrag stehen: gut die Hälfte der Rechnung.
+  </p>
+  <p>
+    Das ist eine Rechengrenze, kein realistischer Fall. Im Block „Beschaffung und Vertrieb"
+    stecken neben dem Einkaufspreis auch Abrechnung, Kundenservice und Marge des Versorgers –
+    Kosten, die nicht verschwinden, wenn Strom an der Börse billig wird. Die Zahl sagt deshalb
+    nicht, wie günstig Strom werden könnte. Sie sagt, wie viel von der Rechnung außerhalb jeder
+    Verhandlung liegt.
+  </p>
+
+  <h2>Was ein Anbieterwechsel rechnerisch bewegen kann</h2>
+  <p>
+    Ein Wechsel ändert den Beschaffungs- und Vertriebspreis, sonst nichts. Netzentgelt,
+    Stromsteuer, Konzessionsabgabe und die drei Umlagen sind je Kilowattstunde festgelegt und
+    werden vom neuen Anbieter in identischer Höhe weitergereicht. Nur die Umsatzsteuer sinkt mit,
+    weil sie ein Prozentsatz auf alles übrige ist.
+  </p>
+  <p>
+    Daraus folgt ein fester Hebel: Ein Rabatt von einem Prozent auf Beschaffung und Vertrieb senkt
+    die Gesamtrechnung um {pz2(hebel)} Prozent. Um die Rechnung um zehn Prozent zu drücken, muss
+    der Beschaffungspreis also um {pz(rabattFuerZehnProzent)} Prozent fallen.
+  </p>
+  <table>
+    <caption class="visually-hidden">
+      Wirkung eines Rabatts auf Beschaffung und Vertrieb auf die Gesamtrechnung
+    </caption>
+    <thead>
+      <tr>
+        <th scope="col" class="num">Rabatt auf Beschaffung und Vertrieb</th>
+        <th scope="col" class="num">Ersparnis je kWh</th>
+        <th scope="col" class="num">Anteil der Gesamtrechnung</th>
+        <th scope="col" class="num">Bei {kwh(V)} im Jahr</th>
+      </tr>
+    </thead>
+    <tbody>
+      {rabatte.map((r) => (
+        <tr>
+          <th scope="row" class="num">{r.rabatt} %</th>
+          <td class="num">{ctD(r.sparCent)} ct</td>
+          <td class="num">{pz(r.sparAnteil)} %</td>
+          <td class="num strong">{eur(r.sparJahr)}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+  <p>
+    Wirbt ein Anbieter mit „bis zu {rabatte[2].rabatt} Prozent sparen", ist damit in aller Regel
+    der Arbeitspreis gegenüber einem teuren Grundversorgungstarif gemeint, nicht die
+    Jahresrechnung. Ein Nachlass von {rabatte[2].rabatt} Prozent auf den Beschaffungsteil senkt
+    die Rechnung um {pz(rabatte[2].sparAnteil)} Prozent.
+  </p>
+
+  <h2>Gegenprobe: Was ein Wechsel tatsächlich bringt</h2>
+  <p>
+    Die Hebelrechnung sagt, was ein bestimmter Rabatt bewirken <em>würde</em>. Sie sagt nicht, wie
+    groß der erreichbare Rabatt ist. Dafür gibt es einen zweiten, unabhängigen Anhaltspunkt: Zwei
+    offizielle Stellen messen den Strompreis mit verschiedenen Methoden.
+  </p>
+  <p>
+    Der BDEW-Wert von {ct(STROMPREIS_CENT_PRO_KWH)} Cent erfasst Tarife, die zum
+    Berechnungszeitpunkt neu abschließbar waren. Das Statistische Bundesamt kommt in seiner
+    Erhebung für das {STROMPREIS_AMTLICH.zeitraum} im Verbrauchsband
+    {' '}{STROMPREIS_AMTLICH.verbrauchsband} auf {ct(STROMPREIS_AMTLICH.centProKwh)} Cent, weil es
+    mengengewichtet misst, was Haushalte in ihren bestehenden Verträgen zahlen – Grundversorgung
+    und alte Verträge eingeschlossen.
+  </p>
+  <p>
+    Die Lücke beträgt {ctD(luecke)} Cent je Kilowattstunde oder {eur(lueckeJahr)} im Jahr bei
+    {' '}{kwh(V)}. Gemessen am amtlichen Preis sind das {pz(lueckeAnteil)} Prozent, gemessen am
+    BDEW-Preis {pz(lueckeAnteilBdew)} Prozent – zwei Prozentwerte mit verschiedenen Nennern, die
+    man nicht gegeneinander stellen darf. Rechnet man die Umsatzsteuer heraus, entspricht die
+    Lücke einem Nachlass von {pz(lueckeAlsRabatt)} Prozent auf den Beschaffungsblock. Für zehn
+    Prozent weniger auf der Rechnung wären nach der Hebelrechnung
+    {' '}{pz(rabattFuerZehnProzent)} Prozent nötig – dieselbe Größenordnung, auf zwei
+    unabhängigen Wegen.
+  </p>
+  <p>
+    Beim Deuten dieser Lücke ist Vorsicht geboten, und zwar in zwei Punkten. Erstens sind die
+    beiden Zahlen nicht nur methodisch, sondern auch zeitlich verschieden: Der BDEW-Wert hat
+    Datenstand {STROMPREIS_DATENSTAND}, der amtliche Wert bildet das
+    {' '}{STROMPREIS_AMTLICH.zeitraum} ab. Ein Teil der Differenz ist schlicht Preisrückgang
+    zwischen den beiden Zeitpunkten, nicht ungenutzte Wechselersparnis. Zweitens ist der
+    BDEW-Wert selbst ein Durchschnitt über Tarifprodukte <em>und</em> Grundversorgung; die
+    günstigsten am Markt erhältlichen Angebote liegen darunter. Die {eur(lueckeJahr)} sind
+    deshalb weder eine Obergrenze noch eine Garantie, sondern eine Größenordnung: ein knapp
+    zweistelliger Prozentsatz der Jahresrechnung, nicht mehr.
+  </p>
+
+  <h2>„Steuern und Abgaben" ist nicht dasselbe wie „was der Staat bekommt"</h2>
+  <p>
+    Der dritte Block heißt „Steuern, Abgaben und Umlagen" und macht
+    {' '}{pz(anteil(B.steuernAbgabenUmlagen))} Prozent des Preises aus. Diese Zahl wird
+    regelmäßig als Staatsanteil zitiert. Das ist sie nicht, denn die drei Begriffe bezeichnen
+    Zahlungen an drei verschiedene Empfänger.
+  </p>
+  <table>
+    <caption class="visually-hidden">Empfänger der Steuern, Abgaben und Umlagen</caption>
+    <thead>
+      <tr>
+        <th scope="col">Empfänger</th>
+        <th scope="col" class="num">ct/kWh</th>
+        <th scope="col" class="num">Anteil am Preis</th>
+        <th scope="col" class="num">Bei {kwh(V)} im Jahr</th>
+      </tr>
+    </thead>
+    <tbody>
+      {empfaenger.map((e) => (
+        <tr>
+          <th scope="row">{e.label}</th>
+          <td class="num">{ct(e.cent)}</td>
+          <td class="num">{pz(anteil(e.cent))} %</td>
+          <td class="num">{eur(jahr(e.cent))}</td>
+        </tr>
+      ))}
+      <tr>
+        <th scope="row">Summe</th>
+        <td class="num strong">{ct(B.steuernAbgabenUmlagen)}</td>
+        <td class="num strong">{pz(anteil(B.steuernAbgabenUmlagen))} %</td>
+        <td class="num strong">{eur(jahr(B.steuernAbgabenUmlagen))}</td>
+      </tr>
+    </tbody>
+  </table>
+  <p>
+    Steuern im eigentlichen Sinn sind nur zwei Posten: die Stromsteuer nach § 3 StromStG, deren
+    Tarif dort mit 20,50 Euro je Megawattstunde festgeschrieben ist – exakt die
+    {' '}{ct(U.stromsteuer)} Cent je Kilowattstunde, die das Modul ausweist – und die
+    Umsatzsteuer. Das Aufkommen der Stromsteuer steht dem Bund zu, das der Umsatzsteuer Bund und
+    Ländern gemeinsam; die Gemeinden erhalten daran einen Anteil (Art. 106 GG). Die
+    Konzessionsabgabe ist keine Steuer,
+    sondern das Entgelt, das der Netzbetreiber der Gemeinde für die Nutzung ihrer Straßen und
+    Wege zahlt. Und die drei Umlagen fließen überhaupt nicht in einen öffentlichen Haushalt: Sie
+    gleichen Kosten der Netz- und Anlagenbetreiber aus, geregelt im Energiefinanzierungsgesetz
+    und in § 19 StromNEV.
+  </p>
+  <p>
+    Rechnet man nur Steuern und Konzessionsabgabe zusammen, bleiben {ct(staatsanteil)} Cent oder
+    {' '}{pz(anteil(staatsanteil))} Prozent des Preises; {pz(anteil(kommunalabgabe))} Prozentpunkte
+    davon gehen an die Gemeinden. Der Unterschied zu den {pz(anteil(B.steuernAbgabenUmlagen))} Prozent des
+    Gesamtblocks beträgt {pz(differenzProzentpunkte)} Prozentpunkte. Wer die größere Zahl als
+    Staatsanteil zitiert, zählt Geld mit, das der Staat nie sieht.
+  </p>
+
+  <h2>Die Steuer auf die Steuer</h2>
+  <p>
+    Die Umsatzsteuer wird auf den Endpreis erhoben, und in diesem Endpreis stecken bereits
+    Stromsteuer, Konzessionsabgabe, Netzentgelt und Umlagen. Sie wird also unter anderem auf
+    Beträge erhoben, die selbst hoheitlich gesetzt sind.
+  </p>
+  <table>
+    <caption class="visually-hidden">
+      Einzelposten des Strompreises und die jeweils darauf entfallende Umsatzsteuer
+    </caption>
+    <thead>
+      <tr>
+        <th scope="col">Posten</th>
+        <th scope="col" class="num">ct/kWh</th>
+        <th scope="col" class="num">Umsatzsteuer darauf</th>
+        <th scope="col" class="num">Umsatzsteuer im Jahr</th>
+      </tr>
+    </thead>
+    <tbody>
+      {posten.map((p) => (
+        <tr>
+          <th scope="row">{p.label}</th>
+          <td class="num">{ct(p.cent)}</td>
+          <td class="num">{p.ust ? `${ct3(ustAuf(p.cent))} ct` : '–'}</td>
+          <td class="num">{p.ust ? eur(jahr(ustAuf(p.cent))) : '–'}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+  <p>
+    Auf der Stromsteuer allein liegen {ctD(ustAufStromsteuer)} Cent Umsatzsteuer, bei {kwh(V)}
+    {' '}also {eur(jahr(ustAufStromsteuer))} im Jahr. Auf dem Netzentgelt sind es
+    {' '}{ctD(ustAufNetz)} Cent oder {eur(jahr(ustAufNetz))}. Stromsteuer, Konzessionsabgabe und
+    die drei Umlagen zusammen tragen {ctD(ustAufAbgaben)} Cent Umsatzsteuer, das sind
+    {' '}{pz(anteilDerUstAufAbgaben)} Prozent des Mehrwertsteuerbetrags. Zählt man das Netzentgelt
+    hinzu, sind es {ctD(ustAufSockel)} Cent oder {pz(anteilDerUstAufSockel)} Prozent.
+  </p>
+  <p>
+    Dass dieser Anteil genau dem Sockelanteil von {pz(anteil(sockelBrutto))} Prozent weiter oben
+    entspricht, ist kein Zufall, sondern eine Eigenschaft proportionaler Steuern: Weil die
+    Umsatzsteuer jeden Nettoposten mit demselben Satz belegt, verteilt sie sich auf die Blöcke
+    im selben Verhältnis wie die Nettobeträge. Gut die Hälfte der Mehrwertsteuer auf einer
+    Stromrechnung wird also auf Beträge erhoben, die kein Versorger setzt.
+  </p>
+  <p>
+    Ein Posten fehlt in dieser Aufstellung, und zwar zu Recht: die EEG-Umlage. Sie wurde zum
+    1. Juli 2022 auf null gesetzt und anschließend ganz aus dem Gesetz genommen – § 60 EEG, der
+    sie regelte, trägt heute nur noch den Vermerk „(weggefallen)". Die Förderung erneuerbarer
+    Energien wird seither über Zahlungen des Bundes nach dem Energiefinanzierungsgesetz
+    finanziert. Aufschlüsselungen, die noch eine EEG-Umlage ausweisen, sind veraltet.
+  </p>
+
+  <h2>Was der Durchschnitt bei der Konzessionsabgabe verdeckt</h2>
+  <p>
+    Von allen Posten ist die Konzessionsabgabe derjenige, bei dem der bundesweite Durchschnitt am
+    meisten verbirgt. Sie ist nämlich nicht bundeseinheitlich, sondern nach Gemeindegröße
+    gestaffelt. § 2 Abs. 2 KAV nennt für die Belieferung von Tarifkunden mit Strom
+    {zahlwort(KAV_STUFEN.length)} Höchstbeträge. Es sind Obergrenzen, keine festen Sätze –
+    Gemeinde und Netzbetreiber können auch weniger vereinbaren:
+  </p>
+  <table>
+    <caption class="visually-hidden">
+      Höchstbeträge der Konzessionsabgabe für Strom nach § 2 Abs. 2 KAV
+    </caption>
+    <thead>
+      <tr>
+        <th scope="col">Gemeinde</th>
+        <th scope="col" class="num">ct/kWh</th>
+        <th scope="col" class="num">Bei {kwh(V)} im Jahr, mit Umsatzsteuer</th>
+      </tr>
+    </thead>
+    <tbody>
+      {KAV_STUFEN.map((s) => (
+        <tr>
+          <th scope="row">{s.gemeinde}</th>
+          <td class="num">{ct(s.cent)}</td>
+          <td class="num">{eur(jahr(brutto(s.cent)))}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+  <p>
+    Der Durchschnittswert des Rechenmoduls liegt bei {ct(U.konzessionsabgabe)} Cent
+    {kavPlausibel ? 'und damit' : '– auffällig: außerhalb der Spanne, nämlich'} zwischen der Stufe
+    für Gemeinden {kavUntereStufe.gemeinde} und der Stufe {kavObereStufe.gemeinde}. Dass er so
+    weit oben in der Spanne liegt, spricht dafür, dass die Höchstbeträge weithin ausgeschöpft
+    werden – belegt ist damit nur der Durchschnitt, nicht der Satz einer einzelnen Gemeinde.
+  </p>
+  <p>
+    Zwischen dem kleinsten und dem größten Höchstbetrag liegen {ct(kavSpanne)} Cent je
+    Kilowattstunde. Schöpfen zwei Gemeinden ihre jeweilige Grenze aus, trennen zwei ansonsten
+    identische Haushalte bei {kwh(V)} im Jahr {eur(kavSpanneJahrBrutto)} – Umsatzsteuer
+    eingerechnet, allein wegen des Wohnorts. Auf einen Anbieterwechsel reagiert dieser Posten
+    nicht: Er hängt am Netzgebiet, nicht am Vertrag.
+  </p>
+  <p>
+    Unabhängig von der Gemeindegröße gilt eine eigene, viel niedrigere Grenze für Strom, der im
+    Rahmen eines Schwachlasttarifs geliefert wird – der Fall vieler Wärmepumpen und
+    Nachtspeicherheizungen. Hier sind nach derselben Vorschrift höchstens
+    {' '}{ct(KAV_SCHWACHLAST)} Cent je Kilowattstunde zulässig, rund
+    {' '}{pz0((U.konzessionsabgabe - KAV_SCHWACHLAST) / U.konzessionsabgabe * 100)} Prozent unter
+    dem bundesweiten Durchschnitt der tatsächlich erhobenen Haushaltsabgabe. Das ist einer der
+    Gründe, warum Heizstrom auch ohne Zutun des Anbieters billiger ist; der zweite sind die
+    reduzierten Netzentgelte für steuerbare Verbrauchseinrichtungen nach § 14a EnWG.
+  </p>
+
+  <h2>Derselbe Strom, fünf Preise</h2>
+  <p>
+    Der Durchschnittswert gilt für Haushaltstarife. Physikalisch identische Kilowattstunden
+    kosten je nach Zähler und Ladepunkt sehr Verschiedenes – und das Rechenmodul führt diese
+    Werte getrennt, statt sie zu einem Mittelwert zu verschmelzen.
+  </p>
+  <table>
+    <caption class="visually-hidden">Preise je Kilowattstunde nach Bezugsweg</caption>
+    <thead>
+      <tr>
+        <th scope="col">Bezugsweg</th>
+        <th scope="col" class="num">ct/kWh</th>
+        <th scope="col" class="num">Davon Umsatzsteuer</th>
+      </tr>
+    </thead>
+    <tbody>
+      {wege.map((w) => (
+        <tr>
+          <th scope="row">{w.label}</th>
+          <td class="num">{ctG(w.cent)}</td>
+          <td class="num">{ctD(w.ust)} ct</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+  <p>
+    Die Spalte rechts zeigt eine Eigenheit, die bei Preisdiskussionen untergeht: Die
+    Umsatzsteuer ist der einzige Bestandteil, der mit dem Preis mitwächst. Stromsteuer,
+    Konzessionsabgabe und Umlagen sind feste Centbeträge je Kilowattstunde und in einer teuren
+    Kilowattstunde genauso hoch wie in einer billigen. Wer ohne Vertrag an einem
+    Autobahn-Schnelllader lädt, zahlt gegenüber dem eigenen Hausanschluss
+    {' '}{ctG(adhocAufpreis)} Cent Aufpreis je Kilowattstunde; {ctD(adhocAufpreisUst)} Cent davon
+    sind zusätzliche Umsatzsteuer. Was der Ladepunktbetreiber an Netzentgelt zahlt, ist damit
+    nicht gesagt – Ladepunkte werden anders abgerechnet als Haushaltsanschlüsse, und das
+    Rechenmodul führt dazu keine Werte.
+  </p>
+  <p>
+    Die Preise der drei Ladewege und der Wärmepumpentarife stammen aus anderen Erhebungen als der
+    Haushaltswert und sind nicht auf denselben Musterhaushalt bezogen; der Wärmepumpenwert ist
+    zudem bewusst der obere Rand einer Marktspanne von {ctG(WAERMEPUMPENSTROM_SPANNE.min)} bis
+    {' '}{ctG(WAERMEPUMPENSTROM_SPANNE.max)} Cent. Die Tabelle zeigt Größenordnungen, keine auf die
+    Nachkommastelle vergleichbaren Werte.
+  </p>
+
+  <h2>Die Modellannahme, die alles mitbestimmt</h2>
+  <p>
+    Jede Zahl dieses Artikels hängt an einer Bezugsgröße: einem Musterhaushalt mit {kwh(V)}
+    {' '}Jahresverbrauch. Der Grundpreis ist in den {ct(STROMPREIS_CENT_PRO_KWH)} Cent bereits
+    anteilig enthalten – auf genau {kwh(V)} umgelegt. Wer ihn zusätzlich aufschlägt, zählt ihn
+    doppelt.
+  </p>
+  <p>
+    Das hat eine Folge, die man kennen muss: Der Preis je Kilowattstunde ist bei kleinerem
+    Verbrauch in Wirklichkeit höher als {ct(STROMPREIS_CENT_PRO_KWH)} Cent, weil sich derselbe
+    Grundpreis auf weniger Kilowattstunden verteilt, und bei größerem Verbrauch niedriger. Die
+    folgende Tabelle rechnet dennoch mit dem konstanten Durchschnittspreis, weil das
+    Rechenmodul keinen gesonderten Grundpreis führt. Nahe {kwh(V)} ist das genau; an den Rändern
+    unterschätzt die Rechnung die Kosten eines Ein-Personen-Haushalts und überschätzt die eines
+    großen Haushalts – die <em>Anteile</em> bleiben davon unberührt.
+  </p>
+  <table>
+    <caption class="visually-hidden">
+      Jahreskosten nach Verbrauch, aufgeteilt in festen Sockel und beeinflussbaren Teil
+    </caption>
+    <thead>
+      <tr>
+        <th scope="col">Haushalt</th>
+        <th scope="col" class="num">Verbrauch</th>
+        <th scope="col" class="num">Kosten im Jahr</th>
+        <th scope="col" class="num">Davon fester Sockel</th>
+        <th scope="col" class="num">Davon beeinflussbar</th>
+        <th scope="col" class="num">Ersparnis bei {WECHSEL_RABATT} % Rabatt</th>
+      </tr>
+    </thead>
+    <tbody>
+      {sensitivitaet.map((s) => (
+        <tr>
+          <th scope="row">{s.label}</th>
+          <td class="num">{kwh(s.verbrauchKwh)}</td>
+          <td class="num">{eurGlatt(s.gesamt)}</td>
+          <td class="num">{eurGlatt(s.sockel)}</td>
+          <td class="num">{eurGlatt(s.beschaffung)}</td>
+          <td class="num strong">{eurGlatt(s.wechsel)}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+  <p>
+    Weil der Preis je Kilowattstunde konstant gehalten wird, sind die Zeilen dieser Tabelle
+    Vielfache voneinander; die Anteile ändern sich nicht mit dem Verbrauch. Genau das ist die
+    Aussage: Der feste Sockel wächst proportional mit. Eine nicht verbrauchte Kilowattstunde
+    spart deshalb den vollen Preis von {ct(STROMPREIS_CENT_PRO_KWH)} Cent, ein Wechsel mit
+    {' '}{WECHSEL_RABATT} Prozent Nachlass auf den Beschaffungsteil dagegen nur
+    {' '}{ctD(wechselErsparnisCent)} Cent je Kilowattstunde. Um so viel zu sparen wie der
+    Anbieterwechsel bei {kwh(V)} bringt, genügt es, den Verbrauch um
+    {' '}{pz0(100 / kwhGegenWechsel)} Prozent zu senken.
+  </p>
+
+  <h2>Was diese Rechnung nicht abbildet</h2>
+  <p>
+    Der Netzentgeltwert von {ct(B.netzentgelt)} Cent ist ein Bundesdurchschnitt. Netzentgelte
+    werden je Netzgebiet festgelegt und weichen erheblich voneinander ab; welches für Sie gilt,
+    steht auf der Stromrechnung und in den Veröffentlichungen Ihres Netzbetreibers. Ebenso wenig
+    enthalten sind Sondertarife wie Heizstrom oder Ökostrom mit Aufschlag, Boni des ersten
+    Vertragsjahrs und die Frage, ob ein Tarif mit Preisgarantie über die Laufzeit günstiger
+    ausfällt als ein billigerer ohne. Der BDEW-Wert bildet außerdem Neukundenpreise ab, gewichtet
+    nach der Vertragsstruktur der Bundesnetzagentur – nicht das, was der Bestand tatsächlich zahlt.
+  </p>
+  <p>
+    Alle Beträge in diesem Text stammen aus demselben Rechenmodul wie der
+    {' '}<a href={`${base}energie/stromkosten-rechner/`}>Stromkosten-Rechner</a>. Dort lässt sich
+    der eigene Jahresverbrauch und der Preis aus der eigenen Rechnung eintragen; die
+    Aufschlüsselung oben zeigt, welcher Teil des Ergebnisses überhaupt zur Disposition steht.
+  </p>
+</ArticleLayout>
