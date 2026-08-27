@@ -24,6 +24,11 @@ const pageUrl = `${siteUrl}${pagePath}`;
 // weder Schema noch sichtbarer Hinweis behaupten dann eine Aktualität.
 const lastModified = getLastModifiedMap().get(pagePath);
 
+// Gesundheitsrechner brauchen einen medizinischen Haftungsausschluss auf der
+// Seite selbst. Der allgemeine Vorbehalt im Impressum deckt nur Steuer- und
+// Rechtsthemen ab, und AdSense bewertet Gesundheitsinhalte gesondert.
+const isHealth = calculator.category === 'gesundheit';
+
 // Verantwortlich ist eine reale, im Impressum genannte Person. Google bewertet
 // Rechner zu Geld- und Gesundheitsthemen (YMYL) auch nach solchen Signalen.
 const author = {
@@ -90,6 +95,14 @@ const faqSchema = faqs && faqs.length > 0 ? {
         <p>{explanation}</p>
       </div>
     )}
+    {isHealth && (
+      <p class="health-disclaimer">
+        <strong>Kein Ersatz für ärztlichen Rat:</strong> Diese Berechnung dient
+        der allgemeinen Information. Sie stellt keine Diagnose, keine Therapie­empfehlung
+        und keine medizinische Beratung dar. Bei gesundheitlichen Fragen oder
+        Beschwerden wenden Sie sich bitte an eine Ärztin oder einen Arzt.
+      </p>
+    )}
     <p class="source-note">{sourceNote}</p>
     <PageByline path={pagePath} />
   </div>
@@ -138,6 +151,16 @@ const faqSchema = faqs && faqs.length > 0 ? {
   font-size: 0.875rem;
   line-height: 1.6;
   margin: 0;
+  color: var(--text);
+}
+.health-disclaimer {
+  margin: 1rem 0 0;
+  padding: 0.75rem 1rem;
+  background: #fff8e6;
+  border-left: 3px solid #e0a800;
+  border-radius: var(--radius-sm);
+  font-size: 0.82rem;
+  line-height: 1.6;
   color: var(--text);
 }
 .source-note {
