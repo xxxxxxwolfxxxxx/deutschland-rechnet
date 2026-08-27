@@ -56,10 +56,15 @@ const navLinks = [
     window.dataLayer = window.dataLayer || [];
     function gtag(){dataLayer.push(arguments);}
     var consentState = localStorage.getItem('cookie-consent');
+    /*
+      wait_for_update gibt der Google-CMP Zeit, ihr Signal zu senden, bevor
+      Google mit dem Default weiterarbeitet. Ohne diese Wartezeit wuerde eine
+      asynchron geladene CMP zu spaet kommen.
+    */
     if (consentState === 'granted') {
-      gtag('consent', 'default', { ad_storage: 'granted', ad_user_data: 'granted', ad_personalization: 'granted', analytics_storage: 'granted' });
+      gtag('consent', 'default', { ad_storage: 'granted', ad_user_data: 'granted', ad_personalization: 'granted', analytics_storage: 'granted', wait_for_update: 500 });
     } else {
-      gtag('consent', 'default', { ad_storage: 'denied', ad_user_data: 'denied', ad_personalization: 'denied', analytics_storage: 'denied' });
+      gtag('consent', 'default', { ad_storage: 'denied', ad_user_data: 'denied', ad_personalization: 'denied', analytics_storage: 'denied', wait_for_update: 500 });
     }
   </script>
   <!--
@@ -229,6 +234,26 @@ const navLinks = [
       var rejectBtn = document.getElementById('cookie-reject');
       var settingsBtn = document.getElementById('cookie-settings');
 
+      /*
+        Googles EU-Nutzereinwilligungsrichtlinie verlangt fuer Besucher aus dem
+        EWR und UK eine Google-zertifizierte CMP. Ein Eigenbau erfuellt sie
+        nicht, egal wie korrekt er sich verhaelt. Die CMP kommt ueber den
+        AdSense-Tag, sobald sie im AdSense-Konto unter "Datenschutz und
+        Mitteilungen" veroeffentlicht ist – zusaetzlicher Code ist dafuer nicht
+        noetig.
+
+        Das Banner unten bleibt als Ausfallschutz bestehen: Solange die CMP im
+        Konto nicht aktiv ist, waere die Seite sonst voellig ohne Einwilligung
+        unterwegs. Sobald die CMP antwortet, uebernimmt sie und das eigene
+        Banner erscheint nie.
+      */
+      var CMP_TIMEOUT_MS = 2500;
+
+      function googleCmpActive() {
+        return typeof window.__tcfapi === 'function' ||
+               !!(window.googlefc && typeof window.googlefc.showRevocationMessage === 'function');
+      }
+
       function openBanner() {
         banner.style.display = 'flex';
         acceptBtn.focus();
@@ -237,7 +262,16 @@ const navLinks = [
         banner.style.display = 'none';
       }
 
-      if (!localStorage.getItem('cookie-consent')) { banner.style.display = 'flex'; }
+      /*
+        Erst nach dem Timeout entscheiden: Die CMP laedt asynchron. Wuerde das
+        Banner sofort erscheinen, blitzte es kurz auf und der Nutzer saehe zwei
+        Einwilligungsdialoge hintereinander.
+      */
+      if (!localStorage.getItem('cookie-consent')) {
+        window.setTimeout(function() {
+          if (!googleCmpActive() && !localStorage.getItem('cookie-consent')) { openBanner(); }
+        }, CMP_TIMEOUT_MS);
+      }
 
       acceptBtn.addEventListener('click', function() {
         localStorage.setItem('cookie-consent', 'granted');
@@ -257,8 +291,18 @@ const navLinks = [
         gtag('consent', 'update', { ad_storage: 'denied', ad_user_data: 'denied', ad_personalization: 'denied', analytics_storage: 'denied' });
       });
 
-      /* Widerruf nach Art. 7 Abs. 3 DSGVO: so einfach erreichbar wie die Erteilung. */
-      settingsBtn.addEventListener('click', openBanner);
+      /*
+        Widerruf nach Art. 7 Abs. 3 DSGVO: so einfach erreichbar wie die
+        Erteilung. Laeuft die Google-CMP, muss der Widerruf ueber sie gehen –
+        sie haelt den TCF-String, nicht unser localStorage.
+      */
+      settingsBtn.addEventListener('click', function() {
+        if (window.googlefc && typeof window.googlefc.showRevocationMessage === 'function') {
+          window.googlefc.showRevocationMessage();
+          return;
+        }
+        openBanner();
+      });
 
       document.addEventListener('keydown', function(e) {
         /* Escape schliesst nur, wenn bereits eine Entscheidung gespeichert ist. */
