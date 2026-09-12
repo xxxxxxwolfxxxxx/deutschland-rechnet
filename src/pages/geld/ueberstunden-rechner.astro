@@ -104,14 +104,17 @@ const year = new Date().getFullYear();
 </Layout>
 
 <script type="module">
-const { berechneÜberstunden } = await import(window.__base + 'scripts/überstunden.js');
+// Datei, Export und Parameter heissen im Modul ohne Umlaut. Diese Seite hatte
+// alle drei mit Umlaut geschrieben – der Import lief auf einen 404, der Rechner
+// hat nie gerechnet.
+const { berechneUeberstunden } = await import(window.__base + 'scripts/ueberstunden.js');
 function fmt(n) { return n.toLocaleString('de-DE', {minimumFractionDigits:2, maximumFractionDigits:2}) + ' €'; }
 function berechne() {
   const bruttoMonat = parseFloat(document.getElementById('gehalt').value)||0;
   const stundenProWoche = parseFloat(document.getElementById('wochenstunden').value)||40;
   const überstunden = parseFloat(document.getElementById('überstunden').value)||0;
   const zuschlagProzent = parseFloat(document.getElementById('zuschlag').value)||0;
-  const r = berechneÜberstunden({ bruttoMonat, stundenProWoche, überstunden, zuschlagProzent });
+  const r = berechneUeberstunden({ bruttoMonat, stundenProWoche, ueberstunden: überstunden, zuschlagProzent });
   document.getElementById('vergütung').textContent = fmt(r.vergütung);
   document.getElementById('info').textContent = `Stundenlohn: ${fmt(r.stundenlohn)} · Stunden/Monat: ${r.stundenProMonat.toLocaleString('de-DE')}`;
 }

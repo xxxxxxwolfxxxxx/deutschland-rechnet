@@ -151,6 +151,23 @@ p  { margin-bottom: 1rem; }
 .print-footer {
   display: none;
 }
+/* Tabellen auf schmalen Viewports: lieber in sich scrollen als die Seite dehnen.
+   Gemessen am 12.09.2026: 26 der 111 Rechnerseiten liefen bei 375 px horizontal
+   über, bis zu 252 px weit (solarspeicher-dimensionierung). Ursache war in allen
+   26 Fällen eine <table> – die Rechner bauen ihre Ergebnisse als Tabelle, und für
+   Tabellen gab es bis dahin keine einzige Regel in dieser Datei.
+
+   Bewusst ohne `width: max-content`: Damit würden auch die Tabellen schrumpfen,
+   die heute sauber passen. `display:block` plus `overflow-x` lässt nur die zu
+   breiten scrollen und rührt die übrigen nicht an. */
+@media (max-width: 700px) {
+  table {
+    display: block;
+    max-width: 100%;
+    overflow-x: auto;
+  }
+}
+
 @media print {
   header, footer, .hamburger, .mobile-overlay, .cookie-banner,
   .back-link, .hero-back, .btn-pdf, .up-download-area,
