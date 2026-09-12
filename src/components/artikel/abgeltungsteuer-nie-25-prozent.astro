@@ -1,0 +1,424 @@
+---
+import RechnerArtikel from '../RechnerArtikel.astro';
+import {
+  berechneAbgeltungsteuer,
+  belastungssatz,
+  kirchensteuersatz,
+  BUNDESLAENDER,
+  LAENDER_MIT_ACHT_PROZENT,
+  ABGELTUNGSTEUERSATZ,
+  SOLI_SATZ,
+  SPARERPAUSCHBETRAG_EINZEL,
+  SPARERPAUSCHBETRAG_ZUSAMMEN,
+} from '../../../public/scripts/abgeltungsteuer.js';
+import { einkommensteuer, GRUNDFREIBETRAG, TARIF_STAND } from '../../../public/scripts/einkommensteuer.js';
+import { SOLI_FREIGRENZE } from '../../../public/scripts/lohnsteuer.js';
+
+// Alle Zahlen zur Buildzeit aus denselben Modulen, die auch die Rechner laden.
+const eur = (n: number, d = 2) =>
+  n.toLocaleString('de-DE', { minimumFractionDigits: d, maximumFractionDigits: d }) + ' €';
+const eurGlatt = (n: number) => n.toLocaleString('de-DE', { maximumFractionDigits: 0 }) + ' €';
+const proz = (n: number, d = 2) =>
+  n.toLocaleString('de-DE', { minimumFractionDigits: d, maximumFractionDigits: d }) + ' %';
+const zahl = (n: number, d = 2) =>
+  n.toLocaleString('de-DE', { minimumFractionDigits: d, maximumFractionDigits: d });
+
+// --- 1. Die drei Belastungssätze ------------------------------------------
+const ohneKirche = belastungssatz();
+const mitNeun = belastungssatz({ kirchensteuerpflichtig: true, bundesland: 'NW' });
+const mitAcht = belastungssatz({ kirchensteuerpflichtig: true, bundesland: 'BY' });
+
+// Was ein Laie erwartet: der Kirchensteuersatz auf die vollen 25 Prozent.
+const naivNeun = ABGELTUNGSTEUERSATZ * 100 * 0.09;
+const naivAcht = ABGELTUNGSTEUERSATZ * 100 * 0.08;
+const echtNeun = mitNeun - ohneKirche;
+const echtAcht = mitAcht - ohneKirche;
+
+// --- 2. Kirchensteuer in Euro, an einem Betrag -----------------------------
+const PROBE_ERTRAG = 20000;
+const probeMit = berechneAbgeltungsteuer({
+  ertrag: PROBE_ERTRAG + SPARERPAUSCHBETRAG_EINZEL,
+  pauschbetrag: SPARERPAUSCHBETRAG_EINZEL,
+  bundesland: 'NW',
+  kirchensteuerpflichtig: true,
+});
+const probeOhne = berechneAbgeltungsteuer({
+  ertrag: PROBE_ERTRAG + SPARERPAUSCHBETRAG_EINZEL,
+  pauschbetrag: SPARERPAUSCHBETRAG_EINZEL,
+});
+const kirchensteuerAufschlag = probeMit.gesamt - probeOhne.gesamt;
+const anteilDerAnkommt = (kirchensteuerAufschlag / probeMit.kirchensteuer) * 100;
+
+// Baden-Württemberg/Bayern gegen den Rest, an demselben Betrag.
+const probeAcht = berechneAbgeltungsteuer({
+  ertrag: PROBE_ERTRAG + SPARERPAUSCHBETRAG_EINZEL,
+  pauschbetrag: SPARERPAUSCHBETRAG_EINZEL,
+  bundesland: 'BY',
+  kirchensteuerpflichtig: true,
+});
+const laenderUnterschied = probeMit.gesamt - probeAcht.gesamt;
+
+// Die Länder nach Satz gruppiert – nicht abgetippt, aus dem Modul gelesen.
+const laenderAcht = Object.entries(BUNDESLAENDER)
+  .filter(([k]) => LAENDER_MIT_ACHT_PROZENT.includes(k))
+  .map(([, name]) => name);
+const laenderNeun = Object.entries(BUNDESLAENDER)
+  .filter(([k]) => !LAENDER_MIT_ACHT_PROZENT.includes(k))
+  .map(([, name]) => name);
+const satzAcht = kirchensteuersatz('BY') * 100;
+const satzNeun = kirchensteuersatz('NW') * 100;
+
+// --- 3. Effektivbelastung über die Ertragshöhe -----------------------------
+// Der Pauschbetrag wirkt wie ein Rabatt, der sich mit steigendem Ertrag
+// verdünnt. Die Stufen zeigen, wie langsam das geht.
+const STUFEN = [1000, 1500, 2000, 3000, 5000, 10000, 25000, 50000];
+const stufen = STUFEN.map((ertrag) => {
+  const r = berechneAbgeltungsteuer({ ertrag, pauschbetrag: SPARERPAUSCHBETRAG_EINZEL });
+  return { ertrag, steuer: r.gesamt, effektiv: r.effektivbelastung, netto: r.netto };
+});
+// Ab wann liegt die Effektivbelastung über der Hälfte des Grenzsatzes?
+const halberSatz = ohneKirche / 2;
+let ertragHalberSatz = 0;
+for (let e = SPARERPAUSCHBETRAG_EINZEL + 1; e <= 20000; e += 1) {
+  if (berechneAbgeltungsteuer({ ertrag: e, pauschbetrag: SPARERPAUSCHBETRAG_EINZEL }).effektivbelastung >= halberSatz) {
+    ertragHalberSatz = e;
+    break;
+  }
+}
+// Ab welchem Ertrag uebersteigt die Effektivbelastung die 25 Prozent, die dem
+// Verfahren den Namen geben? Fein gesucht, nicht aus der Stufentabelle geschaetzt.
+let ertragUeber25 = 0;
+for (let e = SPARERPAUSCHBETRAG_EINZEL + 1; e <= 500000; e += 1) {
+  if (berechneAbgeltungsteuer({ ertrag: e, pauschbetrag: SPARERPAUSCHBETRAG_EINZEL }).effektivbelastung >= ABGELTUNGSTEUERSATZ * 100) {
+    ertragUeber25 = e;
+    break;
+  }
+}
+const pauschbetragWert = (SPARERPAUSCHBETRAG_EINZEL * ohneKirche) / 100;
+const pauschbetragWertPaar = (SPARERPAUSCHBETRAG_ZUSAMMEN * ohneKirche) / 100;
+
+// --- 4. Günstigerprüfung nach § 32d Abs. 6 ---------------------------------
+// Der Soli im Veranlagungsfall hat eine Freigrenze auf die EINKOMMENSTEUER,
+// dazu eine Milderungszone (§ 4 Satz 2 SolzG: höchstens 11,9 Prozent des
+// Unterschiedsbetrags). Wer ihn pauschal mit 5,5 Prozent ansetzt, verschiebt
+// die Schwelle um fast 4.000 € nach unten.
+function soliVeranlagung(est: number): number {
+  if (est <= SOLI_FREIGRENZE) return 0;
+  return Math.min(0.119 * (est - SOLI_FREIGRENZE), SOLI_SATZ * est);
+}
+const PROBE_KAPITAL = 1000;
+function grenzbelastung(zvE: number): number {
+  const ohne = einkommensteuer(zvE);
+  const mit = einkommensteuer(zvE + PROBE_KAPITAL);
+  return ((mit + soliVeranlagung(mit)) - (ohne + soliVeranlagung(ohne))) / PROBE_KAPITAL * 100;
+}
+let kipppunkt = 0;
+for (let zvE = GRUNDFREIBETRAG; zvE <= 200000; zvE += 1) {
+  if (grenzbelastung(zvE) > ohneKirche) { kipppunkt = zvE; break; }
+}
+const GUENSTIGER_PROBEN = [15000, 20000, kipppunkt - 1, kipppunkt, 30000, 45000];
+const guenstiger = GUENSTIGER_PROBEN.map((zvE) => ({
+  zvE,
+  satz: grenzbelastung(zvE),
+  besser: grenzbelastung(zvE) < ohneKirche ? 'Veranlagung' : 'Abgeltung',
+}));
+
+const quellen = [
+  { titel: '§ 32d EStG – Gesonderter Steuertarif für Einkünfte aus Kapitalvermögen', url: 'https://www.gesetze-im-internet.de/estg/__32d.html' },
+  { titel: '§ 20 EStG – Kapitalvermögen, Sparer-Pauschbetrag in Absatz 9', url: 'https://www.gesetze-im-internet.de/estg/__20.html' },
+  { titel: '§ 32a EStG – Einkommensteuertarif', url: 'https://www.gesetze-im-internet.de/estg/__32a.html' },
+  { titel: '§ 23 EStG – Private Veräußerungsgeschäfte', url: 'https://www.gesetze-im-internet.de/estg/__23.html' },
+  { titel: '§ 52 EStG – Anwendungsvorschriften (Altbestände vor 2009)', url: 'https://www.gesetze-im-internet.de/estg/__52.html' },
+  { titel: '§ 3 SolzG 1995 – Bemessungsgrundlage und Freigrenze', url: 'https://www.gesetze-im-internet.de/solzg_1995/__3.html' },
+  { titel: '§ 4 SolzG 1995 – Zuschlagsatz und Milderungszone', url: 'https://www.gesetze-im-internet.de/solzg_1995/__4.html' },
+  { titel: 'Bundeszentralamt für Steuern – Kirchensteuer auf Abgeltungsteuer', url: 'https://www.bzst.de/DE/Privatpersonen/Kapitalertraege/KirchensteuerAbgeltungssteuer/kirchensteuerabgeltungssteuer_node.html' },
+];
+---
+<RechnerArtikel
+  titel="Warum niemand 25 Prozent zahlt"
+  datum="2026-09-12"
+  lead={`Die Abgeltungsteuer heißt „25 Prozent", und genau diesen Satz zahlt niemand. Wer keiner Kirche angehört, zahlt ${proz(ohneKirche, 3)}. Wer kirchensteuerpflichtig ist, zahlt ${proz(mitNeun, 3)} – aber nicht ${zahl(naivNeun, 2)} Prozentpunkte mehr, wie man erwarten würde, sondern ${zahl(echtNeun, 2)}. Und wer unter ${eurGlatt(kipppunkt)} zu versteuerndes Einkommen hat, zahlt am besten gar keine Abgeltungsteuer.`}
+  quellen={quellen}
+>
+  <h3>Drei Zahlen, drei Gesetze</h3>
+  <p>
+    Auf einem Kapitalertrag liegen bis zu drei Abgaben, und sie stammen aus drei
+    verschiedenen Vorschriften. Die Kapitalertragsteuer von
+    {' '}{proz(ABGELTUNGSTEUERSATZ * 100, 0)} steht in § 32d Abs. 1 Satz 1 EStG. Der
+    Solidaritätszuschlag von {proz(SOLI_SATZ * 100, 1)} folgt aus § 4 SolzG und wird
+    auf die Kapitalertragsteuer erhoben, nicht auf den Ertrag. Die Kirchensteuer
+    schließlich trifft nur Mitglieder einer steuererhebenden Religionsgemeinschaft –
+    und sie rechnet anders, als fast alle Quellen es darstellen.
+  </p>
+  <p>
+    Zusammengenommen ergibt das drei mögliche Belastungen des zu versteuernden
+    Ertrags:
+  </p>
+
+  <table>
+    <caption class="visually-hidden">
+      Belastung des zu versteuernden Kapitalertrags nach Kirchensteuerpflicht
+    </caption>
+    <thead>
+      <tr>
+        <th scope="col">Fall</th>
+        <th scope="col" class="num">Kapitalertragsteuer</th>
+        <th scope="col" class="num">Gesamtbelastung</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <th scope="row">ohne Kirchensteuer</th>
+        <td class="num">{proz(ABGELTUNGSTEUERSATZ * 100, 2)}</td>
+        <td class="num">{proz(ohneKirche, 3)}</td>
+      </tr>
+      <tr>
+        <th scope="row">mit {proz(satzAcht, 0)} Kirchensteuer</th>
+        <td class="num">{proz(100 / (4 + satzAcht / 100), 2)}</td>
+        <td class="num">{proz(mitAcht, 3)}</td>
+      </tr>
+      <tr>
+        <th scope="row">mit {proz(satzNeun, 0)} Kirchensteuer</th>
+        <td class="num">{proz(100 / (4 + satzNeun / 100), 2)}</td>
+        <td class="num">{proz(mitNeun, 3)}</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <p>
+    In der mittleren Spalte steht der eigentliche Fund: Die Kapitalertragsteuer
+    beträgt bei Kirchensteuerpflicht keine {proz(ABGELTUNGSTEUERSATZ * 100, 0)} mehr.
+    Sie sinkt.
+  </p>
+
+  <h3>Die Kirchensteuer senkt die Steuer, auf der sie sitzt</h3>
+  <p>
+    § 32d Abs. 1 Satz 3 EStG ist ein Satz, den man zweimal lesen muss: „Im Fall der
+    Kirchensteuerpflicht ermäßigt sich die Steuer nach den Sätzen 1 und 2 um 25
+    Prozent der auf die Kapitalerträge entfallenden Kirchensteuer." Die
+    Kirchensteuer mindert also die Bemessungsgrundlage ihrer eigenen
+    Bemessungsgrundlage. Satz 4 löst die Zirkularität in eine Formel auf, in der
+    <em>e</em> für den Kapitalertrag, <em>q</em> für anrechenbare ausländische Steuer
+    und <em>k</em> für den Kirchensteuersatz steht: die Steuer beträgt
+    {' '}(<em>e</em> − 4<em>q</em>) ÷ (4 + <em>k</em>).
+  </p>
+  <p>
+    Ohne ausländische Quellensteuer bleibt davon <em>e</em> ÷ (4 + <em>k</em>). Bei
+    {' '}{proz(satzNeun, 0)} Kirchensteuer sind das
+    {' '}{proz(100 / (4 + satzNeun / 100), 2)} statt {proz(ABGELTUNGSTEUERSATZ * 100, 0)} –
+    und weil Kirchensteuer und Solidaritätszuschlag beide auf dieser kleineren Zahl
+    aufsetzen, schrumpfen sie mit.
+  </p>
+  <p>
+    Der Effekt ist größer, als der Gesetzestext vermuten lässt. Wer den
+    Kirchensteuersatz naiv auf die vollen {proz(ABGELTUNGSTEUERSATZ * 100, 0)} anwendet,
+    erwartet einen Aufschlag von {zahl(naivNeun, 2)} Prozentpunkten. Tatsächlich sind
+    es {zahl(echtNeun, 2)} – ein Unterschied von
+    {' '}{zahl(naivNeun - echtNeun, 2)} Punkten. Bei {proz(satzAcht, 0)} Kirchensteuer
+    stehen {zahl(echtAcht, 2)} Punkte gegen erwartete {zahl(naivAcht, 2)}.
+  </p>
+  <p>
+    In Euro wird es anschaulicher. Bei {eurGlatt(PROBE_ERTRAG)} zu versteuerndem Ertrag
+    und {proz(satzNeun, 0)} Kirchensteuer weist die Abrechnung
+    {' '}{eur(probeMit.kirchensteuer)} Kirchensteuer aus. Die gesamte Steuerlast steigt
+    gegenüber einem konfessionslosen Anleger aber nur um
+    {' '}{eur(kirchensteuerAufschlag)}. Von jedem Euro Kirchensteuer kommen also
+    {' '}{zahl(anteilDerAnkommt, 0)} Cent tatsächlich obendrauf; der Rest wird an
+    anderer Stelle wieder abgezogen.
+  </p>
+
+  <h3>Der Satz hängt am Wohnort, nicht am Bekenntnis</h3>
+  <p>
+    Eine Behauptung, die sich hartnäckig hält – und die auch auf dieser Seite stand,
+    bis sie im September 2026 korrigiert wurde –, lautet: Evangelische zahlen
+    {' '}{proz(satzAcht, 0)}, Katholiken {proz(satzNeun, 0)}. Das ist falsch. Der
+    Kirchensteuersatz richtet sich nach dem Bundesland des Wohnsitzes, und innerhalb
+    eines Landes gilt er für beide großen Konfessionen gleichermaßen.
+  </p>
+
+  <table>
+    <caption class="visually-hidden">Kirchensteuersätze nach Bundesland</caption>
+    <thead>
+      <tr>
+        <th scope="col" class="num">Satz</th>
+        <th scope="col">Bundesländer</th>
+        <th scope="col" class="num">Anzahl</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <th scope="row" class="num">{proz(satzAcht, 0)}</th>
+        <td>{laenderAcht.join(', ')}</td>
+        <td class="num">{laenderAcht.length}</td>
+      </tr>
+      <tr>
+        <th scope="row" class="num">{proz(satzNeun, 0)}</th>
+        <td>{laenderNeun.join(', ')}</td>
+        <td class="num">{laenderNeun.length}</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <p>
+    Der Unterschied ist klein, aber er ist echt: Bei {eurGlatt(PROBE_ERTRAG)} zu
+    versteuerndem Ertrag zahlt ein Kirchenmitglied in Bayern
+    {' '}{eur(probeAcht.gesamt)}, in Nordrhein-Westfalen {eur(probeMit.gesamt)} – eine
+    Differenz von {eur(laenderUnterschied)}. Wer umzieht, ändert damit seinen
+    Steuersatz auf Kapitalerträge, ohne etwas an seinem Depot zu tun.
+  </p>
+
+  <h3>Der Zuschlag, den fast niemand mehr zahlt – außer hier</h3>
+  <p>
+    Seit 2021 ist der Solidaritätszuschlag für die große Mehrheit abgeschafft. § 3
+    Abs. 3 Satz 1 SolzG setzt eine Freigrenze: Wer weniger als
+    {' '}{eurGlatt(SOLI_FREIGRENZE)} Einkommensteuer im Jahr zahlt, zahlt keinen
+    Zuschlag; knapp darüber greift eine Milderungszone. Bei
+    Kapitalerträgen gilt das nicht. Satz 2 desselben Absatzes ordnet ausdrücklich an,
+    dass der Zuschlag auf die Steuer nach § 32d EStG „ungeachtet des Satzes 1" zu
+    erheben ist.
+  </p>
+  <p>
+    Praktisch heißt das: Wer {eurGlatt(1200)} Zinsen bekommt und sonst so wenig
+    verdient, dass er keinen Cent Solidaritätszuschlag zahlt, zahlt ihn auf diese
+    Zinsen trotzdem. Die Bank behält ihn ein, bevor irgendjemand das Einkommen
+    geprüft hat. Ob er ihn zurückbekommt, entscheidet sich erst in der
+    Steuererklärung – und dort über einen anderen Weg.
+  </p>
+
+  <h3>Der Pauschbetrag senkt den Satz, nicht den Betrag</h3>
+  <p>
+    Die ersten {eurGlatt(SPARERPAUSCHBETRAG_EINZEL)} Kapitalertrag bleiben nach § 20
+    Abs. 9 EStG steuerfrei, bei Zusammenveranlagung
+    {' '}{eurGlatt(SPARERPAUSCHBETRAG_ZUSAMMEN)}. Er ist damit
+    {' '}{eur(pauschbetragWert)} Steuer wert, für ein Paar {eur(pauschbetragWertPaar)}.
+    Interessanter als dieser feste Betrag ist aber, wie langsam sein Vorteil sich
+    verdünnt.
+  </p>
+
+  <table>
+    <caption class="visually-hidden">
+      Steuer und Effektivbelastung nach Höhe des Kapitalertrags, ohne Kirchensteuer
+    </caption>
+    <thead>
+      <tr>
+        <th scope="col" class="num">Kapitalertrag</th>
+        <th scope="col" class="num">Steuer</th>
+        <th scope="col" class="num">bleibt</th>
+        <th scope="col" class="num">Belastung des Ertrags</th>
+      </tr>
+    </thead>
+    <tbody>
+      {stufen.map((s) => (
+        <tr>
+          <th scope="row" class="num">{eurGlatt(s.ertrag)}</th>
+          <td class="num">{eur(s.steuer)}</td>
+          <td class="num">{eur(s.netto)}</td>
+          <td class="num">{proz(s.effektiv, 1)}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+
+  <p>
+    Die letzte Spalte ist der eigentliche Steuersatz – der, den man zahlt, nicht der,
+    der im Gesetz steht. Er erreicht erst bei {eurGlatt(ertragHalberSatz)} Ertrag die
+    Hälfte des Grenzsatzes von {proz(ohneKirche, 3)} und nähert sich ihm danach nur
+    noch langsam: Bei {eurGlatt(STUFEN[STUFEN.length - 1])} liegt er bei
+    {' '}{proz(stufen[stufen.length - 1].effektiv, 1)}.
+  </p>
+  <p>
+    Die im Gesetz stehenden {proz(ABGELTUNGSTEUERSATZ * 100, 0)} sind dabei keine
+    Obergrenze, sondern werden unterwegs überschritten – ab
+    {' '}{eurGlatt(ertragUeber25)} Ertrag liegt die tatsächliche Belastung darüber,
+    weil der Solidaritätszuschlag mitläuft. Wer von „25 Prozent Abgeltungsteuer"
+    spricht, nennt also eine Zahl, die für kleine Depots deutlich zu hoch und für
+    große zu niedrig ist. Getroffen wird sie bei genau einem Ertrag.
+  </p>
+
+  <h3>Unter {eurGlatt(kipppunkt)} lohnt die Abgeltungsteuer nicht</h3>
+  <p>
+    Die Abgeltungsteuer ist ein Sondertarif, und Sondertarife sind nur dann ein
+    Vorteil, wenn sie unter dem Regeltarif liegen. § 32d Abs. 6 EStG erlaubt deshalb
+    die Günstigerprüfung: Wer es beantragt, bekommt seine Kapitalerträge in die
+    normale Veranlagung gerechnet, wenn das billiger ist. Das Finanzamt prüft von
+    selbst, sobald die Anlage KAP ausgefüllt ist.
+  </p>
+  <p>
+    Die Schwelle lässt sich ausrechnen. Entscheidend ist nicht der Durchschnitts-,
+    sondern der Grenzsteuersatz: Was kostet der nächste Euro Kapitalertrag im
+    Einkommensteuertarif? Solange das weniger ist als {proz(ohneKirche, 3)}, ist die
+    Veranlagung besser.
+  </p>
+
+  <table>
+    <caption class="visually-hidden">
+      Grenzbelastung von 1.000 € Kapitalertrag im Einkommensteuertarif, nach
+      zu versteuerndem Einkommen
+    </caption>
+    <thead>
+      <tr>
+        <th scope="col" class="num">zu versteuerndes Einkommen</th>
+        <th scope="col" class="num">Grenzbelastung</th>
+        <th scope="col">günstiger</th>
+      </tr>
+    </thead>
+    <tbody>
+      {guenstiger.map((g) => (
+        <tr>
+          <th scope="row" class="num">{eurGlatt(g.zvE)}</th>
+          <td class="num">{proz(g.satz, 2)}</td>
+          <td>{g.besser}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+
+  <p>
+    Der Kipppunkt liegt bei einem zu versteuernden Einkommen von
+    {' '}{eurGlatt(kipppunkt)} – gerechnet ohne die Kapitalerträge selbst und nach dem
+    Tarif mit Stand {new Date(TARIF_STAND).toLocaleDateString('de-DE', { day: 'numeric', month: 'long', year: 'numeric' })}.
+    Darunter holt sich ein Anleger über die Anlage KAP Geld zurück, das die Bank schon
+    abgeführt hat; darüber wäre die Veranlagung teurer, und der Antrag wird vom
+    Finanzamt verworfen, ohne zu schaden.
+  </p>
+  <p>
+    Diese Schwelle ist empfindlich gegen einen Rechenfehler, der nahe liegt: Wer den
+    Solidaritätszuschlag im Veranlagungsfall pauschal mit
+    {' '}{proz(SOLI_SATZ * 100, 1)} ansetzt, übersieht, dass er dort erst ab
+    {' '}{eurGlatt(SOLI_FREIGRENZE)} Einkommensteuer überhaupt anfällt – und landet fast
+    {' '}{eurGlatt(4000)} zu tief. In dem Einkommensbereich, um den es hier geht, zahlt
+    niemand Solidaritätszuschlag auf sein Erwerbseinkommen. Auf die Kapitalerträge
+    zahlt er ihn, siehe oben.
+  </p>
+
+  <h3>Wofür die Haltedauer nichts mehr zählt</h3>
+  <p>
+    Eine Regel, die seit siebzehn Jahren nicht mehr gilt, hält sich beharrlich: dass
+    Kursgewinne nach einem Jahr Haltedauer steuerfrei seien. Die einjährige Frist des
+    § 23 EStG gilt für Wertpapiere nur noch bei Altbeständen, die vor dem 1. Januar
+    2009 gekauft wurden. Wer danach gekauft hat, zahlt bei jedem Verkauf mit Gewinn –
+    unabhängig davon, ob er ein Jahr oder zwanzig gehalten hat.
+  </p>
+  <p>
+    Für Immobilien und andere private Veräußerungsgeschäfte gilt § 23 EStG weiter,
+    dort mit zehn Jahren. Nur Wertpapiere sind seit der Einführung der Abgeltungsteuer
+    aus dieser Systematik heraus.
+  </p>
+
+  <h3>Was diese Rechnung nicht abbildet</h3>
+  <p>
+    Der Rechner oben und die Zahlen hier unterstellen inländische Kapitalerträge ohne
+    anrechenbare ausländische Quellensteuer – die Größe <em>q</em> der gesetzlichen
+    Formel steht durchgehend auf null. Wer ausländische Dividenden bezieht, hat je
+    nach Herkunftsland Quellensteuer gezahlt, die teilweise angerechnet wird; die
+    tatsächliche Belastung liegt dann anders.
+  </p>
+  <p>
+    Nicht abgebildet sind außerdem die Teilfreistellung für Fondsanteile nach § 20
+    Abs. 1 InvStG, die bei Aktienfonds {proz(30, 0)} des Ertrags steuerfrei stellt,
+    sowie Verlustverrechnungstöpfe, Freistellungsaufträge über mehrere Banken und die
+    Nichtveranlagungsbescheinigung. Jede dieser Regeln drückt die tatsächliche
+    Belastung weiter unter die {proz(ohneKirche, 3)}, die dieser Artikel als Grenzsatz
+    zugrunde legt.
+  </p>
+</RechnerArtikel>

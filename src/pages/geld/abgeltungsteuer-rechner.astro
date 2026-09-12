@@ -1,8 +1,10 @@
 ---
 import Layout from '../../layouts/Layout.astro';
 import CalculatorShell from '../../components/CalculatorShell.astro';
-import CalculatorGuide from '../../components/CalculatorGuide.astro';
+import ArtikelAbgeltungsteuer from '../../components/artikel/abgeltungsteuer-nie-25-prozent.astro';
 import { CALCULATORS, CATEGORIES } from '../../data/calculators';
+// Bundeslaender und Saetze aus demselben Modul, das auch der Rechner laedt.
+import { BUNDESLAENDER, kirchensteuersatz } from '../../../public/scripts/abgeltungsteuer.js';
 const calc = CALCULATORS.find(c => c.slug === 'abgeltungsteuer-rechner')!;
 const cat = CATEGORIES[calc.category];
 const year = new Date().getFullYear();
@@ -22,15 +24,15 @@ const year = new Date().getFullYear();
   <CalculatorShell
     calculator={calc}
     intro="Mit dem Abgeltungsteuer-Rechner berechnen Sie die Steuer auf Ihre Kapitalerträge nach Abzug des Freibetrags. So sehen Sie sofort, wie viel von Ihren Zinsen, Dividenden und Kursgewinnen nach Steuern übrig bleibt."
-    sourceNote="25% + Solidaritätszuschlag."
-    explanation="Die Abgeltungsteuer beträgt pauschal 25% zzgl. Solidaritätszuschlag und ggf. Kirchensteuer (§ 32d EStG). Der Sparer-Pauschbetrag liegt bei 1.000 Euro pro Person bzw. 2.000 Euro für Verheiratete."
+    sourceNote="Berechnet nach § 32d Abs. 1 EStG – Satz 1 für den Regelfall, die Sätze 3 bis 5 bei Kirchensteuerpflicht. Solidaritätszuschlag nach § 4 SolzG 1995; die Freigrenze des § 3 Abs. 3 SolzG gilt hier nach dessen Satz 2 nicht. Sparer-Pauschbetrag nach § 20 Abs. 9 EStG. Kirchensteuersätze nach Angaben des Bundeszentralamts für Steuern: 8 Prozent in Bayern und Baden-Württemberg, 9 Prozent in den übrigen Ländern. Anrechenbare ausländische Quellensteuer (die Größe q der gesetzlichen Formel) bildet der Rechner nicht ab."
+    explanation="25 Prozent nach § 32d Abs. 1 Satz 1 EStG, dazu 5,5 Prozent Solidaritätszuschlag. Wer kirchensteuerpflichtig ist, zahlt NICHT 25 Prozent plus Kirchensteuer obendrauf: § 32d Abs. 1 Satz 3 EStG ermäßigt die Kapitalertragsteuer um ein Viertel der Kirchensteuer, sodass sie auf 24,45 Prozent sinkt (bei 9 Prozent Kirchensteuer). Der Sparer-Pauschbetrag nach § 20 Abs. 9 EStG beträgt 1.000 Euro, bei Zusammenveranlagung 2.000 Euro."
     faqs={[
       { q: "Was ist die Abgeltungsteuer?", a: "Die Abgeltungsteuer ist eine einheitliche Steuer auf Kapitalerträge (Zinsen, Dividenden, Kursgewinne) in Höhe von 25%. Sie wird zusammen mit dem Solidaritätszuschlag (5,5%) erhoben. Bank oder Broker führen die Steuer direkt ab." },
       { q: "Was ist der Sparerpauschbetrag?", a: "Der Sparerpauschbetrag ist ein Freibetrag: Die ersten 1.000€ Kapitalerträge pro Jahr sind steuerfrei (Verheiratete: 2.000€). Erst danach fällt Abgeltungsteuer an. Der Freibetrag wird pro Depotinhaber gewährt." },
-      { q: "Gilt die Abgeltungsteuer auch auf Aktien und ETFs?", a: "Ja. Realisierte Kursgewinne, Dividenden und Ausschüttungen unterliegen der Abgeltungsteuer, auch bei ETFs und Aktien. Ausnahme: Gewinne aus Einzelwertpapieren, die länger als 1 Jahr gehalten wurden, sind unter bestimmten Bedingungen steuerfrei (Einstiegsbesteuerung ab 2024)." },
-      { q: "Wann zahle ich Kirchensteuer auf Kapitalerträge?", a: "Kirchensteuer wird nur von Kirchenmitgliedern erhoben. Sie beträgt in Baden-Württemberg 8% (evangelisch) oder 9% (katholisch) der Abgeltungsteuer (nicht des Kapitalertrags). Kirchensteuer wird direkt vom Depot abgebucht." },
+      { q: "Gilt die Abgeltungsteuer auch auf Aktien und ETFs?", a: "Ja. Realisierte Kursgewinne, Dividenden und Ausschüttungen unterliegen der Abgeltungsteuer, auch bei ETFs und Aktien. Eine Haltefrist gibt es nicht: Die einjährige Spekulationsfrist des § 23 EStG gilt für Wertpapiere nur noch bei Altbeständen, die vor dem 1. Januar 2009 gekauft wurden. Wer danach gekauft hat, zahlt bei jedem Verkauf mit Gewinn, unabhängig von der Haltedauer." },
+      { q: "Wann zahle ich Kirchensteuer auf Kapitalerträge?", a: "Nur als Mitglied einer steuererhebenden Religionsgemeinschaft. Der Satz richtet sich nach dem Wohnsitz, nicht nach der Konfession: In Bayern und Baden-Württemberg sind es 8 Prozent, in allen übrigen Ländern 9 Prozent – für evangelische und katholische Mitglieder gleichermaßen. Bemessungsgrundlage ist die Kapitalertragsteuer, nicht der Ertrag. Die Bank ruft die Mitgliedschaft einmal jährlich beim Bundeszentralamt für Steuern ab und behält die Steuer ein." },
       { q: "Kann ich mehrere Depots nutzen, um den Freibetrag zu verdoppeln?", a: "Nein. Der Sparerpauschbetrag ist pro Steuerperson und Kalenderjahr begrenzt, unabhängig von der Anzahl der Depots. Die Depotbanken melden die Kapitalerträge zusammengefasst an das Finanzamt." },
-      { q: "Was ändert sich 2024 bei der Besteuerung?", a: "Seit 2024 gilt: Kursgewinne aus dem Verkauf von Einzelaktien, die über 1 Jahr gehalten wurden, sind bis 1 Million€ pro Jahr steuerfrei (Einstiegsbesteuerung). Gewinne über 1 Mio. werden zu 50% besteuert. Diese Regel gilt NICHT für ETFs." }
+      { q: "Fällt der Solidaritätszuschlag auf Kapitalerträge noch an?", a: "Ja, und zwar unabhängig vom Einkommen. Seit 2021 zahlen rund neun von zehn Steuerpflichtigen keinen Solidaritätszuschlag mehr, weil ihre Einkommensteuer unter der Freigrenze des § 3 Abs. 3 SolzG liegt. Satz 2 dieses Absatzes nimmt die Abgeltungsteuer davon aber ausdrücklich aus: Auf Kapitalerträge wird der Zuschlag von 5,5 Prozent weiter erhoben, auch bei kleinen Beträgen." }
     ]}
   >
     <div class="calc-form">
@@ -44,12 +46,20 @@ const year = new Date().getFullYear();
           <input type="number" id="freibetrag" min="0" max="2000" value="1000" step="100" />
         </div>
         <div class="calc-group">
-          <label for="konfession">Konfession</label>
-          <select id="konfession">
-            <option value="nein" selected>Ohne Kirchensteuer</option>
-            <option value="ev">Evangelisch (8%)</option>
-            <option value="rk">Katholisch (9%)</option>
+          <label for="bundesland">Bundesland</label>
+          <select id="bundesland">
+            {Object.entries(BUNDESLAENDER).map(([kuerzel, name]) => (
+              <option value={kuerzel} selected={kuerzel === 'NW'}>
+                {name} ({(kirchensteuersatz(kuerzel) * 100).toLocaleString('de-DE')} %)
+              </option>
+            ))}
           </select>
+        </div>
+        <div class="calc-group">
+          <label for="kirchensteuer">
+            <input type="checkbox" id="kirchensteuer" style="width:auto;margin-right:0.5rem;" />
+            Kirchensteuerpflichtig
+          </label>
         </div>
         <div class="calc-group">
           <label for="verheiratet">
@@ -65,60 +75,60 @@ const year = new Date().getFullYear();
       </div>
       <div id="details" style="margin-top:0.75rem;font-size:0.88rem;color:#666;display:flex;gap:1.5rem;flex-wrap:wrap;"></div>
     </div>
+
+    <ArtikelAbgeltungsteuer slot="artikel" />
   </CalculatorShell>
-
-  <CalculatorGuide
-    title="So funktioniert die Abgeltungsteuer"
-    content={`<p><strong>Die Abgeltungsteuer</strong> ist eine pauschale Einkommensteuer auf Kapitalerträge wie Zinsen, Dividenden und Kursgewinne. Sie wird in Deutschland einheitlich mit <strong>25%</strong> plus Solidaritätszuschlag (5,5%) erhoben. Banken und Broker führen die Steuer direkt ab – Sie müssen nicht selbst mit dem Finanzamt abrechnen.</p>
-
-<p><strong>Der Sparerpauschbetrag:</strong> Der erste Freibetrag für Kapitalerträge beträgt <strong>1.000€ pro Jahr</strong> für Alleinstehende (verheiratete Paare zusammen: 2.000€). Kapitalerträge bis zu dieser Grenze sind vollständig steuerfrei. Danach greift die volle 25% Abgeltungsteuer.</p>
-
-<p><strong>Wichtiger Hinweis zu 2024:</strong> Eine neue Einstiegsbesteuerung gilt für Kursgewinne aus Einzelaktien:
-<ul>
-  <li><strong>Aktien</strong>, die länger als 1 Jahr gehalten werden: Erste 1 Million€ Gewinn pro Jahr sind steuerfrei (danach 50% Besteuerung)</li>
-  <li><strong>ETFs und Fonds</strong>: Für diese gelten weiterhin die normalen Abgeltungsteuerregeln</li>
-</ul>
-</p>
-
-<p><strong>Kirchensteuer auf Kapitalerträge:</strong> Kirchenmitglieder zahlen zusätzliche Kirchensteuer (8-9% der Kapitalertragsteuer). Diese wird von der Bank direkt abgebucht, wenn im Kirchensteuersystem angemeldet.</p>
-
-<p><strong>Praktisches Beispiel:</strong> Sie haben 5.000€ Dividenden erhalten. Nach dem Sparerpauschbetrag von 1.000€ sind 4.000€ zu versteuern. Abgeltungsteuer: 4.000 × 25% = 1.000€. Plus Solidaritätszuschlag: 1.000 × 5,5% = 55€. Gesamt: 1.055€ Steuern.</p>`}
-    relatedSlugs={['etf-sparplan-rechner', 'fire-rechner', 'sparen-rechner']}
-  />
 </Layout>
 
 <script type="module">
+const { berechneAbgeltungsteuer, SPARERPAUSCHBETRAG_EINZEL, SPARERPAUSCHBETRAG_ZUSAMMEN }
+  = await import(window.__base + 'scripts/abgeltungsteuer.js');
+
+const eur = (n) => n.toLocaleString('de-DE', {minimumFractionDigits:2, maximumFractionDigits:2}) + ' €';
+
 function berechne() {
-  const kapital = parseFloat(document.getElementById('kapital').value)||5000;
-  let freibetrag = parseFloat(document.getElementById('freibetrag').value)||1000;
-  const konfession = document.getElementById('konfession').value;
   const verheiratet = document.getElementById('verheiratet').checked;
-  
-  if (verheiratet) freibetrag *= 2;
-  
-  const zuVersteuern = Math.max(0, kapital - freibetrag);
-  const kapitalsteuer = zuVersteuern * 0.25;
-  
-  let kirchensteuer = 0;
-  if (konfession === 'ev') kirchensteuer = kapitalsteuer * 0.08;
-  if (konfession === 'rk') kirchensteuer = kapitalsteuer * 0.09;
-  
-  const soli = kapitalsteuer * 0.055;
-  const gesamt = kapitalsteuer + kirchensteuer + soli;
-  const netto = kapital - gesamt;
-  
-  document.getElementById('steuer').textContent = gesamt.toLocaleString('de-DE', {minimumFractionDigits:2}) + ' €';
+  const feld = document.getElementById('freibetrag');
+  // Der Pauschbetrag folgt der Veranlagung, solange niemand ihn von Hand
+  // geaendert hat. § 20 Abs. 9 EStG kennt keinen Betrag dazwischen.
+  if (feld.dataset.auto !== 'aus') {
+    feld.value = verheiratet ? SPARERPAUSCHBETRAG_ZUSAMMEN : SPARERPAUSCHBETRAG_EINZEL;
+  }
+
+  const r = berechneAbgeltungsteuer({
+    ertrag: parseFloat(document.getElementById('kapital').value) || 0,
+    pauschbetrag: parseFloat(feld.value) || 0,
+    bundesland: document.getElementById('bundesland').value,
+    kirchensteuerpflichtig: document.getElementById('kirchensteuer').checked,
+  });
+
+  document.getElementById('steuer').textContent = eur(r.gesamt);
+  const zeilen = [
+    ['Steuerfrei über den Pauschbetrag', eur(r.freigestellt)],
+    ['Zu versteuern', eur(r.zuVersteuern)],
+    ['Kapitalertragsteuer', eur(r.kapitalertragsteuer)],
+  ];
+  if (r.kirchensteuer > 0) {
+    zeilen.push([`Kirchensteuer (${(r.kirchensteuersatz * 100).toLocaleString('de-DE')} %)`, eur(r.kirchensteuer)]);
+  }
+  zeilen.push(['Solidaritätszuschlag', eur(r.soli)]);
+  zeilen.push(['Bleibt nach Steuern', eur(r.netto)]);
+  if (r.zuVersteuern > 0) {
+    zeilen.push(['Belastung des zu versteuernden Teils',
+      r.grenzbelastung.toLocaleString('de-DE', {minimumFractionDigits:1, maximumFractionDigits:1}) + ' %']);
+  }
   document.getElementById('details').innerHTML =
-    `<span>Zu versteuern: <strong>${zuVersteuern.toLocaleString('de-DE')} €</strong></span>` +
-    `<span>Kapitalertragsteuer (25%): <strong>${kapitalsteuer.toLocaleString('de-DE')} €</strong></span>` +
-    `<span>Kirchensteuer: <strong>${kirchensteuer.toLocaleString('de-DE')} €</strong></span>` +
-    `<span>Solidaritätszuschlag: <strong>${soli.toLocaleString('de-DE')} €</strong></span>` +
-    `<span>Nettoertrag: <strong>${netto.toLocaleString('de-DE')} €</strong></span>`;
+    zeilen.map(([k, v]) => `<span>${k}: <strong>${v}</strong></span>`).join('');
 }
+
+document.getElementById('freibetrag').addEventListener('input', (e) => {
+  e.target.dataset.auto = 'aus';
+});
 ['kapital','freibetrag'].forEach(id =>
   document.getElementById(id).addEventListener('input', berechne));
-['konfession'].forEach(id =>
+['bundesland'].forEach(id =>
   document.getElementById(id).addEventListener('change', berechne));
-document.getElementById('verheiratet').addEventListener('change', berechne);
+['verheiratet','kirchensteuer'].forEach(id =>
+  document.getElementById(id).addEventListener('change', berechne));
 berechne();
 </script>

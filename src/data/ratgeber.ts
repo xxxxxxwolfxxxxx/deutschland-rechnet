@@ -42,6 +42,15 @@ export interface Artikel {
 
 export const ARTIKEL: Artikel[] = [
   {
+    slug: 'abgeltungsteuer-nie-25-prozent',
+    titel: 'Abgeltungsteuer: Warum niemand 25 Prozent zahlt',
+    teaser: 'Ohne Kirchensteuer sind es 26,375 Prozent, mit Kirchensteuer 27,995 – aber nicht, weil 9 Prozent obendrauf kommen. § 32d Abs. 1 Satz 3 EStG senkt die Kapitalertragsteuer auf 24,45 Prozent, sodass von jedem Euro Kirchensteuer nur 74 Cent ankommen. Dazu die Schwelle, unter der sich die Abgeltungsteuer gar nicht lohnt.',
+    datum: '2026-09-12',
+    thema: 'Geld',
+    rechner: ['abgeltungsteuer-rechner', 'etf-renditerechner'],
+    aufRechnerseite: true,
+  },
+  {
     slug: 'bussgeldkatalog-schwellenwerte',
     titel: 'Bußgeldkatalog: Wo ein einziges km/h den Preis vervielfacht',
     teaser: 'Innerorts trennt ein Kilometer pro Stunde 180 € von 260 € und dem ersten Fahrverbot. Der teuerste km/h steht aber beim Abstand: Von 80 auf 81 km/h springt derselbe gemessene Abstand von pauschal 25 € auf bis zu 320 €. Und bei 130 km/h trennt ein Meter – 28 Millisekunden – eine Geldbuße ohne Fahrverbot von einer mit.',
