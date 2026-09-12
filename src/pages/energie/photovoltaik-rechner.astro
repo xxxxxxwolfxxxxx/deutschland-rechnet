@@ -1,7 +1,7 @@
 ---
 import Layout from '../../layouts/Layout.astro';
 import CalculatorShell from '../../components/CalculatorShell.astro';
-import CalculatorGuide from '../../components/CalculatorGuide.astro';
+import ArtikelPhotovoltaik from '../../components/artikel/photovoltaik-eigenverbrauch.astro';
 import { CALCULATORS, CATEGORIES } from '../../data/calculators';
 import { STROMPREIS_CENT_PRO_KWH, STROMPREIS_EURO_PRO_KWH } from '../../../public/scripts/strompreis.js';
 import { berechnePhotovoltaik } from '../../../public/scripts/photovoltaik.js';
@@ -85,27 +85,9 @@ const amortSpanne = `${Math.min(...amortJahre)} bis ${Math.max(...amortJahre)}`;
       </div>
       <div id="details" style="margin-top:0.75rem;font-size:0.88rem;color:#666;display:flex;gap:1.5rem;flex-wrap:wrap;"></div>
     </div>
+
+    <ArtikelPhotovoltaik slot="artikel" />
   </CalculatorShell>
-
-  <CalculatorGuide
-    title="Solaranlagen wirtschaftlich planen"
-    content={`<p>Photovoltaikanlagen sind für Hauseigentümer weiterhin eine rentable Investition, aber die Rechnung ist enger geworden: Die Einspeisevergütung sinkt nach § 49 EEG halbjährlich um ein Prozent und liegt für neue Anlagen bis 10 kWp seit dem 1. August 2026 bei 7,70 ct/kWh. Eine Anlage von 5 bis 10 kWp amortisiert sich beim heutigen Strompreis von ${ct(STROMPREIS_CENT_PRO_KWH)} ct/kWh in ${amortSpanne} Jahren und läuft danach weitere 15 bis 20 Jahre – nicht kostenlos, aber mit geringen laufenden Kosten. Der Strompreis ist dabei der empfindlichste Hebel: Er bestimmt, was jede selbst verbrauchte Kilowattstunde wert ist, und wiegt damit deutlich schwerer als die Einspeisevergütung.</p>
-
-<p><strong>Die Vergütung endet nach 20 Jahren:</strong> Nach § 25 EEG zahlt der Netzbetreiber die Einspeisevergütung 20 Jahre lang, gerechnet ab dem Jahr nach der Inbetriebnahme. Maßgeblich ist der Satz, der bei Inbetriebnahme gilt – er bleibt für die vollen 20 Jahre unverändert, spätere Absenkungen betreffen Sie nicht mehr. Nach Ablauf bleibt die Ersparnis beim Stromzukauf; für den eingespeisten Rest gibt es dann nur noch, was ein Direktvermarkter zahlt. Wirtschaftlichkeitsrechnungen, die 25 Jahre lang Vergütung unterstellen, schönen das Ergebnis um mehrere tausend Euro.</p>
-
-<p><strong>Größe und Kosten richtig dimensionieren:</strong> Eine typische Einfamilienhaus-Anlage ist 5-10 kWp groß (kostet heute 8.000-17.000 €). Die Daumenregel: 1 kWp Fläche benötigt ca. 6-8 m² Dachfläche und kostet ca. 1.500-1.800 € (Modul + Installation). Eine 8-kWp-Anlage erzeugt im deutschen Mittel rund 7.600 kWh pro Jahr – rechnerisch mehr als der Jahresverbrauch eines Vier-Personen-Haushalts, allerdings zur falschen Tageszeit: Ohne Speicher fällt der Ertrag mittags an, der Verbrauch abends.</p>
-
-<p><strong>Größer ist nicht anteilig besser:</strong> Oberhalb von 10 kWp sinkt die Vergütung auf 6,66 ct/kWh. Dabei gilt der niedrigere Satz nicht rückwirkend für die ganze Anlage – nach § 48 Abs. 2 EEG wird anteilig gemischt: Bei 15 kWp werden die ersten 10 kWp mit 7,70 ct und die restlichen 5 kWp mit 6,66 ct vergütet, im Schnitt also 7,35 ct/kWh. Eine größere Anlage lohnt sich trotzdem, wenn Sie den Mehrertrag selbst verbrauchen – über die Einspeisung allein trägt sie sich schlechter als eine kleine.</p>
-
-<p><strong>Eigenverbrauch optimieren:</strong> Ohne Speicher nutzen Sie etwa 30 % des PV-Stroms selbst (wenn tagsüber wenig im Haus verbraucht wird), der Rest wird ins Netz eingespeist. Mit Stromspeicher (Batterie 5-10 kWh) steigt der Eigenverbrauch auf 50-70 %. Ein Stromspeicher kostet extra ca. 5.000-8.000 €. Ob er sich trägt, hängt am Strompreis: Jede zusätzlich selbst verbrauchte Kilowattstunde ist die Differenz zwischen Strompreis (im Haushaltsdurchschnitt ${ct(STROMPREIS_CENT_PRO_KWH)} ct/kWh) und Einspeisevergütung (7,70 ct/kWh) wert, derzeit also rund ${ct(STROMPREIS_CENT_PRO_KWH - 7.7)} ct. Noch besser als ein Speicher: Wärmepumpe oder Warmwasserspeicher nutzen tagsüber den PV-Strom direkt, ohne Umweg über eine Batterie.</p>
-
-<p><strong>Standort und Ausrichtung entscheidend:</strong> Südausrichtung ist ideal, West- oder Ostausrichtung ist mit 80-90 % Ertrag fast genauso gut. Norddächer sind wirtschaftlich unrentabel. Wichtig: Keine Verschattung durch Bäume, Nachbargebäude oder Schornsteine – selbst 10 % Schatten reduzieren den Ertrag um 30-40 %. Ein Fachmann kann vor der Installation mit einer Verschattungsanalyse prüfen, ob Ihr Dach geeignet ist.</p>
-
-<p><strong>Wirtschaftliche Bewertung über 25 Jahre:</strong> Eine 8-kWp-Anlage für ${euro(BEISPIEL.investition)} erzeugt im ersten Jahr ${kwh(b.jahresertragKwh)} und danach jährlich etwa 0,5 % weniger, weil die Module altern. Bei 30 % Eigenverbrauch und einem Strompreis von ${ct(STROMPREIS_CENT_PRO_KWH)} ct/kWh spart sie im ersten Jahr ${euro(b.einsparungStrom)} Stromkosten und bringt ${euro(b.einspeiseerloese)} Einspeisevergütung. Davon gehen ${euro(b.betriebskosten)} pro Jahr für Versicherung, Wartung, Zählermiete und die Rücklage für den Wechselrichter ab, der nach 10 bis 15 Jahren fällig wird. Bezahlt ist die Anlage nach ${b.amortJahre} Jahren; über 25 Jahre bleiben unter dem Strich ${euro(b.ueberschuss25j)} Überschuss auf ${euro(BEISPIEL.investition)} Einsatz – wobei die Einspeisevergütung nur in den ersten 20 Jahren fließt. Das ist solide, aber deutlich weniger, als Rechnungen ohne Betriebskosten und mit 25 Jahren Vergütung ausweisen. Steigt der Strompreis, verschiebt sich das Ergebnis nach oben – dieser Rechner rechnet bewusst mit konstanten Preisen.</p>
-
-<p><strong>Zukunftssicherheit und Regelwerk:</strong> PV-Anlagen haben eine Garantie von 25 Jahren (Module: 90 % Leistung garantiert). Der Wechselrichter muss nach 10-15 Jahren erneuert werden. Der Nullsteuersatz auf Kauf und Installation gilt bereits seit dem 1. Januar 2023 (§ 12 Abs. 3 UStG, eingeführt mit dem Jahressteuergesetz 2022) und erfasst Anlagen bis 30 kWp; das Solarpaket I von 2024 hat davon unabhängig die Anmeldung vereinfacht. Eine Genehmigung braucht es für ein normales Hausdach nicht – anzumelden ist die Anlage aber in jedem Fall beim Netzbetreiber und im Marktstammdatenregister der Bundesnetzagentur.</p>`}
-    relatedSlugs={['stromspeicher-rechner', 'waermepumpe-rechner', 'solarspeicher-dimensionierung']}
-  />
 </Layout>
 
 <style>

@@ -1,5 +1,6 @@
 ---
-import ArticleLayout from '../../layouts/ArticleLayout.astro';
+import RechnerArtikel from '../RechnerArtikel.astro';
+import { artikelPfadVonSlug } from '../../data/ratgeber';
 
 const base = import.meta.env.BASE_URL;
 
@@ -66,10 +67,8 @@ const prozent = (n: number) => (n * 100).toLocaleString('de-DE', { maximumFracti
 const ct = (n: number) => n.toLocaleString('de-DE', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + ' ct';
 const ganz = (n: number) => n.toLocaleString('de-DE');
 ---
-<ArticleLayout
-  title="Was ein Auto wirklich pro Kilometer kostet – und warum der Sprit der kleinere Posten ist"
-  description={`Der Wertverlust macht je nach Fahrzeug ${prozent(guenstigstes.anteilWertverlust)} bis ${prozent(teuerstes.anteilWertverlust)} der Autokosten aus – deutlich mehr als der Kraftstoff. Fünf Modelle nach ADAC-Daten aufgeschlüsselt.`}
-  canonicalPath="/ratgeber/autokosten-wertverlust/"
+<RechnerArtikel
+  titel="Was ein Auto wirklich pro Kilometer kostet – und warum der Sprit der kleinere Posten ist"
   lead={`Beim Autokauf wird über den Verbrauch diskutiert, beim Tanken über den Literpreis geärgert. Der mit Abstand größte Posten steht auf keiner Rechnung: Der Wertverlust macht bei einem ${golf.name} ${prozent(golf.anteilWertverlust)} der monatlichen Kosten aus – gegenüber ${prozent(golf.anteilBetrieb)} für Kraftstoff, Öl und Pflege zusammen.`}
   datum="2026-08-14"
   quellen={[
@@ -94,7 +93,7 @@ const ganz = (n: number) => n.toLocaleString('de-DE');
     enthalten.</strong> Wer den Kauf finanziert, muss sie zusätzlich rechnen.
   </p>
 
-  <h2>Vier Blöcke, und einer dominiert</h2>
+  <h3>Vier Blöcke, und einer dominiert</h3>
   <p>
     Autokosten zerfallen in vier Gruppen: Wertverlust, Fixkosten (Versicherung,
     Kfz-Steuer, Pauschalen), Werkstatt- und Reifenkosten sowie Betriebskosten
@@ -153,7 +152,7 @@ const ganz = (n: number) => n.toLocaleString('de-DE');
     {' '}{prozent(guenstigstes.anteilBetrieb)}.
   </p>
 
-  <h2>Warum ein sparsameres Auto teurer sein kann</h2>
+  <h3>Warum ein sparsameres Auto teurer sein kann</h3>
   <p>
     Aus dieser Verteilung folgt etwas Unbequemes: Ein Aufpreis, der sich über
     geringeren Verbrauch amortisieren soll, muss gegen einen Posten anlaufen, der
@@ -216,7 +215,7 @@ const ganz = (n: number) => n.toLocaleString('de-DE');
     Diesel bei aktuellen Preisen in aller Regel nicht.
   </p>
 
-  <h2>Was beim Stehen anfällt</h2>
+  <h3>Was beim Stehen anfällt</h3>
   <p>
     Die zweite praktische Konsequenz betrifft Wenigfahrer. Wertverlust und Fixkosten
     laufen unabhängig von der Fahrleistung weiter – ein Auto, das ein Jahr in der
@@ -234,7 +233,7 @@ const ganz = (n: number) => n.toLocaleString('de-DE');
     mit Carsharing oder Mietwagen, der sonst reflexhaft abgetan wird.
   </p>
 
-  <h2>Der Wertverlust ist nicht gleichmäßig</h2>
+  <h3>Der Wertverlust ist nicht gleichmäßig</h3>
   <p>
     Die ADAC-Zahlen weisen den Wertverlust als Monatsdurchschnitt über fünf Jahre aus.
     Tatsächlich verläuft er stark degressiv: Am steilsten fällt der Wert im ersten
@@ -273,7 +272,7 @@ const ganz = (n: number) => n.toLocaleString('de-DE');
     fast immer besser; wer Autos bis zum Ende fährt, mit dem Neuwagen oft ebenso gut.
   </p>
 
-  <h2>Was daraus für die Kaufentscheidung folgt</h2>
+  <h3>Was daraus für die Kaufentscheidung folgt</h3>
   <p>
     Drei Schlüsse, die sich aus den Zahlen ergeben und nicht aus dem Bauchgefühl:
   </p>
@@ -299,17 +298,17 @@ const ganz = (n: number) => n.toLocaleString('de-DE');
     </li>
   </ul>
 
-  <h2>Den eigenen Fall rechnen</h2>
+  <h3>Den eigenen Fall rechnen</h3>
   <p>
     Die ADAC-Werte gelten für Neuwagen unter Standardannahmen. Für das eigene Fahrzeug,
-    die eigene Fahrleistung und einen gebrauchten Wagen rechnen diese Rechner:
+    die eigene Fahrleistung und einen gebrauchten Wagen rechnet der Rechner am
+    Anfang dieser Seite. Die Einzelposten dahinter:
   </p>
   <ul>
     <li><a href={`${base}auto/unterhaltskosten-auto/`}>Unterhaltskosten-Rechner</a> – alle vier Blöcke, getrennt nach fix und variabel</li>
-    <li><a href={`${base}auto/km-kostenrechner/`}>Kilometerkosten-Rechner</a> – Vollkosten je gefahrenem Kilometer</li>
     <li><a href={`${base}auto/wartungskosten-auto/`}>Wartungskosten-Rechner</a> – Werkstatt, Verschleiß und Reifen nach Klasse und Alter</li>
     <li><a href={`${base}auto/spritkosten-rechner/`}>Spritkosten-Rechner</a> – Betriebskosten für die eigene Strecke</li>
-    <li><a href={`${base}ratgeber/kfz-steuer-erstzulassung/`}>Kfz-Steuer nach Erstzulassung</a> – warum der Diesel bei den Fixkosten schlechter dasteht</li>
+    <li><a href={`${artikelPfadVonSlug('kfz-steuer-erstzulassung')}`}>Kfz-Steuer nach Erstzulassung</a> – warum der Diesel bei den Fixkosten schlechter dasteht</li>
   </ul>
 
   <p class="hinweis">
@@ -319,7 +318,7 @@ const ganz = (n: number) => n.toLocaleString('de-DE');
     Marktpreise schwanken regional und über die Zeit erheblich – die Anteile der
     Kostenblöcke sind belastbarer als die absoluten Beträge.
   </p>
-</ArticleLayout>
+</RechnerArtikel>
 
 <style>
 .table-wrap {

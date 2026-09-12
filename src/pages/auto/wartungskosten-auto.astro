@@ -1,7 +1,7 @@
 ---
 import Layout from '../../layouts/Layout.astro';
 import CalculatorShell from '../../components/CalculatorShell.astro';
-import CalculatorGuide from '../../components/CalculatorGuide.astro';
+import ArtikelGebrauchtwagen from '../../components/artikel/gebrauchtwagen-alter-kosten.astro';
 import { CALCULATORS, CATEGORIES } from '../../data/calculators';
 const calc = CALCULATORS.find(c => c.slug === 'wartungskosten-auto')!;
 const cat = CATEGORIES[calc.category];
@@ -104,25 +104,9 @@ const year = new Date().getFullYear();
       </div>
       <p id="hinweis" class="hinweis"></p>
     </div>
+
+    <ArtikelGebrauchtwagen slot="artikel" />
   </CalculatorShell>
-
-  <CalculatorGuide
-    title="Wartungskosten und Verschleiß richtig einschätzen"
-    content={`<p>Die <strong>Wartungskosten eines Autos</strong> sind der Kostenblock, der sich am schwersten vorhersagen lässt. Sprit rechnet man im Kopf, die Versicherungsrechnung kommt einmal im Jahr – aber was Bremsen, Reifen und die nächste Inspektion kosten, zeigt sich meist erst in der Werkstatt. Dieser Rechner macht die Größenordnung vorab sichtbar.</p>
-
-<p><strong>Warum drei getrennte Blöcke?</strong> Wartung, Verschleiß und Reifen verhalten sich völlig unterschiedlich. Die Hauptuntersuchung ist alle zwei Jahre fällig, egal ob Sie 5.000 oder 30.000 Kilometer gefahren sind. Motoröl altert auch im Stand. Bremsbeläge dagegen verschleißen praktisch nur beim Fahren, und Reifen halten eine ziemlich feste Kilometerzahl. Wer alles in einen Topf wirft, bekommt für Wenigfahrer wie für Vielfahrer falsche Werte.</p>
-
-<p><strong>Der Alterseffekt:</strong> In den ersten Jahren zahlen Sie fast nur planbare Wartung – Garantie und Kulanz fangen das meiste ab. Ab etwa dem sechsten Jahr ändert sich das Bild: Stoßdämpfer lassen nach, die Auspuffanlage rostet, Zahnriemen oder Steuerkette stehen an, die Klimaanlage will befüllt werden. Das Modell bildet das über einen Faktor ab, der bei 0,5 im ersten Jahr beginnt und um 0,12 je Lebensjahr wächst. Bei etwa 16 Jahren wird er gedeckelt – danach wird meist eher verschrottet als repariert.</p>
-
-<p><strong>Fixkostendegression – warum Vielfahrer pro Kilometer günstiger fahren:</strong> Ein Kompaktwagen mit fünf Jahren auf dem Buckel kommt bei 5.000 Kilometern im Jahr auf rund 10 Cent Werkstattkosten pro Kilometer. Bei 30.000 Kilometern sind es nur noch etwa 7 Cent. Die Jahressumme steigt zwar deutlich, aber der fixe Wartungsanteil verteilt sich auf sechsmal so viele Kilometer. Für die Frage »lohnt sich mein Auto überhaupt?« ist das entscheidend: Wenigfahrer zahlen jeden Kilometer teuer.</p>
-
-<p><strong>Was das Modell nicht kann:</strong> Es rechnet mit Durchschnitten. Ein Kapitalschaden an Getriebe, Motor oder Hochvoltbatterie kostet vierstellig und taucht in keiner Durchschnittsrechnung auf. Ebenso wenig die Preisunterschiede zwischen Vertragswerkstatt und freier Werkstatt – die können bei identischer Leistung 30 bis 40 Prozent betragen. Nutzen Sie die Werte als Budgetrahmen, nicht als Kostenvoranschlag.</p>
-
-<p><strong>Praktische Konsequenz:</strong> Wer die Werkstattkosten seines Fahrzeugs kennt, kann zwei Fragen sauber beantworten. Erstens: Lohnt sich die nächste Reparatur noch, oder übersteigt sie den Restwert? Zweitens: Wie viel muss ich monatlich zurücklegen, damit die nächste Rechnung nicht wehtut? Bei einem fünf Jahre alten Kompaktwagen mit 15.000 Kilometern im Jahr sind rund 70 bis 80 Euro im Monat eine realistische Rücklage.</p>
-
-<p><strong>Elektroauto oder Verbrenner?</strong> Beim Stromer entfallen Ölwechsel, Zündkerzen, Auspuff und Kupplung, und die Rekuperation schont die Bremsen so stark, dass Beläge oft doppelt so lange halten. Dem stehen höhere Reifenkosten gegenüber: mehr Gewicht, mehr Drehmoment, schnellerer Abrieb. Netto bleiben meist 20 bis 35 Prozent geringere Werkstattkosten.</p>`}
-    relatedSlugs={['km-kostenrechner', 'unterhaltskosten-auto', 'kfz-versicherung-rechner']}
-  />
 </Layout>
 
 <style>

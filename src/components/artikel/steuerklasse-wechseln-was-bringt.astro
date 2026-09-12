@@ -1,5 +1,5 @@
 ---
-import ArticleLayout from '../../layouts/ArticleLayout.astro';
+import RechnerArtikel from '../RechnerArtikel.astro';
 import { vergleicheKombinationen } from '../../../public/scripts/steuerklassenwahl.js';
 import { berechneElterngeld, HOECHSTBETRAG } from '../../../public/scripts/elterngeld.js';
 import { berechneSozialabgaben, BBG_KV_PV_JAHR, BBG_RV_AV_JAHR } from '../../../public/scripts/sozialversicherung.js';
@@ -103,12 +103,10 @@ const eur = (betrag: number) =>
 const eurGenau = (betrag: number) =>
   betrag.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
 ---
-<ArticleLayout
-  title="Steuerklasse wechseln: Was es wirklich bringt – und was nicht"
-  description={`Der Wechsel der Steuerklasse ändert die Jahressteuer um keinen Cent. Durchgerechnet für drei Paare mit ${eur(HAUSHALT)} Haushaltseinkommen – samt der einen Situation, in der er tatsächlich Geld bringt.`}
-  canonicalPath="/ratgeber/steuerklasse-wechseln-was-bringt/"
-  datum="2026-08-14"
+<RechnerArtikel
+  titel="Was ein Wechsel wirklich bringt – und was nicht"
   lead={`Für dasselbe Paar liegen die vier wählbaren Kombinationen ${eur(spanne60)} auseinander – bei dem, was das Jahr über vom Lohn einbehalten wird. Die Steuer, die am Ende geschuldet wird, ist in allen vier Fällen dieselbe. Was ein Wechsel verschiebt, ist also nicht die Belastung, sondern ihr Zeitpunkt. Bis auf einen Fall.`}
+  datum="2026-08-14"
   quellen={[
     { titel: '§ 32a Abs. 5 EStG – Splittingverfahren', url: 'https://www.gesetze-im-internet.de/estg/__32a.html' },
     { titel: '§ 39 Abs. 6 EStG – Änderung der Steuerklasse im Kalenderjahr', url: 'https://www.gesetze-im-internet.de/estg/__39.html' },
@@ -120,7 +118,7 @@ const eurGenau = (betrag: number) =>
     { titel: '§ 2c BEEG – Einkommen aus nichtselbstständiger Erwerbstätigkeit', url: 'https://www.gesetze-im-internet.de/beeg/__2c.html' },
   ]}
 >
-  <h2>Vier Kombinationen, eine Steuer</h2>
+  <h3>Vier Kombinationen, eine Steuer</h3>
 
   <p>
     Ehepaare und eingetragene Lebenspartner können zwischen vier Kombinationen wählen:
@@ -194,7 +192,7 @@ const eurGenau = (betrag: number) =>
     </p>
   )}
 
-  <h2>Die Reihenfolge kostet mehr als die Kombination</h2>
+  <h3>Die Reihenfolge kostet mehr als die Kombination</h3>
 
   <p>
     Wer sich für III/V entscheidet, trifft eine zweite Entscheidung mit: wer von
@@ -255,7 +253,7 @@ const eurGenau = (betrag: number) =>
     deutlich größer ist als das andere und die III an das größere geht.
   </p>
 
-  <h2>Bei gleichen Einkommen ist III/V schlechter</h2>
+  <h3>Bei gleichen Einkommen ist III/V schlechter</h3>
 
   <p>
     Die verbreitete Annahme, III/V sei „die günstigere“ Kombination, hält bei
@@ -274,7 +272,7 @@ const eurGenau = (betrag: number) =>
     es wird schlicht nicht gebraucht.
   </p>
 
-  <h2>Das Faktorverfahren trifft – und zieht trotzdem eine Pflicht nach sich</h2>
+  <h3>Das Faktorverfahren trifft – und zieht trotzdem eine Pflicht nach sich</h3>
 
   <p>
     Wer die Liquidität von III/V will, ohne die Nachzahlung, wählt IV/IV mit
@@ -293,7 +291,7 @@ const eurGenau = (betrag: number) =>
     kommt nur mit dem schlichten IV/IV ohne Faktor aus.
   </p>
 
-  <h2>Wo der Wechsel wirklich Geld bringt</h2>
+  <h3>Wo der Wechsel wirklich Geld bringt</h3>
 
   <p>
     Es gibt eine Ausnahme, und sie ist die eigentliche Antwort auf die Frage nach
@@ -374,7 +372,7 @@ const eurGenau = (betrag: number) =>
     laufenden Jahr endet am 30. November.
   </p>
 
-  <h2>Ein Nebenbefund zum Alleinverdiener</h2>
+  <h3>Ein Nebenbefund zum Alleinverdiener</h3>
 
   <p>
     Beim Durchrechnen fällt eine Zahl auf, die der üblichen Erzählung über das
@@ -415,7 +413,7 @@ const eurGenau = (betrag: number) =>
     Grenze überschreitet.
   </p>
 
-  <h2>Was daraus folgt</h2>
+  <h3>Was daraus folgt</h3>
 
   <p>
     Für die meisten Paare ist die Frage nach der „richtigen“ Steuerklasse eine
@@ -434,9 +432,8 @@ const eurGenau = (betrag: number) =>
   </p>
 
   <p>
-    Beide Seiten lassen sich hier nachrechnen: die Kombinationen im
-    {' '}<a href={`${base}geld/steuerklasse-optimieren/`}>Steuerklassen-Rechner</a>,
-    die Auswirkung auf die Leistung im
+    Beide Seiten lassen sich hier nachrechnen: die Kombinationen im Rechner am
+    Anfang dieser Seite, die Auswirkung auf die Leistung im
     {' '}<a href={`${base}familie/elterngeld-rechner/`}>Elterngeld-Rechner</a>.
     Wie sich die Klasse auf das monatliche Netto auswirkt, zeigt der
     {' '}<a href={`${base}geld/brutto-netto-rechner/`}>Brutto-Netto-Rechner</a>.
@@ -450,7 +447,7 @@ const eurGenau = (betrag: number) =>
     Freibeträge sind nicht berücksichtigt. Der Artikel ersetzt keine
     Steuerberatung.
   </p>
-</ArticleLayout>
+</RechnerArtikel>
 
 <style>
 .table-wrap {

@@ -1,7 +1,7 @@
 ---
 import Layout from '../../layouts/Layout.astro';
 import CalculatorShell from '../../components/CalculatorShell.astro';
-import CalculatorGuide from '../../components/CalculatorGuide.astro';
+import ArtikelElterngeld from '../../components/artikel/elterngeld-ersatzrate.astro';
 import { CALCULATORS, CATEGORIES } from '../../data/calculators';
 import {
   HOECHSTBETRAG,
@@ -142,37 +142,9 @@ const fruehgeburtZeilen = BASISMONATE_FRUEHGEBURT.map(s =>
       <p id="details" style="margin-top:0.5rem;font-size:0.85rem;color:#666;"></p>
       <p id="hinweis" style="margin-top:0.5rem;font-size:0.85rem;color:#666;"></p>
     </div>
+
+    <ArtikelElterngeld slot="artikel" />
   </CalculatorShell>
-
-  <CalculatorGuide
-    title="Elterngeld in Deutschland: Anspruch, Berechnung und Gestaltungsmöglichkeiten"
-    content={`<p>Das Elterngeld wird nach dem <strong>Bundeselterngeld- und Elternzeitgesetz (BEEG)</strong> gezahlt. Anspruch hat, wer mit seinem Kind in einem Haushalt lebt, es selbst betreut und erzieht und nicht voll erwerbstätig ist – also im Durchschnitt des Lebensmonats nicht mehr als 32 Wochenstunden arbeitet (§ 1 Abs. 1 und 6 BEEG).</p>
-
-<p><strong>Die Ersatzrate ist gestaffelt, nicht fest.</strong> Verbreitet ist die Angabe, das Elterngeld betrage ${prozent(SATZ_REGEL)} des Nettoeinkommens. Das trifft nur einen schmalen Bereich. Nach § 2 Abs. 2 BEEG steigt der Prozentsatz bei einem Erwerbseinkommen unter ${euro(GERINGVERDIENER_GRENZE)} um ${punkte(SATZ_SCHRITT)} für je volle ${euro(EINKOMMEN_SCHRITT)}, um die das Einkommen diese Grenze unterschreitet – auf bis zu ${prozent(SATZ_MAX)}. Oberhalb von ${euro(ABSENKUNGS_GRENZE)} sinkt er nach derselben Staffel auf bis zu ${prozent(SATZ_MIN)}. Da die Absenkung ihren Boden schon bei einem Einkommen von ${euro(bodenAb)} erreicht, gelten für die meisten Beschäftigten ${prozent(SATZ_MIN)}.</p>
-
-<p><strong>Das maßgebliche Einkommen ist nicht Ihr Netto.</strong> Das BEEG bildet in den §§ 2c bis 2f eine eigene Größe. Von den Einnahmen aus nichtselbstständiger Arbeit werden abgezogen: ein Zwölftel des Arbeitnehmer-Pauschbetrags von ${euro(ARBEITNEHMER_PAUSCHBETRAG)} (§ 2c Abs. 1 Satz 1), die Steuern auf Grundlage des Programmablaufplans für den Lohnsteuerabzug (§ 2e) und Sozialabgaben von pauschal ${prozent(sozialabgabenGesamt)} (§ 2f). Diese ${prozent(sozialabgabenGesamt)} setzen sich aus ${prozent(SOZIALABGABEN_PAUSCHALEN.krankenPflege)} für die Kranken- und Pflegeversicherung, ${prozent(SOZIALABGABEN_PAUSCHALEN.rente)} für die Rentenversicherung und ${prozent(SOZIALABGABEN_PAUSCHALEN.arbeitsfoerderung)} für die Arbeitsförderung zusammen. Es sind gesetzliche Pauschalen: Nach § 2f Abs. 3 BEEG bleiben andere Maßgaben zur Beitragsbemessung außer Betracht, eine Beitragsbemessungsgrenze wirkt hier also nicht. Einmalzahlungen wie Weihnachts- oder Urlaubsgeld zählen nach § 2c Abs. 1 Satz 2 BEEG nicht mit.</p>
-
-<p><strong>Ober- und Untergrenze:</strong> Das Basiselterngeld beträgt höchstens ${euro(HOECHSTBETRAG)} monatlich (§ 2 Abs. 1 Satz 2 BEEG) und mindestens ${euro(MINDESTBETRAG)} – letzteres auch dann, wenn vor der Geburt überhaupt kein Erwerbseinkommen bestand (§ 2 Abs. 4 BEEG).</p>
-
-<p><strong>Zuschläge nach § 2a BEEG:</strong> Wer mit zwei Kindern unter drei Jahren oder drei Kindern unter sechs Jahren in einem Haushalt lebt, erhält einen Geschwisterbonus von ${prozent(GESCHWISTERBONUS_SATZ)}, mindestens ${euro(GESCHWISTERBONUS_MINDESTBETRAG)}. Bei Mehrlingsgeburten kommen ${euro(MEHRLINGSZUSCHLAG)} für das zweite und jedes weitere Kind hinzu. Beide Zuschläge lassen sich kombinieren und treten neben den Höchstbetrag – der Gesamtbetrag kann ${euro(HOECHSTBETRAG)} also überschreiten.</p>
-
-<p><strong>Teilzeit während des Bezugs:</strong> Erwerbseinkommen wird nicht vom Elterngeld abgezogen. Nach § 2 Abs. 3 BEEG wird die Ersatzrate auf den Unterschiedsbetrag zwischen dem Einkommen vor der Geburt und dem während des Bezugs angewandt, wobei das vorgeburtliche Einkommen höchstens mit ${euro(KAPPUNG_VORGEBURTLICH)} angesetzt wird.</p>
-
-<p><strong>Bezugsdauer:</strong> Die Eltern haben gemeinsam Anspruch auf ${BASISMONATE} Monatsbeträge Basiselterngeld, zuzüglich ${PARTNERMONATE} Partnermonaten, wenn das Einkommen eines Elternteils in zwei Lebensmonaten gemindert ist (§ 4 Abs. 3 BEEG). Statt eines Monats Basiselterngeld lassen sich jeweils zwei Monate Elterngeld Plus beziehen, aus ${BASISMONATE + PARTNERMONATE} Monaten werden so bis zu ${monatePlus}. Arbeiten beide Eltern gleichzeitig zwischen 24 und 32 Wochenstunden, kommen nach § 4b BEEG je Elternteil bis zu ${PARTNERSCHAFTSBONUS_MONATE} weitere Monate Elterngeld Plus hinzu.</p>
-
-<p><strong>Frühgeburten (§ 4 Abs. 5 BEEG):</strong> Kam das Kind deutlich vor dem errechneten Termin zur Welt, verlängert sich der gemeinsame Anspruch:</p>
-<table>
-  <thead><tr><th>Geburt vor dem Termin</th><th>Basiselterngeld</th></tr></thead>
-  <tbody>
-${fruehgeburtZeilen}
-  </tbody>
-</table>
-
-<p><strong>Einkommensgrenze:</strong> Der Anspruch entfällt, wenn das zu versteuernde Einkommen im letzten abgeschlossenen Veranlagungszeitraum vor der Geburt mehr als ${euro(EINKOMMENSGRENZE)} betrug; bei zwei berechtigten Personen zählt die Summe beider Einkommen (§ 1 Abs. 8 BEEG). Diese Grenze wurde mehrfach gesenkt – ältere Angaben von 200.000, 250.000 oder 300.000 Euro sind überholt.</p>
-
-<p><strong>Praxistipp:</strong> Monate mit geringem Einkommen können unter den Voraussetzungen des § 2b Abs. 1 Satz 2 BEEG aus dem Bemessungszeitraum herausfallen, etwa bei Mutterschaftsgeldbezug für ein älteres Kind oder einer schwangerschaftsbedingten Krankheit. Das erhöht das durchschnittliche Einkommen und damit das Elterngeld. Auch die Wahl der Steuerklasse im Bemessungszeitraum wirkt sich aus, weil § 2e BEEG an die Steuerklasse anknüpft.</p>`}
-    relatedSlugs={['kindergeld-rechner', 'mutterschutz-rechner', 'wohngeld-rechner', 'unterhaltsrechner']}
-  />
 </Layout>
 
 <script type="module">

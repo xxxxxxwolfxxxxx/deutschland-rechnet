@@ -1,7 +1,7 @@
 ---
 import Layout from '../../layouts/Layout.astro';
 import CalculatorShell from '../../components/CalculatorShell.astro';
-import CalculatorGuide from '../../components/CalculatorGuide.astro';
+import ArtikelKindesunterhalt from '../../components/artikel/kindesunterhalt-volljaehrigkeit.astro';
 import { CALCULATORS, CATEGORIES } from '../../data/calculators';
 const calc = CALCULATORS.find(c => c.slug === 'unterhaltsrechner')!;
 const cat = CATEGORIES[calc.category];
@@ -111,32 +111,9 @@ const year = new Date().getFullYear();
 
       <div id="olg-hinweis" class="bl-hinweis" style="display:none;"></div>
     </div>
+
+    <ArtikelKindesunterhalt slot="artikel" />
   </CalculatorShell>
-
-  <CalculatorGuide
-    title="Kindesunterhalt nach der Düsseldorfer Tabelle"
-    content={`<p>Die <strong>Düsseldorfer Tabelle</strong> ist kein Gesetz, sondern eine Leitlinie des Oberlandesgerichts Düsseldorf, der die Familiensenate aller Oberlandesgerichte folgen. Ihre erste Einkommensgruppe ist an den gesetzlichen Mindestunterhalt der Mindestunterhaltsverordnung gebunden. Die Fassung mit Stand 1.1.2026 hat die Bedarfssätze minderjähriger Kinder um jeweils 4 € angehoben.</p>
-
-<p><strong>Die Berechnung erfolgt in fünf Schritten:</strong>
-<ul>
-  <li><strong>Schritt 1:</strong> Bereinigung des Nettoeinkommens – Abzug berufsbedingter Aufwendungen (pauschal 5 %), berücksichtigungsfähiger Schulden und zusätzlicher Altersvorsorge</li>
-  <li><strong>Schritt 2:</strong> Ablesen der Einkommensgruppe (Gruppe 1 bis 2.100 €, Gruppe 15 bis 11.200 €) und Anpassung nach der Zahl der Unterhaltsberechtigten</li>
-  <li><strong>Schritt 3:</strong> Prüfung des Bedarfskontrollbetrags – gegebenenfalls Rückstufung in eine niedrigere Gruppe</li>
-  <li><strong>Schritt 4:</strong> Anrechnung des Kindergelds (§ 1612b BGB) – bei minderjährigen Kindern die Hälfte von 259 €, also 129,50 €</li>
-  <li><strong>Schritt 5:</strong> Prüfung des Selbstbehalts (§ 1603 BGB)</li>
-</ul>
-</p>
-
-<h3>Die Bedarfssätze 2026 im Überblick</h3>
-<p>Der Mindestunterhalt der ersten Einkommensgruppe beträgt seit dem 1.1.2026 <strong>486 €</strong> (0–5 Jahre), <strong>558 €</strong> (6–11 Jahre) und <strong>653 €</strong> (12–17 Jahre). Für volljährige Kinder im Elternhaushalt gilt mit <strong>698 €</strong> ein Satz von 125 % des Mindestunterhalts der zweiten Altersstufe. Die Sätze der Gruppen 2 bis 5 liegen um jeweils 5 Prozentpunkte, die der Gruppen 6 bis 15 um jeweils 8 Prozentpunkte des Mindestunterhalts höher; in Gruppe 15 ist der Bedarf damit doppelt so hoch wie in Gruppe 1. Studierende mit eigenem Haushalt haben einen von der Tabelle unabhängigen Festbedarf von <strong>990 €</strong>, darin 440 € Warmmiete.</p>
-
-<h3>Selbstbehalt und Bedarfskontrollbetrag</h3>
-<p>Beide Begriffe werden häufig verwechselt. Der <strong>Selbstbehalt</strong> ist die absolute Untergrenze der Inanspruchnahme: 1.450 € gegenüber minderjährigen Kindern bei Erwerbstätigen, 1.200 € bei Nichterwerbstätigen, 1.750 € gegenüber sonstigen volljährigen Kindern. Diese Werte wurden zum 1.1.2026 <em>nicht</em> erhöht. Der <strong>Bedarfskontrollbetrag</strong> liegt darüber und steigt mit der Einkommensgruppe – von 1.750 € in Gruppe 2 bis 5.050 € in Gruppe 15. Verbleibt er dem Pflichtigen nach Abzug der Zahlbeträge nicht, wird zurückgestuft, bis er gewahrt ist.</p>
-
-<h3>Welche Leitlinien gelten wo?</h3>
-<p>Neben der Düsseldorfer Tabelle veröffentlichen die Oberlandesgerichte eigene unterhaltsrechtliche Leitlinien – teils gemeinsam: die <strong>Leitlinien NRW</strong> (Düsseldorf, Hamm, Köln), die <strong>Süddeutschen Leitlinien</strong> (Bamberg, Karlsruhe, München, Nürnberg, Stuttgart, Zweibrücken) und die <strong>Leitlinien Niedersachsen</strong> (Braunschweig, Celle, Oldenburg). In den Bedarfssätzen und Selbstbehalten stimmen sie 2026 bundesweit überein; Unterschiede betreffen Einzelheiten der Einkommensbereinigung, etwa die Behandlung von Fahrtkosten oder Wohnvorteilen.</p>`}
-    relatedSlugs={['ehegattenunterhalt-rechner', 'elterngeld-rechner', 'kindergeld-rechner']}
-  />
 </Layout>
 
 <style>

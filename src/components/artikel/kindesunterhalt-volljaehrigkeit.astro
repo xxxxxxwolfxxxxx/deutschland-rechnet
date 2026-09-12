@@ -1,5 +1,5 @@
 ---
-import ArticleLayout from '../../layouts/ArticleLayout.astro';
+import RechnerArtikel from '../RechnerArtikel.astro';
 import {
   berechneKindesunterhalt,
   DT_2026,
@@ -147,15 +147,13 @@ const quellen = [
   { titel: 'Unterhaltsrechtliche Leitlinien der Familiensenate in NRW, Stand 01.01.2026', url: 'https://www.olg-hamm.nrw.de/infos/Leitlinien-NRW/LL-NRW-2026.pdf' },
 ];
 ---
-<ArticleLayout
-  title="Kindesunterhalt: Warum der 18. Geburtstag den Zahlbetrag senkt"
-  description="Mit der Volljährigkeit steigt der Bedarf des Kindes – der Zahlbetrag sinkt trotzdem, in jeder der 15 Einkommensgruppen. Dazu die Einkommensspanne, in der jeder zusätzliche Euro vollständig an die Kinder geht."
-  canonicalPath="/ratgeber/kindesunterhalt-volljaehrigkeit/"
-  datum="2026-08-27"
+<RechnerArtikel
+  titel="Kindesunterhalt: Warum der 18. Geburtstag den Zahlbetrag senkt"
   lead={`Der Bedarf eines volljährigen Kindes liegt über dem eines siebzehnjährigen – in der Düsseldorfer Tabelle um ${eurGlatt(BASIS_DIFFERENZ)} in der ersten Gruppe. Der Betrag, den der unterhaltspflichtige Elternteil überweist, sinkt am 18. Geburtstag trotzdem. Und zwar in allen fünfzehn Einkommensgruppen.`}
+  datum="2026-08-27"
   quellen={quellen}
 >
-  <h2>Was die Düsseldorfer Tabelle ist – und was nicht</h2>
+  <h3>Was die Düsseldorfer Tabelle ist – und was nicht</h3>
   <p>
     Die Düsseldorfer Tabelle ist kein Gesetz. Sie ist eine Leitlinie des Oberlandesgerichts
     Düsseldorf, der die Familiensenate der übrigen Oberlandesgerichte folgen. Verbindlich ist
@@ -171,7 +169,7 @@ const quellen = [
     Gruppen 2 bis 15 leiten sich als Prozentsätze der ersten ab.
   </p>
 
-  <h2>Der 18. Geburtstag kostet das Kind Geld</h2>
+  <h3>Der 18. Geburtstag kostet das Kind Geld</h3>
   <p>
     Am Tag der Volljährigkeit ändern sich zwei Dinge gleichzeitig. Der Bedarf steigt, weil das
     Kind in die vierte Altersstufe wechselt. Und das Kindergeld wird nicht mehr zur Hälfte,
@@ -245,7 +243,7 @@ const quellen = [
     über die gestritten wird.
   </p>
 
-  <h2>Die Spanne, in der Mehrverdienst nichts bringt</h2>
+  <h3>Die Spanne, in der Mehrverdienst nichts bringt</h3>
   <p>
     Unterhalb des Selbstbehalts ist der Pflichtige nicht leistungsfähig, § 1603 BGB. Oberhalb
     davon wird alles, was über den Selbstbehalt hinausgeht, auf die Berechtigten verteilt,
@@ -285,7 +283,7 @@ const quellen = [
     {' '}{eurGlatt(mangelGrenzen[2].ende)}.
   </p>
 
-  <h2>Ein Euro an der Gruppengrenze</h2>
+  <h3>Ein Euro an der Gruppengrenze</h3>
   <p>
     Oberhalb des Mangelfalls ist der Zahlbetrag eine Treppe: Innerhalb einer Einkommensgruppe
     ändert er sich überhaupt nicht, an der Grenze springt er. Für zwei Kinder von sechs bis elf
@@ -332,7 +330,7 @@ const quellen = [
     als um die Tabelle selbst.
   </p>
 
-  <h2>Der Student mit eigener Wohnung bekommt weniger als der zu Hause</h2>
+  <h3>Der Student mit eigener Wohnung bekommt weniger als der zu Hause</h3>
   <p>
     Ein volljähriges Kind außerhalb des Elternhaushalts hat einen von der Tabelle unabhängigen
     Festbedarf von {eurGlatt(BEDARF_EIGENER_HAUSSTAND)}, darin {eurGlatt(440)} Warmmiete. Nach
@@ -349,7 +347,7 @@ const quellen = [
     ist. Der Festbedarf ist ein Bedarfssatz, keine Beteiligung am Lebensstandard des Zahlenden.
   </p>
 
-  <h2>Geschwister verschieben die Gruppe, nicht das Einkommen</h2>
+  <h3>Geschwister verschieben die Gruppe, nicht das Einkommen</h3>
   <p>
     Die Tabelle unterstellt zwei Unterhaltsberechtigte. Bei einer anderen Zahl wird nicht das
     Einkommen gekürzt, sondern die Einstufung verschoben: bei einem Berechtigten eine Gruppe
@@ -391,7 +389,7 @@ const quellen = [
     {' '}{berechtigteReihe[3].gruppe} zurück.
   </p>
 
-  <h2>Was diese Rechnung nicht abbildet</h2>
+  <h3>Was diese Rechnung nicht abbildet</h3>
   <p>
     Alle Beträge setzen ein bereits <em>bereinigtes</em> Nettoeinkommen voraus – der Streit
     beginnt in der Praxis genau dort. Nicht enthalten sind Mehr- und Sonderbedarf nach
@@ -401,9 +399,8 @@ const quellen = [
     unterschiedlichem Alter der Kinder ist das eine Näherung.
   </p>
   <p>
-    Die Zahlen dieses Artikels stammen aus demselben Rechenmodul wie der
-    {' '}<a href={`${base}familie/unterhaltsrechner/`}>Unterhaltsrechner</a>. Wer den eigenen
-    Fall durchspielen will, findet dort die Eingabefelder für Alter, Einkommen und Zahl der
-    Berechtigten.
+    Die Zahlen dieses Artikels stammen aus demselben Rechenmodul wie der Rechner
+    am Anfang dieser Seite. Wer den eigenen Fall durchspielen will, findet dort die
+    Eingabefelder für Alter, Einkommen und Zahl der Berechtigten.
   </p>
-</ArticleLayout>
+</RechnerArtikel>

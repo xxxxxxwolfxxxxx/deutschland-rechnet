@@ -1,5 +1,6 @@
 ---
-import ArticleLayout from '../../layouts/ArticleLayout.astro';
+import RechnerArtikel from '../RechnerArtikel.astro';
+import { artikelPfadVonSlug } from '../../data/ratgeber';
 import { berechneKfzSteuer, ELEKTRO_BEFREIUNG } from '../../../public/scripts/kfz-steuer.js';
 import {
   STROMPREIS_QUELLE,
@@ -143,10 +144,8 @@ const prozent = (n: number, stellen = 1) => zahl(n * 100, stellen) + ' %';
 const ganz = (n: number) => n.toLocaleString('de-DE');
 const datum = (iso: string) => new Date(iso).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' });
 ---
-<ArticleLayout
-  title="Elektroauto gegen Verbrenner: Die Rechnung entscheidet sich an der Steckdose"
-  description={`Derselbe Corsa mit zwei Antrieben, über ${HALTEDAUER_JAHRE} Jahre gerechnet. Wer zu Hause lädt, spart ${eur(bilanzHeim.saldo * HALTEDAUER_JAHRE)}. Wer öffentlich schnelllädt, zahlt drauf – und die Steuerbefreiung nach § 3d KraftStG ist kürzer, als sie aussieht.`}
-  canonicalPath="/ratgeber/elektroauto-gegen-verbrenner/"
+<RechnerArtikel
+  titel="Elektroauto gegen Verbrenner: Die Rechnung entscheidet sich an der Steckdose"
   lead={`Ob sich ein Elektroauto rechnet, hängt weniger vom Auto ab als davon, wo es lädt. Derselbe Opel Corsa kostet als Stromer über ${HALTEDAUER_JAHRE} Jahre ${eur(Math.abs(bilanzHeim.saldo * HALTEDAUER_JAHRE))} weniger, wenn zu Hause geladen wird – und ${eur(Math.abs(bilanz[2].saldo * HALTEDAUER_JAHRE))} mehr, wenn öffentlich schnellgeladen wird. Zwischen beiden Fällen liegt kein Auto, nur eine Steckdose.`}
   datum="2026-08-14"
   quellen={[
@@ -168,12 +167,11 @@ const datum = (iso: string) => new Date(iso).toLocaleDateString('de-DE', { day: 
   <p>
     Gerechnet wird über {HALTEDAUER_JAHRE} Jahre bei {ganz(KM_PRO_JAHR)} Kilometern im
     Jahr. Kfz-Steuer und Ladekosten kommen zur Bauzeit dieser Seite aus denselben
-    Modulen, die auch der
-    {' '}<a href={`${base}auto/kfz-steuer-rechner/`}>Kfz-Steuer-Rechner</a> und der
-    {' '}<a href={`${base}auto/elektroauto-tco-rechner/`}>Elektroauto-Rechner</a> laden.
+    Modulen, die auch der Rechner oben und der
+    {' '}<a href={`${base}auto/kfz-steuer-rechner/`}>Kfz-Steuer-Rechner</a> laden.
   </p>
 
-  <h2>Der Aufpreis, und was davon übrig bleibt</h2>
+  <h3>Der Aufpreis, und was davon übrig bleibt</h3>
   <p>
     Der Stromer kostet {eur(aufpreis)} mehr – {eur(corsaElektro.grundpreis)} gegenüber
     {' '}{eur(corsaBenzin.grundpreis)}. Diesen Betrag komplett gegenzurechnen wäre
@@ -182,7 +180,7 @@ const datum = (iso: string) => new Date(iso).toLocaleDateString('de-DE', { day: 
   <p>
     Wie groß dieser Teil ist, lässt sich aus den DAT-Preisnotierungen ableiten, die wir
     für den Artikel zur
-    {' '}<a href={`${base}ratgeber/gebrauchtwagen-alter-kosten/`}>Wertverlustkurve</a>
+    {' '}<a href={`${artikelPfadVonSlug('gebrauchtwagen-alter-kosten')}`}>Wertverlustkurve</a>
     {' '}ausgewertet haben: rund {prozent(RESTWERT_NACH_ZWEI_JAHREN)} nach zwei Jahren,
     danach etwa {prozent(JAEHRLICHE_VERLUSTQUOTE)} Verlust pro Jahr – nach
     {' '}{HALTEDAUER_JAHRE} Jahren also {prozent(restwertquoteNachHaltedauer)} des
@@ -203,7 +201,7 @@ const datum = (iso: string) => new Date(iso).toLocaleDateString('de-DE', { day: 
     Elektroautos findet in den Notierungen derzeit keine Entsprechung.
   </p>
 
-  <h2>Die Steuer: null, aber nicht zehn Jahre</h2>
+  <h3>Die Steuer: null, aber nicht zehn Jahre</h3>
   <p>
     Der Benziner zahlt nach § 9 Abs. 1 Nr. 2 KraftStG
     {' '}{eurGenau(steuerBenzin.hubraumanteil)} für {ganz(corsaBenzin.hubraum)}
@@ -260,7 +258,7 @@ const datum = (iso: string) => new Date(iso).toLocaleDateString('de-DE', { day: 
     weniger als der Benziner heute zahlt.
   </p>
 
-  <h2>Der Punkt, an dem sich alles entscheidet</h2>
+  <h3>Der Punkt, an dem sich alles entscheidet</h3>
   <p>
     Aus den ADAC-Betriebskosten lässt sich der Verbrauch zurückrechnen – abzüglich der
     Pflegepauschale von {eur(ADAC_PFLEGEPAUSCHALE_PRO_JAHR)} im Jahr, die für beide
@@ -316,7 +314,7 @@ const datum = (iso: string) => new Date(iso).toLocaleDateString('de-DE', { day: 
     insgesamt an Unterschied ausweisen.
   </p>
 
-  <h2>Die Gesamtrechnung</h2>
+  <h3>Die Gesamtrechnung</h3>
   <p>
     Neben der Energie wirken zwei weitere Posten zugunsten des Stromers: die Kfz-Steuer
     ({eur(vorteilSteuerProJahr)} im Jahr) und die Werkstattkosten, die der ADAC mit
@@ -390,7 +388,7 @@ const datum = (iso: string) => new Date(iso).toLocaleDateString('de-DE', { day: 
     lässt.
   </p>
 
-  <h2>Was die Rechnung offen lässt</h2>
+  <h3>Was die Rechnung offen lässt</h3>
   <ul>
     <li>
       <strong>Die Fahrleistung.</strong> Alle Vorteile außer der Steuer wachsen mit den
@@ -415,13 +413,12 @@ const datum = (iso: string) => new Date(iso).toLocaleDateString('de-DE', { day: 
     </li>
   </ul>
 
-  <h2>Den eigenen Fall rechnen</h2>
+  <h3>Den eigenen Fall rechnen</h3>
   <ul>
-    <li><a href={`${base}auto/elektroauto-tco-rechner/`}>Elektroauto-Kostenrechner</a> – Gesamtkosten mit eigenem Ladepreis und eigener Fahrleistung</li>
     <li><a href={`${base}auto/kfz-steuer-rechner/`}>Kfz-Steuer-Rechner</a> – auch für Elektrofahrzeuge nach § 3d und § 9 Abs. 2</li>
     <li><a href={`${base}auto/spritkosten-vergleich/`}>Spritkosten-Vergleich</a> – zwei Fahrzeuge nebeneinander</li>
     <li><a href={`${base}auto/e-auto-leasing-kostenrechner/`}>E-Auto-Leasingrechner</a> – wenn der Aufpreis gar nicht erst bezahlt wird</li>
-    <li><a href={`${base}ratgeber/autokosten-wertverlust/`}>Autokosten je Kilometer</a> – warum der Wertverlust jeden Antriebsvergleich dominiert</li>
+    <li><a href={`${artikelPfadVonSlug('autokosten-wertverlust')}`}>Autokosten je Kilometer</a> – warum der Wertverlust jeden Antriebsvergleich dominiert</li>
   </ul>
 
   <p class="hinweis">
@@ -433,7 +430,7 @@ const datum = (iso: string) => new Date(iso).toLocaleDateString('de-DE', { day: 
     ADAC-Betriebskosten zurückgerechnet; das zulässige Gesamtgewicht des Elektrofahrzeugs
     ist eine Annahme und wirkt sich erst nach Ablauf der Steuerbefreiung aus.
   </p>
-</ArticleLayout>
+</RechnerArtikel>
 
 <style>
 .table-wrap {

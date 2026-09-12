@@ -1,7 +1,7 @@
 ---
 import Layout from '../../layouts/Layout.astro';
 import CalculatorShell from '../../components/CalculatorShell.astro';
-import CalculatorGuide from '../../components/CalculatorGuide.astro';
+import ArtikelBussgeld from '../../components/artikel/bussgeldkatalog-schwellenwerte.astro';
 import { CALCULATORS, CATEGORIES } from '../../data/calculators';
 const calc = CALCULATORS.find(c => c.slug === 'busgeldrechner')!;
 const cat = CATEGORIES[calc.category];
@@ -181,45 +181,9 @@ description="Bußgeld, Punkte und Fahrverbot berechnen – Geschwindigkeit, Rotl
       <div id="hinweis" class="bl-hinweis" style="display:none;margin-top:0.75rem;"></div>
 
     </div>
+
+    <ArtikelBussgeld slot="artikel" />
   </CalculatorShell>
-
-  <CalculatorGuide
-    title="Bußgeldkatalog und Verkehrsrecht verstehen"
-    content={`<p>Der <strong>Bußgeldkatalog</strong> steht als Anlage in der Bußgeldkatalog-Verordnung. Er nennt zu jedem Tatbestand einen Regelsatz, der bundesweit gilt und den die Behörden ihrer Entscheidung zugrunde legen. Die heutige Fassung stammt vom 9. November 2021; seitdem sind die Sätze unverändert.</p>
-
-<p><strong>Regelsatz heißt nicht Endbetrag.</strong> Nach § 3 Abs. 1 BKatV gilt er für den fahrlässig handelnden Ersttäter unter gewöhnlichen Umständen. Bei Vorsatz verdoppelt § 3 Abs. 4a BKatV den Satz, bei Voreintragungen darf die Behörde erhöhen, bei geringem Verschulden senken. Und wenn sie ausnahmsweise auf ein Fahrverbot verzichtet, soll sie das Bußgeld dafür angemessen anheben (§ 4 Abs. 4 BKatV).</p>
-
-<p><strong>Die drei Folgen im Überblick:</strong>
-<ul>
-  <li><strong>Geldbuße:</strong> von 5 € beim Parkverstoß bis 2.000 € bei mehrfacher Alkohol- oder Drogenfahrt. Bis 55 € ergeht meist nur eine Verwarnung.</li>
-  <li><strong>Punkte:</strong> ein bis drei je Eintrag, für Ordnungswidrigkeiten höchstens zwei. Ab acht Punkten wird die Fahrerlaubnis entzogen.</li>
-  <li><strong>Fahrverbot:</strong> ein bis drei Monate. Es ist etwas anderes als die Entziehung der Fahrerlaubnis – der Führerschein kommt danach zurück, ohne neue Prüfung.</li>
-</ul>
-</p>
-
-<p><strong>Punkte gibt es nicht für jeden Verstoß.</strong> Eingetragen wird nur, was in Anlage 13 der Fahrerlaubnis-Verordnung steht und mindestens 60 € Geldbuße nach sich zieht. Deshalb bleiben 50 € für 15 km/h innerorts punktfrei – und deshalb bleibt auch das Parken auf dem Gehweg mit 55 € punktfrei, obwohl es teurer ist als so manche Geschwindigkeitsüberschreitung.</p>
-
-<p><strong>Getilgt wird nach § 29 StVG:</strong>
-<ul>
-  <li>zweieinhalb Jahre bei einem Punkt</li>
-  <li>fünf Jahre bei zwei Punkten</li>
-  <li>zehn Jahre bei drei Punkten</li>
-</ul>
-Jede Eintragung läuft für sich; ein neuer Verstoß verlängert die Frist der älteren nicht. Bei einem Stand von einem bis fünf Punkten lässt sich einmal in fünf Jahren durch ein Fahreignungsseminar ein Punkt abbauen.</p>
-
-<p><strong>Einige Regelsätze zum Vergleich:</strong>
-<ul>
-  <li>Alkohol ab 0,5 ‰ (Nr. 241): 500 €, 2 Punkte, 1 Monat Fahrverbot</li>
-  <li>Fahrt unter Drogen (Nr. 243): 500 €, 2 Punkte, 1 Monat Fahrverbot</li>
-  <li>Überholen bei unklarer Verkehrslage mit Sachbeschädigung (Nr. 19.1.2): 300 €, 2 Punkte, 1 Monat Fahrverbot</li>
-  <li>Elektronisches Gerät am Steuer (Nr. 246.1): 100 €, 1 Punkt</li>
-  <li>Keine Rettungsgasse gebildet (Nr. 50): 200 €, 2 Punkte, 1 Monat Fahrverbot</li>
-</ul>
-</p>
-
-<p><strong>Rechtsmittel:</strong> Gegen den Bußgeldbescheid ist innerhalb von zwei Wochen nach Zustellung Einspruch möglich (§ 67 OWiG). Gegen eine bloße Verwarnung gibt es keinen Einspruch – wer das Verwarnungsgeld nicht zahlt, bekommt stattdessen einen Bußgeldbescheid, gegen den er dann vorgehen kann.</p>`}
-    relatedSlugs={['kfz-steuer-rechner', 'fahrtkosten-rechner', 'leasing-rechner']}
-  />
 </Layout>
 
 <style>

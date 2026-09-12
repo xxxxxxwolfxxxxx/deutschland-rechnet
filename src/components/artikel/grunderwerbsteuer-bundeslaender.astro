@@ -1,5 +1,5 @@
 ---
-import ArticleLayout from '../../layouts/ArticleLayout.astro';
+import RechnerArtikel from '../RechnerArtikel.astro';
 import { BUNDESLAENDER, berechneGrunderwerbsteuer } from '../../../public/scripts/grunderwerbsteuer.js';
 
 const base = import.meta.env.BASE_URL;
@@ -34,10 +34,8 @@ const proz = (n: number) => n.toLocaleString('de-DE', { minimumFractionDigits: 1
 const kurzDatum = (iso: string) =>
   new Date(iso).toLocaleDateString('de-DE', { month: '2-digit', year: 'numeric' });
 ---
-<ArticleLayout
-  title="Grunderwerbsteuer 2026: Was ein Hauskauf in jedem Bundesland kostet"
-  description={`Alle 16 Grunderwerbsteuersätze im Vergleich, durchgerechnet für ${eur(BEISPIEL_KAUFPREIS)} Kaufpreis. Zwischen dem günstigsten und dem teuersten Bundesland liegen ${eur(spanne)}.`}
-  canonicalPath="/ratgeber/grunderwerbsteuer-bundeslaender/"
+<RechnerArtikel
+  titel="Was ein Hauskauf in jedem Bundesland kostet"
   lead={`Beim identischen Haus für ${eur(BEISPIEL_KAUFPREIS)} zahlen Käufer je nach Bundesland zwischen ${eur(guenstigste.steuer)} und ${eur(teuerste.steuer)} Grunderwerbsteuer. Diese ${eur(spanne)} Unterschied treffen den Käufer an der empfindlichsten Stelle der Finanzierung – beim Eigenkapital.`}
   datum="2026-08-10"
   quellen={[
@@ -54,7 +52,7 @@ const kurzDatum = (iso: string) =>
     {proz(teuerste.satz)} in gleich {hoechstsatzLaender.length} Ländern.
   </p>
 
-  <h2>Alle 16 Bundesländer, gerechnet für {eur(BEISPIEL_KAUFPREIS)}</h2>
+  <h3>Alle 16 Bundesländer, gerechnet für {eur(BEISPIEL_KAUFPREIS)}</h3>
   <p>
     Die dritte Spalte zeigt, was bei einem Kaufpreis von {eur(BEISPIEL_KAUFPREIS)}
     tatsächlich ans Finanzamt geht. Die letzte Spalte nennt das Datum, seit dem der
@@ -108,7 +106,7 @@ const kurzDatum = (iso: string) =>
     zusätzlichen Jahresbeitrag zur Tilgung.
   </p>
 
-  <h2>Warum die Spreizung härter trifft als sie aussieht</h2>
+  <h3>Warum die Spreizung härter trifft als sie aussieht</h3>
   <p>
     {eur(spanne)} klingen bei {eur(BEISPIEL_KAUFPREIS)} Kaufpreis nach einem
     überschaubaren Aufschlag von rund drei Prozent. Der Punkt ist aber ein anderer:
@@ -124,7 +122,7 @@ const kurzDatum = (iso: string) =>
     zwischen zwei ansonsten identischen Häusern verschwindet.
   </p>
 
-  <h2>Was sich zuletzt geändert hat</h2>
+  <h3>Was sich zuletzt geändert hat</h3>
   <p>
     Grunderwerbsteuersätze sind träge – die Hälfte der heute geltenden Sätze stammt
     noch aus der Zeit vor 2016. Seit 2020 gab es nur {seit2020Geaendert.length}
@@ -146,7 +144,7 @@ const kurzDatum = (iso: string) =>
     veraltete Tabelle; das kommt häufiger vor, als man erwarten würde.
   </p>
 
-  <h2>Die eine legale Stellschraube: bewegliches Inventar</h2>
+  <h3>Die eine legale Stellschraube: bewegliches Inventar</h3>
   <p>
     Am Satz lässt sich nichts drehen, an der Bemessungsgrundlage schon. Die
     Grunderwerbsteuer fällt nur auf Grundstück und fest verbundene Gebäudeteile an –
@@ -164,7 +162,7 @@ const kurzDatum = (iso: string) =>
     nicht überschreiten sollte, ohne durch Belege gedeckt zu sein.
   </p>
 
-  <h2>Wann die Steuer fällig wird</h2>
+  <h3>Wann die Steuer fällig wird</h3>
   <p>
     Das Finanzamt erfährt vom Kauf durch die Anzeige des Notars und verschickt den
     Steuerbescheid meist sechs bis zehn Wochen nach der Beurkundung. Die Zahlungsfrist
@@ -174,13 +172,13 @@ const kurzDatum = (iso: string) =>
     sondern liegt zeitlich vor der Eigentumsumschreibung.
   </p>
 
-  <h2>Den eigenen Fall durchrechnen</h2>
+  <h3>Den eigenen Fall durchrechnen</h3>
   <p>
-    Die Tabelle oben nutzt {eur(BEISPIEL_KAUFPREIS)} als Beispielwert. Für den
-    konkreten Kaufpreis rechnen die passenden Rechner mit denselben Sätzen:
+    Die Tabelle oben nutzt {eur(BEISPIEL_KAUFPREIS)} als Beispielwert. Den
+    konkreten Kaufpreis rechnet der Rechner am Anfang dieser Seite. Was beim Kauf
+    daneben anfällt:
   </p>
   <ul>
-    <li><a href={`${base}wohnen/grunderwerbsteuer-rechner/`}>Grunderwerbsteuer-Rechner</a> – Steuer nach Bundesland und Kaufpreis</li>
     <li><a href={`${base}wohnen/immobilienkauf-nebenkosten/`}>Kaufnebenkosten-Rechner</a> – Steuer, Notar, Grundbuch und Makler zusammen</li>
     <li><a href={`${base}wohnen/wie-viel-haus/`}>Budget-Rechner</a> – wie viel Haus bei vorhandenem Eigenkapital realistisch ist</li>
   </ul>
@@ -190,7 +188,7 @@ const kurzDatum = (iso: string) =>
     Ländersache und kann sich kurzfristig ändern – maßgeblich ist das Recht des
     Landes, in dem das Grundstück liegt. Dieser Artikel ersetzt keine Steuerberatung.
   </p>
-</ArticleLayout>
+</RechnerArtikel>
 
 <style>
 .table-wrap {

@@ -1,7 +1,7 @@
 ---
 import Layout from '../../layouts/Layout.astro';
 import CalculatorShell from '../../components/CalculatorShell.astro';
-import CalculatorGuide from '../../components/CalculatorGuide.astro';
+import ArtikelPromille from '../../components/artikel/promille-abbau-und-grenzwerte.astro';
 import { CALCULATORS, CATEGORIES } from '../../data/calculators';
 const calc = CALCULATORS.find(c => c.slug === 'promille-rechner')!;
 const cat = CATEGORIES[calc.category];
@@ -89,20 +89,9 @@ const year = new Date().getFullYear();
       <div id="bak-info" style="margin-top:0.5rem;font-size:0.85rem;color:#666;"></div>
       <p id="bak-hinweis" class="bak-warn" style="display:none;">Kein Fahrzeug führen. Der angezeigte Wert ist eine Schätzung und sagt nichts darüber aus, ob Sie fahren dürfen.</p>
     </div>
+
+    <ArtikelPromille slot="artikel" />
   </CalculatorShell>
-  <CalculatorGuide
-    title="Blutalkoholkonzentration verstehen"
-    content="Die Blutalkoholkonzentration (BAK) misst die Menge Alkohol im Blut. Die Widmark-Formel schätzt diesen Wert aus Trinkmenge, Körpergewicht und Geschlecht – sie ist eine Näherung, kein Messverfahren. Verlässlich bestimmen lässt sich die BAK nur über eine Blutprobe.
-
-**Absorption und Abbau:** Nach dem Trinken gelangt Alkohol schnell ins Blut, auf leeren Magen besonders schnell. Der Abbau läuft fast vollständig über die Leber, mit etwa 0,1 bis 0,15 Promille pro Stunde. Diese Rate ist weitgehend konstant und lässt sich nicht steigern – weder durch Kaffee noch durch Essen, Schlaf oder Sport.
-
-**Warum die Schätzung streut:** Frauen erreichen bei gleicher Trinkmenge höhere Werte, weil weniger Körperwasser den Alkohol verdünnt. Ältere Menschen bauen langsamer ab, ebenso Menschen mit eingeschränkter Leberfunktion. Auch Medikamente verschieben das Ergebnis. Die Abweichung zwischen geschätztem und gemessenem Wert kann in beide Richtungen deutlich ausfallen.
-
-**Die gesetzlichen Grenzen:** Ab 0,5 Promille liegt eine Ordnungswidrigkeit nach § 24a StVG vor, ab 1,1 Promille eine Straftat nach § 316 StGB wegen absoluter Fahruntüchtigkeit. Bereits ab 0,3 Promille kann eine Straftat vorliegen, wenn Ausfallerscheinungen dazukommen. Für Fahranfänger in der Probezeit und alle unter 21 Jahren gilt ein absolutes Alkoholverbot am Steuer.
-
-**Was dieser Rechner nicht kann:** Er sagt nicht, ob jemand fahren darf. Reaktionszeit, Sehleistung und Risikoeinschätzung sind längst vor jeder gesetzlichen Grenze beeinträchtigt. Wer Alkohol getrunken hat, lässt das Fahrzeug stehen."
-    relatedSlugs={['blutdruck-bewerter', 'schlaf-rechner', 'kalorien-rechner']}
-  />
 </Layout>
 
 <style>

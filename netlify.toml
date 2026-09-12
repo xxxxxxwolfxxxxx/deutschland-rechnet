@@ -38,6 +38,110 @@
   to = "/familie/ehegattenunterhalt-rechner/"
   status = 301
 
+# Artikel, die von /ratgeber/ auf ihre Rechnerseite umgezogen sind. Rechner und
+# Text standen vorher auf getrennten URLs; Google hat daraus zwei halbe Seiten
+# gemacht – Rechnerseiten als "Gecrawlt, zurzeit nicht indexiert", Artikel mit
+# null Impressionen. Die Alt-URL war indexiert und gibt ihre Linkkraft per 301
+# an die zusammengelegte Seite weiter.
+#
+# Jeder Eintrag hier gehoert zu einem Artikel mit `aufRechnerseite: true` in
+# src/data/ratgeber.ts. Beides muss zusammen gepflegt werden.
+
+[[redirects]]
+  from = "/ratgeber/autokosten-wertverlust/*"
+  to = "/auto/km-kostenrechner/"
+  status = 301
+
+[[redirects]]
+  from = "/ratgeber/bootstrailer-fuehrerschein-tempo-100/*"
+  to = "/boot/bootstrailer-fuehrerschein/"
+  status = 301
+
+[[redirects]]
+  from = "/ratgeber/bussgeldkatalog-schwellenwerte/*"
+  to = "/auto/busgeldrechner/"
+  status = 301
+
+[[redirects]]
+  from = "/ratgeber/elektroauto-gegen-verbrenner/*"
+  to = "/auto/elektroauto-tco-rechner/"
+  status = 301
+
+[[redirects]]
+  from = "/ratgeber/elterngeld-ersatzrate/*"
+  to = "/familie/elterngeld-rechner/"
+  status = 301
+
+[[redirects]]
+  from = "/ratgeber/gebrauchtwagen-alter-kosten/*"
+  to = "/auto/wartungskosten-auto/"
+  status = 301
+
+[[redirects]]
+  from = "/ratgeber/grunderwerbsteuer-bundeslaender/*"
+  to = "/wohnen/grunderwerbsteuer-rechner/"
+  status = 301
+
+[[redirects]]
+  from = "/ratgeber/inflation-was-die-rate-verschweigt/*"
+  to = "/einheiten/inflationsrechner/"
+  status = 301
+
+[[redirects]]
+  from = "/ratgeber/kfz-steuer-erstzulassung/*"
+  to = "/auto/kfz-steuer-rechner/"
+  status = 301
+
+[[redirects]]
+  from = "/ratgeber/kindesunterhalt-volljaehrigkeit/*"
+  to = "/familie/unterhaltsrechner/"
+  status = 301
+
+[[redirects]]
+  from = "/ratgeber/kuendigungsfrist-arbeitgeber-arbeitnehmer/*"
+  to = "/geld/kuendigungsfrist-rechner/"
+  status = 301
+
+[[redirects]]
+  from = "/ratgeber/nebenkosten-was-umlagefaehig-ist/*"
+  to = "/wohnen/nebenkosten-rechner/"
+  status = 301
+
+[[redirects]]
+  from = "/ratgeber/pendlerpauschale-was-sie-bringt/*"
+  to = "/auto/fahrtkosten-rechner/"
+  status = 301
+
+[[redirects]]
+  from = "/ratgeber/pflegeversicherung-beitrag-und-luecke/*"
+  to = "/versicherungen/pflege-rechner/"
+  status = 301
+
+[[redirects]]
+  from = "/ratgeber/photovoltaik-eigenverbrauch/*"
+  to = "/energie/photovoltaik-rechner/"
+  status = 301
+
+[[redirects]]
+  from = "/ratgeber/promille-abbau-und-grenzwerte/*"
+  to = "/gesundheit/promille-rechner/"
+  status = 301
+
+[[redirects]]
+  from = "/ratgeber/steuerklasse-wechseln-was-bringt/*"
+  to = "/geld/steuerklasse-optimieren/"
+  status = 301
+
+[[redirects]]
+  from = "/ratgeber/strompreis-zusammensetzung/*"
+  to = "/energie/stromkosten-rechner/"
+  status = 301
+
+[[redirects]]
+  from = "/ratgeber/wohngeld-mietenstufe-gegen-einkommen/*"
+  to = "/familie/wohngeld-rechner/"
+  status = 301
+
 # Catch-all: muss die letzte Regel bleiben. Zeigt auf die echte 404-Seite, die
 # Astro nach dist/404.html baut – vorher lieferte diese Regel den kompletten
 # Startseiten-Inhalt unter jeder beliebigen URL aus, nur mit Status 404.

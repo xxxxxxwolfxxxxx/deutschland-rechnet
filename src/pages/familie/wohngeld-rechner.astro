@@ -1,7 +1,7 @@
 ---
 import Layout from '../../layouts/Layout.astro';
 import CalculatorShell from '../../components/CalculatorShell.astro';
-import CalculatorGuide from '../../components/CalculatorGuide.astro';
+import ArtikelWohngeld from '../../components/artikel/wohngeld-mietenstufe-gegen-einkommen.astro';
 import { CALCULATORS, CATEGORIES } from '../../data/calculators';
 import {
   HOECHSTBETRAEGE,
@@ -112,43 +112,9 @@ const faqs = [
       </div>
       <div id="details" style="margin-top:0.75rem;font-size:0.88rem;color:#666;display:flex;gap:1.5rem;flex-wrap:wrap;"></div>
     </div>
+
+    <ArtikelWohngeld slot="artikel" />
   </CalculatorShell>
-
-  <CalculatorGuide
-    title="Wohngeld – Finanzielle Unterstützung für Mieter"
-    content={`<p>Wohngeld ist ein Zuschuss zu den Wohnkosten für Haushalte mit kleinem Einkommen – als Mietzuschuss für Mieter und als Lastenzuschuss für selbst genutztes Wohneigentum. Es wird nicht automatisch gezahlt, sondern muss bei der Wohngeldbehörde beantragt werden.</p>
-
-<h4>Die Wohngeldformel des § 19 Abs. 1 WoGG</h4>
-<p>Das ungerundete monatliche Wohngeld beträgt:</p>
-<p><strong>${WOHNGELD_FAKTOR.toLocaleString('de-DE')} × (M − (a + b × M + c × Y) × Y)</strong></p>
-<p>Dabei ist <strong>M</strong> die zu berücksichtigende monatliche Miete und <strong>Y</strong> das monatliche Gesamteinkommen. Die Werte <strong>a</strong>, <strong>b</strong> und <strong>c</strong> hängen allein von der Haushaltsgröße ab und stehen in Anlage 2 zum WoGG. Anlage 3 gibt die Reihenfolge der Rechenschritte vor: Zuerst werden zu kleine Werte für M und Y durch Mindestwerte ersetzt, dann wird mit zehn Nachkommastellen gerechnet, und am Ende wird auf volle Euro gerundet. Für mehr als ${MAX_HAUSHALTSGROESSE_FORMEL} Haushaltsmitglieder erhöht § 19 Abs. 3 WoGG das Wohngeld um je ${euro(MEHRBETRAG_AB_13)} – höchstens bis zur Höhe der berücksichtigten Miete.</p>
-
-<h4>Höchstbeträge für die Miete nach Anlage 1 zum WoGG</h4>
-<p>Die Miete zählt nicht unbegrenzt: Sie wird auf die Summe aus dem Höchstbetrag und der Klimakomponente gedeckelt (§ 11 Abs. 1 Nr. 1 WoGG). Beträge in Euro im Monat:</p>
-<table>
-<thead><tr><th>Mietenstufe</th><th>1 Person</th><th>2</th><th>3</th><th>4</th><th>5</th><th>je weitere</th></tr></thead>
-<tbody>
-${hoechstbetragZeilen}
-</tbody>
-</table>
-
-<h4>Heizkostenentlastung und Klimakomponente</h4>
-<p>Beide Zuschläge stehen seit der Reform zum 01.01.2023 fest im Gesetz. Die Klimakomponente erhöht den Höchstbetrag, die Heizkostenentlastung kommt darüber hinaus auf die zu berücksichtigende Miete und unterliegt dem Höchstbetrag damit nicht:</p>
-<table>
-<thead><tr><th>Haushaltsmitglieder</th><th>Heizkostenentlastung (§ 12 Abs. 6 WoGG)</th><th>Klimakomponente (§ 12 Abs. 7 WoGG)</th></tr></thead>
-<tbody>
-${zuschlagZeilen}
-</tbody>
-</table>
-<p><em>Für jedes weitere Haushaltsmitglied kommen ${euro(HEIZKOSTENENTLASTUNG.mehrbetrag)} beziehungsweise ${euro(KLIMAKOMPONENTE.mehrbetrag)} hinzu. Alle Tabellen auf dieser Seite werden aus demselben Rechenmodul erzeugt wie der Rechner oben.</em></p>
-
-<h4>Was dieser Rechner nicht abbilden kann</h4>
-<p>Der Rechner geht von Einkommen aus nichtselbständiger Arbeit aus und setzt den Arbeitnehmer-Pauschbetrag als Werbungskosten an. Nicht berücksichtigt sind die Abzüge nach § 11 Abs. 2 und 3 WoGG für gewerblich genutzte Flächen, Untermieter oder andere öffentliche Leistungen, die Belastung bei Wohneigentum nach § 10 WoGG sowie die Freibeträge des § 17 Nr. 1, 2 und 4 WoGG für schwerbehinderte Haushaltsmitglieder und für eigene Einkünfte von Kindern. Das Ergebnis ist deshalb eine Schätzung; verbindlich ist der Bescheid der Wohngeldbehörde.</p>
-
-<h4>Praktische Hinweise</h4>
-<p>Wohngeld wird in der Regel für zwölf Monate bewilligt. Danach ist ein Weiterleistungsantrag nötig – am besten rechtzeitig vor Ablauf, weil Wohngeld grundsätzlich erst ab dem Monat der Antragstellung gezahlt wird. Ändert sich das Einkommen deutlich, kann sich der Anspruch auch innerhalb des Bewilligungszeitraums ändern; solche Änderungen sind der Behörde mitzuteilen.</p>`}
-    relatedSlugs={['kindergeld-rechner', 'renten-rechner']}
-  />
 </Layout>
 
 <script type="module">

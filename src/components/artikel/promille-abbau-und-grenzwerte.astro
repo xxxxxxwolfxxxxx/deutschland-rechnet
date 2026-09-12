@@ -1,5 +1,5 @@
 ---
-import ArticleLayout from '../../layouts/ArticleLayout.astro';
+import RechnerArtikel from '../RechnerArtikel.astro';
 import {
   berechnePromille,
   alkoholGramm,
@@ -93,12 +93,10 @@ const gramm = (g: number) =>
   g.toLocaleString('de-DE', { maximumFractionDigits: 1 }) + ' g';
 const eur = (b: number) => b.toLocaleString('de-DE', { maximumFractionDigits: 0 }) + ' €';
 ---
-<ArticleLayout
-  title="Promille: Zwei am Abend sind 0,8 am Morgen"
-  description={`Die Widmark-Formel rechnet den Spitzenwert, entscheidend ist der Abbau: ${promille(ABBAU_PRO_STUNDE)} Promille je Stunde. Nach acht Stunden Schlaf bleibt von ${promille(kritisch.bak)} Promille noch ${promille(kritisch.nachAcht)} – und damit eine Ordnungswidrigkeit.`}
-  canonicalPath="/ratgeber/promille-abbau-und-grenzwerte/"
-  datum="2026-08-15"
+<RechnerArtikel
+  titel="Zwei am Abend sind 0,8 am Morgen"
   lead={`Promille-Tabellen beantworten die falsche Frage. Wie viel jemand getrunken hat, lässt sich überschlagen; wie lange es dauert, bis der Alkohol wieder weg ist, wird dagegen systematisch unterschätzt. Der Körper baut rund ${promille(ABBAU_PRO_STUNDE)} Promille pro Stunde ab – acht Stunden Schlaf schaffen also nicht mehr als ${promille(SCHLAFSTUNDEN * ABBAU_PRO_STUNDE)} Promille.`}
+  datum="2026-08-15"
   quellen={[
     { titel: '§ 24a StVG – 0,5-Promille-Grenze', url: 'https://www.gesetze-im-internet.de/stvg/__24a.html' },
     { titel: '§ 24c StVG – Alkoholverbot für Fahranfänger und unter 21-Jährige', url: 'https://www.gesetze-im-internet.de/stvg/__24c.html' },
@@ -108,7 +106,7 @@ const eur = (b: number) => b.toLocaleString('de-DE', { maximumFractionDigits: 0 
     { titel: 'Bußgeldkatalog-Verordnung (BKatV), Anlage', url: 'https://www.gesetze-im-internet.de/bkatv_2013/' },
   ]}
 >
-  <h2>Was die Formel rechnet</h2>
+  <h3>Was die Formel rechnet</h3>
 
   <p>
     Die Widmark-Formel teilt die aufgenommene Alkoholmenge durch das
@@ -197,7 +195,7 @@ const eur = (b: number) => b.toLocaleString('de-DE', { maximumFractionDigits: 0 
     bestimmte Menge, sondern gegen die Vorstellung, es gebe eine unbedenkliche.
   </p>
 
-  <h2>Der Abbau ist die eigentliche Größe</h2>
+  <h3>Der Abbau ist die eigentliche Größe</h3>
 
   <p>
     Alkohol wird linear abgebaut, mit rund {promille(ABBAU_PRO_STUNDE)} Promille
@@ -244,7 +242,7 @@ const eur = (b: number) => b.toLocaleString('de-DE', { maximumFractionDigits: 0 
     {' '}Stunden. Nüchtern fühlt man sich lange vorher.
   </p>
 
-  <h2>Vier Grenzen, nicht eine</h2>
+  <h3>Vier Grenzen, nicht eine</h3>
 
   <p>
     Die 0,5 ist die bekannteste Zahl, aber weder die erste noch die einzige.
@@ -291,7 +289,7 @@ const eur = (b: number) => b.toLocaleString('de-DE', { maximumFractionDigits: 0 
     Gefährdung dazu, greift § 315c StGB mit noch höherem Strafrahmen.
   </p>
 
-  <h2>Die Sanktion hängt nicht an der Höhe</h2>
+  <h3>Die Sanktion hängt nicht an der Höhe</h3>
 
   <p>
     Innerhalb des Ordnungswidrigkeitenbereichs, also zwischen
@@ -346,7 +344,7 @@ const eur = (b: number) => b.toLocaleString('de-DE', { maximumFractionDigits: 0 
     beim zweiten Mal wird es für beide erheblich teurer.
   </p>
 
-  <h2>Wofür die Rechnung nicht taugt</h2>
+  <h3>Wofür die Rechnung nicht taugt</h3>
 
   <p>
     Für die Entscheidung, ob man noch fahren kann. Die Formel kennt weder das
@@ -366,9 +364,8 @@ const eur = (b: number) => b.toLocaleString('de-DE', { maximumFractionDigits: 0 
   </p>
 
   <p>
-    Die eigenen Werte lassen sich im
-    {' '}<a href={`${base}gesundheit/promille-rechner/`}>Promille-Rechner</a>
-    {' '}einsetzen; was ein Verstoß kostet, zeigt der
+    Die eigenen Werte lassen sich oben im Rechner einsetzen; was ein Verstoß
+    kostet, zeigt der
     {' '}<a href={`${base}auto/busgeldrechner/`}>Bußgeldrechner</a>.
   </p>
 
@@ -380,7 +377,7 @@ const eur = (b: number) => b.toLocaleString('de-DE', { maximumFractionDigits: 0 
     Kennzahlen der Widmark-Formel sind forensische Konventionswerte, keine
     Rechtsnormen; Rechtsstand der Sanktionen ist der {BKAT_STAND}.
   </p>
-</ArticleLayout>
+</RechnerArtikel>
 
 <style>
 .table-wrap {

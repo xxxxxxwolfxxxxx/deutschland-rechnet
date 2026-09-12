@@ -1,7 +1,7 @@
 ---
 import Layout from '../../layouts/Layout.astro';
 import CalculatorShell from '../../components/CalculatorShell.astro';
-import CalculatorGuide from '../../components/CalculatorGuide.astro';
+import ArtikelPflege from '../../components/artikel/pflegeversicherung-beitrag-und-luecke.astro';
 import { CALCULATORS, CATEGORIES } from '../../data/calculators';
 import { bundeslaenderAlphabetisch } from '../../../public/scripts/bundeslaender.js';
 import {
@@ -117,23 +117,9 @@ const grade = [2, 3, 4, 5] as const;
       </div>
       <div id="details" style="margin-top:0.75rem;font-size:0.88rem;color:#666;"></div>
     </div>
+
+    <ArtikelPflege slot="artikel" />
   </CalculatorShell>
-
-  <CalculatorGuide
-    title="Pflegeversicherung: Was der Beitrag deckt – und was nicht"
-    content={`<p>Die soziale Pflegeversicherung besteht seit 1995 und ist eine Pflichtversicherung. Sie ist ausdrücklich als Teilkaskoversicherung angelegt: Sie zahlt feste Beträge je Pflegegrad, nicht die tatsächlich anfallenden Kosten. Die Differenz heißt Pflegelücke und trägt der Pflegebedürftige selbst, notfalls über die Sozialhilfe.</p>
-
-<p><strong>Die Leistungen bei häuslicher Pflege:</strong> Wer die Pflege durch Angehörige selbst sicherstellt, erhält Pflegegeld nach § 37 SGB XI – ${grade.map((g) => `${euro(PFLEGEGELD[g])} bei Pflegegrad ${g}`).join(', ')}. Wer stattdessen einen Pflegedienst beauftragt, hat Anspruch auf Sachleistungen nach § 36 SGB XI, und die liegen deutlich höher: ${grade.map((g) => `${euro(PFLEGESACHLEISTUNG[g])} bei Grad ${g}`).join(', ')}. Beides lässt sich anteilig kombinieren. Pflegegrad 1 begründet weder einen Anspruch auf Pflegegeld noch auf Sachleistungen; er bringt den Entlastungsbetrag von ${euro(ENTLASTUNGSBETRAG)} monatlich nach § 45b SGB XI, den allerdings auch alle höheren Grade zusätzlich erhalten.</p>
-
-<p><strong>Die Leistungen im Heim:</strong> Bei vollstationärer Pflege übernimmt die Kasse nach § 43 Abs. 2 SGB XI ${grade.map((g) => `${euro(VOLLSTATIONAER[g])} bei Grad ${g}`).join(', ')}; Pflegegrad 1 erhält lediglich einen Zuschuss von ${euro(VOLLSTATIONAER_ZUSCHUSS_GRAD1)}. Diese Beträge decken ausschließlich die pflegebedingten Aufwendungen. Unterkunft, Verpflegung und Investitionskosten zahlt der Bewohner vollständig selbst – im Bundesdurchschnitt ${euro(heimKurz.unterkunftVerpflegung + heimKurz.investition)} im Monat.</p>
-
-<p><strong>Der Eigenanteil sinkt mit der Verweildauer:</strong> § 43c SGB XI gibt einen Leistungszuschlag auf den einrichtungseinheitlichen Eigenanteil – 15 Prozent im ersten Jahr, danach 30, ab dem dritten Jahr 50 und ab dem vierten 75 Prozent. Im Bundesdurchschnitt sinkt die monatliche Belastung dadurch von ${euro(heimKurz.eigenanteil)} auf ${euro(heimLang.eigenanteil)}. Der Zuschlag greift aber nur am Pflegeanteil; Unterkunft, Verpflegung und Investitionskosten bleiben unverändert.</p>
-
-<p><strong>Was der Beitrag mit alldem zu tun hat:</strong> nichts. Der Beitrag richtet sich nach dem Einkommen bis zur Beitragsbemessungsgrenze, die Leistung nach dem Pflegegrad. Wer doppelt so viel verdient, zahlt bis zur Grenze doppelt so viel und bekommt im Pflegefall denselben Betrag. Ebenso wenig spielt es für die Leistung eine Rolle, in welchem Bundesland man wohnt – für den Eigenanteil dagegen sehr wohl.</p>
-
-<p><strong>Praxishinweis:</strong> Der Abschlag für Kinder verlangt einen Nachweis (§ 55 Abs. 3a SGB XI). Wird er nicht über das automatisierte Verfahren erbracht und auch nicht binnen sechs Monaten nach der Geburt nachgereicht, wirkt er erst ab dem Folgemonat des Nachweises – rückwirkend erstattet wird dann nichts.</p>`}
-    relatedSlugs={['elementar-rechner', 'rechtsschutz-rechner', 'zahnzusatz-rechner']}
-  />
 </Layout>
 
 <script type="module">

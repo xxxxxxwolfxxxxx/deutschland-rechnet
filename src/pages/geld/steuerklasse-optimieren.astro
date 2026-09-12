@@ -1,7 +1,7 @@
 ---
 import Layout from '../../layouts/Layout.astro';
 import CalculatorShell from '../../components/CalculatorShell.astro';
-import CalculatorGuide from '../../components/CalculatorGuide.astro';
+import ArtikelSteuerklasse from '../../components/artikel/steuerklasse-wechseln-was-bringt.astro';
 import { CALCULATORS, CATEGORIES } from '../../data/calculators';
 import { vergleicheKombinationen } from '../../../public/scripts/steuerklassenwahl.js';
 import { GRUNDFREIBETRAG } from '../../../public/scripts/einkommensteuer.js';
@@ -105,50 +105,9 @@ const beispielZeilen = beispiel.kombinationen.filter(k => k.anwendbar).map(k => 
       <p class="hinweis">Dieser Betrag ändert sich durch die Steuerklassenwahl <strong>nicht</strong>. Die Steuerklasse bestimmt nur, wie viel davon monatlich einbehalten wird – der Rest kommt als Nachzahlung oder Erstattung zurück.</p>
       <div id="tabelle"></div>
     </div>
+
+    <ArtikelSteuerklasse slot="artikel" />
   </CalculatorShell>
-
-  <CalculatorGuide
-    title="Steuerklassen-Optimierung: So holen Paare das Maximum heraus"
-    content={`<p>Die richtige Steuerklassenkombination kann für Ehepaare und eingetragene Lebenspartner einen erheblichen Unterschied beim monatlichen Nettoeinkommen ausmachen. Dabei geht es nicht um die tatsächliche Jahressteuerlast (die bleibt bei gleicher Veranlagung identisch), sondern um die <strong>Verteilung der monatlichen Lohnsteuerabzüge</strong> und deren Auswirkung auf Lohnersatzleistungen wie Elterngeld, Arbeitslosengeld I, Krankengeld oder Kurzarbeitergeld.</p>
-
-<p><strong>Die drei Optionen im Überblick:</strong> Bei IV/IV (Standard) wird bei beiden Partnern der Grundtarif angewendet, jeder mit dem Grundfreibetrag von ${gfb} Euro. Diese Kombination passt, wenn beide ähnlich viel verdienen. Bei III/V rechnet der Besserverdienende mit dem Splittingtarif, der wie ein verdoppelter Grundfreibetrag von ${gfbDoppelt} Euro wirkt, während beim Geringerverdienenden die Sonderformel des § 39b Abs. 2 Satz 7 EStG greift und praktisch ab dem ersten Euro Lohnsteuer einbehalten wird. Bei IV/IV mit Faktor bleibt es beim Grundtarif, aber die Lohnsteuer wird mit einem Faktor multipliziert, den das Finanzamt nach § 39f EStG aus dem tatsächlichen Einkommensverhältnis bildet.</p>
-
-<h3>Rechenbeispiel: Lohnsteuerabzug bei verschiedenen Kombinationen (${year})</h3>
-<p>Partner 1 verdient ${BEISPIEL_A.toLocaleString('de-DE')} Euro im Jahr, Partner 2 ${BEISPIEL_B.toLocaleString('de-DE')} Euro, ein Kind unter 25 Jahren, keine Kirchensteuer. Die voraussichtliche Jahressteuer des Paares beträgt in allen Fällen <strong>${euro(beispiel.jahressteuer.gesamt)}</strong> – nur die monatliche Verteilung unterscheidet sich.</p>
-<table>
-<thead><tr><th>Kombination</th><th>Lohnsteuer Partner 1</th><th>Lohnsteuer Partner 2</th><th>Abzug gesamt/Monat</th><th>Bei der Steuererklärung</th></tr></thead>
-<tbody>
-${beispielZeilen}
-</tbody>
-</table>
-<p><em>Die Werte stammen aus demselben Rechenmodul wie der Rechner oben. Der Lohnsteuerabzug folgt § 39b Abs. 2 EStG, die Jahressteuer dem Splittingverfahren nach § 32a Abs. 5 EStG mit den Abzugsbeträgen des § 39b Abs. 2 EStG (§ 39f Satz 3 EStG). Die tatsächliche Veranlagung setzt die Vorsorgeaufwendungen nach § 10 EStG an, die davon abweichen können.</em></p>
-
-<h3>Wann welche Kombination wählen?</h3>
-<table>
-<thead><tr><th>Situation</th><th>Empfohlene Kombination</th><th>Begründung</th></tr></thead>
-<tbody>
-<tr><td>Beide verdienen ähnlich (40/60 bis 50/50)</td><td>IV / IV</td><td>Gerechte Verteilung, kaum Nachzahlung</td></tr>
-<tr><td>Ein Partner verdient deutlich mehr (70/30 oder mehr)</td><td>III / V</td><td>Mehr monatliches Netto, aber Pflicht zur Steuererklärung</td></tr>
-<tr><td>Ungleiches Einkommen, Nachzahlung vermeiden</td><td>IV/IV mit Faktor</td><td>Berücksichtigt Einkommensverhältnis, kaum Überraschungen</td></tr>
-<tr><td>Elterngeld geplant (Partner B)</td><td>III für Partner B</td><td>Höheres Netto = höheres Elterngeld (mind. 7 Monate vorher wechseln)</td></tr>
-<tr><td>Ein Partner arbeitslos / krank</td><td>III für betroffenen Partner</td><td>ALG I und Krankengeld steigen mit höherem Netto</td></tr>
-</tbody>
-</table>
-
-<p><strong>Strategischer Wechsel vor Lohnersatzleistungen:</strong> Besonders wichtig wird die Steuerklassenwahl vor dem Bezug von Elterngeld, Arbeitslosengeld I, Krankengeld oder Kurzarbeitergeld. Diese Leistungen berechnen sich nicht aus dem Netto der Gehaltsabrechnung, sondern aus einem pauschalierten Nettobetrag, in den die Steuerklasse eingeht – beim Arbeitslosengeld und Kurzarbeitergeld über das Leistungsentgelt nach § 153 SGB III, beim Elterngeld über die Abzüge für Steuern nach § 2e BEEG. Wer in Klasse III ist, bekommt entsprechend mehr. Beim Elterngeld prüft die Elterngeldstelle die Abzugsmerkmale des <strong>Bemessungszeitraums</strong>, also der zwölf Kalendermonate vor dem Geburtsmonat (§ 2b Abs. 1 BEEG). Ein geändertes Merkmal zählt nach § 2c Abs. 3 Satz 2 BEEG nur, wenn es in der überwiegenden Zahl dieser Monate galt – bei zwölf Monaten also in mindestens sieben. Der Abstand zwischen den Klassen V und III ist am größten bei einem Bruttoentgelt um ${euro0(elterngeldSpanne.brutto)}: dort stehen ${euro(elterngeldSpanne.klasse3)} in Klasse III gegen ${euro(elterngeldSpanne.klasse5)} in Klasse V, ein Unterschied von rund ${euro0(elterngeldSpanne.differenz)} im Monat. Darüber schrumpft er wieder, weil Klasse III den Höchstbetrag von ${euro0(ELTERNGELD_HOECHSTBETRAG)} erreicht. Das Krankengeld fällt aus der Reihe: Es beträgt nach § 47 Abs. 1 SGB V 70 Prozent des Regelentgelts, höchstens aber 90 Prozent des tatsächlichen Nettoarbeitsentgelts – hier zählt also das echte Netto, nicht eine Pauschale.</p>
-
-<h3>Auswirkung auf das Elterngeld</h3>
-<p>Das Elterngeld beträgt nach § 2 BEEG ${prozent(ELTERNGELD_SATZ_MIN)} bis ${prozent(ELTERNGELD_SATZ_MAX)} des Erwerbseinkommens der zwölf Monate vor der Geburt, höchstens ${euro0(ELTERNGELD_HOECHSTBETRAG)} im Monat. Die Spanne ist gestaffelt: Für die meisten Beschäftigten gelten ${prozent(ELTERNGELD_SATZ_MIN)}, die höheren Sätze erreichen nur Geringverdiener. Maßgeblich ist dabei nicht das Netto der Gehaltsabrechnung, sondern eine eigene Größe nach den §§ 2c bis 2f BEEG. Die Steuerklasse wirkt sich darauf aus, weil § 2e BEEG die Abzüge für Steuern nach der Steuerklasse bemisst – und zwar dauerhaft, obwohl die Jahressteuer selbst gleich bleibt. Wer in Klasse III wechselt, bekommt entsprechend mehr Elterngeld. Wie viel genau, hängt vom Einkommen ab; rechnen Sie es mit dem <a href="/familie/elterngeld-rechner/">Elterngeld-Rechner</a> durch.</p>
-
-<p><strong>So beantragen Sie den Wechsel:</strong> Seit 2020 können Sie die Steuerklasse mehrfach pro Jahr ändern. Den Antrag stellen beide Partner gemeinsam beim Wohnsitz-Finanzamt mit dem amtlichen Vordruck "Antrag auf Steuerklassenwechsel bei Ehegatten/Lebenspartnern" oder digital über <strong>ELSTER</strong> (Mein ELSTER > Formulare > Anträge). Die Änderung gilt ab dem Folgemonat nach Bearbeitung. Bearbeitungszeit: meist 2–4 Wochen.</p>
-
-<p><strong>Praxistipp – Nachzahlung bei III/V einplanen:</strong> Bei der Kombination III/V wird unterjährig insgesamt zu wenig Lohnsteuer einbehalten, deshalb ist die Einkommensteuererklärung nach § 46 Abs. 2 Nr. 3a EStG Pflicht. Wie hoch die Nachzahlung ausfällt, zeigt der Rechner oben in der Spalte „Bei der Steuererklärung". Legen Sie den Betrag über das Jahr zurück oder beantragen Sie beim Finanzamt eine <strong>freiwillige Vorauszahlung</strong>.</p>
-
-<p><strong>Praxistipp – IV/IV mit Faktor rechtzeitig erneuern:</strong> Der Faktor wird vom Finanzamt individuell berechnet und gilt nach § 39f Abs. 1 Satz 9 EStG bis zum Ablauf des Kalenderjahres, das auf das Jahr des erstmaligen Geltens folgt – also längstens zwei Jahre. Danach fallen Sie ohne neuen Antrag automatisch auf IV/IV ohne Faktor zurück. Bei deutlich verändertem Einkommen lohnt der Neuantrag schon früher, sonst passt der Faktor nicht mehr.</p>
-
-<p><strong>Zukunftsausblick:</strong> Die Bundesregierung plant seit 2023 die schrittweise Abschaffung der Kombination III/V zugunsten von IV/IV mit Faktor als Standard. Bisher wurde die Reform nicht umgesetzt. Stand 2026 stehen weiterhin alle drei Kombinationen zur Verfügung. Die Reform würde vor allem Ehefrauen in Klasse V entlasten, die bisher überproportional hohe monatliche Abzüge tragen. Beobachten Sie die Gesetzgebung – eine Umsetzung könnte ab 2027 oder 2028 erfolgen.</p>`}
-    relatedSlugs={['steuerklassen-vergleich', 'steuernachzahlung-rechner', 'brutto-netto-rechner']}
-  />
 </Layout>
 
 <style>

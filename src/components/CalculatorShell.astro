@@ -4,7 +4,7 @@ import RelatedLinks from './RelatedLinks.astro';
 import { CATEGORIES, type Calculator } from '../data/calculators';
 import PageByline from './PageByline.astro';
 import { getLastModifiedMap } from '../utils/lastModified.mjs';
-import { artikelZuRechner } from '../data/ratgeber';
+import { artikelZuRechner, artikelPfad } from '../data/ratgeber';
 
 interface Props {
   calculator: Calculator;
@@ -113,13 +113,18 @@ const faqSchema = faqs && faqs.length > 0 ? {
     <PageByline path={pagePath} />
   </div>
 
+  <!-- Der redaktionelle Teil dieser Seite, sofern sie einen hat. Steht bewusst
+       direkt unter dem Rechner und vor den FAQ: Wer gerechnet hat, liest hier
+       weiter, warum das Ergebnis so aussieht. -->
+  <slot name="artikel" />
+
   {artikel.length > 0 && (
     <aside class="artikel-hinweis" style={`--accent: ${cat.color};`}>
       <h3>{artikel.length === 1 ? 'Der Artikel dazu' : 'Die Artikel dazu'}</h3>
       <ul>
         {artikel.map((a) => (
           <li>
-            <a href={`${base}ratgeber/${a.slug}/`}>{a.titel}</a>
+            <a href={`${base}${artikelPfad(a)}`}>{a.titel}</a>
             <p>{a.teaser}</p>
           </li>
         ))}

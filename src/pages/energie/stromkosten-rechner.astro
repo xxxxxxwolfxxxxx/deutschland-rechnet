@@ -1,7 +1,7 @@
 ---
 import Layout from '../../layouts/Layout.astro';
 import CalculatorShell from '../../components/CalculatorShell.astro';
-import CalculatorGuide from '../../components/CalculatorGuide.astro';
+import ArtikelStrompreis from '../../components/artikel/strompreis-zusammensetzung.astro';
 import { CALCULATORS, CATEGORIES } from '../../data/calculators';
 import {
   STROMPREIS_CENT_PRO_KWH,
@@ -99,51 +99,9 @@ const musterhaushalt = stromkostenProJahr({ verbrauchKwh: STROMPREIS_REFERENZVER
       </div>
       <p id="monat" style="margin-top:0.5rem;font-size:0.95rem;color:#666;"></p>
     </div>
+
+    <ArtikelStrompreis slot="artikel" />
   </CalculatorShell>
-
-  <CalculatorGuide
-    title="Stromkosten verstehen und optimieren"
-    content={`<p>Der durchschnittliche Strompreis für Haushalte liegt 2026 bei <strong>${ct(STROMPREIS_CENT_PRO_KWH)} ct/kWh</strong>. Die Zahl stammt aus der BDEW-Strompreisanalyse April 2026 und bezieht sich auf einen Musterhaushalt mit ${kwh(STROMPREIS_REFERENZVERBRAUCH_KWH)} Jahresverbrauch; der Grundpreis ist anteilig eingerechnet. So verteilt sich der Preis:</p>
-<ul>
-  <li><strong>Strombeschaffung und Vertrieb:</strong> ${ct(STROMPREIS_BESTANDTEILE.beschaffungUndVertrieb)} ct/kWh (${anteil(STROMPREIS_BESTANDTEILE.beschaffungUndVertrieb)} %)</li>
-  <li><strong>Netzentgelt:</strong> ${ct(STROMPREIS_BESTANDTEILE.netzentgelt)} ct/kWh (${anteil(STROMPREIS_BESTANDTEILE.netzentgelt)} %)</li>
-  <li><strong>Steuern, Abgaben und Umlagen:</strong> ${ct(Math.round(STROMPREIS_BESTANDTEILE.steuernAbgabenUmlagen * 10) / 10)} ct/kWh (${anteil(STROMPREIS_BESTANDTEILE.steuernAbgabenUmlagen)} %)</li>
-</ul>
-
-<p><strong>Die Abgaben im Einzelnen:</strong> Mehrwertsteuer ${ct(STROMPREIS_UMLAGEN.mehrwertsteuer)} ct/kWh, Stromsteuer ${ct(STROMPREIS_UMLAGEN.stromsteuer)} ct/kWh, Konzessionsabgabe ${ct(STROMPREIS_UMLAGEN.konzessionsabgabe)} ct/kWh, Aufschlag für besondere Netznutzung ${ct(STROMPREIS_UMLAGEN.besondereNetznutzung)} ct/kWh, Offshore-Netzumlage ${ct(STROMPREIS_UMLAGEN.offshoreNetzumlage)} ct/kWh und KWKG-Umlage ${ct(STROMPREIS_UMLAGEN.kwkgUmlage)} ct/kWh. Eine EEG-Umlage taucht hier nicht mehr auf: Sie wurde zum 1. Juli 2022 auf null gesetzt und ist seither kein Bestandteil des Strompreises. Der Ausbau der erneuerbaren Energien wird seitdem aus dem Bundeshaushalt finanziert.</p>
-
-<p><strong>Warum der Preis 2026 gesunken ist:</strong> Der Rückgang gegenüber dem Vorjahr geht fast vollständig auf die Netzentgelte zurück, die um 1,6 ct/kWh gefallen sind – der Bund bezuschusst seit 2026 die Übertragungsnetzentgelte. Beschaffung und Vertrieb sind leicht günstiger, die Steuern und Abgaben unverändert.</p>
-
-<h3>Stromkosten nach Haushaltsgröße (${ct(STROMPREIS_CENT_PRO_KWH)} ct/kWh, Stand 2026)</h3>
-<table>
-<thead><tr><th>Haushalt</th><th>Verbrauch (kWh/a)</th><th>Kosten pro Jahr</th><th>Kosten pro Monat</th></tr></thead>
-<tbody>
-${vergleich.map(z => `<tr><td>${z.label}</td><td>${z.verbrauchKwh.toLocaleString('de-DE')}</td><td>${euro2(z.jahr)}</td><td>${euro2(z.monat)}</td></tr>`).join('\n')}
-</tbody>
-</table>
-<p><small>Der Grundpreis ist in den ${ct(STROMPREIS_CENT_PRO_KWH)} ct/kWh bereits anteilig enthalten und wird nicht zusätzlich addiert. Genau aufgeht die Rechnung beim Musterhaushalt mit ${kwh(STROMPREIS_REFERENZVERBRAUCH_KWH)} (${euro2(musterhaushalt.jahr)} im Jahr). Bei ${kwh(1500)} verteilt sich der Grundpreis auf weniger Kilowattstunden – dort liegen die tatsächlichen Kosten etwas über dem Tabellenwert, bei ${kwh(5500)} etwas darunter.</small></p>
-
-<h3>Zwei offizielle Zahlen, zwei Bedeutungen</h3>
-<table>
-<thead><tr><th>Quelle</th><th>Zeitraum</th><th>Preis</th><th>Was gemessen wird</th></tr></thead>
-<tbody>
-<tr><td>BDEW-Strompreisanalyse</td><td>2026 (Datenstand 04/2026)</td><td>${ct(STROMPREIS_CENT_PRO_KWH)} ct/kWh</td><td>Tarife, die heute abschließbar sind – Tarifprodukte und Grundversorgung, gewichtet nach der Vertragsstruktur der Bundesnetzagentur, Musterhaushalt ${kwh(STROMPREIS_REFERENZVERBRAUCH_KWH)}</td></tr>
-<tr><td>Statistisches Bundesamt</td><td>${STROMPREIS_AMTLICH.zeitraum}</td><td>${ct(STROMPREIS_AMTLICH.centProKwh)} ct/kWh</td><td>Was Haushalte in bestehenden Verträgen tatsächlich zahlen, mengengewichtet, Verbrauchsband ${STROMPREIS_AMTLICH.verbrauchsband}</td></tr>
-</tbody>
-</table>
-<p>Beide Zahlen sind korrekt und messen Verschiedenes. Der amtliche Wert liegt höher, weil viele Haushalte in älteren, teureren Verträgen und in der Grundversorgung sitzen. Die Differenz ist deshalb keine statistische Unschärfe, sondern der ungefähre Betrag, den ein Tarifwechsel bringen kann.</p>
-
-<h3>Regionale Preisunterschiede in Deutschland</h3>
-<p>Der Durchschnitt verdeckt erhebliche regionale Unterschiede, die vor allem aus den Netzentgelten kommen: Sie werden je Netzgebiet festgelegt und sind dort am höchsten, wo viel erneuerbare Erzeugung an wenige Abnehmer angeschlossen ist. Deshalb zahlen Haushalte im windreichen Norden und Osten traditionell mehr als im dicht besiedelten Westen. Der Bundeszuschuss zu den Übertragungsnetzentgelten dämpft diesen Unterschied ab 2026, hebt ihn aber nicht auf. Den Preis für Ihr Netzgebiet nennt Ihr Netzbetreiber; er steht auch auf Ihrer Stromrechnung.</p>
-
-<h3>Die 5 wirksamsten Strom-Spartipps mit konkreter Ersparnis</h3>
-<p><strong>1. Alte Kühl-Gefrierkombination ersetzen:</strong> Ein 15 Jahre alter Kühlschrank verbraucht 350-450 kWh/a, ein neues A-Gerät nur 100-150 kWh/a. Bei ${ct(STROMPREIS_CENT_PRO_KWH)} ct/kWh sind das ${euro(250 * STROMPREIS_CENT_PRO_KWH / 100)} bis ${euro(300 * STROMPREIS_CENT_PRO_KWH / 100)} Ersparnis pro Jahr. Die Investition (400-600 Euro) amortisiert sich in 4-6 Jahren.</p>
-<p><strong>2. LED-Beleuchtung komplett umstellen:</strong> 10 Halogenspots (je 50 W, 3 h/Tag) verbrauchen 548 kWh/a, ersetzt durch LED (je 5 W) nur 55 kWh/a. Die eingesparten 493 kWh sind ${euro(493 * STROMPREIS_CENT_PRO_KWH / 100)} pro Jahr.</p>
-<p><strong>3. Stand-by konsequent abschalten:</strong> TV, Konsole, PC-Monitor, Router-Zweitgerät und Kaffeevollautomat im Stand-by verbrauchen zusammen 200-350 kWh/a. Mit schaltbaren Steckdosenleisten (5-10 Euro) sparen Sie ${euro(200 * STROMPREIS_CENT_PRO_KWH / 100)} bis ${euro(350 * STROMPREIS_CENT_PRO_KWH / 100)} pro Jahr.</p>
-<p><strong>4. Waschmaschine bei 30 statt 60 Grad:</strong> Ein 60-Grad-Waschgang verbraucht ca. 1,2 kWh, bei 30 Grad nur 0,4 kWh. Bei 200 Waschgängen pro Jahr sind das 160 kWh weniger, also ${euro(160 * STROMPREIS_CENT_PRO_KWH / 100)}.</p>
-<p><strong>5. Stromanbieter wechseln:</strong> Der Grundversorger ist fast immer teurer. Wie viel drin ist, zeigt der Abstand zwischen dem amtlichen Durchschnitt der Bestandsverträge (${ct(STROMPREIS_AMTLICH.centProKwh)} ct/kWh) und den heute abschließbaren Tarifen (${ct(STROMPREIS_CENT_PRO_KWH)} ct/kWh): bei ${kwh(STROMPREIS_REFERENZVERBRAUCH_KWH)} rund ${euro(Math.round((STROMPREIS_AMTLICH.centProKwh - STROMPREIS_CENT_PRO_KWH) * STROMPREIS_REFERENZVERBRAUCH_KWH / 100))} im Jahr.</p>`}
-    relatedSlugs={['heizkosten-rechner', 'photovoltaik-rechner', 'waermepumpe-rechner']}
-  />
 </Layout>
 
 <style>

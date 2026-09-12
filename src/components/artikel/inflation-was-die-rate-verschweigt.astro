@@ -1,5 +1,5 @@
 ---
-import ArticleLayout from '../../layouts/ArticleLayout.astro';
+import RechnerArtikel from '../RechnerArtikel.astro';
 import {
   VPI_BASISJAHR,
   VPI_STAND,
@@ -92,18 +92,16 @@ const monatLang = (iso: string) => {
   return new Date(Number(jahr), Number(monat) - 1, 1).toLocaleDateString('de-DE', { month: 'long', year: 'numeric' });
 };
 ---
-<ArticleLayout
-  title="Die Inflationsrate erlebt niemand"
-  description={`Seit ${VPI_BASISJAHR} ist der Warenkorb um ${prozent(gesamt.seitBasis)} teurer geworden. Hinter dem Durchschnitt liegen ${punkte(spanneProzentpunkte)} Prozentpunkte Spanne – von ${prozent(guenstigste.seitBasis)} bis ${prozent(teuerste.seitBasis)}.`}
-  canonicalPath="/ratgeber/inflation-was-die-rate-verschweigt/"
-  datum="2026-08-15"
+<RechnerArtikel
+  titel="Die Inflationsrate erlebt niemand"
   lead={`Die Inflationsrate ist ein gewichteter Durchschnitt über zwölf Ausgabenbereiche. Zwischen dem teuersten und dem günstigsten liegen ${punkte(spanneProzentpunkte)} Prozentpunkte – und eine Abteilung ist heute sogar billiger als ${VPI_BASISJAHR}. Wer die Durchschnittsrate auf sein eigenes Geld anwendet, rechnet mit einem Warenkorb, den er nicht hat.`}
+  datum="2026-08-15"
   quellen={[
     { titel: `Statistisches Bundesamt: Verbraucherpreisindex, Gesamtindex und 12 Abteilungen (Stand ${monatLang(VPI_STAND)})`, url: 'https://www.destatis.de/DE/Themen/Wirtschaft/Preise/Verbraucherpreisindex/Tabellen/Verbraucherpreise-12Kategorien.html' },
     { titel: 'Statistisches Bundesamt: Verbraucherpreisindex und Inflationsrate – Methodik', url: 'https://www.destatis.de/DE/Themen/Wirtschaft/Preise/Verbraucherpreisindex/_inhalt.html' },
   ]}
 >
-  <h2>Ein Durchschnitt aus zwölf Teilen</h2>
+  <h3>Ein Durchschnitt aus zwölf Teilen</h3>
 
   <p>
     Der Verbraucherpreisindex misst, was ein fester Warenkorb kostet, und setzt
@@ -178,7 +176,7 @@ const monatLang = (iso: string) => {
     Dauerauftrag.
   </p>
 
-  <h2>Der Rechenfehler bei der Kaufkraft</h2>
+  <h3>Der Rechenfehler bei der Kaufkraft</h3>
 
   <p>
     Die letzte Spalte der Tabelle wird häufig falsch gebildet. Wenn die Preise um
@@ -199,7 +197,7 @@ const monatLang = (iso: string) => {
     den Anstieg abziehen.
   </p>
 
-  <h2>Welche Rate man fortschreibt</h2>
+  <h3>Welche Rate man fortschreibt</h3>
 
   <p>
     Ein Inflationsrechner braucht eine Rate als Eingabe, und genau darin steckt
@@ -248,7 +246,7 @@ const monatLang = (iso: string) => {
     für eine Rentenlücke am ehesten der Gesamtindex.
   </p>
 
-  <h2>Eine sinkende Rate senkt keine Preise</h2>
+  <h3>Eine sinkende Rate senkt keine Preise</h3>
 
   <p>
     Der häufigste Irrtum im Umgang mit der Inflationsrate betrifft nicht ihre
@@ -270,7 +268,7 @@ const monatLang = (iso: string) => {
     negative.
   </p>
 
-  <h2>Wann sich die Kaufkraft halbiert</h2>
+  <h3>Wann sich die Kaufkraft halbiert</h3>
 
   <p>
     Weil Inflation multiplikativ wirkt, lässt sich für jede Rate ausrechnen, nach
@@ -314,7 +312,7 @@ const monatLang = (iso: string) => {
     man selbst wählt.
   </p>
 
-  <h2>Was der Index nicht misst</h2>
+  <h3>Was der Index nicht misst</h3>
 
   <ul class="liste">
     <li>
@@ -338,10 +336,8 @@ const monatLang = (iso: string) => {
   </ul>
 
   <p>
-    Die eigene Rechnung führt der
-    {' '}<a href={`${base}einheiten/inflationsrechner/`}>Inflationsrechner</a>
-    {' '}durch – mit einer Rate aus der ersten Tabelle statt einer gegriffenen
-    Zahl. Was daneben an Kaufkraft durch Steuern und Abgaben verloren geht, zeigt
+    Die eigene Rechnung führt der Rechner am Anfang dieser Seite durch – mit
+    einer Rate aus der ersten Tabelle statt einer gegriffenen Zahl. Was daneben an Kaufkraft durch Steuern und Abgaben verloren geht, zeigt
     der {' '}<a href={`${base}geld/brutto-netto-rechner/`}>Brutto-Netto-Rechner</a>.
   </p>
 
@@ -352,7 +348,7 @@ const monatLang = (iso: string) => {
     Die Fortschreibung über zehn Jahre unterstellt eine konstante Rate und ist
     ausdrücklich keine Prognose.
   </p>
-</ArticleLayout>
+</RechnerArtikel>
 
 <style>
 .table-wrap {

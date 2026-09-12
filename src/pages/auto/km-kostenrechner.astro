@@ -1,6 +1,6 @@
 ---
 import CalculatorLayout from '../../layouts/CalculatorLayout.astro';
-import CalculatorGuide from '../../components/CalculatorGuide.astro';
+import ArtikelAutokosten from '../../components/artikel/autokosten-wertverlust.astro';
 import PageByline from '../../components/PageByline.astro';
 import {
   LADESTROM_HEIM_CENT_PRO_KWH,
@@ -27,6 +27,15 @@ const base = import.meta.env.BASE_URL;
     { q: "Ab welcher Kilometerleistung lohnt sich ein eigenes Auto?", a: "Unter ca. 5.000 km pro Jahr sind Carsharing oder Mietwagen oft günstiger, da die Fixkosten pro Kilometer dann sehr hoch ausfallen. Ab ca. 10.000 km/Jahr sinken die Kosten pro Kilometer deutlich, und ein eigenes Auto wird wirtschaftlicher." }
   ]}
 >
+  <!-- Diese Seite hatte als einzige Rechnerseite gar keine h1: CalculatorLayout
+       rendert keine, und anders als heizkosten-rechner brachte sie auch keine
+       eigene mit. Aufgefallen ist das erst, als der Artikel dazukam – seine h2
+       stand plötzlich als oberste Überschrift der Seite da. -->
+  <div class="page-header">
+    <a href={`${import.meta.env.BASE_URL}auto/`} class="back-link">← Auto &amp; Mobilität</a>
+    <h1>KM-Kostenrechner – Kosten pro Kilometer</h1>
+  </div>
+
   <div class="calculator">
     <form id="kmKostenForm" class="calc-form">
       <div class="form-group">
@@ -159,21 +168,7 @@ const base = import.meta.env.BASE_URL;
     <PageByline path={`${base}auto/km-kostenrechner/`} />
   </div>
 
-  <CalculatorGuide
-    title="Kilometerkosten verstehen und richtig berechnen"
-    content={`<p>Die <strong>Kosten pro Kilometer</strong> sind eine der wichtigsten Kennzahlen für Autobesitzer. Sie zeigen, was jeder gefahrene Kilometer tatsächlich kostet, wenn alle Ausgaben berücksichtigt werden. Diese Information ist unverzichtbar für Pendler, Vielfahrer und alle, die ihre Mobilitätskosten optimieren wollen.</p>
-
-<p><strong>Vollkostenrechnung vs. reine Spritkosten:</strong> Viele Autofahrer kennen nur ihre Tankkosten und unterschätzen die wahren Kilometerskosten erheblich. Zu einer ehrlichen Vollkostenrechnung gehören: Kraftstoff oder Strom, Kfz-Versicherung (Haftpflicht und ggf. Kasko), Kfz-Steuer, Wartung und Reparaturen, TÜV/HU, Reifenverschleiß, Parkgebühren und der Wertverlust des Fahrzeugs. Letzterer ist oft der größte Einzelposten: Ein Neuwagen verliert im ersten Jahr durchschnittlich 20-25 Prozent seines Wertes.</p>
-
-<p><strong>Durchschnittliche Kosten in Deutschland:</strong> Laut ADAC liegen die Gesamtkosten pro Kilometer für einen Kleinwagen bei ca. 0,30-0,40 Euro, für die Kompaktklasse bei 0,40-0,55 Euro und für einen Mittelklassewagen bei 0,55-0,75 Euro. Diese Werte beinhalten den Wertverlust. Wer einen älteren Gebrauchtwagen fährt, hat zwar keinen hohen Wertverlust mehr, dafür aber oft höhere Reparaturkosten.</p>
-
-<p><strong>Steuerliche Relevanz:</strong> Die Entfernungspauschale für den Weg zur ersten Tätigkeitsstätte beträgt 0,38 Euro je vollem Entfernungskilometer ab dem ersten Kilometer (§ 9 Abs. 1 Satz 3 Nr. 4 EStG). Sie kann in der Einkommensteuererklärung als Werbungskosten geltend gemacht werden, unabhängig vom genutzten Verkehrsmittel. Bei beruflich veranlassten Fahrten außerhalb dieses Wegs können stattdessen die tatsächlichen Kosten oder pauschale Kilometersätze angesetzt werden (§ 9 Abs. 1 Satz 3 Nr. 4a EStG).</p>
-
-<p><strong>Fahrgemeinschaften und Mitfahrgelegenheiten:</strong> Wer regelmäßig die gleiche Strecke fährt, kann durch Fahrgemeinschaften die Kosten pro Person deutlich senken. Bei vier Mitfahrern reduzieren sich die individuellen Kosten auf ein Viertel. Auch Mitfahrplattformen nutzen Kilometerkostensätze als Orientierung für faire Preise.</p>
-
-<p><strong>Praxistipp:</strong> Führen Sie ein Haushaltsbuch oder nutzen Sie eine App, um alle Autokosten über ein Jahr zu erfassen. Teilen Sie die Jahresgesamtkosten durch die gefahrenen Kilometer, um Ihren persönlichen Kilometersatz zu ermitteln. So erkennen Sie, ob ein Jobwechsel mit längerem Arbeitsweg wirklich lohnt oder ob ein Umstieg auf den ÖPNV günstiger wäre.</p>`}
-    relatedSlugs={['fahrtkosten-rechner', 'spritkosten-rechner', 'spritkosten-vergleich', 'kfz-steuer-rechner']}
-  />
+  <ArtikelAutokosten />
 </CalculatorLayout>
 
 <style>

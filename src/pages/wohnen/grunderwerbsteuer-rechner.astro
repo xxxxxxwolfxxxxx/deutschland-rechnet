@@ -1,7 +1,7 @@
 ---
 import Layout from '../../layouts/Layout.astro';
 import CalculatorShell from '../../components/CalculatorShell.astro';
-import CalculatorGuide from '../../components/CalculatorGuide.astro';
+import ArtikelGrunderwerbsteuer from '../../components/artikel/grunderwerbsteuer-bundeslaender.astro';
 import { CALCULATORS, CATEGORIES } from '../../data/calculators';
 import { BUNDESLAENDER, berechneGrunderwerbsteuer } from '../../../public/scripts/grunderwerbsteuer.js';
 
@@ -138,31 +138,9 @@ const zuletztGeaendert = [...laender]
         <p id="v-fazit" class="vergleich-fazit"></p>
       </div>
     </div>
+
+    <ArtikelGrunderwerbsteuer slot="artikel" />
   </CalculatorShell>
-
-  <CalculatorGuide
-    title="Grunderwerbsteuer beim Immobilienkauf"
-    content={`<p>Die <strong>Grunderwerbsteuer</strong> fällt einmalig beim Erwerb eines Grundstücks oder einer Immobilie an. Sie ist eine reine Ländersteuer – der Bund gibt weder Satz noch Rahmen vor, jedes Land beschließt eigenständig.</p>
-
-<p><strong>Alle Sätze nach Höhe gruppiert:</strong></p>
-<ul>
-${gruppenText}
-</ul>
-
-<p><strong>Warum die Steuer schwerer wiegt als ihr Prozentsatz:</strong> Kaufnebenkosten sind nicht beleihbar. Während der Kaufpreis finanziert wird, muss die Grunderwerbsteuer aus Eigenkapital kommen. Bei ${eur(BEISPIEL)} Kaufpreis sind das je nach Bundesland zwischen ${eur(beispielGuenstig)} und ${eur(beispielTeuer)} – ein Unterschied von ${eur(beispielTeuer - beispielGuenstig)}, der direkt vom verfügbaren Eigenkapital abgeht.</p>
-
-<p><strong>Die weiteren Kaufnebenkosten:</strong></p>
-<ul>
-  <li>Notargebühren: rund 1,5 % des Kaufpreises</li>
-  <li>Grundbucheintragung: rund 0,5 %</li>
-  <li>Maklerprovision (falls beauftragt): 3,57 % bis 7,14 % inklusive Umsatzsteuer, seit Dezember 2020 in der Regel geteilt zwischen Käufer und Verkäufer</li>
-</ul>
-
-<p>Zusammen mit der Grunderwerbsteuer landen die Nebenkosten je nach Bundesland und Maklerbeteiligung bei etwa 6 bis 15 Prozent des Kaufpreises. Eine vollständige Aufstellung für den eigenen Fall liefert der <a href="${base}wohnen/immobilienkauf-nebenkosten/">Nebenkosten-Rechner</a>.</p>
-
-<p><strong>Ausführlicher Ländervergleich:</strong> Im Ratgeber steht die komplette Tabelle mit allen 16 Sätzen, den Gültigkeitsdaten und der Änderungshistorie: <a href="${base}ratgeber/grunderwerbsteuer-bundeslaender/">Was ein Hauskauf in jedem Bundesland kostet</a>.</p>`}
-    relatedSlugs={['hauskauf-rechner', 'immobilienkauf-nebenkosten', 'tilgungs-kreditrechner']}
-  />
 </Layout>
 
 <script type="module" define:vars={{ LAENDER: laender, DURCHSCHNITT: durchschnittSatz }}>

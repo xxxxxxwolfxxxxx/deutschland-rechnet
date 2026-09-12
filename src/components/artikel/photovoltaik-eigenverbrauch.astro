@@ -1,5 +1,5 @@
 ---
-import ArticleLayout from '../../layouts/ArticleLayout.astro';
+import RechnerArtikel from '../RechnerArtikel.astro';
 import {
   berechnePhotovoltaik,
   verguetungProKwh,
@@ -137,12 +137,10 @@ const jahrenDativ = (j: number | null) => (j === null ? 'nie' : `${j} Jahren`);
 const zahl = (b: number, stellen = 1) =>
   b.toLocaleString('de-DE', { minimumFractionDigits: stellen, maximumFractionDigits: stellen });
 ---
-<ArticleLayout
-  title="Photovoltaik: Der Eigenverbrauch entscheidet, nicht die Anlagengröße"
-  description={`Eine selbst verbrauchte Kilowattstunde ist ${zahl(hebel)}-mal so viel wert wie eine eingespeiste. Dieselbe ${REFERENZ.kwp}-kWp-Anlage bringt je nach Eigenverbrauchsquote ${eur(quoteNiedrig.ueberschuss25j)} oder ${eur(quoteHoch.ueberschuss25j)} über 25 Jahre.`}
-  canonicalPath="/ratgeber/photovoltaik-eigenverbrauch/"
-  datum="2026-08-14"
+<RechnerArtikel
+  titel="Der Eigenverbrauch entscheidet, nicht die Anlagengröße"
   lead={`Zwei Haushalte kaufen dieselbe Anlage zum selben Preis und montieren sie auf dasselbe Dach. Nach 25 Jahren trennt sie ${eur(quotenSpanne)}. Der Unterschied liegt nicht in der Technik, sondern darin, wie viel des erzeugten Stroms im Haus bleibt – und diese Größe wird beim Kauf meist gar nicht besprochen.`}
+  datum="2026-08-14"
   quellen={[
     { titel: '§ 48 EEG 2023 – anzulegende Werte für Solaranlagen', url: 'https://www.gesetze-im-internet.de/eeg_2014/__48.html' },
     { titel: '§ 49 EEG 2023 – Absenkung der anzulegenden Werte', url: 'https://www.gesetze-im-internet.de/eeg_2014/__49.html' },
@@ -151,7 +149,7 @@ const zahl = (b: number, stellen = 1) =>
     { titel: STROMPREIS_QUELLE, url: STROMPREIS_QUELLE_URL },
   ]}
 >
-  <h2>Eine Kilowattstunde, zwei Preise</h2>
+  <h3>Eine Kilowattstunde, zwei Preise</h3>
 
   <p>
     Der Strom vom eigenen Dach kann zwei Wege gehen. Bleibt er im Haus, ersetzt er
@@ -215,7 +213,7 @@ const zahl = (b: number, stellen = 1) =>
     {' '}Eigenverbrauch.
   </p>
 
-  <h2>Warum die größere Anlage die schlechtere sein kann</h2>
+  <h3>Warum die größere Anlage die schlechtere sein kann</h3>
 
   <p>
     Damit stellt sich die Frage nach der Größe neu. Der Haushaltsverbrauch ändert
@@ -324,7 +322,7 @@ const zahl = (b: number, stellen = 1) =>
     Minus.
   </p>
 
-  <h2>Wann groß trotzdem richtig ist</h2>
+  <h3>Wann groß trotzdem richtig ist</h3>
 
   <p>
     Die Rechnung dreht sich, sobald der Verbrauch steigt. Eine Wärmepumpe oder ein
@@ -372,7 +370,7 @@ const zahl = (b: number, stellen = 1) =>
     zusätzlichen Module fast nichts einbringen.
   </p>
 
-  <h2>Zwei Regeln, an denen sich Überschlagsrechnungen verrechnen</h2>
+  <h3>Zwei Regeln, an denen sich Überschlagsrechnungen verrechnen</h3>
 
   <p>
     Die Einspeisevergütung wird häufig als ein einziger Satz behandelt, der über
@@ -452,7 +450,7 @@ const zahl = (b: number, stellen = 1) =>
     {' '}{eur(nachAblauf[nachAblauf.length - 1].rest)} im Jahr.
   </p>
 
-  <h2>Was daraus folgt</h2>
+  <h3>Was daraus folgt</h3>
 
   <p>
     Die Eigenverbrauchsquote ist der einzige Faktor in dieser Rechnung, den man
@@ -471,9 +469,8 @@ const zahl = (b: number, stellen = 1) =>
     Für die Auslegung heißt das: erst den künftigen Verbrauch bestimmen, dann die
     Anlage. Nicht umgekehrt. Und die Frage „Passt noch ein Modul aufs Dach?“ ist
     nicht dieselbe wie die Frage, ob es sich lohnt. Beide Rechnungen lassen sich
-    mit eigenen Zahlen im
-    {' '}<a href={`${base}energie/photovoltaik-rechner/`}>Photovoltaik-Rechner</a>
-    {' '}wiederholen; wie viel Strom der Haushalt überhaupt braucht, zeigt der
+    mit eigenen Zahlen oben im Rechner wiederholen; wie viel Strom der Haushalt
+    überhaupt braucht, zeigt der
     {' '}<a href={`${base}energie/jahresenergieverbrauch/`}>Jahresenergieverbrauch</a>.
   </p>
 
@@ -485,7 +482,7 @@ const zahl = (b: number, stellen = 1) =>
     Wirkungen sind nicht berücksichtigt. Die Anlagenpreise sind Marktpreise mit
     erheblicher Spanne, Stand {PREIS_STAND}, und keine Rechtsgrößen.
   </p>
-</ArticleLayout>
+</RechnerArtikel>
 
 <style>
 .table-wrap {

@@ -1,5 +1,5 @@
 ---
-import ArticleLayout from '../../layouts/ArticleLayout.astro';
+import RechnerArtikel from '../RechnerArtikel.astro';
 import {
   berechneBootstrailer,
   pruefeTempo100,
@@ -77,12 +77,10 @@ const zahl = (b: number, stellen = 1) =>
   b.toLocaleString('de-DE', { minimumFractionDigits: stellen, maximumFractionDigits: stellen });
 const prozent = (b: number) => (b * 100).toLocaleString('de-DE', { maximumFractionDigits: 0 }) + ' %';
 ---
-<ArticleLayout
-  title="Bootstrailer: Warum das größere Zugfahrzeug den kleineren Trailer erlaubt"
-  description={`Klasse B deckt bei ${kg(leichtestesZug.zug)} Zugfahrzeug einen Trailer von ${kg(leichtestesZug.maxB)}, bei ${kg(schweresZug.zug)} nur noch ${kg(schweresZug.maxB)}. Und über Tempo 100 entscheidet nicht das Gewicht, sondern ob der Trailer Schwingungsdämpfer hat.`}
-  canonicalPath="/ratgeber/bootstrailer-fuehrerschein-tempo-100/"
-  datum="2026-08-15"
+<RechnerArtikel
+  titel="Warum das größere Zugfahrzeug den kleineren Trailer erlaubt"
   lead={`Drei Grenzen entscheiden über ein Trailergespann, und sie stehen in drei verschiedenen Verordnungen. Zwei davon führen zu einem Ergebnis, das dem Bauchgefühl widerspricht: Das schwerere Zugfahrzeug darf mit Klasse B den leichteren Trailer ziehen – ${kg(umkehrDifferenz)} weniger –, und über Tempo 100 entscheidet ein Bauteil, das viele Bootstrailer gar nicht haben.`}
+  datum="2026-08-15"
   quellen={[
     { titel: '§ 6 FeV – Einteilung der Fahrerlaubnisklassen', url: 'https://www.gesetze-im-internet.de/fev_2010/__6.html' },
     { titel: '§ 6a FeV – Klasse B mit der Schlüsselzahl 96', url: 'https://www.gesetze-im-internet.de/fev_2010/__6a.html' },
@@ -91,7 +89,7 @@ const prozent = (b: number) => (b * 100).toLocaleString('de-DE', { maximumFracti
     { titel: '§ 3 StVO – zulässige Höchstgeschwindigkeit', url: 'https://www.gesetze-im-internet.de/stvo_2013/__3.html' },
   ]}
 >
-  <h2>Drei Grenzen, nicht eine</h2>
+  <h3>Drei Grenzen, nicht eine</h3>
 
   <p>
     Wer ein Boot auf dem Trailer bewegen will, stößt auf drei voneinander
@@ -112,7 +110,7 @@ const prozent = (b: number) => (b * 100).toLocaleString('de-DE', { maximumFracti
     Stützlast wird also nicht doppelt gezählt – ein verbreiteter Irrtum.
   </p>
 
-  <h2>Welche Klasse welches Gespann deckt</h2>
+  <h3>Welche Klasse welches Gespann deckt</h3>
 
   <div class="table-wrap">
     <table>
@@ -192,7 +190,7 @@ const prozent = (b: number) => (b * 100).toLocaleString('de-DE', { maximumFracti
     genau die Frage, die man vor dem Kauf klären sollte.
   </p>
 
-  <h2>Was die Schlüsselzahl 96 wirklich ist</h2>
+  <h3>Was die Schlüsselzahl 96 wirklich ist</h3>
 
   <p>
     Zwischen {kg(3_500)} und {kg(4_250)} Kombinationsmasse liegt nach § 6a FeV
@@ -212,7 +210,7 @@ const prozent = (b: number) => (b * 100).toLocaleString('de-DE', { maximumFracti
     Das übersehen viele Übersichten.
   </p>
 
-  <h2>Tempo 100 hängt an einem Bauteil</h2>
+  <h3>Tempo 100 hängt an einem Bauteil</h3>
 
   <p>
     Die Neunte Ausnahmeverordnung zur StVO erlaubt 100 km/h nur, wenn die
@@ -279,7 +277,7 @@ const prozent = (b: number) => (b * 100).toLocaleString('de-DE', { maximumFracti
     Rechnung aufgeht.
   </p>
 
-  <h2>Welche Grenze zuerst bindet</h2>
+  <h3>Welche Grenze zuerst bindet</h3>
 
   <p>
     Für die reine Klasse B lässt sich das ausrechnen. Der Trailer darf höchstens
@@ -331,7 +329,7 @@ const prozent = (b: number) => (b * 100).toLocaleString('de-DE', { maximumFracti
     Fahrerlaubnis prüfen – nicht umgekehrt.
   </p>
 
-  <h2>Was Tempo 100 nicht bringt</h2>
+  <h3>Was Tempo 100 nicht bringt</h3>
 
   <p>
     Die Ausnahme gilt ausschließlich auf Autobahnen und Kraftfahrstraßen. Auf
@@ -342,9 +340,8 @@ const prozent = (b: number) => (b * 100).toLocaleString('de-DE', { maximumFracti
   </p>
 
   <p>
-    Das eigene Gespann rechnet der
-    {' '}<a href={`${base}boot/bootstrailer-fuehrerschein/`}>Bootstrailer-Rechner</a>
-    {' '}durch – samt der technischen Grenzen aus den Feldern O.1 und F.3. Was
+    Das eigene Gespann rechnet der Rechner am Anfang dieser Seite durch – samt
+    der technischen Grenzen aus den Feldern O.1 und F.3. Was
     das Boot im Betrieb kostet, zeigt der
     {' '}<a href={`${base}boot/spritverbrauch-boot/`}>Spritverbrauchs-Rechner</a>,
     und wie viel Kette am Ankerplatz nötig ist, der
@@ -357,7 +354,7 @@ const prozent = (b: number) => (b * 100).toLocaleString('de-DE', { maximumFracti
     Trailer auch am Berg anfahren kann. Verbindlich sind die Eintragungen in
     Fahrzeugschein und Führerschein.
   </p>
-</ArticleLayout>
+</RechnerArtikel>
 
 <style>
 .table-wrap {

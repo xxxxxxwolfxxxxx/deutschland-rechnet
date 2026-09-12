@@ -1,7 +1,7 @@
 ---
 import Layout from '../../layouts/Layout.astro';
 import CalculatorShell from '../../components/CalculatorShell.astro';
-import CalculatorGuide from '../../components/CalculatorGuide.astro';
+import ArtikelInflation from '../../components/artikel/inflation-was-die-rate-verschweigt.astro';
 import { CALCULATORS, CATEGORIES } from '../../data/calculators';
 const calc = CALCULATORS.find(c => c.slug === 'inflationsrechner')!;
 const cat = CATEGORIES[calc.category];
@@ -54,40 +54,9 @@ const year = new Date().getFullYear();
       </div>
       <div id="details" style="margin-top:0.75rem;font-size:0.88rem;color:#666;display:flex;gap:1.5rem;flex-wrap:wrap;"></div>
     </div>
+
+    <ArtikelInflation slot="artikel" />
   </CalculatorShell>
-
-  <CalculatorGuide
-    title="Inflationsrechner – So berechnen Sie den Kaufkraftverlust"
-    content={`
-      <p><strong>Inflation</strong> ist der Anstieg des allgemeinen Preisniveaus. Was heute 100€ kostet, könnte in fünf Jahren 110€ kosten. Das bedeutet, dass Ihr Geld weniger wert wird und weniger Waren kaufen kann – auch wenn der Kontostand gleich bleibt.</p>
-
-      <p>Mit dem Inflationsrechner können Sie berechnen, <strong>wie viel eine bestimmte Geldmenge in der Zukunft noch wert sein wird</strong>. Dies ist besonders wichtig für die Finanzplanung, Rentenbewertung und die Entscheidung über Sparquoten und Investitionen.</p>
-
-      <p><strong>Beispiel:</strong> Sie haben 50.000€ gespart. Mit einer durchschnittlichen Inflationsrate von 2,5% pro Jahr sind diese 50.000€ nach 10 Jahren nur noch etwa 38.500€ wert (gemessen an heutiger Kaufkraft). Das ist ein Kaufkraftverlust von ca. 11.500€.</p>
-
-      <h4>Wie funktioniert die Berechnung?</h4>
-      <p>Die Formel ist: <strong>Kaufkraft = Betrag ÷ (1 + Inflationsrate)^Zeitraum</strong></p>
-
-      <p>Der Rechner berücksichtigt die exponentielle Wirkung von Inflation – der Verlust wird jedes Jahr größer. Besonders über lange Zeiträume (10+ Jahre) ist der Effekt deutlich spürbar.</p>
-
-      <h4>Praktische Anwendungen</h4>
-      <ul>
-        <li><strong>Rentenbewertung:</strong> Überprüfen Sie, ob Ihre zukünftige Rente den heutigen Lebensstandard hält.</li>
-        <li><strong>Sparziele:</strong> Berechnen Sie, wie viel Sie wirklich sparen müssen, um ein Ziel in der Zukunft zu erreichen.</li>
-        <li><strong>Kredite:</strong> Ein Kredit wird realer billiger durch Inflation – besonders über lange Laufzeiten.</li>
-        <li><strong>Versicherungen:</strong> Achten Sie darauf, dass Ihre Lebensversicherungssumme die Inflation berücksichtigt.</li>
-      </ul>
-
-      <h4>Tipps zum Umgang mit Inflation</h4>
-      <ul>
-        <li><strong>Breite Investitionen:</strong> Aktien und Immobilien bieten historisch Inflationsschutz.</li>
-        <li><strong>Realrendite prüfen:</strong> Vergleichen Sie Zinsangebote immer mit der aktuellen Inflationsrate.</li>
-        <li><strong>Langfristig denken:</strong> Bei längeren Zeiträumen wird Inflation zum entscheidenden Faktor.</li>
-        <li><strong>Unterschied verstehen:</strong> Nominalwerte (auf dem Konto) vs. Realwerte (echte Kaufkraft).</li>
-      </ul>
-    `}
-    relatedSlugs={['prozent-rechner', 'mwst-rechner']}
-  />
 </Layout>
 
 <script type="module">

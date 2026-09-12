@@ -1,7 +1,7 @@
 ---
 import Layout from '../../layouts/Layout.astro';
 import CalculatorShell from '../../components/CalculatorShell.astro';
-import CalculatorGuide from '../../components/CalculatorGuide.astro';
+import ArtikelNebenkosten from '../../components/artikel/nebenkosten-was-umlagefaehig-ist.astro';
 import { CALCULATORS, CATEGORIES } from '../../data/calculators';
 import {
   BETRIEBSKOSTENSPIEGEL,
@@ -111,6 +111,8 @@ const versicherung = BETRIEBSKOSTEN_ARTEN.find(a => a.key === 'versicherung')!;
         <div id="fristen-ergebnis" class="hinweis"></div>
       </div>
     </div>
+
+    <ArtikelNebenkosten slot="artikel" />
   </CalculatorShell>
 
   <section class="info-block">
@@ -189,8 +191,6 @@ const versicherung = BETRIEBSKOSTEN_ARTEN.find(a => a.key === 'versicherung')!;
       {' '}genauer.
     </p>
   </section>
-
-  <CalculatorGuide title="Nebenkosten in Deutschland: Zusammensetzung, Prüfung und Spartipps" content={`<p>Die Nebenkosten, oft als zweite Miete bezeichnet, sind ein erheblicher Kostenfaktor für Mieter in Deutschland. Sie umfassen die laufenden Betriebskosten einer Immobilie, die der Vermieter nach § 556 BGB und der Betriebskostenverordnung auf die Mieter umlegen darf – vorausgesetzt, der Mietvertrag sieht das vor. Der Deutsche Mieterbund erhebt dazu regelmäßig den Betriebskostenspiegel.</p><p><strong>Zusammensetzung der Nebenkosten:</strong> Den mit Abstand größten Anteil machen Heizung und Warmwasser aus: ${eur(heizung.euroProQmMonat)} €/m² und Monat, also rund ${heizanteil} Prozent der durchschnittlichen Nebenkosten von ${eur(spiegel.durchschnittGesamt)} €/m². Es folgen Hauswart (${eur(hauswart.euroProQmMonat)} €), Sach- und Haftpflichtversicherung (${eur(versicherung.euroProQmMonat)} €), Wasser und Entwässerung (${eur(wasser.euroProQmMonat)} €, rund ${wasserAnteil} Prozent) und die Grundsteuer (${eur(grundsteuer.euroProQmMonat)} €, rund ${grundsteuerAnteil} Prozent). Für eine Wohnung mit ${beispielFlaeche} m² ergeben die üblicherweise anfallenden Positionen rund ${eur(beispiel.gesamtMonat)} € im Monat oder ${eur(beispiel.gesamtJahr)} € im Jahr.</p><p><strong>Abrechnungsfristen und Ihre Rechte:</strong> Der Vermieter muss die Abrechnung innerhalb von zwölf Monaten nach Ende des Abrechnungszeitraums zustellen (§ 556 Abs. 3 Satz 2 BGB). Versäumt er die Frist, ist eine Nachforderung ausgeschlossen, sofern er die Verspätung zu vertreten hat; ein Guthaben müssen Sie trotzdem bekommen. Sie selbst haben nach Zugang ebenfalls zwölf Monate Zeit für Einwendungen. Das Recht auf Belegeinsicht steht in § 556 Abs. 4 BGB – der Vermieter darf die Belege inzwischen auch elektronisch bereitstellen.</p><p><strong>Häufige Fehler in Nebenkostenabrechnungen:</strong> Der Deutsche Mieterbund gibt an, dass etwa jede zweite von seinen Vereinen geprüfte Abrechnung Fehler enthält. Typisch sind ein falscher Verteilerschlüssel, eine zu große angesetzte Wohnfläche, nicht umlagefähige Positionen wie Reparaturen oder Verwaltungskosten sowie Doppelberechnungen bei einem Eigentümerwechsel. Seit Juli 2024 kommt ein neuer Fehlertyp hinzu: weiterhin abgerechnetes Kabelfernsehen.</p><p><strong>Praktische Spartipps:</strong> Bei den Heizkosten wirkt richtiges Lüften am schnellsten – kurzes Stoßlüften statt dauerhaft gekippter Fenster. Eine um ein Grad niedrigere Raumtemperatur senkt den Verbrauch spürbar, und entlüftete Heizkörper geben ihre Wärme wieder vollständig ab. Beim Warmwasser bringt ein Sparduschkopf am meisten, weil er Wasser- und Heizkosten zugleich senkt. Vergleichen Sie außerdem Ihre Abrechnung Position für Position mit dem Betriebskostenspiegel: Ausreißer nach oben sind der beste Anlass für eine Belegeinsicht.</p><p><strong>Besonderheiten bei Heizkosten:</strong> Nach § 7 Abs. 1 HeizkostenV müssen mindestens ${HEIZKOSTEN_VERBRAUCHSANTEIL.min * 100} und höchstens ${HEIZKOSTEN_VERBRAUCHSANTEIL.max * 100} Prozent der Heizkosten verbrauchsabhängig abgerechnet werden; der Rest wird nach Wohnfläche verteilt. Seit dem 1. Januar 2023 gilt zudem das Kohlendioxidkostenaufteilungsgesetz: Je schlechter die energetische Qualität des Gebäudes, desto größer ist der Anteil des Vermieters an den CO₂-Kosten – bei sehr schlechten Werten trägt er 95 Prozent.</p>`} relatedSlugs={['mietrechner', 'mietpreisbremse-rechner', 'quadratmeterpreis-vergleich', 'kaufen-vs-mieten']} />
 </Layout>
 
 <style>

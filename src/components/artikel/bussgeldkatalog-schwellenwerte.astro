@@ -1,5 +1,5 @@
 ---
-import ArticleLayout from '../../layouts/ArticleLayout.astro';
+import RechnerArtikel from '../RechnerArtikel.astro';
 import {
   berechneGeschwindigkeit,
   berechneAbstand,
@@ -219,15 +219,13 @@ const quellen = [
   { titel: '§ 23 StVO – Sonstige Pflichten von Fahrzeugführenden', url: 'https://www.gesetze-im-internet.de/stvo_2013/__23.html' },
 ];
 ---
-<ArticleLayout
-  title="Bußgeldkatalog: Wo ein einziges km/h den Preis vervielfacht"
-  description={`Der Bußgeldkatalog ist keine Kurve, sondern eine Treppe. An der teuersten Stufe kostet ein km/h ${eur(teuersterKmh.delta)} – und beim Abstand entscheidet der Sprung von ${KANTE_UNTEN} auf ${KANTE_OBEN} km/h über bis zu ${eur(kanteMax.delta)}.`}
-  canonicalPath="/ratgeber/bussgeldkatalog-schwellenwerte/"
+<RechnerArtikel
+  titel="Wo ein einziges km/h den Preis vervielfacht"
   datum="2026-08-27"
   lead={`Innerorts trennt ein einziger Kilometer pro Stunde ${eur(vorFv.bussgeld)} von ${eur(abFv.bussgeld)} – und genau dort beginnt das Fahrverbot. Der Bußgeldkatalog rechnet nicht linear, sondern in Stufen, und die interessanten Zahlen stehen nicht in den Stufen, sondern an ihren Kanten.`}
   quellen={quellen}
 >
-  <h2>Drei Sanktionen, drei Rechtsgrundlagen</h2>
+  <h3>Drei Sanktionen, drei Rechtsgrundlagen</h3>
   <p>
     Ein Bußgeldbescheid nennt bis zu drei Folgen, und sie stammen aus drei verschiedenen
     Vorschriften. Der Geldbetrag ist der Regelsatz des Bußgeldkatalogs, der Anlage zur
@@ -257,7 +255,7 @@ const quellen = [
     denen sie auseinanderfallen.
   </p>
 
-  <h2>Die Geschwindigkeitstabelle ist eine Treppe</h2>
+  <h3>Die Geschwindigkeitstabelle ist eine Treppe</h3>
   <p>
     Für Pkw und Motorräder gilt Tabelle 1 Buchstabe c des Anhangs zur BKatV. Sie hat
     {' '}{zahlwort(tempoZeilen.length)} Stufen, und innerhalb einer Stufe ändert sich nichts:
@@ -307,7 +305,7 @@ const quellen = [
     {' '}{monateDat(abFv.fahrverbot)} vor, wo vorher keines stand.
   </p>
 
-  <h2>Zwischen innerorts und außerorts liegen zehn km/h</h2>
+  <h3>Zwischen innerorts und außerorts liegen zehn km/h</h3>
   <p>
     Beim Geld ist der Unterschied zwischen den beiden Ortslagen überschaubar: Der Aufschlag für
     innerorts reicht von {eur(Math.min(...tempoZeilen.map((z) => z.aufschlag)))} in der
@@ -324,7 +322,7 @@ const quellen = [
     Rechtsfolge der ganzen Tabelle entscheidet damit kein Messwert, sondern die Ortstafel.
   </p>
 
-  <h2>Relativ gerechnet steht die Tabelle auf dem Kopf</h2>
+  <h3>Relativ gerechnet steht die Tabelle auf dem Kopf</h3>
   <p>
     Der Katalog kennt nur absolute Kilometer pro Stunde. Wie schwer eine Überschreitung wiegt,
     hängt aber davon ab, wie hoch das Limit war, das sie überschreitet. Setzt man die
@@ -368,7 +366,7 @@ const quellen = [
     nur zwei Ortslagen und absolute Kilometer pro Stunde, kein Verhältnis zum Limit.
   </p>
 
-  <h2>Beharrlichkeit kostet keinen Cent extra</h2>
+  <h3>Beharrlichkeit kostet keinen Cent extra</h3>
   <p>
     § 4 Abs. 2 Satz 2 BKatV kennt einen zweiten Weg zum Fahrverbot. Wer innerhalb eines Jahres
     nach Rechtskraft einer Geldbuße wegen mindestens {BEHARRLICH_AB_KMH} km/h erneut mindestens
@@ -394,7 +392,7 @@ const quellen = [
     {' '}Fahrverbot. Die zweite Tat ist nicht teurer, sie ist nur teuer auf eine andere Art.
   </p>
 
-  <h2>Der teuerste km/h steht nicht in der Geschwindigkeitstabelle</h2>
+  <h3>Der teuerste km/h steht nicht in der Geschwindigkeitstabelle</h3>
   <p>
     Beim Abstand knüpft der Katalog nicht an die Überschreitung an, sondern an die gefahrene
     Geschwindigkeit selbst – und zwar mit einer harten Kante. Nummer 12.1 BKat sieht für
@@ -451,7 +449,7 @@ const quellen = [
     {' '}{monateAkk(bNeu.fahrverbot)} Fahrverbot. Der Betrag ändert sich nicht, die Folge schon.
   </p>
 
-  <h2>Ein Meter ist ein Monat</h2>
+  <h3>Ein Meter ist ein Monat</h3>
   <p>
     Wie fein die Stufen beim Abstand tatsächlich liegen, zeigt sich, wenn man sie für ein festes
     Tempo in Meter zurückrechnet. Bei {TEMPO_ABSTAND} km/h beträgt der halbe Tachowert
@@ -502,7 +500,7 @@ const quellen = [
     wichtigsten Stellen mit Schwellen, nicht mit Übergängen.
   </p>
 
-  <h2>Was diese Rechnung nicht abbildet</h2>
+  <h3>Was diese Rechnung nicht abbildet</h3>
   <p>
     Alle Werte sind Regelsätze. Sie gehen nach § 1 Abs. 2 BKatV von gewöhnlichen Tatumständen
     und – in Abschnitt I des Bußgeldkatalogs, aus dem alle hier gezeigten Zahlen stammen – von
@@ -521,9 +519,9 @@ const quellen = [
     Punktestand nach § 4 Abs. 5 StVG ergeben.
   </p>
   <p>
-    Die Zahlen dieses Artikels stammen aus demselben Rechenmodul wie der
-    {' '}<a href={`${base}auto/busgeldrechner/`}>Bußgeldrechner</a>. Wer einen konkreten Fall
-    durchspielen will – Geschwindigkeit, Abstand, Rotlicht oder Handy am Steuer –, findet dort
-    die Eingabefelder.
+    Die Zahlen dieses Artikels stammen aus demselben Rechenmodul wie der Rechner
+    am Anfang dieser Seite. Wer einen konkreten Fall durchspielen will –
+    Geschwindigkeit, Abstand, Rotlicht oder Handy am Steuer –, findet dort die
+    Eingabefelder.
   </p>
-</ArticleLayout>
+</RechnerArtikel>

@@ -1,5 +1,5 @@
 ---
-import ArticleLayout from '../../layouts/ArticleLayout.astro';
+import RechnerArtikel from '../RechnerArtikel.astro';
 import {
   STROMPREIS_CENT_PRO_KWH,
   STROMPREIS_UMLAGEN,
@@ -206,15 +206,13 @@ const quellen = [
   { titel: 'Bundesnetzagentur – Monitoringberichte Energie', url: 'https://www.bundesnetzagentur.de/DE/Fachthemen/ElektrizitaetundGas/Monitoringberichte/start.html' },
 ];
 ---
-<ArticleLayout
-  title="Woraus der Strompreis besteht – und warum ein Anbieterwechsel nur die Hälfte trifft"
-  description={`Der Haushaltsstrompreis liegt bei ${ct(STROMPREIS_CENT_PRO_KWH)} ct/kWh. Nur ${pz(anteil(beschaffungBrutto))} Prozent davon hängen am Tarif – der Rest ist gesetzt, bevor der Vertrag unterschrieben ist. Mit Summenprobe, Wechselhebel und Sensitivitätstabelle.`}
-  canonicalPath="/ratgeber/strompreis-zusammensetzung/"
-  datum="2026-08-27"
+<RechnerArtikel
+  titel="Woraus der Strompreis besteht – und warum ein Anbieterwechsel nur die Hälfte trifft"
   lead={`Ein Haushalt zahlt für Strom im Schnitt ${ct(STROMPREIS_CENT_PRO_KWH)} Cent je Kilowattstunde. Auf Beschaffung und Vertrieb – den einzigen Teil, über den ein Anbieterwechsel überhaupt verhandelt – entfallen davon ${ct(B.beschaffungUndVertrieb)} Cent. Rechnet man die Umsatzsteuer hinzu, die auf diesem Teil liegt, sind es ${ctD(beschaffungBrutto)} Cent oder ${pz(anteil(beschaffungBrutto))} Prozent der Rechnung. Die übrigen ${pz(anteil(sockelBrutto))} Prozent stehen fest, bevor irgendjemand einen Tarif aussucht.`}
+  datum="2026-08-27"
   quellen={quellen}
 >
-  <h2>Zuerst die Probe: Geht die Aufschlüsselung überhaupt auf?</h2>
+  <h3>Zuerst die Probe: Geht die Aufschlüsselung überhaupt auf?</h3>
   <p>
     Preisaufschlüsselungen kursieren zu Hunderten, und die wenigsten addieren sich. Die Zahlen
     dieses Artikels stammen aus der {STROMPREIS_QUELLE};
@@ -240,7 +238,7 @@ const quellen = [
     Satz lässt sich jedem Block die Umsatzsteuer zuordnen, die auf ihm liegt.
   </p>
 
-  <h2>Die drei Blöcke</h2>
+  <h3>Die drei Blöcke</h3>
   <table>
     <caption class="visually-hidden">
       Bestandteile des Haushaltsstrompreises in Cent je Kilowattstunde
@@ -278,7 +276,7 @@ const quellen = [
     Tarifwechsel bewegt, muss die Umsatzsteuer dorthin zurücklegen, wo sie entsteht.
   </p>
 
-  <h2>Der Sockel: {ctD(sockelBrutto)} Cent, bevor eine Kilowattstunde beschafft ist</h2>
+  <h3>Der Sockel: {ctD(sockelBrutto)} Cent, bevor eine Kilowattstunde beschafft ist</h3>
   <table>
     <caption class="visually-hidden">
       Bestandteile des Strompreises einschließlich der jeweils darauf entfallenden Umsatzsteuer
@@ -316,7 +314,7 @@ const quellen = [
     Verhandlung liegt.
   </p>
 
-  <h2>Was ein Anbieterwechsel rechnerisch bewegen kann</h2>
+  <h3>Was ein Anbieterwechsel rechnerisch bewegen kann</h3>
   <p>
     Ein Wechsel ändert den Beschaffungs- und Vertriebspreis, sonst nichts. Netzentgelt,
     Stromsteuer, Konzessionsabgabe und die drei Umlagen sind je Kilowattstunde festgelegt und
@@ -358,7 +356,7 @@ const quellen = [
     die Rechnung um {pz(rabatte[2].sparAnteil)} Prozent.
   </p>
 
-  <h2>Gegenprobe: Was ein Wechsel tatsächlich bringt</h2>
+  <h3>Gegenprobe: Was ein Wechsel tatsächlich bringt</h3>
   <p>
     Die Hebelrechnung sagt, was ein bestimmter Rabatt bewirken <em>würde</em>. Sie sagt nicht, wie
     groß der erreichbare Rabatt ist. Dafür gibt es einen zweiten, unabhängigen Anhaltspunkt: Zwei
@@ -394,7 +392,7 @@ const quellen = [
     zweistelliger Prozentsatz der Jahresrechnung, nicht mehr.
   </p>
 
-  <h2>„Steuern und Abgaben" ist nicht dasselbe wie „was der Staat bekommt"</h2>
+  <h3>„Steuern und Abgaben" ist nicht dasselbe wie „was der Staat bekommt"</h3>
   <p>
     Der dritte Block heißt „Steuern, Abgaben und Umlagen" und macht
     {' '}{pz(anteil(B.steuernAbgabenUmlagen))} Prozent des Preises aus. Diese Zahl wird
@@ -448,7 +446,7 @@ const quellen = [
     Staatsanteil zitiert, zählt Geld mit, das der Staat nie sieht.
   </p>
 
-  <h2>Die Steuer auf die Steuer</h2>
+  <h3>Die Steuer auf die Steuer</h3>
   <p>
     Die Umsatzsteuer wird auf den Endpreis erhoben, und in diesem Endpreis stecken bereits
     Stromsteuer, Konzessionsabgabe, Netzentgelt und Umlagen. Sie wird also unter anderem auf
@@ -500,7 +498,7 @@ const quellen = [
     finanziert. Aufschlüsselungen, die noch eine EEG-Umlage ausweisen, sind veraltet.
   </p>
 
-  <h2>Was der Durchschnitt bei der Konzessionsabgabe verdeckt</h2>
+  <h3>Was der Durchschnitt bei der Konzessionsabgabe verdeckt</h3>
   <p>
     Von allen Posten ist die Konzessionsabgabe derjenige, bei dem der bundesweite Durchschnitt am
     meisten verbirgt. Sie ist nämlich nicht bundeseinheitlich, sondern nach Gemeindegröße
@@ -554,7 +552,7 @@ const quellen = [
     reduzierten Netzentgelte für steuerbare Verbrauchseinrichtungen nach § 14a EnWG.
   </p>
 
-  <h2>Derselbe Strom, fünf Preise</h2>
+  <h3>Derselbe Strom, fünf Preise</h3>
   <p>
     Der Durchschnittswert gilt für Haushaltstarife. Physikalisch identische Kilowattstunden
     kosten je nach Zähler und Ladepunkt sehr Verschiedenes – und das Rechenmodul führt diese
@@ -598,7 +596,7 @@ const quellen = [
     Nachkommastelle vergleichbaren Werte.
   </p>
 
-  <h2>Die Modellannahme, die alles mitbestimmt</h2>
+  <h3>Die Modellannahme, die alles mitbestimmt</h3>
   <p>
     Jede Zahl dieses Artikels hängt an einer Bezugsgröße: einem Musterhaushalt mit {kwh(V)}
     {' '}Jahresverbrauch. Der Grundpreis ist in den {ct(STROMPREIS_CENT_PRO_KWH)} Cent bereits
@@ -652,7 +650,7 @@ const quellen = [
     {' '}{pz0(100 / kwhGegenWechsel)} Prozent zu senken.
   </p>
 
-  <h2>Was diese Rechnung nicht abbildet</h2>
+  <h3>Was diese Rechnung nicht abbildet</h3>
   <p>
     Der Netzentgeltwert von {ct(B.netzentgelt)} Cent ist ein Bundesdurchschnitt. Netzentgelte
     werden je Netzgebiet festgelegt und weichen erheblich voneinander ab; welches für Sie gilt,
@@ -663,9 +661,9 @@ const quellen = [
     nach der Vertragsstruktur der Bundesnetzagentur – nicht das, was der Bestand tatsächlich zahlt.
   </p>
   <p>
-    Alle Beträge in diesem Text stammen aus demselben Rechenmodul wie der
-    {' '}<a href={`${base}energie/stromkosten-rechner/`}>Stromkosten-Rechner</a>. Dort lässt sich
-    der eigene Jahresverbrauch und der Preis aus der eigenen Rechnung eintragen; die
-    Aufschlüsselung oben zeigt, welcher Teil des Ergebnisses überhaupt zur Disposition steht.
+    Alle Beträge in diesem Text stammen aus demselben Rechenmodul wie der Rechner
+    am Anfang dieser Seite. Dort lässt sich der eigene Jahresverbrauch und der Preis
+    aus der eigenen Rechnung eintragen; die Aufschlüsselung oben zeigt, welcher Teil
+    des Ergebnisses überhaupt zur Disposition steht.
   </p>
-</ArticleLayout>
+</RechnerArtikel>

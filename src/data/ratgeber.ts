@@ -17,8 +17,27 @@ export interface Artikel {
   /** ISO-Datum der Veröffentlichung bzw. letzten inhaltlichen Prüfung. */
   datum: string;
   thema: string;
-  /** Slugs der Rechner, die auf diesen Artikel verweisen sollen. */
+  /**
+   * Slugs der Rechner, die auf diesen Artikel verweisen sollen. Der ERSTE ist
+   * die Heimat: Ist `aufRechnerseite` gesetzt, steht der Artikeltext auf dessen
+   * Seite.
+   */
   rechner: string[];
+  /**
+   * true: Der Artikeltext steht auf der Seite des erstgenannten Rechners,
+   * /ratgeber/<slug>/ gibt es nicht mehr und wird per 301 dorthin geleitet.
+   * Ohne das Feld liegt der Artikel weiter unter /ratgeber/<slug>/.
+   *
+   * Warum die Zusammenlegung: Getrennt war beides je eine halbe Seite. Google
+   * hat mehrere Rechnerseiten als "Gecrawlt – zurzeit nicht indexiert"
+   * aussortiert, waehrend die zugehoerigen Artikel null Impressionen hatten –
+   * unter anderem promille-rechner und unterhaltsrechner, fuer die es laengst
+   * einen durchgerechneten Artikel gab. Nur eben nicht auf derselben URL.
+   *
+   * Das Feld existiert, damit die Artikel einzeln umziehen koennen. Solange es
+   * fehlt, bleibt fuer diesen Artikel alles beim Alten.
+   */
+  aufRechnerseite?: boolean;
 }
 
 export const ARTIKEL: Artikel[] = [
@@ -29,6 +48,7 @@ export const ARTIKEL: Artikel[] = [
     datum: '2026-08-27',
     thema: 'Auto',
     rechner: ['busgeldrechner'],
+    aufRechnerseite: true,
   },
   {
     slug: 'kuendigungsfrist-arbeitgeber-arbeitnehmer',
@@ -37,6 +57,7 @@ export const ARTIKEL: Artikel[] = [
     datum: '2026-08-27',
     thema: 'Geld',
     rechner: ['kuendigungsfrist-rechner', 'abfindungsrechner', 'arbeitslosengeld-rechner'],
+    aufRechnerseite: true,
   },
   {
     slug: 'strompreis-zusammensetzung',
@@ -45,6 +66,7 @@ export const ARTIKEL: Artikel[] = [
     datum: '2026-08-27',
     thema: 'Energie',
     rechner: ['stromkosten-rechner', 'waermepumpe-rechner', 'stromspeicher-rechner', 'heizkosten-vergleich'],
+    aufRechnerseite: true,
   },
   {
     slug: 'kindesunterhalt-volljaehrigkeit',
@@ -53,6 +75,7 @@ export const ARTIKEL: Artikel[] = [
     datum: '2026-08-27',
     thema: 'Familie',
     rechner: ['unterhaltsrechner', 'ehegattenunterhalt-rechner', 'kindergeld-rechner'],
+    aufRechnerseite: true,
   },
   {
     slug: 'wohngeld-mietenstufe-gegen-einkommen',
@@ -61,6 +84,7 @@ export const ARTIKEL: Artikel[] = [
     datum: '2026-08-27',
     thema: 'Familie',
     rechner: ['wohngeld-rechner'],
+    aufRechnerseite: true,
   },
   {
     slug: 'inflation-was-die-rate-verschweigt',
@@ -69,6 +93,7 @@ export const ARTIKEL: Artikel[] = [
     datum: '2026-08-15',
     thema: 'Einheiten',
     rechner: ['inflationsrechner'],
+    aufRechnerseite: true,
   },
   {
     slug: 'promille-abbau-und-grenzwerte',
@@ -77,6 +102,7 @@ export const ARTIKEL: Artikel[] = [
     datum: '2026-08-15',
     thema: 'Gesundheit',
     rechner: ['promille-rechner', 'busgeldrechner'],
+    aufRechnerseite: true,
   },
   {
     slug: 'bootstrailer-fuehrerschein-tempo-100',
@@ -85,6 +111,7 @@ export const ARTIKEL: Artikel[] = [
     datum: '2026-08-15',
     thema: 'Boot',
     rechner: ['bootstrailer-fuehrerschein'],
+    aufRechnerseite: true,
   },
   {
     slug: 'pflegeversicherung-beitrag-und-luecke',
@@ -93,6 +120,7 @@ export const ARTIKEL: Artikel[] = [
     datum: '2026-08-15',
     thema: 'Versicherungen',
     rechner: ['pflege-rechner'],
+    aufRechnerseite: true,
   },
   {
     slug: 'elterngeld-ersatzrate',
@@ -101,6 +129,7 @@ export const ARTIKEL: Artikel[] = [
     datum: '2026-08-14',
     thema: 'Familie',
     rechner: ['elterngeld-rechner', 'mutterschutz-rechner'],
+    aufRechnerseite: true,
   },
   {
     slug: 'nebenkosten-was-umlagefaehig-ist',
@@ -109,6 +138,7 @@ export const ARTIKEL: Artikel[] = [
     datum: '2026-08-14',
     thema: 'Wohnen',
     rechner: ['nebenkosten-rechner', 'mietrechner'],
+    aufRechnerseite: true,
   },
   {
     slug: 'photovoltaik-eigenverbrauch',
@@ -117,6 +147,7 @@ export const ARTIKEL: Artikel[] = [
     datum: '2026-08-14',
     thema: 'Energie',
     rechner: ['photovoltaik-rechner', 'stromspeicher-rechner', 'solarspeicher-dimensionierung'],
+    aufRechnerseite: true,
   },
   {
     slug: 'steuerklasse-wechseln-was-bringt',
@@ -125,6 +156,7 @@ export const ARTIKEL: Artikel[] = [
     datum: '2026-08-14',
     thema: 'Geld',
     rechner: ['steuerklasse-optimieren', 'steuerklassen-vergleich', 'brutto-netto-rechner'],
+    aufRechnerseite: true,
   },
   {
     slug: 'elektroauto-gegen-verbrenner',
@@ -133,6 +165,7 @@ export const ARTIKEL: Artikel[] = [
     datum: '2026-08-14',
     thema: 'Auto',
     rechner: ['elektroauto-tco-rechner', 'spritkosten-vergleich', 'e-auto-leasing-kostenrechner'],
+    aufRechnerseite: true,
   },
   {
     slug: 'gebrauchtwagen-alter-kosten',
@@ -141,6 +174,7 @@ export const ARTIKEL: Artikel[] = [
     datum: '2026-08-14',
     thema: 'Auto',
     rechner: ['wartungskosten-auto', 'unterhaltskosten-auto'],
+    aufRechnerseite: true,
   },
   {
     slug: 'autokosten-wertverlust',
@@ -149,6 +183,7 @@ export const ARTIKEL: Artikel[] = [
     datum: '2026-08-14',
     thema: 'Auto',
     rechner: ['km-kostenrechner', 'unterhaltskosten-auto', 'spritkosten-rechner'],
+    aufRechnerseite: true,
   },
   {
     slug: 'pendlerpauschale-was-sie-bringt',
@@ -157,6 +192,7 @@ export const ARTIKEL: Artikel[] = [
     datum: '2026-08-14',
     thema: 'Auto',
     rechner: ['fahrtkosten-rechner', 'homeoffice-pauschale'],
+    aufRechnerseite: true,
   },
   {
     slug: 'kfz-steuer-erstzulassung',
@@ -165,6 +201,7 @@ export const ARTIKEL: Artikel[] = [
     datum: '2026-08-14',
     thema: 'Auto',
     rechner: ['kfz-steuer-rechner', 'kfz-steuer-co2'],
+    aufRechnerseite: true,
   },
   {
     slug: 'grunderwerbsteuer-bundeslaender',
@@ -173,6 +210,7 @@ export const ARTIKEL: Artikel[] = [
     datum: '2026-08-10',
     thema: 'Wohnen',
     rechner: ['grunderwerbsteuer-rechner', 'immobilienkauf-nebenkosten', 'hauskauf-rechner'],
+    aufRechnerseite: true,
   },
 ];
 
@@ -192,7 +230,34 @@ for (const a of ARTIKEL) {
 
 export const ARTIKEL_SORTIERT = [...ARTIKEL].sort((a, b) => b.datum.localeCompare(a.datum));
 
-/** Artikel, die den Rechner mit diesem Slug erklären. */
+/** Der Pfad der Seite, auf welcher der Artikeltext tatsächlich steht. */
+export function artikelPfad(a: Artikel): string {
+  if (!a.aufRechnerseite) return `ratgeber/${a.slug}/`;
+  const calc = CALCULATORS.find((c) => c.slug === a.rechner[0]);
+  if (!calc) {
+    throw new Error(`Artikel "${a.slug}" ist auf "${a.rechner[0]}" umgezogen, den es nicht gibt.`);
+  }
+  return `${calc.category}/${calc.slug}/`;
+}
+
+/**
+ * Pfad eines Artikels anhand seines Slugs – für Querverweise aus einem Artikel
+ * in einen anderen. Ein Tippfehler bricht den Build, statt einen toten Link zu
+ * hinterlassen; und wenn ein Artikel später umzieht, wandert der Verweis mit.
+ */
+export function artikelPfadVonSlug(slug: string): string {
+  const a = ARTIKEL.find((x) => x.slug === slug);
+  if (!a) throw new Error(`Querverweis auf unbekannten Artikel "${slug}".`);
+  return artikelPfad(a);
+}
+
+/**
+ * Artikel, die diesen Rechner erklären, deren Text aber WOANDERS steht – also
+ * die, für die ein Hinweisblock sinnvoll ist. Der Artikel auf der eigenen Seite
+ * braucht keinen Link auf sich selbst.
+ */
 export function artikelZuRechner(slug: string): Artikel[] {
-  return ARTIKEL.filter((a) => a.rechner.includes(slug));
+  return ARTIKEL.filter(
+    (a) => a.rechner.includes(slug) && !(a.aufRechnerseite && a.rechner[0] === slug),
+  );
 }

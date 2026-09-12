@@ -1,5 +1,5 @@
 ---
-import ArticleLayout from '../../layouts/ArticleLayout.astro';
+import RechnerArtikel from '../RechnerArtikel.astro';
 import {
   AG_FRISTEN,
   GRUNDFRIST_TAGE,
@@ -200,15 +200,13 @@ const quellen = [
   { titel: 'EuGH, Urteil vom 19.01.2010 – C-555/07 (Kücükdeveci)', url: 'https://dejure.org/2010,4' },
 ];
 ---
-<ArticleLayout
-  title="Kündigungsfrist: Warum der Arbeitgeber achtmal so lange warten muss"
-  description={`Die Staffel des § 622 Abs. 2 BGB gilt nur für die Kündigung durch den Arbeitgeber. Nach ${zahl(oben.jahre)} Jahren trennen beide Seiten ${zahl(abstandOben)} Tage. Dazu: warum vier Wochen zwischen ${zahl(dauerMin)} und ${zahl(dauerMax)} Tagen dauern und warum der Tag im Monat für den Arbeitgeber egal ist.`}
-  canonicalPath="/ratgeber/kuendigungsfrist-arbeitgeber-arbeitnehmer/"
-  datum="2026-08-27"
+<RechnerArtikel
+  titel="Warum der Arbeitgeber achtmal so lange warten muss"
   lead={`Zwei Menschen, ein Arbeitsverhältnis, derselbe Brief am selben Tag: Kündigt der Arbeitnehmer nach ${zahl(oben.jahre)} Jahren am ${datum(ZUGANG)}, ist er am ${datum(anEnde)} draußen – nach ${zahl(anTage)} Tagen. Kündigt der Arbeitgeber, endet dasselbe Arbeitsverhältnis erst am ${datum(oben.agEnde)}, nach ${zahl(oben.agTage)} Tagen. Der Unterschied steht in einem einzigen Halbsatz des § 622 BGB.`}
+  datum="2026-08-27"
   quellen={quellen}
 >
-  <h2>Der Halbsatz, an dem alles hängt</h2>
+  <h3>Der Halbsatz, an dem alles hängt</h3>
   <p>
     § 622 Abs. 1 BGB nennt eine Frist, die für beide Seiten gilt: vier Wochen zum Fünfzehnten
     oder zum Ende eines Kalendermonats. Absatz 2 staffelt diese Frist dann nach der Dauer der
@@ -272,7 +270,7 @@ const quellen = [
     ausdehnen – aber niemals nur auf den Arbeitnehmer.
   </p>
 
-  <h2>Vier Wochen dauern zwischen {zahl(dauerMin)} und {zahl(dauerMax)} Tagen</h2>
+  <h3>Vier Wochen dauern zwischen {zahl(dauerMin)} und {zahl(dauerMax)} Tagen</h3>
   <p>
     „Vier Wochen zum Fünfzehnten oder zum Monatsende" sind zwei Regeln in einem Satz. Die erste
     ist die Frist selbst: {zahl(GRUNDFRIST_TAGE)} Tage, gerechnet ab dem Tag nach dem Zugang
@@ -322,7 +320,7 @@ const quellen = [
     etwas; an den übrigen {zahl(grundTage.length - grundSpruenge.length)} kostet es nichts.
   </p>
 
-  <h2>Für den Arbeitgeber zählt nur der Monat, für den Arbeitnehmer jeder Tag</h2>
+  <h3>Für den Arbeitgeber zählt nur der Monat, für den Arbeitnehmer jeder Tag</h3>
   <p>
     Sobald die Staffel des Absatzes 2 greift, verschwindet der Fünfzehnte als Termin. Übrig
     bleibt das Monatsende – und damit ändert sich die Logik grundlegend. Beispiel: ein
@@ -376,7 +374,7 @@ const quellen = [
     Klagefrist – und über die Stufe, in der man steht.
   </p>
 
-  <h2>Der teuerste Tag des Jahres ist der eigene Jahrestag</h2>
+  <h3>Der teuerste Tag des Jahres ist der eigene Jahrestag</h3>
   <p>
     Für die Staffel zählt die Beschäftigungsdauer im Zeitpunkt des Zugangs. Fällt der Zugang einen
     Tag vor den Jahrestag, der die nächste Stufe auslöst, gilt noch die kürzere Frist. Die Tabelle
@@ -431,7 +429,7 @@ const quellen = [
     {' '}{zahl(jahrestagZwanzig.sprung)} Tage Gehalt.
   </p>
 
-  <h2>Probezeit und Kündigungsschutz kippen am selben Tag</h2>
+  <h3>Probezeit und Kündigungsschutz kippen am selben Tag</h3>
   <p>
     Zwei Fristen laufen parallel und werden ständig verwechselt. Die Probezeit ist eine
     Vereinbarung im Arbeitsvertrag; sie verkürzt nur die Kündigungsfrist auf
@@ -464,7 +462,7 @@ const quellen = [
     Wartezeit läuft unabhängig von jeder Vereinbarung.
   </p>
 
-  <h2>Die Klagefrist ist längst abgelaufen, wenn der Job endet</h2>
+  <h3>Die Klagefrist ist längst abgelaufen, wenn der Job endet</h3>
   <p>
     § 4 Satz 1 KSchG gibt {zahlwort(KLAGEFRIST_WOCHEN)} Wochen ab Zugang der schriftlichen
     Kündigung, um Klage zu erheben. Diese Frist hängt an nichts – nicht an der
@@ -518,7 +516,7 @@ const quellen = [
     gibt.
   </p>
 
-  <h2>Der Satz, den es nicht mehr gibt</h2>
+  <h3>Der Satz, den es nicht mehr gibt</h3>
   <p>
     In § 622 Abs. 2 BGB stand bis Ende 2018 ein zweiter Satz: Zeiten, die vor der Vollendung des
     {' '}{ALTERSSCHWELLE}. Lebensjahres lagen, wurden bei der Berechnung der Beschäftigungsdauer
@@ -548,7 +546,7 @@ const quellen = [
     seit über sieben Jahren nicht mehr im Gesetz steht.
   </p>
 
-  <h2>Was diese Rechnung nicht abbildet</h2>
+  <h3>Was diese Rechnung nicht abbildet</h3>
   <p>
     Alle Werte oben sind gesetzliche Mindestfristen. Ein Arbeits- oder Tarifvertrag darf längere
     Fristen vorsehen; ein Tarifvertrag darf nach § 622 Abs. 4 BGB sogar kürzere regeln, ein
@@ -581,9 +579,9 @@ const quellen = [
     gezeigt, zwei Fristmonate wert sein.
   </p>
   <p>
-    Alle Zahlen dieses Artikels stammen aus demselben Rechenmodul wie der
-    {' '}<a href={`${base}geld/kuendigungsfrist-rechner/`}>Kündigungsfrist-Rechner</a>. Wer den
-    eigenen Fall durchrechnen will, gibt dort Eintrittsdatum, Zugangsdatum und die kündigende
-    Seite ein und bekommt Frist, Fristablauf, Beendigungstermin und das Ende der Klagefrist.
+    Alle Zahlen dieses Artikels stammen aus demselben Rechenmodul wie der Rechner
+    am Anfang dieser Seite. Wer den eigenen Fall durchrechnen will, gibt dort
+    Eintrittsdatum, Zugangsdatum und die kündigende Seite ein und bekommt Frist,
+    Fristablauf, Beendigungstermin und das Ende der Klagefrist.
   </p>
-</ArticleLayout>
+</RechnerArtikel>

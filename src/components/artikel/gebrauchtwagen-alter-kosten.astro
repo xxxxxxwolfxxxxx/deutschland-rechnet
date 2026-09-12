@@ -1,5 +1,6 @@
 ---
-import ArticleLayout from '../../layouts/ArticleLayout.astro';
+import RechnerArtikel from '../RechnerArtikel.astro';
+import { artikelPfadVonSlug } from '../../data/ratgeber';
 import { berechneWartungskosten } from '../../../public/scripts/wartungskosten.js';
 
 const base = import.meta.env.BASE_URL;
@@ -99,10 +100,8 @@ const prozent = (n: number, stellen = 0) =>
   (n * 100).toLocaleString('de-DE', { minimumFractionDigits: stellen, maximumFractionDigits: stellen }) + ' %';
 const ganz = (n: number) => n.toLocaleString('de-DE');
 ---
-<ArticleLayout
-  title={`Das günstigste Autojahr ist das ${['erste', 'zweite', 'dritte', 'vierte', 'fünfte', 'sechste', 'siebte', 'achte'][guenstigstesJahr.alter]} – gerechnet aus ${ganz(FAHRZEUGE_GESAMT)} Gebrauchtwagenpreisen`}
-  description={`Der Wertverlust halbiert sich zwischen dem dritten und dem achten Jahr, die Werkstattkosten steigen langsamer als gedacht. Das billigste Haltejahr kostet ${eur(guenstigstesJahr.summe)}, die ersten beiden Jahre ${eur(neuwagenSumme)}.`}
-  canonicalPath="/ratgeber/gebrauchtwagen-alter-kosten/"
+<RechnerArtikel
+  titel={`Das günstigste Autojahr ist das ${['erste', 'zweite', 'dritte', 'vierte', 'fünfte', 'sechste', 'siebte', 'achte'][guenstigstesJahr.alter]} – gerechnet aus ${ganz(FAHRZEUGE_GESAMT)} Gebrauchtwagenpreisen`}
   lead={`„Irgendwann wird der Alte teurer als ein Neuer" – der Satz stimmt für die Werkstattrechnung und ist trotzdem falsch. Wertverlust und Reparaturen zusammengerechnet, ist das ${guenstigstesJahr.alter + 1}. Lebensjahr eines Autos das billigste: ${eur(guenstigstesJahr.summe)}. Die ersten beiden Jahre kosten ${eur(neuwagenSumme)} – das ${faktorNeuGegenGuenstigstes.toLocaleString('de-DE', { maximumFractionDigits: 1 })}-Fache.`}
   datum="2026-08-14"
   quellen={[
@@ -125,7 +124,7 @@ const ganz = (n: number) => n.toLocaleString('de-DE');
     ausgelesen, die einen Neupreis und mindestens eine Baujahrsnotierung enthalten.
   </p>
 
-  <h2>Wie gerechnet wurde</h2>
+  <h3>Wie gerechnet wurde</h3>
   <p>
     Die Liste nennt für jedes Modell den Neupreis und die aktuellen
     Händler-Verkaufspreise der Baujahre {ERHEBUNGSJAHR - 2} bis {ERHEBUNGSJAHR - 8}.
@@ -144,7 +143,7 @@ const ganz = (n: number) => n.toLocaleString('de-DE');
     Altersstufe.
   </p>
 
-  <h2>Der Wertverlust halbiert sich</h2>
+  <h3>Der Wertverlust halbiert sich</h3>
 
   <div class="table-wrap">
     <table>
@@ -199,10 +198,9 @@ const ganz = (n: number) => n.toLocaleString('de-DE');
     Fahrzeugwerts nicht.
   </p>
 
-  <h2>Die Werkstattkosten steigen – aber flacher</h2>
+  <h3>Die Werkstattkosten steigen – aber flacher</h3>
   <p>
-    Die Gegenkurve stammt aus unserem
-    {' '}<a href={`${base}auto/wartungskosten-auto/`}>Wartungskosten-Rechner</a>, für die
+    Die Gegenkurve stammt aus dem Rechner am Anfang dieser Seite, für die
     Kompaktklasse bei {ganz(KM_PRO_JAHR)} Kilometern im Jahr. Er trennt Wartung
     (Inspektion, Öl, HU – überwiegend altersunabhängig), Reifen (rein
     laufleistungsabhängig) und Verschleiß, der mit dem Alter zunimmt.
@@ -258,7 +256,7 @@ const ganz = (n: number) => n.toLocaleString('de-DE');
     so steil</strong> wie die steigende. Genau deshalb liegt das Minimum spät.
   </p>
 
-  <h2>Das Ergebnis: das {guenstigstesJahr.alter + 1}. Jahr</h2>
+  <h3>Das Ergebnis: das {guenstigstesJahr.alter + 1}. Jahr</h3>
   <p>
     Die Summe erreicht ihr Minimum im {guenstigstesJahr.alter + 1}. Lebensjahr mit
     {' '}{eur(guenstigstesJahr.summe)}. Danach steigt sie wieder – aber so langsam, dass
@@ -336,7 +334,7 @@ const ganz = (n: number) => n.toLocaleString('de-DE');
     aber nicht um den Faktor, der das Ergebnis kippen würde.
   </p>
 
-  <h2>Was die Rechnung nicht enthält</h2>
+  <h3>Was die Rechnung nicht enthält</h3>
   <p>
     Drei Dinge, die den Einzelfall verschieben können:
   </p>
@@ -357,11 +355,11 @@ const ganz = (n: number) => n.toLocaleString('de-DE');
       <strong>Fixkosten pro Kilometer.</strong> Versicherung und Kfz-Steuer laufen
       unabhängig vom Alter weiter. Wer wenig fährt, zahlt sie auf wenige Kilometer
       verteilt – das trifft alte wie neue Autos gleichermaßen, siehe
-      {' '}<a href={`${base}ratgeber/autokosten-wertverlust/`}>Autokosten je Kilometer</a>.
+      {' '}<a href={`${artikelPfadVonSlug('autokosten-wertverlust')}`}>Autokosten je Kilometer</a>.
     </li>
   </ul>
 
-  <h2>Zwei Zahlen, die den Wiederverkauf betreffen</h2>
+  <h3>Zwei Zahlen, die den Wiederverkauf betreffen</h3>
   <p>
     Die Preisliste enthält zwei Angaben, die in der Kaufentscheidung meist fehlen und
     beide gegen häufiges Wechseln sprechen.
@@ -390,7 +388,7 @@ const ganz = (n: number) => n.toLocaleString('de-DE');
     {' '}{eur(wertverlust[wertverlust.length - 1].wert * KM_SPANNE)}.
   </p>
 
-  <h2>Was daraus folgt</h2>
+  <h3>Was daraus folgt</h3>
   <ul>
     <li>
       <strong>Die Haltedauer schlägt die Modellwahl.</strong> Wer denselben Wagen zehn
@@ -410,13 +408,12 @@ const ganz = (n: number) => n.toLocaleString('de-DE');
     </li>
   </ul>
 
-  <h2>Den eigenen Fall rechnen</h2>
+  <h3>Den eigenen Fall rechnen</h3>
   <ul>
-    <li><a href={`${base}auto/wartungskosten-auto/`}>Wartungskosten-Rechner</a> – Werkstatt, Verschleiß und Reifen nach Klasse, Alter und Fahrleistung</li>
     <li><a href={`${base}auto/unterhaltskosten-auto/`}>Unterhaltskosten-Rechner</a> – alle Kostenblöcke, getrennt nach fix und variabel</li>
     <li><a href={`${base}auto/km-kostenrechner/`}>Kilometerkosten-Rechner</a> – Vollkosten je gefahrenem Kilometer</li>
     <li><a href={`${base}auto/kfz-versicherung-rechner/`}>Kfz-Versicherungsrechner</a> – der zweite altersunabhängige Fixposten</li>
-    <li><a href={`${base}ratgeber/kfz-steuer-erstzulassung/`}>Kfz-Steuer nach Erstzulassung</a> – warum ältere Fahrzeuge hier oft besser dastehen</li>
+    <li><a href={`${artikelPfadVonSlug('kfz-steuer-erstzulassung')}`}>Kfz-Steuer nach Erstzulassung</a> – warum ältere Fahrzeuge hier oft besser dastehen</li>
   </ul>
 
   <p class="hinweis">
@@ -427,7 +424,7 @@ const ganz = (n: number) => n.toLocaleString('de-DE');
     durchschnittlicher Laufleistung. Werkstattkosten sind ein Schätzmodell, kein
     Tarifwerk – tatsächliche Werkstattpreise streuen erheblich.
   </p>
-</ArticleLayout>
+</RechnerArtikel>
 
 <style>
 .table-wrap {

@@ -1,0 +1,214 @@
+---
+// Der redaktionelle Teil einer Rechnerseite.
+//
+// Vorher lagen Rechner und Text auf getrennten URLs: /auto/busgeldrechner/ als
+// Werkzeug, /ratgeber/bussgeldkatalog-schwellenwerte/ als Artikel. Google hat
+// daraus zwei halbe Seiten gemacht – mehrere Rechnerseiten stehen als
+// "Gecrawlt, zurzeit nicht indexiert" in der Search Console, waehrend die
+// zugehoerigen Artikel null Impressionen hatten. Seitdem steht beides auf
+// derselben Seite: oben rechnen, darunter die Begruendung.
+//
+// Unterschied zum ArticleLayout: Dort traegt der Artikel die h1. Hier gehoert
+// die h1 dem Rechner, der Artikeltitel ist eine h2 und seine Abschnitte sind
+// h3. Die Artikeldateien unter components/artikel/ sind entsprechend gesetzt.
+
+interface Props {
+  /** Ueberschrift des redaktionellen Teils – eine echte These, kein Label. */
+  titel: string;
+  /** Kurzer Vorspann ueber der ersten Zwischenueberschrift. */
+  lead: string;
+  /** ISO-Datum der Veroeffentlichung bzw. letzten inhaltlichen Pruefung. */
+  datum: string;
+  /** Quellen mit Titel und URL – bei Steuerthemen Pflicht, nicht Deko. */
+  quellen?: Array<{ titel: string; url: string }>;
+}
+
+const { titel, lead, datum, quellen = [] } = Astro.props;
+
+const datumLesbar = new Date(datum).toLocaleDateString('de-DE', {
+  day: '2-digit', month: 'long', year: 'numeric',
+});
+---
+
+<section class="rechner-artikel" aria-labelledby="artikel-titel">
+  <header class="ra-header">
+    <p class="ra-kicker">Hintergrund</p>
+    <h2 id="artikel-titel">{titel}</h2>
+    <p class="ra-lead">{lead}</p>
+    <p class="ra-meta">
+      Von Matthias Dührkop · Stand <time datetime={datum}>{datumLesbar}</time>
+    </p>
+  </header>
+
+  <div class="ra-body">
+    <slot />
+  </div>
+
+  {quellen.length > 0 && (
+    <footer class="ra-sources">
+      <h3>Quellen</h3>
+      <ul>
+        {quellen.map((q) => (
+          <li><a href={q.url} rel="noopener nofollow" target="_blank">{q.titel}</a></li>
+        ))}
+      </ul>
+    </footer>
+  )}
+</section>
+
+<style>
+/* Eigene Lesefläche. Die Seite selbst liegt auf der hellen Kategoriefarbe – gut
+   für ein Formular, schlecht für 1.800 Wörter Fließtext. Der Artikel bekommt
+   deshalb wie die übrigen Blöcke eine ruhige Fläche, aber mehr Raum als sie:
+   Er ist der inhaltliche Schwerpunkt der Seite, nicht ein Kasten unter vielen. */
+.rechner-artikel {
+  background: var(--surface);
+  border: 1.5px solid var(--border);
+  border-top: 3px solid var(--dark);
+  border-radius: var(--radius);
+  padding: 2.5rem 2rem;
+  margin-bottom: 1.5rem;
+}
+@media (max-width: 640px) {
+  .rechner-artikel { padding: 1.75rem 1.15rem; }
+}
+
+.ra-header {
+  max-width: 68ch;
+  margin-bottom: 2rem;
+}
+.ra-kicker {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  font-weight: 700;
+  color: var(--text-light);
+  margin: 0 0 0.6rem;
+}
+.ra-header h2 {
+  font-family: var(--font-display);
+  font-size: clamp(1.5rem, 1.1rem + 1.7vw, 2.25rem);
+  line-height: 1.18;
+  letter-spacing: -0.02em;
+  margin: 0 0 0.85rem;
+}
+.ra-lead {
+  font-size: clamp(1.02rem, 0.98rem + 0.35vw, 1.18rem);
+  line-height: 1.6;
+  color: var(--text);
+  font-weight: 500;
+  margin-bottom: 0.9rem;
+}
+.ra-meta {
+  font-size: 0.82rem;
+  color: var(--text-light);
+  margin: 0;
+}
+
+/* Fliesstext bewusst grosszuegiger als im Rechnerformular – hier wird gelesen,
+   nicht bedient. Die Textspalte bleibt schmal, Tabellen duerfen breiter. */
+.ra-body { max-width: 68ch; }
+
+.ra-body :global(h3) {
+  font-family: var(--font-display);
+  font-size: 1.35rem;
+  line-height: 1.25;
+  margin: 2.5rem 0 0.8rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--border);
+}
+.ra-body :global(h4) {
+  font-size: 1.05rem;
+  font-weight: 700;
+  margin: 1.6rem 0 0.5rem;
+}
+.ra-body :global(p) {
+  font-size: 1.02rem;
+  line-height: 1.75;
+  margin-bottom: 1.1rem;
+}
+.ra-body :global(ul), .ra-body :global(ol) {
+  margin: 0 0 1.1rem 1.25rem;
+  line-height: 1.75;
+}
+.ra-body :global(li) { margin-bottom: 0.4rem; }
+.ra-body :global(strong) { font-weight: 700; }
+.ra-body :global(a) { color: var(--red); }
+
+/* Tabellen. Die Artikel liefern sauberes semantisches Markup (caption, thead,
+   th scope), hatten bisher aber gar kein Styling: Auf 375 px lief die
+   siebenspaltige Bussgeldtabelle aus dem Viewport und erzeugte horizontalen
+   Overflow auf der ganzen Seite.
+   display:block + width:max-content laesst die Tabelle ihre natuerliche Breite
+   behalten und INNERHALB der Textspalte scrollen, statt die Seite zu dehnen. */
+.ra-body :global(table) {
+  display: block;
+  width: max-content;
+  max-width: 100%;
+  overflow-x: auto;
+  border-collapse: collapse;
+  margin: 0 0 1.3rem;
+  font-size: 0.92rem;
+  line-height: 1.45;
+}
+.ra-body :global(thead th) {
+  text-align: left;
+  font-size: 0.76rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-light);
+  font-weight: 700;
+  border-bottom: 2px solid var(--dark);
+  padding: 0.45rem 0.7rem;
+  white-space: nowrap;
+}
+.ra-body :global(tbody th) {
+  text-align: left;
+  font-weight: 600;
+  color: var(--text-light);
+  white-space: nowrap;
+}
+.ra-body :global(td), .ra-body :global(tbody th) {
+  padding: 0.45rem 0.7rem;
+  border-bottom: 1px solid var(--border);
+}
+.ra-body :global(tbody tr:last-child td),
+.ra-body :global(tbody tr:last-child th) { border-bottom: none; }
+/* Zahlen rechtsbuendig und mit Tabellenziffern – so stehen die Stellen
+   untereinander und Betraege lassen sich der Hoehe nach vergleichen. */
+.ra-body :global(.num) {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.ra-body :global(caption.visually-hidden) {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+.ra-sources {
+  max-width: 68ch;
+  margin-top: 3rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--border);
+  font-size: 0.85rem;
+}
+.ra-sources h3 {
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--text-light);
+  margin: 0 0 0.6rem;
+  border: none;
+  padding: 0;
+  font-family: inherit;
+}
+.ra-sources ul { list-style: none; margin: 0; padding: 0; }
+.ra-sources li { margin-bottom: 0.35rem; line-height: 1.5; }
+.ra-sources a { color: var(--text-light); }
+.ra-sources a:hover { color: var(--red); }
+</style>

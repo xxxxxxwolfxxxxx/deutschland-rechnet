@@ -1,5 +1,5 @@
 ---
-import ArticleLayout from '../../layouts/ArticleLayout.astro';
+import RechnerArtikel from '../RechnerArtikel.astro';
 import {
   berechneWohngeld,
   monatlichesGesamteinkommen,
@@ -171,12 +171,10 @@ const datumLang = (iso: string) =>
 const jahr = (iso: string) => iso.slice(0, 4);
 ---
 
-<ArticleLayout
-  title={`Wohngeld: Bei ${eurGlatt(MIETEN_PROBE[0])} Miete zahlen alle sieben Mietenstufen dasselbe`}
-  description={`Die Mietenstufe wirkt nur als Deckel: Bei ${eurGlatt(MIETEN_PROBE[0])} Kaltmiete ergibt Stufe I denselben Betrag wie Stufe VII – ${eurGlatt(wohngeldBeiKleinerMiete)}. Wo sie wirkt, ist ein Stufensprung bis zu ${eurGlatt(sprungOben.differenz)} im Monat wert. Alle sieben Stufen durchgerechnet.`}
-  canonicalPath="/ratgeber/wohngeld-mietenstufe-gegen-einkommen/"
-  datum={ARTIKEL_DATUM}
+<RechnerArtikel
+  titel={`Bei ${eurGlatt(MIETEN_PROBE[0])} Miete zahlen alle sieben Mietenstufen dasselbe`}
   lead={`Wohngeld hängt an zwei Zahlen: der Miete und dem Einkommen. Beide wirken völlig verschieden. Das Einkommen geht in eine Kurve ein, die mit jedem verdienten Euro steiler wird. Die Mietenstufe dagegen ist kein Faktor, sondern eine Obergrenze – und wer darunter liegt, für den ändert sie keinen Cent. Durchgerechnet für einen Einpersonenhaushalt, mit den Werten des Rechtsstands ${datumLang(WOHNGELD_STAND)}.`}
+  datum={ARTIKEL_DATUM}
   quellen={[
     { titel: '§ 11 WoGG – Zu berücksichtigende Miete und Belastung', url: 'https://www.gesetze-im-internet.de/wogg/__11.html' },
     { titel: '§ 12 WoGG – Höchstbeträge, Mietenstufen, Heizkostenentlastung, Klimakomponente', url: 'https://www.gesetze-im-internet.de/wogg/__12.html' },
@@ -193,7 +191,7 @@ const jahr = (iso: string) => iso.slice(0, 4);
     { titel: '§ 39b EStG – Einbehaltung der Lohnsteuer', url: 'https://www.gesetze-im-internet.de/estg/__39b.html' },
   ]}
 >
-  <h2>Zwei Größen, zwei Mechanismen</h2>
+  <h3>Zwei Größen, zwei Mechanismen</h3>
 
   <p>
     Die gesamte Wohngeldberechnung steht in einer einzigen Zeile. § 19 Abs. 1
@@ -211,7 +209,7 @@ const jahr = (iso: string) => iso.slice(0, 4);
     Größen bewegen das Ergebnis, aber nach völlig verschiedenen Regeln.
   </p>
 
-  <h2>Die Mietenstufe ist eine Obergrenze</h2>
+  <h3>Die Mietenstufe ist eine Obergrenze</h3>
 
   <p>
     § 11 Abs. 1 WoGG begrenzt die Miete auf den Höchstbetrag der Anlage 1,
@@ -276,7 +274,7 @@ const jahr = (iso: string) => iso.slice(0, 4);
     hebt nur eine Schranke an, gegen die man erst einmal stoßen muss.
   </p>
 
-  <h2>Woraus der Deckel besteht – und was der Zuschlag wert ist</h2>
+  <h3>Woraus der Deckel besteht – und was der Zuschlag wert ist</h3>
 
   <p>
     Der Deckel setzt sich aus zwei Teilen zusammen. Der Höchstbetrag nach
@@ -303,7 +301,7 @@ const jahr = (iso: string) => iso.slice(0, 4);
     aufschlägt, geht durch dieselbe Formel wie die Miete selbst.
   </p>
 
-  <h2>Was die Stufe misst – und was nicht</h2>
+  <h3>Was die Stufe misst – und was nicht</h3>
 
   <p>
     Nach § 12 Abs. 2 WoGG richtet sich die Zugehörigkeit einer Gemeinde nach dem
@@ -423,7 +421,7 @@ const jahr = (iso: string) => iso.slice(0, 4);
     {' '}{jahr(anlage.datenbasis[1])}.
   </p>
 
-  <h2>Was ein Stufensprung wert ist</h2>
+  <h3>Was ein Stufensprung wert ist</h3>
 
   <p>
     Wo die Miete über dem Deckel liegt, wirkt die Stufe – aber nicht gleichmäßig.
@@ -481,7 +479,7 @@ const jahr = (iso: string) => iso.slice(0, 4);
     {' '}{eurGlatt(aequivalentMehr * 12)} im Jahr.
   </p>
 
-  <h2>Der Umzug rechnet sich trotzdem nicht</h2>
+  <h3>Der Umzug rechnet sich trotzdem nicht</h3>
 
   <p>
     Daraus folgt nicht, dass ein Umzug in eine höhere Mietenstufe lohnt. Denn wer
@@ -528,7 +526,7 @@ const jahr = (iso: string) => iso.slice(0, 4);
     Stufe änderte sich, hier ändern sich beide.
   </p>
 
-  <h2>Die andere Achse: das Einkommen</h2>
+  <h3>Die andere Achse: das Einkommen</h3>
 
   <p>
     Auf der Einkommensseite verläuft die Sache in drei Abschnitten. Am Anfang
@@ -595,7 +593,7 @@ const jahr = (iso: string) => iso.slice(0, 4);
     Mehrverdienst an Steuern und Sozialabgaben auslöst, kommt hinzu.
   </p>
 
-  <h2>Der Sprung nach oben</h2>
+  <h3>Der Sprung nach oben</h3>
 
   <p>
     Eine Stelle im Gesetz bewegt sich in die Gegenrichtung. § 16 Satz 1 WoGG
@@ -664,7 +662,7 @@ const jahr = (iso: string) => iso.slice(0, 4);
     hat das Wohngeld eine Kante, und sie zeigt nach oben.
   </p>
 
-  <h2>Was das für die eigene Rechnung heißt</h2>
+  <h3>Was das für die eigene Rechnung heißt</h3>
 
   <p>
     Drei Fragen in dieser Reihenfolge. Liegt die Kaltmiete über dem Deckel der
@@ -676,9 +674,8 @@ const jahr = (iso: string) => iso.slice(0, 4);
   </p>
 
   <p>
-    Die eigenen Werte lassen sich im
-    {' '}<a href={`${base}familie/wohngeld-rechner/`}>Wohngeld-Rechner</a> einsetzen;
-    er verwendet dasselbe Rechenmodul wie dieser Artikel. Was vom selben Brutto
+    Die eigenen Werte lassen sich oben im Rechner einsetzen; er verwendet
+    dasselbe Rechenmodul wie dieser Artikel. Was vom selben Brutto
     nach Steuern und Sozialabgaben übrig bleibt, rechnet der
     {' '}<a href={`${base}geld/brutto-netto-rechner/`}>Brutto-Netto-Rechner</a>.
   </p>
@@ -695,7 +692,7 @@ const jahr = (iso: string) => iso.slice(0, 4);
     Grundsicherung bleibt außer Betracht. Wer wirklich Wohngeld erhält,
     entscheidet die Wohngeldbehörde.
   </p>
-</ArticleLayout>
+</RechnerArtikel>
 
 <style>
 .table-wrap {

@@ -1,7 +1,7 @@
 ---
 import Layout from '../../layouts/Layout.astro';
 import CalculatorShell from '../../components/CalculatorShell.astro';
-import CalculatorGuide from '../../components/CalculatorGuide.astro';
+import ArtikelKfzSteuer from '../../components/artikel/kfz-steuer-erstzulassung.astro';
 import { CALCULATORS, CATEGORIES } from '../../data/calculators';
 import {
   CO2_STAFFEL_AB_2021,
@@ -108,36 +108,9 @@ const staffelZeilen = CO2_STAFFEL_AB_2021.map((stufe: { bis: number; satz: numbe
 
       <div id="rechenweg" style="margin-top:1.25rem;"></div>
     </div>
+
+    <ArtikelKfzSteuer slot="artikel" />
   </CalculatorShell>
-
-  <CalculatorGuide
-    title="Kfz-Steuer verstehen und sparen"
-    content={`<p>Die <strong>Kraftfahrzeugsteuer</strong> knüpft an das Halten eines Fahrzeugs an (§ 1 KraftStG). Verwaltet wird sie seit dem 1. Juli 2014 von der Zollverwaltung; die Zulassungsstelle nimmt bei der Anmeldung nur das SEPA-Lastschriftmandat entgegen.</p>
-
-<p><strong>Welche Vorschrift gilt, entscheidet allein die Erstzulassung.</strong> Drei Regime bestehen bis heute nebeneinander – ein Fahrzeug wechselt nie in ein neueres, auch wenn es den Halter wechselt:</p>
-<ul>
-  <li><strong>bis 30.06.2009</strong> – Hubraum mal Satz der Schadstoffklasse, von ${eur(6.75)} € (Benziner, Euro 3 und besser) bis ${eur(37.58)} € (Diesel ohne Schadstoffminderung) je angefangene 100 cm³. Ohne CO₂-Komponente.</li>
-  <li><strong>01.07.2009 bis 31.12.2020</strong> – Hubraum plus ${eur(2)} € je Gramm CO₂ über dem Freibetrag. Der Freibetrag beträgt 120 g/km bei Erstzulassung bis Ende 2011, 110 g/km für 2012 und 2013 und 95 g/km ab 2014.</li>
-  <li><strong>ab 01.01.2021</strong> – Hubraum plus die unten stehende Staffel ab ${CO2_FREIBETRAG_AB_2021} g/km.</li>
-</ul>
-
-<p>Der Hubraumbetrag ist in allen Fällen seit 2009 unverändert: ${eur(HUBRAUMSATZ_AB_2009.benzin)} € je angefangene 100 cm³ für Fremdzündungsmotoren, ${eur(HUBRAUMSATZ_AB_2009.diesel)} € für Selbstzündungsmotoren. Angefangen heißt angefangen: Ein Motor mit 1.401 cm³ wird wie 1.500 cm³ besteuert.</p>
-
-<h3>Die CO₂-Staffel für Erstzulassungen ab 2021</h3>
-<table class="kfz-staffel">
-  <thead><tr><th>Emissionsbereich</th><th>je Gramm</th></tr></thead>
-  <tbody>${staffelZeilen}</tbody>
-</table>
-<p>Die Staffel wirkt in Teilmengen: Bei 150 g/km kosten die Gramm 96 bis 115 jeweils ${eur(2)} €, die Gramm 116 bis 135 jeweils ${eur(2.2)} € und die restlichen 15 Gramm jeweils ${eur(2.5)} € – zusammen ${eur(121.5)} €. Der Sprung in eine höhere Stufe verteuert also nur die Gramm oberhalb der Grenze.</p>
-
-<h3>Elektrofahrzeuge</h3>
-<p>§ 3d KraftStG befreit reine Elektrofahrzeuge für <strong>zehn Jahre ab dem Tag der Erstzulassung</strong>, wenn diese zwischen dem ${ELEKTRO_BEFREIUNG.zulassungVon.split('-').reverse().join('.')} und dem ${ELEKTRO_BEFREIUNG.zulassungBis.split('-').reverse().join('.')} liegt, längstens bis zum ${ELEKTRO_BEFREIUNG.spaetestensBis.split('-').reverse().join('.')}. Das Zulassungsfenster wurde erst durch das Gesetz vom 22.12.2025 bis 2030 verlängert; ältere Quellen nennen noch den 31.12.2025 und das Enddatum 31.12.2030.</p>
-<p>Nach Ablauf der Befreiung zahlen Elektrofahrzeuge die Gewichtssteuer des § 9 Abs. 1 Nr. 3, ermäßigt um die Hälfte (§ 9 Abs. 2). Bei 2.000 kg zulässigem Gesamtgewicht sind das ${eur(56.25)} € im Jahr – ein Bruchteil dessen, was ein vergleichbarer Verbrenner kostet, aber eben nicht null.</p>
-
-<h3>Was der Rechner nicht abbildet</h3>
-<p>Wohnmobile werden nach Gesamtgewicht und Schadstoffklasse besteuert (§ 9 Abs. 1 Nr. 2a), Fahrzeuge über 3,5 t nach Nr. 4, Anhänger nach Nr. 5. Für Oldtimer- und rote Kennzeichen gilt ein Pauschalbetrag von ${eur(191.73)} € im Jahr, für solche nur für Krafträder ${eur(46.02)} € (§ 9 Abs. 4). Die Steuerentlastung von 30 € jährlich für Fahrzeuge bis 95 g/km nach § 10b galt nur für Erstzulassungen bis Ende 2024 und ist am 31.12.2025 ausgelaufen.</p>`}
-    relatedSlugs={['kfz-steuer-co2', 'spritkosten-rechner', 'fahrtkosten-rechner']}
-  />
 </Layout>
 
 <script type="module">

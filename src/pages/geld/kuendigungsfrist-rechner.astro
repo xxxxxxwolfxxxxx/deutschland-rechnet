@@ -1,7 +1,7 @@
 ---
 import Layout from '../../layouts/Layout.astro';
 import CalculatorShell from '../../components/CalculatorShell.astro';
-import CalculatorGuide from '../../components/CalculatorGuide.astro';
+import ArtikelKuendigungsfrist from '../../components/artikel/kuendigungsfrist-arbeitgeber-arbeitnehmer.astro';
 import { CALCULATORS, CATEGORIES } from '../../data/calculators';
 import {
   AG_FRISTEN,
@@ -109,6 +109,8 @@ const grundfrist = AG_FRISTEN[0];
         <div id="klage" class="hinweis"></div>
       </div>
     </div>
+
+    <ArtikelKuendigungsfrist slot="artikel" />
   </CalculatorShell>
 
   <section class="info-block">
@@ -153,53 +155,6 @@ const grundfrist = AG_FRISTEN[0];
       es um zehn Arbeitnehmer und um die Frage, ob der Kündigungsschutz überhaupt gilt.
     </p>
   </section>
-
-  <CalculatorGuide
-    title="So funktionieren gesetzliche Kündigungsfristen"
-    content={`<p>Eine Kündigungsfrist besteht immer aus zwei Teilen: der <strong>Dauer</strong> und dem <strong>Termin</strong>. Erst läuft die Frist ab, dann endet das Arbeitsverhältnis am nächsten zulässigen Termin. Beides zusammen ergibt den letzten Arbeitstag – deshalb liegt er fast nie genau vier Wochen nach der Kündigung.</p>
-
-<h4>Schritt für Schritt: die Frist des Arbeitgebers nach fast sechs Jahren</h4>
-<p>Ein Arbeitsverhältnis beginnt am ${datum('2019-03-01')}, die Kündigung des Arbeitgebers geht am ${datum('2025-01-10')} zu. Zu diesem Zeitpunkt hat das Arbeitsverhältnis ${langjaehrig.betriebsjahre} volle Jahre bestanden, damit greift die Stufe "${langjaehrig.fristText}" nach ${langjaehrig.grundlage}. Die Frist von ${langjaehrig.monate} Monaten läuft am ${datum(langjaehrig.fristablauf)} ab. Weil das Arbeitsverhältnis nur zum Monatsende enden darf, ist der letzte Arbeitstag der <strong>${datum(langjaehrig.endDatum)}</strong> – und nicht etwa der ${datum('2025-02-28')}.</p>
-
-<h4>Der Unterschied zwischen Fristablauf und Beendigungstermin</h4>
-<p>Die Vier-Wochen-Frist des § 622 Abs. 1 BGB kennt zwei mögliche Termine im Monat, die Monatsfristen des Absatzes 2 nur einen. Das führt zu Ergebnissen, die auf den ersten Blick überraschen:</p>
-<table>
-  <thead>
-    <tr><th>Zugang der Kündigung</th><th>Frist läuft ab am</th><th>Arbeitsverhältnis endet am</th></tr>
-  </thead>
-  <tbody>
-    <tr><td>${datum('2025-03-15')}</td><td>${datum(zumFuenfzehnten.fristablauf)}</td><td>${datum(zumFuenfzehnten.endDatum)}</td></tr>
-    <tr><td>${datum('2025-04-01')}</td><td>${datum(zumMonatsende.fristablauf)}</td><td>${datum(zumMonatsende.endDatum)}</td></tr>
-  </tbody>
-</table>
-<p>Im ersten Fall ist der Fünfzehnte des Folgemonats noch nicht verstrichen, wenn die Frist abläuft – das Arbeitsverhältnis endet also zur Monatsmitte. Im zweiten Fall ist er bereits vorbei, und es bleibt nur das Monatsende.</p>
-
-<h4>Fristberechnung nach §§ 187, 188 BGB</h4>
-<p>Der Tag des Zugangs zählt nicht mit (§ 187 Abs. 1 BGB). Eine Monatsfrist endet an dem Tag des Zielmonats, der dieselbe Zahl trägt wie der Zugangstag. Gibt es diesen Tag dort nicht, endet die Frist am letzten Tag des Monats (§ 188 Abs. 3 BGB): Eine Ein-Monats-Frist ab dem 31. Januar läuft am 28. Februar ab, in einem Schaltjahr am 29.</p>
-
-<h4>Probezeit und Wartezeit laufen unabhängig voneinander</h4>
-<p>Die <strong>Probezeit</strong> nach § 622 Abs. 3 BGB muss vereinbart sein, darf höchstens ${PROBEZEIT_MAX_MONATE} Monate dauern und verkürzt die Frist auf ${PROBEZEIT_FRIST_TAGE} Tage – ohne Bindung an einen Termin. Sie sagt nichts darüber aus, ob eine Kündigung einen Grund braucht.</p>
-<p>Die <strong>Wartezeit</strong> nach § 1 Abs. 1 KSchG beträgt ebenfalls sechs Monate, läuft aber automatisch ab dem ersten Arbeitstag. Erst danach muss eine Kündigung sozial gerechtfertigt sein. Beide Zeiträume sind oft gleich lang und werden deshalb ständig verwechselt: Eine auf drei Monate verkürzte Probezeit ändert nichts daran, dass der Kündigungsschutz erst nach sechs Monaten greift.</p>
-
-<h4>Was im Vertrag stehen darf – und was nicht</h4>
-<table>
-  <thead>
-    <tr><th>Regelung</th><th>Was gilt?</th><th>Rechtsgrundlage</th></tr>
-  </thead>
-  <tbody>
-    <tr><td>Vertrag nennt längere Frist als das Gesetz</td><td>Der Vertrag gilt</td><td>§ 622 Abs. 5 Satz 3 BGB</td></tr>
-    <tr><td>Vertrag nennt kürzere Frist als das Gesetz</td><td>Das Gesetz gilt, außer in den Fällen des Absatzes 5</td><td>§ 622 Abs. 5 Satz 1 BGB</td></tr>
-    <tr><td>Arbeitnehmer soll länger gebunden sein als der Arbeitgeber</td><td>Unwirksam</td><td>§ 622 Abs. 6 BGB</td></tr>
-    <tr><td>Tarifvertrag weicht ab, auch nach unten</td><td>Der Tarifvertrag gilt</td><td>§ 622 Abs. 4 BGB</td></tr>
-  </tbody>
-</table>
-
-<h4>Drei Wochen für die Kündigungsschutzklage</h4>
-<p>Wer sich gegen eine Kündigung wehren will, muss innerhalb von ${KLAGEFRIST_WOCHEN} Wochen ab Zugang Klage beim Arbeitsgericht erheben (§ 4 Satz 1 KSchG). Diese Frist gilt für <em>jeden</em> Unwirksamkeitsgrund – auch für eine zu kurz bemessene Kündigungsfrist oder eine fehlende Unterschrift. Läuft sie ab, gilt die Kündigung nach § 7 KSchG als von Anfang an wirksam. Die drei Wochen sind damit die härteste Frist im ganzen Kündigungsrecht, und sie läuft parallel zur Kündigungsfrist.</p>
-
-<p><strong>Formfehler lohnt den Blick:</strong> Nach § 623 BGB ist die Schriftform zwingend, die elektronische Form ausdrücklich ausgeschlossen. Eine Kündigung per E-Mail oder Messenger ist unwirksam – aber auch das muss innerhalb der drei Wochen geltend gemacht werden.</p>`}
-    relatedSlugs={['abfindungsrechner', 'arbeitslosengeld-rechner', 'brutto-netto-rechner']}
-  />
 </Layout>
 
 <style>

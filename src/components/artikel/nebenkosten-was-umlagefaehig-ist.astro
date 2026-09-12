@@ -1,5 +1,5 @@
 ---
-import ArticleLayout from '../../layouts/ArticleLayout.astro';
+import RechnerArtikel from '../RechnerArtikel.astro';
 import {
   berechneNebenkosten,
   abrechnungsfristEnde,
@@ -68,12 +68,10 @@ const prozent = (b: number) =>
   (b * 100).toLocaleString('de-DE', { maximumFractionDigits: 0 }) + ' %';
 const nr = (n: number | number[]) => (Array.isArray(n) ? `Nr. ${n.join(' und ')}` : `Nr. ${n}`);
 ---
-<ArticleLayout
-  title="Nebenkosten: Was der Vermieter umlegen darf – und was nicht"
-  description={`Dieselbe ${FLAECHE}-m²-Wohnung kostet zwischen ${eurGlatt(grund.gesamtJahr)} und ${eurGlatt(vollSpitze.gesamtJahr)} Nebenkosten im Jahr. Alle Positionen des § 2 BetrKV einzeln aufgeschlüsselt – samt der beiden Fristen, die über bares Geld entscheiden.`}
-  canonicalPath="/ratgeber/nebenkosten-was-umlagefaehig-ist/"
-  datum="2026-08-14"
+<RechnerArtikel
+  titel="Was der Vermieter umlegen darf – und was nicht"
   lead={`Dieselbe ${FLAECHE}-Quadratmeter-Wohnung kostet ${eurGlatt(grund.gesamtJahr)} Nebenkosten im Jahr – oder ${eurGlatt(vollSpitze.gesamtJahr)}, wenn Aufzug, Garten und Hauswart dazukommen und die Heizkosten über dem Schnitt liegen. Über den größeren Teil dieser ${eurGlatt(spanneJahr)} Differenz ist beim Einzug entschieden. Was danach noch Geld bewegt, sind zwei Fristen, die regelmäßig verwechselt werden.`}
+  datum="2026-08-14"
   quellen={[
     { titel: '§ 556 BGB – Vereinbarungen über Betriebskosten, Fristen, Belegeinsicht', url: 'https://www.gesetze-im-internet.de/bgb/__556.html' },
     { titel: '§ 556a BGB – Abrechnungsmaßstab', url: 'https://www.gesetze-im-internet.de/bgb/__556a.html' },
@@ -84,7 +82,7 @@ const nr = (n: number | number[]) => (Array.isArray(n) ? `Nr. ${n.join(' und ')}
     { titel: `Betriebskostenspiegel des Deutschen Mieterbundes, Abrechnungsjahr ${BETRIEBSKOSTENSPIEGEL.abrechnungsjahr}`, url: 'https://www.mieterbund.de/service/betriebskostenspiegel/' },
   ]}
 >
-  <h2>Woraus die Summe besteht</h2>
+  <h3>Woraus die Summe besteht</h3>
 
   <p>
     Was ein Vermieter überhaupt umlegen darf, steht in § 2 BetrKV – einer Liste
@@ -160,7 +158,7 @@ const nr = (n: number | number[]) => (Array.isArray(n) ? `Nr. ${n.join(' und ')}
     Fall wirkt die Ersparnis nur auf die Hälfte des Betrags.
   </p>
 
-  <h2>Was die Ausstattung kostet</h2>
+  <h3>Was die Ausstattung kostet</h3>
 
   <p>
     Aufzug, Grünanlage und Hauswart erscheinen in Wohnungsanzeigen als Vorzüge.
@@ -211,7 +209,7 @@ const nr = (n: number | number[]) => (Array.isArray(n) ? `Nr. ${n.join(' und ')}
     Belege zu sehen.
   </p>
 
-  <h2>Die kurze Liste dessen, was nicht umlagefähig ist</h2>
+  <h3>Die kurze Liste dessen, was nicht umlagefähig ist</h3>
 
   <p>
     § 1 Abs. 2 BetrKV nennt in nur zwei Nummern, was keine Betriebskosten sind –
@@ -274,7 +272,7 @@ const nr = (n: number | number[]) => (Array.isArray(n) ? `Nr. ${n.join(' und ')}
     wirtschaftlichste gewählt haben.
   </p>
 
-  <h2>Zwei Fristen, die regelmäßig verwechselt werden</h2>
+  <h3>Zwei Fristen, die regelmäßig verwechselt werden</h3>
 
   <p>
     Beide dauern zwölf Monate, und genau das führt zur Verwechslung – denn sie
@@ -359,7 +357,7 @@ const nr = (n: number | number[]) => (Array.isArray(n) ? `Nr. ${n.join(' und ')}
     oder die Einwendungsfrist verkürzt, ist damit gegenstandslos.
   </p>
 
-  <h2>Wenn kein Verteilerschlüssel vereinbart ist</h2>
+  <h3>Wenn kein Verteilerschlüssel vereinbart ist</h3>
 
   <p>
     Fehlt im Mietvertrag eine Vereinbarung darüber, wie die Kosten auf die
@@ -370,7 +368,7 @@ const nr = (n: number | number[]) => (Array.isArray(n) ? `Nr. ${n.join(' und ')}
     Wasser gilt der Verbrauch, bei allem anderen die Fläche.
   </p>
 
-  <h2>Was daraus folgt</h2>
+  <h3>Was daraus folgt</h3>
 
   <p>
     Die Nebenkosten einer Wohnung stehen zum größten Teil fest, bevor jemand
@@ -389,9 +387,8 @@ const nr = (n: number | number[]) => (Array.isArray(n) ? `Nr. ${n.join(' und ')}
   </p>
 
   <p>
-    Die eigene Abrechnung lässt sich mit dem
-    {' '}<a href={`${base}wohnen/nebenkosten-rechner/`}>Nebenkosten-Rechner</a>
-    {' '}gegen diese Richtwerte halten, die Heizkosten getrennt mit dem
+    Die eigene Abrechnung lässt sich oben im Rechner gegen diese Richtwerte
+    halten, die Heizkosten getrennt mit dem
     {' '}<a href={`${base}energie/heizkosten-rechner/`}>Heizkosten-Rechner</a>.
     Wie sich die Gesamtbelastung aus Kalt- und Warmmiete zusammensetzt, zeigt der
     {' '}<a href={`${base}wohnen/mietrechner/`}>Mietrechner</a>.
@@ -405,7 +402,7 @@ const nr = (n: number | number[]) => (Array.isArray(n) ? `Nr. ${n.join(' und ')}
     die Rechtslage wieder und ersetzt keine Rechtsberatung; für die Prüfung einer
     konkreten Abrechnung sind Mietervereine oder eine Anwaltskanzlei zuständig.
   </p>
-</ArticleLayout>
+</RechnerArtikel>
 
 <style>
 .table-wrap {

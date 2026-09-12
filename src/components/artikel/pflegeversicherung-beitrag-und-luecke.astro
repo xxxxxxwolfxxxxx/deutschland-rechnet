@@ -1,5 +1,6 @@
 ---
-import ArticleLayout from '../../layouts/ArticleLayout.astro';
+import RechnerArtikel from '../RechnerArtikel.astro';
+import { artikelPfadVonSlug } from '../../data/ratgeber';
 import {
   BEITRAGSSAETZE,
   BBG_KV_PV_MONAT,
@@ -109,12 +110,10 @@ const eigenanteilStandJahr = EIGENANTEIL_STAND.slice(0, 4);
 const datumLang = (iso: string) =>
   new Date(iso).toLocaleDateString('de-DE', { day: 'numeric', month: 'long', year: 'numeric' });
 ---
-<ArticleLayout
-  title="Pflegeversicherung: Der Beitrag ist die kleine Zahl"
-  description={`Ein Kinderloser mit ${eurGlatt(REFERENZ_BRUTTO)} Monatsbrutto zahlt ${eurGlatt(kinderlos.betrag)} im Monat. Im Pflegeheim bleiben ihm ${eurGlatt(ersteStufe.eigenanteil)} monatlich selbst – das ${zahl(vielfaches)}-Fache. Beitrag, Leistung und Eigenanteil durchgerechnet.`}
-  canonicalPath="/ratgeber/pflegeversicherung-beitrag-und-luecke/"
-  datum="2026-08-15"
+<RechnerArtikel
+  titel="Der Beitrag ist die kleine Zahl"
   lead={`Die Pflegeversicherung wird als Beitragslast wahrgenommen: ${prozent(BEITRAGSSAETZE.pflegeversicherung)} vom Brutto, für Kinderlose mehr. Bei ${eurGlatt(REFERENZ_BRUTTO)} Monatsbrutto entfallen davon ${eurGlatt(kinderlos.betrag)} auf den Beschäftigten. Wer später ins Heim zieht, zahlt im ersten Jahr ${eurGlatt(ersteStufe.eigenanteil)} monatlich aus eigener Tasche. Das ist keine Lücke im System – es ist das System.`}
+  datum="2026-08-15"
   quellen={[
     { titel: '§ 55 SGB XI – Beitragssatz, Zuschlag für Kinderlose, Abschläge', url: 'https://www.gesetze-im-internet.de/sgb_11/__55.html' },
     { titel: '§ 1 PBAV 2025 – Festsetzung des Beitragssatzes auf 3,6 Prozent', url: 'https://www.gesetze-im-internet.de/pbav_2025/__1.html' },
@@ -127,7 +126,7 @@ const datumLang = (iso: string) =>
     { titel: `vdek: Finanzielle Belastung im Pflegeheim, Bund und Bundesländer, Stand 1. Juli ${eigenanteilStandJahr}`, url: 'https://www.vdek.com/presse/daten/f_pflegeversicherung.html' },
   ]}
 >
-  <h2>Was der Beitrag kostet</h2>
+  <h3>Was der Beitrag kostet</h3>
 
   <p>
     Der Beitragssatz steht in § 55 Abs. 1 Satz 1 SGB XI, und dort steht immer
@@ -186,7 +185,7 @@ const datumLang = (iso: string) =>
     einzige, die niemand kurzfristig betätigt.
   </p>
 
-  <h2>Warum Sachsen anders rechnet</h2>
+  <h3>Warum Sachsen anders rechnet</h3>
 
   <p>
     Als die Pflegeversicherung 1995 eingeführt wurde, sollten die Länder zum
@@ -206,7 +205,7 @@ const datumLang = (iso: string) =>
     und in Thüringen wohnt, zahlt den Aufschlag.
   </p>
 
-  <h2>Die Grenze nach oben</h2>
+  <h3>Die Grenze nach oben</h3>
 
   <p>
     Beitragspflichtig ist das Entgelt nur bis zur Beitragsbemessungsgrenze von
@@ -223,7 +222,7 @@ const datumLang = (iso: string) =>
     exakt denselben Betrag wie jemand mit halbem Einkommen.
   </p>
 
-  <h2>Was die Kasse zahlt</h2>
+  <h3>Was die Kasse zahlt</h3>
 
   <p>
     Bei häuslicher Pflege gibt es zwei Wege, und sie sind unterschiedlich viel
@@ -281,7 +280,7 @@ const datumLang = (iso: string) =>
     SGB XI – zweckgebunden und nur gegen Belege.
   </p>
 
-  <h2>Der Eigenanteil im Heim</h2>
+  <h3>Der Eigenanteil im Heim</h3>
 
   <p>
     Im Heim übernimmt die Kasse nur die pflegebedingten Aufwendungen, und auch
@@ -339,7 +338,7 @@ const datumLang = (iso: string) =>
     {' '}{prozent(hoechstbeitrag / ersteStufe.eigenanteil, 0)} eines Heimmonats.
   </p>
 
-  <h2>Der gesetzliche Eigenanteil sinkt mit der Verweildauer</h2>
+  <h3>Der gesetzliche Eigenanteil sinkt mit der Verweildauer</h3>
 
   <p>
     § 43c SGB XI staffelt einen Leistungszuschlag nach der Verweildauer:
@@ -366,7 +365,7 @@ const datumLang = (iso: string) =>
     mit einer sinkenden Quote rechnen, nicht mit einer sinkenden Rechnung.
   </p>
 
-  <h2>Warum die Entlastung nicht dort greift, wo es teuer ist</h2>
+  <h3>Warum die Entlastung nicht dort greift, wo es teuer ist</h3>
 
   <p>
     Der Zuschlag mindert allein den Pflegeanteil. Unterkunft, Verpflegung und
@@ -426,7 +425,7 @@ const datumLang = (iso: string) =>
     die andere Richtung weist als die dortigen Heimkosten.
   </p>
 
-  <h2>Was daraus folgt</h2>
+  <h3>Was daraus folgt</h3>
 
   <p>
     Die Pflegeversicherung ist als Teilkasko angelegt, und die Zahlen zeigen, wie
@@ -453,12 +452,11 @@ const datumLang = (iso: string) =>
   </p>
 
   <p>
-    Den eigenen Beitrag rechnet der
-    {' '}<a href={`${base}versicherungen/pflege-rechner/`}>Pflegeversicherungs-Rechner</a>,
+    Den eigenen Beitrag rechnet der Rechner am Anfang dieser Seite,
     die gesamte Abgabenlast der
     {' '}<a href={`${base}geld/brutto-netto-rechner/`}>Brutto-Netto-Rechner</a>.
     Wie die Steuerklasse den monatlichen Abzug verschiebt, steht im Artikel zur
-    {' '}<a href={`${base}ratgeber/steuerklasse-wechseln-was-bringt/`}>Steuerklassenwahl</a>.
+    {' '}<a href={`${artikelPfadVonSlug('steuerklasse-wechseln-was-bringt')}`}>Steuerklassenwahl</a>.
   </p>
 
   <p class="hinweis">
@@ -469,7 +467,7 @@ const datumLang = (iso: string) =>
     sind Landesdurchschnitte; das einzelne Heim rechnet anders ab. Rechtsstand der
     Beiträge {datumLang(SV_STAND)}, der Leistungsbeträge {datumLang(PFLEGELEISTUNGEN_STAND)}.
   </p>
-</ArticleLayout>
+</RechnerArtikel>
 
 <style>
 .table-wrap {

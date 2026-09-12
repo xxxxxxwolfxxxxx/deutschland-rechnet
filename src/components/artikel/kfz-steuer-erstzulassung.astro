@@ -1,5 +1,5 @@
 ---
-import ArticleLayout from '../../layouts/ArticleLayout.astro';
+import RechnerArtikel from '../RechnerArtikel.astro';
 import {
   berechneKfzSteuer,
   HUBRAUMSATZ_AB_2009,
@@ -138,10 +138,8 @@ const zahl = (n: number, stellen = 1) =>
 const ganz = (n: number) => n.toLocaleString('de-DE');
 const deutschesDatum = (iso: string) => iso.split('-').reverse().join('.');
 ---
-<ArticleLayout
-  title="Kfz-Steuer: Warum dasselbe Auto je nach Zulassungsdatum dreimal so viel kostet"
-  description={`Drei Steuerregime gelten in Deutschland nebeneinander, und welches greift, entscheidet allein die Erstzulassung. Dasselbe Fahrzeug kostet zwischen ${eur(guenstigste.jahressteuer)} und ${eur(teuerste.jahressteuer)} im Jahr.`}
-  canonicalPath="/ratgeber/kfz-steuer-erstzulassung/"
+<RechnerArtikel
+  titel="Warum dasselbe Auto je nach Zulassungsdatum dreimal so viel kostet"
   lead={`Ein identischer Kompaktwagen – ${ganz(BEISPIEL.hubraum)} Kubikzentimeter, ${BEISPIEL.co2} Gramm CO2 je Kilometer – kostet je nach Tag der Erstzulassung zwischen ${eur(guenstigste.jahressteuer)} und ${eur(teuerste.jahressteuer)} Kfz-Steuer im Jahr. Nicht weil sich das Auto unterscheidet, sondern weil in Deutschland drei Steuerregime gleichzeitig gelten und ein Fahrzeug nie in ein neueres wechselt.`}
   datum="2026-08-14"
   quellen={[
@@ -167,7 +165,7 @@ const deutschesDatum = (iso: string) => iso.split('-').reverse().join('.');
     falsch – meist deutlich.
   </p>
 
-  <h2>Dasselbe Auto, fünfmal gerechnet</h2>
+  <h3>Dasselbe Auto, fünfmal gerechnet</h3>
   <p>
     Die folgende Tabelle nimmt ein einziges Fahrzeug – {ganz(BEISPIEL.hubraum)} ccm
     Hubraum, Benziner, {BEISPIEL.co2} g/km CO2 – und ändert nur eine Größe: das Datum
@@ -206,7 +204,7 @@ const deutschesDatum = (iso: string) => iso.split('-').reverse().join('.');
     Hinsicht dasselbe ist.
   </p>
 
-  <h2>Warum ein Wagen von 2010 weniger zahlt als einer von 2022</h2>
+  <h3>Warum ein Wagen von 2010 weniger zahlt als einer von 2022</h3>
   <p>
     Der auffälligste Wert der Tabelle ist {zweitaeltestes.kurz}:
     {eur(zweitaeltestes.jahressteuer)}, und damit weniger als die Hälfte dessen,
@@ -230,7 +228,7 @@ const deutschesDatum = (iso: string) => iso.split('-').reverse().join('.');
     Lebensdauer des Autos.
   </p>
 
-  <h2>Der Dieselaufschlag steckt im Hubraum, nicht im CO2</h2>
+  <h3>Der Dieselaufschlag steckt im Hubraum, nicht im CO2</h3>
   <p>
     Ein verbreitetes Missverständnis: Diesel würden wegen ihres Schadstoffausstoßes
     höher besteuert. Tatsächlich ist die CO2-Komponente für beide Antriebsarten
@@ -278,7 +276,7 @@ const deutschesDatum = (iso: string) => iso.split('-').reverse().join('.');
     und je größer der Hubraum, desto mehr.
   </p>
 
-  <h2>Die CO2-Staffel besteuert nicht den ganzen Wert</h2>
+  <h3>Die CO2-Staffel besteuert nicht den ganzen Wert</h3>
   <p>
     Seit 2021 gilt für Neuzulassungen eine sechsstufige Staffel. Sie wird häufig
     falsch verstanden – als würde bei Überschreiten einer Stufengrenze der gesamte
@@ -324,7 +322,7 @@ const deutschesDatum = (iso: string) => iso.split('-').reverse().join('.');
     Gramm mehr.
   </p>
 
-  <h2>Welche drei Felder Sie tatsächlich brauchen</h2>
+  <h3>Welche drei Felder Sie tatsächlich brauchen</h3>
   <p>
     Für eine belastbare Rechnung genügen drei Angaben, und alle stehen in der
     Zulassungsbescheinigung Teil I:
@@ -344,7 +342,7 @@ const deutschesDatum = (iso: string) => iso.split('-').reverse().join('.');
     {eur(SCHADSTOFFSAETZE_VOR_2009.euro0.diesel)}.
   </p>
 
-  <h2>Zwei Gruppen, die aus der Systematik herausfallen</h2>
+  <h3>Zwei Gruppen, die aus der Systematik herausfallen</h3>
   <p>
     Die drei Regime gelten für Pkw. Zwei Fälle folgen einer eigenen Logik, und beide
     werden regelmäßig übersehen.
@@ -373,7 +371,7 @@ const deutschesDatum = (iso: string) => iso.split('-').reverse().join('.');
     gleichzeitig nutzen – man muss sich für eines von beidem entscheiden.
   </p>
 
-  <h2>Beim Halterwechsel wird taggenau abgerechnet</h2>
+  <h3>Beim Halterwechsel wird taggenau abgerechnet</h3>
   <p>
     Ein häufiger Irrtum beim Gebrauchtwagenkauf: dass die bereits gezahlte Steuer des
     Vorbesitzers auf den Käufer übergeht oder unter den Beteiligten aufgeteilt werden
@@ -389,7 +387,7 @@ const deutschesDatum = (iso: string) => iso.split('-').reverse().join('.');
     sich durch den Halterwechsel nicht ändert.
   </p>
 
-  <h2>Monatlich zahlen ist nicht vorgesehen</h2>
+  <h3>Monatlich zahlen ist nicht vorgesehen</h3>
   <p>
     Viele Vergleichsseiten weisen die Kfz-Steuer als Monatsbetrag aus. Das ist
     rechnerisch nachvollziehbar, aber rechtlich irreführend: § 11 Abs. 1 KraftStG
@@ -417,7 +415,7 @@ const deutschesDatum = (iso: string) => iso.split('-').reverse().join('.');
     immer auf oder knapp unter dem rechnerischen Wert.
   </p>
 
-  <h2>Elektroautos: befreit, aber nicht dauerhaft</h2>
+  <h3>Elektroautos: befreit, aber nicht dauerhaft</h3>
   <p>
     Reine Elektrofahrzeuge sind nach § 3d Abs. 1 KraftStG von der Steuer befreit –
     zehn Jahre ab dem Tag der Erstzulassung. Die Fassung vom 22. Dezember 2025 hat
@@ -441,13 +439,13 @@ const deutschesDatum = (iso: string) => iso.split('-').reverse().join('.');
     Jahre nach der Befreiung nicht mit einer Null ansetzen.
   </p>
 
-  <h2>Den eigenen Fall rechnen</h2>
+  <h3>Den eigenen Fall rechnen</h3>
   <p>
-    Die Beispiele oben nutzen ein konstruiertes Fahrzeug. Für das eigene Auto
-    rechnen diese Rechner mit denselben Sätzen und derselben Regime-Logik:
+    Die Beispiele oben nutzen ein konstruiertes Fahrzeug. Das eigene rechnet der
+    Rechner am Anfang dieser Seite – mit denselben Sätzen und derselben
+    Regime-Logik. Daneben:
   </p>
   <ul>
-    <li><a href={`${base}auto/kfz-steuer-rechner/`}>Kfz-Steuer-Rechner</a> – alle drei Regime, Krafträder und Elektrofahrzeuge</li>
     <li><a href={`${base}auto/kfz-steuer-co2/`}>Kfz-Steuer nach CO2</a> – die Staffel für Zulassungen ab 2021</li>
     <li><a href={`${base}auto/unterhaltskosten-auto/`}>Unterhaltskosten-Rechner</a> – Steuer im Zusammenhang mit Versicherung, Sprit und Wertverlust</li>
     <li><a href={`${base}auto/elektroauto-tco-rechner/`}>Elektroauto-Kostenrechner</a> – Gesamtkosten inklusive der Jahre nach der Steuerbefreiung</li>
@@ -460,7 +458,7 @@ const deutschesDatum = (iso: string) => iso.split('-').reverse().join('.');
     Oldtimer- und rote Kennzeichen. Maßgeblich ist der Steuerbescheid des Hauptzollamts;
     dieser Artikel ersetzt keine steuerliche Beratung.
   </p>
-</ArticleLayout>
+</RechnerArtikel>
 
 <style>
 .table-wrap {

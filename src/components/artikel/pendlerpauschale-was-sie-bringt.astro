@@ -1,5 +1,5 @@
 ---
-import ArticleLayout from '../../layouts/ArticleLayout.astro';
+import RechnerArtikel from '../RechnerArtikel.astro';
 import {
   berechnefahrtkosten,
   ENTFERNUNGSPAUSCHALE_JE_KM,
@@ -77,10 +77,8 @@ const eurKurz = (n: number) =>
 const prozent = (n: number) =>
   (n * 100).toLocaleString('de-DE', { maximumFractionDigits: 0 }) + ' %';
 ---
-<ArticleLayout
-  title="Pendlerpauschale 2026: Warum sie bei zehn Kilometern nichts bringt"
-  description={`Seit 2026 gilt ein einheitlicher Satz von ${eur(ENTFERNUNGSPAUSCHALE_JE_KM)} je Entfernungskilometer. Was das konkret erstattet – und warum unterhalb von ${schwelleKm} Kilometern null herauskommt.`}
-  canonicalPath="/ratgeber/pendlerpauschale-was-sie-bringt/"
+<RechnerArtikel
+  titel="Warum sie bei zehn Kilometern nichts bringt"
   lead={`Seit dem 1. Januar 2026 gilt die Entfernungspauschale einheitlich mit ${eur(ENTFERNUNGSPAUSCHALE_JE_KM)} je Kilometer, auch für die ersten zwanzig. Das klingt nach mehr Geld für alle. Tatsächlich bekommt ein Pendler mit zehn Kilometern Arbeitsweg dadurch keinen Cent zurück – und wer dreißig Kilometer fährt, erhält von ${eurKurz(beiDreissig.jahresabzug)} Pauschale nur etwa ${prozent(anteilErstattet)} als Steuerersparnis.`}
   datum="2026-08-14"
   quellen={[
@@ -98,7 +96,7 @@ const prozent = (n: number) =>
     nachrechnen.
   </p>
 
-  <h2>Was sich zum 1. Januar 2026 geändert hat</h2>
+  <h3>Was sich zum 1. Januar 2026 geändert hat</h3>
   <p>
     Bis 2025 war die Pauschale gestaffelt: {eur(0.30)} für die ersten zwanzig
     Entfernungskilometer, {eur(ENTFERNUNGSPAUSCHALE_JE_KM)} ab dem einundzwanzigsten.
@@ -113,7 +111,7 @@ const prozent = (n: number) =>
     Vorschrift.
   </p>
 
-  <h2>Der Pauschbetrag, den kaum eine Übersicht erwähnt</h2>
+  <h3>Der Pauschbetrag, den kaum eine Übersicht erwähnt</h3>
   <p>
     Nach § 9a EStG zieht das Finanzamt jedem Arbeitnehmer einen
     <strong>Arbeitnehmer-Pauschbetrag von {eurKurz(ARBEITNEHMER_PAUSCHBETRAG)}</strong>
@@ -168,7 +166,7 @@ const prozent = (n: number) =>
     identischem Arbeitsweg.
   </p>
 
-  <h2>Abzug ist nicht Erstattung</h2>
+  <h3>Abzug ist nicht Erstattung</h3>
   <p>
     Der zweite verbreitete Irrtum steckt in der Erwartung, ein Eintrag von
     {' '}{eurKurz(beiDreissig.jahresabzug)} führe zu einer Rückzahlung in ähnlicher
@@ -185,7 +183,7 @@ const prozent = (n: number) =>
     Bemessungsgrundlage.
   </p>
 
-  <h2>Einfache Entfernung, volle Kilometer, kürzeste Verbindung</h2>
+  <h3>Einfache Entfernung, volle Kilometer, kürzeste Verbindung</h3>
   <p>
     Drei Details der Norm entscheiden über die Höhe, und alle drei werden regelmäßig
     falsch angesetzt:
@@ -208,7 +206,7 @@ const prozent = (n: number) =>
     </li>
   </ul>
 
-  <h2>Der 4.500-Euro-Deckel und wann er nicht gilt</h2>
+  <h3>Der 4.500-Euro-Deckel und wann er nicht gilt</h3>
   <p>
     § 9 Abs. 1 Satz 3 Nr. 4 Satz 2 EStG nennt einen Höchstbetrag von
     {' '}{eurKurz(ENTFERNUNGSPAUSCHALE_HOECHSTBETRAG)} im Kalenderjahr. Der zweite
@@ -228,7 +226,7 @@ const prozent = (n: number) =>
     der Höchstbetrag nicht.
   </p>
 
-  <h2>Jeder Homeoffice-Tag kostet Pauschale</h2>
+  <h3>Jeder Homeoffice-Tag kostet Pauschale</h3>
   <p>
     Das Gesetz knüpft die Pauschale an „jeden Arbeitstag, an dem der Arbeitnehmer die
     erste Tätigkeitsstätte aufsucht". Ein Tag im Homeoffice ist kein solcher Tag – für
@@ -280,7 +278,7 @@ const prozent = (n: number) =>
     im Homeoffice arbeitet, muss die Präsenztage entsprechend kürzen.
   </p>
 
-  <h2>Zwei Gruppen, für die andere Regeln gelten</h2>
+  <h3>Zwei Gruppen, für die andere Regeln gelten</h3>
   <p>
     <strong>Menschen mit Behinderung</strong> können nach § 9 Abs. 2 Satz 3 EStG statt
     der Pauschale die <em>tatsächlichen</em> Wegekosten ansetzen – bei einem Grad der
@@ -299,7 +297,7 @@ const prozent = (n: number) =>
     Hälfte.
   </p>
 
-  <h2>Jobticket mindert, Dienstrad nicht</h2>
+  <h3>Jobticket mindert, Dienstrad nicht</h3>
   <p>
     Zwei Sätze derselben Vorschrift regeln zwei ähnliche Sachverhalte gegensätzlich –
     und werden deshalb oft verwechselt.
@@ -318,7 +316,7 @@ const prozent = (n: number) =>
     Fälle, in denen sich zwei Steuervorteile addieren.
   </p>
 
-  <h2>Wer unter der Schwelle liegt, sollte weitersammeln</h2>
+  <h3>Wer unter der Schwelle liegt, sollte weitersammeln</h3>
   <p>
     Die praktische Konsequenz aus alledem wird selten gezogen: Der Pauschbetrag von
     {' '}{eurKurz(ARBEITNEHMER_PAUSCHBETRAG)} gilt für <em>sämtliche</em>
@@ -343,14 +341,13 @@ const prozent = (n: number) =>
     darauf verzichtet, weil „die Pendlerpauschale ja eh nichts bringt".
   </p>
 
-  <h2>Den eigenen Weg rechnen</h2>
+  <h3>Den eigenen Weg rechnen</h3>
   <p>
     Die Tabelle oben unterstellt {ARBEITSTAGE} Arbeitstage und keine weiteren
-    Werbungskosten. Für den eigenen Fall – andere Tagezahl, Homeoffice-Tage, weitere
-    Werbungskosten – rechnen diese Rechner:
+    Werbungskosten. Den eigenen Fall rechnet der Rechner am Anfang dieser Seite.
+    Was daneben hineinspielt:
   </p>
   <ul>
-    <li><a href={`${base}auto/fahrtkosten-rechner/`}>Pendlerpauschale-Rechner</a> – Jahresbetrag nach Entfernung und Arbeitstagen</li>
     <li><a href={`${base}geld/homeoffice-pauschale/`}>Homeoffice-Pauschale</a> – jeder Homeoffice-Tag senkt die Zahl der Fahrten und damit die Pauschale</li>
     <li><a href={`${base}geld/brutto-netto-rechner/`}>Brutto-Netto-Rechner</a> – wie sich ein zusätzlicher Abzug auf die Steuer auswirkt</li>
     <li><a href={`${base}auto/km-kostenrechner/`}>Kilometerkosten-Rechner</a> – Vollkosten je Kilometer inklusive Verschleiß</li>
@@ -369,7 +366,7 @@ const prozent = (n: number) =>
     weitere Werbungskosten; Kirchensteuer und Solidaritätszuschlag sind nicht
     berücksichtigt. Dieser Artikel ersetzt keine steuerliche Beratung.
   </p>
-</ArticleLayout>
+</RechnerArtikel>
 
 <style>
 .table-wrap {

@@ -1,7 +1,7 @@
 ---
 import Layout from '../../layouts/Layout.astro';
 import CalculatorShell from '../../components/CalculatorShell.astro';
-import CalculatorGuide from '../../components/CalculatorGuide.astro';
+import ArtikelBootstrailer from '../../components/artikel/bootstrailer-fuehrerschein-tempo-100.astro';
 import { CALCULATORS, CATEGORIES } from '../../data/calculators';
 import { TEMPO100_FAKTOREN } from '../../../public/scripts/bootstrailer.js';
 const calc = CALCULATORS.find(c => c.slug === 'bootstrailer-fuehrerschein')!;
@@ -102,46 +102,9 @@ const komma = (n: number) => n.toLocaleString('de-DE', { minimumFractionDigits: 
       </div>
       <div id="tempo100"></div>
     </div>
+
+    <ArtikelBootstrailer slot="artikel" />
   </CalculatorShell>
-
-  <CalculatorGuide
-    title="Trailergespann, Führerschein und Tempo 100"
-    content={`<p>Der Weg zum Wasser ist für viele Bootsbesitzer der unterschätzte Teil des Hobbys. Ein Gespann wird rechtlich anders behandelt als ein einzelnes Fahrzeug – und es gibt nicht eine Grenze, sondern drei, die unabhängig voneinander eingehalten werden müssen.</p>
-
-<h3>Grenze 1: die Fahrerlaubnisklasse</h3>
-<p>Maßgeblich ist ausschließlich die zulässige Gesamtmasse, nicht das reale Gewicht. Ein Trailer mit 1.500 kg zGM zählt mit 1.500 kg, auch wenn er leer 200 kg wiegt und das Boot 900 kg. Bei einer Kontrolle wird nach Papieren beurteilt, nicht nach Waage.</p>
-<ul>
-  <li><strong>Anhänger bis 750 kg zGM</strong> sind mit Klasse B immer erlaubt – auch wenn die Kombination dadurch über 3.500 kg liegt. Ein Zugfahrzeug mit 3.500 kg zGM und ein 750-kg-Trailer ergeben 4.250 kg und bleiben Klasse B.</li>
-  <li><strong>Darüber</strong> gilt die Kombinationsrechnung: bis 3.500 kg Klasse B, bis 4.250 kg Schlüsselzahl 96, darüber BE.</li>
-  <li><strong>BE</strong> begrenzt den Anhänger auf 3.500 kg zGM, die Kombination dagegen gar nicht – rechnerisch sind damit 7.000 kg möglich.</li>
-  <li><strong>Über 3.500 kg Anhänger</strong> beginnt C1E mit einer Obergrenze von 12.000 kg für die Kombination.</li>
-</ul>
-
-<h3>Grenze 2: was das Zugfahrzeug ziehen darf</h3>
-<p>Die Fahrerlaubnis sagt nichts darüber, ob das Auto den Trailer bewegen darf. Dafür zählen zwei Felder der Zulassungsbescheinigung Teil I: <strong>O.1</strong> nennt die zulässige Anhängelast für gebremste Anhänger, <strong>F.3</strong> die zulässige Gesamtmasse der Kombination. F.3 ist bei vielen Pkw kleiner als F.1 plus O.1 – wer nur addiert, übersieht das. Ein Gespann kann von der Klasse B gedeckt und trotzdem unzulässig sein.</p>
-
-<h3>Grenze 3: Tempo 100</h3>
-<p>Ohne Tempo-100-Zulassung gilt außerhalb geschlossener Ortschaften durchgehend 80 km/h. Mit Zulassung sind 100 km/h erlaubt – aber nur auf Autobahnen und Kraftfahrstraßen; auf Landstraßen bleibt es auch mit Plakette bei 80.</p>
-<p>Die entscheidende Bedingung des § 1 Nr. 1 der Neunten Ausnahmeverordnung ist eine Rechnung, und ihre Bezugsgröße ist die <strong>Leermasse</strong> des Zugfahrzeugs (Feld G) – nicht dessen zulässige Gesamtmasse:</p>
-<table class="trailer-tabelle">
-  <thead><tr><th>Anhänger</th><th>Faktor auf die Leermasse</th></tr></thead>
-  <tbody>
-    <tr><td>ungebremst oder ohne hydraulische Schwingungsdämpfer</td><td>${komma(TEMPO100_FAKTOREN.ohneDaempfer)}</td></tr>
-    <tr><td>Wohnanhänger mit starrem Aufbau und Dämpfern</td><td>${komma(TEMPO100_FAKTOREN.wohnanhaenger)}</td></tr>
-    <tr><td>… zusätzlich mit Stabilisierungseinrichtung</td><td>${komma(TEMPO100_FAKTOREN.wohnanhaengerStabilisiert)}</td></tr>
-    <tr><td>andere Anhänger mit Dämpfern – auch Bootstrailer</td><td>${komma(TEMPO100_FAKTOREN.sonstiger)}</td></tr>
-    <tr><td>… zusätzlich mit Stabilisierungseinrichtung</td><td>${komma(TEMPO100_FAKTOREN.sonstigerStabilisiert)}</td></tr>
-  </tbody>
-</table>
-<p>Beim Bootstrailer kommt hinzu, dass die zGM des Anhängers zusätzlich weder die zGM des Zugfahrzeugs noch die zulässige Anhängelast überschreiten darf. Der Faktor ${komma(TEMPO100_FAKTOREN.ohneDaempfer)} für Trailer ohne hydraulische Schwingungsdämpfer ist die Hürde, an der die meisten Gespanne scheitern: Bei 1.600 kg Leermasse bleiben 480 kg – das trägt kaum ein Trailer mit Boot.</p>
-
-<h3>Ablastung als Alternative</h3>
-<p>Viele Trailer lassen sich auf eine niedrigere zGM ablasten. Das bringt ein Gespann zurück in die Klasse B und kann zugleich die Anhängelast einhalten – reduziert aber die zulässige Zuladung. Umgekehrt hilft eine Auflastung nicht gegen eine zu kleine Anhängelast des Zugfahrzeugs.</p>
-
-<h3>Stützlast</h3>
-<p>Die Stützlast begrenzt, wie das Boot auf dem Trailer liegen darf. Sie steht in den Papieren beider Fahrzeuge; nach § 4 der Neunten Ausnahmeverordnung gilt der kleinere der beiden Werte. Eine zu geringe Stützlast lässt das Gespann bei höherem Tempo schlingern.</p>`}
-    relatedSlugs={['spritverbrauch-boot', 'rumpfgeschwindigkeit', 'kfz-steuer-rechner']}
-  />
 </Layout>
 
 <script type="module">

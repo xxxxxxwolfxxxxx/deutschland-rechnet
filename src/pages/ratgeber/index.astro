@@ -1,6 +1,6 @@
 ---
 import Layout from '../../layouts/Layout.astro';
-import { ARTIKEL_SORTIERT } from '../../data/ratgeber';
+import { ARTIKEL_SORTIERT, artikelPfad } from '../../data/ratgeber';
 
 const base = import.meta.env.BASE_URL;
 const artikelSortiert = ARTIKEL_SORTIERT;
@@ -17,7 +17,8 @@ const artikelSortiert = ARTIKEL_SORTIERT;
     <p>
       Ausführliche Artikel zu Themen, bei denen die reine Zahl aus dem Rechner nicht
       reicht. Jeder Beitrag bringt eigene Berechnungen mit, nennt seine Quellen und
-      sagt, von wann die Daten stammen.
+      sagt, von wann die Daten stammen. Sie stehen jeweils unter dem Rechner, zu dem
+      sie gehören – die Zahlen im Text kommen aus demselben Rechenmodul.
     </p>
   </header>
 
@@ -31,9 +32,9 @@ const artikelSortiert = ARTIKEL_SORTIERT;
               {new Date(a.datum).toLocaleDateString('de-DE', { day: '2-digit', month: 'long', year: 'numeric' })}
             </time>
           </div>
-          <h2><a href={`${base}ratgeber/${a.slug}/`}>{a.titel}</a></h2>
+          <h2><a href={`${base}${artikelPfad(a)}`}>{a.titel}</a></h2>
           <p>{a.teaser}</p>
-          <a href={`${base}ratgeber/${a.slug}/`} class="weiter">Artikel lesen →</a>
+          <a href={`${base}${artikelPfad(a)}`} class="weiter">Rechner und Artikel →</a>
         </article>
       </li>
     ))}
