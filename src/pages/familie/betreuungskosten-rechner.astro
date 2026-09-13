@@ -3,23 +3,69 @@ import Layout from '../../layouts/Layout.astro';
 import CalculatorShell from '../../components/CalculatorShell.astro';
 import CalculatorGuide from '../../components/CalculatorGuide.astro';
 import { CALCULATORS, CATEGORIES } from '../../data/calculators';
+import {
+  berechneBetreuungskosten,
+  ABZUGSQUOTE,
+  HOECHSTBETRAG_JE_KIND,
+  KOSTEN_BIS_ZUM_DECKEL,
+  ALTERSGRENZE,
+  TARIF_STAND,
+} from '../../../public/scripts/betreuungskosten.js';
 const calc = CALCULATORS.find(c => c.slug === 'betreuungskosten-rechner')!;
 const cat = CATEGORIES[calc.category];
 const year = new Date().getFullYear();
 
+// Alle Zahlen dieser Seite kommen aus demselben Modul, das der Rechner laedt.
+const eur = (n: number) => n.toLocaleString('de-DE', { maximumFractionDigits: 0 }) + ' €';
+const quote = Math.round(ABZUGSQUOTE * 100);
+const tarifJahr = TARIF_STAND.slice(0, 4);
+
+const bsp = berechneBetreuungskosten({ kinder: 1, beitragMonat: 350, zvE: 60000 });
+const bspZuschuss = berechneBetreuungskosten({ kinder: 1, beitragMonat: 350, zuschussMonat: 100, zvE: 60000 });
+const zuschussNettoWirkung = bsp.nettokosten - bspZuschuss.nettokosten;
+const centJeZuschussEuro = Math.round((zuschussNettoWirkung / bspZuschuss.zuschuss) * 100);
+
+const KOSTEN = [3000, 4500, 6000, 8000];
+const EINKOMMEN = [30000, 60000, 100000];
+const tabelle = KOSTEN.map((k) => ({
+  k,
+  abziehbar: Math.min(k * ABZUGSQUOTE, HOECHSTBETRAG_JE_KIND),
+  ersparnis: EINKOMMEN.map((zvE) => berechneBetreuungskosten({ kinder: 1, beitragMonat: k / 12, zvE }).steuerersparnis),
+}));
+const kleinste = tabelle[2].ersparnis[0];
+const groesste = tabelle[2].ersparnis[EINKOMMEN.length - 1];
+
+const guideHtml = `
+<h3>Was dieser Rechner rechnet – und was nicht</h3>
+<p>Wie hoch der Elternbeitrag für Krippe, Kita, Hort oder Kindertagespflege ist, legt kein Bundesgesetz fest. § 90 Abs. 1 Nr. 3 SGB VIII erlaubt Kostenbeiträge, und Absatz 3 verlangt, sie zu staffeln – insbesondere nach dem Einkommen, der Zahl der kindergeldberechtigten Kinder und der täglichen Betreuungszeit. Wie genau, entscheiden Länder, Kommunen und Träger; manche Länder stellen bestimmte Jahrgänge oder Betreuungsumfänge beitragsfrei. Eine bundesweite Gebührenformel gibt es deshalb nicht, und dieser Rechner erfindet keine. Er nimmt den Beitrag aus Ihrem Bescheid und rechnet, was bundeseinheitlich im Gesetz steht: Arbeitgeberzuschuss, Sonderausgabenabzug und Steuerersparnis.</p>
+
+<h3>Steuer: ${quote} Prozent, höchstens ${eur(HOECHSTBETRAG_JE_KIND)} je Kind</h3>
+<p>§ 10 Abs. 1 Nr. 5 EStG erlaubt den Abzug von <strong>${quote} Prozent der Aufwendungen, höchstens ${eur(HOECHSTBETRAG_JE_KIND)} je Kind</strong>, für die Betreuung eines zum Haushalt gehörenden Kindes, das das ${ALTERSGRENZE}. Lebensjahr noch nicht vollendet hat – bei einer Behinderung, die vor dem 25. Lebensjahr eingetreten ist, auch darüber hinaus. Der Höchstbetrag ist ab ${eur(KOSTEN_BIS_ZUM_DECKEL)} eigenen Kosten im Jahr erreicht; jeder weitere Euro wirkt sich nicht mehr aus. Voraussetzung sind eine Rechnung und die Zahlung auf das Konto des Leistungserbringers. Nicht begünstigt sind Aufwendungen für Unterricht, die Vermittlung besonderer Fähigkeiten sowie für sportliche und andere Freizeitbetätigungen. Bis 2024 galten zwei Drittel und 4.000 €.</p>
+<p>Was der Abzug bringt, hängt nicht an einem pauschalen Steuersatz, sondern am Tarif des § 32a EStG. Die Tabelle rechnet ihn für ein Kind bei Einzelveranlagung, Tarif ${tarifJahr}, ohne Solidaritätszuschlag und Kirchensteuer:</p>
+<table><thead><tr><th>Eigene Kosten im Jahr</th><th>Abziehbar</th>${EINKOMMEN.map((z) => `<th>Steuerersparnis bei ${eur(z)} zvE</th>`).join('')}</tr></thead><tbody>
+${tabelle.map((r) => `<tr><td>${eur(r.k)}</td><td>${eur(r.abziehbar)}${r.k * ABZUGSQUOTE > HOECHSTBETRAG_JE_KIND ? ' (Höchstbetrag)' : ''}</td>${r.ersparnis.map((e) => `<td>${eur(e)}</td>`).join('')}</tr>`).join('\n')}
+</tbody></table>
+<p>Dieselben ${eur(KOSTEN_BIS_ZUM_DECKEL)} Betreuungskosten sparen bei ${eur(EINKOMMEN[0])} zu versteuerndem Einkommen ${eur(kleinste)} Steuer, bei ${eur(EINKOMMEN[EINKOMMEN.length - 1])} ${eur(groesste)}. Ein Sonderausgabenabzug entlastet dort am stärksten, wo der Grenzsteuersatz am höchsten ist.</p>
+
+<h3>Arbeitgeberzuschuss: steuerfrei, aber nicht doppelt</h3>
+<p>Nach § 3 Nr. 33 EStG sind Leistungen des Arbeitgebers zur Unterbringung und Betreuung nicht schulpflichtiger Kinder in Kindergärten oder vergleichbaren Einrichtungen steuerfrei – ohne Höchstbetrag, aber nur, wenn sie zusätzlich zum ohnehin geschuldeten Arbeitslohn gezahlt werden. Was der Arbeitgeber steuerfrei übernimmt, haben die Eltern nicht selbst getragen; es mindert die abziehbaren Aufwendungen. Beispiel mit 350 € Beitrag im Monat und ${eur(60000)} zvE: Ohne Zuschuss kostet die Betreuung nach Steuern ${eur(bsp.nettokosten)} im Jahr. Mit 100 € Zuschuss im Monat sind es ${eur(bspZuschuss.nettokosten)}. Die ${eur(bspZuschuss.zuschuss)} Zuschuss senken die Kosten also nur um ${eur(zuschussNettoWirkung)}, weil gleichzeitig die Steuerersparnis von ${eur(bsp.steuerersparnis)} auf ${eur(bspZuschuss.steuerersparnis)} fällt – jeder Euro Zuschuss wirkt hier mit ${centJeZuschussEuro} Cent.</p>
+
+<h3>Wenn der Beitrag nicht zu tragen ist</h3>
+<p>Nach § 90 Abs. 4 SGB VIII wird der Kostenbeitrag auf Antrag erlassen oder vom Jugendamt übernommen, wenn die Belastung den Eltern und dem Kind nicht zuzumuten ist. Nicht zuzumuten ist sie, wenn Leistungen zur Sicherung des Lebensunterhalts nach dem SGB II, Leistungen nach dem dritten und vierten Kapitel des SGB XII, Leistungen nach dem Asylbewerberleistungsgesetz, Kinderzuschlag nach § 6a BKGG oder Wohngeld bezogen werden. Das Jugendamt muss über dieses Antragsrecht beraten.</p>
+`;
+
 const faqs = [
-  { q: 'Was sind abzugsfähige Kinderbetreuungskosten?', a: 'Kosten für Krippe, Kindergarten, Tagesmutter oder Hort sind abzugsfähig, wenn sie zur Ermöglichung der Erwerbstätigkeit entstehen.' },
-  { q: 'Wie hoch ist der maximale Abzug?', a: 'Der Höchstbetrag liegt bei 6.000€ pro Jahr und Kind (bis 14 Jahren). Für behinderte Kinder gibt es keine Höchstgrenze.' },
-  { q: 'Wer kann Kosten absetzen?', a: 'Eltern können Kosten absetzen, wenn mindestens ein Elternteil berufstätig oder in Ausbildung ist. Arbeitssuchende können teilweise auch absetzen.' },
-  { q: 'Welche Kosten sind nicht abzugsfähig?', a: 'Verpflegung, Unterricht (Musik, Sprachen), Übernachtung und Betreuung durch Verwandte sind nicht abzugsfähig.' },
-  { q: 'Wird das Kindergeld angerechnet?', a: 'Nein, Kindergeld wird nicht auf den Abzug von Betreuungskosten angerechnet.' },
-  { q: 'Kann ich den Arbeitgeberzuschuss zur Kita steuerlich nutzen?', a: 'Der Arbeitgeberzuschuss nach § 3 Nr. 33 EStG ist steuerfrei und sozialabgabenfrei, wird aber von den absetzbaren Betreuungskosten abgezogen. Beispiel: Bei 6.000 € Kita-Kosten und 1.200 € Arbeitgeberzuschuss bleiben 4.800 € eigene Aufwendungen, davon 80 Prozent = 3.840 € als Sonderausgaben.' },
-  { q: 'Was passiert mit den Kita-Kosten bei Trennung oder Scheidung?', a: 'Kita-Kosten gehören zum Mehrbedarf des Kindes und werden zwischen den Eltern nach dem Verhältnis ihrer Einkommen aufgeteilt (§ 1606 Abs. 3 BGB). Der betreuende Elternteil kann seinen Anteil der Kosten steuerlich absetzen.' },
+  { q: 'Welche Betreuungskosten kann ich absetzen?', a: `Aufwendungen für die Betreuung in Krippe, Kita, Hort oder Kindertagespflege sowie für eine Tagesmutter oder Kinderfrau, wenn eine Rechnung vorliegt und auf das Konto des Leistungserbringers gezahlt wurde. Nicht begünstigt sind nach § 10 Abs. 1 Nr. 5 Satz 2 EStG Unterricht, die Vermittlung besonderer Fähigkeiten sowie sportliche und andere Freizeitbetätigungen. Essensgeld zählt nicht zur Betreuung – lassen Sie es auf der Rechnung getrennt ausweisen.` },
+  { q: 'Wie hoch ist der Abzug?', a: `${quote} Prozent der Aufwendungen, höchstens ${eur(HOECHSTBETRAG_JE_KIND)} je Kind und Jahr. Der Höchstbetrag ist ab ${eur(KOSTEN_BIS_ZUM_DECKEL)} eigenen Kosten erreicht. Er gilt auch für Kinder mit Behinderung; für sie gilt lediglich die Altersgrenze von ${ALTERSGRENZE} Jahren nicht, wenn die Behinderung vor dem 25. Lebensjahr eingetreten ist.` },
+  { q: 'Müssen beide Eltern berufstätig sein?', a: 'Nein. § 10 Abs. 1 Nr. 5 EStG knüpft an das Kind, die Aufwendungen und den Nachweis an, nicht an eine Erwerbstätigkeit der Eltern.' },
+  { q: 'Kann ich bar gezahlte Betreuung absetzen?', a: 'Nein. Das Gesetz verlangt eine Rechnung und die Zahlung auf das Konto des Leistungserbringers. Bar bezahlte Betreuung, etwa bei einem Babysitter ohne Rechnung, wird nicht anerkannt.' },
+  { q: 'Wie wirkt ein Kita-Zuschuss des Arbeitgebers?', a: `Er ist nach § 3 Nr. 33 EStG steuerfrei, wenn er zusätzlich zum ohnehin geschuldeten Arbeitslohn für ein nicht schulpflichtiges Kind gezahlt wird. Weil die Eltern diesen Teil nicht selbst tragen, mindert er die abziehbaren Aufwendungen. Im Beispiel mit 350 € Beitrag, 100 € Zuschuss und ${eur(60000)} zvE entlastet jeder Euro Zuschuss deshalb nur um ${centJeZuschussEuro} Cent.` },
+  { q: 'Was tun, wenn ich den Kita-Beitrag nicht zahlen kann?', a: 'Beim Jugendamt einen Antrag nach § 90 Abs. 4 SGB VIII stellen. Der Beitrag wird erlassen oder übernommen, wenn die Belastung nicht zuzumuten ist – das ist nach dem Gesetz der Fall bei Bürgergeld, Sozialhilfe, Leistungen nach dem Asylbewerberleistungsgesetz, Kinderzuschlag oder Wohngeld.' },
 ];
 ---
 <Layout
   title={`Betreuungskosten-Rechner ${year}`}
-  description="Kita-Gebühren und Betreuungskosten berechnen: Beiträge nach Einkommen, Bundesland und Betreuungszeit. Steuerlich absetzbar sind 80 Prozent der Kosten, höchstens 4.800 € je Kind und Jahr. Mit Vergleichstabelle aller Bundesländer."
+  description={`Was Kita, Krippe, Hort und Tagespflege nach Steuern kosten: ${quote} Prozent der Kosten, höchstens ${HOECHSTBETRAG_JE_KIND.toLocaleString('de-DE')} € je Kind, sind nach § 10 Abs. 1 Nr. 5 EStG absetzbar. Mit Arbeitgeberzuschuss und Steuerersparnis nach Tarif.`}
   canonicalPath="/familie/betreuungskosten-rechner/"
   categoryColor={cat.color}
   categoryLight={cat.colorLight}
@@ -31,49 +77,46 @@ const faqs = [
   </div>
   <CalculatorShell
     calculator={calc}
-    intro="Mit dem Betreuungskosten-Rechner berechnen Sie die voraussichtlichen Kita-Gebühren. Erfahren Sie, welche Kosten auf Sie zukommen und wie Einkommen, Betreuungsumfang und Geschwisterermäßigung den Beitrag beeinflussen."
-    sourceNote="100-300€/Monat für U3."
-    explanation="Die Gebühren werden von den Kommunen festgelegt und richten sich nach Einkommen und Betreuungszeit. Rechtsanspruch auf Betreuung besteht nach § 24 SGB VIII. 80 Prozent der Aufwendungen, höchstens 4.800 € je Kind, sind als Sonderausgaben absetzbar (§ 10 Abs. 1 Nr. 5 EStG) – Voraussetzung sind eine Rechnung und die Zahlung auf das Konto des Leistungserbringers, Barzahlung wird nicht anerkannt."
+    intro="Mit dem Betreuungskosten-Rechner sehen Sie, was Krippe, Kita, Hort oder Kindertagespflege nach Steuern tatsächlich kosten. Den Beitrag tragen Sie selbst ein – er steht im Bescheid Ihrer Kommune oder Ihres Trägers. Der Rechner zieht einen steuerfreien Arbeitgeberzuschuss ab, wendet den Sonderausgabenabzug an und rechnet die Steuerersparnis mit dem Einkommensteuertarif aus."
+    sourceNote={`Sonderausgabenabzug nach § 10 Abs. 1 Nr. 5 EStG, Arbeitgeberzuschuss nach § 3 Nr. 33 EStG, Einkommensteuer nach § 32a EStG (Tarif ${tarifJahr}), bei Zusammenveranlagung im Splittingverfahren. Ohne Solidaritätszuschlag und Kirchensteuer. Die Höhe der Elternbeiträge kennt der Rechner nicht: Sie setzen Länder, Kommunen und Träger selbst fest.`}
+    explanation={`Aus dem eingetragenen Beitrag werden die Jahreskosten je Kind. Ein steuerfreier Arbeitgeberzuschuss wird abgezogen, weil nur abziehbar ist, was die Eltern selbst tragen. Davon sind ${quote} Prozent als Sonderausgaben abziehbar, höchstens ${eur(HOECHSTBETRAG_JE_KIND)} je Kind. Die Steuerersparnis ist der Unterschied zwischen der Einkommensteuer auf das eingetragene zu versteuernde Einkommen und der Steuer nach dem Abzug. Beispiel: Ein Kind, 350 € im Monat, ${eur(60000)} zvE, Einzelveranlagung – abziehbar sind ${eur(bsp.sonderausgaben)}, die Steuer sinkt um ${eur(bsp.steuerersparnis)}, und die Betreuung kostet nach Steuern ${eur(bsp.nettokosten)} im Jahr.`}
     faqs={faqs}
   >
     <div class="calc-form">
       <div class="calc-grid">
         <div class="calc-group">
-          <label for="einkommen">Jahres-Bruttoeinkommen (€)</label>
-          <input type="number" id="einkommen" min="0" max="200000" value="60000" step="5000" />
+          <label for="beitrag">Betreuungsbeitrag je Kind im Monat (€, ohne Essensgeld)</label>
+          <input type="number" id="beitrag" min="0" max="3000" value="350" step="10" />
         </div>
         <div class="calc-group">
-          <label for="kinder">Anzahl Kinder in Betreuung</label>
+          <label for="kinder">Anzahl betreuter Kinder</label>
           <input type="number" id="kinder" min="1" max="10" value="1" step="1" />
         </div>
         <div class="calc-group">
-          <label for="stunden">Betreuungszeit pro Tag (Stunden)</label>
-          <select id="stunden">
-            <option value="4">Bis 4 Stunden</option>
-            <option value="6" selected>Bis 6 Stunden</option>
-            <option value="8">Bis 8 Stunden</option>
-            <option value="10">Über 8 Stunden</option>
-          </select>
+          <label for="monate">Monate mit Beitrag im Jahr</label>
+          <input type="number" id="monate" min="1" max="12" value="12" step="1" />
         </div>
         <div class="calc-group">
-          <label for="alter">Alter des jüngsten Kindes</label>
-          <select id="alter">
-            <option value="krippe">Unter 3 Jahre (Krippe)</option>
-            <option value="kita" selected>3–6 Jahre (Kita)</option>
-          </select>
+          <label for="zuschuss">Steuerfreier Arbeitgeberzuschuss je Kind im Monat (€)</label>
+          <input type="number" id="zuschuss" min="0" max="3000" value="0" step="10" />
+          <small style="color:#666;">Nur für nicht schulpflichtige Kinder (§ 3 Nr. 33 EStG).</small>
         </div>
         <div class="calc-group">
-          <label for="region">Region</label>
-          <select id="region">
-            <option value="low" selected>Ländlich (günstig)</option>
-            <option value="mid">Mittelstadt</option>
-            <option value="high">Großstadt (teuer)</option>
+          <label for="zve">Zu versteuerndes Einkommen ohne Betreuungskosten (€)</label>
+          <input type="number" id="zve" min="0" max="1000000" value="60000" step="1000" />
+          <small style="color:#666;">Steht im letzten Steuerbescheid.</small>
+        </div>
+        <div class="calc-group">
+          <label for="veranlagung">Veranlagung</label>
+          <select id="veranlagung">
+            <option value="einzeln" selected>Einzelveranlagung</option>
+            <option value="zusammen">Zusammenveranlagung (Splitting)</option>
           </select>
         </div>
       </div>
 
       <div class="calc-result">
-        <div class="label">Geschätzte monatliche Kosten pro Kind</div>
+        <div class="label">Betreuungskosten nach Steuern pro Jahr</div>
         <div id="kosten">— €</div>
       </div>
       <div id="details" style="margin-top:0.75rem;font-size:0.88rem;color:#666;display:flex;gap:1.5rem;flex-wrap:wrap;"></div>
@@ -81,54 +124,40 @@ const faqs = [
   </CalculatorShell>
 
   <CalculatorGuide
-    title="Betreuungskosten – Gebühren verstehen und optimieren"
-    content="Kinderbetreuung ist in Deutschland regional sehr unterschiedlich geregelt. Während manche Bundesländer kostenlose Betreuung ab dem dritten Lebensjahr anbieten, zahlen Eltern anderswo erhebliche Gebühren. Die Unterschiede können mehrere Hundert Euro pro Monat betragen.
-
-<h3>Kita-Gebühren im Bundesländervergleich</h3>
-Die folgende Tabelle zeigt die durchschnittlichen monatlichen Elternbeiträge für eine Ganztagsbetreuung (8 Stunden) bei einem Haushaltseinkommen von 50.000 € brutto/Jahr:
-<table><thead><tr><th>Bundesland</th><th>Krippe (U3)</th><th>Kita (Ü3)</th><th>Besonderheiten</th></tr></thead><tbody><tr><td>Berlin</td><td>0 €</td><td>0 €</td><td>Komplett beitragsfrei seit 2018</td></tr><tr><td>Hamburg</td><td>0 €</td><td>0 €</td><td>5 Stunden Grundbetreuung kostenlos, darüber einkommensabhängig</td></tr><tr><td>Mecklenburg-Vorpommern</td><td>ca. 180 €</td><td>0 €</td><td>Letztes Kita-Jahr beitragsfrei</td></tr><tr><td>Niedersachsen</td><td>ca. 250 €</td><td>0 €</td><td>Ü3 beitragsfrei seit 2018</td></tr><tr><td>Rheinland-Pfalz</td><td>ca. 270 €</td><td>0 €</td><td>Ü2 beitragsfrei</td></tr><tr><td>Hessen</td><td>ca. 300 €</td><td>0 €</td><td>6 Stunden Ü3 beitragsfrei</td></tr><tr><td>NRW</td><td>ca. 250–400 €</td><td>0–200 €</td><td>Letztes Kita-Jahr beitragsfrei, sonst kommunal</td></tr><tr><td>Bayern</td><td>ca. 300–450 €</td><td>ca. 100–250 €</td><td>100 € Zuschuss/Monat ab dem 1. Geburtstag</td></tr><tr><td>Baden-Württemberg</td><td>ca. 300–500 €</td><td>ca. 120–280 €</td><td>Stark kommunal unterschiedlich</td></tr><tr><td>Sachsen</td><td>ca. 200–350 €</td><td>ca. 150–250 €</td><td>Elternbeitrag gedeckelt</td></tr></tbody></table>
-<p><em>Richtwerte; die tatsächlichen Gebühren variieren je nach Kommune, Träger und Betreuungsumfang erheblich.</em></p>
-
-<h3>Steuerliche Absetzbarkeit: 80 Prozent, höchstens 4.800 € je Kind</h3>
-§ 10 Abs. 1 Nr. 5 EStG erlaubt den Abzug von <strong>80 Prozent der Betreuungskosten, höchstens 4.800 € je Kind und Jahr</strong>. Der Höchstbetrag ist damit ab 6.000 € tatsächlichen Kosten erreicht; darüber hinaus wirkt sich kein Euro mehr aus. Bis 2024 galten zwei Drittel und 4.000 € – wer eine ältere Erklärung nachrechnet, muss mit den alten Werten rechnen. Voraussetzung ist in beiden Fassungen eine Rechnung und die Zahlung auf das Konto des Leistungserbringers; Barzahlung erkennt das Finanzamt nicht an. Nicht begünstigt sind Aufwendungen für Unterricht, die Vermittlung besonderer Fähigkeiten sowie für sportliche und andere Freizeitbetätigungen.
-<table><thead><tr><th>Tatsächliche Kosten/Jahr</th><th>Absetzbar (80 %)</th><th>Steuerersparnis (30 % Grenzsteuersatz)</th><th>Steuerersparnis (42 %)</th></tr></thead><tbody><tr><td>3.000 €</td><td>2.400 €</td><td>720 €</td><td>1.008 €</td></tr><tr><td>4.500 €</td><td>3.600 €</td><td>1.080 €</td><td>1.512 €</td></tr><tr><td>6.000 €</td><td>4.800 € (Höchstbetrag erreicht)</td><td>1.440 €</td><td>2.016 €</td></tr><tr><td>8.000 €</td><td>4.800 € (Deckel)</td><td>1.440 €</td><td>2.016 €</td></tr></tbody></table>
-<p><strong>Voraussetzungen:</strong> Das Kind muss zum Haushalt gehören und darf das 14. Lebensjahr noch nicht vollendet haben (Ausnahme: Kinder mit Behinderung). Die Kosten müssen per Rechnung nachgewiesen und unbar bezahlt werden (Überweisung, Lastschrift).</p>
-
-<h3>Was ist absetzbar – und was nicht?</h3>
-<table><thead><tr><th>Absetzbar</th><th>Nicht absetzbar</th></tr></thead><tbody><tr><td>Kita- und Krippengebühren</td><td>Verpflegungskosten (Essensgeld)</td></tr><tr><td>Tagesmutter/Tagesvater</td><td>Musikunterricht, Sportverein</td></tr><tr><td>Hort und Nachmittagsbetreuung</td><td>Nachhilfe und Förderunterricht</td></tr><tr><td>Au-pair (anteilig für Betreuung)</td><td>Übernachtungskosten (z.B. Internat)</td></tr><tr><td>Babysitter (mit Rechnung)</td><td>Betreuung durch Großeltern ohne Vertrag</td></tr><tr><td>Ferienbetreuung</td><td>Fahrtkosten zur Betreuung</td></tr></tbody></table>
-
-<h3>Häufige Fehler bei Betreuungskosten</h3>
-<ul><li><strong>Barzahlung:</strong> Wer die Tagesmutter bar bezahlt, kann die Kosten nicht absetzen. Das Finanzamt akzeptiert nur unbare Zahlungen mit Kontonachweis.</li><li><strong>Essensgeld nicht trennen:</strong> Viele Kitas weisen eine Gesamtrechnung aus. Fordern Sie eine Aufschlüsselung an – der Betreuungsanteil muss separat erkennbar sein.</li><li><strong>Großeltern-Modell falsch aufgesetzt:</strong> Großeltern können als Babysitter abgerechnet werden, aber nur mit schriftlichem Vertrag, regelmäßiger Überweisung und zu einem marktüblichen Stundensatz. Das Modell wird vom Finanzamt streng geprüft.</li><li><strong>Arbeitgeberzuschuss vergessen:</strong> Arbeitgeber können nach § 3 Nr. 33 EStG steuer- und sozialversicherungsfrei Zuschüsse zur Kinderbetreuung zahlen – zusätzlich zum Gehalt. Viele Eltern wissen nicht, dass sie das ansprechen können.</li></ul>
-
-<h3>Geschwisterermäßigung und weitere Entlastungen</h3>
-Die meisten Kommunen gewähren Geschwisterermäßigungen von 25 % bis 100 % für das zweite und weitere Kind. Zusätzliche Entlastungsmöglichkeiten:
-<ul><li><strong>Jugendamtszuschuss:</strong> Bei geringem Einkommen übernimmt das Jugendamt die Kita-Kosten ganz oder teilweise (§ 90 SGB VIII)</li><li><strong>Bildungs- und Teilhabepaket:</strong> Familien mit Bürgergeld, Kinderzuschlag oder Wohngeld können zusätzliche Leistungen für Ausflüge und Mittagessen erhalten</li><li><strong>Betriebskita:</strong> Betriebliche Betreuungsplätze sind oft günstiger und werden vom Arbeitgeber bezuschusst</li></ul>
-
-Finanzierungstipps: Prüfen Sie Zuschüsse der Jugendämter, Wohngeldanträge und steuerliche Absetzbarkeit genau. In einigen Bundesländern gibt es Krippengutscheine oder landesfinanzierte Plätze, die Elternbeiträge deutlich senken. Lassen Sie sich vom Jugendamt beraten – die Antragsstellung lohnt sich häufiger, als Eltern vermuten."
+    title="Betreuungskosten: was bundesweit gilt"
+    content={guideHtml}
     relatedSlugs={['kindergeld-rechner', 'elterngeld-rechner']}
   />
 </Layout>
 
 <script type="module">
-const { berechneBetreuungskosten } = await import(window.__base + 'scripts/betreuungskosten.js');
-function fmt(n) { return n.toLocaleString('de-DE', {minimumFractionDigits:2, maximumFractionDigits:2}) + ' €'; }
+const { berechneBetreuungskosten, HOECHSTBETRAG_JE_KIND } = await import(window.__base + 'scripts/betreuungskosten.js');
+const eur = (n) => n.toLocaleString('de-DE', { minimumFractionDigits: 0, maximumFractionDigits: 0 }) + ' €';
+const wert = (id) => parseFloat(document.getElementById(id).value) || 0;
 function berechne() {
-  const einkommen = parseFloat(document.getElementById('einkommen').value)||60000;
-  const kinder = parseInt(document.getElementById('kinder').value)||1;
-  const stunden = parseInt(document.getElementById('stunden').value)||6;
-  const alter = document.getElementById('alter').value;
-  const region = document.getElementById('region').value;
-  const r = berechneBetreuungskosten({ einkommen, kinder, stunden, alter, region });
-  document.getElementById('kosten').textContent = fmt(r.kostenProKind);
-  document.getElementById('details').innerHTML =
-    `<span>Grundgebühr: <strong>${fmt(r.grundgebuehr)}</strong></span>` +
-    `<span>Einkommenszuschlag: <strong>${fmt(r.einkommenszuschlag)}</strong></span>` +
-    `<span>Gesamt (${kinder} Kind${kinder > 1 ? 'er' : ''}): <strong>${fmt(r.gesamtkosten)}</strong></span>` +
-    `<span>Elternbeitrag: <strong>${fmt(r.elternbeitrag)}</strong></span>`;
+  const r = berechneBetreuungskosten({
+    kinder: wert('kinder') || 1,
+    beitragMonat: wert('beitrag'),
+    monate: wert('monate') || 12,
+    zuschussMonat: wert('zuschuss'),
+    zvE: wert('zve'),
+    zusammen: document.getElementById('veranlagung').value === 'zusammen',
+  });
+  document.getElementById('kosten').textContent = eur(r.nettokosten);
+  const teile = [
+    `<span>Beiträge: <strong>${eur(r.aufwand)}</strong></span>`,
+  ];
+  if (r.zuschuss > 0) teile.push(`<span>Arbeitgeberzuschuss: <strong>−${eur(r.zuschuss)}</strong></span>`);
+  teile.push(
+    `<span>Abziehbar als Sonderausgaben: <strong>${eur(r.sonderausgaben)}</strong>${r.deckelErreicht ? ` (Höchstbetrag ${eur(HOECHSTBETRAG_JE_KIND)} je Kind erreicht)` : ''}</span>`,
+    `<span>Steuerersparnis: <strong>−${eur(r.steuerersparnis)}</strong></span>`,
+    `<span>Pro Monat nach Steuern: <strong>${eur(r.nettokostenMonat)}</strong></span>`,
+    `<span>Zuschuss und Steuer holen <strong>${r.entlastungsquote.toLocaleString('de-DE')} %</strong> der Beiträge zurück</span>`,
+  );
+  document.getElementById('details').innerHTML = teile.join('');
 }
-['einkommen','kinder'].forEach(id =>
+['beitrag','kinder','monate','zuschuss','zve'].forEach((id) =>
   document.getElementById(id).addEventListener('input', berechne));
-['stunden','alter','region'].forEach(id =>
-  document.getElementById(id).addEventListener('change', berechne));
+document.getElementById('veranlagung').addEventListener('change', berechne);
 berechne();
 </script>
