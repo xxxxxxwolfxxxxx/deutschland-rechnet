@@ -355,7 +355,7 @@ const ganz = (n: number) => n.toLocaleString('de-DE');
       <strong>Fixkosten pro Kilometer.</strong> Versicherung und Kfz-Steuer laufen
       unabhängig vom Alter weiter. Wer wenig fährt, zahlt sie auf wenige Kilometer
       verteilt – das trifft alte wie neue Autos gleichermaßen, siehe
-      {' '}<a href={`${artikelPfadVonSlug('autokosten-wertverlust')}`}>Autokosten je Kilometer</a>.
+      {' '}<a href={`${import.meta.env.BASE_URL}${artikelPfadVonSlug('autokosten-wertverlust')}`}>Autokosten je Kilometer</a>.
     </li>
   </ul>
 
@@ -413,7 +413,7 @@ const ganz = (n: number) => n.toLocaleString('de-DE');
     <li><a href={`${base}auto/unterhaltskosten-auto/`}>Unterhaltskosten-Rechner</a> – alle Kostenblöcke, getrennt nach fix und variabel</li>
     <li><a href={`${base}auto/km-kostenrechner/`}>Kilometerkosten-Rechner</a> – Vollkosten je gefahrenem Kilometer</li>
     <li><a href={`${base}auto/kfz-versicherung-rechner/`}>Kfz-Versicherungsrechner</a> – der zweite altersunabhängige Fixposten</li>
-    <li><a href={`${artikelPfadVonSlug('kfz-steuer-erstzulassung')}`}>Kfz-Steuer nach Erstzulassung</a> – warum ältere Fahrzeuge hier oft besser dastehen</li>
+    <li><a href={`${import.meta.env.BASE_URL}${artikelPfadVonSlug('kfz-steuer-erstzulassung')}`}>Kfz-Steuer nach Erstzulassung</a> – warum ältere Fahrzeuge hier oft besser dastehen</li>
   </ul>
 
   <p class="hinweis">

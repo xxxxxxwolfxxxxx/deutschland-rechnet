@@ -180,7 +180,7 @@ const datum = (iso: string) => new Date(iso).toLocaleDateString('de-DE', { day: 
   <p>
     Wie groß dieser Teil ist, lässt sich aus den DAT-Preisnotierungen ableiten, die wir
     für den Artikel zur
-    {' '}<a href={`${artikelPfadVonSlug('gebrauchtwagen-alter-kosten')}`}>Wertverlustkurve</a>
+    {' '}<a href={`${import.meta.env.BASE_URL}${artikelPfadVonSlug('gebrauchtwagen-alter-kosten')}`}>Wertverlustkurve</a>
     {' '}ausgewertet haben: rund {prozent(RESTWERT_NACH_ZWEI_JAHREN)} nach zwei Jahren,
     danach etwa {prozent(JAEHRLICHE_VERLUSTQUOTE)} Verlust pro Jahr – nach
     {' '}{HALTEDAUER_JAHRE} Jahren also {prozent(restwertquoteNachHaltedauer)} des
@@ -418,7 +418,7 @@ const datum = (iso: string) => new Date(iso).toLocaleDateString('de-DE', { day: 
     <li><a href={`${base}auto/kfz-steuer-rechner/`}>Kfz-Steuer-Rechner</a> – auch für Elektrofahrzeuge nach § 3d und § 9 Abs. 2</li>
     <li><a href={`${base}auto/spritkosten-vergleich/`}>Spritkosten-Vergleich</a> – zwei Fahrzeuge nebeneinander</li>
     <li><a href={`${base}auto/e-auto-leasing-kostenrechner/`}>E-Auto-Leasingrechner</a> – wenn der Aufpreis gar nicht erst bezahlt wird</li>
-    <li><a href={`${artikelPfadVonSlug('autokosten-wertverlust')}`}>Autokosten je Kilometer</a> – warum der Wertverlust jeden Antriebsvergleich dominiert</li>
+    <li><a href={`${import.meta.env.BASE_URL}${artikelPfadVonSlug('autokosten-wertverlust')}`}>Autokosten je Kilometer</a> – warum der Wertverlust jeden Antriebsvergleich dominiert</li>
   </ul>
 
   <p class="hinweis">

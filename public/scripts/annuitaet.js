@@ -90,6 +90,10 @@ export function darlehenskosten({ betrag, sollzins, monate }) {
 export function effektivzins({ auszahlung, rate, monate }) {
   const n = Math.max(1, Math.round(monate));
   if (!(auszahlung > 0) || !(rate > 0)) return 0;
+  // Eine Rate, die den Betrag nie zurueckzahlt, hat keinen positiven
+  // Effektivzins. Ohne diese Pruefung lieferte die Bisektion klaglos einen
+  // negativen Wert – 100 € auf 20.000 € ueber 36 Monate ergaben "-60,10 %".
+  if (rate * n <= auszahlung) return 0;
   const barwert = (jahreszins) => {
     let s = 0;
     for (let m = 1; m <= n; m += 1) s += rate / Math.pow(1 + jahreszins / 100, m / 12);

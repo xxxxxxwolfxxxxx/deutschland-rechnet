@@ -607,7 +607,7 @@ const quellen = [
     Unterschied von {eur(impliziteZeile.mehr)} im Monat oder
     {' '}{eur(impliziteZeile.mehr * LANGE_LAUFZEIT)} über die Laufzeit. Wie schnell
     ein Auto wirklich verliert, ist Gegenstand eines eigenen Artikels:
-    {' '}<a href={artikelPfadVonSlug('gebrauchtwagen-alter-kosten')}>Was ein Gebrauchter
+    {' '}<a href={`${import.meta.env.BASE_URL}${artikelPfadVonSlug('gebrauchtwagen-alter-kosten')}`}>Was ein Gebrauchter
     im Jahr verliert</a>.
   </p>
 
