@@ -42,6 +42,15 @@ export interface Artikel {
 
 export const ARTIKEL: Artikel[] = [
   {
+    slug: 'rentenbeginn-der-teuerste-monat',
+    titel: 'Der teuerste Monat eines Rentenlebens',
+    teaser: 'Wer 45 Beitragsjahre hat und seine Altersgrenze abwartet, geht ohne Abschlag. Wer einen einzigen Monat früher beginnt, verliert die Rentenart und bekommt den Abschlag für die ganze Strecke bis zur Regelaltersgrenze: 7,5 Prozentpunkte auf einmal, im Beispiel 138,83 € Bruttorente im Monat, dauerhaft. Der Monat davor ist 8,30 € wert, der Monat danach 3,12 €. Und an der Regelaltersgrenze sind die 45 Beitragsjahre für die Rentenhöhe exakt nichts mehr wert.',
+    datum: '2026-09-13',
+    thema: 'Familie',
+    rechner: ['renten-rechner', 'rentenpunkte-rechner', 'rentenlucken-rechner'],
+    aufRechnerseite: true,
+  },
+  {
     slug: 'mietpreisbremse-30-monate-frist',
     titel: 'Mietpreisbremse: Der Anspruch wächst 30 Monate und verfällt im 31.',
     teaser: 'Bei 12,00 €/m² Vergleichsmiete sind 13,20 €/m² zulässig; wer 14,50 €/m² zahlt, zahlt auf 70 m² 91 € im Monat zu viel. Die Rückforderung wächst 30 Monate lang auf 2.730 € – das 2,95-Fache einer zulässigen Monatsmiete – und fällt im 31. Monat auf null, weil § 556g Abs. 2 Satz 3 BGB dann nur noch die Zukunft erfasst. Dazu die Rechnung, warum eine vergessene Auskunft des Vermieters bis zu 2.730 € wert ist.',

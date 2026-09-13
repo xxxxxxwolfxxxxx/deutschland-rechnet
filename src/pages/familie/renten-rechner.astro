@@ -1,7 +1,7 @@
 ---
 import Layout from '../../layouts/Layout.astro';
 import CalculatorShell from '../../components/CalculatorShell.astro';
-import CalculatorGuide from '../../components/CalculatorGuide.astro';
+import ArtikelRentenbeginn from '../../components/artikel/rentenbeginn-der-teuerste-monat.astro';
 import { CALCULATORS, CATEGORIES } from '../../data/calculators';
 import { bundeslaenderAlphabetisch } from '../../../public/scripts/bundeslaender.js';
 import {
@@ -27,7 +27,7 @@ const faqs = [
   { q: 'Was sind Entgeltpunkte?', a: `Ein Entgeltpunkt entsteht in einem Jahr mit dem Durchschnittsentgelt aller Versicherten, derzeit ${durchschnittText}. Wegen der Beitragsbemessungsgrenze von ${bbgText} sind höchstens ${maxPunkteText} Punkte pro Jahr möglich.` },
   { q: 'Wie hoch sind Abschläge und Zuschläge?', a: 'Nach § 77 Abs. 2 SGB VI sinkt der Zugangsfaktor je Monat vorzeitiger Inanspruchnahme um 0,003, die Rente also um 0,3 Prozent je Monat. Wer die Rente über die Regelaltersgrenze hinaus aufschiebt, gewinnt je Monat 0,005, also 0,5 Prozent. Bei drei Jahren Frührente sind das 10,8 Prozent weniger, dauerhaft.' },
   { q: 'Wird meine Rente besteuert?', a: 'Ja. Der Besteuerungsanteil richtet sich nach dem Jahr des Rentenbeginns (§ 22 Nr. 1 Satz 3 Buchst. a Doppelbuchst. aa EStG) und steigt für jeden neuen Rentenjahrgang. Ob tatsächlich Steuer anfällt, hängt von allen Einkünften ab; dieser Rechner zieht sie nicht ab.' },
-  { q: 'Wann geht es ohne Abschlag früher?', a: 'Mit 45 Jahren an Beitragszeiten – der Altersrente für besonders langjährig Versicherte. Deren Altersgrenze liegt für Jahrgänge ab 1964 bei 65 Jahren (§ 38 SGB VI) und wird für die Jahrgänge 1953 bis 1963 von 63 auf 65 angehoben (§ 236b SGB VI). Wer noch früher geht, bekommt Abschläge wie alle anderen.' },
+  { q: 'Wann geht es ohne Abschlag früher?', a: 'Mit 45 Jahren an Beitragszeiten – der Altersrente für besonders langjährig Versicherte. Deren Altersgrenze liegt für Jahrgänge ab 1964 bei 65 Jahren (§ 38 SGB VI) und wird für die Jahrgänge 1953 bis 1963 von 63 auf 65 angehoben (§ 236b SGB VI). Wer noch früher geht, verliert die Rentenart: Er bezieht dann eine Altersrente für langjährig Versicherte nach § 36 SGB VI, und deren Abschlag misst § 77 Abs. 2 SGB VI an der Regelaltersgrenze von 67 Jahren – nicht an den 65. Ein einziger Monat zu früh kostet deshalb nicht 0,3 Prozent, sondern 7,5.' },
 ];
 ---
 <Layout
@@ -109,25 +109,8 @@ const faqs = [
       <div id="alters-hinweis" style="display:none;margin-top:0.75rem;padding:0.75rem 1rem;border-radius:8px;background:#e7f1ff;font-size:0.88rem;"></div>
       <div id="luecke-box" style="display:none;margin-top:0.75rem;padding:0.75rem 1rem;border-radius:8px;background:#fff3cd;font-size:0.88rem;"></div>
     </div>
+    <ArtikelRentenbeginn slot="artikel" />
   </CalculatorShell>
-
-  <CalculatorGuide
-    title="Rente – Absicherung im Alter"
-    content={`Die gesetzliche Rente ist das Rückgrat der Altersversorgung in Deutschland. Ihre Höhe folgt einer einzigen Formel, die in § 64 SGB VI steht: persönliche Entgeltpunkte mal Rentenartfaktor mal aktueller Rentenwert. Für Altersrenten ist der Rentenartfaktor 1,0, der aktuelle Rentenwert liegt seit dem 1. Juli 2026 bei ${rentenwertText} je Punkt.
-
-Entgeltpunkte entstehen aus Beiträgen: Ein Jahr mit dem Durchschnittsentgelt von ${durchschnittText} ergibt einen Punkt, mehr als ${maxPunkteText} Punkte im Jahr sind wegen der Beitragsbemessungsgrenze von ${bbgText} nicht möglich.
-
-Der Zugangsfaktor nach § 77 Abs. 2 SGB VI entscheidet, wie viel davon ankommt. Wer vor seiner Altersgrenze in Rente geht, verliert 0,3 Prozent je Monat – und zwar dauerhaft, nicht nur bis zur Regelaltersgrenze. Wer sie aufschiebt, gewinnt 0,5 Prozent je Monat.
-
-Welche Altersgrenze gilt, hängt vom Jahrgang und von der Versicherungsdauer ab. Die Regelaltersgrenze liegt ab Jahrgang 1964 bei 67 Jahren und wird für die Jahrgänge 1947 bis 1963 stufenweise von 65 auf 67 angehoben (§ 235 Abs. 2 SGB VI). Wer 35 Beitragsjahre hat, kann ab 63 vorzeitig gehen – mit Abschlag (§ 36 SGB VI). Wer 45 Beitragsjahre erreicht, geht abschlagsfrei, ab Jahrgang 1964 mit 65 Jahren (§ 38 SGB VI). Die oft zitierte "Rente mit 63 ohne Abschlag" gilt nur noch für Jahrgänge bis 1952.
-
-Von der Bruttorente gehen Beiträge ab. In der Krankenversicherung gilt zwar der volle allgemeine Beitragssatz (§ 247 SGB V), doch § 249a SGB V teilt ihn zwischen Rentner und Rentenversicherung – es bleibt also rund die Hälfte. In der Pflegeversicherung ist es umgekehrt: Nach § 59 Abs. 1 SGB XI trägt der Rentner den Beitrag aus der Rente allein.
-
-Nicht abgezogen ist die Einkommensteuer. Renten sind steuerpflichtig, der Besteuerungsanteil richtet sich nach dem Jahr des Rentenbeginns (§ 22 EStG). Die tatsächliche Rentenlücke fällt deshalb eher etwas größer aus als hier ausgewiesen.
-
-Alle Beträge sind in heutigen Werten gerechnet. Durchschnittsentgelt, Beitragsbemessungsgrenze und Rentenwert steigen mit den Löhnen; wer unterstellt, dass sein Gehalt mitwächst, liest das Ergebnis als heutige Kaufkraft – nicht als späteren Zahlbetrag.`}
-    relatedSlugs={['rentenpunkte-rechner', 'elterngeld-rechner']}
-  />
 
 </Layout>
 

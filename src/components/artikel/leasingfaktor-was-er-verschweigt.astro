@@ -1,0 +1,740 @@
+---
+import RechnerArtikel from '../RechnerArtikel.astro';
+import { artikelPfadVonSlug } from '../../data/ratgeber';
+import { berechneLeasing } from '../../../public/scripts/leasing.js';
+
+// Alle Zahlen zur Buildzeit aus demselben Modul, das auch der Rechner laedt.
+const eur = (n: number, d = 2) =>
+  n.toLocaleString('de-DE', { minimumFractionDigits: d, maximumFractionDigits: d }) + ' €';
+const eurGlatt = (n: number) => n.toLocaleString('de-DE', { maximumFractionDigits: 0 }) + ' €';
+const proz = (n: number, d = 1) =>
+  n.toLocaleString('de-DE', { minimumFractionDigits: d, maximumFractionDigits: d }) + ' %';
+const zahl = (n: number, d = 2) =>
+  n.toLocaleString('de-DE', { minimumFractionDigits: d, maximumFractionDigits: d });
+/** Leasingfaktoren mit drei Stellen: mit zweien fallen 0,150 und 0,146 zusammen. */
+const fak = (n: number) => zahl(n, 3);
+const km = (n: number) => n.toLocaleString('de-DE', { maximumFractionDigits: 0 }) + ' km';
+
+// --- Das durchgehende Beispiel ---------------------------------------------
+// Die Parameter sind Setzung dieses Artikels, nicht Ergebnis einer Rechnung.
+// Jede Zahl unten entsteht daraus durch berechneLeasing().
+const NEUPREIS = 35000;
+const RESTWERT = 18000;
+const LAUFZEIT = 36;
+const ZINS = 3.5;
+const KM_JAHR = 15000;
+const BASIS = { neupreis: NEUPREIS, restwert: RESTWERT, laufzeit: LAUFZEIT, zins: ZINS, km: KM_JAHR };
+
+/** Leasingfaktor nach Branchenkonvention: Monatsrate je 100 € Bezugspreis. */
+const faktor = (rate: number, bezugspreis: number) => (rate / bezugspreis) * 100;
+
+// --- 1. Die Anzahlung gegen den Faktor -------------------------------------
+const ANZAHLUNGEN = [0, 2500, 5000, 7500, 10000, 15000];
+const anzahlungsreihe = ANZAHLUNGEN.map((anzahlung) => {
+  const r = berechneLeasing({ ...BASIS, anzahlung });
+  return {
+    anzahlung,
+    rate: r.rate,
+    faktor: faktor(r.rate, NEUPREIS),
+    // Uebliche Korrektur: die Anzahlung als vorgezogene Rate mitzaehlen.
+    effFaktor: faktor(r.rate + anzahlung / LAUFZEIT, NEUPREIS),
+    gesamtkosten: r.gesamtkosten,
+  };
+});
+const ohneAnzahlung = anzahlungsreihe[0];
+const mitZehn = anzahlungsreihe.find((z) => z.anzahlung === 10000)!;
+const faktorRueckgang = (1 - mitZehn.faktor / ohneAnzahlung.faktor) * 100;
+const kostenRueckgang = (1 - mitZehn.gesamtkosten / ohneAnzahlung.gesamtkosten) * 100;
+const kostenErsparnis = ohneAnzahlung.gesamtkosten - mitZehn.gesamtkosten;
+
+// Behauptung des Artikels, zur Buildzeit geprueft: solange der Wertverlust
+// nicht auf null geklemmt wird, gilt Gesamtkosten = Neupreis − Restwert + Zins.
+const formelAbweichung = ANZAHLUNGEN.reduce((max, anzahlung) => {
+  const r = berechneLeasing({ ...BASIS, anzahlung });
+  return Math.max(max, Math.abs(r.gesamtkosten - (NEUPREIS - RESTWERT + r.zinskosten)));
+}, 0);
+if (formelAbweichung > 0.005) {
+  throw new Error(`Leasing-Artikel: Gesamtkostenformel stimmt nicht mehr (${formelAbweichung} €).`);
+}
+
+// --- 2. Was eine Anzahlung nominal einspart --------------------------------
+// Ersparnis je 1.000 € Anzahlung, auf die Vertragslaufzeit hochgerechnet.
+const ZINSSAETZE = [1, 2, 3.5, 5, 8];
+const LAUFZEITEN = [12, 24, 36, 48];
+const PROBE_ANZAHLUNG = 1000;
+const ersparnismatrix = ZINSSAETZE.map((zins) => ({
+  zins,
+  zellen: LAUFZEITEN.map((laufzeit) => {
+    const p = { ...BASIS, zins, laufzeit };
+    const ersparnis =
+      berechneLeasing({ ...p, anzahlung: 0 }).gesamtkosten -
+      berechneLeasing({ ...p, anzahlung: PROBE_ANZAHLUNG }).gesamtkosten;
+    return { laufzeit, ersparnis, proJahr: (ersparnis / PROBE_ANZAHLUNG / (laufzeit / 12)) * 100 };
+  }),
+}));
+const halberZins = ZINS / 2;
+
+// --- 3. Gegeneinwand: Barwert statt Nominalsumme ---------------------------
+// Wer nicht anzahlt, behaelt das Geld und legt es an. Der Vergleich muss
+// deshalb ueber Barwerte laufen, nicht ueber die Summe der Zahlungen.
+const VERGLEICHS_ANZAHLUNG = 5000;
+function barwert(anlagezins: number, anzahlung: number, p = BASIS): number {
+  const r = berechneLeasing({ ...p, anzahlung });
+  let summe = anzahlung;
+  for (let m = 1; m <= p.laufzeit; m += 1) summe += r.rate / Math.pow(1 + anlagezins / 100, m / 12);
+  return summe;
+}
+function breakEvenAnlagezins(p = BASIS, anzahlung = VERGLEICHS_ANZAHLUNG): number {
+  let lo = 0;
+  let hi = 40;
+  for (let i = 0; i < 80; i += 1) {
+    const mitte = (lo + hi) / 2;
+    if (barwert(mitte, 0, p) - barwert(mitte, anzahlung, p) > 0) lo = mitte;
+    else hi = mitte;
+  }
+  return (lo + hi) / 2;
+}
+const kipppunktAnlage = breakEvenAnlagezins();
+const ANLAGEZINSEN = [0, 1, 2, 3, 4, 5];
+const barwertreihe = ANLAGEZINSEN.map((a) => ({
+  anlagezins: a,
+  ohne: barwert(a, 0),
+  mit: barwert(a, VERGLEICHS_ANZAHLUNG),
+  vorteil: barwert(a, 0) - barwert(a, VERGLEICHS_ANZAHLUNG),
+}));
+// Effektivzins nach der Barwertformel der Anlage zu § 16 PAngV: Der nach
+// Anzahlung ueberlassene Wert gleich dem Barwert aus Raten und Restwert.
+function effektivzins(p = BASIS, anzahlung = 0): number {
+  const r = berechneLeasing({ ...p, anzahlung });
+  const kapital = p.neupreis - Math.min(anzahlung, p.neupreis);
+  const ueberschuss = (i: number) => {
+    let s = p.restwert / Math.pow(1 + i / 100, p.laufzeit / 12);
+    for (let m = 1; m <= p.laufzeit; m += 1) s += r.rate / Math.pow(1 + i / 100, m / 12);
+    return s - kapital;
+  };
+  let lo = -50;
+  let hi = 200;
+  for (let i = 0; i < 120; i += 1) {
+    const mitte = (lo + hi) / 2;
+    if (ueberschuss(mitte) > 0) lo = mitte;
+    else hi = mitte;
+  }
+  return (lo + hi) / 2;
+}
+const effJetzt = effektivzins();
+const effAbweichung = Math.abs(effJetzt - ZINS);
+const effHoch = effektivzins({ ...BASIS, zins: 12 });
+
+const breakEvenReihe = ZINSSAETZE.map((zins) => ({
+  zins,
+  breakEven: breakEvenAnlagezins({ ...BASIS, zins }),
+}));
+
+// --- 4. Der Umkehrpunkt ----------------------------------------------------
+const WERTVERLUST_ABSOLUT = NEUPREIS - RESTWERT;
+const UMKEHR_PROBEN = [15000, WERTVERLUST_ABSOLUT, 18000, 20000, 25000];
+const umkehrreihe = UMKEHR_PROBEN.map((anzahlung) => {
+  const r = berechneLeasing({ ...BASIS, anzahlung });
+  return { anzahlung, rate: r.rate, faktor: faktor(r.rate, NEUPREIS), gesamtkosten: r.gesamtkosten };
+});
+const amUmkehrpunkt = umkehrreihe.find((z) => z.anzahlung === WERTVERLUST_ABSOLUT)!;
+const jenseits = umkehrreihe[umkehrreihe.length - 1];
+
+// --- 5. Laufzeit und der stille Restwert -----------------------------------
+// Derselbe Restwert bedeutet je nach Laufzeit einen voellig anderen
+// Jahreswertverlust. Fein gerechnet, nicht aus der Tabelle geschaetzt.
+const jahreswertverlust = (restwert: number, monate: number) =>
+  (1 - Math.pow(restwert / NEUPREIS, 12 / monate)) * 100;
+const laufzeitreihe = LAUFZEITEN.map((laufzeit) => {
+  const r = berechneLeasing({ ...BASIS, laufzeit, anzahlung: 0 });
+  return {
+    laufzeit,
+    rate: r.rate,
+    faktor: faktor(r.rate, NEUPREIS),
+    gesamtkosten: r.gesamtkosten,
+    wertverlustProJahr: jahreswertverlust(RESTWERT, laufzeit),
+  };
+});
+// Die Rate, die herauskommt, wenn der Restwert mit der Laufzeit mitlaeuft.
+// Die Verlustrate ist keine Marktannahme, sondern der Wert, den das Beispiel
+// selbst bei 36 Monaten unterstellt.
+const IMPLIZITE_RATE = jahreswertverlust(RESTWERT, LAUFZEIT) / 100;
+const VERLUSTRATEN = [0.12, 0.16, IMPLIZITE_RATE, 0.24];
+const LANGE_LAUFZEIT = 48;
+const sensitivitaet = VERLUSTRATEN.map((v) => {
+  const restwert = NEUPREIS * Math.pow(1 - v, LANGE_LAUFZEIT / 12);
+  const r = berechneLeasing({ ...BASIS, laufzeit: LANGE_LAUFZEIT, restwert, anzahlung: 0 });
+  const fest = berechneLeasing({ ...BASIS, laufzeit: LANGE_LAUFZEIT, anzahlung: 0 });
+  return { verlust: v * 100, restwert, rate: r.rate, mehr: r.rate - fest.rate };
+}).sort((a, b) => a.verlust - b.verlust);
+const festeVierundvierzig = berechneLeasing({ ...BASIS, laufzeit: LANGE_LAUFZEIT, anzahlung: 0 });
+const kurz = laufzeitreihe[0];
+const lang = laufzeitreihe[laufzeitreihe.length - 1];
+const wertverlustAnteil = (lang.wertverlustProJahr / kurz.wertverlustProJahr) * 100;
+const impliziteZeile = sensitivitaet.find((s) => Math.abs(s.verlust - IMPLIZITE_RATE * 100) < 1e-9)!;
+
+// --- 6. Welcher Preis im Nenner steht --------------------------------------
+const NACHLAESSE = [0, 5, 10, 15, 20];
+const nachlassreihe = NACHLAESSE.map((nachlass) => {
+  const listenpreis = NEUPREIS / (1 - nachlass / 100);
+  return {
+    nachlass,
+    listenpreis,
+    faktorAufListe: faktor(ohneAnzahlung.rate, listenpreis),
+  };
+});
+const zwanzigProzent = nachlassreihe[nachlassreihe.length - 1];
+
+// --- 7. Kilometer: wann der Kilometer teurer wird ---------------------------
+const KM_STUFEN = [10000, 15000, 20000, 30000];
+const INKLUSIV = KM_JAHR;
+const MIT_ANZAHLUNG = 5000;
+const kmBasis = berechneLeasing({ ...BASIS, anzahlung: MIT_ANZAHLUNG, km: INKLUSIV });
+// Bei welchem Mehrkilometerentgelt kippt die Kurve? Analytisch ist das genau
+// der Kostensatz des Inklusivkilometers; hier numerisch nachgesucht.
+const kostenProKmMit = (entgelt: number, jahresKm: number) => {
+  const r = berechneLeasing({ ...BASIS, anzahlung: MIT_ANZAHLUNG, km: jahresKm });
+  const mehrkosten = Math.max(0, jahresKm - INKLUSIV) * (LAUFZEIT / 12) * entgelt;
+  return (r.gesamtkosten + mehrkosten) / r.kilometer;
+};
+// Analytisch ist der Kippwert der Kostensatz des Inklusivkilometers. Statt ihn
+// in Cent-Schritten zu suchen (das lieferte 0,44 gegen tatsaechlich 0,434),
+// wird er direkt gerechnet und die Behauptung numerisch geprueft.
+const kippEntgelt = kmBasis.gesamtkosten / kmBasis.kilometer;
+const kippProbe = KM_STUFEN.map((k) => kostenProKmMit(kippEntgelt, k));
+if (Math.max(...kippProbe) - Math.min(...kippProbe) > 0.0005) {
+  throw new Error('Leasing-Artikel: Am Kippentgelt ist die Kurve nicht flach.');
+}
+const ENTGELTE = [0, 0.1, 0.2, kippEntgelt, 0.6];
+const proKmZehn = kostenProKmMit(0, 10000);
+const proKmDreissig = kostenProKmMit(0, 30000);
+const kmMatrix = ENTGELTE.map((entgelt) => ({
+  entgelt,
+  zellen: KM_STUFEN.map((jahresKm) => ({ jahresKm, proKm: kostenProKmMit(entgelt, jahresKm) })),
+}));
+
+const quellen = [
+  { titel: '§ 506 BGB – Zahlungsaufschub, sonstige Finanzierungshilfe', url: 'https://www.gesetze-im-internet.de/bgb/__506.html' },
+  { titel: '§ 491 BGB – Verbraucherdarlehensvertrag', url: 'https://www.gesetze-im-internet.de/bgb/__491.html' },
+  { titel: '§ 500 BGB – Kündigungsrecht des Darlehensnehmers; vorzeitige Rückzahlung', url: 'https://www.gesetze-im-internet.de/bgb/__500.html' },
+  { titel: '§ 355 BGB – Widerrufsrecht bei Verbraucherverträgen', url: 'https://www.gesetze-im-internet.de/bgb/__355.html' },
+  { titel: '§ 535 BGB – Inhalt und Hauptpflichten des Mietvertrags', url: 'https://www.gesetze-im-internet.de/bgb/__535.html' },
+  { titel: 'Art. 247 § 3 EGBGB – Inhalt der vorvertraglichen Information', url: 'https://www.gesetze-im-internet.de/bgbeg/art_247__3.html' },
+  { titel: '§ 16 PAngV – Verbraucherdarlehen, Berechnung des effektiven Jahreszinses', url: 'https://www.gesetze-im-internet.de/pangv_2022/__16.html' },
+];
+---
+<RechnerArtikel
+  titel="Der Leasingfaktor lässt sich kaufen"
+  datum="2026-09-13"
+  lead={`Leasingangebote werden über den Leasingfaktor verglichen: Monatsrate geteilt durch Fahrzeugpreis, mal hundert. Eine Anzahlung von ${eurGlatt(mitZehn.anzahlung)} drückt diesen Faktor im Beispiel von ${fak(ohneAnzahlung.faktor)} auf ${fak(mitZehn.faktor)} – um ${proz(faktorRueckgang, 0)}. Die Gesamtkosten desselben Vertrags sinken im selben Schritt um ${proz(kostenRueckgang, 1)} oder ${eurGlatt(kostenErsparnis)}. Und ab ${eurGlatt(WERTVERLUST_ABSOLUT)} Anzahlung fällt der Faktor weiter, während der Vertrag teurer wird.`}
+  quellen={quellen}
+>
+  <h3>Warum es beim Leasing keinen Effektivzins gibt</h3>
+  <p>
+    Wer einen Ratenkredit aufnimmt, bekommt eine Zahl genannt, die alles enthält:
+    den effektiven Jahreszins. Art. 247 § 3 Abs. 1 Nr. 3 EGBGB macht ihn zur
+    Pflichtangabe schon vor Vertragsschluss, und Absatz 2 Satz 3 derselben
+    Vorschrift verweist für die Berechnung auf § 16 der Preisangabenverordnung.
+    Dort steht eine Barwertformel, die Laufzeit, Zahlungszeitpunkte und
+    Nebenkosten zusammenzieht. Zwei Kredite mit demselben Effektivzins sind
+    gleich teuer – das ist der ganze Zweck der Vorschrift.
+  </p>
+  <p>
+    Beim Leasing gibt es diese Zahl nicht, und das hat einen nachlesbaren Grund.
+    Ein Leasingvertrag ist zunächst ein Mietvertrag über eine Sache nach § 535
+    BGB, kein Darlehen. Zum Verbraucherdarlehensrecht wird er erst über § 506
+    BGB. Dessen Absatz 2 Satz 1 nennt dafür drei Voraussetzungen, von denen eine
+    erfüllt sein muss: Der Verbraucher ist zum Erwerb verpflichtet (Nummer 1),
+    der Unternehmer kann den Erwerb verlangen (Nummer 2), oder der Verbraucher
+    hat bei Vertragsende „für einen bestimmten Wert des Gegenstandes
+    einzustehen" (Nummer 3).
+  </p>
+  <p>
+    Das Kilometerleasing – der Vertragstyp, den dieser Rechner abbildet – ist so
+    gebaut, dass keine der drei Nummern greift. Der Leasingnehmer muss das
+    Fahrzeug nicht kaufen, der Leasinggeber kann es ihm nicht andienen, und er
+    steht auch nicht für einen Restwert ein: Abgerechnet werden Kilometer und
+    übermäßiger Verschleiß, nicht die Differenz zu einem kalkulierten Wert.
+    Solange das so vereinbart ist, greift § 506 Abs. 1 BGB nicht, und mit ihm
+    greifen die §§ 491a bis 502 BGB nicht – also auch nicht die vorvertragliche
+    Information mit dem effektiven Jahreszins.
+  </p>
+  <p>
+    Beim Restwertleasing ist es umgekehrt: Dort steht der Leasingnehmer nach
+    Nummer 3 für den Wert ein, das Verbraucherdarlehensrecht gilt – aber § 506
+    Abs. 2 Satz 2 nimmt für genau diese Verträge drei Vorschriften wieder aus:
+    § 500 Abs. 2, § 501 Abs. 1 und § 502 BGB, also das Recht auf jederzeitige
+    vorzeitige Erfüllung, die anteilige Kostenermäßigung und die
+    Vorfälligkeitsentschädigung. Das Widerrufsrecht aus § 355 BGB bleibt.
+  </p>
+  <p>
+    In diese Lücke ist der Leasingfaktor gerückt. Er ist keine gesetzliche
+    Größe, sondern eine Branchenkonvention, und seine Definition steht in keiner
+    Norm: Monatsrate geteilt durch Bezugspreis, mal hundert. Was er nicht
+    enthält, zeigen die folgenden Rechnungen.
+  </p>
+
+  <h3>Die Anzahlung kürzt sich heraus</h3>
+  <p>
+    Alle Zahlen dieses Artikels stammen aus einem einzigen Beispiel, das der
+    Rechner am Anfang dieser Seite nachvollziehen kann: ein Fahrzeug für
+    {' '}{eurGlatt(NEUPREIS)}, kalkulierter Restwert {eurGlatt(RESTWERT)},
+    {' '}{LAUFZEIT} Monate Laufzeit, {proz(ZINS)} Sollzins. Was sich zwischen den
+    Zeilen ändert, ist die Anzahlung.
+  </p>
+
+  <table>
+    <caption class="visually-hidden">
+      Leasingfaktor und Gesamtkosten nach Höhe der Anzahlung, bei sonst gleichem Vertrag
+    </caption>
+    <thead>
+      <tr>
+        <th scope="col" class="num">Anzahlung</th>
+        <th scope="col" class="num">Monatsrate</th>
+        <th scope="col" class="num">Leasingfaktor</th>
+        <th scope="col" class="num">Faktor inkl. Anzahlung</th>
+        <th scope="col" class="num">Gesamtkosten</th>
+      </tr>
+    </thead>
+    <tbody>
+      {anzahlungsreihe.map((z) => (
+        <tr>
+          <th scope="row" class="num">{eurGlatt(z.anzahlung)}</th>
+          <td class="num">{eur(z.rate)}</td>
+          <td class="num">{fak(z.faktor)}</td>
+          <td class="num">{fak(z.effFaktor)}</td>
+          <td class="num">{eur(z.gesamtkosten)}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+
+  <p>
+    Die dritte Spalte fällt um mehr als die Hälfte, die fünfte um
+    {' '}{proz(kostenRueckgang, 1)}. Es ist derselbe Vertrag über dasselbe Auto;
+    verschoben wurde nur, wann gezahlt wird. Der Grund dafür steht in der
+    Struktur der Rechnung: Die Anzahlung mindert den Betrag, den die Raten
+    aufbringen müssen, taucht in den Gesamtkosten aber wieder auf. Beides hebt
+    sich auf, und übrig bleibt
+  </p>
+  <p class="formel">
+    Gesamtkosten = Fahrzeugpreis − Restwert + Zinskosten
+  </p>
+  <p>
+    Eine Gleichung ohne Anzahlung. Sie gilt exakt, solange nicht mehr angezahlt
+    wird als das Auto an Wert verliert – dazu gleich. Wirtschaftlich heißt das:
+    Was ein Leasingvertrag kostet, steht fest, bevor über die Anzahlung
+    gesprochen wird. Sie entscheidet nur noch über den Zeitpunkt der Zahlung –
+    und über den Zinsanteil, der als einzige Größe in der Gleichung überhaupt
+    auf sie reagiert.
+  </p>
+  <p>
+    Die vierte Spalte ist die übliche Korrektur: Man zählt die Anzahlung als
+    vorgezogene Rate mit, teilt sie also durch die Laufzeit und addiert sie auf.
+    Dieser korrigierte Faktor bleibt fast stabil – er sinkt von
+    {' '}{fak(ohneAnzahlung.effFaktor)} auf {fak(mitZehn.effFaktor)} und bildet
+    damit die tatsächliche Ersparnis ab statt der verschobenen. Wer Angebote
+    vergleicht, sollte diese Spalte selbst ausrechnen; im Angebot steht die
+    dritte.
+  </p>
+
+  <h3>Was die Anzahlung tatsächlich einspart</h3>
+  <p>
+    Bleibt die Frage, was die {eur(kostenErsparnis)} aus der Tabelle sind. Sie
+    sind Zinsersparnis, und sie folgt einer überraschend einfachen Regel. Die
+    Tabelle zeigt, was je {eurGlatt(PROBE_ANZAHLUNG)} Anzahlung an Gesamtkosten
+    wegfällt, umgerechnet auf ein Jahr Vertragslaufzeit.
+  </p>
+
+  <table>
+    <caption class="visually-hidden">
+      Ersparnis je 1.000 € Anzahlung, umgerechnet auf ein Jahr Vertragslaufzeit,
+      nach Sollzins und Laufzeit
+    </caption>
+    <thead>
+      <tr>
+        <th scope="col" class="num">Sollzins</th>
+        {LAUFZEITEN.map((m) => <th scope="col" class="num">{m} Monate</th>)}
+      </tr>
+    </thead>
+    <tbody>
+      {ersparnismatrix.map((zeile) => (
+        <tr>
+          <th scope="row" class="num">{proz(zeile.zins)}</th>
+          {zeile.zellen.map((z) => (
+            <td class="num">{proz(z.proJahr, 2)}</td>
+          ))}
+        </tr>
+      ))}
+    </tbody>
+  </table>
+
+  <p>
+    Jede Zeile ist konstant, und jede Zeile trägt exakt den halben Sollzins.
+    Laufzeit, Fahrzeugpreis und Restwert ändern daran nichts. Der Grund ist
+    keine Eigenart des Rechners, sondern eine Eigenschaft linearer Raten: Die
+    Anzahlung ersetzt Raten, die gleichmäßig über die Laufzeit verteilt gewesen
+    wären – im Durchschnitt also um die halbe Laufzeit später. Sie wird deshalb
+    zum vollen Sollzins verzinst, aber nur für die halbe Zeit. Auf die gesamte
+    Vertragslaufzeit gerechnet ergibt das {proz(halberZins, 2)} statt
+    {' '}{proz(ZINS)}.
+  </p>
+
+  <h3>Der naheliegende Schluss daraus ist falsch</h3>
+  <p>
+    Aus {proz(halberZins, 2)} ließe sich eine handliche Regel bauen: Anzahlen
+    lohnt sich nur, wenn das Geld anderswo weniger als den halben Sollzins
+    bringt. Diese Regel ist falsch, und der Fehler steckt in der
+    Vergleichsgröße. Die Tabelle oben summiert Zahlungen, die zu verschiedenen
+    Zeitpunkten fällig werden, als wären sie gleich viel wert. Wer nicht
+    anzahlt, behält das Geld aber und legt es an, während er die höheren Raten
+    zahlt. Der Vergleich muss deshalb über Barwerte laufen.
+  </p>
+
+  <table>
+    <caption class="visually-hidden">
+      Barwert aller Zahlungen mit und ohne Anzahlung von 5.000 €, nach Anlagezins
+    </caption>
+    <thead>
+      <tr>
+        <th scope="col" class="num">Anlagezins</th>
+        <th scope="col" class="num">Barwert ohne Anzahlung</th>
+        <th scope="col" class="num">Barwert mit {eurGlatt(VERGLEICHS_ANZAHLUNG)}</th>
+        <th scope="col" class="num">Vorteil der Anzahlung</th>
+      </tr>
+    </thead>
+    <tbody>
+      {barwertreihe.map((z) => (
+        <tr>
+          <th scope="row" class="num">{proz(z.anlagezins)}</th>
+          <td class="num">{eur(z.ohne)}</td>
+          <td class="num">{eur(z.mit)}</td>
+          <td class="num">{z.vorteil >= 0 ? eur(z.vorteil) : '−' + eur(-z.vorteil)}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+
+  <p>
+    Der Vorteil kippt bei {proz(kipppunktAnlage, 2)} Anlagezins ins Minus – also
+    dicht am Sollzins von {proz(ZINS)}, nicht bei dessen Hälfte. Das gilt über
+    den ganzen Zinsbereich: Bei {proz(breakEvenReihe[0].zins)} Sollzins liegt die
+    Schwelle bei {proz(breakEvenReihe[0].breakEven, 2)}, bei
+    {' '}{proz(breakEvenReihe[breakEvenReihe.length - 1].zins)} Sollzins bei
+    {' '}{proz(breakEvenReihe[breakEvenReihe.length - 1].breakEven, 2)}. Sie folgt
+    dem Sollzins, statt ihn zu halbieren.
+  </p>
+  <p>
+    Beides stimmt also gleichzeitig, und der Widerspruch ist nur scheinbar. Die
+    nominale Ersparnis beträgt den halben Sollzins, weil die Anzahlung nur die
+    halbe Laufzeit wirkt. Die Entscheidungsregel lautet trotzdem: anzahlen,
+    solange die Alternativanlage weniger bringt als der Sollzins – denn genau
+    diese halbe Laufzeit gilt auch für das Geld, das man sonst anlegen würde.
+    Die {proz(halberZins, 2)} taugen zum Verstehen der Tabelle, nicht zur
+    Entscheidung.
+  </p>
+  <p>
+    Zwei Dinge kommen hinzu, die keine Rechnung dieses Artikels abbildet. Eine
+    Anzahlung ist bei einem Totalschaden im ersten Vertragsjahr anteilig
+    verloren, sofern der Vertrag oder eine GAP-Deckung sie nicht ersetzt. Und
+    sie steht während der Laufzeit nicht mehr zur Verfügung. Wer über einen
+    Anlagezins nachdenkt, sollte diesen beiden Punkten mehr Gewicht geben als
+    den {eur(kostenErsparnis)}.
+  </p>
+
+  <h3>Der Punkt, an dem mehr Anzahlung teurer wird</h3>
+  <p>
+    Die Gleichung oben gilt, solange die Anzahlung unter dem Wertverlust bleibt.
+    Im Beispiel verliert das Fahrzeug {eurGlatt(NEUPREIS)} − {eurGlatt(RESTWERT)}
+    {' '}= {eurGlatt(WERTVERLUST_ABSOLUT)} an Wert. Genau dort liegt eine Kante.
+  </p>
+
+  <table>
+    <caption class="visually-hidden">
+      Rate, Leasingfaktor und Gesamtkosten bei Anzahlungen um den Wertverlust herum
+    </caption>
+    <thead>
+      <tr>
+        <th scope="col" class="num">Anzahlung</th>
+        <th scope="col" class="num">Monatsrate</th>
+        <th scope="col" class="num">Leasingfaktor</th>
+        <th scope="col" class="num">Gesamtkosten</th>
+      </tr>
+    </thead>
+    <tbody>
+      {umkehrreihe.map((z) => (
+        <tr>
+          <th scope="row" class="num">{eurGlatt(z.anzahlung)}</th>
+          <td class="num">{eur(z.rate)}</td>
+          <td class="num">{fak(z.faktor)}</td>
+          <td class="num">{eur(z.gesamtkosten)}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+
+  <p>
+    Bis {eurGlatt(WERTVERLUST_ABSOLUT)} sinken Rate und Gesamtkosten gemeinsam;
+    dort erreichen die Gesamtkosten mit {eur(amUmkehrpunkt.gesamtkosten)} ihren
+    tiefsten Wert. Danach trennen sich die Spalten: Bei
+    {' '}{eurGlatt(jenseits.anzahlung)} Anzahlung steht der Leasingfaktor bei
+    {' '}{fak(jenseits.faktor)} – dem niedrigsten der ganzen Tabelle –, und die
+    Gesamtkosten liegen mit {eur(jenseits.gesamtkosten)} um
+    {' '}{eur(jenseits.gesamtkosten - amUmkehrpunkt.gesamtkosten)} höher als am
+    Umkehrpunkt.
+  </p>
+  <p>
+    Wer über den Wertverlust hinaus anzahlt, bezahlt Wertverlust, den es nicht
+    gibt: Jeder weitere Euro geht in voller Höhe in die Gesamtkosten ein und
+    bringt nur noch die Zinsersparnis aus dem vorigen Abschnitt zurück. Das ist
+    ein extremer Fall, aber er ist der schärfste Beleg für die These dieses
+    Artikels – der Leasingfaktor kann sinken, während der Vertrag teurer wird.
+  </p>
+
+  <h3>Die zweite Stellschraube: die Laufzeit</h3>
+  <p>
+    Im Rechner am Anfang dieser Seite sind Laufzeit und Restwert zwei
+    voneinander unabhängige Felder. Das ist bequem und zugleich der größte
+    Fallstrick der Bedienung: Wer nur die Laufzeit verlängert und den Restwert
+    stehen lässt, behauptet stillschweigend, dass das Auto in vier Jahren
+    genauso viel verliert wie in einem.
+  </p>
+
+  <table>
+    <caption class="visually-hidden">
+      Rate und impliziter Jahreswertverlust bei festem Restwert von 18.000 € über verschiedene Laufzeiten
+    </caption>
+    <thead>
+      <tr>
+        <th scope="col" class="num">Laufzeit</th>
+        <th scope="col" class="num">Monatsrate</th>
+        <th scope="col" class="num">Leasingfaktor</th>
+        <th scope="col" class="num">Gesamtkosten</th>
+        <th scope="col" class="num">unterstellter Wertverlust p. a.</th>
+      </tr>
+    </thead>
+    <tbody>
+      {laufzeitreihe.map((z) => (
+        <tr>
+          <th scope="row" class="num">{z.laufzeit} Monate</th>
+          <td class="num">{eur(z.rate)}</td>
+          <td class="num">{fak(z.faktor)}</td>
+          <td class="num">{eur(z.gesamtkosten)}</td>
+          <td class="num">{proz(z.wertverlustProJahr)}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+
+  <p>
+    Die letzte Spalte ist die verborgene Annahme. Derselbe Restwert von
+    {' '}{eurGlatt(RESTWERT)} bedeutet über {kurz.laufzeit} Monate einen
+    Wertverlust von {proz(kurz.wertverlustProJahr)} im Jahr, über
+    {' '}{lang.laufzeit} Monate nur noch {proz(lang.wertverlustProJahr)}. Wer im
+    Auswahlfeld von {kurz.laufzeit} auf {lang.laufzeit} Monate wechselt, senkt
+    den Leasingfaktor von {fak(kurz.faktor)} auf {fak(lang.faktor)} – aber nur,
+    weil er dabei den unterstellten Wertverlust auf
+    {' '}{proz(wertverlustAnteil, 0)} seines Ausgangswerts gedrückt hat, ohne es
+    zu merken.
+  </p>
+  <p>
+    Was eine realistische Rate wäre, hängt davon ab, wie schnell das Fahrzeug
+    tatsächlich verliert. Weil das eine Annahme ist und keine Rechnung, steht
+    sie hier als Tabelle. Für {LANGE_LAUFZEIT} Monate ergibt sich:
+  </p>
+
+  <table>
+    <caption class="visually-hidden">
+      Monatsrate über 48 Monate bei verschiedenen jährlichen Wertverlustraten
+    </caption>
+    <thead>
+      <tr>
+        <th scope="col" class="num">Wertverlust p. a.</th>
+        <th scope="col" class="num">Restwert nach {LANGE_LAUFZEIT} Monaten</th>
+        <th scope="col" class="num">Monatsrate</th>
+        <th scope="col" class="num">gegenüber festem Restwert</th>
+      </tr>
+    </thead>
+    <tbody>
+      {sensitivitaet.map((z) => (
+        <tr>
+          <th scope="row" class="num">{proz(z.verlust)}</th>
+          <td class="num">{eurGlatt(z.restwert)}</td>
+          <td class="num">{eur(z.rate)}</td>
+          <td class="num">{z.mehr >= 0 ? '+' + eur(z.mehr) : '−' + eur(-z.mehr)}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+
+  <p>
+    Die Spannweite ist beträchtlich: Zwischen {proz(sensitivitaet[0].verlust)}
+    und {proz(sensitivitaet[sensitivitaet.length - 1].verlust)} Wertverlust im
+    Jahr liegen {eur(sensitivitaet[sensitivitaet.length - 1].rate - sensitivitaet[0].rate)}
+    Monatsrate. Nur die beiden mittleren Zeilen liegen über der Rate, die der
+    feste Restwert ausgibt; bei {proz(sensitivitaet[0].verlust)} wäre das
+    Fahrzeug nach {LANGE_LAUFZEIT} Monaten noch mehr wert als die
+    {' '}{eurGlatt(RESTWERT)} des Beispiels, die Rate also niedriger.
+  </p>
+  <p>
+    Die Zeile mit {proz(impliziteZeile.verlust)} ist dabei keine fremde Annahme:
+    Es ist genau die Verlustrate, die das Beispiel selbst über {LAUFZEIT} Monate
+    unterstellt. Schreibt man sie auf {LANGE_LAUFZEIT} Monate fort, sinkt der
+    Restwert auf {eurGlatt(impliziteZeile.restwert)} und die Rate steigt von
+    {' '}{eur(festeVierundvierzig.rate)} auf {eur(impliziteZeile.rate)} – ein
+    Unterschied von {eur(impliziteZeile.mehr)} im Monat oder
+    {' '}{eur(impliziteZeile.mehr * LANGE_LAUFZEIT)} über die Laufzeit. Wie schnell
+    ein Auto wirklich verliert, ist Gegenstand eines eigenen Artikels:
+    {' '}<a href={artikelPfadVonSlug('gebrauchtwagen-alter-kosten')}>Was ein Gebrauchter
+    im Jahr verliert</a>.
+  </p>
+
+  <h3>Die dritte: welcher Preis im Nenner steht</h3>
+  <p>
+    Der Leasingfaktor ist ein Bruch, und bisher ging es nur um seinen Zähler. Im
+    Nenner steht der Fahrzeugpreis – aber welcher? Die Branchenkonvention nennt
+    den Bruttolistenpreis. Der Rechner am Anfang dieser Seite fragt nach dem
+    Fahrzeugpreis, also dem Betrag, auf den kalkuliert wird. Bei einem Neuwagen
+    mit Nachlass sind das zwei verschiedene Zahlen, und der Unterschied geht
+    direkt in den Faktor.
+  </p>
+
+  <table>
+    <caption class="visually-hidden">
+      Leasingfaktor desselben Vertrags, bezogen auf den Listenpreis statt auf den Kaufpreis
+    </caption>
+    <thead>
+      <tr>
+        <th scope="col" class="num">Nachlass auf die Liste</th>
+        <th scope="col" class="num">Listenpreis</th>
+        <th scope="col" class="num">Faktor auf die Liste</th>
+        <th scope="col" class="num">Faktor auf den Kaufpreis</th>
+      </tr>
+    </thead>
+    <tbody>
+      {nachlassreihe.map((z) => (
+        <tr>
+          <th scope="row" class="num">{proz(z.nachlass, 0)}</th>
+          <td class="num">{eurGlatt(z.listenpreis)}</td>
+          <td class="num">{fak(z.faktorAufListe)}</td>
+          <td class="num">{fak(ohneAnzahlung.faktor)}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+
+  <p>
+    Dieselbe Rate von {eur(ohneAnzahlung.rate)} ergibt einen Faktor zwischen
+    {' '}{fak(zwanzigProzent.faktorAufListe)} und {fak(ohneAnzahlung.faktor)},
+    je nachdem, welche Zahl im Nenner steht. Der Zusammenhang ist exakt
+    proportional: Ein Nachlass von {proz(zwanzigProzent.nachlass, 0)} senkt den
+    Faktor um {proz(zwanzigProzent.nachlass, 0)}. Damit ist der Vergleich zweier
+    Angebote nur dann aussagekräftig, wenn beide denselben Bezugspreis
+    verwenden – eine Bedingung, die kein Gesetz durchsetzt, weil es die Größe
+    gesetzlich nicht gibt.
+  </p>
+
+  <h3>Warum mehr Kilometer den Kilometer billiger machen</h3>
+  <p>
+    Der Rechner gibt neben der Rate die Effektivkosten je Kilometer aus, und
+    dort passiert etwas, das dem Bauchgefühl widerspricht. Die Monatsrate hängt
+    im Modell nicht von der Fahrleistung ab – die Kosten je Kilometer schon, und
+    zwar fallend: Wer statt {km(10000)} im Jahr {km(30000)} fährt, zahlt je
+    Kilometer {eur(proKmDreissig, 3)} statt {eur(proKmZehn, 3)}.
+  </p>
+  <p>
+    Der naheliegende Einwand lautet: Das stimmt nur, weil das Modul die
+    Mehrkilometer nicht abrechnet. Ein Vertrag mit {km(INKLUSIV)} Inklusivleistung
+    verlangt für jeden weiteren Kilometer ein Entgelt, und das müsste die Kurve
+    umdrehen. Der Einwand lässt sich rechnen, statt ihn zu behaupten – die
+    Tabelle legt das jeweilige Entgelt auf die Kilometer über der
+    Inklusivgrenze.
+  </p>
+
+  <table>
+    <caption class="visually-hidden">
+      Effektivkosten je Kilometer nach Fahrleistung und Mehrkilometerentgelt,
+      bei 15.000 km Inklusivleistung
+    </caption>
+    <thead>
+      <tr>
+        <th scope="col" class="num">Entgelt je Mehrkilometer</th>
+        {KM_STUFEN.map((k) => <th scope="col" class="num">{km(k)}/Jahr</th>)}
+      </tr>
+    </thead>
+    <tbody>
+      {kmMatrix.map((zeile) => (
+        <tr>
+          <th scope="row" class="num">{eur(zeile.entgelt, 2)}/km</th>
+          {zeile.zellen.map((z) => (
+            <td class="num">{eur(z.proKm, 3)}</td>
+          ))}
+        </tr>
+      ))}
+    </tbody>
+  </table>
+
+  <p>
+    Die Kurve dreht erst bei {eur(kippEntgelt, 3)} je Mehrkilometer, und dort
+    liegt sie waagerecht – in dieser Zeile kostet der Kilometer bei jeder
+    Fahrleistung dasselbe. Das ist kein Zufallswert: Es sind exakt die Kosten,
+    die ein Kilometer innerhalb der Inklusivleistung von {km(INKLUSIV)}
+    verursacht. Solange ein Mehrkilometer weniger kostet als ein
+    Inklusivkilometer, senkt jeder zusätzliche Kilometer den Durchschnitt. Erst
+    darüber steigt er.
+  </p>
+  <p>
+    Praktisch bedeutet das: Wer über der Inklusivgrenze fährt, zahlt zwar mehr –
+    aber der einzelne Kilometer wird dabei billiger, nicht teurer, solange das
+    Entgelt unter {eur(kippEntgelt, 3)} liegt. Die Gesamtkosten steigen, die
+    Kosten je Kilometer fallen. Diese beiden Sätze werden im Gespräch über
+    Leasing regelmäßig vermischt. Die teure Richtung ist die andere: Wer
+    {' '}{km(INKLUSIV)} bucht und {km(10000)} fährt, zahlt je Kilometer
+    {' '}{eur(proKmZehn, 3)} statt {eur(kippEntgelt, 3)} –
+    Minderkilometer werden meist gar nicht oder nur zu einem Bruchteil
+    erstattet.
+  </p>
+
+  <h3>Was diese Rechnung nicht abbildet</h3>
+  <p>
+    Der Rechner verzinst das durchschnittlich gebundene Kapital linear, statt
+    die Barwertformel der Anlage zu § 16 PAngV zu lösen. Der Unterschied ist im
+    üblichen Bereich klein: Bei {proz(ZINS)} Sollzins ergibt jene Formel für
+    denselben Zahlungsstrom {proz(effJetzt, 3)}, also
+    {' '}{zahl(effAbweichung, 3)} Prozentpunkte mehr. Mit dem Zinssatz wächst die
+    Abweichung – bei {proz(12, 0)} Sollzins sind es {proz(effHoch, 2)}. Der Wert
+    im Eingabefeld ist in jedem Fall ein Sollzins und keine Pflichtangabe; in
+    einem Kilometerleasingangebot muss er, wie oben beschrieben, gar nicht
+    stehen.
+  </p>
+  <p>
+    Nicht enthalten sind außerdem Überführung und Zulassung, Mehr- und
+    Minderkilometer (außer in der eigens gerechneten Tabelle oben),
+    Schadenabrechnung bei Rückgabe, Wartungs- und Versicherungspakete, Kfz-Steuer
+    und Versicherung. Überführungskosten treffen den Leasingfaktor dabei
+    besonders hart, weil sie auf wenige Monate verteilt werden: Bei
+    {' '}{LAUFZEIT} Monaten Laufzeit schlagen je {eurGlatt(1000)} Überführung mit
+    {' '}{eur(1000 / LAUFZEIT)} im Monat zu Buche und heben den effektiven Faktor
+    um {fak(faktor(1000 / LAUFZEIT, NEUPREIS))} Punkte.
+  </p>
+  <p>
+    Schließlich ist der Restwert hier eine Eingabe, kein Ergebnis. Der Rechner
+    prüft nicht, ob er zur Laufzeit, zur Fahrleistung oder zum Fahrzeug passt –
+    das muss die Rechnung im Abschnitt über die Laufzeit leisten. Und er
+    unterstellt Kilometerleasing: Beim Restwertleasing kommt am Vertragsende die
+    Differenz zwischen kalkuliertem und tatsächlichem Wert hinzu, die in keiner
+    dieser Zahlen steht und die den Vertrag rechtlich nach § 506 Abs. 2 Satz 1
+    Nr. 3 BGB in eine andere Kategorie rückt.
+  </p>
+</RechnerArtikel>
+
+<style>
+.formel {
+  font-variant-numeric: tabular-nums;
+  background: var(--bg);
+  border-left: 3px solid var(--dark);
+  padding: 0.7rem 1rem;
+  margin: 1.25rem 0;
+  font-weight: 600;
+}
+</style>

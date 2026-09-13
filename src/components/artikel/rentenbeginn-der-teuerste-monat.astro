@@ -1,0 +1,665 @@
+---
+import RechnerArtikel from '../RechnerArtikel.astro';
+import { artikelPfadVonSlug } from '../../data/ratgeber';
+import {
+  AKTUELLER_RENTENWERT,
+  DURCHSCHNITTSENTGELT_VORLAEUFIG,
+  BBG_RENTE_JAHR,
+  MAX_ENTGELTPUNKTE_JAHR,
+  ABSCHLAG_JE_MONAT,
+  ZUSCHLAG_JE_MONAT,
+  FRUEHESTE_ALTERSRENTE_MONATE,
+  RENTEN_STAND,
+  regelaltersgrenzeMonate,
+  altersgrenzeBesondersLangjaehrigMonate,
+  zugangsfaktor,
+  entgeltpunkteAusJahresentgelt,
+  rentnerBeitraege,
+} from '../../../public/scripts/rentenwerte.js';
+import { berechneRente } from '../../../public/scripts/rentenrechner.js';
+
+// Alle Zahlen zur Buildzeit aus denselben Modulen, die auch der Rechner laedt.
+const eur = (n: number, d = 2) =>
+  n.toLocaleString('de-DE', { minimumFractionDigits: d, maximumFractionDigits: d }) + ' €';
+const eurGlatt = (n: number) => n.toLocaleString('de-DE', { maximumFractionDigits: 0 }) + ' €';
+const zahl = (n: number, d = 2) =>
+  n.toLocaleString('de-DE', { minimumFractionDigits: d, maximumFractionDigits: d });
+const proz = (n: number, d = 1) => zahl(n, d) + ' %';
+const runde4 = (x: number) => Math.round(x * 1e4) / 1e4;
+const runde2 = (x: number) => Math.round(x * 100) / 100;
+
+// Das Stichjahr steht nicht im Fliesstext, es kommt aus dem Rechtsstand des
+// Moduls. Sonst laeuft der Artikel beim naechsten Jahreswechsel aus dem Tritt.
+const STICHJAHR = Number(RENTEN_STAND.slice(0, 4));
+
+// --- Beispielprofil --------------------------------------------------------
+// Ein Jahrgang ab 1964, weil dort beide Altersgrenzen ihren Endstand erreicht
+// haben: 65 Jahre nach § 38 SGB VI, 67 Jahre nach § 35 Satz 2 SGB VI.
+const JAHRGANG = 1964;
+const EP_HEUTE = 40;
+const BRUTTO_MONAT = 3800;
+
+const epProJahr = entgeltpunkteAusJahresentgelt(BRUTTO_MONAT * 12);
+const alterHeuteMonate = (STICHJAHR - JAHRGANG) * 12;
+
+/** Entgeltpunktekonto bei einem bestimmten Lebensalter, in Monaten. */
+const kontoBei = (alterMonate: number) =>
+  runde4(EP_HEUTE + epProJahr * (alterMonate - alterHeuteMonate) / 12);
+
+/**
+ * Bruttorente bei monatsgenauem Beginn – die Rentenformel des § 64 SGB VI mit
+ * den Bausteinen des Moduls. Der Rechner am Anfang dieser Seite rechnet
+ * dieselbe Formel, kennt aber nur ganze Jahre, weil er nur Geburtsjahr und
+ * Rentenjahr abfragt. Auf ganze Jahre gerundet stimmen beide ueberein.
+ */
+function bruttorente(alterMonate: number, wartezeit45: boolean) {
+  const zf = zugangsfaktor({
+    geburtsjahr: JAHRGANG,
+    rentenbeginnAlterMonate: alterMonate,
+    wartezeit45,
+  }).zugangsfaktor;
+  return runde2(runde4(kontoBei(alterMonate) * zf) * AKTUELLER_RENTENWERT);
+}
+const zf = (alterMonate: number, wartezeit45: boolean) =>
+  zugangsfaktor({ geburtsjahr: JAHRGANG, rentenbeginnAlterMonate: alterMonate, wartezeit45 }).zugangsfaktor;
+
+const alterText = (m: number) => {
+  const j = Math.floor(m / 12);
+  const r = m % 12;
+  return r === 0 ? `${j} Jahre` : `${j} Jahre und ${r} Monate`;
+};
+/** Dativform für „bei …" – „81 Jahren und 11 Monaten". */
+const alterDativ = (m: number) => {
+  const j = Math.floor(m / 12);
+  const r = m % 12;
+  return r === 0 ? `${j} Jahren` : `${j} Jahren und ${r} ${r === 1 ? 'Monat' : 'Monaten'}`;
+};
+/** Knappe Form für Tabellenzellen – „64 J. 11 M.". */
+const alterKurz = (m: number) => {
+  const j = Math.floor(m / 12);
+  const r = m % 12;
+  return r === 0 ? `${j} J.` : `${j} J. ${r} M.`;
+};
+
+const grenze45 = altersgrenzeBesondersLangjaehrigMonate(JAHRGANG);
+const regelgrenze = regelaltersgrenzeMonate(JAHRGANG);
+const abstandMonate = regelgrenze - grenze45;
+
+// --- 1. Vier Preise fuer denselben Monat -----------------------------------
+const preisVorher = runde2(bruttorente(grenze45 - 1, true) - bruttorente(grenze45 - 2, true));
+const preisSchwelle = runde2(bruttorente(grenze45, true) - bruttorente(grenze45 - 1, true));
+const preisPlateau = runde2(bruttorente(grenze45 + 1, true) - bruttorente(grenze45, true));
+const preisNachher = runde2(bruttorente(regelgrenze + 1, true) - bruttorente(regelgrenze, true));
+const preisOhne45 = runde2(bruttorente(grenze45, false) - bruttorente(grenze45 - 1, false));
+
+const monatsSpanne = (von: number) => `${alterKurz(von)} → ${alterKurz(von + 1)}`;
+const faktorTeuersterZuBilligster = preisSchwelle / preisPlateau;
+const faktorTeuersterZuVorher = preisSchwelle / preisVorher;
+
+// Wie lange dauert es, bis der eine abgewartete Monat wieder eingespielt ist?
+// Wer wartet, verzichtet einmalig auf eine Monatsrente und bekommt dafuer
+// dauerhaft mehr. Startpunkt ist in beiden Faellen dieselbe Rente, weil der
+// Zugangsfaktor einen Monat vor der Altersgrenze mit und ohne die 45 Jahre
+// gleich hoch ist.
+const amortisationSchwelle = bruttorente(grenze45 - 1, true) / preisSchwelle;
+const amortisationNormal = bruttorente(grenze45 - 1, false) / preisOhne45;
+
+const zfSchwelleVorher = zf(grenze45 - 1, true);
+const sprungPunkte = (1 - zfSchwelleVorher) * 100;
+
+// --- 2. Der Sprung je Jahrgang ---------------------------------------------
+const JAHRGAENGE = [1950, 1951, 1952, 1953, 1954, 1955, 1956, 1957, 1958, 1959, 1960, 1961, 1962, 1963, 1964];
+const jahrgangsTabelle = JAHRGAENGE.map((jg) => {
+  const g45 = altersgrenzeBesondersLangjaehrigMonate(jg);
+  const rg = regelaltersgrenzeMonate(jg);
+  const einMonatFrueherMoeglich = g45 - 1 >= FRUEHESTE_ALTERSRENTE_MONATE;
+  const zfFrueher = einMonatFrueherMoeglich
+    ? zugangsfaktor({ geburtsjahr: jg, rentenbeginnAlterMonate: g45 - 1, wartezeit45: true }).zugangsfaktor
+    : null;
+  return {
+    jg,
+    g45,
+    rg,
+    abstand: rg - g45,
+    sprung: zfFrueher === null ? null : runde2((1 - zfFrueher) * 100),
+  };
+});
+const groessterSprung = jahrgangsTabelle.reduce(
+  (max, z) => (z.sprung !== null && z.sprung > (max?.sprung ?? 0) ? z : max),
+  null as (typeof jahrgangsTabelle)[number] | null
+)!;
+// Nicht die erste Zeile der Tabelle nennen, sondern den letzten Jahrgang ohne
+// Sprung – die Regel gilt auch für alle davor, die hier gar nicht stehen.
+const letzterOhneSprung = Math.max(...jahrgangsTabelle.filter((z) => z.sprung === null).map((z) => z.jg));
+
+// --- 3. Der Wert der Wartezeit verfaellt -----------------------------------
+const WERT_ALTER = [grenze45, grenze45 + 12, grenze45 + 24, grenze45 + 36];
+const wertTabelle = WERT_ALTER.map((m) => ({
+  m,
+  mit: bruttorente(m, true),
+  ohne: bruttorente(m, false),
+  vorsprung: runde2(bruttorente(m, true) - bruttorente(m, false)),
+}));
+// Was zwei weitere Arbeitsjahre bringen – mit und ohne die 45 Jahre.
+const gewinnMit45 = runde2(bruttorente(regelgrenze, true) - bruttorente(grenze45, true));
+const gewinnOhne45 = runde2(bruttorente(regelgrenze, false) - bruttorente(grenze45, false));
+const gewinnVerhaeltnis = gewinnOhne45 / gewinnMit45;
+
+// --- 4. Was der Rechner oben in ganzen Jahren zeigt -------------------------
+const jahresRechnung = (alterJahre: number, wartezeit45: boolean) =>
+  berechneRente({
+    geburtsjahr: JAHRGANG,
+    rentenbeginn: JAHRGANG + alterJahre,
+    entgeltpunkte: EP_HEUTE,
+    bruttoMonat: BRUTTO_MONAT,
+    wartezeit45,
+    aktuellesJahr: STICHJAHR,
+  });
+const JAHRE = [63, 64, 65, 66, 67, 68];
+const jahresTabelle = JAHRE.map((j) => {
+  const mit = jahresRechnung(j, true);
+  const ohne = jahresRechnung(j, false);
+  return { j, zfMit: mit.zugangsfaktor, bruttoMit: mit.renteBrutto, zfOhne: ohne.zugangsfaktor, bruttoOhne: ohne.renteBrutto };
+});
+const stufe64auf65 = runde2(jahresRechnung(65, true).renteBrutto - jahresRechnung(64, true).renteBrutto);
+const stufe63auf64 = runde2(jahresRechnung(64, true).renteBrutto - jahresRechnung(63, true).renteBrutto);
+
+// --- 5. Zwei Konstanten: Break-even von Abschlag und Zuschlag ---------------
+// Vergleicht man einen vorgezogenen Beginn mit der Regelaltersgrenze, kuerzt
+// sich die Zahl der vorgezogenen Monate aus der Rechnung heraus.
+const breakEvenAbschlag = 1 / ABSCHLAG_JE_MONAT;
+const breakEvenZuschlag = 1 / ZUSCHLAG_JE_MONAT;
+const beAbJahre = Math.floor(breakEvenAbschlag / 12);
+const beAbMonate = Math.round(breakEvenAbschlag - beAbJahre * 12);
+const beZuJahre = Math.floor(breakEvenZuschlag / 12);
+const beZuMonate = Math.round(breakEvenZuschlag - beZuJahre * 12);
+
+// Gegenprobe an drei Vorzugsdauern: Bleibt der Break-even wirklich stehen?
+const BE_PROBEN = [1, 6, 24, 48];
+const beProben = BE_PROBEN.map((a) => {
+  const fFrueh = 1 - ABSCHLAG_JE_MONAT * a;
+  // T = Monate ab dem vorgezogenen Beginn, bis beide Summen gleich sind
+  const t = (a * fFrueh) / (1 - fFrueh) + a;
+  return { a, faktor: fFrueh, t };
+});
+
+// Derselbe Vergleich mit den Entgeltpunkten, die in den vorgezogenen Jahren
+// nicht mehr entstehen – die ehrlichere Rechnung.
+const monateFrueh = regelgrenze - FRUEHESTE_ALTERSRENTE_MONATE;
+const renteFrueh = bruttorente(FRUEHESTE_ALTERSRENTE_MONATE, false);
+const renteRegel = bruttorente(regelgrenze, false);
+const beMitPunkten = (monateFrueh * renteFrueh) / (renteRegel - renteFrueh);
+const alterBeMitPunkten = regelgrenze + beMitPunkten;
+const alterBeReinerFaktor = FRUEHESTE_ALTERSRENTE_MONATE + breakEvenAbschlag;
+// Erst runden, dann die Differenz bilden – nicht umgekehrt. Sonst nennt der
+// Text 8 Jahre und 11 Monate, waehrend die beiden genannten Altersangaben
+// voneinander abgezogen 8 Jahre und 10 Monate ergeben.
+const alterBeMitPunktenGanz = Math.round(alterBeMitPunkten);
+const alterBeReinerFaktorGanz = Math.round(alterBeReinerFaktor);
+const beUnterschiedMonate = alterBeReinerFaktorGanz - alterBeMitPunktenGanz;
+
+// --- 6. Sensitivitaet: haengt der Sprung am Einkommen? ----------------------
+const EP_PROBEN = [25, 30, 40, 50, 60];
+const sensitivitaet = EP_PROBEN.map((ep) => {
+  const konto = (m: number) => runde4(ep + epProJahr * (m - alterHeuteMonate) / 12);
+  const rente = (m: number) =>
+    runde2(runde4(konto(m) * zf(m, true)) * AKTUELLER_RENTENWERT);
+  const anGrenze = rente(grenze45);
+  const einMonatFrueher = rente(grenze45 - 1);
+  return {
+    ep,
+    anGrenze,
+    einMonatFrueher,
+    sprung: runde2(anGrenze - einMonatFrueher),
+    anteil: ((anGrenze - einMonatFrueher) / anGrenze) * 100,
+  };
+});
+
+// --- 7. Beitraege: proportional, also ohne Einfluss auf den Break-even ------
+const beitraegeAnGrenze = rentnerBeitraege({ bruttorente: bruttorente(grenze45, true), elternteil: true });
+const nettoquote = (beitraegeAnGrenze.netto / bruttorente(grenze45, true)) * 100;
+const sprungNetto = runde2(preisSchwelle * (beitraegeAnGrenze.netto / bruttorente(grenze45, true)));
+
+const quellen = [
+  { titel: '§ 77 SGB VI – Zugangsfaktor', url: 'https://www.gesetze-im-internet.de/sgb_6/__77.html' },
+  { titel: '§ 38 SGB VI – Altersrente für besonders langjährig Versicherte', url: 'https://www.gesetze-im-internet.de/sgb_6/__38.html' },
+  { titel: '§ 236b SGB VI – Altersgrenzen der Jahrgänge bis 1963', url: 'https://www.gesetze-im-internet.de/sgb_6/__236b.html' },
+  { titel: '§ 36 SGB VI – Altersrente für langjährig Versicherte', url: 'https://www.gesetze-im-internet.de/sgb_6/__36.html' },
+  { titel: '§ 236 SGB VI – Altersgrenzen der langjährig Versicherten bis Jahrgang 1963', url: 'https://www.gesetze-im-internet.de/sgb_6/__236.html' },
+  { titel: '§ 35 SGB VI – Regelaltersrente', url: 'https://www.gesetze-im-internet.de/sgb_6/__35.html' },
+  { titel: '§ 235 SGB VI – Anhebung der Regelaltersgrenze', url: 'https://www.gesetze-im-internet.de/sgb_6/__235.html' },
+  { titel: '§ 51 SGB VI – Anrechenbare Zeiten, Wartezeit von 45 Jahren in Absatz 3a', url: 'https://www.gesetze-im-internet.de/sgb_6/__51.html' },
+  { titel: '§ 64 SGB VI – Rentenformel für den Monatsbetrag', url: 'https://www.gesetze-im-internet.de/sgb_6/__64.html' },
+  { titel: '§ 70 SGB VI – Entgeltpunkte für Beitragszeiten', url: 'https://www.gesetze-im-internet.de/sgb_6/__70.html' },
+  { titel: '§ 76g SGB VI – Zuschlag an Entgeltpunkten für langjährige Versicherung (Grundrente)', url: 'https://www.gesetze-im-internet.de/sgb_6/__76g.html' },
+  { titel: '§ 121 SGB VI – Allgemeine Berechnungsgrundsätze, Rundung', url: 'https://www.gesetze-im-internet.de/sgb_6/__121.html' },
+  { titel: '§ 1 RWBestV 2026 – Aktueller Rentenwert ab 1. Juli 2026', url: 'https://www.gesetze-im-internet.de/rwbestv_2026/__1.html' },
+  { titel: '§ 3 SVBezGrV 2026 – Vorläufiges Durchschnittsentgelt', url: 'https://www.gesetze-im-internet.de/svbezgrv_2026/__3.html' },
+  { titel: '§ 4 SVBezGrV 2026 – Beitragsbemessungsgrenzen in der Rentenversicherung', url: 'https://www.gesetze-im-internet.de/svbezgrv_2026/__4.html' },
+  { titel: '§ 249a SGB V – Tragung der Krankenversicherungsbeiträge bei Rentenbezug', url: 'https://www.gesetze-im-internet.de/sgb_5/__249a.html' },
+  { titel: '§ 59 SGB XI – Beitragstragung, Pflegebeitrag aus der Rente', url: 'https://www.gesetze-im-internet.de/sgb_11/__59.html' },
+];
+---
+<RechnerArtikel
+  titel="Der teuerste Monat eines Rentenlebens"
+  datum="2026-09-13"
+  lead={`Wer die Wartezeit von 45 Jahren erfüllt und seine Altersgrenze abwartet, bekommt die Rente ohne Abschlag. Wer einen einzigen Monat früher beginnt, bekommt den Abschlag für die ganze Strecke bis zur Regelaltersgrenze – im Beispiel dieses Artikels ${eur(preisSchwelle)} Bruttorente im Monat, dauerhaft. Der Monat davor ist ${eur(preisVorher)} wert, der Monat danach ${eur(preisPlateau)}. Und an der Regelaltersgrenze sind die 45 Beitragsjahre für die Rentenhöhe exakt nichts mehr wert.`}
+  quellen={quellen}
+>
+  <h3>Was ein Monat wert ist, hängt davon ab, welcher Monat es ist</h3>
+  <p>
+    Die Rentenformel des § 64 SGB VI hat drei Faktoren, und nur einer von ihnen
+    hängt davon ab, wann jemand aufhört: der Zugangsfaktor. § 77 Abs. 2 Satz 1
+    Nr. 2 SGB VI regelt ihn in zwei Zeilen. Ein Monat vorzeitige Inanspruchnahme
+    senkt ihn um {zahl(ABSCHLAG_JE_MONAT, 3)}, ein Monat Aufschub nach der
+    Regelaltersgrenze hebt ihn um {zahl(ZUSCHLAG_JE_MONAT, 3)}. Daraus wird
+    überall die Merkregel „{proz(ABSCHLAG_JE_MONAT * 100, 1)} Abschlag,
+    {' '}{proz(ZUSCHLAG_JE_MONAT * 100, 1)} Zuschlag je Monat".
+  </p>
+  <p>
+    Die Merkregel unterschlägt, dass ein Monat nicht ein Monat ist. Für einen
+    Versicherten des Jahrgangs {JAHRGANG} mit erfüllter Wartezeit von 45 Jahren,
+    {' '}{zahl(EP_HEUTE, 0)} Entgeltpunkten auf dem Konto und
+    {' '}{eurGlatt(BRUTTO_MONAT)} Bruttogehalt im Monat kostet ein später
+    begonnener Rentenbezug – je nachdem, welcher Monat es ist – Folgendes an
+    zusätzlicher Bruttorente:
+  </p>
+
+  <table>
+    <caption class="visually-hidden">
+      Zuwachs der monatlichen Bruttorente je Monat späteren Rentenbeginns,
+      Jahrgang {JAHRGANG} mit 45 Beitragsjahren
+    </caption>
+    <thead>
+      <tr>
+        <th scope="col">Rentenbeginn verschoben von … auf …</th>
+        <th scope="col">Lage</th>
+        <th scope="col" class="num">Zuwachs je Monat</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <th scope="row" class="num">{monatsSpanne(grenze45 - 2)}</th>
+        <td>noch im Abschlagsbereich</td>
+        <td class="num">{eur(preisVorher)}</td>
+      </tr>
+      <tr>
+        <th scope="row" class="num">{monatsSpanne(grenze45 - 1)}</th>
+        <td>über die Altersgrenze der 45 Beitragsjahre</td>
+        <td class="num">{eur(preisSchwelle)}</td>
+      </tr>
+      <tr>
+        <th scope="row" class="num">{monatsSpanne(grenze45)}</th>
+        <td>im Plateau zwischen beiden Altersgrenzen</td>
+        <td class="num">{eur(preisPlateau)}</td>
+      </tr>
+      <tr>
+        <th scope="row" class="num">{monatsSpanne(regelgrenze)}</th>
+        <td>über die Regelaltersgrenze</td>
+        <td class="num">{eur(preisNachher)}</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <p>
+    Zwischen dem teuersten und dem billigsten dieser Monate liegt der Faktor
+    {' '}{zahl(faktorTeuersterZuBilligster, 1)}. Der Monat an der Altersgrenze
+    allein ist {zahl(faktorTeuersterZuVorher, 1)}-mal so viel wert wie der
+    Monat unmittelbar davor. Und auf ihn folgen zwei Jahre, in denen jeder
+    weitergearbeitete Monat nur noch {eur(preisPlateau)} bringt – weniger als
+    vorher, obwohl derselbe Beitrag gezahlt wird.
+  </p>
+  <p>
+    Man kann dieselbe Zahl auch als Wartezeit lesen. Wer den Monat an der
+    Altersgrenze abwartet, verzichtet einmal auf eine Rentenzahlung von
+    {' '}{eur(bruttorente(grenze45 - 1, true))} und bekommt dafür dauerhaft
+    {' '}{eur(preisSchwelle)} mehr: Nach {zahl(amortisationSchwelle, 1)} Monaten
+    Rentenbezug ist der Verzicht wieder hereingeholt. Für denselben Menschen
+    ohne die 45 Beitragsjahre beginnt die Rente in diesem Monat auf den Cent
+    gleich hoch – bei ihm dauert dieselbe Rechnung aber
+    {' '}{zahl(amortisationNormal, 0)} Monate.
+  </p>
+
+  <h3>Warum der Sprung entsteht: zwei Gesetze, zwei Bezugspunkte</h3>
+  <p>
+    Der Sprung ist kein Rundungsartefakt, sondern eine Folge davon, dass zwei
+    Rentenarten aufeinandertreffen. § 38 SGB VI gibt Versicherten mit 45
+    Beitragsjahren einen Anspruch auf Altersrente ab dem vollendeten 65.
+    Lebensjahr, § 236b SGB VI regelt die Altersgrenze für die Jahrgänge bis
+    1963. § 38 SGB VI besteht aus einem einzigen Anspruchssatz, und was in ihm
+    fehlt, ist entscheidend: <strong>eine vorzeitige Inanspruchnahme gibt es
+    bei dieser Rentenart nicht.</strong> § 36 Satz 2 SGB VI enthält genau diesen
+    Zusatz für die Rente nach 35 Beitragsjahren – § 38 SGB VI hat kein
+    Gegenstück dazu, § 236b SGB VI auch nicht.
+  </p>
+  <p>
+    Wer die 45 Jahre voll hat und trotzdem früher gehen will, bezieht deshalb
+    keine gekürzte Rente nach § 38 SGB VI, sondern eine Altersrente für
+    langjährig Versicherte nach § 36 SGB VI. Deren Altersgrenze liegt bei 67
+    Jahren, und an ihr misst § 77 Abs. 2 Satz 1 Nr. 2 Buchst. a SGB VI den
+    Abschlag. Die {abstandMonate} Monate zwischen den beiden Altersgrenzen sind
+    damit nicht verschwunden – sie werden nur nicht berechnet, solange man die
+    niedrigere Altersgrenze abwartet. Einen Monat zu früh, und sie zählen alle mit:
+    {' '}{abstandMonate + 1} Monate mal {zahl(ABSCHLAG_JE_MONAT, 3)} ergeben
+    einen Zugangsfaktor von {zahl(zfSchwelleVorher, 3)} statt 1,0 – ein
+    Unterschied von {zahl(sprungPunkte, 1)} Prozentpunkten.
+  </p>
+  <p>
+    Dass die Rechnung überhaupt so aufgeht, steht in § 77 Abs. 2 Satz 1 Nr. 1
+    SGB VI. Der Zugangsfaktor ist dort 1,0 bei Renten, die „mit Ablauf des
+    Kalendermonats des Erreichens der Regelaltersgrenze oder eines für den
+    Versicherten maßgebenden niedrigeren Rentenalters" beginnen. Der
+    Halbsatz nach dem „oder" ist das ganze Privileg der 45 Jahre – und er greift
+    nur, wenn dieses niedrigere Rentenalter auch erreicht ist.
+  </p>
+
+  <h3>Der Sprung ist je Jahrgang verschieden – und die Ältesten haben ihn nicht</h3>
+  <p>
+    Die beiden Altersgrenzen wurden von unterschiedlichen Startpunkten aus
+    angehoben: die Regelaltersgrenze nach § 235 Abs. 2 SGB VI von 65 Jahren aus,
+    die Altersgrenze der besonders langjährig Versicherten nach § 236b Abs. 2
+    SGB VI von 63 Jahren aus. Solange die Schrittweiten auseinanderliefen, war
+    der Abstand zwischen beiden je Jahrgang ein anderer – und damit auch die
+    Höhe des Sprungs.
+  </p>
+
+  <table>
+    <caption class="visually-hidden">
+      Altersgrenzen und Höhe des Zugangsfaktor-Sprungs nach Geburtsjahrgang
+    </caption>
+    <thead>
+      <tr>
+        <th scope="col">Jahrgang</th>
+        <th scope="col">Altersgrenze mit 45 Jahren</th>
+        <th scope="col">Regelaltersgrenze</th>
+        <th scope="col" class="num">Abstand</th>
+        <th scope="col" class="num">Sprung im letzten Monat</th>
+      </tr>
+    </thead>
+    <tbody>
+      {jahrgangsTabelle.map((z) => (
+        <tr>
+          <th scope="row">{z.jg === 1964 ? '1964 und später' : z.jg}</th>
+          <td>{alterText(z.g45)}</td>
+          <td>{alterText(z.rg)}</td>
+          <td class="num">{z.abstand} Monate</td>
+          <td class="num">{z.sprung === null ? 'entfällt' : zahl(z.sprung, 1) + ' Pp.'}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+
+  <p>
+    Am größten ist der Sprung beim Jahrgang {groessterSprung.jg} mit
+    {' '}{zahl(groessterSprung.sprung!, 1)} Prozentpunkten für einen einzigen
+    Monat. Für alle Jahrgänge bis einschließlich {letzterOhneSprung} steht in
+    der letzten Spalte „entfällt", und das hat einen schlichten Grund: Ihre
+    Altersgrenze liegt bei genau 63 Jahren, und früher als mit 63 beginnt –
+    abgesehen von der Rente für schwerbehinderte Menschen – nach § 36 Satz 2
+    SGB VI keine Altersrente. Für sie gibt es den Monat davor nicht. Diese
+    Jahrgänge sind zugleich die einzigen, für die die oft zitierte „Rente mit 63
+    ohne Abschlag" je gegolten hat.
+  </p>
+
+  <h3>Die Kehrseite: Das Privileg verfällt in {abstandMonate} Monaten</h3>
+  <p>
+    Der Zuschlag für den Aufschub kennt diese niedrigere Altersgrenze nicht.
+    § 77 Abs. 2 Satz 1 Nr. 2 Buchst. b SGB VI knüpft ihn ausdrücklich an Monate
+    „nach Erreichen der Regelaltersgrenze". Zwischen der Altersgrenze der 45
+    Beitragsjahre und der Regelaltersgrenze steht der Zugangsfaktor deshalb
+    still: Er ist 1,0 und bleibt 1,0. Wer in dieser Zeit weiterarbeitet, sammelt
+    nur noch Entgeltpunkte.
+  </p>
+  <p>
+    Der Vorsprung, den die 45 Beitragsjahre verschaffen, schmilzt dadurch mit
+    jedem Monat, den man ihn nicht nutzt – bis er verschwunden ist:
+  </p>
+
+  <table>
+    <caption class="visually-hidden">
+      Bruttorente mit und ohne erfüllte Wartezeit von 45 Jahren nach
+      Rentenbeginnalter, Jahrgang {JAHRGANG}
+    </caption>
+    <thead>
+      <tr>
+        <th scope="col">Rentenbeginn</th>
+        <th scope="col" class="num">mit 45 Beitragsjahren</th>
+        <th scope="col" class="num">ohne</th>
+        <th scope="col" class="num">Vorsprung</th>
+      </tr>
+    </thead>
+    <tbody>
+      {wertTabelle.map((w) => (
+        <tr>
+          <th scope="row" class="num">mit {alterDativ(w.m)}</th>
+          <td class="num">{eur(w.mit)}</td>
+          <td class="num">{eur(w.ohne)}</td>
+          <td class="num">{w.vorsprung === 0 ? '–' : eur(w.vorsprung)}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+
+  <p>
+    An der Regelaltersgrenze bekommen beide auf den Cent dasselbe. Die 45
+    Beitragsjahre, die § 51 Abs. 3a SGB VI so eng definiert, dass
+    Arbeitslosengeldzeiten in den letzten zwei Jahren vor Rentenbeginn
+    ausdrücklich nicht zählen, sind dann ohne jeden Wert für die Rentenhöhe.
+    Sie sind kein Bonus auf die Rente, sondern ein Termin: {abstandMonate}
+    {' '}Monate früher aufhören zu dürfen, ohne dafür zu bezahlen.
+  </p>
+  <p>
+    Daraus folgt etwas, das der Intuition zuwiderläuft. Dieselben zwei
+    zusätzlichen Arbeitsjahre zwischen {Math.floor(grenze45 / 12)} und
+    {' '}{Math.floor(regelgrenze / 12)} bringen dem Versicherten
+    <em> mit</em> den 45 Beitragsjahren {eur(gewinnMit45)} mehr Bruttorente, dem
+    Versicherten <em>ohne</em> sie dagegen {eur(gewinnOhne45)} – das
+    {' '}{zahl(gewinnVerhaeltnis, 1)}-Fache. Wer das Privileg hat, hat den
+    schwächeren Anreiz weiterzuarbeiten.
+  </p>
+
+  <h3>Was der Rechner oben zeigt</h3>
+  <p>
+    Der Rechner am Anfang dieser Seite fragt Geburtsjahr und Rentenjahr ab und
+    rechnet deshalb in ganzen Jahren. Der Sprung ist dort trotzdem sichtbar,
+    nur grober: Für dasselbe Profil – Jahrgang {JAHRGANG},
+    {' '}{zahl(EP_HEUTE, 0)} Entgeltpunkte, {eurGlatt(BRUTTO_MONAT)} brutto –
+    ergeben sich diese Werte.
+  </p>
+
+  <table>
+    <caption class="visually-hidden">
+      Zugangsfaktor und Bruttorente nach Rentenbeginnalter in ganzen Jahren
+    </caption>
+    <thead>
+      <tr>
+        <th scope="col">Rentenbeginn mit</th>
+        <th scope="col" class="num">Zugangsfaktor (45 Jahre)</th>
+        <th scope="col" class="num">Bruttorente</th>
+        <th scope="col" class="num">Zugangsfaktor (ohne)</th>
+        <th scope="col" class="num">Bruttorente</th>
+      </tr>
+    </thead>
+    <tbody>
+      {jahresTabelle.map((r) => (
+        <tr>
+          <th scope="row" class="num">{r.j} Jahren</th>
+          <td class="num">{zahl(r.zfMit, 3)}</td>
+          <td class="num">{eur(r.bruttoMit)}</td>
+          <td class="num">{zahl(r.zfOhne, 3)}</td>
+          <td class="num">{eur(r.bruttoOhne)}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+
+  <p>
+    Das Jahr von {Math.floor(grenze45 / 12) - 1} auf
+    {' '}{Math.floor(grenze45 / 12)} bringt {eur(stufe64auf65)}, das Jahr davor
+    nur {eur(stufe63auf64)}. Die beiden letzten Spalten zeigen denselben
+    Menschen ohne die 45 Beitragsjahre; dort wachsen die Beträge gleichmäßig.
+    Wer den genauen Monat treffen will, braucht die Renteninformation der
+    Deutschen Rentenversicherung – nur dort steht, wann die 45 Jahre tatsächlich
+    voll sind.
+  </p>
+
+  <h3>Zwei Konstanten, die in den beiden Sätzen stecken</h3>
+  <p>
+    Die übliche Frage lautet: Wie lange muss ich leben, damit sich das Abwarten
+    gelohnt hat? Für den Zugangsfaktor allein hat sie eine überraschend
+    einfache Antwort, weil sich die Zahl der vorgezogenen Monate aus der
+    Rechnung herauskürzt. Wer <em>n</em> Monate vor der Regelaltersgrenze
+    beginnt, bezieht eine um {zahl(ABSCHLAG_JE_MONAT, 3)} × <em>n</em>
+    {' '}gekürzte Rente, dafür <em>n</em> Monate länger. Beide Summen sind
+    gleich groß nach 1 ÷ {zahl(ABSCHLAG_JE_MONAT, 3)} =
+    {' '}{zahl(breakEvenAbschlag, 1)} Monaten,
+    {' '}<strong>gerechnet ab dem vorgezogenen Beginn</strong> – also nach
+    {' '}{beAbJahre} Jahren und {beAbMonate} Monaten, ganz gleich, ob man einen
+    Monat oder vier Jahre vorzieht.
+  </p>
+
+  <table>
+    <caption class="visually-hidden">
+      Break-even des Abschlags bei verschiedenen Vorzugsdauern
+    </caption>
+    <thead>
+      <tr>
+        <th scope="col">Vorgezogen um</th>
+        <th scope="col" class="num">Zugangsfaktor</th>
+        <th scope="col" class="num">Break-even ab Rentenbeginn</th>
+      </tr>
+    </thead>
+    <tbody>
+      {beProben.map((b) => (
+        <tr>
+          <th scope="row" class="num">{b.a} {b.a === 1 ? 'Monat' : 'Monate'}</th>
+          <td class="num">{zahl(b.faktor, 3)}</td>
+          <td class="num">{zahl(b.t, 1)} Monate</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+
+  <p>
+    Für den Zuschlag gilt dasselbe mit der anderen Zahl: 1 ÷
+    {' '}{zahl(ZUSCHLAG_JE_MONAT, 3)} = {zahl(breakEvenZuschlag, 0)} Monate,
+    {' '}{beZuJahre} Jahre und {beZuMonate} Monate ab dem aufgeschobenen
+    Beginn. Der Aufschub rechnet sich also rund
+    {' '}{zahl(breakEvenAbschlag / breakEvenZuschlag, 2)}-mal so schnell wie der
+    Vorbezug – exakt im Verhältnis der beiden Sätze des § 77 Abs. 2 SGB VI.
+  </p>
+  <p>
+    Die Kranken- und Pflegeversicherungsbeiträge ändern an diesen Konstanten
+    nichts. Sie sind ein fester Anteil der Bruttorente – nach § 249a Satz 1
+    SGB V die Hälfte des Krankenkassensatzes, nach § 59 Abs. 1 Satz 1 SGB XI
+    der volle Pflegesatz –, hier zusammen {proz(100 - nettoquote, 2)}. Beide
+    Seiten des Vergleichs schrumpfen um denselben Prozentsatz, der
+    Schnittpunkt bleibt stehen. Vom Sprung an der Altersgrenze bleiben nach
+    Beiträgen {eur(sprungNetto)} im Monat übrig.
+  </p>
+  <p>
+    Wichtiger ist ein anderer Einwand, und er verschiebt das Ergebnis erheblich:
+    Die Konstante von {zahl(breakEvenAbschlag, 1)} Monaten vergleicht nur
+    Zugangsfaktoren. Wer früher geht, zahlt in den vorgezogenen Jahren auch
+    keine Beiträge mehr und sammelt keine Entgeltpunkte. Für unser Beispiel
+    ohne die 45 Beitragsjahre – Rentenbeginn mit
+    {' '}{Math.floor(FRUEHESTE_ALTERSRENTE_MONATE / 12)} statt mit
+    {' '}{Math.floor(regelgrenze / 12)} – heißt das: {eur(renteFrueh)} gegen
+    {' '}{eur(renteRegel)}. Der Break-even liegt dann im Alter von
+    {' '}{alterDativ(alterBeMitPunktenGanz)} statt im Alter von
+    {' '}{alterDativ(alterBeReinerFaktorGanz)}. Die vier Jahre ohne
+    Beiträge ziehen ihn um {alterText(beUnterschiedMonate)} nach vorn.
+  </p>
+
+  <h3>Hängt der Sprung am Einkommen?</h3>
+  <p>
+    Am Zugangsfaktor nicht. Er multipliziert sämtliche Entgeltpunkte, der
+    Sprung beträgt deshalb für jeden dieselben {zahl(sprungPunkte, 1)}
+    {' '}Prozentpunkte – in Euro trifft er die Höherverdienenden entsprechend
+    härter.
+  </p>
+
+  <table>
+    <caption class="visually-hidden">
+      Höhe des Sprungs nach Entgeltpunktestand, Jahrgang {JAHRGANG}
+    </caption>
+    <thead>
+      <tr>
+        <th scope="col">Entgeltpunkte heute</th>
+        <th scope="col" class="num">Rente an der Altersgrenze</th>
+        <th scope="col" class="num">einen Monat früher</th>
+        <th scope="col" class="num">Sprung</th>
+        <th scope="col" class="num">Anteil</th>
+      </tr>
+    </thead>
+    <tbody>
+      {sensitivitaet.map((s) => (
+        <tr>
+          <th scope="row" class="num">{zahl(s.ep, 0)}</th>
+          <td class="num">{eur(s.anGrenze)}</td>
+          <td class="num">{eur(s.einMonatFrueher)}</td>
+          <td class="num">{eur(s.sprung)}</td>
+          <td class="num">{proz(s.anteil, 2)}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+
+  <p>
+    Dass der Anteil in der letzten Spalte trotzdem leicht fällt, liegt nicht am
+    Zugangsfaktor, sondern am zusätzlichen Beitragsmonat, der in der Rente an
+    der Altersgrenze mit drinsteckt: Bei einem kleinen Konto wiegt er relativ
+    mehr. Mit wachsendem Konto nähert sich der Anteil den
+    {' '}{zahl(sprungPunkte, 1)} Prozentpunkten von oben an.
+  </p>
+  <p>
+    Nach oben ist die Kurve gedeckelt. Beiträge werden nur bis zur
+    Beitragsbemessungsgrenze von {eurGlatt(BBG_RENTE_JAHR)} im Jahr erhoben,
+    ein Jahr kann deshalb höchstens {zahl(MAX_ENTGELTPUNKTE_JAHR, 4)}
+    {' '}Entgeltpunkte einbringen – die Grenze geteilt durch das vorläufige
+    Durchschnittsentgelt von {eurGlatt(DURCHSCHNITTSENTGELT_VORLAEUFIG)}
+    {' '}(§ 70 Abs. 1 SGB VI, § 3 Abs. 2 und § 4 Abs. 1 SVBezGrV 2026). Wer mehr
+    verdient, sammelt nicht schneller.
+  </p>
+
+  <h3>Was diese Rechnung nicht abbildet</h3>
+  <p>
+    Alle Beträge stehen in heutigen Werten. Der aktuelle Rentenwert von
+    {' '}{eur(AKTUELLER_RENTENWERT)} je Entgeltpunkt gilt seit dem 1. Juli 2026
+    (§ 1 RWBestV 2026), das vorläufige Durchschnittsentgelt und die
+    Beitragsbemessungsgrenze für {STICHJAHR}. Alle drei steigen künftig etwa im
+    Gleichlauf mit den Löhnen. Wer unterstellt, dass sein eigenes Gehalt
+    mitwächst, liest die Ergebnisse als heutige Kaufkraft – nicht als späteren
+    Zahlbetrag. Was Kaufkraft und Nominalbetrag über Jahrzehnte trennt, steht im
+    Artikel zur
+    {' '}<a href={`${artikelPfadVonSlug('inflation-was-die-rate-verschweigt')}`}>Inflationsrate</a>.
+  </p>
+  <p>
+    Nicht enthalten sind Entgeltpunkte, die nicht aus Arbeitsentgelt stammen:
+    Kindererziehungszeiten nach § 70 Abs. 2 SGB VI mit
+    {' '}{zahl(0.0833, 4)} Entgeltpunkten je Kalendermonat,
+    Berücksichtigungs- und Anrechnungszeiten, Zuschläge aus einem
+    Versorgungsausgleich und der Grundrentenzuschlag des § 76g SGB VI. Alle
+    erhöhen das Konto und damit auch den Sprung, den dieser Artikel beschreibt –
+    an seiner Mechanik ändern sie nichts.
+  </p>
+  <p>
+    Ebenfalls nicht abgebildet sind die vorgezogenen Altersgrenzen für
+    schwerbehinderte Menschen (§ 37, § 236a SGB VI) und die Ausnahmen des
+    § 235 Abs. 2 Satz 2 SGB VI für Altersteilzeit und Anpassungsgeld im
+    Bergbau. Wer darunterfällt, hat andere Bezugspunkte – der Sprung liegt dann
+    an einer anderen Stelle, aber er liegt.
+  </p>
+  <p>
+    Und schließlich fehlt die Einkommensteuer. Renten sind steuerpflichtig, der
+    Besteuerungsanteil richtet sich nach dem Jahr des Rentenbeginns
+    (§ 22 Nr. 1 Satz 3 Buchst. a Doppelbuchst. aa EStG). Wie viel davon
+    tatsächlich anfällt, hängt von allen Einkünften des Haushalts ab und lässt
+    sich aus der Rente allein nicht bestimmen. Für den Vergleich zweier
+    Rentenbeginne ist das weniger schlimm, als es klingt: Beide Seiten werden
+    nach denselben Regeln besteuert. Für die Rentenlücke, die der Rechner oben
+    ausweist, ist es dagegen erheblich – sie fällt real größer aus. Wie die
+    Beiträge der Rentner im Einzelnen zustande kommen, steht im Artikel zur
+    {' '}<a href={`${artikelPfadVonSlug('pflegeversicherung-beitrag-und-luecke')}`}>Pflegeversicherung</a>.
+  </p>
+</RechnerArtikel>
