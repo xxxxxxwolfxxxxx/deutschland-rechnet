@@ -88,47 +88,59 @@ const year = new Date().getFullYear();
   </CalculatorShell>
 
 <script type="module">
-function berechneRate(betrag, zins, laufzeit) {
-  const mZins = zins / 100 / 12;
-  if (mZins === 0) return betrag / laufzeit;
-  return betrag * (mZins * Math.pow(1 + mZins, laufzeit)) / (Math.pow(1 + mZins, laufzeit) - 1);
+const { annuitaetenrate, darlehenskosten, effektivzins, sollzinsAusRate } =
+  await import(window.__base + 'scripts/annuitaet.js');
+const eur = (n) => n.toLocaleString('de-DE', {minimumFractionDigits:2, maximumFractionDigits:2}) + ' \u20ac';
+const pct = (n) => n.toLocaleString('de-DE', {minimumFractionDigits:2, maximumFractionDigits:2}) + ' %';
+
+function angebot(betrag, monate, sollzinsEingabe, rateEingabe) {
+  // Wer eine Rate eintraegt, gibt damit implizit einen Zins vor. Bis September
+  // 2026 blieb der unsichtbar: Der Rechner verglich nur Ratensummen und sagte
+  // nie, welchem Zins die eingetragene Rate entspricht.
+  const rate = rateEingabe > 0
+    ? rateEingabe
+    : annuitaetenrate({ betrag, sollzins: sollzinsEingabe, monate });
+  const sollzins = rateEingabe > 0
+    ? sollzinsAusRate({ betrag, rate, monate })
+    : sollzinsEingabe;
+  const k = darlehenskosten({ betrag, sollzins, monate });
+  return {
+    rate,
+    sollzins,
+    ausRate: rateEingabe > 0,
+    gezahlt: Math.round(rate * monate * 100) / 100,
+    zinsen: Math.round((rate * monate - betrag) * 100) / 100,
+    effektiv: effektivzins({ auszahlung: betrag, rate, monate }),
+  };
 }
-function berechneGesamtkosten(betrag, rate, laufzeit) {
-  return rate * laufzeit;
-}
+
 function berechne() {
-  const kreditbetrag = parseFloat(document.getElementById('kreditbetrag').value)||20000;
-  const laufzeit = parseInt(document.getElementById('laufzeit').value)||36;
-  const zins1 = parseFloat(document.getElementById('zins1').value)||5.9;
-  const zins2 = parseFloat(document.getElementById('zins2').value)||4.9;
-  const rate1Input = parseFloat(document.getElementById('rate1').value)||0;
-  const rate2Input = parseFloat(document.getElementById('rate2').value)||0;
-  
-  const rate1 = rate1Input > 0 ? rate1Input : berechneRate(kreditbetrag, zins1, laufzeit);
-  const rate2 = rate2Input > 0 ? rate2Input : berechneRate(kreditbetrag, zins2, laufzeit);
-  
-  const kosten1 = berechneGesamtkosten(kreditbetrag, rate1, laufzeit);
-  const kosten2 = berechneGesamtkosten(kreditbetrag, rate2, laufzeit);
-  const differenz = Math.abs(kosten1 - kosten2);
-  
-  const detailsEl = document.getElementById('details');
+  const betrag = parseFloat(document.getElementById('kreditbetrag').value)||20000;
+  const monate = parseInt(document.getElementById('laufzeit').value)||36;
+  const a1 = angebot(betrag, monate, parseFloat(document.getElementById('zins1').value)||0, parseFloat(document.getElementById('rate1').value)||0);
+  const a2 = angebot(betrag, monate, parseFloat(document.getElementById('zins2').value)||0, parseFloat(document.getElementById('rate2').value)||0);
+
   const besterEl = document.getElementById('bester');
-  
-  if (kosten1 < kosten2) {
-    besterEl.textContent = 'Angebot 1';
-    besterEl.style.color = '#1e7e34';
-  } else if (kosten2 < kosten1) {
-    besterEl.textContent = 'Angebot 2';
-    besterEl.style.color = '#1e7e34';
-  } else {
+  const differenz = Math.abs(a1.gezahlt - a2.gezahlt);
+  if (Math.abs(a1.gezahlt - a2.gezahlt) < 0.01) {
     besterEl.textContent = 'Gleichwertig';
     besterEl.style.color = '#c9930a';
+  } else {
+    besterEl.textContent = a1.gezahlt < a2.gezahlt ? 'Angebot 1' : 'Angebot 2';
+    besterEl.style.color = '#1e7e34';
   }
-  
-  detailsEl.innerHTML =
-    `<div><strong>Angebot 1:</strong> ${rate1.toFixed(2)} €/Monat, ${kosten1.toFixed(2)} € gesamt</div>` +
-    `<div><strong>Angebot 2:</strong> ${rate2.toFixed(2)} €/Monat, ${kosten2.toFixed(2)} € gesamt</div>` +
-    `<div><strong>Ersparnis:</strong> ${differenz.toFixed(2)} €</div>`;
+
+  const zeile = (nr, a) =>
+    `<div style="flex-basis:100%;"><strong>Angebot ${nr}:</strong> ${eur(a.rate)}/Monat \u00b7 ` +
+    `${eur(a.gezahlt)} gesamt \u00b7 ${eur(a.zinsen)} Zinsen<br>` +
+    `<span style="font-size:0.92em;">Sollzins ${pct(a.sollzins)}` +
+    `${a.ausRate ? ' (aus der eingetragenen Rate errechnet)' : ''} \u00b7 ` +
+    `effektiver Jahreszins ${pct(a.effektiv)}</span></div>`;
+
+  document.getElementById('details').innerHTML =
+    zeile(1, a1) + zeile(2, a2) +
+    `<div style="flex-basis:100%;margin-top:0.4rem;"><strong>Unterschied:</strong> ${eur(differenz)} \u00fcber ${monate} Monate</div>` +
+    `<div style="flex-basis:100%;font-size:0.92em;">Verglichen wird bei gleichem Betrag und gleicher Laufzeit. Bei unterschiedlichen Laufzeiten sagt die Ratensumme nichts \u2013 dann z\u00e4hlt der effektive Jahreszins.</div>`;
 }
 ['kreditbetrag','zins1','zins2','rate1','rate2'].forEach(id =>
   document.getElementById(id).addEventListener('input', berechne));

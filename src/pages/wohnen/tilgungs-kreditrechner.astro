@@ -57,6 +57,10 @@ const year = new Date().getFullYear();
       <div class="detail-grid">
         <div><span>Gesamtkosten:</span> <strong id="gesamt">—</strong></div>
         <div><span>Davon Zinsen:</span> <strong id="zinsen">—</strong></div>
+        <div><span>Effektiver Jahreszins:</span> <strong id="effektiv">—</strong></div>
+        <div><span>Zinsanteil der 1. Rate:</span> <strong id="zinsanteil">—</strong></div>
+        <div><span>Restschuld nach 10 Jahren:</span> <strong id="rest10">—</strong></div>
+        <div><span>Letzte Rate:</span> <strong id="schluss">—</strong></div>
       </div>
     </div>
   </CalculatorShell>
@@ -91,29 +95,32 @@ const year = new Date().getFullYear();
       <p>Die meisten Kreditverträge räumen ein <strong>Sondertilgungsrecht</strong> von 5 % der Darlehenssumme pro Jahr kostenfrei ein. Jede Sondertilgung reduziert die Restschuld unmittelbar und spart überproportional Zinsen, weil sie in der frühen Phase mit hohem Zinsanteil wirkt. Wer von Beginn an schuldenfrei sein möchte, wählt ein <strong>Volltilgerdarlehen</strong>: Hier wird die Tilgung so gewählt, dass das Darlehen exakt am Ende der Zinsbindung vollständig getilgt ist – ganz ohne Anschlussfinanzierung und Zinsänderungsrisiko. Banken belohnen diese Planungssicherheit oft mit einem kleinen Zinsabschlag.</p>
 
       <h4>Sollzins und effektiver Jahreszins</h4>
-      <p>Achten Sie beim Vergleich von Angeboten auf den <strong>effektiven Jahreszins</strong> statt nur auf den Sollzins. Der Effektivzins muss nach § 6 der Preisangabenverordnung (PAngV) ausgewiesen werden und enthält zusätzliche Kosten wie Bereitstellungszinsen oder bestimmte Gebühren – er macht Angebote also erst wirklich vergleichbar. Zu wissen ist außerdem: Nach § 489 BGB dürfen Sie jedes Darlehen zehn Jahre nach Vollauszahlung mit einer Frist von sechs Monaten kündigen, auch wenn eine längere Zinsbindung vereinbart wurde – ein wertvolles Recht, falls die Zinsen bis dahin deutlich gefallen sind.</p>
+      <p>Achten Sie beim Vergleich von Angeboten auf den <strong>effektiven Jahreszins</strong> statt nur auf den Sollzins. Der Effektivzins ist nach Art. 247 § 3 Abs. 1 Nr. 3 EGBGB Pflichtangabe; berechnet wird er nach § 16 der Preisangabenverordnung und der Barwertformel in deren Anlage. Er enthält zusätzliche Kosten wie Bearbeitungsentgelte oder eine verpflichtende Restschuldversicherung – er macht Angebote also erst wirklich vergleichbar. Übrigens liegt er auch ohne jede Nebenkosten über dem Sollzins, weil monatlich gezahlt und damit unterjährig verzinst wird. Zu wissen ist außerdem: Nach § 489 BGB dürfen Sie jedes Darlehen zehn Jahre nach Vollauszahlung mit einer Frist von sechs Monaten kündigen, auch wenn eine längere Zinsbindung vereinbart wurde – ein wertvolles Recht, falls die Zinsen bis dahin deutlich gefallen sind.</p>
     `}
     relatedSlugs={['hauskauf-rechner', 'immobilienkauf-nebenkosten', 'grunderwerbsteuer-rechner']}
   />
 </Layout>
 
-<script>
-function fmt(n) { return n.toLocaleString('de-DE', {minimumFractionDigits:2, maximumFractionDigits:2}) + ' €'; }
+<script type="module">
+const { darlehenskosten, effektivzins } = await import(window.__base + 'scripts/annuitaet.js');
+const fmt = (n) => n.toLocaleString('de-DE', {minimumFractionDigits:2, maximumFractionDigits:2}) + ' \u20ac';
+const fmt0 = (n) => n.toLocaleString('de-DE', {maximumFractionDigits:0}) + ' \u20ac';
 function berechne() {
   const betrag = parseFloat(document.getElementById('betrag').value)||0;
-  const zinssatz = parseFloat(document.getElementById('zins').value)||0;
+  const sollzins = parseFloat(document.getElementById('zins').value)||0;
   const jahre = parseInt(document.getElementById('laufzeit').value)||1;
-  const n = jahre * 12;
-  const r = zinssatz / 100 / 12;
-  let rate;
-  if (r === 0) { rate = betrag / n; }
-  else { rate = betrag * (r * Math.pow(1+r,n)) / (Math.pow(1+r,n) - 1); }
-  rate = Math.round(rate * 100) / 100;
-  const gesamt = Math.round(rate * n * 100) / 100;
-  const zinsen = Math.round((gesamt - betrag) * 100) / 100;
-  document.getElementById('rate').textContent = fmt(rate);
-  document.getElementById('gesamt').textContent = fmt(gesamt);
-  document.getElementById('zinsen').textContent = fmt(zinsen);
+  const monate = jahre * 12;
+  const k = darlehenskosten({ betrag, sollzins, monate });
+  document.getElementById('rate').textContent = fmt(k.rate);
+  document.getElementById('gesamt').textContent = fmt(k.gezahlt);
+  document.getElementById('zinsen').textContent = fmt(k.zinsen);
+  document.getElementById('effektiv').textContent =
+    effektivzins({ auszahlung: betrag, rate: k.rate, monate }).toLocaleString('de-DE', {minimumFractionDigits:2, maximumFractionDigits:2}) + ' %';
+  document.getElementById('zinsanteil').textContent = fmt(k.zinsanteilErsteRate);
+  const nach10 = k.plan[Math.min(119, k.plan.length - 1)];
+  document.getElementById('rest10').textContent =
+    monate > 120 ? fmt0(nach10.restschuld) : 'getilgt';
+  document.getElementById('schluss').textContent = fmt(k.schlussrate);
 }
 ['betrag','zins','laufzeit'].forEach(id => document.getElementById(id).addEventListener('input', berechne));
 berechne();
