@@ -1,0 +1,770 @@
+---
+import RechnerArtikel from '../RechnerArtikel.astro';
+import { artikelPfadVonSlug } from '../../data/ratgeber';
+import {
+  annuitaetenrate,
+  darlehenskosten,
+  effektivzins,
+} from '../../../public/scripts/annuitaet.js';
+
+// Alle Zahlen dieses Artikels entstehen zur Buildzeit aus demselben Modul, das
+// der Rechner oben auf dieser Seite im Browser laedt. Text und Rechner koennen
+// deshalb nicht auseinanderlaufen.
+
+const base = import.meta.env.BASE_URL;
+
+const eur = (n: number, d = 2) =>
+  n.toLocaleString('de-DE', { minimumFractionDigits: d, maximumFractionDigits: d }) + ' €';
+const eurGlatt = (n: number) => n.toLocaleString('de-DE', { maximumFractionDigits: 0 }) + ' €';
+/** Prozentangaben mit zwei Stellen – so schreibt es Anmerkung d der Anlage zu § 16 PAngV vor. */
+const proz = (n: number, d = 2) =>
+  n.toLocaleString('de-DE', { minimumFractionDigits: d, maximumFractionDigits: d }) + ' %';
+const pp = (n: number, d = 2) =>
+  n.toLocaleString('de-DE', { minimumFractionDigits: d, maximumFractionDigits: d });
+const mon = (n: number) => `${n} Monate`;
+
+// --- Das durchgehende Beispiel ---------------------------------------------
+// Betrag und Sollzins sind die Voreinstellung des Rechners auf dieser Seite,
+// damit sich jede Zahl unten nachstellen laesst. Sie sind Setzung, nicht
+// Ergebnis einer Rechnung.
+const BETRAG = 20000;
+const SOLLZINS = 5.9;
+const LAUFZEITEN = [12, 24, 36, 48, 60, 72, 84];
+
+/** Ein Angebot, so wie der Rechner es auswertet. */
+function angebot(monate: number, sollzins: number, einmalkosten = 0) {
+  // Einmalkosten werden mitfinanziert: Der Kunde bekommt BETRAG ausgezahlt und
+  // zahlt die Raten fuer BETRAG + Einmalkosten zurueck. Die Grundgleichung der
+  // Anlage zu § 16 PAngV behandelt eine Kostenzahlung im Zeitpunkt null und
+  // einen um denselben Betrag kleineren Auszahlungsbetrag identisch.
+  const k = darlehenskosten({ betrag: BETRAG + einmalkosten, sollzins, monate });
+  return {
+    monate,
+    sollzins,
+    einmalkosten,
+    rate: k.rate,
+    gezahlt: k.gezahlt,
+    kosten: k.gezahlt - BETRAG,
+    effektiv: effektivzins({ auszahlung: BETRAG, rate: k.rate, monate }),
+    plan: k.plan,
+  };
+}
+
+// --- 1. Der Abstand ohne jede Nebenkosten -----------------------------------
+// Behauptung: Ohne Kosten ist der Effektivzins genau der aufgezinste Sollzins –
+// unabhaengig von Laufzeit und Betrag. Hier gerechnet statt behauptet.
+const aufgezinst = (s: number) => (Math.pow(1 + s / 1200, 12) - 1) * 100;
+
+const laufzeitprobe = LAUFZEITEN.map((m) => angebot(m, SOLLZINS));
+const effSpanne =
+  Math.max(...laufzeitprobe.map((a) => a.effektiv)) -
+  Math.min(...laufzeitprobe.map((a) => a.effektiv));
+if (effSpanne > 0.005) {
+  throw new Error(
+    `Kreditvergleich-Artikel: Effektivzins ohne Kosten haengt doch von der Laufzeit ab (${effSpanne} pp).`,
+  );
+}
+// Auch vom Betrag nicht.
+const betragsprobe = [2000, 20000, 200000].map((b) =>
+  effektivzins({
+    auszahlung: b,
+    rate: annuitaetenrate({ betrag: b, sollzins: SOLLZINS, monate: 36 }),
+    monate: 36,
+  }),
+);
+if (Math.max(...betragsprobe) - Math.min(...betragsprobe) > 0.005) {
+  throw new Error('Kreditvergleich-Artikel: Effektivzins ohne Kosten haengt doch vom Betrag ab.');
+}
+
+const SOLLZINS_REIHE = [0, 2, 4, 5.9, 8, 12, 16, 20];
+const abstandsreihe = SOLLZINS_REIHE.map((s) => {
+  const a = angebot(36, s);
+  return { sollzins: s, rate: a.rate, effektiv: a.effektiv, abstand: a.effektiv - s };
+});
+const beiBasis = abstandsreihe.find((z) => z.sollzins === SOLLZINS)!;
+const beiZwanzig = abstandsreihe[abstandsreihe.length - 1];
+const beiVier = abstandsreihe.find((z) => z.sollzins === 4)!;
+// Der Abstand waechst quadratisch: doppelter Sollzins, rund vierfacher Abstand.
+const abstandsverhaeltnis = beiZwanzig.abstand / beiVier.abstand;
+// Formelprobe, damit der Satz "genau der aufgezinste Sollzins" belegt ist.
+const formelAbweichung = Math.max(
+  ...abstandsreihe.map((z) => Math.abs(z.effektiv - aufgezinst(z.sollzins))),
+);
+if (formelAbweichung > 0.01) {
+  throw new Error(
+    `Kreditvergleich-Artikel: Effektivzins weicht von der Aufzinsungsformel ab (${formelAbweichung} pp).`,
+  );
+}
+
+// --- 2. Was die Ratensumme anrichtet ---------------------------------------
+// Der Rechner oben hat EIN Laufzeitfeld fuer beide Angebote. Das ist Absicht:
+// Sobald die Laufzeiten auseinandergehen, rankt die Ratensumme nicht mehr den
+// Preis, sondern die Laufzeit.
+const LANG = 84;
+const LANG_ZINS = 4.9;
+const langesAngebot = angebot(LANG, LANG_ZINS);
+const KURZ = 12;
+const ratensumme = (monate: number, sollzins: number) =>
+  annuitaetenrate({ betrag: BETRAG, sollzins, monate }) * monate;
+
+/** Der Sollzins, bei dem der Kurzkredit dieselbe Ratensumme erreicht. */
+function gleicheRatensumme(monate: number, ziel: number): number {
+  let lo = 0;
+  let hi = 500;
+  for (let k = 0; k < 200; k += 1) {
+    const mitte = (lo + hi) / 2;
+    if (ratensumme(monate, mitte) < ziel) lo = mitte;
+    else hi = mitte;
+  }
+  return (lo + hi) / 2;
+}
+const kippZins = gleicheRatensumme(KURZ, ratensumme(LANG, LANG_ZINS));
+const kurzesAngebot = angebot(KURZ, kippZins);
+const summenAbweichung = Math.abs(kurzesAngebot.gezahlt - langesAngebot.gezahlt);
+if (summenAbweichung > 1) {
+  throw new Error(
+    `Kreditvergleich-Artikel: Die beiden Ratensummen treffen sich nicht (${summenAbweichung} €).`,
+  );
+}
+const zinsverhaeltnis = kurzesAngebot.effektiv / langesAngebot.effektiv;
+// Der Kippzins steht im Text auf zwei Stellen. Weil annuitaetenrate() auf Cent
+// rundet, ist die Ratensumme eine Treppenfunktion – der gerundete Wert trifft
+// die Schwelle deshalb nicht auf den Cent genau. Um wie viel, wird gerechnet
+// und nicht verschwiegen.
+const kippZinsGerundet = Math.round(kippZins * 100) / 100;
+const kippAbweichung = Math.abs(
+  ratensumme(KURZ, kippZinsGerundet) - ratensumme(LANG, LANG_ZINS),
+);
+
+// --- 3. Einmalkosten kippen die Rangfolge -----------------------------------
+// Eine zwingende Restschuldversicherung als einmalige Praemie. Die Hoehe ist
+// Modellannahme dieses Artikels, keine Marktbeobachtung – deshalb steht sie
+// unten in einer Sensitivitaetstabelle und nicht als Tatsache im Text.
+const PRAEMIE_ANTEIL = 0.08;
+const PRAEMIE = BETRAG * PRAEMIE_ANTEIL;
+
+const praemienreihe = LAUFZEITEN.map((m) => {
+  const ohne = angebot(m, SOLLZINS);
+  const mit = angebot(m, SOLLZINS, PRAEMIE);
+  return {
+    monate: m,
+    rateOhne: ohne.rate,
+    rateMit: mit.rate,
+    effOhne: ohne.effektiv,
+    effMit: mit.effektiv,
+    aufschlag: mit.effektiv - ohne.effektiv,
+    gezahltMit: mit.gezahlt,
+    kostenMit: mit.kosten,
+  };
+});
+// Behauptung: Mit Einmalkosten faellt der Effektivzins streng mit der Laufzeit,
+// waehrend die Kosten streng steigen. Gezaehlt, nicht geschaetzt.
+for (let i = 1; i < praemienreihe.length; i += 1) {
+  if (praemienreihe[i].effMit >= praemienreihe[i - 1].effMit) {
+    throw new Error('Kreditvergleich-Artikel: Effektivzins faellt nicht monoton mit der Laufzeit.');
+  }
+  if (praemienreihe[i].kostenMit <= praemienreihe[i - 1].kostenMit) {
+    throw new Error('Kreditvergleich-Artikel: Kosten steigen nicht monoton mit der Laufzeit.');
+  }
+}
+const kurzMitRsv = praemienreihe.find((z) => z.monate === 36)!;
+const langMitRsv = praemienreihe.find((z) => z.monate === 84)!;
+const zinsvorsprung = kurzMitRsv.effMit - langMitRsv.effMit;
+const kostennachteil = langMitRsv.kostenMit - kurzMitRsv.kostenMit;
+
+// --- 4. Gleicher Effektivzins, ungleiche Laufzeit ---------------------------
+// Der Kern in Reinform: Derselbe effektive Jahreszins, zwei Laufzeiten.
+const ZIEL_EFF = kurzMitRsv.effMit;
+const zielSollzins = 12 * (Math.pow(1 + ZIEL_EFF / 100, 1 / 12) - 1) * 100;
+const gleichteuer = [24, 36, 60, 84].map((m) => {
+  const a = angebot(m, zielSollzins);
+  return { monate: m, rate: a.rate, effektiv: a.effektiv, kosten: a.kosten };
+});
+const effTreffer = Math.max(...gleichteuer.map((z) => Math.abs(z.effektiv - ZIEL_EFF)));
+if (effTreffer > 0.01) {
+  throw new Error(
+    `Kreditvergleich-Artikel: Die Reihe hat nicht durchgehend denselben Effektivzins (${effTreffer} pp).`,
+  );
+}
+const gleichKurz = gleichteuer.find((z) => z.monate === 36)!;
+const gleichLang = gleichteuer.find((z) => z.monate === 84)!;
+// Die 36-Monats-Zeile hat dieselbe Rate wie das Angebot mit Versicherung oben.
+// Dass die Zinssumme trotzdem minimal abweicht, liegt allein an der Schlussrate.
+const zeilenDelta = Math.abs(gleichKurz.kosten - kurzMitRsv.kostenMit);
+const rateDelta = Math.abs(gleichKurz.rate - kurzMitRsv.rateMit);
+if (rateDelta > 0.005) {
+  throw new Error(
+    `Kreditvergleich-Artikel: Die Vergleichszeile hat nicht dieselbe Rate (${rateDelta} €).`,
+  );
+}
+
+// --- 5. Sensitivitaet: Praemie gegen Laufzeit -------------------------------
+const PRAEMIEN_ANTEILE = [0, 0.02, 0.04, 0.08, 0.12];
+const SENS_LAUFZEITEN = [12, 36, 60, 84];
+const sensitivitaet = PRAEMIEN_ANTEILE.map((anteil) => ({
+  anteil,
+  praemie: BETRAG * anteil,
+  zellen: SENS_LAUFZEITEN.map((m) => {
+    const a = angebot(m, SOLLZINS, BETRAG * anteil);
+    return { monate: m, effektiv: a.effektiv, kosten: a.kosten };
+  }),
+}));
+
+// --- 6. Der Gegeneinwand: vorzeitig ablösen ---------------------------------
+// § 500 Abs. 2 Satz 1 BGB laesst die jederzeitige vorzeitige Rueckzahlung zu,
+// § 502 Abs. 3 BGB deckelt die Entschaedigung. Also: Ist die lange Laufzeit
+// ueberhaupt eine Bindung? Durchgerechnet statt behauptet.
+const ABLOESE_MONAT = 36;
+const VFE_SATZ = 0.01;
+const langOhneRsv = angebot(LANG, SOLLZINS);
+const standNachAbloese = langOhneRsv.plan[ABLOESE_MONAT - 1];
+const bisAbloese = langOhneRsv.plan
+  .slice(0, ABLOESE_MONAT)
+  .reduce((s: number, z: { rate: number }) => s + z.rate, 0);
+const restschuld = standNachAbloese.restschuld;
+const vfe = Math.round(restschuld * VFE_SATZ * 100) / 100;
+// Zweiter Deckel des § 502 Abs. 3 BGB: die Sollzinsen der Restlaufzeit.
+const restzinsen = langOhneRsv.plan
+  .slice(ABLOESE_MONAT)
+  .reduce((s: number, z: { zins: number }) => s + z.zins, 0);
+const vfeGedeckelt = Math.min(vfe, restzinsen);
+const abloeseAufwand = Math.round((bisAbloese + restschuld + vfeGedeckelt) * 100) / 100;
+const abloeseKosten = abloeseAufwand - BETRAG;
+const echterKurzkredit = angebot(ABLOESE_MONAT, SOLLZINS);
+const restLuecke = abloeseKosten - echterKurzkredit.kosten;
+if (restLuecke <= 0) {
+  throw new Error('Kreditvergleich-Artikel: Die Abloesung schliesst die Luecke doch ganz.');
+}
+
+// --- Schlussraten-Hinweis ---------------------------------------------------
+// Der Rechner auf dieser Seite bildet die Gesamtsumme als Rate × Laufzeit,
+// darlehenskosten() summiert den Tilgungsplan mit der angepassten Schlussrate.
+const schlussrateDelta = Math.max(
+  ...LAUFZEITEN.map((m) => {
+    const a = angebot(m, SOLLZINS);
+    return Math.abs(a.gezahlt - a.rate * m);
+  }),
+);
+
+const quellen = [
+  {
+    titel: '§ 16 PAngV – Verbraucherdarlehen (effektiver Jahreszins)',
+    url: 'https://www.gesetze-im-internet.de/pangv_2022/__16.html',
+  },
+  {
+    titel: 'Anlage zu § 16 PAngV – Berechnung des effektiven Jahreszinses',
+    url: 'https://www.gesetze-im-internet.de/pangv_2022/anlage.html',
+  },
+  {
+    titel: 'Art. 247 § 3 EGBGB – Inhalt der vorvertraglichen Information',
+    url: 'https://www.gesetze-im-internet.de/bgbeg/art_247__3.html',
+  },
+  {
+    titel: 'Art. 247 § 6 EGBGB – Vertragsinhalt',
+    url: 'https://www.gesetze-im-internet.de/bgbeg/art_247__6.html',
+  },
+  {
+    titel: '§ 500 BGB – Kündigungsrecht des Darlehensnehmers; vorzeitige Rückzahlung',
+    url: 'https://www.gesetze-im-internet.de/bgb/__500.html',
+  },
+  {
+    titel: '§ 502 BGB – Vorfälligkeitsentschädigung',
+    url: 'https://www.gesetze-im-internet.de/bgb/__502.html',
+  },
+  {
+    titel: '§ 491 BGB – Verbraucherdarlehensvertrag',
+    url: 'https://www.gesetze-im-internet.de/bgb/__491.html',
+  },
+  {
+    titel: '§ 495 BGB – Widerrufsrecht; Bedenkzeit',
+    url: 'https://www.gesetze-im-internet.de/bgb/__495.html',
+  },
+];
+---
+<RechnerArtikel
+  titel="Der niedrigere effektive Jahreszins kann der teurere Kredit sein"
+  datum="2026-09-13"
+  lead={`Zwei Angebote über ${eurGlatt(BETRAG)} zu ${proz(SOLLZINS, 1)} Sollzins, beide mit derselben zwingenden Restschuldversicherung über ${eurGlatt(PRAEMIE)}. Über ${mon(kurzMitRsv.monate)} beträgt der effektive Jahreszins ${proz(kurzMitRsv.effMit)}, über ${mon(langMitRsv.monate)} nur ${proz(langMitRsv.effMit)} – ${pp(zinsvorsprung)} Prozentpunkte weniger. Das billiger aussehende Angebot kostet ${eur(kostennachteil)} mehr. Umgekehrt hält die Ratensumme, mit der dieser Rechner bis September 2026 verglich, einen Zwölfmonatskredit zu ${proz(kippZins, 2)} für genauso teuer wie einen über ${mon(LANG)} zu ${proz(LANG_ZINS, 1)}.`}
+  quellen={quellen}
+>
+  <h3>Zwei Pflichtangaben, die Verschiedenes messen</h3>
+  <p>
+    In jedem Kreditangebot stehen zwei Zahlen, die für einen Vergleich gedacht
+    sind: der effektive Jahreszins und der Gesamtbetrag. Beide sind
+    Pflichtangaben. Art. 247 § 3 Abs. 1 EGBGB zählt auf, was die Bank vor
+    Vertragsschluss mitteilen muss – Nummer 3 ist der effektive Jahreszins,
+    Nummer 8 der Gesamtbetrag. Art. 247 § 6 Abs. 1 Nr. 1 EGBGB zieht dieselben
+    Angaben in den Vertrag selbst.
+  </p>
+  <p>
+    Die beiden Zahlen messen Verschiedenes, und das ist der ganze Punkt dieses
+    Artikels. Der Gesamtbetrag ist nach Art. 247 § 3 Abs. 2 Satz 1 EGBGB die
+    Summe aus Nettodarlehensbetrag und Gesamtkosten – eine Geldsumme. Der
+    effektive Jahreszins ist nach § 16 Abs. 1 PAngV derselbe Kostenblock,
+    „ausgedrückt als jährlicher Prozentsatz des Nettodarlehensbetrags“ – ein
+    Preis pro Jahr. Wer zwei Angebote mit unterschiedlicher Laufzeit
+    nebeneinanderlegt, bekommt von diesen beiden Zahlen verlässlich
+    gegensätzliche Antworten.
+  </p>
+  <p>
+    Der Rechner am Anfang dieser Seite hat deshalb <strong>ein</strong>
+    Laufzeitfeld für beide Angebote. Solange Betrag und Laufzeit gleich sind,
+    sagen Rate, Ratensumme und effektiver Jahreszins dasselbe – sie sind dann
+    alle streng monoton im Sollzins. Erst wenn die Laufzeiten auseinandergehen,
+    beginnt der Ärger. Unten steht, wie groß er wird.
+  </p>
+
+  <h3>Warum es den effektiven Jahreszins gibt</h3>
+  <p>
+    Art. 247 § 3 Abs. 2 Satz 3 EGBGB verweist für die Berechnung auf § 16 der
+    Preisangabenverordnung. Diese Verordnung ist zum 28. Mai 2022 neu gefasst
+    worden; der effektive Jahreszins steht seitdem in § 16, nicht mehr in § 6.
+    Die Vorschrift gilt für Verbraucherdarlehen im Sinne des § 491 BGB – der
+    Ratenkredit ist der Regelfall.
+    § 16 Abs. 2 Satz 1 PAngV schreibt die Barwertformel der Anlage vor: Gesucht
+    ist der Zinssatz, bei dem die abgezinste Summe aller Rückzahlungen genau dem
+    entspricht, was ausgezahlt wurde.
+  </p>
+  <p>
+    Was in diese Summe hineingehört, sagt § 16 Abs. 3 Satz 1 PAngV: die Zinsen
+    und alle sonstigen Kosten, „die der Verbraucher im Zusammenhang mit dem
+    Verbraucherdarlehensvertrag zu entrichten hat und die dem Darlehensgeber
+    bekannt sind“. Satz 2 nennt drei ausdrücklich – Vermittlungskosten,
+    Kontoführungskosten für ein für das Darlehen vorausgesetztes Konto und
+    Kosten einer erforderlichen Immobilienbewertung.
+  </p>
+  <p>
+    Und § 16 Abs. 4 PAngV zählt auf, was draußen bleibt. Nummer 2 ist die
+    entscheidende Zeile: Kosten für Versicherungen und andere Zusatzleistungen
+    bleiben unberücksichtigt, wenn sie „keine Voraussetzung für die
+    Verbraucherdarlehensvergabe überhaupt oder zu den vorgesehenen
+    Vertragsbedingungen sind“. Eine Restschuldversicherung wirkt also nur dann
+    auf den effektiven Jahreszins, wenn sie zwingend ist. Ist sie formal
+    freiwillig, steht ihre Prämie in der Rate, aber nicht im Prozentsatz. Für
+    den Fall, dass eine zwingende Nebenleistung sich der Höhe nach nicht im
+    Voraus beziffern lässt, verlangt § 16 Abs. 7 PAngV immerhin einen „klaren,
+    eindeutigen und auffallenden“ Hinweis samt Nennung des effektiven
+    Jahreszinses.
+  </p>
+  <p class="ra-hinweis">
+    Anmerkung c der Anlage zu § 16 PAngV legt für die Abzinsung zwölf
+    Standardmonate von je 365/12 = 30,41666 Tagen zugrunde – deshalb rechnet das
+    Modul hinter diesem Rechner mit exakten Zwölftelsjahren. Anmerkung d
+    schreibt zwei Dezimalstellen vor und das Aufrunden ab der dritten Stelle;
+    alle Prozentangaben dieses Artikels stehen mit zwei Stellen.
+  </p>
+
+  <h3>Ohne einen Cent Nebenkosten klaffen die beiden Zinssätze auseinander</h3>
+  <p>
+    Der Abstand zwischen Sollzins und effektivem Jahreszins wird meist mit
+    Gebühren erklärt. Das ist nicht der Grund – oder jedenfalls nicht der erste.
+    Schon ganz ohne Nebenkosten liegen die beiden Zahlen auseinander, weil
+    monatlich gezahlt wird: Jede Rate senkt die Restschuld sofort, der Sollzins
+    aber ist ein Jahressatz, der monatlich mit einem Zwölftel angesetzt wird.
+    Aufgezinst ergibt das mehr als den Nennwert.
+  </p>
+  <table>
+    <caption class="visually-hidden">
+      Sollzins, Monatsrate und effektiver Jahreszins bei {eurGlatt(BETRAG)} über
+      36 Monate ohne Nebenkosten
+    </caption>
+    <thead>
+      <tr>
+        <th scope="col">Sollzins</th>
+        <th scope="col">Rate</th>
+        <th scope="col">Effektiver Jahreszins</th>
+        <th scope="col">Abstand</th>
+      </tr>
+    </thead>
+    <tbody>
+      {abstandsreihe.map((z) => (
+        <tr>
+          <th scope="row">{proz(z.sollzins, 2)}</th>
+          <td class="num">{eur(z.rate)}</td>
+          <td class="num">{proz(z.effektiv)}</td>
+          <td class="num">{pp(z.abstand)} pp</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+  <p>
+    Bei den {proz(SOLLZINS, 1)} Sollzins, mit denen der Rechner startet, sind es
+    {' '}{pp(beiBasis.abstand)} Prozentpunkte. Der Abstand wächst nicht
+    proportional, sondern ungefähr im Quadrat: Verfünffacht man den Sollzins von
+    {' '}{proz(beiVier.sollzins, 2)} auf {proz(beiZwanzig.sollzins, 2)}, wird der
+    Abstand rund {pp(abstandsverhaeltnis, 0)}-mal so groß – und fünf im Quadrat
+    ist fünfundzwanzig.
+  </p>
+  <p>
+    Zwei Dinge tut dieser Abstand ausdrücklich <em>nicht</em>. Er hängt nicht von
+    der Laufzeit ab: Über {mon(12)} wie über {mon(84)} ergeben
+    {' '}{proz(SOLLZINS, 1)} Sollzins denselben effektiven Jahreszins von
+    {' '}{proz(beiBasis.effektiv)}. Und er hängt nicht vom Betrag ab –
+    {' '}{eurGlatt(2000)} und {eurGlatt(200000)} liefern denselben Wert. Ohne
+    Nebenkosten ist der effektive Jahreszins nichts als der aufgezinste Sollzins,
+    und der Build dieser Seite bricht ab, wenn das einmal nicht mehr stimmt.
+  </p>
+
+  <h3>Die Ratensumme rankt nicht den Preis, sondern die Laufzeit</h3>
+  <p>
+    Bis September 2026 verglich dieser Rechner zwei Angebote über die Summe
+    Rate × Laufzeit. Das ist die Zahl, die auch im Kopf am nächsten liegt: Was
+    zahle ich am Ende zurück? Sie funktioniert, solange beide Angebote gleich
+    lang laufen. Sonst misst sie vor allem, wie lange das Geld geliehen bleibt.
+  </p>
+  <p>
+    Ein Beispiel mit derselben Kreditsumme von {eurGlatt(BETRAG)}. Angebot A
+    läuft {mon(LANG)} zu {proz(LANG_ZINS, 1)} Sollzins – ein Zins, den man
+    ordentlich nennen würde. Angebot B läuft {mon(KURZ)}. Bei welchem Sollzins
+    ist B nach der Ratensumme nicht mehr das bessere Angebot? Fein gesucht, nicht
+    aus einer Tabelle geschätzt: erst bei
+    {' '}<strong>{proz(kippZins, 2)}</strong>.
+  </p>
+  <table>
+    <caption class="visually-hidden">
+      Zwei Angebote mit gleicher Ratensumme und sehr verschiedenem Preis
+    </caption>
+    <thead>
+      <tr>
+        <th scope="col">Angebot</th>
+        <th scope="col">Laufzeit</th>
+        <th scope="col">Sollzins</th>
+        <th scope="col">Rate</th>
+        <th scope="col">Zurückgezahlt</th>
+        <th scope="col">Effektiver Jahreszins</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <th scope="row">A</th>
+        <td class="num">{mon(langesAngebot.monate)}</td>
+        <td class="num">{proz(LANG_ZINS, 2)}</td>
+        <td class="num">{eur(langesAngebot.rate)}</td>
+        <td class="num">{eur(langesAngebot.gezahlt)}</td>
+        <td class="num">{proz(langesAngebot.effektiv)}</td>
+      </tr>
+      <tr>
+        <th scope="row">B</th>
+        <td class="num">{mon(kurzesAngebot.monate)}</td>
+        <td class="num">{proz(kippZins, 2)}</td>
+        <td class="num">{eur(kurzesAngebot.rate)}</td>
+        <td class="num">{eur(kurzesAngebot.gezahlt)}</td>
+        <td class="num">{proz(kurzesAngebot.effektiv)}</td>
+      </tr>
+    </tbody>
+  </table>
+  <p>
+    Die beiden Ratensummen liegen {eur(summenAbweichung)} auseinander – nach
+    dieser Zahl sind die Angebote gleichwertig. Nach dem Maßstab, den § 16 PAngV
+    dafür vorsieht, ist B rund {pp(zinsverhaeltnis, 1)}-mal so teuer wie A:
+    {' '}{proz(kurzesAngebot.effektiv)} gegen {proz(langesAngebot.effektiv)} pro Jahr.
+    Dass beide gleich viel Geld kosten, ist richtig; dass sie gleich teuer sind,
+    ist falsch. B leiht das Geld ein Siebtel so lange.
+  </p>
+  <p>
+    Die Verzerrung ist keine Ausnahme, sondern der Normalfall. Bei gleichem
+    Sollzins steigt die Ratensumme mit jedem zusätzlichen Monat, weil länger
+    Zinsen laufen. Eine Rangfolge nach Ratensumme belohnt deshalb systematisch
+    die kürzere Laufzeit – bis zu einem Sollzins von {proz(kippZins, 2)}, wenn
+    der Vergleichskredit über {mon(LANG)} läuft.
+  </p>
+  <p class="ra-hinweis">
+    Die Spalte „Zurückgezahlt“ summiert den Tilgungsplan, also mit der
+    angepassten Schlussrate. Der Rechner oben bildet dieselbe Zahl als
+    Rate × Laufzeit; beide Wege liegen in diesen Beispielen höchstens
+    {' '}{eur(schlussrateDelta)} auseinander. Auch der Kippzins ist auf zwei
+    Stellen gerundet: Wer {proz(kippZins, 2)} in den Rechner tippt, landet
+    {' '}{eur(kippAbweichung)} neben der Schwelle, weil die Rate auf Cent gerundet
+    wird und die Ratensumme deshalb in Stufen springt.
+  </p>
+
+  <h3>Und der effektive Jahreszins rankt sie in die andere Richtung</h3>
+  <p>
+    Man könnte daraus schließen, dass der effektive Jahreszins der bessere
+    Maßstab ist. Er ist der vorgeschriebene – aber er hat den spiegelbildlichen
+    Fehler, sobald Einmalkosten im Spiel sind. Eine Bearbeitungsgebühr, eine
+    Vermittlungsprovision nach § 16 Abs. 3 Satz 2 Nr. 1 PAngV oder eine zwingende
+    Restschuldversicherung fällt einmal an. Über eine lange Laufzeit verteilt
+    sich derselbe Betrag auf mehr Jahre – und ein Prozentsatz pro Jahr wird
+    kleiner.
+  </p>
+  <p>
+    Unterstellt ist dafür eine einmalige Prämie von {eurGlatt(PRAEMIE)}, also
+    {' '}{proz(PRAEMIE_ANTEIL * 100, 0)} der Kreditsumme, die mitfinanziert wird:
+    Ausgezahlt werden {eurGlatt(BETRAG)}, zurückgezahlt wird der Plan für
+    {' '}{eurGlatt(BETRAG + PRAEMIE)}. Die Höhe der Prämie ist eine Annahme dieses
+    Artikels und keine Marktbeobachtung – wie empfindlich das Ergebnis darauf
+    reagiert, steht weiter unten.
+  </p>
+  <table>
+    <caption class="visually-hidden">
+      Wirkung einer einmaligen Prämie von {eurGlatt(PRAEMIE)} auf den effektiven
+      Jahreszins, nach Laufzeit
+    </caption>
+    <thead>
+      <tr>
+        <th scope="col">Laufzeit</th>
+        <th scope="col">Rate ohne</th>
+        <th scope="col">Rate mit</th>
+        <th scope="col">Effektiv ohne</th>
+        <th scope="col">Effektiv mit</th>
+        <th scope="col">Aufschlag</th>
+        <th scope="col">Kosten gesamt</th>
+      </tr>
+    </thead>
+    <tbody>
+      {praemienreihe.map((z) => (
+        <tr>
+          <th scope="row">{mon(z.monate)}</th>
+          <td class="num">{eur(z.rateOhne)}</td>
+          <td class="num">{eur(z.rateMit)}</td>
+          <td class="num">{proz(z.effOhne)}</td>
+          <td class="num">{proz(z.effMit)}</td>
+          <td class="num">{pp(z.aufschlag)} pp</td>
+          <td class="num">{eur(z.kostenMit)}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+  <p>
+    Die vorletzte Spalte fällt von {pp(praemienreihe[0].aufschlag)} auf
+    {' '}{pp(praemienreihe[praemienreihe.length - 1].aufschlag)} Prozentpunkte,
+    die letzte steigt von {eur(praemienreihe[0].kostenMit)} auf
+    {' '}{eur(praemienreihe[praemienreihe.length - 1].kostenMit)}. Beide Spalten
+    laufen über jede Zeile hinweg streng in ihre Richtung; der Build prüft das.
+  </p>
+  <p>
+    Damit steht die Umkehrung da. Dieselbe Bank, dieselbe Kreditsumme, derselbe
+    Sollzins, dieselbe Versicherung – nur zwei Laufzeiten:
+  </p>
+  <ul>
+    <li>
+      <strong>{mon(kurzMitRsv.monate)}:</strong> Rate {eur(kurzMitRsv.rateMit)},
+      effektiver Jahreszins <strong>{proz(kurzMitRsv.effMit)}</strong>,
+      zurückgezahlt {eur(kurzMitRsv.gezahltMit)}.
+    </li>
+    <li>
+      <strong>{mon(langMitRsv.monate)}:</strong> Rate {eur(langMitRsv.rateMit)},
+      effektiver Jahreszins <strong>{proz(langMitRsv.effMit)}</strong>,
+      zurückgezahlt {eur(langMitRsv.gezahltMit)}.
+    </li>
+  </ul>
+  <p>
+    Das Angebot mit dem um {pp(zinsvorsprung)} Prozentpunkte niedrigeren
+    effektiven Jahreszins kostet {eur(kostennachteil)} mehr. Wer zwei Angebote
+    allein nach dem Prozentsatz sortiert, sortiert hier falsch herum.
+  </p>
+  <p>
+    Es ist kein Rechenfehler des Gesetzgebers. {proz(langMitRsv.effMit)} ist der
+    richtige Preis für dieses Darlehen – pro Jahr. Wer sieben Jahre lang Geld
+    leiht, zahlt eben mehr als jemand, der es drei Jahre leiht, auch wenn der
+    Jahrespreis niedriger ist. Der Fehler entsteht erst beim Sortieren: Ein
+    Jahrespreis rankt Kosten nur dann, wenn Betrag <em>und</em> Laufzeit
+    übereinstimmen.
+  </p>
+
+  <h3>Gleicher effektiver Jahreszins, mehr als doppelte Zinsen</h3>
+  <p>
+    Der reine Fall braucht überhaupt keine Nebenkosten. Vier Kredite über
+    {' '}{eurGlatt(BETRAG)} mit exakt demselben effektiven Jahreszins von
+    {' '}{proz(ZIEL_EFF)} – also demselben Preis nach der Formel des § 16 PAngV:
+  </p>
+  <table>
+    <caption class="visually-hidden">
+      Vier Kredite mit identischem effektivem Jahreszins und verschiedener
+      Laufzeit
+    </caption>
+    <thead>
+      <tr>
+        <th scope="col">Laufzeit</th>
+        <th scope="col">Rate</th>
+        <th scope="col">Effektiver Jahreszins</th>
+        <th scope="col">Zinsen gesamt</th>
+      </tr>
+    </thead>
+    <tbody>
+      {gleichteuer.map((z) => (
+        <tr>
+          <th scope="row">{mon(z.monate)}</th>
+          <td class="num">{eur(z.rate)}</td>
+          <td class="num">{proz(z.effektiv)}</td>
+          <td class="num">{eur(z.kosten)}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+  <p>
+    Von {gleichKurz.monate} auf {mon(gleichLang.monate)} steigen die Zinsen
+    von {eur(gleichKurz.kosten)} auf {eur(gleichLang.kosten)} – bei identischem
+    Prozentsatz. Die verbreitete Kurzfassung „zwei Kredite mit demselben
+    effektiven Jahreszins sind gleich teuer“ gilt also nur bei gleicher Laufzeit
+    und gleichem Betrag. Genau dafür steht der Gesamtbetrag als zweite
+    Pflichtangabe in Art. 247 § 3 Abs. 1 Nr. 8 EGBGB daneben.
+  </p>
+  <p class="ra-hinweis">
+    Die Zeile über {mon(gleichKurz.monate)} beschreibt zahlenmäßig dasselbe
+    Darlehen wie das Angebot mit Versicherung im Abschnitt davor: gleiche Rate
+    von {eur(gleichKurz.rate)}, gleicher effektiver Jahreszins. Einmal entsteht
+    der Preis aus {proz(SOLLZINS, 1)} Sollzins plus {eurGlatt(PRAEMIE)}
+    Einmalkosten, einmal aus {proz(zielSollzins, 2)} Sollzins ohne Nebenkosten –
+    für den Zahlenden ist das dasselbe. Die {eur(zeilenDelta)} Unterschied bei
+    den Zinsen stammen aus der Schlussrate.
+  </p>
+
+  <h3>Wie empfindlich das auf die Prämie reagiert</h3>
+  <p>
+    Die {eurGlatt(PRAEMIE)} oben sind gesetzt. Die Tabelle zeigt, was eine andere
+    Annahme ändert – je Zelle der effektive Jahreszins und darunter die
+    Gesamtkosten.
+  </p>
+  <table>
+    <caption class="visually-hidden">
+      Effektiver Jahreszins und Gesamtkosten nach Höhe der Einmalprämie und
+      Laufzeit
+    </caption>
+    <thead>
+      <tr>
+        <th scope="col">Einmalkosten</th>
+        {SENS_LAUFZEITEN.map((m) => (
+          <th scope="col">{mon(m)}</th>
+        ))}
+      </tr>
+    </thead>
+    <tbody>
+      {sensitivitaet.map((zeile) => (
+        <tr>
+          <th scope="row">
+            {proz(zeile.anteil * 100, 0)} = {eurGlatt(zeile.praemie)}
+          </th>
+          {zeile.zellen.map((z) => (
+            <td class="num">
+              {proz(z.effektiv)}<br />{eur(z.kosten, 0)}
+            </td>
+          ))}
+        </tr>
+      ))}
+    </tbody>
+  </table>
+  <p>
+    Über jede Spalte hinweg gilt dasselbe Muster: Je höher die Einmalkosten,
+    desto stärker belohnt der effektive Jahreszins die lange Laufzeit – und desto
+    teurer wird sie in Euro. Die erste Zeile ist der Kontrollfall ohne Kosten:
+    Dort steht in allen vier Spalten derselbe Prozentsatz von
+    {' '}{proz(sensitivitaet[0].zellen[0].effektiv)}, während die Gesamtkosten von
+    {' '}{eur(sensitivitaet[0].zellen[0].kosten)} auf
+    {' '}{eur(sensitivitaet[0].zellen[3].kosten)} steigen.
+  </p>
+
+  <h3>Der Gegeneinwand: Man muss die lange Laufzeit nicht aussitzen</h3>
+  <p>
+    Wenn die lange Laufzeit nur deshalb teuer ist, weil sie lange läuft – warum
+    dann nicht das Angebot mit der niedrigen Rate nehmen und früher ablösen?
+    § 500 Abs. 2 Satz 1 BGB erlaubt das ausdrücklich: Der Darlehensnehmer kann
+    seine Verbindlichkeiten „jederzeit ganz oder teilweise vorzeitig erfüllen“.
+    Der Satz 2 daneben schränkt das nur für Immobiliar-Verbraucherdarlehen mit
+    gebundenem Sollzins ein, nicht für den Ratenkredit.
+  </p>
+  <p>
+    Die Bank darf dafür nach § 502 Abs. 1 BGB eine Vorfälligkeitsentschädigung
+    verlangen, aber § 502 Abs. 3 BGB deckelt sie doppelt: auf 1 Prozent des
+    vorzeitig zurückgezahlten Betrags – 0,5 Prozent, wenn zwischen vorzeitiger
+    und vereinbarter Rückzahlung nicht mehr als ein Jahr liegt (Nummer 1) – und
+    auf die Sollzinsen, die für den Rest der Laufzeit noch angefallen wären
+    (Nummer 2).
+  </p>
+  <p>
+    Durchgerechnet für den Kredit über {mon(LANG)} zu {proz(SOLLZINS, 1)}, ohne
+    Versicherung, abgelöst nach {ABLOESE_MONAT} Monaten: Bis dahin sind
+    {' '}{eur(bisAbloese)} gezahlt, die Restschuld beträgt {eur(restschuld)}. Ein
+    Prozent davon sind {eur(vfe)}; die Sollzinsen der Restlaufzeit lägen bei
+    {' '}{eur(restzinsen)}, der erste Deckel ist also der bindende. Gesamtaufwand:
+    {' '}{eur(abloeseAufwand)}, davon {eur(abloeseKosten)} Kosten.
+  </p>
+  <p>
+    Ein echter Kredit über {mon(ABLOESE_MONAT)} hätte {eur(echterKurzkredit.kosten)}
+    {' '}gekostet. Die vorzeitige Ablösung schließt die Lücke also zum größten
+    Teil, aber nicht ganz: {eur(restLuecke)} bleiben. Der Grund steht im
+    Tilgungsplan – in den ersten drei Jahren war die Restschuld beim langen
+    Kredit durchgehend höher, und auf diese höhere Restschuld liefen drei Jahre
+    lang Zinsen. Der Deckel des § 502 Abs. 3 BGB ändert daran nichts; er
+    begrenzt nur den Preis des Ausstiegs, nicht die bis dahin gelaufenen Zinsen.
+  </p>
+  <p>
+    Für den Vergleich zweier Angebote heißt das: Die lange Laufzeit ist keine
+    Falle, aber auch kein kostenloses Polster. Sie kostet auch dann etwas, wenn
+    man sie nicht ausnutzt.
+  </p>
+
+  <h3>Was daraus für einen Vergleich folgt</h3>
+  <ul>
+    <li>
+      <strong>Gleiche Laufzeit:</strong> Rate, Ratensumme und effektiver
+      Jahreszins sortieren identisch. Der Rechner auf dieser Seite arbeitet
+      genau in diesem Fall – deshalb hat er nur ein Laufzeitfeld.
+    </li>
+    <li>
+      <strong>Ungleiche Laufzeit:</strong> Beide Zahlen sind nötig. Der effektive
+      Jahreszins sagt, welches Geld teurer ist; der Gesamtbetrag sagt, wie viel
+      man davon kauft. Sie sind nicht austauschbar.
+    </li>
+    <li>
+      <strong>Bei einer Restschuldversicherung:</strong> zuerst klären, ob sie
+      zwingend ist. Nur dann steckt sie nach § 16 Abs. 3 Satz 1 PAngV im
+      effektiven Jahreszins. Ist sie freiwillig, hält § 16 Abs. 4 Nr. 2 PAngV
+      sie ausdrücklich heraus – sie steht dann trotzdem in der Rate.
+    </li>
+    <li>
+      <strong>Wenn nur eine Rate genannt wird:</strong> Der Rechner oben
+      errechnet aus Betrag, Rate und Laufzeit den dazugehörigen Sollzins und den
+      effektiven Jahreszins zurück. Eine Rate allein ist keine Preisangabe.
+    </li>
+  </ul>
+
+  <h3>Was diese Rechnung nicht abbildet</h3>
+  <ul>
+    <li>
+      <strong>Zahlungszeitpunkte innerhalb des Monats.</strong> Gerechnet wird
+      mit zwölf gleich langen Standardmonaten nach Anmerkung c der Anlage zu
+      § 16 PAngV. Eine erste Rate, die nicht nach genau einem Monat fällig wird,
+      verschiebt den Effektivzins geringfügig.
+    </li>
+    <li>
+      <strong>Laufende statt einmaliger Nebenkosten.</strong> Eine monatlich
+      gezahlte Versicherungsprämie oder Kontoführungsgebühr wirkt anders als eine
+      einmalige – sie erhöht den effektiven Jahreszins unabhängig von der
+      Laufzeit. Das Modell hier setzt alle Nebenkosten in den Zeitpunkt null.
+    </li>
+    <li>
+      <strong>Variable Sollzinsen.</strong> § 16 Abs. 5 PAngV lässt die Bank
+      unterstellen, dass ein vorbehaltener Zinssatz unverändert bleibt. Der
+      angegebene Effektivzins ist dann eine Annahme, kein Preis.
+    </li>
+    <li>
+      <strong>Restschuldversicherung als Leistung.</strong> Hier steht sie nur
+      als Kostenblock. Ob sie im Leistungsfall zahlt, ist eine
+      Versicherungsfrage; § 502 Abs. 2 Nr. 1 BGB schließt immerhin die
+      Vorfälligkeitsentschädigung aus, wenn die Ablösung aus den Mitteln einer
+      vertraglich vorgeschriebenen Versicherung erfolgt.
+    </li>
+    <li>
+      <strong>Bonität.</strong> Welcher Sollzins angeboten wird, hängt von der
+      Bonitätsprüfung ab. Dieser Artikel setzt Zinssätze, er prognostiziert
+      keine.
+    </li>
+    <li>
+      <strong>Widerruf.</strong> Das Widerrufsrecht nach § 495 i. V. m. § 355
+      BGB ist eine Rückabwicklung, kein Preisbestandteil, und bleibt hier außen
+      vor.
+    </li>
+  </ul>
+  <p>
+    Verwandte Rechnungen: die
+    {' '}<a href={`${base}${artikelPfadVonSlug('leasingfaktor-was-er-verschweigt')}`}>
+      Leasingfaktor-Rechnung</a> zeigt dieselbe Krankheit an einer anderen Vergleichszahl – ein Faktor,
+    der sich durch eine Anzahlung drücken lässt, ohne dass der Vertrag billiger
+    wird. Und was eine Prozentangabe über mehrere Jahre mit einem Geldbetrag
+    macht, steht bei der
+    {' '}<a href={`${base}${artikelPfadVonSlug('inflation-was-die-rate-verschweigt')}`}>
+      Inflationsrate</a>.
+  </p>
+</RechnerArtikel>

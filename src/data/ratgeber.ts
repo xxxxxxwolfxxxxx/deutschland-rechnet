@@ -42,6 +42,33 @@ export interface Artikel {
 
 export const ARTIKEL: Artikel[] = [
   {
+    slug: 'kaufnebenkosten-und-die-zehnjahresfrist',
+    titel: 'Die Kaufnebenkosten und die Zehnjahresfrist laufen gegen dieselbe Uhr',
+    teaser: 'Bei 300.000 € Kaufpreis in Nordrhein-Westfalen kommen 33.429 € Kaufnebenkosten hinzu, und die Nettorendite sinkt von 3,97 auf 3,57 Prozent. Bei einem Prozent Wertsteigerung sind die Nebenkosten erst nach 10,6 Jahren eingespielt. Wer genau am zehnten Jahrestag verkauft, bekommt weniger zurück, als er eingesetzt hat – und versteuert trotzdem einen Gewinn, weil § 23 Abs. 3 Satz 4 EStG die Abschreibungen zurückrechnet.',
+    datum: '2026-09-13',
+    thema: 'Wohnen',
+    rechner: ['mietrendite-rechner', 'immobilienkauf-nebenkosten', 'hauskauf-rechner'],
+    aufRechnerseite: true,
+  },
+  {
+    slug: 'effektivzins-gegen-ratensumme',
+    titel: 'Der niedrigere effektive Jahreszins kann der teurere Kredit sein',
+    teaser: 'Zwei Angebote über 20.000 € zu 5,9 % Sollzins, beide mit derselben zwingenden Restschuldversicherung: über 36 Monate 11,73 % effektiver Jahreszins, über 84 Monate nur 8,60 % – und 2.798 € mehr Kosten. Umgekehrt hält die Ratensumme einen Zwölfmonatskredit zu 32,27 % für genauso teuer wie einen über 84 Monate zu 4,9 %. Warum bei ungleicher Laufzeit beide Vergleichszahlen versagen.',
+    datum: '2026-09-13',
+    thema: 'Geld',
+    rechner: ['kreditvergleich', 'ratenkredit-detailrechner', 'autofinanzierung-rechner'],
+    aufRechnerseite: true,
+  },
+  {
+    slug: 'anfangstilgung-laufzeit-restschuld',
+    titel: 'Anfangstilgung: Für die Laufzeit wird jeder Prozentpunkt weniger wert – für die Restschuld nicht',
+    teaser: 'Bei einem Immobiliendarlehen verkürzt jeder zusätzliche Prozentpunkt Anfangstilgung die Laufzeit um weniger als der vorige. Auf die Restschuld am Ende der Zinsbindung wirkt dagegen jeder Schritt gleich stark – und genau diese Zahl entscheidet über die Anschlussfinanzierung. Durchgerechnet mit Tilgungsplan, Effektivzins und dem Kündigungsrecht nach § 489 BGB.',
+    datum: '2026-09-13',
+    thema: 'Wohnen',
+    rechner: ['tilgungs-kreditrechner', 'tilgungsplan', 'hauskauf-rechner'],
+    aufRechnerseite: true,
+  },
+  {
     slug: 'leasingfaktor-was-er-verschweigt',
     titel: 'Der Leasingfaktor lässt sich kaufen',
     teaser: 'Leasingangebote werden über den Leasingfaktor verglichen: Monatsrate geteilt durch Fahrzeugpreis, mal hundert. Eine Anzahlung von 10.000 € drückt ihn im Beispiel von 1,570 auf 0,735 – um 53 Prozent, während die Gesamtkosten desselben Vertrags nur um 2,7 Prozent sinken. Ab 17.000 € Anzahlung fällt der Faktor weiter, während der Vertrag teurer wird. Dazu die Rechnung, warum es beim Leasing gar keinen Effektivzins gibt.',

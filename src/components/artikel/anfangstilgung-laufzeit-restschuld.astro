@@ -1,0 +1,735 @@
+---
+import RechnerArtikel from '../RechnerArtikel.astro';
+import { artikelPfadVonSlug } from '../../data/ratgeber';
+import {
+  darlehenskosten,
+  tilgungsplan,
+  effektivzins,
+  sollzinsAusRate,
+} from '../../../public/scripts/annuitaet.js';
+
+const base = import.meta.env.BASE_URL;
+
+// Alle Zahlen dieses Artikels entstehen zur Buildzeit aus demselben Modul,
+// das der Rechner oben auf dieser Seite laedt. Getippt ist hier keine einzige.
+
+// --- Modellfall -----------------------------------------------------------
+// Betrag, Sollzins und Laufzeit sind die Startwerte des Rechners. Wer die
+// Tabellen nachrechnen will, muss oben nichts umstellen.
+const BETRAG = 200000;
+const SOLLZINS = 3.5;
+const LAUFZEIT_JAHRE = 20;
+const MONATE_ZINSBINDUNG = 120;      // zehn Jahre
+const KUENDIGUNGSFRIST_MONATE = 6;   // § 489 Abs. 1 Nr. 2 BGB
+const MONATE_BIS_AUSSTIEG = MONATE_ZINSBINDUNG + KUENDIGUNGSFRIST_MONATE;
+// Obergrenze fuer den Tilgungsplan. 100 Jahre reichen fuer jede Tilgung, die
+// ueberhaupt zum Ende kommt; daran haengt unten die Probe "getilgt".
+const MAX_MONATE = 1200;
+
+// --- Formatierung ---------------------------------------------------------
+const eur = (b: number) =>
+  b.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
+const eur0 = (b: number) => b.toLocaleString('de-DE', { maximumFractionDigits: 0 }) + ' €';
+const zahl0 = (b: number) => b.toLocaleString('de-DE', { maximumFractionDigits: 0 });
+const pz0 = (b: number) => b.toLocaleString('de-DE', { maximumFractionDigits: 0 });
+const pz1 = (b: number) =>
+  b.toLocaleString('de-DE', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+const pz2 = (b: number) =>
+  b.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const pz3 = (b: number) =>
+  b.toLocaleString('de-DE', { minimumFractionDigits: 3, maximumFractionDigits: 3 });
+const jahre1 = (m: number) => pz1(m / 12);
+const ZAHLWORT = ['null', 'eine', 'zwei', 'drei', 'vier', 'fünf', 'sechs', 'sieben', 'acht', 'neun', 'zehn'];
+const zahlwort = (n: number) => ZAHLWORT[n] ?? String(n);
+const faktor2 = (b: number) =>
+  b.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+// --- Der Weg, den der Vertrag geht: Anfangstilgung -> alles Uebrige --------
+// In Deutschland wird ein Immobiliendarlehen ueber Sollzins und Anfangstilgung
+// vereinbart. Die Jahresrate ist dann (Sollzins + Anfangstilgung) Prozent der
+// Darlehenssumme; die Laufzeit faellt hinten heraus. Der Rechner oben geht den
+// umgekehrten Weg – deshalb rechnet dieser Artikel beide.
+function rateAusTilgung(betrag: number, sollzins: number, anfangstilgung: number) {
+  return Math.round((betrag * (sollzins + anfangstilgung)) / 12) / 100;
+}
+
+function ausAnfangstilgung(anfangstilgung: number, betrag = BETRAG, sollzins = SOLLZINS) {
+  const rate = rateAusTilgung(betrag, sollzins, anfangstilgung);
+  const plan = tilgungsplan({ betrag, sollzins, monate: MAX_MONATE, rate });
+  const letzte = plan[plan.length - 1];
+  const getilgt = letzte.restschuld <= 0;
+  const gezahlt = plan.reduce((s, z) => s + z.rate, 0);
+  const restNach = (monat: number) =>
+    plan.length >= monat ? plan[monat - 1].restschuld : 0;
+  // Erster Monat, in dem der Tilgungsanteil den Zinsanteil erreicht.
+  const kipp = plan.findIndex((z) => z.tilgung >= z.zins) + 1;
+  return {
+    anfangstilgung,
+    rate,
+    monate: plan.length,
+    getilgt,
+    zinsen: gezahlt - betrag,
+    rest120: restNach(MONATE_ZINSBINDUNG),
+    rest126: restNach(MONATE_BIS_AUSSTIEG),
+    kipp,
+    plan,
+  };
+}
+
+const TILGUNGSSTUFEN = [1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5];
+const tilgungsreihe = TILGUNGSSTUFEN.map((t) => ausAnfangstilgung(t));
+const alleGetilgt = tilgungsreihe.every((r) => r.getilgt);
+
+// Probe: Fuehrt die Rate, die aus Sollzins plus Anfangstilgung entsteht, ueber
+// die errechnete Laufzeit zum selben Sollzins zurueck? Der Rueckweg des Moduls
+// muss den Hinweg treffen, sonst stimmt eine der beiden Richtungen nicht.
+const probeStufe = tilgungsreihe.find((r) => r.anfangstilgung === 2)!;
+const probeSollzins = sollzinsAusRate({
+  betrag: BETRAG,
+  rate: probeStufe.rate,
+  monate: probeStufe.monate,
+});
+const probeSchlussrate = probeStufe.plan[probeStufe.plan.length - 1].rate;
+// Was der Rechner oben ausgibt, wenn man die errechnete Laufzeit dort eintraegt:
+// Er verteilt den Betrag auf lauter gleich hohe Raten und landet deshalb knapp
+// unter der Rate aus Zins plus Tilgung.
+const probeUeberRechner = darlehenskosten({
+  betrag: BETRAG,
+  sollzins: SOLLZINS,
+  monate: probeStufe.monate,
+});
+
+// --- Der Weg, den der Rechner geht: Laufzeit -> alles Uebrige -------------
+const LAUFZEITEN = [15, 20, 25, 30, 35, 40];
+const laufzeitreihe = LAUFZEITEN.map((jahre) => {
+  const k = darlehenskosten({ betrag: BETRAG, sollzins: SOLLZINS, monate: jahre * 12 });
+  return {
+    jahre,
+    rate: k.rate,
+    zinsen: k.zinsen,
+    rest120: k.plan.length > MONATE_ZINSBINDUNG ? k.plan[MONATE_ZINSBINDUNG - 1].restschuld : 0,
+    // Die Anfangstilgung, die in dieser Laufzeit steckt: Jahresrate minus
+    // erstes Jahreszinsvolumen, bezogen auf die Darlehenssumme.
+    anfangstilgung: ((k.rate * 12 - (BETRAG * SOLLZINS) / 100) / BETRAG) * 100,
+  };
+});
+const standardfall = laufzeitreihe.find((r) => r.jahre === LAUFZEIT_JAHRE)!;
+const standardKosten = darlehenskosten({
+  betrag: BETRAG,
+  sollzins: SOLLZINS,
+  monate: LAUFZEIT_JAHRE * 12,
+});
+const standardPlan = standardKosten.plan;
+const standardErste = standardPlan[0];
+const standardLetzte = standardPlan[standardPlan.length - 1];
+const standardKipp = standardPlan.findIndex((z) => z.tilgung >= z.zins) + 1;
+// Was im ersten Jahr wirklich getilgt wird. Die Anfangstilgung ist eine
+// Konvention (Jahresrate minus voller Jahreszins) und liegt etwas darunter.
+const erstesJahrTilgung = standardPlan.slice(0, 12).reduce((s, z) => s + z.tilgung, 0);
+const zinsanteilVerhaeltnis = standardErste.zins / standardLetzte.zins;
+
+// --- Die Differenzen: ein ganzer Prozentpunkt mehr ------------------------
+const GANZE_PUNKTE = [1, 2, 3, 4, 5];
+const punktreihe = GANZE_PUNKTE.map((t) => ausAnfangstilgung(t));
+const spruenge = punktreihe.slice(0, -1).map((a, idx) => {
+  const b = punktreihe[idx + 1];
+  return {
+    von: a.anfangstilgung,
+    bis: b.anfangstilgung,
+    rateMehr: b.rate - a.rate,
+    monateKuerzer: a.monate - b.monate,
+    zinsenWeniger: a.zinsen - b.zinsen,
+    restWeniger120: a.rest120 - b.rest120,
+    restWeniger126: a.rest126 - b.rest126,
+  };
+});
+const ersterSprung = spruenge[0];
+const letzterSprung = spruenge[spruenge.length - 1];
+const laufzeitVerhaeltnis = ersterSprung.monateKuerzer / letzterSprung.monateKuerzer;
+const zinsVerhaeltnis = ersterSprung.zinsenWeniger / letzterSprung.zinsenWeniger;
+// Grösste Abweichung der Restschuld-Differenzen untereinander. Sie stammt aus
+// der Cent-Rundung jeder einzelnen Rate, nicht aus der Sache.
+const restSpanne =
+  Math.max(...spruenge.map((s) => s.restWeniger120)) -
+  Math.min(...spruenge.map((s) => s.restWeniger120));
+const restProPunkt =
+  spruenge.reduce((s, x) => s + x.restWeniger120, 0) / spruenge.length;
+const rateProPunkt = spruenge.reduce((s, x) => s + x.rateMehr, 0) / spruenge.length;
+const tauschkurs = restProPunkt / rateProPunkt;
+const restProPunktAnteil = (restProPunkt / BETRAG) * 100;
+const zinsErsparnisImTausch = tauschkurs - MONATE_ZINSBINDUNG;
+
+// --- Gegenprobe 1: haengt der Tauschkurs am Darlehensbetrag? --------------
+const BETRAEGE = [100000, 200000, 400000, 600000];
+const betragsprobe = BETRAEGE.map((betrag) => {
+  const a = ausAnfangstilgung(2, betrag);
+  const b = ausAnfangstilgung(3, betrag);
+  return {
+    betrag,
+    rateMehr: b.rate - a.rate,
+    restWeniger: a.rest120 - b.rest120,
+    kurs: (a.rest120 - b.rest120) / (b.rate - a.rate),
+    anteil: ((a.rest120 - b.rest120) / betrag) * 100,
+  };
+});
+const kursSpanne =
+  Math.max(...betragsprobe.map((b) => b.kurs)) - Math.min(...betragsprobe.map((b) => b.kurs));
+
+// --- Gegenprobe 2: und am Sollzins? --------------------------------------
+const ZINSSTUFEN = [1, 2, 3, 3.5, 4, 5, 6];
+const zinsprobe = ZINSSTUFEN.map((zins) => {
+  const a = ausAnfangstilgung(2, BETRAG, zins);
+  const b = ausAnfangstilgung(3, BETRAG, zins);
+  return {
+    zins,
+    kurs: (a.rest120 - b.rest120) / (b.rate - a.rate),
+    anteil: ((a.rest120 - b.rest120) / BETRAG) * 100,
+    monateA: a.monate,
+    monateB: b.monate,
+  };
+});
+const zinsprobeNiedrig = zinsprobe[0];
+const zinsprobeHoch = zinsprobe[zinsprobe.length - 1];
+
+// --- Gegenprobe 3: andere Horizonte --------------------------------------
+const HORIZONTE = [60, MONATE_ZINSBINDUNG, MONATE_BIS_AUSSTIEG, 180, 240];
+const horizontprobe = HORIZONTE.map((monat) => {
+  const a = ausAnfangstilgung(2);
+  const b = ausAnfangstilgung(3);
+  const restA = a.plan.length >= monat ? a.plan[monat - 1].restschuld : 0;
+  const restB = b.plan.length >= monat ? b.plan[monat - 1].restschuld : 0;
+  return {
+    monat,
+    differenz: restA - restB,
+    kurs: (restA - restB) / (b.rate - a.rate),
+    anteil: ((restA - restB) / BETRAG) * 100,
+  };
+});
+const horizont126 = horizontprobe.find((h) => h.monat === MONATE_BIS_AUSSTIEG)!;
+
+// --- Der Kipppunkt: wann besteht die Rate zur Haelfte aus Tilgung? --------
+const kippreihe = tilgungsreihe.map((r) => ({
+  anfangstilgung: r.anfangstilgung,
+  kipp: r.kipp,
+  monate: r.monate,
+  anteilDerLaufzeit: (r.kipp / r.monate) * 100,
+}));
+const kippSofort = kippreihe.filter((k) => k.kipp === 1);
+const kippSchwelle = kippSofort.length ? kippSofort[0].anfangstilgung : null;
+const kippZwei = kippreihe.find((k) => k.anfangstilgung === 2)!;
+// Letzte Stufe, deren Kipppunkt noch nach dem ersten Monat liegt.
+const kippDavor = [...kippreihe].reverse().find((k) => k.kipp > 1)!;
+
+// --- Sollzins gegen effektiven Jahreszins --------------------------------
+const effStandard = effektivzins({
+  auszahlung: BETRAG,
+  rate: standardKosten.rate,
+  monate: LAUFZEIT_JAHRE * 12,
+});
+const effAufschlag = effStandard - SOLLZINS;
+
+// Haengt der Abstand an der Laufzeit? Eine Zeile je Laufzeit, gleicher Sollzins.
+const effLaufzeiten = LAUFZEITEN.map((jahre) => {
+  const k = darlehenskosten({ betrag: BETRAG, sollzins: SOLLZINS, monate: jahre * 12 });
+  return { jahre, rate: k.rate, eff: effektivzins({ auszahlung: BETRAG, rate: k.rate, monate: jahre * 12 }) };
+});
+const effSpanneLaufzeit =
+  Math.max(...effLaufzeiten.map((e) => e.eff)) - Math.min(...effLaufzeiten.map((e) => e.eff));
+
+// Was ein einbehaltener Betrag daraus macht: gleiche Rate, weniger Auszahlung.
+const DISAGIO_STUFEN = [0, 1, 2, 3];
+const disagioreihe = DISAGIO_STUFEN.map((prozent) => {
+  const einbehalt = (BETRAG * prozent) / 100;
+  return {
+    prozent,
+    einbehalt,
+    eff: effektivzins({
+      auszahlung: BETRAG - einbehalt,
+      rate: standardKosten.rate,
+      monate: LAUFZEIT_JAHRE * 12,
+    }),
+  };
+});
+const disagioEins = disagioreihe.find((d) => d.prozent === 1)!;
+
+const quellen = [
+  { titel: '§ 489 BGB – Ordentliches Kündigungsrecht des Darlehensnehmers', url: 'https://www.gesetze-im-internet.de/bgb/__489.html' },
+  { titel: '§ 490 BGB – Außerordentliches Kündigungsrecht', url: 'https://www.gesetze-im-internet.de/bgb/__490.html' },
+  { titel: '§ 492 BGB – Schriftform, Vertragsinhalt (Anspruch auf einen Tilgungsplan)', url: 'https://www.gesetze-im-internet.de/bgb/__492.html' },
+  { titel: '§ 500 BGB – Kündigungsrecht des Darlehensnehmers; vorzeitige Rückzahlung', url: 'https://www.gesetze-im-internet.de/bgb/__500.html' },
+  { titel: '§ 502 BGB – Vorfälligkeitsentschädigung', url: 'https://www.gesetze-im-internet.de/bgb/__502.html' },
+  { titel: '§ 16 PAngV – Verbraucherdarlehen (Berechnung des effektiven Jahreszinses)', url: 'https://www.gesetze-im-internet.de/pangv_2022/__16.html' },
+  { titel: 'Anlage zu § 16 PAngV – Berechnung des effektiven Jahreszinses', url: 'https://www.gesetze-im-internet.de/pangv_2022/anlage.html' },
+  { titel: 'Art. 247 § 1 EGBGB – Vorvertragliche Informationen bei Immobiliar-Verbraucherdarlehensverträgen (ESIS-Merkblatt)', url: 'https://www.gesetze-im-internet.de/bgbeg/art_247__1.html' },
+  { titel: 'Art. 247 § 3 EGBGB – Inhalt der vorvertraglichen Information bei Allgemein-Verbraucherdarlehensverträgen', url: 'https://www.gesetze-im-internet.de/bgbeg/art_247__3.html' },
+  { titel: 'Art. 247 § 6 EGBGB – Vertragsinhalt', url: 'https://www.gesetze-im-internet.de/bgbeg/art_247__6.html' },
+];
+---
+<RechnerArtikel
+  titel="Anfangstilgung: Für die Laufzeit wird jeder Prozentpunkt weniger wert – für die Restschuld nicht"
+  lead={`Bei ${eur0(BETRAG)} und ${pz1(SOLLZINS)} Prozent Sollzins verkürzt der Sprung von ${pz1(ersterSprung.von)} auf ${pz1(ersterSprung.bis)} Prozent Anfangstilgung das Darlehen um ${jahre1(ersterSprung.monateKuerzer)} Jahre, der Sprung von ${pz1(letzterSprung.von)} auf ${pz1(letzterSprung.bis)} Prozent nur noch um ${jahre1(letzterSprung.monateKuerzer)} Jahre. Auf die Restschuld nach zehn Jahren wirkt dagegen jeder dieser vier Schritte gleich stark: ${eur0(restProPunkt)}, der letzte wie der erste. Genau diese Zahl entscheidet über die Anschlussfinanzierung – und sie ist die eine Größe an einem Darlehen, die keinen abnehmenden Grenznutzen kennt.`}
+  datum="2026-09-13"
+  quellen={quellen}
+>
+  <h3>Der Rechner fragt nach der Laufzeit. Verhandelt wird sie nicht</h3>
+  <p>
+    Der Rechner am Anfang dieser Seite will drei Angaben: Betrag, Zinssatz, Laufzeit. Im
+    Darlehensvertrag steht die Laufzeit zwar auch – sie ist nach Art. 247 § 6 Abs. 1 Satz 1 Nr. 1
+    in Verbindung mit § 3 Abs. 1 Nr. 6 EGBGB Pflichtangabe, beim Immobiliar-Verbraucherdarlehen
+    ebenso wie beim Ratenkredit. Verhandelt wird sie aber nicht. Vereinbart werden Sollzins und
+    <strong>Anfangstilgung</strong>, und aus diesen beiden Prozentsätzen folgt alles andere: Die
+    Jahresrate ist ihre Summe, bezogen auf die Darlehenssumme; die Laufzeit fällt hinten heraus.
+    Sie ist das Ergebnis, nicht die Eingabe.
+  </p>
+  <p>
+    Das ist kein Schönheitsfehler des Rechners, sondern eine Übersetzungsaufgabe. Sie geht in
+    beide Richtungen, und beide Richtungen rechnet dasselbe Modul, das auch den Rechner oben
+    speist. Zuerst die Richtung des Rechners: Welche Anfangstilgung steckt in welcher Laufzeit?
+  </p>
+  <table>
+    <caption class="visually-hidden">
+      Laufzeit, Rate und implizite Anfangstilgung bei {eur0(BETRAG)} und {pz1(SOLLZINS)} Prozent Sollzins
+    </caption>
+    <thead>
+      <tr>
+        <th scope="col">Laufzeit</th>
+        <th scope="col" class="num">Monatsrate</th>
+        <th scope="col" class="num">darin Anfangstilgung</th>
+        <th scope="col" class="num">Zinsen gesamt</th>
+        <th scope="col" class="num">Restschuld nach 10 Jahren</th>
+      </tr>
+    </thead>
+    <tbody>
+      {laufzeitreihe.map((r) => (
+        <tr>
+          <th scope="row">{r.jahre} Jahre</th>
+          <td class="num">{eur(r.rate)}</td>
+          <td class="num">{pz2(r.anfangstilgung)} %</td>
+          <td class="num">{eur0(r.zinsen)}</td>
+          <td class="num">{eur0(r.rest120)}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+  <p>
+    In der Voreinstellung des Rechners – {eur0(BETRAG)}, {pz1(SOLLZINS)} Prozent,
+    {' '}{LAUFZEIT_JAHRE} Jahre – steckt eine Anfangstilgung von
+    {' '}{pz2(standardfall.anfangstilgung)} Prozent und damit eine Rate von
+    {' '}{eur(standardfall.rate)}. Wer mit zwei Prozent Anfangstilgung rechnen will, muss in das
+    Feld „Laufzeit" nicht {LAUFZEIT_JAHRE}, sondern zwischen
+    {' '}{laufzeitreihe.find((r) => r.anfangstilgung < 2)!.jahre - 5} und
+    {' '}{laufzeitreihe.find((r) => r.anfangstilgung < 2)!.jahre} Jahre eintragen. Diese Spalte ist
+    die Übersetzung in beide Richtungen.
+  </p>
+  <p class="ra-hinweis">
+    Zur Definition: Als Anfangstilgung gilt hier die Jahresrate abzüglich eines vollen Jahreszinses
+    auf die ungeschmälerte Darlehenssumme – so wird sie in Angeboten angegeben. Tatsächlich getilgt
+    wird im ersten Jahr etwas mehr, weil die Zinsen schon ab dem zweiten Monat auf eine kleinere
+    Restschuld laufen: in der Voreinstellung {eur(erstesJahrTilgung)} statt
+    {' '}{eur((BETRAG * standardfall.anfangstilgung) / 100)}, also
+    {' '}{pz2((erstesJahrTilgung / BETRAG) * 100)} statt {pz2(standardfall.anfangstilgung)} Prozent.
+  </p>
+
+  <h3>Der umgekehrte Weg: von der Anfangstilgung zur Laufzeit</h3>
+  <p>
+    Jetzt die Richtung des Vertrags. Die Monatsrate ist ein Zwölftel von
+    {' '}(Sollzins + Anfangstilgung) Prozent der Darlehenssumme – bei {pz1(SOLLZINS)} plus zwei
+    Prozent also {eur(rateAusTilgung(BETRAG, SOLLZINS, 2))}. Mit dieser Rate läuft der
+    Tilgungsplan des Moduls so lange, bis die Restschuld null erreicht.
+  </p>
+  <table>
+    <caption class="visually-hidden">
+      Anfangstilgung, Rate, Laufzeit, Gesamtzinsen und Restschuld bei {eur0(BETRAG)} und {pz1(SOLLZINS)} Prozent Sollzins
+    </caption>
+    <thead>
+      <tr>
+        <th scope="col">Anfangstilgung</th>
+        <th scope="col" class="num">Monatsrate</th>
+        <th scope="col" class="num">Laufzeit</th>
+        <th scope="col" class="num">Zinsen gesamt</th>
+        <th scope="col" class="num">Restschuld nach 10 Jahren</th>
+      </tr>
+    </thead>
+    <tbody>
+      {tilgungsreihe.map((r) => (
+        <tr>
+          <th scope="row">{pz1(r.anfangstilgung)} %</th>
+          <td class="num">{eur(r.rate)}</td>
+          <td class="num">{jahre1(r.monate)} Jahre</td>
+          <td class="num">{eur0(r.zinsen)}</td>
+          <td class="num">{eur0(r.rest120)}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+  <p class="ra-hinweis">
+    Probe auf beide Richtungen: Die Rate der {pz1(probeStufe.anfangstilgung)}-Prozent-Zeile
+    ({eur(probeStufe.rate)}) über {probeStufe.monate} Monate zurückgerechnet ergibt einen Sollzins
+    von {pz2(probeSollzins)} Prozent statt {pz1(SOLLZINS)}. Die Abweichung entsteht nicht in der
+    Formel, sondern an der Schlussrate: Die letzte der {probeStufe.monate} Zahlungen beträgt nur
+    {' '}{eur(probeSchlussrate)}, weil die Restschuld vorher aufgebraucht ist. Der Rückweg
+    unterstellt dagegen {probeStufe.monate} volle Raten und findet deshalb einen minimal höheren
+    Zins. Für die {LAUFZEIT_JAHRE}-Jahres-Voreinstellung, die glatt aufgeht, liefert dieselbe
+    Rückrechnung exakt {pz1(sollzinsAusRate({ betrag: BETRAG, rate: standardKosten.rate, monate: LAUFZEIT_JAHRE * 12 }))} Prozent.
+    {alleGetilgt ? ` Alle ${zahlwort(TILGUNGSSTUFEN.length)} Zeilen der Tabelle kommen innerhalb von 100 Jahren zum Ende.` : ''}
+    {' '}Dieselbe Schlussrate erklärt auch, warum der Rechner oben für dieselben
+    {' '}{probeStufe.monate} Monate {eur(probeUeberRechner.rate)} ausgibt statt
+    {' '}{eur(probeStufe.rate)}: Er verteilt die Summe auf lauter gleich hohe Raten, während der
+    Vertragsweg die letzte Rate kleiner ausfallen lässt. Der Unterschied beträgt
+    {' '}{eur(probeStufe.rate - probeUeberRechner.rate)} im Monat.
+  </p>
+
+  <h3>Ein Prozentpunkt, zwei völlig verschiedene Wirkungen</h3>
+  <p>
+    Interessant wird die Tabelle erst, wenn man die Differenzen bildet. Ein ganzer Prozentpunkt
+    mehr Anfangstilgung kostet jedes Mal denselben Aufschlag auf die Rate – ein Zwölftel von einem
+    Prozent der Darlehenssumme, also {eur(rateProPunkt)} bei {eur0(BETRAG)}, gleich ob von
+    {' '}{pz1(ersterSprung.von)} auf {pz1(ersterSprung.bis)} oder von {pz1(letzterSprung.von)} auf
+    {' '}{pz1(letzterSprung.bis)} Prozent. Dass eine Zeile der Tabelle einen Cent darunter liegt,
+    ist die Rundung der Rate auf ganze Cent. Was dieser immer gleiche Aufschlag einbringt, ist
+    dagegen nicht immer dasselbe.
+  </p>
+  <table>
+    <caption class="visually-hidden">
+      Wirkung eines zusätzlichen Prozentpunkts Anfangstilgung bei {eur0(BETRAG)} und {pz1(SOLLZINS)} Prozent Sollzins
+    </caption>
+    <thead>
+      <tr>
+        <th scope="col">Schritt</th>
+        <th scope="col" class="num">Rate steigt um</th>
+        <th scope="col" class="num">Laufzeit sinkt um</th>
+        <th scope="col" class="num">Zinsen sinken um</th>
+        <th scope="col" class="num">Restschuld nach 10 J. sinkt um</th>
+      </tr>
+    </thead>
+    <tbody>
+      {spruenge.map((s) => (
+        <tr>
+          <th scope="row">{pz1(s.von)} → {pz1(s.bis)} %</th>
+          <td class="num">{eur(s.rateMehr)}</td>
+          <td class="num">{jahre1(s.monateKuerzer)} Jahre</td>
+          <td class="num">{eur0(s.zinsenWeniger)}</td>
+          <td class="num">{eur0(s.restWeniger120)}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+  <p>
+    Die dritte und die vierte Spalte verhalten sich so, wie man es von einem Hebel erwartet: Der
+    erste Prozentpunkt bringt am meisten, jeder weitere weniger. Bei der Laufzeit ist der erste
+    Schritt {faktor2(laufzeitVerhaeltnis)}-mal so wirksam wie der letzte, bei den Gesamtzinsen
+    {' '}{faktor2(zinsVerhaeltnis)}-mal. Das ist die Rechnung hinter der verbreiteten Faustregel
+    „mindestens zwei, besser drei Prozent": Unterhalb davon liegt der große Sprung, oberhalb wird
+    es teuer und bringt vergleichsweise wenig.
+  </p>
+  <p>
+    Die letzte Spalte kennt diese Abnahme nicht. Die vier Werte liegen
+    {' '}{restSpanne < 5 ? `${eur(restSpanne)}` : eur0(restSpanne)} auseinander – das ist die
+    Rundung der einzelnen Raten auf ganze Cent, sonst nichts. <strong>Jeder Prozentpunkt
+    Anfangstilgung senkt die Restschuld nach zehn Jahren um {eur0(restProPunkt)}</strong>, der
+    Schritt von {pz1(letzterSprung.von)} auf {pz1(letzterSprung.bis)} Prozent genauso wie der von
+    {' '}{pz1(ersterSprung.von)} auf {pz1(ersterSprung.bis)}. Beim einen bezahlt man
+    {' '}{eur(letzterSprung.rateMehr)} im Monat für {jahre1(letzterSprung.monateKuerzer)} Jahre
+    weniger Laufzeit, beim anderen denselben Betrag für {jahre1(ersterSprung.monateKuerzer)} Jahre
+    – aber in beiden Fällen für exakt denselben Betrag weniger Restschuld.
+  </p>
+
+  <h3>Warum die Restschuld linear reagiert und die Laufzeit nicht</h3>
+  <p>
+    Der Grund ist unspektakulär, sobald man ihn sieht. Die Restschuld nach einer festen Zahl von
+    Monaten ist die aufgezinste Darlehenssumme minus den aufgezinsten Raten – sie hängt von der
+    Rate <em>linear</em> ab. Und die Rate hängt von der Anfangstilgung ebenfalls linear ab. Zwei
+    lineare Zusammenhänge hintereinander bleiben linear. Die Laufzeit dagegen steht im Exponenten:
+    Sie ist ein Logarithmus der Rate, und Logarithmen flachen ab.
+  </p>
+  <p>
+    Aus der Linearität folgt ein fester Umrechnungskurs: <strong>Ein Euro mehr Monatsrate ist nach
+    zehn Jahren {faktor2(tauschkurs)} Euro weniger Restschuld wert.</strong> In zehn Jahren zahlt
+    dieser eine Euro {MONATE_ZINSBINDUNG} Euro ein; die Differenz von
+    {' '}{faktor2(zinsErsparnisImTausch)} Euro sind die Zinsen, die auf den bereits getilgten Teil
+    nicht mehr anfallen. Deshalb tilgt ein Prozentpunkt Anfangstilgung in zehn Jahren auch nicht
+    zehn Prozent des Darlehens, sondern {pz2(restProPunktAnteil)} Prozent.
+  </p>
+  <p>
+    Zwei Gegenproben, ob dieser Kurs wirklich eine Konstante ist. Erstens: Hängt er am
+    Darlehensbetrag? Dieselbe Rechnung, viermal, Schritt von zwei auf drei Prozent Anfangstilgung:
+  </p>
+  <table>
+    <caption class="visually-hidden">
+      Umrechnungskurs zwischen Rate und Restschuld nach zehn Jahren, nach Darlehensbetrag
+    </caption>
+    <thead>
+      <tr>
+        <th scope="col">Darlehen</th>
+        <th scope="col" class="num">Rate steigt um</th>
+        <th scope="col" class="num">Restschuld sinkt um</th>
+        <th scope="col" class="num">je Euro Rate</th>
+        <th scope="col" class="num">in % des Darlehens</th>
+      </tr>
+    </thead>
+    <tbody>
+      {betragsprobe.map((b) => (
+        <tr>
+          <th scope="row">{eur0(b.betrag)}</th>
+          <td class="num">{eur(b.rateMehr)}</td>
+          <td class="num">{eur0(b.restWeniger)}</td>
+          <td class="num">{faktor2(b.kurs)} €</td>
+          <td class="num">{pz2(b.anteil)} %</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+  <p>
+    Der Kurs schwankt über alle vier Beträge um
+    {' '}{kursSpanne < 0.01 ? 'weniger als einen Cent' : `${faktor2(kursSpanne)} Euro`}. Er hängt
+    nicht am Betrag. Zweitens: Hängt er am Sollzins? Diesmal schon – und zwar in die Richtung, die den
+    Befund verschärft.
+  </p>
+  <table>
+    <caption class="visually-hidden">
+      Umrechnungskurs und Tilgungswirkung eines Prozentpunkts nach Sollzins
+    </caption>
+    <thead>
+      <tr>
+        <th scope="col">Sollzins</th>
+        <th scope="col" class="num">je Euro Rate</th>
+        <th scope="col" class="num">1 Punkt tilgt in 10 J.</th>
+        <th scope="col" class="num">Laufzeit bei 2 % Tilgung</th>
+        <th scope="col" class="num">Laufzeit bei 3 % Tilgung</th>
+      </tr>
+    </thead>
+    <tbody>
+      {zinsprobe.map((z) => (
+        <tr>
+          <th scope="row">{pz1(z.zins)} %</th>
+          <td class="num">{faktor2(z.kurs)} €</td>
+          <td class="num">{pz2(z.anteil)} %</td>
+          <td class="num">{jahre1(z.monateA)} J.</td>
+          <td class="num">{jahre1(z.monateB)} J.</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+  <p>
+    Bei {pz1(zinsprobeNiedrig.zins)} Prozent Sollzins tilgt ein Prozentpunkt Anfangstilgung in zehn
+    Jahren {pz2(zinsprobeNiedrig.anteil)} Prozent des Darlehens, bei
+    {' '}{pz1(zinsprobeHoch.zins)} Prozent sind es {pz2(zinsprobeHoch.anteil)} Prozent. Je teurer
+    das Geld, desto mehr bringt derselbe Prozentpunkt – weil die eingesparten Zinsen selbst
+    mitverzinst werden. Dass hohe Zinsen eine hohe Tilgung <em>schwerer</em> machen, stimmt für die
+    Rate; für die Wirkung je Euro Rate stimmt das Gegenteil.
+  </p>
+
+  <h3>Der Moment, in dem diese Zahl zählt: § 489 Abs. 1 Nr. 2 BGB</h3>
+  <p>
+    Warum ausgerechnet zehn Jahre? Weil an dieser Stelle das Gesetz einen Schnitt macht. Nach
+    § 489 Abs. 1 Nr. 2 BGB kann der Darlehensnehmer einen Vertrag mit gebundenem Sollzinssatz
+    „in jedem Fall nach Ablauf von zehn Jahren nach dem vollständigen Empfang unter Einhaltung
+    einer Kündigungsfrist von sechs Monaten" kündigen. Maßgeblich ist also nicht der
+    Vertragsschluss und nicht die vereinbarte Zinsbindung, sondern der vollständige Empfang des
+    Darlehens. Das Recht entsteht mit Ablauf der zehn Jahre, die Frist von sechs Monaten kommt
+    hinzu: Frühestens {MONATE_BIS_AUSSTIEG} Monate nach der Vollauszahlung lässt sich das Darlehen damit
+    ablösen. Nach § 489 Abs. 4 Satz 1 BGB kann
+    dieses Recht vertraglich weder ausgeschlossen noch erschwert werden.
+  </p>
+  <table>
+    <caption class="visually-hidden">
+      Restschuld im Monat 120 und im Monat {MONATE_BIS_AUSSTIEG} nach Anfangstilgung
+    </caption>
+    <thead>
+      <tr>
+        <th scope="col">Anfangstilgung</th>
+        <th scope="col" class="num">Restschuld Monat {MONATE_ZINSBINDUNG}</th>
+        <th scope="col" class="num">Restschuld Monat {MONATE_BIS_AUSSTIEG}</th>
+        <th scope="col" class="num">noch offen</th>
+      </tr>
+    </thead>
+    <tbody>
+      {tilgungsreihe.map((r) => (
+        <tr>
+          <th scope="row">{pz1(r.anfangstilgung)} %</th>
+          <td class="num">{eur0(r.rest120)}</td>
+          <td class="num">{eur0(r.rest126)}</td>
+          <td class="num">{pz1((r.rest126 / BETRAG) * 100)} %</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+  <p>
+    Bis zum Monat {MONATE_BIS_AUSSTIEG} wächst der Wert eines Prozentpunkts noch einmal: von
+    {' '}{eur0(restProPunkt)} auf {eur0(horizont126.differenz)}, je Euro Monatsrate von
+    {' '}{faktor2(tauschkurs)} auf {faktor2(horizont126.kurs)} Euro. Auch das bleibt linear. Die
+    Zahl in der dritten Spalte ist die, die zum Ausstiegstermin zu einem heute unbekannten Zins
+    weiterfinanziert werden muss – und sie ist die einzige Größe in diesem Artikel, bei der ein
+    fünfter Prozentpunkt Anfangstilgung genauso viel bringt wie der erste.
+  </p>
+  <p>
+    Drei Punkte, die in Zusammenfassungen dieses Kündigungsrechts regelmäßig fehlen:
+  </p>
+  <ul>
+    <li>
+      <strong>Vor diesem Termin gibt es keinen voraussetzungslosen Anspruch auf Ablösung.</strong> § 500 Abs. 2 Satz 1
+      BGB erlaubt zwar die vorzeitige Rückzahlung jederzeit, Satz 2 nimmt den
+      Immobiliar-Verbraucherdarlehensvertrag mit gebundenem Sollzinssatz aber ausdrücklich aus: In
+      der Sollzinsbindung geht das nur, „wenn hierfür ein berechtigtes Interesse des
+      Darlehensnehmers besteht". Es ist also nicht bloß eine Frage des Preises.
+    </li>
+    <li>
+      <strong>Die Deckelung der Vorfälligkeitsentschädigung gilt hier nicht.</strong> Die Grenzen
+      von einem Prozent beziehungsweise 0,5 Prozent des zurückgezahlten Betrags stehen in
+      § 502 Abs. 3 BGB und betreffen ausdrücklich nur Allgemein-Verbraucherdarlehensverträge. Für
+      das Immobiliendarlehen bleibt es beim „angemessenen" Schaden nach Absatz 1. Ausgeschlossen
+      ist der Anspruch nach § 502 Abs. 2 Nr. 2 BGB allerdings, wenn die Angaben im Vertrag zu
+      Laufzeit, Kündigungsrecht oder Berechnung der Entschädigung unzureichend sind.
+    </li>
+    <li>
+      <strong>Die Kündigung verfällt ohne Geld.</strong> Nach § 489 Abs. 3 BGB gilt sie als nicht
+      erfolgt, wenn der geschuldete Betrag nicht binnen zwei Wochen nach Wirksamwerden
+      zurückgezahlt wird. Die Anschlussfinanzierung muss zum Termin also stehen.
+    </li>
+  </ul>
+  <p class="ra-hinweis">
+    Der Tilgungsplan, aus dem die Tabellen dieses Artikels stammen, ist keine Zutat des Rechners:
+    Nach § 492 Abs. 3 Satz 2 BGB kann der Darlehensnehmer ihn jederzeit vom Darlehensgeber
+    verlangen, wenn ein Zeitpunkt für die Rückzahlung bestimmt ist.
+  </p>
+
+  <h3>Wann besteht die Rate zur Hälfte aus Tilgung?</h3>
+  <p>
+    Die zweite Zahl, die die Anfangstilgung steuert, ist der Kipppunkt: der Monat, in dem der
+    Tilgungsanteil den Zinsanteil erstmals erreicht. In der Voreinstellung des Rechners –
+    {' '}{LAUFZEIT_JAHRE} Jahre – geschieht das schon im Monat {standardKipp}: Die erste Rate
+    besteht aus {eur(standardErste.zins)} Zins und {eur(standardErste.tilgung)} Tilgung, die
+    letzte aus {eur(standardLetzte.zins)} und {eur(standardLetzte.tilgung)}. Der Zinsanteil der
+    ersten Rate ist das {zahl0(zinsanteilVerhaeltnis)}-Fache des Zinsanteils der letzten.
+  </p>
+  <p>
+    Der Kipppunkt hat eine Regel, die man nicht ausrechnen muss. Die erste Rate besteht aus
+    Sollzins und Anfangstilgung – beide auf dieselbe volle Darlehenssumme bezogen. Also überwiegt
+    die Tilgung von Anfang an genau dann, wenn die <strong>Anfangstilgung mindestens so hoch ist
+    wie der Sollzins</strong>. Alles darunter braucht Zeit, und zwar viel:
+  </p>
+  <table>
+    <caption class="visually-hidden">
+      Erster Monat, in dem der Tilgungsanteil den Zinsanteil erreicht, nach Anfangstilgung
+    </caption>
+    <thead>
+      <tr>
+        <th scope="col">Anfangstilgung</th>
+        <th scope="col" class="num">Kipppunkt</th>
+        <th scope="col" class="num">nach</th>
+        <th scope="col" class="num">Anteil der Laufzeit</th>
+      </tr>
+    </thead>
+    <tbody>
+      {kippreihe.map((k) => (
+        <tr>
+          <th scope="row">{pz1(k.anfangstilgung)} %</th>
+          <td class="num">{k.kipp === 1 ? 'erste Rate' : `Monat ${k.kipp}`}</td>
+          <td class="num">{k.kipp === 1 ? '–' : `${jahre1(k.kipp)} Jahren`}</td>
+          <td class="num">{k.kipp === 1 ? '–' : `${pz0(k.anteilDerLaufzeit)} %`}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+  <p>
+    Die Tabelle kippt zwischen den beiden Zeilen um, zwischen denen der Sollzins liegt: Bei
+    {' '}{pz1(kippDavor.anfangstilgung)} Prozent Anfangstilgung dauert es noch bis zum Monat
+    {' '}{kippDavor.kipp}, bei {kippSchwelle !== null ? pz1(kippSchwelle) : pz1(SOLLZINS)} Prozent
+    – dem Sollzins – ist es die erste Rate. Bei {pz1(kippZwei.anfangstilgung)} Prozent liegt der
+    Kipppunkt im Monat {kippZwei.kipp}, also nach {jahre1(kippZwei.kipp)} Jahren. Die Rate besteht
+    dann fast die gesamte Zinsbindung hindurch überwiegend aus Zins – und das ist derselbe
+    Zeitraum, an dessen Ende die Restschuld refinanziert werden muss.
+  </p>
+
+  <h3>Der effektive Jahreszins, den der Rechner zeigt, ist eine Untergrenze</h3>
+  <p>
+    Der Rechner oben nennt neben der Rate einen effektiven Jahreszins. Bei {pz1(SOLLZINS)} Prozent
+    Sollzins sind das {pz3(effStandard)} Prozent, im Rechner auf {pz2(effStandard)} gerundet – ein Aufschlag von
+    {' '}{pz3(effAufschlag)} Prozentpunkten, obwohl in dieser Rechnung keine einzige Nebenkostenposition
+    steckt. Er entsteht allein aus der monatlichen Zahlungsweise, die die Anlage zu § 16 PAngV der
+    Barwertrechnung zugrunde legt, und er hängt weder an der Laufzeit noch am Betrag: Über alle
+    Laufzeiten von {LAUFZEITEN[0]} bis {LAUFZEITEN[LAUFZEITEN.length - 1]} Jahren liegen die
+    Effektivzinsen
+    {' '}{effSpanneLaufzeit < 0.001 ? 'auf der dritten Nachkommastelle gleichauf' : `${pz3(effSpanneLaufzeit)} Prozentpunkte auseinander`}.
+  </p>
+  <p>
+    Entscheidend für diese Seite ist etwas anderes: Der Rechner setzt die Auszahlung immer gleich
+    dem Darlehensbetrag. Er zeigt damit den Effektivzins eines Angebots ganz ohne Kosten – den
+    kleinstmöglichen Wert zu diesem Sollzins. Behält der Darlehensgeber etwas ein, ein Disagio
+    etwa, bleibt die Rate unverändert, die Auszahlung sinkt, und die Kennzahl bewegt sich:
+  </p>
+  <table>
+    <caption class="visually-hidden">
+      Effektiver Jahreszins bei unverändertem Sollzins und einbehaltenem Auszahlungsanteil
+    </caption>
+    <thead>
+      <tr>
+        <th scope="col">einbehalten</th>
+        <th scope="col" class="num">Auszahlung</th>
+        <th scope="col" class="num">Monatsrate</th>
+        <th scope="col" class="num">effektiver Jahreszins</th>
+      </tr>
+    </thead>
+    <tbody>
+      {disagioreihe.map((d) => (
+        <tr>
+          <th scope="row">{pz1(d.prozent)} %</th>
+          <td class="num">{eur0(BETRAG - d.einbehalt)}</td>
+          <td class="num">{eur(standardKosten.rate)}</td>
+          <td class="num">{pz3(d.eff)} %</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+  <p>
+    Ein Prozent des Darlehens – {eur0(disagioEins.einbehalt)} – hebt den Effektivzins um
+    {' '}{pz3(disagioEins.eff - effStandard)} Prozentpunkte und damit um das
+    {' '}{faktor2((disagioEins.eff - effStandard) / effAufschlag)}-Fache dessen, was die monatliche
+    Zahlungsweise ausmacht. Genau dafür gibt es die Kennzahl. Was sie nicht enthält, steht ebenso
+    ausdrücklich im Gesetz: § 16 Abs. 4 Nr. 4 und 5 PAngV nehmen die Gebühren für die Eintragung
+    der Eigentumsübertragung ins Grundbuch und die Notarkosten von der Berechnung aus. Der
+    effektive Jahreszins vergleicht Darlehen, nicht Immobilienkäufe; die Kaufnebenkosten stehen
+    daneben, etwa in der
+    {' '}<a href={`${base}${artikelPfadVonSlug('grunderwerbsteuer-bundeslaender')}`}>Grunderwerbsteuer
+    der sechzehn Länder</a>.
+  </p>
+  <p class="ra-hinweis">
+    Ein Detail zur Genauigkeit: Der Rechner oben setzt für die Barwertrechnung alle Raten gleich
+    hoch an, obwohl die letzte abweicht – in der Voreinstellung {eur(standardLetzte.rate)} statt
+    {' '}{eur(standardKosten.rate)}. Auf drei Nachkommastellen des Effektivzinses wirkt sich das
+    nicht aus.
+  </p>
+
+  <h3>Was diese Rechnung nicht abbildet</h3>
+  <ul>
+    <li>
+      <strong>Sondertilgungen.</strong> Der Tilgungsplan des Moduls kennt nur die vereinbarte
+      Rate. Jede zusätzliche Zahlung verschiebt alle folgenden Zeilen und verkürzt die Laufzeit –
+      wie stark, hängt davon ab, ob und in welcher Höhe der Vertrag sie einräumt. Einen
+      voraussetzungslosen gesetzlichen Anspruch darauf gibt es beim Immobiliar-Verbraucherdarlehen
+      während der Sollzinsbindung nicht (§ 500 Abs. 2 Satz 2 BGB).
+    </li>
+    <li>
+      <strong>Der Zins nach der Zinsbindung.</strong> Alle Laufzeit- und Zinsangaben unterstellen
+      denselben Sollzins bis zum letzten Monat. Real gilt er nur für die Zinsbindung; alles
+      danach ist offen. Genau deshalb steht hier die Restschuld im Mittelpunkt und nicht die
+      Gesamtzinssumme, die ohnehin auf einer Annahme über zwanzig oder dreißig Jahre beruht.
+    </li>
+    <li>
+      <strong>Bereitstellungszinsen und Auszahlung in Raten.</strong> Der Plan beginnt mit der
+      vollen Summe im Monat eins. Wird das Darlehen nach Baufortschritt abgerufen, verschiebt sich
+      auch der Startpunkt der Zehnjahresfrist: § 489 Abs. 1 Nr. 2 BGB stellt auf den
+      <em>vollständigen</em> Empfang ab.
+    </li>
+    <li>
+      <strong>Alle Kosten außerhalb des Darlehens.</strong> Grundschuldbestellung, Notar,
+      Gebäudeversicherung, Instandhaltung – nichts davon steckt in Rate oder Effektivzins.
+    </li>
+    <li>
+      <strong>Marktübliche Konditionen.</strong> {pz1(SOLLZINS)} Prozent ist der Startwert des
+      Rechners, keine Zinsprognose und kein Angebot. Die Aussagen dieses Artikels über das
+      Verhältnis von Rate, Laufzeit und Restschuld gelten für jeden Zinssatz; die absoluten Beträge
+      gelten nur für die angegebene Kombination.
+    </li>
+  </ul>
+</RechnerArtikel>

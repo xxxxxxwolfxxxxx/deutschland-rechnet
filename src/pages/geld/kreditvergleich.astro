@@ -1,7 +1,7 @@
 ---
 import Layout from '../../layouts/Layout.astro';
 import CalculatorShell from '../../components/CalculatorShell.astro';
-import CalculatorGuide from '../../components/CalculatorGuide.astro';
+import ArtikelEffektivzins from '../../components/artikel/effektivzins-gegen-ratensumme.astro';
 import { CALCULATORS, CATEGORIES } from '../../data/calculators';
 const calc = CALCULATORS.find(c => c.slug === 'kreditvergleich')!;
 const cat = CATEGORIES[calc.category];
@@ -21,16 +21,14 @@ const year = new Date().getFullYear();
   </div>
   <CalculatorShell
     calculator={calc}
-    intro="Mit dem Kreditvergleich berechnen Sie den effektiven Jahreszins verschiedener Kreditangebote. Vergleichen Sie bis zu drei Kredite gleichzeitig und finden Sie das Angebot mit den niedrigsten Gesamtkosten."
-    sourceNote="Effektiver Jahreszins inkl. Nebenkosten."
-    explanation="Der effektive Jahreszins nach § 6 PAngV berücksichtigt alle Kreditkosten einschliesslich Bearbeitungsgebühren und Restschuldversicherungen. Er ist der einzig verlässliche Vergleichswert, da der Sollzins allein die tatsächliche Belastung nicht widerspiegelt."
+    intro="Mit dem Kreditvergleich stellen Sie zwei Kreditangebote bei gleichem Betrag und gleicher Laufzeit gegenüber. Sie können jedes Angebot über den Sollzins oder über die Monatsrate eingeben; der Rechner weist für beide Sollzins, effektiven Jahreszins, Zinskosten und Gesamtbetrag aus."
+    sourceNote="Annuitätendarlehen ohne Nebenkosten. Effektiver Jahreszins nach der Barwertmethode des § 16 PAngV, hier allein aus Betrag, Rate und Laufzeit – Bearbeitungsentgelte oder eine Restschuldversicherung erfasst der Rechner nicht."
+    explanation="Der effektive Jahreszins ist nach Art. 247 § 3 Abs. 1 Nr. 3 EGBGB Pflichtangabe; berechnet wird er nach § 16 PAngV. Er enthält die Kosten, die der Darlehensgeber für die Vergabe verlangt – eine Restschuldversicherung nur dann, wenn sie Voraussetzung für den Kredit ist (§ 16 Abs. 4 Nr. 2 PAngV). Bei gleicher Laufzeit sortiert er Angebote zuverlässig. Bei ungleicher Laufzeit nicht: Einmalkosten verteilen sich über mehr Jahre, und der Effektivzins eines langen Kredits sinkt, obwohl er insgesamt mehr kostet. Warum das so ist, steht im Text unter dem Rechner."
     faqs={[
       { q: "Sollzins vs. Effektivzins – was ist der Unterschied?", a: "Der Sollzins ist der reine Kreditzins. Der Effektivzins ist aussagekräftiger, da er auch Bearbeitungsgebühren, Versicherungen und andere Kosten einrechnet." },
-      { q: "Welcher Zinssatz ist noch gut?", a: "Das hängt von Ihrer Bonität ab. Gute Bonität (SCHUFA 100-200): 3-5%. Mittlere Bonität: 5-8%. Niedrige Bonität: 8-15%+." },
-      { q: "Wie wirkt sich die Laufzeit auf die Rate aus?", a: "Je länger die Laufzeit, desto niedriger die Rate – aber höhere Gesamtkosten durch längere Zinszahlung. Kürzere Laufzeit = höhere Rate, aber geringere Gesamtkosten." },
+            { q: "Wie wirkt sich die Laufzeit auf die Rate aus?", a: "Je länger die Laufzeit, desto niedriger die Rate – aber höhere Gesamtkosten durch längere Zinszahlung. Kürzere Laufzeit = höhere Rate, aber geringere Gesamtkosten." },
       { q: "Warum unterscheiden sich meine Bankangebote vom Rechner?", a: "Banken rechnen zusätzliche Kosten ein (Versicherungen, Gebühren, Kontoführung). Der Rechner zeigt die Basis-Darlehenskosten. Vergleichen Sie immer die Effektivzinssätze!" },
-      { q: "Was ist ein SCHUFA-Score und wie beeinflusst er meinen Kreditzins?", a: "Der SCHUFA-Score ist eine Bonitätseinstufung (300-900 Punkte). Je höher, desto besser. Ab 500 Punkten ist die Bonität normal, ab 650 sehr gut. Ein schlechterer Score führt zu höheren Zinsen oder Kreditablehnung." },
-      { q: "Sollte ich einen kurzen oder langen Kredit wählen?", a: "Kurz: Weniger Gesamtzinsen, aber höhere monatliche Rate. Lang: Niedrigere Rate, aber mehr Gesamtkosten. Wählen Sie basierend auf Ihrer finanziellen Situation und wie schnell Sie schuldenfrei sein möchten." }
+            { q: "Sollte ich einen kurzen oder langen Kredit wählen?", a: "Kurz: Weniger Gesamtzinsen, aber höhere monatliche Rate. Lang: Niedrigere Rate, aber mehr Gesamtkosten. Wählen Sie basierend auf Ihrer finanziellen Situation und wie schnell Sie schuldenfrei sein möchten." }
     ]}
   >
     <div class="calc-form">
@@ -85,10 +83,11 @@ const year = new Date().getFullYear();
       </div>
       <div id="details" style="margin-top:0.75rem;font-size:0.88rem;color:#666;display:flex;gap:1.5rem;flex-wrap:wrap;"></div>
     </div>
+    <ArtikelEffektivzins slot="artikel" />
   </CalculatorShell>
 
 <script type="module">
-const { annuitaetenrate, darlehenskosten, effektivzins, sollzinsAusRate } =
+const { annuitaetenrate, effektivzins, sollzinsAusRate } =
   await import(window.__base + 'scripts/annuitaet.js');
 const eur = (n) => n.toLocaleString('de-DE', {minimumFractionDigits:2, maximumFractionDigits:2}) + ' \u20ac';
 const pct = (n) => n.toLocaleString('de-DE', {minimumFractionDigits:2, maximumFractionDigits:2}) + ' %';
@@ -103,7 +102,6 @@ function angebot(betrag, monate, sollzinsEingabe, rateEingabe) {
   const sollzins = rateEingabe > 0
     ? sollzinsAusRate({ betrag, rate, monate })
     : sollzinsEingabe;
-  const k = darlehenskosten({ betrag, sollzins, monate });
   return {
     rate,
     sollzins,
@@ -163,40 +161,4 @@ berechne();
 }
 </style>
 
-  <CalculatorGuide
-    title="Kreditvergleich – Die richtige Finanzierung wählen"
-    content={`
-      <p>Ein <strong>Kredit</strong> ist Geld, das Sie sich von einer Bank leihen. Sie müssen es mit Zinsen zurückzahlen. Der Kreditvergleich zeigt, welches Angebot wirklich am günstigsten ist – denn nicht immer ist der niedrigere Prozentsatz auch der beste Deal.</p>
-
-      <p>Mit unserem Rechner können Sie <strong>zwei Kreditangebote direkt vergleichen</strong>. Die wichtigste Metrik ist die <strong>Gesamtsumme, die Sie zurückzahlen müssen</strong> – nicht nur der Zinssatz.</p>
-
-      <p><strong>Beispiel:</strong> Kredit A: 5% Zinsen auf 20.000€ über 36 Monate. Kredit B: 4,5% über 60 Monate. Kredit B hat niedrigere Zinsen, aber Sie zahlen länger und mehr insgesamt. Der Rechner zeigt: Welcher ist wirklich günstiger?</p>
-
-      <h4>Sollzins vs. Effektivzins – Was zählt wirklich?</h4>
-      <ul>
-        <li><strong>Sollzins:</strong> Der reine Kreditzins ohne Nebenkosten. In Banken-Angeboten wird dieser meist prominent angezeigt.</li>
-        <li><strong>Effektivzins:</strong> Schließt Bearbeitungsgebühren, Provisionen und andere Kosten ein. Dieser ist aussagekräftiger und muss von Banken immer genannt werden. Vergleichen Sie Kredite anhand des Effektivzinses!</li>
-      </ul>
-
-      <h4>Wie beeinflusst die Laufzeit Ihre Entscheidung?</h4>
-      <p>Die Laufzeit ist ein kritischer Faktor:</p>
-      <ul>
-        <li><strong>Kurze Laufzeit (12-24 Monate):</strong> Höhere monatliche Rate, aber weniger Gesamtzinsen. Gut, wenn Sie schnell schuldenfrei sein möchten.</li>
-        <li><strong>Mittlere Laufzeit (36-48 Monate):</strong> Das Standardmodell. Gute Balance zwischen Rate und Gesamtkosten.</li>
-        <li><strong>Lange Laufzeit (60-84 Monate):</strong> Niedrigere monatliche Rate, aber deutlich höhere Gesamtzinsen. Nur wenn die höhere Rate Ihre Liquidität gefährdet.</li>
-      </ul>
-
-      <h4>Bonitätsprüfung und SCHUFA</h4>
-      <p>Banken prüfen Ihre Kreditwürdigkeit anhand des SCHUFA-Scores (150-900 Punkte in Deutschland). Je besser Ihr Score, desto niedriger Ihr Zinssatz. Ein schlechter Score kann zu Kreditablehnung oder sehr hohen Zinsen führen.</p>
-
-      <h4>Praktische Tipps für Kreditvergleiche</h4>
-      <ul>
-        <li><strong>Mehrere Banken vergleichen:</strong> Zinssätze unterscheiden sich deutlich je nach Anbieter – bis zu 2-3% Unterschied sind normal.</li>
-        <li><strong>Gesamtkosten beachten:</strong> Nicht nur der Prozentsatz zählt. Gebühren, Versicherungen und Sondertilgungsoptionen spielen eine Rolle.</li>
-        <li><strong>Vorsicht vor Nebenkosten:</strong> Manche Banken verstecken Versicherungen (Kreditausfallversicherung) oder Kontogebühren im Gesamtpreis.</li>
-        <li><strong>Sondertilgung verhandeln:</strong> Die Möglichkeit, Raten zu erhöhen oder Sondertilgungen zu machen, kann Ihnen Jahre Zinsen sparen.</li>
-      </ul>
-    `}
-    relatedSlugs={['trinkgeld-rechner', 'kurzarbeitergeld-rechner']}
-  />
 </Layout>

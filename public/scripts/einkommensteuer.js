@@ -15,10 +15,10 @@ export const GRUNDFREIBETRAG = 12348;
 /** Obergrenze der ersten Progressionszone (§ 32a Abs. 1 Satz 2 Nr. 2 EStG). */
 export const ZONE_2_OBERGRENZE = 17799;
 
-/** Ab dem nächsten Euro greift der Spitzensteuersatz von 42 % (§ 32a Abs. 1 Satz 2 Nr. 3 EStG). */
+/** Obergrenze der zweiten Progressionszone (§ 32a Abs. 1 Satz 2 Nr. 3 EStG); ab dem nächsten Euro gilt der Steuersatz von 42 % (Nr. 4). */
 export const ZONE_3_OBERGRENZE = 69878;
 
-/** Ab dem nächsten Euro greift der Steuersatz von 45 % (§ 32a Abs. 1 Satz 2 Nr. 4 EStG). */
+/** Obergrenze der 42-Prozent-Zone (§ 32a Abs. 1 Satz 2 Nr. 4 EStG); ab dem nächsten Euro gilt der Spitzensteuersatz von 45 % (Nr. 5). */
 export const ZONE_4_OBERGRENZE = 277825;
 
 /**

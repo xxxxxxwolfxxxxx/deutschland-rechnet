@@ -1,0 +1,784 @@
+---
+import RechnerArtikel from '../RechnerArtikel.astro';
+import { artikelPfadVonSlug } from '../../data/ratgeber';
+import { berechneMietrendite } from '../../../public/scripts/mietrendite.js';
+import { BUNDESLAENDER } from '../../../public/scripts/grunderwerbsteuer.js';
+import { MAKLER_PROVISION_PROZENT_JE_SEITE } from '../../../public/scripts/immokauf-nebenkosten.js';
+import { einkommensteuer } from '../../../public/scripts/einkommensteuer.js';
+
+// Querverweise brauchen den BASE_URL-Praefix. Ohne ihn liefert artikelPfad()
+// einen relativen Pfad, der von /wohnen/... aus auf /wohnen/wohnen/... zeigt.
+const base = import.meta.env.BASE_URL;
+
+// Jede Zahl in diesem Text kommt zur Buildzeit aus denselben Modulen, die der
+// Rechner oben im Browser laedt. Nichts ist abgetippt.
+
+const eur = (n: number, d = 2) =>
+  n.toLocaleString('de-DE', { minimumFractionDigits: d, maximumFractionDigits: d }) + ' €';
+const eurGlatt = (n: number) => n.toLocaleString('de-DE', { maximumFractionDigits: 0 }) + ' €';
+const proz = (n: number, d = 2) =>
+  n.toLocaleString('de-DE', { minimumFractionDigits: d, maximumFractionDigits: d }) + ' %';
+const zahl = (n: number, d = 2) =>
+  n.toLocaleString('de-DE', { minimumFractionDigits: d, maximumFractionDigits: d });
+// Kleine Anzahlen gehoeren im Fliesstext ausgeschrieben.
+const WORT = ['null', 'ein', 'zwei', 'drei', 'vier', 'fuenf', 'sechs', 'sieben', 'acht'];
+const wort = (n: number) => (n < WORT.length ? WORT[n].replace('ue', 'ü') : String(n));
+
+// --- Der Beispielfall ------------------------------------------------------
+// Dieselben Vorbelegungen wie im Formular oben, damit Leser die Zahlen dort
+// nachstellen koennen, ohne ein Feld anzufassen.
+const KAUFPREIS = 300000;
+const JAHRESMIETE = 14400;
+const BEWIRTSCHAFTUNG_SONSTIGE = 1500;
+const BEWIRTSCHAFTUNG_INSTANDHALTUNG = 1000;
+
+const fall = (bundesland: string, mitMakler: boolean) =>
+  berechneMietrendite({
+    kaufpreis: KAUFPREIS,
+    kaltmieteJahr: JAHRESMIETE,
+    nebenkosten: BEWIRTSCHAFTUNG_SONSTIGE,
+    instandhaltung: BEWIRTSCHAFTUNG_INSTANDHALTUNG,
+    bundesland,
+    mitMakler,
+  });
+
+const basis = fall('nw', true);
+const n = basis.nebenkostenAufschluesselung;
+
+// Der Anteil der Nebenkosten am Kaufpreis und der am gebundenen Kapital sind
+// zwei verschiedene Zahlen. Die Rendite sinkt um die zweite.
+const quoteAufKaufpreis = (basis.kaufnebenkosten / KAUFPREIS) * 100;
+const quoteAufInvestition = (basis.kaufnebenkosten / basis.gesamtinvestition) * 100;
+const punkteverlust = basis.nettorenditeAufKaufpreis - basis.nettorendite;
+
+// --- Sensitivitaet: haengt der Verlust an den Bewirtschaftungskosten? ------
+const BEWIRTSCHAFTUNGSSTUFEN = [0, 1000, 2500, 4000, 5500];
+const sensitivitaet = BEWIRTSCHAFTUNGSSTUFEN.map((bw) => {
+  const r = berechneMietrendite({
+    kaufpreis: KAUFPREIS,
+    kaltmieteJahr: JAHRESMIETE,
+    nebenkosten: bw,
+    instandhaltung: 0,
+    bundesland: 'nw',
+    mitMakler: true,
+  });
+  return {
+    bewirtschaftung: bw,
+    aufKaufpreis: r.nettorenditeAufKaufpreis,
+    aufInvestition: r.nettorendite,
+    punkte: r.nettorenditeAufKaufpreis - r.nettorendite,
+    relativ: (r.kaufnebenkosten / r.gesamtinvestition) * 100,
+  };
+});
+
+// --- Kaufpreisfaktor -------------------------------------------------------
+// Der Vervielfaeltiger ist der Kehrwert der Bruttorendite. Fuer jeden Faktor
+// auf den Kaufpreis ergibt sich ein anderer auf die Gesamtinvestition.
+const FAKTOREN = [18, 20, 22, 25, 28, 30];
+const faktorzeilen = FAKTOREN.map((f) => {
+  const r = berechneMietrendite({
+    kaufpreis: KAUFPREIS,
+    kaltmieteJahr: KAUFPREIS / f,
+    nebenkosten: 0,
+    instandhaltung: 0,
+    bundesland: 'nw',
+    mitMakler: true,
+  });
+  return {
+    faktor: f,
+    bruttoAufKaufpreis: r.bruttorenditeAufKaufpreis,
+    faktorAufInvestition: r.faktorAufGesamtinvestition,
+    brutto: r.bruttorendite,
+  };
+});
+// Welcher Faktor auf den Kaufpreis ergibt genau 20 auf das gebundene Kapital?
+const faktorFuerZwanzig = 20 / (basis.gesamtinvestition / KAUFPREIS);
+
+// --- Alle sechzehn Laender -------------------------------------------------
+const laender = Object.entries(
+  BUNDESLAENDER as Record<string, { name: string; satz: number }>,
+)
+  .map(([kuerzel, land]) => {
+    const mit = fall(kuerzel, true);
+    const ohne = fall(kuerzel, false);
+    return { kuerzel, name: land.name, satz: land.satz, mit, ohne };
+  })
+  .sort((a, b) => a.satz - b.satz || a.name.localeCompare(b.name, 'de'));
+
+const guenstigste = laender[0];
+const teuerste = laender[laender.length - 1];
+const hoechstsatz = teuerste.satz;
+const laenderHoechstsatz = laender.filter((l) => l.satz === hoechstsatz).map((l) => l.name);
+const spanneRendite = guenstigste.mit.nettorendite - teuerste.mit.nettorendite;
+const spanneEuro = teuerste.mit.kaufnebenkosten - guenstigste.mit.kaufnebenkosten;
+// Das Land des Beispielfalls – nicht mit "teuerste" verwechseln, auch wenn es
+// hier zufaellig zur Gruppe mit dem hoechsten Satz gehoert.
+const beispielLand = laender.find((l) => l.kuerzel === 'nw')!;
+const beispielOhneMakler = fall('nw', false);
+
+// --- Amortisation der Nebenkosten ------------------------------------------
+// Frage: Um wie viel muss der Preis steigen, bis der Verkaufserloes wieder das
+// gebundene Kapital deckt? Antwort: um die Nebenkostenquote auf den Kaufpreis.
+const HALTEDAUER_STEUERFREI = 10; // § 23 Abs. 1 Satz 1 Nr. 1 EStG
+const jahreBis = (investition: number, wachstum: number) =>
+  Math.log(investition / KAUFPREIS) / Math.log(1 + wachstum);
+const schwelleFuerZehnJahre = (investition: number) =>
+  (Math.pow(investition / KAUFPREIS, 1 / HALTEDAUER_STEUERFREI) - 1) * 100;
+
+const WACHSTUMSSTUFEN = [0.005, 0.01, 0.015, 0.02, 0.03];
+// Die Stufe, an der sich der Text festmacht.
+const WERTSTEIGERUNG = 0.01;
+// Nach Steuersatz gruppiert: Laender mit gleichem Satz haben hier identische
+// Zeilen, die Tabelle zeigt deshalb die Satzgruppen, nicht sechzehn Zeilen.
+const satzgruppen = [...new Set(laender.map((l) => l.satz))].map((satz) => {
+  const gruppe = laender.filter((l) => l.satz === satz);
+  const muster = gruppe[0];
+  return {
+    satz,
+    namen: gruppe.map((l) => l.name),
+    quote: (muster.mit.kaufnebenkosten / KAUFPREIS) * 100,
+    jahre: WACHSTUMSSTUFEN.map((w) => jahreBis(muster.mit.gesamtinvestition, w)),
+    schwelleMit: schwelleFuerZehnJahre(muster.mit.gesamtinvestition),
+    schwelleOhne: schwelleFuerZehnJahre(muster.ohne.gesamtinvestition),
+  };
+});
+
+// Wo verlaeuft die Ein-Prozent-Linie? Nicht abgelesen, sondern gesucht: die
+// hoechste Satzgruppe, die mit 1 % Wertsteigerung binnen zehn Jahren durch ist,
+// und die niedrigste, die es nicht mehr schafft.
+const gruppenSchaffenEsMitEinemProzent = satzgruppen.filter(
+  (g) => g.schwelleMit <= WERTSTEIGERUNG * 100,
+);
+const gruppenSchaffenEsNicht = satzgruppen.filter(
+  (g) => g.schwelleMit > WERTSTEIGERUNG * 100,
+);
+const letzteGruppeDieEsSchafft =
+  gruppenSchaffenEsMitEinemProzent[gruppenSchaffenEsMitEinemProzent.length - 1];
+const ersteGruppeDieEsNichtSchafft = gruppenSchaffenEsNicht[0];
+// Index der Ein-Prozent-Spalte, nicht geraten.
+const SPALTE_EIN_PROZENT = WACHSTUMSSTUFEN.indexOf(WERTSTEIGERUNG);
+
+// --- Der Verkauf im zehnten Jahr -------------------------------------------
+const preisNachZehn = KAUFPREIS * Math.pow(1 + WERTSTEIGERUNG, HALTEDAUER_STEUERFREI);
+const kapitalNachZehn = (investition: number) => preisNachZehn - investition;
+
+// AfA: § 7 Abs. 4 Satz 1 Nr. 2 Buchst. b EStG, Gebaeude von 1925 bis 2022.
+const AFA_SATZ = 0.02;
+const BODENANTEIL = 0.3;
+const BODENANTEILE = [0.2, 0.3, 0.4];
+const afaZeilen = BODENANTEILE.map((boden) => {
+  const bemessungsgrundlage = basis.gesamtinvestition * (1 - boden);
+  const afaJahr = bemessungsgrundlage * AFA_SATZ;
+  const afaZehnJahre = afaJahr * HALTEDAUER_STEUERFREI;
+  const anschaffungskostenGemindert = basis.gesamtinvestition - afaZehnJahre;
+  const gewinn = preisNachZehn - anschaffungskostenGemindert;
+  return {
+    boden,
+    nebenkostenAufBoden: basis.kaufnebenkosten * boden,
+    bemessungsgrundlage,
+    afaJahr,
+    afaZehnJahre,
+    gewinn,
+  };
+});
+const afaBasis = afaZeilen.find((z) => z.boden === BODENANTEIL)!;
+
+// Steuer auf diesen Gewinn bei einem Vermieter, der ohne den Verkauf bereits im
+// 42-Prozent-Bereich liegt (§ 32a Abs. 1 Satz 2 Nr. 4 EStG).
+const ZVE_OHNE_VERKAUF = 70000;
+const mehrsteuer =
+  einkommensteuer(ZVE_OHNE_VERKAUF + afaBasis.gewinn) - einkommensteuer(ZVE_OHNE_VERKAUF);
+// Gegenrechnung: Was hat dieselbe AfA in den zehn Jahren vorher gespart? Der
+// Satz muss nicht derselbe sein – die jaehrliche AfA knabbert an der Spitze des
+// Einkommens, der einmalige Gewinn liegt vollstaendig darueber.
+const afaErsparnisProJahr =
+  einkommensteuer(ZVE_OHNE_VERKAUF) - einkommensteuer(ZVE_OHNE_VERKAUF - afaBasis.afaJahr);
+const afaErsparnisZehnJahre = afaErsparnisProJahr * HALTEDAUER_STEUERFREI;
+
+// Welcher Anteil der Nebenkosten ist nach zehn Jahren ueberhaupt abgeschrieben?
+const nebenkostenImGebaeude = basis.kaufnebenkosten * (1 - BODENANTEIL);
+const nebenkostenAfaZehnJahre = nebenkostenImGebaeude * AFA_SATZ * HALTEDAUER_STEUERFREI;
+const nebenkostenAfaAnteil = (nebenkostenAfaZehnJahre / basis.kaufnebenkosten) * 100;
+
+// --- Degression der Nebenkostenquote ---------------------------------------
+const PREISSTUFEN = [100000, 200000, 300000, 500000, 1000000];
+const degression = PREISSTUFEN.map((preis) => {
+  const r = berechneMietrendite({
+    kaufpreis: preis,
+    kaltmieteJahr: JAHRESMIETE,
+    nebenkosten: 0,
+    instandhaltung: 0,
+    bundesland: 'nw',
+    mitMakler: true,
+  });
+  const g = r.nebenkostenAufschluesselung;
+  return {
+    preis,
+    quote: (r.kaufnebenkosten / preis) * 100,
+    notarGrundbuchQuote: ((g.notar + g.grundbuch) / preis) * 100,
+  };
+});
+---
+
+<RechnerArtikel
+  titel="Die Kaufnebenkosten und die Zehnjahresfrist laufen gegen dieselbe Uhr"
+  lead={`Im Beispiel oben – ${eurGlatt(KAUFPREIS)} Kaufpreis, ${eurGlatt(JAHRESMIETE)} Jahreskaltmiete, Nordrhein-Westfalen, mit Makler – kommen ${eur(basis.kaufnebenkosten)} Kaufnebenkosten hinzu. Sie senken die Nettorendite von ${proz(basis.nettorenditeAufKaufpreis)} auf ${proz(basis.nettorendite)}. Vor allem aber setzen sie eine Frist: Bei einem Prozent Wertsteigerung im Jahr sind sie erst nach ${zahl(jahreBis(basis.gesamtinvestition, WERTSTEIGERUNG), 1)} Jahren wieder eingespielt – die Zehnjahresfrist des § 23 EStG ist dann schon abgelaufen. Wer stattdessen genau am zehnten Jahrestag verkauft, bekommt ${eurGlatt(Math.abs(kapitalNachZehn(basis.gesamtinvestition)))} weniger zurück, als er eingesetzt hat – und versteuert trotzdem ${eurGlatt(afaBasis.gewinn)} Gewinn.`}
+  datum="2026-09-13"
+  quellen={[
+    { titel: '§ 22 EStG – Arten der sonstigen Einkünfte', url: 'https://www.gesetze-im-internet.de/estg/__22.html' },
+    { titel: '§ 23 EStG – Private Veräußerungsgeschäfte', url: 'https://www.gesetze-im-internet.de/estg/__23.html' },
+    { titel: '§ 7 EStG – Absetzung für Abnutzung', url: 'https://www.gesetze-im-internet.de/estg/__7.html' },
+    { titel: '§ 9 EStG – Werbungskosten', url: 'https://www.gesetze-im-internet.de/estg/__9.html' },
+    { titel: '§ 21 EStG – Einkünfte aus Vermietung und Verpachtung', url: 'https://www.gesetze-im-internet.de/estg/__21.html' },
+    { titel: '§ 32a EStG – Einkommensteuertarif', url: 'https://www.gesetze-im-internet.de/estg/__32a.html' },
+    { titel: '§ 11 GrEStG – Steuersatz, Abrundung', url: 'https://www.gesetze-im-internet.de/grestg_1983/__11.html' },
+    { titel: '§ 255 HGB – Anschaffungs- und Herstellungskosten', url: 'https://www.gesetze-im-internet.de/hgb/__255.html' },
+    { titel: '§ 656c BGB – Lohnanspruch bei Tätigkeit für beide Parteien', url: 'https://www.gesetze-im-internet.de/bgb/__656c.html' },
+    { titel: '§ 656d BGB – Vereinbarungen über die Maklerkosten', url: 'https://www.gesetze-im-internet.de/bgb/__656d.html' },
+    { titel: '§ 34 GNotKG – Wertgebühren', url: 'https://www.gesetze-im-internet.de/gnotkg/__34.html' },
+    { titel: 'Anlage 1 GNotKG – Kostenverzeichnis', url: 'https://www.gesetze-im-internet.de/gnotkg/anlage_1.html' },
+  ]}
+>
+
+  <h3>Elf Prozent Nebenkosten kosten zehn Prozent Rendite</h3>
+
+  <p>
+    Die übliche Bruttomietrendite teilt die Jahreskaltmiete durch den Kaufpreis.
+    Im Beispielfall sind das {eurGlatt(JAHRESMIETE)} auf {eurGlatt(KAUFPREIS)},
+    also {proz(basis.bruttorenditeAufKaufpreis)}. Investiert ist aber nicht der
+    Kaufpreis. Investiert ist das, was vom Konto geht:
+  </p>
+
+  <table>
+    <caption class="visually-hidden">
+      Kaufnebenkosten bei {eurGlatt(KAUFPREIS)} Kaufpreis in Nordrhein-Westfalen mit Makler
+    </caption>
+    <thead>
+      <tr>
+        <th scope="col">Position</th>
+        <th scope="col" class="num">Betrag</th>
+        <th scope="col" class="num">vom Kaufpreis</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <th scope="row">Grunderwerbsteuer ({zahl(beispielLand.satz, 1)} %, {beispielLand.name})</th>
+        <td class="num">{eur(n.grunderwerbsteuer)}</td>
+        <td class="num">{proz((n.grunderwerbsteuer / KAUFPREIS) * 100)}</td>
+      </tr>
+      <tr>
+        <th scope="row">Notar (Beurkundung, Vollzug, Betreuung, mit Umsatzsteuer)</th>
+        <td class="num">{eur(n.notar)}</td>
+        <td class="num">{proz((n.notar / KAUFPREIS) * 100)}</td>
+      </tr>
+      <tr>
+        <th scope="row">Grundbuch (Vormerkung, Eigentumsumschreibung)</th>
+        <td class="num">{eur(n.grundbuch)}</td>
+        <td class="num">{proz((n.grundbuch / KAUFPREIS) * 100)}</td>
+      </tr>
+      <tr>
+        <th scope="row">Maklerprovision des Käufers ({zahl(MAKLER_PROVISION_PROZENT_JE_SEITE)} %)</th>
+        <td class="num">{eur(n.makler)}</td>
+        <td class="num">{proz((n.makler / KAUFPREIS) * 100)}</td>
+      </tr>
+      <tr>
+        <th scope="row">Summe</th>
+        <td class="num"><strong>{eur(basis.kaufnebenkosten)}</strong></td>
+        <td class="num"><strong>{proz(quoteAufKaufpreis)}</strong></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <p>
+    Gebunden sind damit {eur(basis.gesamtinvestition)}. Die Miete bleibt dieselbe,
+    der Nenner wächst: Aus {proz(basis.bruttorenditeAufKaufpreis)} Bruttorendite
+    werden {proz(basis.bruttorendite)}. Zieht man die
+    {' '}{eurGlatt(basis.bewirtschaftung)} nicht umlagefähigen
+    Bewirtschaftungskosten ab, stehen sich {proz(basis.nettorenditeAufKaufpreis)}
+    {' '}und {proz(basis.nettorendite)} gegenüber – ein Unterschied von
+    {' '}{zahl(punkteverlust)} Prozentpunkten.
+  </p>
+
+  <p>
+    Hier lohnt es sich, zwei Zahlen auseinanderzuhalten, die oft verwechselt
+    werden. Die Nebenkosten sind {proz(quoteAufKaufpreis)} <em>des Kaufpreises</em>.
+    Sie sind aber nur {proz(quoteAufInvestition)} <em>der Gesamtinvestition</em> –
+    und die Rendite sinkt um den zweiten Wert, nicht um den ersten. Wer
+    {' '}{proz(quoteAufKaufpreis)} Nebenkosten von seiner Rendite abzieht, zieht
+    zu viel ab. Der Grund ist reine Bruchrechnung: Die Nebenkosten stehen im
+    Nenner, nicht im Zähler.
+  </p>
+
+  <p>
+    Dieser relative Verlust ist bemerkenswert stabil. Der Abstand in
+    Prozentpunkten hängt daran, wie hoch die Rendite überhaupt ist – der Abstand
+    in Prozent nicht:
+  </p>
+
+  <table>
+    <caption class="visually-hidden">
+      Renditeverlust durch Kaufnebenkosten bei verschiedenen Bewirtschaftungskosten
+    </caption>
+    <thead>
+      <tr>
+        <th scope="col">Bewirtschaftung/Jahr</th>
+        <th scope="col" class="num">auf den Kaufpreis</th>
+        <th scope="col" class="num">auf die Investition</th>
+        <th scope="col" class="num">Differenz</th>
+        <th scope="col" class="num">relativ</th>
+      </tr>
+    </thead>
+    <tbody>
+      {sensitivitaet.map((s) => (
+        <tr>
+          <th scope="row">{eurGlatt(s.bewirtschaftung)}</th>
+          <td class="num">{proz(s.aufKaufpreis)}</td>
+          <td class="num">{proz(s.aufInvestition)}</td>
+          <td class="num">{zahl(s.punkte)} Pp.</td>
+          <td class="num">−{proz(s.relativ)}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+
+  <p class="ra-hinweis">
+    Die letzte Spalte ist in allen Zeilen dieselbe Zahl, weil sie gar nicht von
+    der Miete abhängt: Sie ist der Anteil der Nebenkosten an der
+    Gesamtinvestition. Die vierte Spalte dagegen schrumpft mit der Rendite – wer
+    ein teures Objekt mit magerer Nettorendite kauft, verliert weniger
+    Prozentpunkte und trotzdem denselben Anteil seines Ertrags.
+  </p>
+
+  <h3>Faktor 18 auf den Kaufpreis ist Faktor 20 auf das Geld</h3>
+
+  <p>
+    Im Immobilienhandel wird selten über Renditen gesprochen, sondern über den
+    Kaufpreisfaktor oder Vervielfältiger: wie viele Jahresnettokaltmieten der
+    Kaufpreis beträgt. Das ist der Kehrwert der Bruttorendite – Faktor 20
+    entspricht {proz(faktorzeilen[1].bruttoAufKaufpreis)}, Faktor 25 entspricht
+    {' '}{proz(faktorzeilen[3].bruttoAufKaufpreis)}. Rechnet man den Faktor auf
+    das tatsächlich gebundene Kapital, verschiebt sich die ganze Skala:
+  </p>
+
+  <table>
+    <caption class="visually-hidden">
+      Kaufpreisfaktor auf den Kaufpreis und auf die Gesamtinvestition
+    </caption>
+    <thead>
+      <tr>
+        <th scope="col" class="num">Faktor (Kaufpreis)</th>
+        <th scope="col" class="num">Bruttorendite</th>
+        <th scope="col" class="num">Faktor (Investition)</th>
+        <th scope="col" class="num">Bruttorendite</th>
+      </tr>
+    </thead>
+    <tbody>
+      {faktorzeilen.map((f) => (
+        <tr>
+          <th scope="row" class="num">{zahl(f.faktor, 0)}</th>
+          <td class="num">{proz(f.bruttoAufKaufpreis)}</td>
+          <td class="num">{zahl(f.faktorAufInvestition, 1)}</td>
+          <td class="num">{proz(f.brutto)}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+
+  <p>
+    Die verbreitete Faustregel „bis Faktor 20 kann man kaufen" meint in aller
+    Regel den Kaufpreis. Auf das eingesetzte Kapital bezogen ist Faktor 20 in
+    Nordrhein-Westfalen mit Makler in Wahrheit Faktor
+    {' '}{zahl(faktorzeilen[1].faktorAufInvestition, 1)} – gut zwei Jahresmieten
+    mehr. Wer den Faktor 20 auf sein eingesetztes Geld will, muss beim Kaufpreis
+    rund zwei Jahresmieten tiefer einsteigen, also bei Faktor
+    {' '}{zahl(faktorFuerZwanzig, 0)}. Die Spalten zwei und vier zeigen denselben
+    Abstand von der anderen Seite: Aus
+    {' '}{proz(faktorzeilen[1].bruttoAufKaufpreis)} werden
+    {' '}{proz(faktorzeilen[1].brutto)}.
+  </p>
+
+  <h3>Dieselbe Wohnung, sechzehn Renditen</h3>
+
+  <p>
+    Die Grunderwerbsteuer ist eine Ländersteuer, und die Länder nutzen ihren
+    Spielraum sehr unterschiedlich: {guenstigste.name} ist beim
+    Bundessatz von {zahl(guenstigste.satz, 1)} Prozent geblieben
+    (§ 11 Abs. 1 GrEStG), {wort(laenderHoechstsatz.length)} Länder verlangen
+    {' '}{zahl(hoechstsatz, 1)} Prozent. Auf dieselbe Wohnung, dieselbe Miete
+    und dieselben Bewirtschaftungskosten angewandt, ergeben sich daraus sechzehn
+    verschiedene Nettorenditen:
+  </p>
+
+  <table>
+    <caption class="visually-hidden">
+      Nettomietrendite nach Bundesland bei gleichem Kaufpreis und gleicher Miete
+    </caption>
+    <thead>
+      <tr>
+        <th scope="col">Bundesland</th>
+        <th scope="col" class="num">GrESt</th>
+        <th scope="col" class="num">Nebenkosten mit Makler</th>
+        <th scope="col" class="num">Nettorendite</th>
+        <th scope="col" class="num">Nebenkosten ohne Makler</th>
+        <th scope="col" class="num">Nettorendite</th>
+      </tr>
+    </thead>
+    <tbody>
+      {laender.map((l) => (
+        <tr>
+          <th scope="row">{l.name}</th>
+          <td class="num">{zahl(l.satz, 1)} %</td>
+          <td class="num">{eurGlatt(l.mit.kaufnebenkosten)}</td>
+          <td class="num">{proz(l.mit.nettorendite)}</td>
+          <td class="num">{eurGlatt(l.ohne.kaufnebenkosten)}</td>
+          <td class="num">{proz(l.ohne.nettorendite)}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+
+  <p>
+    Die Spanne der Nettorendite beträgt {zahl(spanneRendite)} Prozentpunkte –
+    gemessen an {proz(teuerste.mit.nettorendite)} sind das
+    {' '}{proz((spanneRendite / teuerste.mit.nettorendite) * 100, 1)} mehr Ertrag
+    für nichts als die Postleitzahl. In Euro sind es
+    {' '}{eurGlatt(spanneEuro)} Unterschied bei den Nebenkosten, jedes Jahr
+    unverändert wirksam, weil sie dauerhaft im Nenner stehen. Der Makler wiegt
+    dabei noch schwerer als das Bundesland: Sein Wegfall spart in jedem Land
+    {' '}{eurGlatt(beispielLand.mit.kaufnebenkosten - beispielLand.ohne.kaufnebenkosten)}
+    {' '}und damit mehr als die gesamte Spreizung der Grunderwerbsteuer zwischen
+    {' '}{guenstigste.name} und den {wort(laenderHoechstsatz.length)} Ländern mit
+    {' '}{zahl(hoechstsatz, 1)} Prozent.
+  </p>
+
+  <p class="ra-hinweis">
+    Warum die Nebenkosten hier nicht als glatter Prozentsatz auftauchen: Notar-
+    und Grundbuchgebühren sind keine Prozente, sondern degressive Wertgebühren
+    nach § 34 GNotKG. Sie betragen bei {eurGlatt(degression[0].preis)}
+    {' '}{proz(degression[0].notarGrundbuchQuote)} des Kaufpreises und bei
+    {' '}{eurGlatt(degression[degression.length - 1].preis)} nur noch
+    {' '}{proz(degression[degression.length - 1].notarGrundbuchQuote)}. Die
+    gesamte Nebenkostenquote fällt dadurch von
+    {' '}{proz(degression[0].quote, 1)} auf
+    {' '}{proz(degression[degression.length - 1].quote, 1)}. Alle Zahlen dieses
+    Artikels gelten für {eurGlatt(KAUFPREIS)}; bei anderen Kaufpreisen
+    verschieben sie sich um wenige Zehntel. Der Rechner am Anfang dieser Seite
+    rechnet den eigenen Fall aus.
+  </p>
+
+  <h3>Wann die Nebenkosten wieder drin sind</h3>
+
+  <p>
+    Kaufnebenkosten sind versunken. Sie stecken nicht in der Wohnung, sie lassen
+    sich beim Verkauf nicht mitverkaufen: Der nächste Käufer zahlt den
+    Marktpreis, nicht den Marktpreis plus die Grunderwerbsteuer, die der
+    Vorbesitzer entrichtet hat. Wer sein eingesetztes Kapital aus einem Verkauf
+    zurückhaben will, braucht deshalb einen Preis, der um die volle
+    Nebenkostenquote über dem Einstandspreis liegt – im Beispielfall um
+    {' '}{proz(quoteAufKaufpreis)}.
+  </p>
+
+  <p>
+    Wie lange das dauert, hängt an der Wertsteigerung. Die folgende Tabelle
+    fragt nur nach dem Kapital: Ab wann deckt der Verkaufserlös allein die
+    Gesamtinvestition? Mieteinnahmen bleiben hier außen vor – die sind der
+    laufende Ertrag, den die Renditerechnung weiter oben abbildet. Gerechnet
+    ist durchgehend mit Maklerprovision; ohne sie verkürzt sich jede Zeile
+    deutlich.
+  </p>
+
+  <table>
+    <caption class="visually-hidden">
+      Jahre bis zur Amortisation der Kaufnebenkosten durch Wertsteigerung
+    </caption>
+    <thead>
+      <tr>
+        <th scope="col" class="num">GrESt</th>
+        <th scope="col" class="num">Nebenkosten mit Makler</th>
+        {WACHSTUMSSTUFEN.map((w) => (
+          <th scope="col" class="num">{zahl(w * 100, w === 0.005 ? 1 : 1)} % p. a.</th>
+        ))}
+      </tr>
+    </thead>
+    <tbody>
+      {satzgruppen.map((g) => (
+        <tr>
+          <th scope="row" class="num">{zahl(g.satz, 1)} %</th>
+          <td class="num">{proz(g.quote)}</td>
+          {g.jahre.map((j) => (
+            <td class="num">{zahl(j, 1)} J.</td>
+          ))}
+        </tr>
+      ))}
+    </tbody>
+  </table>
+
+  <p>
+    Die Spalte für ein Prozent ist die interessante. In den
+    {' '}{wort(laenderHoechstsatz.length)} Ländern mit {zahl(hoechstsatz, 1)} Prozent
+    Grunderwerbsteuer – {laenderHoechstsatz.join(', ')} – braucht die Wohnung
+    {' '}{zahl(jahreBis(teuerste.mit.gesamtinvestition, WERTSTEIGERUNG), 1)} Jahre,
+    um ihren eigenen Kauf zu bezahlen. In {guenstigste.name} sind es
+    {' '}{zahl(jahreBis(guenstigste.mit.gesamtinvestition, WERTSTEIGERUNG), 1)} Jahre,
+    ohne Makler nur
+    {' '}{zahl(jahreBis(guenstigste.ohne.gesamtinvestition, WERTSTEIGERUNG), 1)} Jahre.
+  </p>
+
+  <p>
+    Man kann dieselbe Rechnung umdrehen und nach der Wertsteigerung fragen, die
+    nötig ist, damit die Nebenkosten <em>innerhalb von zehn Jahren</em> wieder
+    hereinkommen. Dann steht da bei {zahl(hoechstsatz, 1)} Prozent
+    Grunderwerbsteuer mit Makler
+    {' '}{proz(schwelleFuerZehnJahre(teuerste.mit.gesamtinvestition), 3)} im Jahr,
+    in {guenstigste.name} ohne Makler
+    {' '}{proz(schwelleFuerZehnJahre(guenstigste.ohne.gesamtinvestition), 3)} – ein
+    Unterschied um den Faktor
+    {' '}{zahl(
+      schwelleFuerZehnJahre(teuerste.mit.gesamtinvestition) /
+        schwelleFuerZehnJahre(guenstigste.ohne.gesamtinvestition),
+      1,
+    )}. Die Marke von einem Prozent im Jahr läuft dabei mitten durch die
+    Tabelle: Bis {zahl(letzteGruppeDieEsSchafft.satz, 1)} Prozent
+    Grunderwerbsteuer reicht sie für die zehn Jahre, ab
+    {' '}{zahl(ersteGruppeDieEsNichtSchafft.satz, 1)} Prozent nicht mehr –
+    {' '}{ersteGruppeDieEsNichtSchafft.namen.join(', ')} liegen mit
+    {' '}{zahl(ersteGruppeDieEsNichtSchafft.jahre[SPALTE_EIN_PROZENT], 1)} Jahren schon knapp
+    darüber.
+  </p>
+
+  <h3>Zehn Jahre sind keine runde Zahl, sondern § 23 EStG</h3>
+
+  <p>
+    Dass die Amortisation ausgerechnet in der Nähe von zehn Jahren liegt, ist
+    Zufall – die beiden Zahlen haben nichts miteinander zu tun. Aber sie
+    treffen sich an derselben Stelle, und das macht die Stelle heikel.
+  </p>
+
+  <p>
+    § 23 Abs. 1 Satz 1 Nr. 1 EStG erklärt den Verkauf eines Grundstücks zum
+    privaten Veräußerungsgeschäft, wenn „der Zeitraum zwischen Anschaffung und
+    Veräußerung nicht mehr als zehn Jahre beträgt". Der Gewinn ist dann nach
+    § 22 Nr. 2 EStG steuerpflichtig. Erst jenseits der zehn Jahre fällt er aus
+    der Besteuerung heraus. Auf das Wort „mehr" kommt es an: Genau zehn Jahre
+    liegen noch innerhalb der Frist. Die Ausnahme in Satz 3 derselben Nummer –
+    Wirtschaftsgüter, die ausschließlich zu eigenen Wohnzwecken genutzt wurden –
+    greift bei einer vermieteten Wohnung nicht.
+  </p>
+
+  <p>
+    Für den Beispielfall heißt das: Bei einem Prozent Wertsteigerung steht die
+    Wohnung nach zehn Jahren bei {eur(preisNachZehn)}. Investiert waren
+    {' '}{eur(basis.gesamtinvestition)}. Es fehlen also
+    {' '}{eur(Math.abs(kapitalNachZehn(basis.gesamtinvestition)))}, bevor der
+    erste Euro Substanzgewinn entsteht. Derselbe Kauf ohne Makler stünde bei
+    {' '}{eur(kapitalNachZehn(beispielOhneMakler.gesamtinvestition))} im Plus,
+    derselbe Kauf in {guenstigste.name} mit Makler bei
+    {' '}{eur(kapitalNachZehn(guenstigste.mit.gesamtinvestition))}. Die
+    Provision und der Landessatz entscheiden, auf welcher Seite der Null der
+    Verkäufer nach zehn Jahren steht – der Kaufpreis und die Miete sind in
+    allen drei Fällen identisch.
+  </p>
+
+  <h3>Die Nebenkosten tauchen ein zweites Mal auf – in der AfA</h3>
+
+  <p>
+    Steuerlich sind die Kaufnebenkosten nicht verloren. Sie gehören nach
+    § 255 Abs. 1 Satz 2 HGB zu den Anschaffungskosten und teilen deren Schicksal.
+    Nur ist dieses Schicksal zweigeteilt: Die Absetzung für Abnutzung gibt es
+    nach § 7 Abs. 4 Satz 1 EStG ausdrücklich nur „bei Gebäuden". Grund und Boden
+    nutzt sich nicht ab und wird nicht abgeschrieben. Ein einheitlicher
+    Kaufpreis muss deshalb auf beide Wirtschaftsgüter aufgeteilt werden – und
+    mit ihm die Nebenkosten.
+  </p>
+
+  <p>
+    Angenommen, das Gebäude wurde zwischen 1925 und 2022 fertiggestellt, dann
+    beträgt die lineare AfA {proz(AFA_SATZ * 100, 0)} jährlich
+    (§ 7 Abs. 4 Satz 1 Nr. 2 Buchst. b EStG) und mindert als Werbungskosten die
+    Einkünfte aus Vermietung und Verpachtung (§ 9 Abs. 1 Satz 3 Nr. 7,
+    § 21 Abs. 1 Satz 1 Nr. 1 EStG). Wie viel davon auf die Nebenkosten entfällt,
+    entscheidet der Bodenanteil:
+  </p>
+
+  <table>
+    <caption class="visually-hidden">
+      Wirkung des Bodenanteils auf AfA-Bemessungsgrundlage und jährliche Abschreibung
+    </caption>
+    <thead>
+      <tr>
+        <th scope="col" class="num">Bodenanteil</th>
+        <th scope="col" class="num">Nebenkosten auf Grund und Boden</th>
+        <th scope="col" class="num">AfA-Bemessungsgrundlage</th>
+        <th scope="col" class="num">AfA/Jahr</th>
+        <th scope="col" class="num">AfA in 10 Jahren</th>
+      </tr>
+    </thead>
+    <tbody>
+      {afaZeilen.map((z) => (
+        <tr>
+          <th scope="row" class="num">{proz(z.boden * 100, 0)}</th>
+          <td class="num">{eurGlatt(z.nebenkostenAufBoden)}</td>
+          <td class="num">{eurGlatt(z.bemessungsgrundlage)}</td>
+          <td class="num">{eurGlatt(z.afaJahr)}</td>
+          <td class="num">{eurGlatt(z.afaZehnJahre)}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+
+  <p>
+    Bei einem Bodenanteil von {proz(BODENANTEIL * 100, 0)} gehen
+    {' '}{eurGlatt(afaBasis.nebenkostenAufBoden)} der Kaufnebenkosten nie in
+    eine Abschreibung ein. Vom Rest werden über zehn Jahre
+    {' '}{eurGlatt(nebenkostenAfaZehnJahre)} als Werbungskosten abgesetzt – das
+    sind {proz(nebenkostenAfaAnteil, 1)} der gezahlten
+    {' '}{eurGlatt(basis.kaufnebenkosten)}, und auch das ist kein Rückfluss,
+    sondern eine Minderung der Bemessungsgrundlage. Der Rest verteilt sich über
+    die vollen fünfzig Jahre, die {proz(AFA_SATZ * 100, 0)} jährlich nun einmal
+    bedeuten.
+  </p>
+
+  <h3>Warum ein Tag über die Steuer entscheidet</h3>
+
+  <p>
+    Jetzt greifen beide Mechanismen ineinander. § 23 Abs. 3 Satz 1 EStG bestimmt
+    den Gewinn als Unterschied zwischen Veräußerungspreis einerseits und
+    Anschaffungskosten und Werbungskosten andererseits. Satz 4 desselben
+    Absatzes fügt hinzu: „Die Anschaffungs- oder Herstellungskosten mindern sich
+    um Absetzungen für Abnutzung", soweit sie abgezogen worden sind. Die zehn
+    Jahre AfA werden also wieder hinzugerechnet.
+  </p>
+
+  <p>
+    Im Beispielfall – {beispielLand.name}, mit Makler, Bodenanteil
+    {' '}{proz(BODENANTEIL * 100, 0)}, ein Prozent Wertsteigerung – sieht die
+    Rechnung beim Verkauf im zehnten Jahr so aus:
+  </p>
+
+  <table>
+    <caption class="visually-hidden">
+      Steuerpflichtiger Veräußerungsgewinn bei Verkauf innerhalb der Zehnjahresfrist
+    </caption>
+    <tbody>
+      <tr>
+        <th scope="row">Veräußerungspreis nach 10 Jahren</th>
+        <td class="num">{eur(preisNachZehn)}</td>
+      </tr>
+      <tr>
+        <th scope="row">Anschaffungskosten (Kaufpreis + Nebenkosten)</th>
+        <td class="num">−{eur(basis.gesamtinvestition)}</td>
+      </tr>
+      <tr>
+        <th scope="row">wirtschaftliches Ergebnis</th>
+        <td class="num">−{eur(Math.abs(kapitalNachZehn(basis.gesamtinvestition)))}</td>
+      </tr>
+      <tr>
+        <th scope="row">zurückgerechnete AfA (§ 23 Abs. 3 Satz 4 EStG)</th>
+        <td class="num">+{eur(afaBasis.afaZehnJahre)}</td>
+      </tr>
+      <tr>
+        <th scope="row">steuerpflichtiger Gewinn</th>
+        <td class="num"><strong>{eur(afaBasis.gewinn)}</strong></td>
+      </tr>
+      <tr>
+        <th scope="row">Einkommensteuer darauf bei {eurGlatt(ZVE_OHNE_VERKAUF)} übrigem zvE</th>
+        <td class="num"><strong>{eurGlatt(mehrsteuer)}</strong></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <p>
+    Der Verkäufer hat sein eingesetztes Kapital nicht zurück – es fehlen
+    {' '}{eur(Math.abs(kapitalNachZehn(basis.gesamtinvestition)))} – und zahlt
+    trotzdem {eurGlatt(mehrsteuer)} Einkommensteuer. Das ist kein Rechenfehler,
+    sondern die Logik der Vorschrift: Die AfA war eine Steuerstundung, keine
+    Steuerbefreiung, und § 23 Abs. 3 Satz 4 EStG holt sie zurück. Verkauft
+    derselbe Eigentümer einen Tag nach Ablauf der zehn Jahre, ist der Gewinn
+    steuerfrei und die zehn Jahre AfA bleiben ihm endgültig erhalten. Die
+    Zehnjahresfrist ist also nicht nur die Grenze, ab der der Gewinn
+    unversteuert bleibt, sondern auch die, ab der die Abschreibung endgültig
+    wird.
+  </p>
+
+  <p>
+    Fair ist dabei die Gegenrechnung: Dieselbe AfA hat in den zehn Jahren
+    vorher Steuern gespart. Bei denselben {eurGlatt(ZVE_OHNE_VERKAUF)} zu
+    versteuerndem Einkommen sind das {eurGlatt(afaErsparnisProJahr)} im Jahr
+    und {eurGlatt(afaErsparnisZehnJahre)} insgesamt – gegen
+    {' '}{eurGlatt(mehrsteuer)}, die beim Verkauf zurückgehen. Das geht hier
+    fast glatt auf, aber nicht aus einem Prinzip: Die jährliche AfA knabbert am
+    oberen Rand des Einkommens und wirkt deshalb zu einem gemischten Satz,
+    während der einmalige Veräußerungsgewinn vollständig im Bereich des 42-Prozent-Satzes landet. Bei einem anderen Einkommen fällt der Vergleich anders aus. Was die
+    Tabelle ebenfalls nicht enthält, sind die zehn Jahre Mieteinnahmen – der
+    laufende Ertrag steht in der Renditerechnung weiter oben, nicht hier.
+  </p>
+
+  <p>
+    Das erklärt, warum ein Verkauf kurz vor Ablauf der Frist die teuerste aller
+    Varianten ist: Die Nebenkosten sind noch nicht eingespielt, die AfA wird
+    zurückgedreht, und der Nachsteuererlös liegt deutlich unter dem, was
+    hineingegangen ist. Wer schon beim Kauf weiß, dass er kürzer halten will,
+    sollte die Nebenkosten nicht als Rendite-Abzug, sondern als Eintrittspreis
+    für zehn Jahre lesen. Mehr zu den Landessätzen steht im Artikel
+    {' '}<a href={`${base}${artikelPfadVonSlug('grunderwerbsteuer-bundeslaender')}`}>zur
+    Grunderwerbsteuer in den Bundesländern</a>; welche Bewirtschaftungskosten
+    überhaupt am Vermieter hängen bleiben, klärt der Artikel
+    {' '}<a href={`${base}${artikelPfadVonSlug('nebenkosten-was-umlagefaehig-ist')}`}>zu den
+    umlagefähigen Nebenkosten</a>.
+  </p>
+
+  <h3>Was diese Rechnung nicht abbildet</h3>
+
+  <ul>
+    <li>
+      <strong>Verkaufskosten.</strong> Die Tabellen fragen, wann der Preis die
+      Gesamtinvestition deckt. Beim Verkauf fallen erneut Kosten an – ein
+      Maklerlohn nun auf der Verkäuferseite, den §§ 656c und 656d BGB der Höhe
+      nach an den des Käufers koppeln, gegebenenfalls eine
+      Vorfälligkeitsentschädigung. Sie verlängern jede genannte Frist. Als
+      Werbungskosten mindern sie immerhin den Gewinn nach § 23 Abs. 3 Satz 1 EStG.
+    </li>
+    <li>
+      <strong>Finanzierung.</strong> Der Rechner oben kennt weder Darlehenszins
+      noch Tilgung. Die Renditen sind Objektrenditen auf das gesamte gebundene
+      Kapital, keine Eigenkapitalrenditen. Bei Fremdfinanzierung verschiebt der
+      Hebel beide Vorzeichen – nach oben wie nach unten.
+    </li>
+    <li>
+      <strong>Steuern auf die laufende Miete.</strong> Die Nettorendite ist eine
+      Vorsteuergröße. Mieteinnahmen gehören zu den Einkünften nach
+      § 21 Abs. 1 Satz 1 Nr. 1 EStG; Zinsen, AfA und Erhaltungsaufwand mindern
+      sie. Der persönliche Steuersatz ist individuell, deshalb steht er nicht im
+      Rechner.
+    </li>
+    <li>
+      <strong>Solidaritätszuschlag und Kirchensteuer.</strong> Die
+      {' '}{eurGlatt(mehrsteuer)} sind reine Einkommensteuer nach dem Tarif des
+      § 32a EStG. Zuschlagsteuern kommen gegebenenfalls hinzu.
+    </li>
+    <li>
+      <strong>Die Freigrenze.</strong> § 23 Abs. 3 Satz 5 EStG stellt Gewinne
+      frei, wenn der Gesamtgewinn aus privaten Veräußerungsgeschäften im
+      Kalenderjahr unter 1.000 Euro bleibt. Bei den hier gerechneten Beträgen
+      spielt sie keine Rolle.
+    </li>
+    <li>
+      <strong>Der Bodenanteil.</strong> {proz(BODENANTEIL * 100, 0)} sind eine
+      Modellannahme, kein Marktwert. Er hängt am Bodenrichtwert des Grundstücks
+      und schwankt zwischen Innenstadtlage und Umland erheblich. Die Tabelle
+      zeigt deshalb drei Varianten.
+    </li>
+    <li>
+      <strong>Wertsteigerung.</strong> Ein Prozent im Jahr ist eine Annahme zum
+      Durchrechnen, keine Prognose. Reale Preise schwanken, regional
+      unterschiedlich und in beide Richtungen. Die Tabelle nennt deshalb fünf
+      Werte, nicht einen.
+    </li>
+    <li>
+      <strong>Kein Ertragswertverfahren.</strong> Dieser Rechner ermittelt keinen
+      Verkehrswert nach der ImmoWertV. Dafür bräuchte es Liegenschaftszinssatz
+      und Restnutzungsdauer, nicht Miete und Kaufpreis.
+    </li>
+  </ul>
+
+</RechnerArtikel>
