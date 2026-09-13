@@ -3,9 +3,13 @@ import Layout from '../../layouts/Layout.astro';
 import CalculatorShell from '../../components/CalculatorShell.astro';
 import CalculatorGuide from '../../components/CalculatorGuide.astro';
 import { CALCULATORS, CATEGORIES } from '../../data/calculators';
+import { BUNDESLAENDER } from '../../../public/scripts/grunderwerbsteuer.js';
+import { MAKLER_PROVISION_PROZENT_JE_SEITE } from '../../../public/scripts/immokauf-nebenkosten.js';
 const calc = CALCULATORS.find(c => c.slug === 'mietrendite-rechner')!;
 const cat = CATEGORIES[calc.category];
 const year = new Date().getFullYear();
+const laender = Object.entries(BUNDESLAENDER as Record<string, { name: string; satz: number }>)
+  .sort((a, b) => a[1].name.localeCompare(b[1].name, 'de'));
 ---
 <Layout
   title={`Mietrendite-Rechner ${year}`}
@@ -22,10 +26,10 @@ const year = new Date().getFullYear();
   <CalculatorShell
     calculator={calc}
     intro="Mit dem Mietrendite-Rechner berechnen Sie die Brutto- und Nettorendite einer Mietimmobilie. Die Bruttomietrendite (Jahresmiete geteilt durch Kaufpreis) eignet sich zum schnellen Vergleich verschiedener Objekte, bildet aber nicht die tatsächliche Rentabilität ab – dafür benötigen Sie die Nettomietrendite, die alle nicht umlagefähigen Kosten wie Verwaltung, Instandhaltung und Mietausfallrisiko berücksichtigt. Beide Kennzahlen sind für Kapitalanleger unverzichtbar, um verschiedene Anlageobjekte objektiv zu vergleichen und eine fundierte Kaufentscheidung zu treffen."
-    sourceNote="Berechnung nach dem Ertragswertverfahren gemäß § 17 ff. ImmoWertV (Immobilienwertermittlungsverordnung). Die verwendeten Formeln entsprechen der in der Immobilienwirtschaft üblichen Renditeberechnung nach dem Makler- und Bauträgerverband (IVD). Steuerliche Grundlagen: Einkünfte aus Vermietung und Verpachtung nach § 21 EStG, Abschreibung nach § 7 Abs. 4 EStG."
+    sourceNote="Jahresnettokaltmiete im Verhältnis zur Gesamtinvestition. Die Kaufnebenkosten kommen aus denselben Modulen wie der Nebenkostenrechner: Grunderwerbsteuer nach § 11 GrEStG und Landesrecht, Notar- und Grundbuchgebühren nach dem Kostenverzeichnis des GNotKG, Maklerprovision nach §§ 656c, 656d BGB. Kein Ertragswertverfahren nach der ImmoWertV – dafür bräuchte es Liegenschaftszinssatz und Restnutzungsdauer."
     explanation="Die Bruttorendite ergibt sich aus Jahresmiete geteilt durch Kaufpreis, die Nettorendite berücksichtigt zusätzlich alle nicht umlagefähigen Kosten. Als Orientierung gelten in Deutschland folgende Richtwerte: Eine Nettorendite unter 2,5 % ist für eine Kapitalanlage problematisch, 3–4 % gelten als solide, und ab 5 % spricht man von einer sehr guten Rendite. In Großstädten wie München oder Hamburg liegen die Nettorenditen aktuell häufig nur bei 2–3 %, während in B- und C-Städten wie Leipzig, Chemnitz oder Magdeburg Nettorenditen von 4–6 % erreichbar sind. Mieteinnahmen unterliegen der Einkommensteuer nach § 21 EStG und können durch Abschreibung (AfA) nach § 7 EStG steuerlich optimiert werden. Für Wohngebäude beträgt die lineare AfA 2 % jährlich (Baujahr ab 1925), 2,5 % bei älteren Gebäuden und 3 % bei Neubauten ab 2023."
     faqs={[
-      { q: "Was ist der Unterschied zwischen Brutto- und Nettomietrendite?", a: "Die Bruttomietrendite berechnet sich aus Jahresmiete geteilt durch Kaufpreis. Die Nettomietrendite zieht alle laufenden Kosten ab: Verwaltung, Instandhaltung, nicht umlagefähige Betriebskosten und Mietausfallrisiko. Bei einem Kaufpreis von 300.000 € und 14.400 € Jahresmiete beträgt die Bruttorendite 4,8%, die Nettorendite nach Abzug von ca. 2.500 € Kosten nur noch 3,97%." },
+      { q: "Was ist der Unterschied zwischen Brutto- und Nettomietrendite?", a: "Die Bruttomietrendite berechnet sich aus Jahresmiete geteilt durch Kaufpreis. Die Nettomietrendite zieht alle laufenden Kosten ab: Verwaltung, Instandhaltung, nicht umlagefähige Betriebskosten und Mietausfallrisiko. Bei einem Kaufpreis von 300.000 € und 14.400 € Jahresmiete beträgt die Bruttorendite auf den Kaufpreis 4,8 %. Entscheidend ist aber, was tatsächlich investiert ist: In Nordrhein-Westfalen kommen rund 33.400 € Kaufnebenkosten hinzu, sodass 333.400 € gebunden sind. Nach Abzug von 2.500 € Bewirtschaftungskosten bleiben 3,57 % Nettorendite – nicht die 3,97 %, die sich ergeben, wenn man die Nebenkosten weglässt." },
       { q: "Ab welcher Mietrendite lohnt sich eine Immobilie als Kapitalanlage?", a: "Als Faustregel gilt: Unter 2,5% Nettorendite ist die Anlage problematisch, 3-4% gelten als solide, ab 5% als sehr gut. Entscheidend ist der Vergleich mit dem Finanzierungszins. Bei einem Darlehenszins von 3,5% sollte die Nettorendite deutlich darüber liegen, um nach Steuern und Rücklagen einen positiven Cashflow zu erzielen." },
       { q: "Welche Kosten werden bei der Nettorendite berücksichtigt?", a: "Zur Nettoberechnung gehören: nicht umlagefähige Betriebskosten (Verwaltung, Kontoführung), Instandhaltungsrücklage (ca. 1-1,5% des Gebäudewerts pro Jahr), Mietausfallwagnis (2-4% der Jahresmiete) und gegebenenfalls Hausverwaltungskosten. Steuern werden in der Regel separat betrachtet, da sie vom persönlichen Steuersatz abhängen." },
       { q: "Wie beeinflusst die Wertsteigerung die Gesamtrendite?", a: "Die Gesamtrendite setzt sich aus Mietrendite plus Wertsteigerung zusammen. In vielen deutschen Großstädten lag die jährliche Wertsteigerung in den letzten Jahren bei 3-5%. Eine Immobilie mit 2% Mietrendite und 3% Wertsteigerung erzielt damit 5% Gesamtrendite. Allerdings ist die Wertsteigerung nicht garantiert und kann regional stark schwanken." },
@@ -50,6 +54,21 @@ const year = new Date().getFullYear();
           <label for="instandhaltung">Instandhaltung/Jahr (€)</label>
           <input type="number" id="instandhaltung" min="0" max="100000" value="1000" step="100" />
         </div>
+        <div class="calc-group">
+          <label for="bundesland">Bundesland (für die Grunderwerbsteuer)</label>
+          <select id="bundesland">
+            {laender.map(([kuerzel, land]) => (
+              <option value={kuerzel} selected={kuerzel === 'nw'}>{land.name} – {land.satz.toLocaleString('de-DE', { minimumFractionDigits: 1 })} %</option>
+            ))}
+          </select>
+        </div>
+        <div class="calc-group">
+          <label for="makler">Maklerprovision</label>
+          <select id="makler">
+            <option value="ja" selected>mit Makler ({MAKLER_PROVISION_PROZENT_JE_SEITE.toLocaleString('de-DE', { minimumFractionDigits: 2 })} % für den Käufer)</option>
+            <option value="nein">ohne Makler</option>
+          </select>
+        </div>
       </div>
       <div class="calc-result">
         <div class="label">Nettorendite</div>
@@ -63,25 +82,40 @@ const year = new Date().getFullYear();
 </Layout>
 
 <script type="module">
+const { berechneMietrendite } = await import(window.__base + 'scripts/mietrendite.js');
+const eur = (n) => n.toLocaleString('de-DE', { maximumFractionDigits: 0 }) + ' \u20ac';
+const pct = (n) => n.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' %';
 function berechne() {
   const kaufpreis = parseFloat(document.getElementById('kaufpreis').value) || 300000;
-  const kaltmiete = parseFloat(document.getElementById('kaltmiete').value) || 14400;
-  const nebenkosten = parseFloat(document.getElementById('nebenkosten').value) || 1500;
-  const instandhaltung = parseFloat(document.getElementById('instandhaltung').value) || 1000;
-  const bruttoRendite = kaufpreis > 0 ? (kaltmiete / kaufpreis * 100) : 0;
-  const bewirtschaftung = nebenkosten + instandhaltung;
-  const nettoMiete = kaltmiete - bewirtschaftung;
-  const nettoRendite = kaufpreis > 0 ? (nettoMiete / kaufpreis * 100) : 0;
-  const bewirtschaftungsPct = kaltmiete > 0 ? (bewirtschaftung / kaltmiete * 100) : 0;
-  document.getElementById('ergebnis').textContent = nettoRendite.toFixed(2) + ' %';
-  document.getElementById('ergebnis').style.color = nettoRendite >= 4 ? '#1e7e34' : nettoRendite >= 2 ? '#b8860b' : '#b71c1c';
-  document.getElementById('details').innerHTML =
-    `<span>Bruttorendite: <strong>${bruttoRendite.toFixed(2)} %</strong></span>` +
-    `<span>Nettorendite: <strong>${nettoRendite.toFixed(2)} %</strong></span>` +
-    `<span>Bewirtschaftungskosten: <strong>${bewirtschaftung.toLocaleString('de-DE', {minimumFractionDigits:0})} €/Jahr (${bewirtschaftungsPct.toFixed(1)}%)</strong></span>` +
-    `<span>Nettokaltmiete: <strong>${nettoMiete.toLocaleString('de-DE', {minimumFractionDigits:0})} €/Jahr</strong></span>`;
+  const kaltmieteJahr = parseFloat(document.getElementById('kaltmiete').value) || 14400;
+  const nebenkosten = parseFloat(document.getElementById('nebenkosten').value) || 0;
+  const instandhaltung = parseFloat(document.getElementById('instandhaltung').value) || 0;
+  const bundesland = document.getElementById('bundesland').value;
+  const mitMakler = document.getElementById('makler').value === 'ja';
+  const r = berechneMietrendite({ kaufpreis, kaltmieteJahr, nebenkosten, instandhaltung, bundesland, mitMakler });
+
+  const feld = document.getElementById('ergebnis');
+  feld.textContent = pct(r.nettorendite);
+  feld.style.color = r.nettorendite >= 4 ? '#1e7e34' : r.nettorendite >= 2 ? '#b8860b' : '#b71c1c';
+
+  const n = r.nebenkostenAufschluesselung;
+  document.getElementById('details').innerHTML = [
+    `<span>Gesamtinvestition: <strong>${eur(r.gesamtinvestition)}</strong></span>`,
+    `<span>davon Kaufnebenkosten: <strong>${eur(r.kaufnebenkosten)} (${r.kaufnebenkostenProzent.toLocaleString('de-DE', {maximumFractionDigits:1})} %)</strong></span>`,
+    `<span style="flex-basis:100%;font-size:0.85em;">Grunderwerbsteuer ${eur(n.grunderwerbsteuer)} \u00b7 Notar ${eur(n.notar)} \u00b7 Grundbuch ${eur(n.grundbuch)}${n.makler > 0 ? ' \u00b7 Makler ' + eur(n.makler) : ''}</span>`,
+    `<span>Bruttorendite: <strong>${pct(r.bruttorendite)}</strong></span>`,
+    `<span>Nettokaltmiete nach Bewirtschaftung: <strong>${eur(r.nettoMiete)}/Jahr</strong></span>`,
+    `<span>Bewirtschaftungsquote: <strong>${r.bewirtschaftungsquote.toLocaleString('de-DE', {maximumFractionDigits:1})} %</strong></span>`,
+    `<span>Kaufpreisfaktor: <strong>${r.kaufpreisfaktor.toLocaleString('de-DE', {maximumFractionDigits:1})} Jahresmieten</strong> (auf die Gesamtinvestition ${r.faktorAufGesamtinvestition.toLocaleString('de-DE', {maximumFractionDigits:1})})</span>`,
+    // Der Rechner rechnete bis September 2026 auf den Kaufpreis statt auf die
+    // Gesamtinvestition. Die alte Zahl steht hier weiter - als Vergleich, nicht
+    // als Ergebnis.
+    `<span style="flex-basis:100%;color:#b71c1c;">Ohne Kaufnebenkosten gerechnet w\u00e4ren es ${pct(r.nettorenditeAufKaufpreis)} \u2013 die gebr\u00e4uchliche, aber zu hohe Zahl.</span>`,
+  ].join('');
 }
 ['kaufpreis','kaltmiete','nebenkosten','instandhaltung'].forEach(id =>
   document.getElementById(id).addEventListener('input', berechne));
+['bundesland','makler'].forEach(id =>
+  document.getElementById(id).addEventListener('change', berechne));
 berechne();
 </script>
