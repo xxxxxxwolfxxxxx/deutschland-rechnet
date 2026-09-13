@@ -135,6 +135,18 @@ const datumLesbar = new Date(datum).toLocaleDateString('de-DE', {
 .ra-body :global(strong) { font-weight: 700; }
 .ra-body :global(a) { color: var(--red); }
 
+/* Methodische Randbemerkung im Fliesstext – etwa warum zwei Tabellen desselben
+   Artikels um ein paar Cent auseinanderliegen. Gehoert zum Text, soll ihn aber
+   nicht unterbrechen. */
+.ra-body :global(p.ra-hinweis) {
+  font-size: 0.92rem;
+  line-height: 1.65;
+  color: var(--text-light);
+  border-left: 3px solid var(--border);
+  padding-left: 0.9rem;
+  margin-bottom: 1.1rem;
+}
+
 /* Tabellen. Die Artikel liefern sauberes semantisches Markup (caption, thead,
    th scope), hatten bisher aber gar kein Styling: Auf 375 px lief die
    siebenspaltige Bussgeldtabelle aus dem Viewport und erzeugte horizontalen

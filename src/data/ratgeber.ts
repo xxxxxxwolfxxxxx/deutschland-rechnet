@@ -42,6 +42,15 @@ export interface Artikel {
 
 export const ARTIKEL: Artikel[] = [
   {
+    slug: 'leasingfaktor-was-er-verschweigt',
+    titel: 'Der Leasingfaktor lässt sich kaufen',
+    teaser: 'Leasingangebote werden über den Leasingfaktor verglichen: Monatsrate geteilt durch Fahrzeugpreis, mal hundert. Eine Anzahlung von 10.000 € drückt ihn im Beispiel von 1,570 auf 0,735 – um 53 Prozent, während die Gesamtkosten desselben Vertrags nur um 2,7 Prozent sinken. Ab 17.000 € Anzahlung fällt der Faktor weiter, während der Vertrag teurer wird. Dazu die Rechnung, warum es beim Leasing gar keinen Effektivzins gibt.',
+    datum: '2026-09-13',
+    thema: 'Auto',
+    rechner: ['leasing-rechner', 'km-kostenrechner'],
+    aufRechnerseite: true,
+  },
+  {
     slug: 'rentenbeginn-der-teuerste-monat',
     titel: 'Der teuerste Monat eines Rentenlebens',
     teaser: 'Wer 45 Beitragsjahre hat und seine Altersgrenze abwartet, geht ohne Abschlag. Wer einen einzigen Monat früher beginnt, verliert die Rentenart und bekommt den Abschlag für die ganze Strecke bis zur Regelaltersgrenze: 7,5 Prozentpunkte auf einmal, im Beispiel 138,83 € Bruttorente im Monat, dauerhaft. Der Monat davor ist 8,30 € wert, der Monat danach 3,12 €. Und an der Regelaltersgrenze sind die 45 Beitragsjahre für die Rentenhöhe exakt nichts mehr wert.',

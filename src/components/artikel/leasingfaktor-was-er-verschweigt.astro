@@ -172,6 +172,11 @@ const kurz = laufzeitreihe[0];
 const lang = laufzeitreihe[laufzeitreihe.length - 1];
 const wertverlustAnteil = (lang.wertverlustProJahr / kurz.wertverlustProJahr) * 100;
 const impliziteZeile = sensitivitaet.find((s) => Math.abs(s.verlust - IMPLIZITE_RATE * 100) < 1e-9)!;
+// Wie viele Zeilen ueber der Rate mit festem Restwert liegen, wird gezaehlt und
+// nicht behauptet: Im Fliesstext stand "die beiden mittleren", tatsaechlich
+// sind es drei.
+const ZAHLWORT = ['Keine', 'Eine', 'Zwei', 'Drei', 'Alle vier'];
+const zeilenUeber = ZAHLWORT[sensitivitaet.filter((z) => z.mehr > 0).length];
 
 // --- 6. Welcher Preis im Nenner steht --------------------------------------
 const NACHLAESSE = [0, 5, 10, 15, 20];
@@ -201,9 +206,17 @@ const kostenProKmMit = (entgelt: number, jahresKm: number) => {
 // in Cent-Schritten zu suchen (das lieferte 0,44 gegen tatsaechlich 0,434),
 // wird er direkt gerechnet und die Behauptung numerisch geprueft.
 const kippEntgelt = kmBasis.gesamtkosten / kmBasis.kilometer;
-const kippProbe = KM_STUFEN.map((k) => kostenProKmMit(kippEntgelt, k));
+// Flach ist die Kurve nur AB der Inklusivgrenze. Darunter zahlt man die vollen
+// Inklusivkilometer und faehrt weniger – eine Gutschrift dafuer gibt es im
+// Modell nicht, und im Vertrag meist auch nicht. Genau das ist die teure
+// Richtung, und sie steht unten im Text.
+const kippProbe = KM_STUFEN.filter((k) => k >= INKLUSIV).map((k) => kostenProKmMit(kippEntgelt, k));
 if (Math.max(...kippProbe) - Math.min(...kippProbe) > 0.0005) {
-  throw new Error('Leasing-Artikel: Am Kippentgelt ist die Kurve nicht flach.');
+  throw new Error('Leasing-Artikel: Am Kippentgelt ist die Kurve oberhalb der Inklusivgrenze nicht flach.');
+}
+// Und darunter darf sie es gerade nicht sein, sonst stimmt der letzte Absatz nicht.
+if (kostenProKmMit(kippEntgelt, 10000) <= kippEntgelt + 0.0005) {
+  throw new Error('Leasing-Artikel: Unterhalb der Inklusivgrenze muesste der Kilometer teurer sein.');
 }
 const ENTGELTE = [0, 0.1, 0.2, kippEntgelt, 0.6];
 const proKmZehn = kostenProKmMit(0, 10000);
@@ -390,6 +403,15 @@ const quellen = [
     anzahlt, behält das Geld aber und legt es an, während er die höheren Raten
     zahlt. Der Vergleich muss deshalb über Barwerte laufen.
   </p>
+  <p class="ra-hinweis">
+    Gerechnet wird hier mit der auf den Cent gerundeten Monatsrate – dem Betrag,
+    der tatsächlich abgebucht wird. Deshalb steht in der Zeile mit
+    {' '}{proz(0, 1)} Anlagezins {eur(barwertreihe[0].ohne)} und nicht die
+    {' '}{eur(ohneAnzahlung.gesamtkosten)} der Tabelle oben: 36 Raten zu
+    {' '}{eur(ohneAnzahlung.rate)} ergeben
+    {' '}{eur(ohneAnzahlung.gesamtkosten - barwertreihe[0].ohne)} weniger als der
+    ungerundete Betrag.
+  </p>
 
   <table>
     <caption class="visually-hidden">
@@ -571,9 +593,9 @@ const quellen = [
     Die Spannweite ist beträchtlich: Zwischen {proz(sensitivitaet[0].verlust)}
     und {proz(sensitivitaet[sensitivitaet.length - 1].verlust)} Wertverlust im
     Jahr liegen {eur(sensitivitaet[sensitivitaet.length - 1].rate - sensitivitaet[0].rate)}
-    Monatsrate. Nur die beiden mittleren Zeilen liegen über der Rate, die der
-    feste Restwert ausgibt; bei {proz(sensitivitaet[0].verlust)} wäre das
-    Fahrzeug nach {LANGE_LAUFZEIT} Monaten noch mehr wert als die
+    Monatsrate. {zeilenUeber} der vier Zeilen liegen über der Rate, die der feste
+    Restwert ausgibt; nur bei {proz(sensitivitaet[0].verlust)} wäre das Fahrzeug
+    nach {LANGE_LAUFZEIT} Monaten noch mehr wert als die
     {' '}{eurGlatt(RESTWERT)} des Beispiels, die Rate also niedriger.
   </p>
   <p>
@@ -676,12 +698,15 @@ const quellen = [
 
   <p>
     Die Kurve dreht erst bei {eur(kippEntgelt, 3)} je Mehrkilometer, und dort
-    liegt sie waagerecht – in dieser Zeile kostet der Kilometer bei jeder
-    Fahrleistung dasselbe. Das ist kein Zufallswert: Es sind exakt die Kosten,
+    liegt sie waagerecht – in dieser Zeile kostet der Kilometer von der
+    Inklusivgrenze an aufwärts bei jeder Fahrleistung dasselbe. Das ist kein
+    Zufallswert: Es sind exakt die Kosten,
     die ein Kilometer innerhalb der Inklusivleistung von {km(INKLUSIV)}
     verursacht. Solange ein Mehrkilometer weniger kostet als ein
     Inklusivkilometer, senkt jeder zusätzliche Kilometer den Durchschnitt. Erst
-    darüber steigt er.
+    darüber steigt er. Nach links gilt das nicht: Unterhalb der Inklusivgrenze
+    bleibt die Zeile nicht waagerecht, sondern steigt – dort zahlt man die
+    gebuchten {km(INKLUSIV)} unabhängig davon, wie weit man wirklich fährt.
   </p>
   <p>
     Praktisch bedeutet das: Wer über der Inklusivgrenze fährt, zahlt zwar mehr –
