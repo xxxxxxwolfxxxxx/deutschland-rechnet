@@ -1,7 +1,7 @@
 ---
 import Layout from '../../layouts/Layout.astro';
 import CalculatorShell from '../../components/CalculatorShell.astro';
-import CalculatorGuide from '../../components/CalculatorGuide.astro';
+import ArtikelMietpreisbremse from '../../components/artikel/mietpreisbremse-30-monate-frist.astro';
 import { CALCULATORS, CATEGORIES } from '../../data/calculators';
 const calc = CALCULATORS.find(c => c.slug === 'mietpreisbremse-rechner')!;
 const cat = CATEGORIES[calc.category];
@@ -23,14 +23,14 @@ const year = new Date().getFullYear();
     calculator={calc}
     intro="Mit dem Mietpreisbremse-Rechner prüfen Sie, ob Ihre Miete die zulässige Höchstgrenze überschreitet. So erfahren Sie, ob Sie als Mieter zu viel zahlen und eine Rückforderung geltend machen können. Der Rechner vergleicht Ihre aktuelle Miete mit der ortsüblichen Vergleichsmiete plus dem gesetzlichen Zuschlag."
     sourceNote="Maximal 10% über ortsüblicher Miete."
-    explanation="Die Mietpreisbremse ist in § 556d BGB geregelt und begrenzt die Miete bei Neuvermietungen auf maximal 10 % über der ortsüblichen Vergleichsmiete. Sie gilt nur in Gebieten mit angespanntem Wohnungsmarkt, die per Landesverordnung ausgewiesen wurden. Seit der Reform 2019 können Mieter zu viel gezahlte Miete ab dem Zeitpunkt einer qualifizierten Rüge zurückfordern."
+    explanation="Die Mietpreisbremse ist in § 556d BGB geregelt und begrenzt die Miete bei Neuvermietungen auf maximal 10 % über der ortsüblichen Vergleichsmiete. Sie gilt nur in Gebieten mit angespanntem Wohnungsmarkt, die per Landesverordnung ausgewiesen wurden. Das Mietrechtsanpassungsgesetz vom 18. Dezember 2018 hat die qualifizierte Rüge abgeschafft – seit dem 1. Januar 2019 genügt eine einfache Beanstandung in Textform. Wie weit die Rückforderung zurückreicht, hängt seit dem 1. April 2020 an § 556g Abs. 2 Satz 3 BGB: Wer innerhalb von 30 Monaten nach Mietbeginn rügt, holt die Differenz ab Mietbeginn zurück; danach nur noch für die Zukunft."
     faqs={[
       { q: "Gilt die Mietpreisbremse in meiner Stadt?", a: "Die Mietpreisbremse gilt nur in Gebieten, die per Landesverordnung als angespannter Wohnungsmarkt ausgewiesen wurden. Dazu zählen fast alle deutschen Großstädte wie Berlin, München, Hamburg, Frankfurt und Köln. Prüfen Sie die aktuelle Verordnung Ihres Bundeslandes, da die Gebietskulisse regelmäßig angepasst wird." },
       { q: "Was ist die 'ortsübliche Vergleichsmiete'?", a: "Die ortsübliche Vergleichsmiete ist die durchschnittliche Nettokaltmiete für vergleichbare Wohnungen in der Region. Sie wird aus dem qualifizierten Mietspiegel ermittelt und basiert auf Baujahr, Größe, Ausstattung und Lage. Existiert kein Mietspiegel, kann ein Sachverständigengutachten oder eine Mietdatenbank herangezogen werden." },
       { q: "Schützt die Mietpreisbremse Bestandsmieter?", a: "Nein, die Mietpreisbremse nach § 556d BGB gilt nur bei Neuvermietungen. Für bestehende Mietverhältnisse gelten die Kappungsgrenzen nach § 558 BGB: maximal 20% Mieterhöhung innerhalb von drei Jahren, in angespannten Märkten sogar nur 15%." },
-      { q: "Kann ich zu viel gezahlte Miete zurückfordern?", a: "Ja, seit der Reform 2019 können Mieter zu viel gezahlte Miete zurückfordern. Voraussetzung: Sie müssen den Verstoß gegenüber dem Vermieter qualifiziert rügen. Ab dem Zeitpunkt der Rüge können Sie die Differenz zwischen gezahlter und zulässiger Miete zurückfordern." },
-      { q: "Welche Ausnahmen gibt es von der Mietpreisbremse?", a: "Ausgenommen sind Neubauten (Erstvermietung nach dem 1. Oktober 2014), umfassend modernisierte Wohnungen und Fälle, in denen die Vormiete bereits über der zulässigen Grenze lag (Bestandsschutz nach § 556e BGB). Rechtsgrundlage der Neubau- und Modernisierungsausnahme ist § 556f BGB. Auch möblierte Wohnungen auf Zeit können Sonderregelungen unterliegen." },
-      { q: "Wie schreibe ich eine wirksame Rüge?", a: "Seit der Reform 2019 genügt eine einfache Rüge: Sie beanstanden gegenüber dem Vermieter schriftlich, dass die Miete gegen die Mietpreisbremse verstößt. Eine detaillierte Begründung ist nicht mehr nötig. Versenden Sie die Rüge nachweisbar, etwa per Einschreiben oder E-Mail mit Empfangsbestätigung. Musterschreiben bietet der Deutsche Mieterbund an." },
+      { q: "Kann ich zu viel gezahlte Miete zurückfordern?", a: "Ja, und wie weit zurück, entscheidet § 556g Abs. 2 Satz 3 BGB. Rügen Sie innerhalb von 30 Monaten nach Beginn des Mietverhältnisses, bekommen Sie die zu viel gezahlte Miete ab Mietbeginn zurück. Rügen Sie später, wirkt die Rüge nur noch für die Zukunft – die bis dahin gezahlte Differenz ist verloren. Der Anspruch wächst also 30 Monate lang und verfällt im 31. Monat schlagartig." },
+      { q: "Welche Ausnahmen gibt es von der Mietpreisbremse?", a: "Ausgenommen sind Neubauten, die nach dem 1. Oktober 2014 erstmals genutzt und vermietet wurden (§ 556f Satz 1 BGB – beides muss zutreffen, nicht nur die Vermietung), umfassend modernisierte Wohnungen (§ 556f Satz 2) und Fälle, in denen die Vormiete bereits über der zulässigen Grenze lag (§ 556e Abs. 1 BGB). Dann ist allerdings die Vormiete die Obergrenze, nicht die Wunschmiete des Vermieters. Auch möblierte Wohnungen auf Zeit können Sonderregelungen unterliegen." },
+      { q: "Wie schreibe ich eine wirksame Rüge?", a: "Seit dem 1. Januar 2019 genügt eine einfache Rüge: Sie beanstanden gegenüber dem Vermieter, dass die Miete gegen die Mietpreisbremse verstößt. Eine detaillierte Begründung ist nicht mehr nötig. § 556g Abs. 4 BGB verlangt nur Textform nach § 126b BGB – eine E-Mail genügt, eine Unterschrift ist nicht nötig. Versenden Sie die Rüge nachweisbar, etwa per Einschreiben oder E-Mail mit Empfangsbestätigung. Musterschreiben bietet der Deutsche Mieterbund an." },
       { q: "Habe ich einen Auskunftsanspruch gegenüber dem Vermieter?", a: "Ja. Nach § 556g Abs. 3 BGB müssen Vermieter Ihnen auf Verlangen Auskunft über die Tatsachen geben, die für die zulässige Miethöhe maßgeblich sind, etwa die Höhe der Vormiete oder durchgeführte Modernisierungen. Berufen sie sich auf eine Ausnahme, müssen sie das teils sogar unaufgefordert vor Vertragsschluss offenlegen." },
       { q: "Was ist der Unterschied zwischen qualifiziertem und einfachem Mietspiegel?", a: "Ein qualifizierter Mietspiegel wird nach wissenschaftlichen Grundsätzen erstellt, von Gemeinde und Interessenvertretern anerkannt und alle zwei Jahre aktualisiert. Er hat vor Gericht eine starke Beweiskraft. Ein einfacher Mietspiegel ist weniger formalisiert. Existiert gar kein Mietspiegel, kann die Vergleichsmiete über Sachverständigengutachten oder Vergleichswohnungen ermittelt werden." }
     ]}
@@ -51,14 +51,14 @@ const year = new Date().getFullYear();
         </div>
         <div class="calc-group">
           <label for="modernisierung">Modernisierungsumlage (€/m²/Monat)</label>
-          <input type="number" id="modernisierung" min="0" max="10" value="0" step="0.10" />
+          <input type="number" id="modernisierung" min="0" max="3" value="0" step="0.10" />
+          <small style="color:#666;">Nur Maßnahmen der letzten drei Jahre, gekappt nach § 559 Abs. 3a BGB.</small>
         </div>
       </div>
       <div class="calc-group" style="margin-top:0.25rem;">
-        <label style="display:flex;align-items:center;gap:0.5rem;font-weight:400;cursor:pointer;">
-          <input type="checkbox" id="vormiete" style="width:auto;" />
-          Vormiete war bereits höher (Bestandsschutz nach § 556e BGB)
-        </label>
+        <label for="vormiete">Vormiete (€/m², 0 = keine oder unbekannt)</label>
+        <input type="number" id="vormiete" min="0" max="80" value="0" step="0.10" />
+        <small style="color:#666;">Lag die Vormiete höher als die zulässige Miete, darf der Vermieter nach § 556e Abs. 1 Satz 1 BGB <strong>sie</strong> verlangen – nicht mehr. Mietminderungen und Erhöhungen im letzten Jahr vor Ende des Vormietverhältnisses zählen nach Satz 2 nicht mit.</small>
       </div>
        <div class="calc-result" id="result-box">
          <div class="label">Zulässige Kaltmiete gesamt</div>
@@ -82,80 +82,47 @@ const year = new Date().getFullYear();
        </div>
       <div id="details" style="margin-top:0.75rem;font-size:0.88rem;color:#666;display:flex;gap:1.5rem;flex-wrap:wrap;"></div>
     </div>
+    <ArtikelMietpreisbremse slot="artikel" />
   </CalculatorShell>
 
-  <CalculatorGuide title="Mietpreisbremse: Was Mieter wissen müssen" content={`
-      <p>Die <strong>Mietpreisbremse</strong> wurde 2015 mit § 556d BGB eingeführt, um den rasanten Mietanstieg in Ballungsräumen zu dämpfen. Der Grundsatz ist einfach: Bei einer <strong>Neuvermietung</strong> darf die Miete höchstens <strong>10 % über der ortsüblichen Vergleichsmiete</strong> liegen. Diese Vergleichsmiete wird in der Regel aus dem qualifizierten Mietspiegel der Gemeinde abgeleitet. Die Regelung wurde mehrfach verlängert und gilt nach aktuellem Stand bis Ende 2029.</p>
-
-      <h4>So berechnet sich die zulässige Höchstmiete</h4>
-      <p>Die Höchstmiete ergibt sich, indem Sie auf die ortsübliche Vergleichsmiete pauschal 10 % aufschlagen. Die folgende Tabelle zeigt Beispielwerte je Quadratmeter sowie die daraus resultierende Kaltmiete für eine 70-m²-Wohnung:</p>
-      <table>
-        <thead>
-          <tr><th>Ortsübliche Vergleichsmiete</th><th>Zulässige Höchstmiete (+10 %)</th><th>Kaltmiete bei 70 m²</th></tr>
-        </thead>
-        <tbody>
-          <tr><td>8,00 €/m²</td><td>8,80 €/m²</td><td>616 €</td></tr>
-          <tr><td>10,00 €/m²</td><td>11,00 €/m²</td><td>770 €</td></tr>
-          <tr><td>12,00 €/m²</td><td>13,20 €/m²</td><td>924 €</td></tr>
-          <tr><td>14,50 €/m²</td><td>15,95 €/m²</td><td>1.117 €</td></tr>
-          <tr><td>18,00 €/m²</td><td>19,80 €/m²</td><td>1.386 €</td></tr>
-        </tbody>
-      </table>
-      <p><strong>Rechenbeispiel:</strong> Liegt die Vergleichsmiete bei 12,00 €/m², sind höchstens 13,20 €/m² zulässig – bei 70 m² also 924 € Kaltmiete. Verlangt der Vermieter 15,00 €/m² (1.050 €), zahlen Sie monatlich 126 € zu viel, im Jahr über 1.500 €.</p>
-
-      <h4>Wo gilt die Mietpreisbremse?</h4>
-      <p>Die Bremse greift nur in <strong>Gebieten mit angespanntem Wohnungsmarkt</strong>, die das jeweilige Bundesland per <strong>Landesverordnung</strong> ausweisen muss. Dazu zählen nahezu alle Großstädte wie Berlin, München, Hamburg, Köln und Frankfurt am Main sowie viele Umlandgemeinden. Die Verordnungen sind befristet und müssen regelmäßig erneuert werden – prüfen Sie daher stets die aktuelle Gebietskulisse Ihres Landes, denn außerhalb dieser Gebiete gilt die Mietpreisbremse nicht.</p>
-
-      <h4>Die vier großen Ausnahmen</h4>
-      <p>Selbst in Gebieten mit Mietpreisbremse gibt es wichtige Ausnahmen, bei denen der Vermieter mehr verlangen darf:</p>
-      <table>
-        <thead>
-          <tr><th>Ausnahme</th><th>Regelung</th><th>Rechtsgrundlage</th></tr>
-        </thead>
-        <tbody>
-          <tr><td>Neubau</td><td>Erstvermietung nach dem 01.10.2014 ist komplett ausgenommen</td><td>§ 556f BGB</td></tr>
-          <tr><td>Umfassende Modernisierung</td><td>bei Kosten von rund einem Drittel eines Neubaus</td><td>§ 556f BGB</td></tr>
-          <tr><td>Höhere Vormiete</td><td>war die Vormiete bereits höher, gilt Bestandsschutz</td><td>§ 556e BGB</td></tr>
-          <tr><td>Modernisierungsumlage</td><td>8 % der Modernisierungskosten pro Jahr umlegbar</td><td>§ 559 BGB</td></tr>
-        </tbody>
-      </table>
-
-      <h4>Auskunftsanspruch und Rüge: So setzen Sie Ihr Recht durch</h4>
-      <p>Berufen sich Vermieter auf eine Ausnahme, müssen sie dies vor Vertragsschluss unaufgefordert offenlegen – etwa die Höhe der Vormiete. Zusätzlich haben Mieter nach § 556g Abs. 3 BGB einen <strong>Auskunftsanspruch</strong> über die für die Miethöhe maßgeblichen Tatsachen. Halten Sie die Miete für überhöht, müssen Sie den Verstoß schriftlich <strong>rügen</strong>. Seit der Reform 2019 genügt eine einfache Rüge, in der Sie die Miete beanstanden; Sie müssen sie nicht mehr detailliert begründen. Ab dem Zugang der Rüge können Sie die zu viel gezahlte Miete zurückfordern.</p>
-
-      <h4>Abgrenzung: Bestandsmieten und Kappungsgrenze</h4>
-      <p>Wichtig ist die Unterscheidung zur laufenden Mieterhöhung: Die Mietpreisbremse betrifft ausschließlich <strong>Neuvermietungen</strong>. Für bestehende Mietverhältnisse gilt stattdessen die <strong>Kappungsgrenze</strong> nach § 558 BGB – hier darf die Miete innerhalb von drei Jahren um höchstens 20 %, in angespannten Märkten sogar nur um 15 % steigen, und maximal bis zur ortsüblichen Vergleichsmiete. Nutzen Sie zur Prüfung stets einen <strong>qualifizierten Mietspiegel</strong>; existiert keiner, hilft der örtliche Mieterverein bei der Einschätzung der Vergleichsmiete weiter.</p>
-    `} relatedSlugs={['mietrechner', 'nebenkosten-rechner', 'kaufen-vs-mieten']} />
 </Layout>
 
 <script type="module">
 const { berechneMietpreisbremse } = await import(window.__base + 'scripts/mietpreisbremse.js');
-function fmt(n) { return n.toLocaleString('de-DE', {minimumFractionDigits:2, maximumFractionDigits:2}) + ' €'; }
-function fmtQm(n) { return n.toLocaleString('de-DE', {minimumFractionDigits:2, maximumFractionDigits:2}) + ' €/m²'; }
+function fmt(n) { return n.toLocaleString('de-DE', {minimumFractionDigits:2, maximumFractionDigits:2}) + ' \u20ac'; }
+function fmtQm(n) { return n.toLocaleString('de-DE', {minimumFractionDigits:2, maximumFractionDigits:2}) + ' \u20ac/m\u00b2'; }
 function berechne() {
   const vergleichsmiete = parseFloat(document.getElementById('vergleich').value)||12;
   const aktuelleKaltmiete = parseFloat(document.getElementById('aktmiete').value)||14.50;
   const flaeche = parseFloat(document.getElementById('flaeche').value)||70;
   const modernisierung = parseFloat(document.getElementById('modernisierung').value)||0;
-  const vormieteHoeher = document.getElementById('vormiete').checked;
-  const r = berechneMietpreisbremse({ vergleichsmiete, aktuelleKaltmiete, flaeche, vormieteHoeher, modernisierung });
-  document.getElementById('erlaubt').textContent = fmt(r.erlaubtGesamt);
+  const vormiete = parseFloat(document.getElementById('vormiete').value)||0;
+  const r = berechneMietpreisbremse({ vergleichsmiete, aktuelleKaltmiete, flaeche, vormiete, modernisierung });
+  // Die Kopfzahl muss die tatsaechlich zulaessige Miete zeigen. Frueher stand
+  // hier erlaubtGesamt, waehrend die Detailzeile darunter den Bestandsschutz
+  // beruecksichtigte - zwei verschiedene Zahlen uebereinander.
+  document.getElementById('erlaubt').textContent = fmt(r.effektivErlaubtGesamt);
   const box = document.getElementById('result-box');
-  if (r.istZuHoch) {
-    box.style.background = '#c8102e';
-  } else {
-    box.style.background = '';
+  box.style.background = r.istZuHoch ? '#c8102e' : '';
+  const teile = [
+    `<span>Zul\u00e4ssig: <strong>${fmtQm(r.effektivErlaubtProQm)}</strong></span>`,
+    `<span>Verlangt: <strong>${fmtQm(aktuelleKaltmiete)}</strong></span>`,
+  ];
+  if (r.vormieteGreift) {
+    teile.push(`<span>Grenze ist die Vormiete (\u00a7 556e Abs. 1 BGB)</span>`);
   }
-  document.getElementById('details').innerHTML =
-    `<span>Zulässig: <strong>${fmtQm(r.effektivErlaubtProQm)}</strong></span>` +
-    `<span>Verlangt: <strong>${fmtQm(aktuelleKaltmiete)}</strong></span>` +
-    (r.istZuHoch
-      ? `<span style="color:#c8102e">Zu viel: <strong>${fmtQm(r.zuvielProQm)} (${fmt(r.zuvielGesamt)}/Monat)</strong></span>` +
-        `<span style="color:#c8102e">Ersparnis/Jahr: <strong>${fmt(r.jahresErsparnis)}</strong></span>`
-      : `<span style="color:#1e7e34"><strong>Miete ist zulässig</strong></span>`
-    );
+  if (r.modernisierungGekappt) {
+    teile.push(`<span>Modernisierung gekappt auf <strong>${fmtQm(r.modernisierungKappung)}</strong> (\u00a7 559 Abs. 3a BGB)</span>`);
+  }
+  if (r.istZuHoch) {
+    teile.push(`<span style="color:#c8102e">Zu viel: <strong>${fmtQm(r.zuvielProQm)} (${fmt(r.zuvielGesamt)}/Monat)</strong></span>`);
+    teile.push(`<span style="color:#c8102e">Pro Jahr: <strong>${fmt(r.jahresErsparnis)}</strong></span>`);
+    teile.push(`<span style="color:#c8102e">R\u00fcckforderung bei R\u00fcge binnen 30 Monaten: <strong>bis ${fmt(r.rueckforderungMaximal)}</strong></span>`);
+  } else {
+    teile.push(`<span style="color:#1e7e34"><strong>Miete ist zul\u00e4ssig</strong></span>`);
+  }
+  document.getElementById('details').innerHTML = teile.join('');
 }
-['vergleich','aktmiete','flaeche','modernisierung'].forEach(id => document.getElementById(id).addEventListener('input', berechne));
-document.getElementById('vormiete').addEventListener('change', berechne);
+['vergleich','aktmiete','flaeche','modernisierung','vormiete'].forEach(id => document.getElementById(id).addEventListener('input', berechne));
 berechne();
 </script>

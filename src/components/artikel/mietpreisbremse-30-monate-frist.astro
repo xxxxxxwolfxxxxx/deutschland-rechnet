@@ -1,0 +1,474 @@
+---
+import RechnerArtikel from '../RechnerArtikel.astro';
+import {
+  berechneMietpreisbremse,
+  ZUSCHLAG,
+  RUECKFORDERUNG_MONATE,
+} from '../../../public/scripts/mietpreisbremse.js';
+import { artikelPfadVonSlug } from '../../data/ratgeber';
+
+// Alle Zahlen dieses Artikels kommen zur Buildzeit aus demselben Modul, das der
+// Rechner oben laedt – auch das Ruegefenster, seit der Rechner die maximale
+// Rueckforderung selbst ausweist. Nur die Auskunftssperre steht nicht im Modul,
+// weil der Rechner sie nicht braucht; sie ist unten mit ihrer Fundstelle benannt.
+const RUEGEFENSTER_MONATE = RUECKFORDERUNG_MONATE; // § 556g Abs. 2 Satz 3 BGB
+const AUSKUNFTSSPERRE_MONATE = 24; // § 556g Abs. 1a Satz 3 BGB: "zwei Jahre"
+
+const eur = (n: number, d = 2) =>
+  n.toLocaleString('de-DE', { minimumFractionDigits: d, maximumFractionDigits: d }) + ' €';
+const eurGlatt = (n: number) => n.toLocaleString('de-DE', { maximumFractionDigits: 0 }) + ' €';
+const qm = (n: number) =>
+  n.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €/m²';
+const zahl = (n: number, d = 2) =>
+  n.toLocaleString('de-DE', { minimumFractionDigits: d, maximumFractionDigits: d });
+
+// --- Den Zuschlag aus dem Modul ablesen, statt ihn abzutippen --------------
+const ZUSCHLAG_PROZENT = ZUSCHLAG * 100;
+
+// --- Der Beispielfall: die Voreinstellung des Rechners oben ---------------
+const VERGLEICHSMIETE = 12.0;
+const VERLANGT = 14.5;
+const FLAECHE = 70;
+const fall = berechneMietpreisbremse({
+  vergleichsmiete: VERGLEICHSMIETE,
+  flaeche: FLAECHE,
+  aktuelleKaltmiete: VERLANGT,
+});
+const proMonat = fall.zuvielGesamt;
+const stock = proMonat * RUEGEFENSTER_MONATE;
+const stockInMonatsmieten = stock / fall.erlaubtGesamt;
+
+// --- Die Rueckforderung ueber den Ruegezeitpunkt ---------------------------
+const rueckforderung = (monat: number) =>
+  monat <= RUEGEFENSTER_MONATE ? proMonat * monat : 0;
+const RUEGE_MONATE = [1, 6, 12, 24, 29, 30, 31, 36];
+const ruegeReihe = RUEGE_MONATE.map((m) => ({
+  monat: m,
+  monate: m <= RUEGEFENSTER_MONATE ? m : 0,
+  betrag: rueckforderung(m),
+}));
+
+// --- Sensitivitaet: wovon der Rueckforderungsstock abhaengt ----------------
+const UEBERSCHREITUNGEN = [0.5, 1.0, 1.3, 2.0, 3.0];
+const FLAECHEN = [45, 70, 100];
+const sensitivitaet = UEBERSCHREITUNGEN.map((ueber) => ({
+  ueber,
+  werte: FLAECHEN.map((f) => {
+    const r = berechneMietpreisbremse({
+      vergleichsmiete: VERGLEICHSMIETE,
+      flaeche: f,
+      aktuelleKaltmiete: VERGLEICHSMIETE * (1 + ZUSCHLAG_PROZENT / 100) + ueber,
+    });
+    return r.zuvielGesamt * RUEGEFENSTER_MONATE;
+  }),
+}));
+
+// --- Der Hebel: was ein Euro Vergleichsmiete wert ist ----------------------
+const basis = berechneMietpreisbremse({
+  vergleichsmiete: VERGLEICHSMIETE,
+  flaeche: FLAECHE,
+  aktuelleKaltmiete: 0,
+});
+const einEuroMehr = berechneMietpreisbremse({
+  vergleichsmiete: VERGLEICHSMIETE + 1,
+  flaeche: FLAECHE,
+  aktuelleKaltmiete: 0,
+});
+const hebelProQm = einEuroMehr.erlaubtProQm - basis.erlaubtProQm;
+const hebelProMonat = einEuroMehr.erlaubtGesamt - basis.erlaubtGesamt;
+const hebelImFenster = hebelProMonat * RUEGEFENSTER_MONATE;
+
+// --- Der erlaubte Aufschlag ueber die Preisspanne -------------------------
+const VERGLEICHSMIETEN = [7, 9, 12, 15, 18, 22];
+const spanne = VERGLEICHSMIETEN.map((v) => {
+  const r = berechneMietpreisbremse({ vergleichsmiete: v, flaeche: FLAECHE, aktuelleKaltmiete: v });
+  return {
+    vergleich: v,
+    zulaessig: r.erlaubtProQm,
+    aufschlagProQm: r.erlaubtProQm - v,
+    aufschlagProMonat: r.erlaubtGesamt - v * FLAECHE,
+  };
+});
+const spanneUnten = spanne[0];
+const spanneOben = spanne[spanne.length - 1];
+
+// --- Modernisierung: die Doppelzaehlung ------------------------------------
+// § 556e Abs. 2 Satz 2 BGB: Grundlage ist die Vergleichsmiete OHNE die
+// Modernisierung. Wer die Mietspiegelzeile der modernisierten Wohnung nimmt,
+// zaehlt die Sanierung zweimal.
+const MODERNISIERUNG = 1.5;
+const MIETSPIEGEL_NACH_SANIERUNG = 13.0;
+const modRichtig = berechneMietpreisbremse({
+  vergleichsmiete: VERGLEICHSMIETE,
+  flaeche: FLAECHE,
+  aktuelleKaltmiete: 0,
+  modernisierung: MODERNISIERUNG,
+});
+const modFalsch = berechneMietpreisbremse({
+  vergleichsmiete: MIETSPIEGEL_NACH_SANIERUNG,
+  flaeche: FLAECHE,
+  aktuelleKaltmiete: 0,
+  modernisierung: MODERNISIERUNG,
+});
+const modDifferenz = modFalsch.erlaubtGesamt - modRichtig.erlaubtGesamt;
+
+// --- Die Auskunftssperre ---------------------------------------------------
+// § 556g Abs. 1a Satz 2: ohne Auskunft keine Berufung auf §§ 556e/556f.
+// Satz 3: nachgeholt wirkt sie erst zwei Jahre spaeter. Ungeschuetzt bleiben
+// damit die Monate bis zur Nachholung + 24 – begrenzt auf das Ruegefenster.
+const ungeschuetzteMonate = (nachholungImMonat: number) =>
+  Math.min(RUEGEFENSTER_MONATE, nachholungImMonat + AUSKUNFTSSPERRE_MONATE);
+const NACHHOL_MONATE = [0, 2, 4, 5, 6, 9];
+const auskunftReihe = NACHHOL_MONATE.map((n) => ({
+  nachholung: n,
+  monate: ungeschuetzteMonate(n),
+  betrag: ungeschuetzteMonate(n) * proMonat,
+}));
+// Ab welchem Nachholmonat ist die Ausnahme im ganzen Fenster wertlos?
+let sperreSchwelle = 0;
+for (let n = 0; n <= 60; n += 1) {
+  if (ungeschuetzteMonate(n) === RUEGEFENSTER_MONATE) {
+    sperreSchwelle = n;
+    break;
+  }
+}
+
+const quellen = [
+  { titel: '§ 556d BGB – Zulässige Miethöhe bei Mietbeginn', url: 'https://www.gesetze-im-internet.de/bgb/__556d.html' },
+  { titel: '§ 556e BGB – Berücksichtigung der Vormiete oder einer Modernisierung', url: 'https://www.gesetze-im-internet.de/bgb/__556e.html' },
+  { titel: '§ 556f BGB – Ausnahmen (Neubau, erste Vermietung nach umfassender Modernisierung)', url: 'https://www.gesetze-im-internet.de/bgb/__556f.html' },
+  { titel: '§ 556g BGB – Rechtsfolgen, Auskunft, Rüge und 30-Monats-Frist', url: 'https://www.gesetze-im-internet.de/bgb/__556g.html' },
+  { titel: '§ 556b BGB – Fälligkeit der Miete und Aufrechnung', url: 'https://www.gesetze-im-internet.de/bgb/__556b.html' },
+  { titel: '§ 558 BGB – Ortsübliche Vergleichsmiete und Kappungsgrenze', url: 'https://www.gesetze-im-internet.de/bgb/__558.html' },
+  { titel: '§ 559 BGB – Mieterhöhung nach Modernisierung, Kappung in Absatz 3a', url: 'https://www.gesetze-im-internet.de/bgb/__559.html' },
+  { titel: '§ 559a BGB – Anrechnung von Drittmitteln', url: 'https://www.gesetze-im-internet.de/bgb/__559a.html' },
+  { titel: '§ 557a BGB – Staffelmiete, Absatz 4 zur Mietpreisbremse', url: 'https://www.gesetze-im-internet.de/bgb/__557a.html' },
+  { titel: '§ 557b BGB – Indexmiete, Absatz 4 zur Mietpreisbremse', url: 'https://www.gesetze-im-internet.de/bgb/__557b.html' },
+  { titel: '§ 195 BGB – Regelmäßige Verjährungsfrist', url: 'https://www.gesetze-im-internet.de/bgb/__195.html' },
+  { titel: '§ 199 BGB – Beginn der Verjährungsfrist', url: 'https://www.gesetze-im-internet.de/bgb/__199.html' },
+];
+---
+<RechnerArtikel
+  titel="Die Mietpreisbremse begrenzt nicht die Miete, sondern die Zeit"
+  datum="2026-09-13"
+  lead={`Bei ${qm(VERGLEICHSMIETE)} ortsüblicher Vergleichsmiete sind ${qm(fall.erlaubtProQm)} zulässig. Wer ${qm(VERLANGT)} überweist, zahlt ${eur(proMonat)} im Monat zu viel – der Rechner oben nennt dafür ${eur(fall.jahresErsparnis)} im Jahr. Die größere Zahl steht aber woanders: Wer im ${RUEGEFENSTER_MONATE}. Monat rügt, fordert ${eurGlatt(stock)} zurück, das ${zahl(stockInMonatsmieten, 2)}-Fache einer zulässigen Monatsmiete. Wer einen Monat später rügt, bekommt davon nichts.`}
+  quellen={quellen}
+>
+  <h3>Zehn Prozent stehen in einem Absatz, dreißig Monate in einem anderen</h3>
+  <p>
+    Die Mietpreisbremse besteht aus zwei Teilen, die selten zusammen erklärt
+    werden. Der erste ist die Grenze: Nach § 556d Abs. 1 BGB darf die Miete zu
+    Beginn des Mietverhältnisses die ortsübliche Vergleichsmiete um höchstens
+    {' '}{zahl(ZUSCHLAG_PROZENT, 0)} Prozent übersteigen. Diese Zahl steht in jedem
+    Ratgeber, und der Rechner am Anfang dieser Seite rechnet sie aus.
+  </p>
+  <p>
+    Der zweite Teil ist die Rechtsfolge, und die hat einen Kalender. § 556g Abs. 1
+    Satz 2 BGB erklärt die Mietvereinbarung für unwirksam, <em>soweit</em> die
+    zulässige Miete überschritten wird – der Überschuss ist von vornherein nicht
+    geschuldet. Satz 3 verpflichtet den Vermieter zur Herausgabe nach
+    Bereicherungsrecht, Satz 4 nimmt ihm dabei den naheliegendsten Einwand: Die
+    §§ 814 und 817 Satz 2 BGB sind nicht anzuwenden. Wer also sehenden Auges zu
+    viel zahlt, verliert seinen Anspruch deshalb nicht.
+  </p>
+  <p>
+    Zurückverlangen kann der Mieter das Geld aber nur, wenn er den Verstoß gerügt
+    hat (§ 556g Abs. 2 Satz 1 BGB). Und Satz 3 desselben Absatzes setzt dafür eine
+    Frist, die in keiner Überschrift vorkommt: „Rügt der Mieter den Verstoß mehr als
+    {' '}{RUEGEFENSTER_MONATE} Monate nach Beginn des Mietverhältnisses […], kann er
+    nur die nach Zugang der Rüge fällig gewordene Miete zurückverlangen." Die Rüge
+    braucht dabei nur Textform (§ 556g Abs. 4 BGB), eine E-Mail genügt.
+  </p>
+
+  <h3>Die Rückforderung wächst {RUEGEFENSTER_MONATE} Monate und fällt dann in einem Monat auf null</h3>
+  <p>
+    Aus dieser Frist folgt ein Verlauf, der sich rechnen lässt. Im Beispielfall des
+    Rechners – {qm(VERGLEICHSMIETE)} Vergleichsmiete, {qm(VERLANGT)} verlangt,
+    {' '}{FLAECHE} m² – sind {qm(fall.erlaubtProQm)} zulässig und
+    {' '}{eur(proMonat)} im Monat zu viel. Solange die Rüge innerhalb des Fensters
+    zugeht, holt der Mieter jede bis dahin gezahlte Monatsdifferenz zurück. Danach
+    keine einzige.
+  </p>
+
+  <table>
+    <caption class="visually-hidden">
+      Rückforderbarer Betrag nach dem Monat, in dem die Rüge zugeht
+    </caption>
+    <thead>
+      <tr>
+        <th scope="col" class="num">Rüge im Monat</th>
+        <th scope="col" class="num">rückwirkend erfasste Monatsmieten</th>
+        <th scope="col" class="num">Rückforderung</th>
+      </tr>
+    </thead>
+    <tbody>
+      {ruegeReihe.map((r) => (
+        <tr>
+          <th scope="row" class="num">{r.monat}.</th>
+          <td class="num">{r.monate}</td>
+          <td class="num">{eur(r.betrag)}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+
+  <p>
+    Zwischen dem {RUEGEFENSTER_MONATE}. und dem {RUEGEFENSTER_MONATE + 1}. Monat
+    liegen ein einziger Monat und {eurGlatt(stock)}. Das ist der eigentliche
+    Befund dieser Rechnung: Bis zum
+    {' '}{RUEGEFENSTER_MONATE}. Monat kostet Abwarten <em>nichts</em>. Wer im zwölften
+    statt im ersten Monat rügt, hat zwölf Monatsdifferenzen gezahlt und bekommt
+    zwölf zurück – er hat dem Vermieter nur zinslos Geld geliehen. Genau deshalb
+    fällt das Verstreichen der Frist nicht auf. Es gibt keinen wachsenden Schaden,
+    der einen warnt; es gibt {RUEGEFENSTER_MONATE} folgenlose Monate und dann einen
+    teuren.
+  </p>
+  <p>
+    Zur Einordnung: {eurGlatt(stock)} sind das {zahl(stockInMonatsmieten, 2)}-Fache
+    der zulässigen Monatskaltmiete von {eur(fall.erlaubtGesamt)}. Und dieser Betrag
+    muss nicht eingeklagt werden – § 556b Abs. 2 BGB erlaubt ausdrücklich, mit einer
+    Forderung aus ungerechtfertigter Bereicherung wegen zu viel gezahlter Miete
+    gegen die laufende Miete aufzurechnen, wenn man die Absicht mindestens einen
+    Monat vor Fälligkeit in Textform anzeigt.
+  </p>
+  <p>
+    Wie groß dieser Bestand ist, hängt an zwei Größen: an der Überschreitung je
+    Quadratmeter und an der Wohnfläche. Beides multipliziert sich, und beides
+    multipliziert sich mit dem Fenster.
+  </p>
+
+  <table>
+    <caption class="visually-hidden">
+      Rückforderung bei einer Rüge im {RUEGEFENSTER_MONATE}. Monat, nach
+      Überschreitung je Quadratmeter und Wohnfläche
+    </caption>
+    <thead>
+      <tr>
+        <th scope="col" class="num">zu viel je m²</th>
+        {FLAECHEN.map((f) => <th scope="col" class="num">{f} m²</th>)}
+      </tr>
+    </thead>
+    <tbody>
+      {sensitivitaet.map((z) => (
+        <tr>
+          <th scope="row" class="num">{qm(z.ueber)}</th>
+          {z.werte.map((w) => <td class="num">{eurGlatt(w)}</td>)}
+        </tr>
+      ))}
+    </tbody>
+  </table>
+
+  <h3>Die Rüge senkt die Miete nicht – sie öffnet nur die Vergangenheit</h3>
+  <p>
+    Ein naheliegender Einwand lautet: Was soll's, dann zahle ich eben ab jetzt
+    weniger. Für die Zukunft stimmt das sogar, und zwar unabhängig von jeder Frist.
+    Weil § 556g Abs. 1 Satz 2 BGB die Vereinbarung insoweit für unwirksam erklärt,
+    ist der Überschuss nie geschuldet – die Rüge ist nach Absatz 2 Satz 1 nur
+    Voraussetzung dafür, bereits <em>gezahlte</em> Miete zurückzuverlangen.
+  </p>
+  <p>
+    Der {(RUEGEFENSTER_MONATE + 1)}. Monat erhöht die Miete also nicht. Er löscht
+    den Bestand. Im Beispielfall bleibt die monatliche Ersparnis von
+    {' '}{eur(proMonat)} in jedem Szenario dieselbe; verloren geht ausschließlich das,
+    was sich davor angesammelt hat. Wer die Grenze prüfen will, prüft sie deshalb am
+    besten in den ersten Wochen des Mietverhältnisses – nicht, weil die Miete sonst
+    höher bliebe, sondern weil das Zurückgeholte mit jedem Monat wächst und dann auf
+    einmal verfällt.
+  </p>
+
+  <h3>Ein Euro Vergleichsmiete ist {eurGlatt(hebelImFenster)} wert</h3>
+  <p>
+    Gemeint ist: ein Euro je Quadratmeter, auf {FLAECHE} m², über das volle
+    Rückforderungsfenster. Denn ein Euro mehr Vergleichsmiete hebt die zulässige
+    Miete nicht um einen Euro, sondern um {qm(hebelProQm)} – die
+    {' '}{zahl(ZUSCHLAG_PROZENT, 0)} Prozent wachsen mit. Auf {FLAECHE} m² sind das
+    {' '}{eur(hebelProMonat)} im Monat und über {RUEGEFENSTER_MONATE} Monate
+    {' '}{eurGlatt(hebelImFenster)}.
+  </p>
+  <p>
+    Das ist die zweite Größe, über die gestritten wird. Die ortsübliche
+    Vergleichsmiete wird nach § 558 Abs. 2 BGB aus den Entgelten der letzten sechs
+    Jahre für vergleichbaren Wohnraum gebildet, und ein Mietspiegel liefert dafür in
+    der Regel keine Zahl, sondern eine Spanne. Wo man innerhalb dieser Spanne landet,
+    entscheidet nicht nur über die laufende Miete, sondern mit demselben Hebel über
+    den gesamten Rückforderungsbetrag.
+  </p>
+  <p>
+    Dieselbe Proportionalität hat eine zweite, unbequeme Folge: Der gesetzlich
+    erlaubte Aufschlag ist kein fester Betrag, sondern ein Anteil. Er fällt dort am
+    größten aus, wo die Mieten ohnehin am höchsten sind.
+  </p>
+
+  <table>
+    <caption class="visually-hidden">
+      Zulässige Miete und gesetzlich erlaubter Aufschlag nach Höhe der
+      ortsüblichen Vergleichsmiete, bei {FLAECHE} m²
+    </caption>
+    <thead>
+      <tr>
+        <th scope="col" class="num">Vergleichsmiete</th>
+        <th scope="col" class="num">zulässig</th>
+        <th scope="col" class="num">erlaubter Aufschlag je m²</th>
+        <th scope="col" class="num">Aufschlag bei {FLAECHE} m²</th>
+      </tr>
+    </thead>
+    <tbody>
+      {spanne.map((s) => (
+        <tr>
+          <th scope="row" class="num">{qm(s.vergleich)}</th>
+          <td class="num">{qm(s.zulaessig)}</td>
+          <td class="num">{qm(s.aufschlagProQm)}</td>
+          <td class="num">{eur(s.aufschlagProMonat)}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+
+  <p>
+    In der teuersten Zeile erlaubt die Bremse {eur(spanneOben.aufschlagProMonat)} im
+    Monat über der Ortsüblichkeit, in der billigsten
+    {' '}{eur(spanneUnten.aufschlagProMonat)}. Das Verhältnis ist exakt das der
+    Vergleichsmieten – und genau das ist der Punkt: Eine Prozentgrenze bremst
+    relativ, nicht absolut. Sie deckelt den Anstieg, nicht den Abstand.
+  </p>
+  <p>
+    Aus derselben Hebelwirkung folgt der häufigste Rechenfehler bei modernisierten
+    Wohnungen. § 556e Abs. 2 Satz 2 BGB schreibt vor, dass für die Berechnung von
+    der Vergleichsmiete auszugehen ist, die <em>ohne Berücksichtigung der
+    Modernisierung</em> anzusetzen wäre. Wer stattdessen die Mietspiegelzeile der
+    sanierten Wohnung nimmt und den Modernisierungsbetrag zusätzlich aufschlägt,
+    zählt die Sanierung zweimal. Bei {qm(MODERNISIERUNG)} Umlage und einer
+    Vergleichsmiete, die durch die Sanierung von {qm(VERGLEICHSMIETE)} auf
+    {' '}{qm(MIETSPIEGEL_NACH_SANIERUNG)} steigt, ergibt der richtige Weg
+    {' '}{eur(modRichtig.erlaubtGesamt)} zulässige Kaltmiete, die Doppelzählung
+    {' '}{eur(modFalsch.erlaubtGesamt)} – eine Differenz von {eur(modDifferenz)} im
+    Monat oder {eurGlatt(modDifferenz * RUEGEFENSTER_MONATE)} im Rückforderungsfenster.
+    Im Feld „Vergleichsmiete" des Rechners oben gehört deshalb der Wert vor der
+    Modernisierung.
+  </p>
+
+  <h3>Die vergessene Auskunft ist bis zu {eurGlatt(stock)} wert</h3>
+  <p>
+    Beruft sich ein Vermieter auf eine Ausnahme – die höhere Vormiete nach § 556e
+    Abs. 1 BGB, eine Modernisierung nach Absatz 2, Neubau oder erste Vermietung nach
+    umfassender Modernisierung nach § 556f BGB –, muss er das nach § 556g Abs. 1a
+    Satz 1 BGB <em>unaufgefordert</em> und vor Abgabe der Vertragserklärung des
+    Mieters offenlegen. Die Vorschrift zählt dafür vier Fälle auf, und Satz 2 zieht
+    die Konsequenz: Ohne diese Auskunft kann er sich auf die Ausnahme nicht berufen.
+  </p>
+  <p>
+    Entscheidend ist Satz 3. Holt der Vermieter die Auskunft in der vorgeschriebenen
+    Form nach, wirkt sie nicht sofort: Er kann sich „erst zwei Jahre nach Nachholung
+    der Auskunft" auf die Ausnahme berufen. Diese
+    {' '}{AUSKUNFTSSPERRE_MONATE}-Monats-Sperre trifft auf das
+    {' '}{RUEGEFENSTER_MONATE}-Monats-Fenster von Absatz 2 Satz 3 – und aus der
+    Kombination wird Arithmetik. Ungeschützt bleiben alle Monate bis zur Nachholung
+    plus {AUSKUNFTSSPERRE_MONATE}, begrenzt auf das Fenster:
+  </p>
+
+  <table>
+    <caption class="visually-hidden">
+      Rückforderbare Monate bei einer Rüge im {RUEGEFENSTER_MONATE}. Monat, je
+      nachdem wann der Vermieter die unterlassene Auskunft nachholt
+    </caption>
+    <thead>
+      <tr>
+        <th scope="col" class="num">Nachholung, Monate nach Mietbeginn</th>
+        <th scope="col" class="num">ungeschützte Monatsmieten</th>
+        <th scope="col" class="num">Rückforderung</th>
+      </tr>
+    </thead>
+    <tbody>
+      {auskunftReihe.map((a) => (
+        <tr>
+          <th scope="row" class="num">{a.nachholung}</th>
+          <td class="num">{a.monate}</td>
+          <td class="num">{eur(a.betrag)}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+
+  <p>
+    Holt der Vermieter die Auskunft erst {sperreSchwelle} Monate nach Mietbeginn oder
+    später nach, gewinnt er im Rückforderungsfenster gar nichts mehr: Die Sperre von
+    {' '}{AUSKUNFTSSPERRE_MONATE} Monaten endet dann frühestens in dem Moment, in dem
+    das Fenster von {RUEGEFENSTER_MONATE} Monaten ohnehin geschlossen ist. Der Mieter
+    holt sich die vollen {eurGlatt(stock)} zurück – obwohl die Vormiete die verlangte
+    Miete inhaltlich gedeckt hätte. Die Ausnahme existiert, sie ist nur nicht
+    benutzbar. Wer sie nie nachholt, kann sich nach Satz 2 überhaupt nicht auf sie
+    berufen.
+  </p>
+  <p>
+    Unabhängig davon gibt § 556g Abs. 3 BGB dem Mieter einen Auskunftsanspruch über
+    die Tatsachen, die für die Zulässigkeit der Miete maßgeblich sind, soweit sie
+    nicht allgemein zugänglich sind und der Vermieter sie unschwer mitteilen kann.
+    Das ist der Weg, die Höhe der Vormiete überhaupt zu erfahren. Auch dieses
+    Verlangen und die Antwort darauf bedürfen nach Absatz 4 der Textform.
+  </p>
+
+  <h3>Was diese Rechnung nicht abbildet</h3>
+  <p>
+    <strong>Die Vormiete muss der Mieter erst erfahren.</strong> § 556e Abs. 1
+    Satz 1 BGB erlaubt eine Miete{' '}<em>bis zur Höhe der Vormiete</em> – sie ist
+    eine Obergrenze, kein Freibrief. Das Feld oben nimmt sie deshalb als Zahl
+    entgegen und rechnet mit ihr statt mit der verlangten Miete. Nur steht sie in
+    keinem Mietvertrag: Man bekommt sie über den Auskunftsanspruch des § 556g
+    Abs. 3 BGB oder gar nicht. Satz 2 nimmt davon außerdem Mietminderungen sowie
+    Mieterhöhungen aus, die im letzten Jahr vor Ende des Vormietverhältnisses
+    vereinbart wurden – diesen Abzug muss man selbst vornehmen, bevor man die Zahl
+    einträgt.
+  </p>
+  <p>
+    <strong>Die Modernisierungsumlage ist befristet und gedeckelt.</strong> § 556e
+    Abs. 2 Satz 1 BGB setzt voraus, dass die Maßnahmen in den letzten drei Jahren vor
+    Beginn des Mietverhältnisses durchgeführt wurden; ältere zählen nicht. Der Betrag
+    bemisst sich nach § 559 Abs. 1 bis 3a und § 559a Abs. 1 bis 4
+    BGB. § 559 Abs. 3a begrenzt die Erhöhung auf 3 Euro je Quadratmeter innerhalb von
+    sechs Jahren, bei einer Miete von weniger als 7 Euro je Quadratmeter vor der
+    Erhöhung auf 2 Euro; für eine Modernisierung mittels Einbaus einer Heizungsanlage,
+    die zugleich § 555b Nr. 1 oder 1a erfüllt, insoweit auf 0,50 Euro. Die ersten
+    beiden Grenzen zieht der Rechner oben selbst und sagt es, wenn er kappt; die
+    dritte hängt an der Art der Maßnahme und lässt sich aus den Eingaben nicht
+    ableiten.
+  </p>
+  <p>
+    <strong>Die Bremse gilt nicht überall und nicht ewig.</strong> Sie greift nur in
+    Gebieten, die eine Landesregierung nach § 556d Abs. 2 Satz 1 BGB per
+    Rechtsverordnung bestimmt hat. Satz 4 desselben Absatzes befristet jede solche
+    Verordnung: Sie muss spätestens mit Ablauf des 31. Dezember 2029 außer Kraft
+    treten. Ganz ausgenommen sind nach § 556f BGB Wohnungen, die nach dem 1. Oktober
+    2014 erstmals genutzt <em>und</em> vermietet wurden, sowie die erste Vermietung
+    nach umfassender Modernisierung – für beides hat der Rechner keinen Schalter,
+    dort ist die Grenze schlicht nicht anwendbar. Was „umfassend" heißt, sagt der
+    Gesetzestext selbst nicht.
+  </p>
+  <p>
+    <strong>Staffel- und Indexmieten laufen anders.</strong> Bei der Staffelmiete
+    sind die §§ 556d bis 556g nach § 557a Abs. 4 BGB auf jede einzelne Mietstaffel
+    anzuwenden, wobei für die zweite und alle weiteren Staffeln der Zeitpunkt der
+    ersten Fälligkeit an die Stelle des Mietbeginns tritt. Bei der Indexmiete gelten
+    sie nach § 557b Abs. 4 BGB nur für die Ausgangsmiete. Der Rechner prüft immer
+    genau eine Miete.
+  </p>
+  <p>
+    <strong>Die Zahlen sind Ansprüche, keine Auszahlungen.</strong> Gerechnet ist mit
+    vollen Monatsmieten und monatlicher Fälligkeit im Voraus (§ 556b Abs. 1 BGB); ob
+    am Ende {RUEGEFENSTER_MONATE} oder {RUEGEFENSTER_MONATE + 1} Mieten erfasst sind,
+    hängt am genauen Vertragsbeginn. Der Rückforderungsanspruch verjährt außerdem
+    nach §§ 195, 199 BGB in drei Jahren ab dem Schluss des Jahres, in dem er
+    entstanden ist – bei einer späten Rüge innerhalb des Fensters können die
+    frühesten Monate deshalb schon verjährt sein. Und die Rechnung sagt nichts
+    darüber, wie schwer die ortsübliche Vergleichsmiete im Streitfall zu beweisen
+    ist: Sie ist die Eingangsgröße, nicht das Ergebnis.
+  </p>
+  <p>
+    Die Grenze betrifft ausschließlich die Nettokaltmiete. Was daneben an
+    Betriebskosten umgelegt werden darf, richtet sich nach ganz anderen Regeln –
+    dazu die Rechnung zu
+    {' '}<a href={artikelPfadVonSlug('nebenkosten-was-umlagefaehig-ist')}>umlagefähigen Nebenkosten</a>.
+    Wie weit die Miete das Haushaltseinkommen belastet und ab wann ein Zuschuss in
+    Betracht kommt, steht im Artikel zur
+    {' '}<a href={artikelPfadVonSlug('wohngeld-mietenstufe-gegen-einkommen')}>Mietenstufe beim Wohngeld</a>.
+  </p>
+</RechnerArtikel>

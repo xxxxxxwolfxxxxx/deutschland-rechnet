@@ -42,6 +42,15 @@ export interface Artikel {
 
 export const ARTIKEL: Artikel[] = [
   {
+    slug: 'mietpreisbremse-30-monate-frist',
+    titel: 'Mietpreisbremse: Der Anspruch wächst 30 Monate und verfällt im 31.',
+    teaser: 'Bei 12,00 €/m² Vergleichsmiete sind 13,20 €/m² zulässig; wer 14,50 €/m² zahlt, zahlt auf 70 m² 91 € im Monat zu viel. Die Rückforderung wächst 30 Monate lang auf 2.730 € – das 2,95-Fache einer zulässigen Monatsmiete – und fällt im 31. Monat auf null, weil § 556g Abs. 2 Satz 3 BGB dann nur noch die Zukunft erfasst. Dazu die Rechnung, warum eine vergessene Auskunft des Vermieters bis zu 2.730 € wert ist.',
+    datum: '2026-09-13',
+    thema: 'Wohnen',
+    rechner: ['mietpreisbremse-rechner', 'mietrechner'],
+    aufRechnerseite: true,
+  },
+  {
     slug: 'abgeltungsteuer-nie-25-prozent',
     titel: 'Abgeltungsteuer: Warum niemand 25 Prozent zahlt',
     teaser: 'Ohne Kirchensteuer sind es 26,375 Prozent, mit Kirchensteuer 27,995 – aber nicht, weil 9 Prozent obendrauf kommen. § 32d Abs. 1 Satz 3 EStG senkt die Kapitalertragsteuer auf 24,45 Prozent, sodass von jedem Euro Kirchensteuer nur 74 Cent ankommen. Dazu die Schwelle, unter der sich die Abgeltungsteuer gar nicht lohnt.',
