@@ -2,8 +2,15 @@
 import Layout from '../layouts/Layout.astro';
 import CategoryGrid from '../components/CategoryGrid.astro';
 import { LIVE_CALCULATOR_COUNT } from '../data/calculators';
+import { ARTIKEL_SORTIERT, artikelPfad } from '../data/ratgeber';
 
 const base = import.meta.env.BASE_URL;
+
+// Die Startseite verlinkte bis September 2026 keinen einzigen Artikel – die
+// Texte waren fuer Leser wie fuer Crawler nur ueber den Ratgeber-Index
+// erreichbar, der selbst null Impressionen hatte. Hier stehen die neuesten,
+// direkt aus der Registry, damit die Liste nicht altert.
+const neuesteArtikel = ARTIKEL_SORTIERT.slice(0, 6);
 const siteUrl = import.meta.env.SITE ?? 'https://deutschland-rechnet.de';
 
 // Einzige Quelle fuer die FAQ. Google verlangt, dass FAQPage-Markup und
@@ -180,9 +187,110 @@ const faqSchema = {
       </a>
     </div>
   </section>
+
+  <section class="ratgeber-section" aria-labelledby="ratgeber-heading">
+    <div class="ratgeber-kopf">
+      <h2 id="ratgeber-heading">Durchgerechnet</h2>
+      <p>
+        Zu vielen Rechnern gehört ein Text, der die Zahl erklärt, die er ausgibt –
+        mit Fundstelle im Gesetz und nachgerechnet statt behauptet. Er steht auf
+        derselben Seite wie der Rechner.
+      </p>
+    </div>
+    <ol class="ratgeber-liste">
+      {neuesteArtikel.map((a) => (
+        <li>
+          <a href={`${base}${artikelPfad(a)}`}>
+            <span class="ratgeber-thema">{a.thema}</span>
+            <h3>{a.titel}</h3>
+            <p>{a.teaser}</p>
+          </a>
+        </li>
+      ))}
+    </ol>
+    <a href={`${base}ratgeber/`} class="ratgeber-mehr">Alle Texte im Ratgeber →</a>
+  </section>
 </Layout>
 
 <style>
+/* Redaktioneller Block – bewusst KEIN Kartenraster wie die Rechner darueber.
+   Die Texte sollen sich optisch von den Werkzeugen unterscheiden. */
+.ratgeber-section {
+  margin-top: 3rem;
+  padding-top: 2.5rem;
+  border-top: 3px solid var(--dark);
+}
+.ratgeber-kopf { max-width: 60ch; margin-bottom: 2rem; }
+.ratgeber-kopf h2 { margin: 0 0 0.6rem; }
+.ratgeber-kopf p { color: var(--text-light); line-height: 1.7; margin: 0; }
+
+.ratgeber-liste {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  counter-reset: ratgeber;
+  border-top: 1px solid var(--border);
+}
+.ratgeber-liste li { counter-increment: ratgeber; border-bottom: 1px solid var(--border); }
+.ratgeber-liste a {
+  display: grid;
+  grid-template-columns: 3.25rem 1fr;
+  gap: 0 1.25rem;
+  padding: 1.4rem 0.5rem 1.4rem 0;
+  text-decoration: none;
+  color: inherit;
+  transition: background-color 150ms ease;
+}
+.ratgeber-liste a::before {
+  content: counter(ratgeber, decimal-leading-zero);
+  grid-row: 1 / span 3;
+  font-variant-numeric: tabular-nums;
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: var(--border);
+  line-height: 1.2;
+  transition: color 150ms ease;
+}
+.ratgeber-liste a:hover,
+.ratgeber-liste a:focus-visible { background: var(--surface); }
+.ratgeber-liste a:hover::before,
+.ratgeber-liste a:focus-visible::before { color: var(--red); }
+.ratgeber-thema {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--red);
+}
+.ratgeber-liste h3 {
+  margin: 0.2rem 0 0.4rem;
+  font-size: 1.12rem;
+  line-height: 1.35;
+}
+.ratgeber-liste a:hover h3 { text-decoration: underline; }
+.ratgeber-liste p {
+  margin: 0;
+  color: var(--text-light);
+  font-size: 0.94rem;
+  line-height: 1.65;
+  /* Der Teaser ist im Register lang genug, um allein zu tragen; hier reichen
+     drei Zeilen, sonst kippt die Liste in eine Textwueste. */
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.ratgeber-mehr {
+  display: inline-block;
+  margin-top: 1.5rem;
+  font-weight: 700;
+  color: var(--red);
+}
+@media (max-width: 560px) {
+  .ratgeber-liste a { grid-template-columns: 1fr; gap: 0; }
+  .ratgeber-liste a::before { grid-row: auto; font-size: 1rem; margin-bottom: 0.15rem; }
+}
+
 .site-hero {
   position: relative;
   border-radius: var(--radius);

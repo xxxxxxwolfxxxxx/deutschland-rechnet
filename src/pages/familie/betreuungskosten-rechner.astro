@@ -13,13 +13,13 @@ const faqs = [
   { q: 'Wer kann Kosten absetzen?', a: 'Eltern können Kosten absetzen, wenn mindestens ein Elternteil berufstätig oder in Ausbildung ist. Arbeitssuchende können teilweise auch absetzen.' },
   { q: 'Welche Kosten sind nicht abzugsfähig?', a: 'Verpflegung, Unterricht (Musik, Sprachen), Übernachtung und Betreuung durch Verwandte sind nicht abzugsfähig.' },
   { q: 'Wird das Kindergeld angerechnet?', a: 'Nein, Kindergeld wird nicht auf den Abzug von Betreuungskosten angerechnet.' },
-  { q: 'Kann ich den Arbeitgeberzuschuss zur Kita steuerlich nutzen?', a: 'Der Arbeitgeberzuschuss nach § 3 Nr. 33 EStG ist steuerfrei und sozialabgabenfrei, wird aber von den absetzbaren Betreuungskosten abgezogen. Beispiel: Bei 6.000 € Kita-Kosten und 1.200 € Arbeitgeberzuschuss können Sie nur 4.800 € (davon 2/3 = 3.200 €) als Sonderausgaben absetzen.' },
+  { q: 'Kann ich den Arbeitgeberzuschuss zur Kita steuerlich nutzen?', a: 'Der Arbeitgeberzuschuss nach § 3 Nr. 33 EStG ist steuerfrei und sozialabgabenfrei, wird aber von den absetzbaren Betreuungskosten abgezogen. Beispiel: Bei 6.000 € Kita-Kosten und 1.200 € Arbeitgeberzuschuss bleiben 4.800 € eigene Aufwendungen, davon 80 Prozent = 3.840 € als Sonderausgaben.' },
   { q: 'Was passiert mit den Kita-Kosten bei Trennung oder Scheidung?', a: 'Kita-Kosten gehören zum Mehrbedarf des Kindes und werden zwischen den Eltern nach dem Verhältnis ihrer Einkommen aufgeteilt (§ 1606 Abs. 3 BGB). Der betreuende Elternteil kann seinen Anteil der Kosten steuerlich absetzen.' },
 ];
 ---
 <Layout
   title={`Betreuungskosten-Rechner ${year}`}
-  description="Kita-Gebühren und Betreuungskosten berechnen: Beiträge nach Einkommen, Bundesland und Betreuungszeit. Steuerlich absetzbar bis 4.000 €/Kind/Jahr. Mit Vergleichstabelle aller Bundesländer."
+  description="Kita-Gebühren und Betreuungskosten berechnen: Beiträge nach Einkommen, Bundesland und Betreuungszeit. Steuerlich absetzbar sind 80 Prozent der Kosten, höchstens 4.800 € je Kind und Jahr. Mit Vergleichstabelle aller Bundesländer."
   canonicalPath="/familie/betreuungskosten-rechner/"
   categoryColor={cat.color}
   categoryLight={cat.colorLight}
@@ -33,7 +33,7 @@ const faqs = [
     calculator={calc}
     intro="Mit dem Betreuungskosten-Rechner berechnen Sie die voraussichtlichen Kita-Gebühren. Erfahren Sie, welche Kosten auf Sie zukommen und wie Einkommen, Betreuungsumfang und Geschwisterermäßigung den Beitrag beeinflussen."
     sourceNote="100-300€/Monat für U3."
-    explanation="Die Gebühren werden von den Kommunen festgelegt und richten sich nach Einkommen und Betreuungszeit. Rechtsanspruch auf Betreuung besteht nach § 24 SGB VIII. Zwei Drittel der Kosten (max. 4.000 €/Jahr) sind als Sonderausgaben absetzbar (§ 10 Abs. 1 Nr. 5 EStG)."
+    explanation="Die Gebühren werden von den Kommunen festgelegt und richten sich nach Einkommen und Betreuungszeit. Rechtsanspruch auf Betreuung besteht nach § 24 SGB VIII. 80 Prozent der Aufwendungen, höchstens 4.800 € je Kind, sind als Sonderausgaben absetzbar (§ 10 Abs. 1 Nr. 5 EStG) – Voraussetzung sind eine Rechnung und die Zahlung auf das Konto des Leistungserbringers, Barzahlung wird nicht anerkannt."
     faqs={faqs}
   >
     <div class="calc-form">
@@ -89,9 +89,9 @@ Die folgende Tabelle zeigt die durchschnittlichen monatlichen Elternbeiträge f�
 <table><thead><tr><th>Bundesland</th><th>Krippe (U3)</th><th>Kita (Ü3)</th><th>Besonderheiten</th></tr></thead><tbody><tr><td>Berlin</td><td>0 €</td><td>0 €</td><td>Komplett beitragsfrei seit 2018</td></tr><tr><td>Hamburg</td><td>0 €</td><td>0 €</td><td>5 Stunden Grundbetreuung kostenlos, darüber einkommensabhängig</td></tr><tr><td>Mecklenburg-Vorpommern</td><td>ca. 180 €</td><td>0 €</td><td>Letztes Kita-Jahr beitragsfrei</td></tr><tr><td>Niedersachsen</td><td>ca. 250 €</td><td>0 €</td><td>Ü3 beitragsfrei seit 2018</td></tr><tr><td>Rheinland-Pfalz</td><td>ca. 270 €</td><td>0 €</td><td>Ü2 beitragsfrei</td></tr><tr><td>Hessen</td><td>ca. 300 €</td><td>0 €</td><td>6 Stunden Ü3 beitragsfrei</td></tr><tr><td>NRW</td><td>ca. 250–400 €</td><td>0–200 €</td><td>Letztes Kita-Jahr beitragsfrei, sonst kommunal</td></tr><tr><td>Bayern</td><td>ca. 300–450 €</td><td>ca. 100–250 €</td><td>100 € Zuschuss/Monat ab dem 1. Geburtstag</td></tr><tr><td>Baden-Württemberg</td><td>ca. 300–500 €</td><td>ca. 120–280 €</td><td>Stark kommunal unterschiedlich</td></tr><tr><td>Sachsen</td><td>ca. 200–350 €</td><td>ca. 150–250 €</td><td>Elternbeitrag gedeckelt</td></tr></tbody></table>
 <p><em>Richtwerte; die tatsächlichen Gebühren variieren je nach Kommune, Träger und Betreuungsumfang erheblich.</em></p>
 
-<h3>Steuerliche Absetzbarkeit: So holen Sie bis zu 4.000 € zurück</h3>
-Die steuerliche Regelung (§ 10 Abs. 1 Nr. 5 EStG) erlaubt den Abzug von <strong>zwei Dritteln der Betreuungskosten, maximal 4.000 € pro Kind und Jahr</strong>. Das bedeutet: Kosten bis 6.000 € pro Kind werden zu 2/3 berücksichtigt.
-<table><thead><tr><th>Tatsächliche Kosten/Jahr</th><th>Absetzbar (2/3)</th><th>Steuerersparnis (30 % Grenzsteuersatz)</th><th>Steuerersparnis (42 %)</th></tr></thead><tbody><tr><td>3.000 €</td><td>2.000 €</td><td>600 €</td><td>840 €</td></tr><tr><td>4.500 €</td><td>3.000 €</td><td>900 €</td><td>1.260 €</td></tr><tr><td>6.000 €</td><td>4.000 €</td><td>1.200 €</td><td>1.680 €</td></tr><tr><td>8.000 €</td><td>4.000 € (Deckel)</td><td>1.200 €</td><td>1.680 €</td></tr></tbody></table>
+<h3>Steuerliche Absetzbarkeit: 80 Prozent, höchstens 4.800 € je Kind</h3>
+§ 10 Abs. 1 Nr. 5 EStG erlaubt den Abzug von <strong>80 Prozent der Betreuungskosten, höchstens 4.800 € je Kind und Jahr</strong>. Der Höchstbetrag ist damit ab 6.000 € tatsächlichen Kosten erreicht; darüber hinaus wirkt sich kein Euro mehr aus. Bis 2024 galten zwei Drittel und 4.000 € – wer eine ältere Erklärung nachrechnet, muss mit den alten Werten rechnen. Voraussetzung ist in beiden Fassungen eine Rechnung und die Zahlung auf das Konto des Leistungserbringers; Barzahlung erkennt das Finanzamt nicht an. Nicht begünstigt sind Aufwendungen für Unterricht, die Vermittlung besonderer Fähigkeiten sowie für sportliche und andere Freizeitbetätigungen.
+<table><thead><tr><th>Tatsächliche Kosten/Jahr</th><th>Absetzbar (80 %)</th><th>Steuerersparnis (30 % Grenzsteuersatz)</th><th>Steuerersparnis (42 %)</th></tr></thead><tbody><tr><td>3.000 €</td><td>2.400 €</td><td>720 €</td><td>1.008 €</td></tr><tr><td>4.500 €</td><td>3.600 €</td><td>1.080 €</td><td>1.512 €</td></tr><tr><td>6.000 €</td><td>4.800 € (Höchstbetrag erreicht)</td><td>1.440 €</td><td>2.016 €</td></tr><tr><td>8.000 €</td><td>4.800 € (Deckel)</td><td>1.440 €</td><td>2.016 €</td></tr></tbody></table>
 <p><strong>Voraussetzungen:</strong> Das Kind muss zum Haushalt gehören und darf das 14. Lebensjahr noch nicht vollendet haben (Ausnahme: Kinder mit Behinderung). Die Kosten müssen per Rechnung nachgewiesen und unbar bezahlt werden (Überweisung, Lastschrift).</p>
 
 <h3>Was ist absetzbar – und was nicht?</h3>
