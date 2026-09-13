@@ -4,8 +4,10 @@ import { berechneMietpreisbremse } from '../../public/scripts/mietpreisbremse.js
 // Rechtsgrundlage sind §§ 556d bis 556g BGB. Bei Wiedervermietung in einem
 // Gebiet mit angespanntem Wohnungsmarkt darf die Miete die ortsübliche
 // Vergleichsmiete um höchstens 10 Prozent übersteigen (§ 556d Abs. 1 BGB).
-// § 556e Abs. 1 BGB lässt eine höhere Vormiete weiterhin zu, § 556e Abs. 2
-// BGB die Umlage einer Modernisierung.
+// § 556e Abs. 1 BGB lässt eine höhere Vormiete weiterhin zu – aber nur bis zur
+// Höhe der Vormiete; § 556e Abs. 2 BGB die Umlage einer Modernisierung,
+// gekappt nach § 559 Abs. 3a BGB. Bis September 2026 war der Bestandsschutz ein
+// Häkchen, das die verlangte Miete zu ihrer eigenen Obergrenze machte.
 
 describe('berechneMietpreisbremse – zulässige Miete', () => {
   it('erlaubt die Vergleichsmiete plus 10 Prozent (§ 556d Abs. 1 BGB)', () => {
@@ -67,7 +69,7 @@ describe('berechneMietpreisbremse – Ausnahmen', () => {
       vergleichsmiete: 10,
       flaeche: 60,
       aktuelleKaltmiete: 12,
-      vormieteHoeher: true,
+      vormiete: 12,
     });
 
     expect(r.effektivErlaubtProQm).toBe(12);
@@ -80,7 +82,7 @@ describe('berechneMietpreisbremse – Ausnahmen', () => {
       vergleichsmiete: 10,
       flaeche: 60,
       aktuelleKaltmiete: 12,
-      vormieteHoeher: true,
+      vormiete: 12,
     });
 
     expect(r.erlaubtProQm).toBe(11);
@@ -109,5 +111,45 @@ describe('berechneMietpreisbremse – Ausnahmen', () => {
     });
 
     expect(mitDefaults).toEqual(explizit);
+  });
+});
+
+describe('berechneMietpreisbremse – Vormiete als Obergrenze (§ 556e Abs. 1 Satz 1 BGB)', () => {
+  it('erlaubt die Vormiete, nicht mehr – 60 €/m² bei 20 €/m² Vormiete sind zu hoch', () => {
+    const r = berechneMietpreisbremse({ vergleichsmiete: 12, flaeche: 70, aktuelleKaltmiete: 60, vormiete: 20 });
+    expect(r.vormieteGreift).toBe(true);
+    expect(r.effektivErlaubtProQm).toBe(20);
+    expect(r.effektivErlaubtGesamt).toBe(1400);
+    expect(r.zuvielGesamt).toBe(2800);
+    expect(r.istZuHoch).toBe(true);
+  });
+
+  it('eine Vormiete unter der zulässigen Miete ändert nichts', () => {
+    const r = berechneMietpreisbremse({ vergleichsmiete: 10, flaeche: 60, aktuelleKaltmiete: 12, vormiete: 10.5 });
+    expect(r.vormieteGreift).toBe(false);
+    expect(r.effektivErlaubtProQm).toBe(11);
+  });
+});
+
+describe('berechneMietpreisbremse – Modernisierung (§ 556e Abs. 2 i. V. m. § 559 Abs. 3a BGB)', () => {
+  it('kappt die Umlage bei 3 €/m²', () => {
+    const r = berechneMietpreisbremse({ vergleichsmiete: 12, flaeche: 70, aktuelleKaltmiete: 14.5, modernisierung: 10 });
+    expect(r.modernisierungAngesetzt).toBe(3);
+    expect(r.modernisierungGekappt).toBe(true);
+    expect(r.erlaubtProQm).toBe(16.2);
+  });
+
+  it('kappt bei 2 €/m², wenn die zulässige Miete unter 7 €/m² liegt', () => {
+    const r = berechneMietpreisbremse({ vergleichsmiete: 5, flaeche: 70, aktuelleKaltmiete: 9, modernisierung: 5 });
+    expect(r.modernisierungKappung).toBe(2);
+    expect(r.erlaubtProQm).toBe(7.5);
+  });
+});
+
+describe('berechneMietpreisbremse – Rückforderung (§ 556g Abs. 2 Satz 3 BGB)', () => {
+  it('weist 30 Monatsdifferenzen als Obergrenze aus', () => {
+    const r = berechneMietpreisbremse({ vergleichsmiete: 12, flaeche: 70, aktuelleKaltmiete: 14.5 });
+    expect(r.zuvielGesamt).toBe(91);
+    expect(r.rueckforderungMaximal).toBe(2730);
   });
 });

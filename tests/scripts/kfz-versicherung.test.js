@@ -1,130 +1,130 @@
 import { describe, it, expect } from 'vitest';
-import { berechneKfzVersicherung } from '../../public/scripts/kfz-versicherung.js';
+import {
+  berechneRueckstufung,
+  beitragssatz,
+  naechstbesser,
+  rueckstufung,
+  KLASSEN,
+  RUECKKAUF_GRENZE_HAFTPFLICHT,
+} from '../../public/scripts/kfz-versicherung.js';
 
-// Schätzmodell für den Jahresbeitrag. Versicherer kalkulieren mit eigenen,
-// nicht veröffentlichten Tarifmerkmalen; die Typ-, Schadenfreiheits-,
-// Regional- und Altersfaktoren hier sind Näherungen der Größenordnung. Der
-// Rechner ersetzt kein Angebot, sondern zeigt, wie stark die Merkmale wirken.
+// Rueckstufung nach einem Schaden: melden oder selbst zahlen?
+// Beitragssaetze und Rueckstufungstabelle fuer Pkw aus den AKB 2025 der GHV
+// Versicherung (Anhang 1.1 und 1.2), Neueinstufung nach I.3, Rueckkauf nach I.5.
 //
-// Bis zum 14.08.2026 stand im Modul zusätzlich eine Tabelle
-// VERSICHERUNG_FAKTOR, deren Wert in eine Variable gelesen, aber nie
-// verwendet wurde. Der Kaskoanteil kam schon damals aus eigenen Faktoren.
+// Bis September 2026 testete diese Datei ein erfundenes Schaetzmodell
+// (400 € Basis, frei gewaehlte Typ-, Regional- und Altersfaktoren). Die Tests
+// hielten damit genau die Zahlen fest, die keine Quelle hatten.
 
-const BASIS = { typ: 'compact', sf: '3', region: 2, versicherung: 'haftpflicht', alter: 40 };
-
-describe('berechneKfzVersicherung – Haftpflicht', () => {
-  it('Grundfall: 400 € Basis × 0,6 ergibt 240 € Haftpflicht', () => {
-    const r = berechneKfzVersicherung(BASIS);
-
-    expect(r.haftpflicht).toBe(240);
-    expect(r.kasko).toBe(0);
-    expect(r.beitrag).toBe(240);
-  });
-});
-
-describe('berechneKfzVersicherung – Kasko', () => {
-  it('Teilkasko schlägt 160 € auf', () => {
-    const r = berechneKfzVersicherung({ ...BASIS, versicherung: 'teilkasko' });
-
-    expect(r.kasko).toBe(160);
-    expect(r.beitrag).toBe(400);
+describe('Tabellen aus Anhang 1.1 und 1.2', () => {
+  it('kennt 39 Klassen von SF 35 bis M', () => {
+    expect(KLASSEN).toHaveLength(39);
+    expect(KLASSEN[0]).toBe('35');
+    expect(KLASSEN.slice(-4)).toEqual(['1/2', '0', 'S', 'M']);
   });
 
-  it('Vollkasko schlägt 560 € auf', () => {
-    const r = berechneKfzVersicherung({ ...BASIS, versicherung: 'vollkasko' });
-
-    expect(r.kasko).toBe(560);
-    expect(r.beitrag).toBe(800);
+  it('liest Beitragssaetze getrennt nach Sparte', () => {
+    expect(beitragssatz('haftpflicht', '35')).toBe(20);
+    expect(beitragssatz('haftpflicht', '10')).toBe(37);
+    expect(beitragssatz('haftpflicht', '0')).toBe(100);
+    expect(beitragssatz('vollkasko', '10')).toBe(34);
+    expect(beitragssatz('vollkasko', 'M')).toBe(125);
   });
 
-  it('Vollkasko kostet mehr als Teilkasko, Teilkasko mehr als Haftpflicht', () => {
-    const haftpflicht = berechneKfzVersicherung({ ...BASIS, versicherung: 'haftpflicht' }).beitrag;
-    const teilkasko = berechneKfzVersicherung({ ...BASIS, versicherung: 'teilkasko' }).beitrag;
-    const vollkasko = berechneKfzVersicherung({ ...BASIS, versicherung: 'vollkasko' }).beitrag;
-
-    expect(teilkasko).toBeGreaterThan(haftpflicht);
-    expect(vollkasko).toBeGreaterThan(teilkasko);
-  });
-});
-
-describe('berechneKfzVersicherung – Schadenfreiheitsklasse', () => {
-  it('der Fahranfänger ohne SF-Klasse zahlt das Zweieinhalbfache von SF 3', () => {
-    const sf0 = berechneKfzVersicherung({ ...BASIS, sf: '0' }).beitrag;
-    const sf3 = berechneKfzVersicherung({ ...BASIS, sf: '3' }).beitrag;
-
-    expect(sf0).toBe(sf3 * 2.5);
+  it('wirft bei unbekannter Klasse, statt still zu rechnen', () => {
+    expect(() => beitragssatz('haftpflicht', '99')).toThrow();
   });
 
-  it('der Beitrag sinkt mit jeder SF-Klasse', () => {
-    const beitraege = ['0', '1/2', '1', '2', '3', '4', '5', '6+'].map(
-      (sf) => berechneKfzVersicherung({ ...BASIS, sf }).beitrag,
-    );
-
-    for (let i = 1; i < beitraege.length; i++) {
-      expect(beitraege[i]).toBeLessThan(beitraege[i - 1]);
+  it('kein Beitragssatz sinkt bei schlechterer Klasse', () => {
+    for (const sparte of ['haftpflicht', 'vollkasko']) {
+      for (let i = 1; i < KLASSEN.length; i += 1) {
+        expect(beitragssatz(sparte, KLASSEN[i])).toBeGreaterThanOrEqual(beitragssatz(sparte, KLASSEN[i - 1]));
+      }
     }
   });
 
-  it('unbekannte SF-Klasse rechnet wie SF 3', () => {
-    expect(berechneKfzVersicherung({ ...BASIS, sf: '12' }).beitrag).toBe(
-      berechneKfzVersicherung({ ...BASIS, sf: '3' }).beitrag,
-    );
+  it('keine Rueckstufung ist besser als die Ausgangsklasse, zwei Schaeden nie besser als einer', () => {
+    const pos = (k) => KLASSEN.indexOf(k);
+    for (const sparte of ['haftpflicht', 'vollkasko']) {
+      for (const k of KLASSEN) {
+        const nachEinem = rueckstufung(sparte, k, 1);
+        const nachZwei = rueckstufung(sparte, k, 2);
+        expect(pos(nachEinem)).toBeGreaterThanOrEqual(k === 'M' ? pos('M') : pos(k) + 1);
+        expect(pos(nachZwei)).toBeGreaterThanOrEqual(pos(nachEinem));
+      }
+    }
+  });
+
+  it('stuft nach der Tabelle zurueck', () => {
+    expect(rueckstufung('haftpflicht', '35', 1)).toBe('20');
+    expect(rueckstufung('haftpflicht', '35', 2)).toBe('8');
+    expect(rueckstufung('haftpflicht', '10', 1)).toBe('4');
+    expect(rueckstufung('vollkasko', '35', 1)).toBe('22');
+    expect(rueckstufung('vollkasko', '3', 2)).toBe('M');
   });
 });
 
-describe('berechneKfzVersicherung – Fahrzeugtyp', () => {
-  it('der Kleinwagen ist günstiger, die Oberklasse teurer als der Kompaktwagen', () => {
-    const klein = berechneKfzVersicherung({ ...BASIS, typ: 'small' }).beitrag;
-    const kompakt = berechneKfzVersicherung({ ...BASIS, typ: 'compact' }).beitrag;
-    const gross = berechneKfzVersicherung({ ...BASIS, typ: 'large' }).beitrag;
-
-    expect(klein).toBeLessThan(kompakt);
-    expect(gross).toBeGreaterThan(kompakt);
+describe('naechstbesser – Neueinstufung nach I.3.2 und I.3.4.1', () => {
+  it('steigt je schadenfreiem Jahr eine Klasse', () => {
+    expect(naechstbesser('10')).toBe('11');
   });
 
-  it('das Elektroauto liegt unter dem Kompaktwagen', () => {
-    expect(berechneKfzVersicherung({ ...BASIS, typ: 'ev' }).beitrag).toBeLessThan(
-      berechneKfzVersicherung({ ...BASIS, typ: 'compact' }).beitrag,
-    );
+  it('bleibt in SF 35', () => {
+    expect(naechstbesser('35')).toBe('35');
   });
 
-  it('unbekannter Typ rechnet neutral', () => {
-    expect(berechneKfzVersicherung({ ...BASIS, typ: 'oldtimer' }).beitrag).toBe(
-      berechneKfzVersicherung({ ...BASIS, typ: 'compact' }).beitrag,
-    );
+  it('fuehrt aus SF ½, 0, S und M direkt in SF 1', () => {
+    for (const k of ['1/2', '0', 'S', 'M']) expect(naechstbesser(k)).toBe('1');
   });
 });
 
-describe('berechneKfzVersicherung – Region und Alter', () => {
-  it('die Regionalklasse spreizt den Beitrag von 0,8 bis 1,6', () => {
-    const region1 = berechneKfzVersicherung({ ...BASIS, region: 1 }).beitrag;
-    const region5 = berechneKfzVersicherung({ ...BASIS, region: 5 }).beitrag;
+describe('berechneRueckstufung', () => {
+  const BASIS = { sparte: 'haftpflicht', klasse: '10', jahresbeitrag: 500, entschaedigung: 1200 };
 
-    expect(region1).toBe(192);
-    expect(region5).toBe(384);
+  it('rechnet den Beitrag zu 100 Prozent aus dem eigenen Beitrag zurueck', () => {
+    const r = berechneRueckstufung(BASIS);
+    expect(r.satzHeute).toBe(37);
+    expect(r.beitrag100).toBe(1351.35);
   });
 
-  it('unter 25 Jahren kostet der Beitrag 80 % mehr', () => {
-    const jung = berechneKfzVersicherung({ ...BASIS, alter: 21 }).beitrag;
-
-    expect(jung).toBe(432);
+  it('Beispiel der Seite: SF 10 Haftpflicht, 500 € – SF 4 und 1.229,71 € in zehn Jahren', () => {
+    const r = berechneRueckstufung(BASIS);
+    expect(r.zielKlasse).toBe('4');
+    expect(r.zeilen).toHaveLength(10);
+    expect(r.zeilen[0]).toEqual({
+      jahr: 1, klasseOhne: '11', satzOhne: 35, beitragOhne: 472.97,
+      klasseMit: '4', satzMit: 52, beitragMit: 702.7, mehr: 229.73,
+    });
+    expect(r.mehrbeitrag).toBe(1229.71);
+    expect(r.selbstZahlenLohnt).toBe(true);
+    expect(r.eingeholtImJahr).toBeNull();
   });
 
-  it('zwischen 25 und 34 Jahren bleiben 10 % Aufschlag', () => {
-    expect(berechneKfzVersicherung({ ...BASIS, alter: 30 }).beitrag).toBe(264);
+  it('Melden lohnt sich, wenn die Entschaedigung den Mehrbeitrag uebersteigt', () => {
+    expect(berechneRueckstufung({ ...BASIS, entschaedigung: 3000 }).selbstZahlenLohnt).toBe(false);
   });
 
-  it('ab 35 Jahren entfällt der Altersaufschlag', () => {
-    const alter35 = berechneKfzVersicherung({ ...BASIS, alter: 35 }).beitrag;
-    const alter60 = berechneKfzVersicherung({ ...BASIS, alter: 60 }).beitrag;
-
-    expect(alter35).toBe(240);
-    expect(alter60).toBe(240);
+  it('ohne Entschaedigung gibt es keine Empfehlung zum Selbstzahlen', () => {
+    expect(berechneRueckstufung({ ...BASIS, entschaedigung: 0 }).selbstZahlenLohnt).toBe(false);
   });
 
-  it('der Altersaufschlag wirkt auch auf den Kaskoanteil', () => {
-    const jung = berechneKfzVersicherung({ ...BASIS, alter: 21, versicherung: 'vollkasko' });
+  it('eingeholt ist der Abstand erst in derselben Klasse – SF 35 Vollkasko im 14. Jahr', () => {
+    const r = berechneRueckstufung({ sparte: 'vollkasko', klasse: '35', jahresbeitrag: 400, jahre: 20 });
+    expect(r.zielKlasse).toBe('22');
+    expect(r.mehrbeitrag).toBe(860);
+    expect(r.eingeholtImJahr).toBe(14);
+  });
 
-    expect(jung.beitrag).toBe(800 * 1.8);
+  it('gleicher Beitragssatz allein zaehlt nicht als eingeholt (Vollkasko SF 16/17 je 28 %)', () => {
+    const r = berechneRueckstufung({ sparte: 'vollkasko', klasse: 'M', jahresbeitrag: 500, jahre: 20 });
+    expect(r.zeilen.some((z) => z.mehr === 0)).toBe(true);
+    expect(r.eingeholtImJahr).toBeNull();
+  });
+
+  it('Rueckkauf nach I.5 nur in der Haftpflicht und nur bis 500 €', () => {
+    expect(RUECKKAUF_GRENZE_HAFTPFLICHT).toBe(500);
+    expect(berechneRueckstufung({ ...BASIS, entschaedigung: 400 }).rueckkaufMoeglich).toBe(true);
+    expect(berechneRueckstufung({ ...BASIS, entschaedigung: 501 }).rueckkaufMoeglich).toBe(false);
+    expect(berechneRueckstufung({ ...BASIS, sparte: 'vollkasko', entschaedigung: 400 }).rueckkaufMoeglich).toBe(false);
   });
 });

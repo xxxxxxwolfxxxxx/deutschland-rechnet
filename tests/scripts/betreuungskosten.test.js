@@ -1,109 +1,103 @@
 import { describe, it, expect } from 'vitest';
-import { berechneBetreuungskosten } from '../../public/scripts/betreuungskosten.js';
+import {
+  berechneBetreuungskosten,
+  steuerNachTarif,
+  ABZUGSQUOTE,
+  HOECHSTBETRAG_JE_KIND,
+  KOSTEN_BIS_ZUM_DECKEL,
+} from '../../public/scripts/betreuungskosten.js';
+import { einkommensteuer } from '../../public/scripts/einkommensteuer.js';
 
-// Schätzmodell für den Elternbeitrag zur Kindertagesbetreuung. Die Beiträge
-// sind Landes- und Kommunalrecht (§ 90 SGB VIII) und reichen von der
-// vollständigen Beitragsfreiheit bis zu einkommensabhängigen Staffeln – eine
-// bundesweit gültige Formel gibt es nicht. Getestet wird deshalb die
-// Modelllogik: Faktoren für Umfang, Region und Alter, der Einkommenszuschlag
-// und der bei 50 Prozent gedeckelte Geschwisterrabatt.
+// Kinderbetreuungskosten nach Steuern: Arbeitgeberzuschuss nach § 3 Nr. 33 EStG,
+// Sonderausgabenabzug nach § 10 Abs. 1 Nr. 5 EStG (80 %, hoechstens 4.800 € je
+// Kind), Steuer nach § 32a EStG, bei Zusammenveranlagung im Splittingverfahren.
+//
+// Bis September 2026 testete diese Datei eine erfundene Gebuehrenformel
+// (150 € Grundgebuehr, Faktoren fuer Stunden, Alter und Region). Eine
+// bundesweite Formel fuer Elternbeitraege gibt es nicht (§ 90 SGB VIII).
 
-const BASIS = { einkommen: 50000, kinder: 1, stunden: 6, alter: 'kita', region: 'mid' };
+const BASIS = { kinder: 1, beitragMonat: 350, zvE: 60000 };
+
+describe('Konstanten aus § 10 Abs. 1 Nr. 5 EStG', () => {
+  it('80 Prozent, hoechstens 4.800 € je Kind, Deckel ab 6.000 €', () => {
+    expect(ABZUGSQUOTE).toBe(0.8);
+    expect(HOECHSTBETRAG_JE_KIND).toBe(4800);
+    expect(KOSTEN_BIS_ZUM_DECKEL).toBe(6000);
+  });
+});
 
 describe('berechneBetreuungskosten – Grundfall', () => {
-  it('150 € Grundgebühr plus 0,2 % des Einkommens über 30.000 €', () => {
+  it('ein Kind, 350 € im Monat, 60.000 € zvE', () => {
     const r = berechneBetreuungskosten(BASIS);
-
-    expect(r.grundgebuehr).toBe(150);
-    expect(r.einkommenszuschlag).toBe(40);
-    expect(r.kostenProKind).toBe(190);
-    expect(r.elternbeitrag).toBe(190);
+    expect(r.aufwand).toBe(4200);
+    expect(r.zuschuss).toBe(0);
+    expect(r.sonderausgaben).toBe(3360);
+    expect(r.deckelErreicht).toBe(false);
+    expect(r.steuerersparnis).toBe(1277);
+    expect(r.nettokosten).toBe(2923);
+    expect(r.entlastungsquote).toBe(30.4);
   });
 
-  it('bis 30.000 € Einkommen fällt kein Zuschlag an', () => {
-    const r = berechneBetreuungskosten({ ...BASIS, einkommen: 28000 });
-
-    expect(r.einkommenszuschlag).toBe(0);
-    expect(r.kostenProKind).toBe(150);
+  it('die Steuerersparnis ist die Tarifdifferenz, kein pauschaler Satz', () => {
+    const r = berechneBetreuungskosten(BASIS);
+    expect(r.steuerersparnis).toBe(einkommensteuer(60000) - einkommensteuer(60000 - 3360));
   });
 
-  it('der Zuschlag steigt linear mit dem Einkommen', () => {
-    const r = berechneBetreuungskosten({ ...BASIS, einkommen: 80000 });
-
-    expect(r.einkommenszuschlag).toBe(100);
+  it('unter dem Grundfreibetrag spart der Abzug nichts', () => {
+    const r = berechneBetreuungskosten({ ...BASIS, zvE: 12000 });
+    expect(r.steuerersparnis).toBe(0);
+    expect(r.nettokosten).toBe(4200);
   });
 });
 
-describe('berechneBetreuungskosten – Faktoren', () => {
-  it('mehr Betreuungsstunden kosten mehr', () => {
-    const stunden = [4, 6, 8, 10].map(
-      (s) => berechneBetreuungskosten({ ...BASIS, stunden: s }).grundgebuehr,
-    );
-
-    expect(stunden).toEqual([105, 150, 180, 210]);
+describe('Hoechstbetrag je Kind', () => {
+  it('zwei Kinder zu 700 € – je 4.800 € abziehbar', () => {
+    const r = berechneBetreuungskosten({ kinder: 2, beitragMonat: 700, zvE: 60000 });
+    expect(r.aufwand).toBe(16800);
+    expect(r.sonderausgaben).toBe(9600);
+    expect(r.deckelErreicht).toBe(true);
+    expect(r.steuerersparnis).toBe(3544);
+    expect(r.nettokosten).toBe(13256);
   });
 
-  it('unbekannter Stundenumfang rechnet mit dem Faktor für 6 Stunden', () => {
-    expect(berechneBetreuungskosten({ ...BASIS, stunden: 7 }).grundgebuehr).toBe(150);
-  });
-
-  it('die Krippe kostet das Anderthalbfache der Kita', () => {
-    const kita = berechneBetreuungskosten({ ...BASIS, alter: 'kita' });
-    const krippe = berechneBetreuungskosten({ ...BASIS, alter: 'krippe' });
-
-    expect(krippe.grundgebuehr).toBe(kita.grundgebuehr * 1.5);
-  });
-
-  it('teure Regionen kosten 40 % mehr, günstige 30 % weniger', () => {
-    expect(berechneBetreuungskosten({ ...BASIS, region: 'low' }).grundgebuehr).toBe(105);
-    expect(berechneBetreuungskosten({ ...BASIS, region: 'mid' }).grundgebuehr).toBe(150);
-    expect(berechneBetreuungskosten({ ...BASIS, region: 'high' }).grundgebuehr).toBe(210);
-  });
-
-  it('unbekannte Region und unbekanntes Alter rechnen neutral', () => {
-    const r = berechneBetreuungskosten({ ...BASIS, region: 'unbekannt', alter: 'hort' });
-
-    expect(r.grundgebuehr).toBe(150);
+  it('Zusammenveranlagung rechnet im Splitting', () => {
+    const r = berechneBetreuungskosten({ kinder: 2, beitragMonat: 600, zvE: 90000, zusammen: true });
+    expect(r.sonderausgaben).toBe(9600);
+    expect(r.steuerersparnis).toBe(3124);
+    expect(r.nettokosten).toBe(11276);
+    expect(steuerNachTarif(90000, true)).toBe(2 * einkommensteuer(45000));
   });
 });
 
-describe('berechneBetreuungskosten – Geschwisterrabatt', () => {
-  it('ein Kind bekommt keinen Rabatt', () => {
-    const r = berechneBetreuungskosten(BASIS);
-
-    expect(r.geschwisterRabatt).toBe(0);
-    expect(r.elternbeitrag).toBe(r.gesamtkosten);
+describe('Arbeitgeberzuschuss nach § 3 Nr. 33 EStG', () => {
+  it('mindert die abziehbaren Aufwendungen – 1.200 € Zuschuss senken die Kosten nur um 839 €', () => {
+    const ohne = berechneBetreuungskosten(BASIS);
+    const mit = berechneBetreuungskosten({ ...BASIS, zuschussMonat: 100 });
+    expect(mit.zuschuss).toBe(1200);
+    expect(mit.eigen).toBe(3000);
+    expect(mit.sonderausgaben).toBe(2400);
+    expect(mit.steuerersparnis).toBe(916);
+    expect(mit.nettokosten).toBe(2084);
+    expect(ohne.nettokosten - mit.nettokosten).toBe(839);
   });
 
-  it('das zweite Kind bringt 25 % Rabatt auf einen Kindsbeitrag', () => {
-    const r = berechneBetreuungskosten({ ...BASIS, kinder: 2 });
+  it('ein Zuschuss ueber dem Beitrag wird auf den Beitrag begrenzt', () => {
+    const r = berechneBetreuungskosten({ ...BASIS, zuschussMonat: 500 });
+    expect(r.zuschuss).toBe(4200);
+    expect(r.eigen).toBe(0);
+    expect(r.sonderausgaben).toBe(0);
+    expect(r.nettokosten).toBe(0);
+  });
+});
 
-    expect(r.gesamtkosten).toBe(380);
-    expect(r.geschwisterRabatt).toBe(47.5);
-    expect(r.elternbeitrag).toBe(332.5);
+describe('Eingaben', () => {
+  it('begrenzt die Monate auf zwoelf', () => {
+    expect(berechneBetreuungskosten({ ...BASIS, monate: 15 }).aufwand).toBe(4200);
   });
 
-  it('der Rabatt ist bei 50 % eines Kindsbeitrags gedeckelt', () => {
-    const drei = berechneBetreuungskosten({ ...BASIS, kinder: 3 });
-    const fuenf = berechneBetreuungskosten({ ...BASIS, kinder: 5 });
-
-    expect(drei.geschwisterRabatt).toBe(95);
-    expect(fuenf.geschwisterRabatt).toBe(95);
-  });
-
-  it('der Elternbeitrag steigt trotz Rabatt mit jedem weiteren Kind', () => {
-    const beitraege = [1, 2, 3, 4].map(
-      (kinder) => berechneBetreuungskosten({ ...BASIS, kinder }).elternbeitrag,
-    );
-
-    for (let i = 1; i < beitraege.length; i++) {
-      expect(beitraege[i]).toBeGreaterThan(beitraege[i - 1]);
-    }
-  });
-
-  it('wird nie negativ', () => {
-    const r = berechneBetreuungskosten({ ...BASIS, kinder: 10 });
-
-    expect(r.elternbeitrag).toBeGreaterThanOrEqual(0);
+  it('wird bei Unsinn nicht negativ', () => {
+    const r = berechneBetreuungskosten({ kinder: -1, beitragMonat: -50, zvE: -1 });
+    expect(r.aufwand).toBe(0);
+    expect(r.nettokosten).toBe(0);
   });
 });
