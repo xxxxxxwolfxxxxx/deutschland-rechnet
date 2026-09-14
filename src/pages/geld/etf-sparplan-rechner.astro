@@ -3,13 +3,65 @@ import Layout from '../../layouts/Layout.astro';
 import CalculatorShell from '../../components/CalculatorShell.astro';
 import CalculatorGuide from '../../components/CalculatorGuide.astro';
 import { CALCULATORS, CATEGORIES } from '../../data/calculators';
+import { sparplanVerlauf, steuerBeimVerkauf, TEILFREISTELLUNG_AKTIENFONDS } from '../../../public/scripts/etf-sparplan.js';
+import { SPARERPAUSCHBETRAG_EINZEL, SPARERPAUSCHBETRAG_ZUSAMMEN, belastungssatz } from '../../../public/scripts/abgeltungsteuer.js';
 const calc = CALCULATORS.find(c => c.slug === 'etf-sparplan-rechner')!;
 const cat = CATEGORIES[calc.category];
 const year = new Date().getFullYear();
+
+// Alle Zahlen dieser Seite kommen aus denselben Modulen, die der Rechner laedt.
+const eur = (n: number) => n.toLocaleString('de-DE', { maximumFractionDigits: 0 }) + ' €';
+const proz = (n: number) => (n * 100).toLocaleString('de-DE') + ' %';
+const belastung = belastungssatz().toLocaleString('de-DE', { maximumFractionDigits: 3 });
+
+const RENDITE = 5;
+const bsp = sparplanVerlauf({ startkapital: 0, sparrate: 200, renditeProzent: RENDITE, jahre: 20 });
+const bspSteuer = steuerBeimVerkauf({ gewinn: bsp.gewinn, aktienfonds: true, pauschbetrag: SPARERPAUSCHBETRAG_EINZEL });
+const bspOhneTF = steuerBeimVerkauf({ gewinn: bsp.gewinn, aktienfonds: false, pauschbetrag: SPARERPAUSCHBETRAG_EINZEL });
+const altFormel = Math.max(0, (bsp.gewinn - SPARERPAUSCHBETRAG_EINZEL) * 0.26375);
+if (!(bspSteuer.steuer < bspOhneTF.steuer && Math.abs(bspOhneTF.steuer - altFormel) < 0.01)) {
+  throw new Error('ETF-Sparplan: Teilfreistellung wirkt nicht wie beschrieben');
+}
+
+const RENDITEN = [3, 5, 7];
+const tabelle = RENDITEN.map((r) => {
+  const v = sparplanVerlauf({ startkapital: 0, sparrate: 200, renditeProzent: r, jahre: 20 });
+  const s = steuerBeimVerkauf({ gewinn: v.gewinn, aktienfonds: true, pauschbetrag: SPARERPAUSCHBETRAG_EINZEL });
+  return { r, v, s };
+});
+
+const guideHtml = `
+<h3>Die Rendite ist Ihre Annahme</h3>
+<p>Wie viel ein Sparplan am Ende wert ist, entscheidet fast allein die Rendite – und die kennt niemand im Voraus. Der Rechner nimmt sie deshalb nicht aus einer Statistik, sondern von Ihnen. Voreingestellt sind ${RENDITE} % im Jahr; rechnen Sie ruhig mehrere Werte durch. Bei ${eur(200)} im Monat über 20 Jahre, also ${eur(tabelle[0].v.eingezahlt)} Einzahlungen:</p>
+<table>
+<thead><tr><th>Rendite p. a.</th><th>Wert vor Steuer</th><th>Gewinn</th><th>Steuer beim Verkauf</th><th>Wert nach Steuer</th></tr></thead>
+<tbody>
+${tabelle.map(({ r, v, s }) => `<tr><td>${r} %</td><td>${eur(v.endkapital)}</td><td>${eur(v.gewinn)}</td><td>${eur(s.steuer)}</td><td>${eur(v.endkapital - s.steuer)}</td></tr>`).join('\n')}
+</tbody>
+</table>
+<p>Gerechnet ist mit monatlicher Einzahlung und gleichmäßiger Verzinsung, ohne Ordergebühren und ohne die laufenden Kosten des Fonds – ziehen Sie diese von der Rendite ab.</p>
+
+<h3>Teilfreistellung: 30 % des Gewinns sind steuerfrei</h3>
+<p>Für Aktienfonds – Fonds, die laut Anlagebedingungen fortlaufend mehr als die Hälfte in Aktien anlegen – sind bei Privatanlegern ${proz(TEILFREISTELLUNG_AKTIENFONDS)} der Erträge steuerfrei (§ 20 Abs. 1 InvStG). Erst auf den Rest kommen der Sparer-Pauschbetrag von ${eur(SPARERPAUSCHBETRAG_EINZEL)} (zusammenveranlagt ${eur(SPARERPAUSCHBETRAG_ZUSAMMEN)}) und die Abgeltungsteuer mit Solidaritätszuschlag, zusammen ${belastung} %.</p>
+<p>Im Beispiel mit ${RENDITE} % sind das ${eur(bspSteuer.steuer)} Steuer auf ${eur(bsp.gewinn)} Gewinn. Ohne Teilfreistellung – etwa bei einem Anleihen-ETF – wären es ${eur(bspOhneTF.steuer)}. Die frühere Fassung dieses Rechners zog nur den Pauschbetrag ab und rechnete für jeden ETF so, als gäbe es keine Teilfreistellung.</p>
+
+<h3>Vorabpauschale: ein Teil der Steuer kommt früher</h3>
+<p>Thesaurierende ETFs schütten nichts aus. Damit trotzdem laufend Steuer anfällt, wird jedes Jahr eine Vorabpauschale angesetzt: der Wert zu Jahresbeginn mal 70 % des Basiszinses, höchstens der tatsächliche Wertzuwachs des Jahres (§ 18 InvStG). Beim Verkauf wird der Gewinn um die bereits versteuerten Vorabpauschalen gemindert (§ 19 Abs. 1 InvStG), damit nichts doppelt besteuert wird. Der Rechner setzt die gesamte Steuer beim Verkauf an. Die Summe ändert sich dadurch kaum – nur nutzt die jährliche Vorabpauschale den Sparer-Pauschbetrag in mehreren Jahren, was die tatsächliche Steuer etwas senken kann. Weil der künftige Basiszins unbekannt ist, rechnet der Rechner diesen Vorteil nicht.</p>
+
+<h3>Kaufkraft</h3>
+<p>Der „reale Wert" rechnet das Ergebnis mit der von Ihnen eingetragenen Inflationsrate auf heutige Preise zurück. Auch sie ist eine Annahme.</p>
+`;
+
+const faqs = [
+  { q: 'Wie hoch ist die Steuer auf ETF-Gewinne?', a: `Bei Aktien-ETFs sind ${proz(TEILFREISTELLUNG_AKTIENFONDS)} des Gewinns steuerfrei (§ 20 Abs. 1 InvStG). Auf den Rest abzüglich des Sparer-Pauschbetrags fallen 25 % Abgeltungsteuer und 5,5 % Solidaritätszuschlag darauf an, zusammen ${belastung} %, gegebenenfalls Kirchensteuer.` },
+  { q: 'Welche Rendite soll ich eintragen?', a: 'Das ist eine Annahme über die Zukunft, die kein Rechner Ihnen abnehmen kann. Rechnen Sie mehrere Werte durch und ziehen Sie die laufenden Kosten des Fonds ab.' },
+  { q: 'Was ist die Vorabpauschale?', a: 'Eine jährlich angesetzte Mindestbesteuerung für thesaurierende Fonds nach § 18 InvStG. Sie wird beim späteren Verkauf vom Gewinn abgezogen (§ 19 Abs. 1 InvStG), sodass sie die Steuer nicht erhöht, sondern zeitlich vorzieht.' },
+  { q: `Wann gilt der Pauschbetrag von ${eur(SPARERPAUSCHBETRAG_ZUSAMMEN)}?`, a: `Bei zusammenveranlagten Ehegatten. Er gilt je Kalenderjahr für alle Kapitalerträge zusammen; haben Sie ihn im Verkaufsjahr schon mit Zinsen oder Dividenden verbraucht, wählen Sie „keiner".` },
+];
 ---
 <Layout
   title={`ETF-Sparplan-Rechner ${year}`}
-  description="Vermögensaufbau mit ETF-Sparplan berechnen – Zinseszins, Sparrate, Laufzeit."
+  description="ETF-Sparplan mit eigener Renditeannahme berechnen – mit Teilfreistellung nach § 20 InvStG, Sparer-Pauschbetrag und Abgeltungsteuer beim Verkauf."
   canonicalPath="/geld/etf-sparplan-rechner/"
   categoryColor={cat.color}
   categoryLight={cat.colorLight}
@@ -21,44 +73,52 @@ const year = new Date().getFullYear();
   </div>
   <CalculatorShell
     calculator={calc}
-    intro="Mit dem ETF-Sparplan-Rechner berechnen Sie, wie Ihr Vermögen bei regelmässigem Sparen in ETFs wächst. Vergleichen Sie verschiedene Sparraten und Laufzeiten, um den Zinseszins-Effekt optimal für sich zu nutzen."
-    sourceNote="Historische Renditen ca. 7% p.a."
-    explanation="Die Berechnung basiert auf dem Zinseszins-Effekt mit monatlicher Wiederanlage. Breit gestreute ETFs wie der MSCI World erzielten historisch ca. 7-9% p.a. nominale Rendite. Kapitalerträge über dem Sparerpauschbetrag unterliegen der Abgeltungsteuer (25%)."
-    faqs={[
-      { q: "Wie viel sollte ich monatlich in einen ETF-Sparplan investieren?", a: "Das hängt von Ihrem Budget ab. Es gibt kein Minimum – selbst 25€/Monat sind sinnvoll. Eine Faustregel: Ziel ist mindestens 10% des Nettoeinkommens zu sparen. Beginnen Sie mit dem, was Sie entbehren können, und erhöhen Sie die Sparrate mit Gehaltserhöhungen." },
-      { q: "Welche ETF-Renditen sind realistisch?", a: "MSCI World ETFs erzielten langfristig (30+ Jahre) durchschnittlich 7-9% p.a. Breit gestreute, kostenlose (low-cost) ETFs sind optimal. Über kürzere Zeiträume sind Schwankungen normal. Kalkulieren Sie konservativ mit 5-6% für Planungen." },
-      { q: "Sind ETF-Sparpläne automatisch steuerfrei?", a: "Nein. Gewinne werden mit Abgeltungsteuer (25%) besteuert. Allerdings: Der Sparerpauschbetrag von 1.000€/Jahr (2.000€ verheiratet) ist steuerfrei. Viele Menschen zahlen Jahre, ohne Steuern zu schulden." },
-      { q: "Was ist besser: Einmalanlage oder Sparplan?", a: "Sparpläne senken das Timing-Risiko und fördern Disziplin. Einmalanlagen nutzen schneller die Kurssteigerungen, wenn Sie sowieso sparen wollen. Ideal: Einmalanlage + Sparplan kombinieren." },
-      { q: "Kann ich Sparpläne jederzeit pausieren oder erhöhen?", a: "Ja. Die meisten Broker erlauben kostenlose Anpassungen. Sie können erhöhen, senken, pausieren oder wieder aktivieren. Es gibt keine Strafgebühren." },
-      { q: "Wie lange sollte ein ETF-Sparplan laufen?", a: "Je länger, desto besser – minimum 10-15 Jahre, optimal 20-30+ Jahre. Der Zinseszins-Effekt ist entscheidend. Kurzfristige Schwankungen werden durch lange Laufzeiten ausgeglichen." }
-    ]}
+    intro="Der Rechner zeigt, was ein ETF-Sparplan bei einer von Ihnen gewählten Rendite am Ende wert ist – und wie viel davon nach der Steuer beim Verkauf übrig bleibt."
+    sourceNote="Teilfreistellung nach § 20 Abs. 1 InvStG, Vorabpauschale nach §§ 18, 19 InvStG (abgerufen am 14.09.2026), Abgeltungsteuer nach § 32d Abs. 1 EStG, Sparer-Pauschbetrag nach § 20 Abs. 9 EStG, Solidaritätszuschlag 5,5 %. Rendite und Inflation sind Annahmen des Nutzers. Die Steuer wird vollständig beim Verkauf angesetzt; ohne Kirchensteuer, Ordergebühren und laufende Fondskosten."
+    explanation="Endkapital aus monatlicher Sparrate und Jahresrendite. Steuer beim Verkauf: Gewinn minus 30 % Teilfreistellung (Aktienfonds) minus Sparer-Pauschbetrag, darauf 26,375 %."
+    faqs={faqs}
   >
     <div class="calc-form">
       <div class="calc-grid">
         <div class="calc-group">
           <label for="startkapital">Startkapital (€)</label>
-          <input type="number" id="startkapital" min="0" max="1000000" value="1000" step="100" />
+          <input type="number" id="startkapital" min="0" max="10000000" value="0" step="100" />
         </div>
         <div class="calc-group">
           <label for="sparrate">Monatliche Sparrate (€)</label>
-          <input type="number" id="sparrate" min="25" max="10000" value="200" step="25" />
+          <input type="number" id="sparrate" min="0" max="100000" value="200" step="25" />
         </div>
         <div class="calc-group">
-          <label for="rendite">Rendite (% p.a.)</label>
-          <input type="number" id="rendite" min="0" max="15" value="7" step="0.5" />
+          <label for="rendite">Angenommene Rendite (% p. a.)</label>
+          <input type="number" id="rendite" min="-10" max="20" value="5" step="0.5" />
         </div>
         <div class="calc-group">
           <label for="laufzeit">Laufzeit (Jahre)</label>
-          <input type="number" id="laufzeit" min="1" max="50" value="20" step="1" />
+          <input type="number" id="laufzeit" min="1" max="60" value="20" step="1" />
         </div>
         <div class="calc-group">
-          <label for="inflation">Inflation (% p.a.)</label>
-          <input type="number" id="inflation" min="0" max="10" value="2" step="0.5" />
+          <label for="fondsart">Fondsart</label>
+          <select id="fondsart">
+            <option value="aktien" selected>Aktienfonds (30 % Teilfreistellung)</option>
+            <option value="sonstige">Anderer Fonds (keine Teilfreistellung)</option>
+          </select>
+        </div>
+        <div class="calc-group">
+          <label for="pauschbetrag">Freier Sparer-Pauschbetrag im Verkaufsjahr</label>
+          <select id="pauschbetrag">
+            <option value="1000" selected>1.000 € (einzeln)</option>
+            <option value="2000">2.000 € (zusammenveranlagt)</option>
+            <option value="0">keiner</option>
+          </select>
+        </div>
+        <div class="calc-group">
+          <label for="inflation">Angenommene Inflation (% p. a.)</label>
+          <input type="number" id="inflation" min="0" max="15" value="2" step="0.5" />
         </div>
       </div>
 
       <div class="calc-result">
-        <div class="label">Endkapital</div>
+        <div class="label">Wert nach Steuer beim Verkauf</div>
         <div id="endkapital">— €</div>
       </div>
       <div id="details" style="margin-top:0.75rem;font-size:0.88rem;color:#666;display:flex;gap:1.5rem;flex-wrap:wrap;"></div>
@@ -66,52 +126,43 @@ const year = new Date().getFullYear();
   </CalculatorShell>
 
   <CalculatorGuide
-    title="So funktioniert der ETF-Sparplan"
-    content={`<p><strong>Ein ETF-Sparplan</strong> ist ein automatischer, regelmäßiger Kauf von Exchange Traded Funds (ETFs). Sie legen einen Betrag fest (z.B. 200€), und dieser wird monatlich automatisch investiert. Das Ziel: langfristiger Vermögensaufbau durch Zinseszinseffekt und Disziplin.</p>
-
-<p><strong>Der Zinseszins-Effekt (Zins auf Zins):</strong> Wenn Ihre ETF-Anteile Gewinne machen, werden diese reinvestiert. Das sorgt für exponentielles Wachstum. Beispiel: 200€/Monat bei 7% Rendite über 20 Jahre führt zu ca. 110.000€ Endvermögen – obwohl Sie nur 48.000€ eingezahlt haben. Der Rest ist Zinsgewinn.</p>
-
-<p><strong>Realistische Renditen:</strong> Breit gestreute ETFs (MSCI World, FTSE All-World) erzielen historisch 7-9% p.a. über lange Zeiträume. Kurzfristig gibt es Schwankungen. Kalkulieren Sie konservativ mit 5-6% für Planungen, dann werden Sie positiv überrascht.</p>
-
-<p><strong>Inflation berücksichtigen:</strong> Die nominale Rendite ist nicht gleich die reale Rendite. Mit 2-3% Inflation sinkt die Kaufkraft Ihrer Ersparnisse. Der Rechner berücksichtigt das: Der "reale Wert" zeigt, wie viel Ihre Ersparnisse in heutigen Preisen wert sind.</p>
-
-<p><strong>Steuern auf ETF-Sparpläne:</strong> Gewinne unterliegen der Abgeltungsteuer (25% + 5,5% Soli). Der Sparerpauschbetrag (1.000€/Jahr) ist steuerfrei. Bis Sie diese Grenze überschritten haben, zahlen Sie keine Steuern. Danach entzieht die Bank die Steuern automatisch.</p>`}
-    relatedSlugs={['fire-rechner', 'abgeltungsteuer-rechner', 'sparen-rechner']}
+    title="So rechnet der ETF-Sparplan-Rechner"
+    content={guideHtml}
+    relatedSlugs={['abgeltungsteuer-rechner', 'fire-rechner', 'inflationsrechner']}
   />
 </Layout>
 
 <script type="module">
+const { sparplanVerlauf, steuerBeimVerkauf } = await import(window.__base + 'scripts/etf-sparplan.js');
+const eur = (n) => n.toLocaleString('de-DE', { minimumFractionDigits: 0, maximumFractionDigits: 0 }) + ' €';
+const wert = (id) => parseFloat(document.getElementById(id).value) || 0;
 function berechne() {
-  const start = parseFloat(document.getElementById('startkapital').value)||1000;
-  const rate = parseFloat(document.getElementById('sparrate').value)||200;
-  const rendite = parseFloat(document.getElementById('rendite').value)||7;
-  const jahre = parseInt(document.getElementById('laufzeit').value)||20;
-  const inflation = parseFloat(document.getElementById('inflation').value)||2;
-
-  const mRendite = rendite / 100 / 12;
-  const monate = jahre * 12;
-  let kapital = start;
-  let eingezahlt = start;
-
-  for (let i = 0; i < monate; i++) {
-    kapital = kapital * (1 + mRendite) + rate;
-    eingezahlt += rate;
-  }
-
-  const zinsgewinn = kapital - eingezahlt;
-  const steuer = Math.max(0, (zinsgewinn - 1000) * 0.26375);
-  const nettoKapital = kapital - steuer;
-  const inflationsFaktor = Math.pow(1 + inflation/100, jahre);
-  const realKapital = nettoKapital / inflationsFaktor;
-
-  document.getElementById('endkapital').textContent = nettoKapital.toLocaleString('de-DE', {maximumFractionDigits:0}) + ' €';
-  document.getElementById('details').innerHTML =
-    `<span>Eingezahlt: <strong>${eingezahlt.toLocaleString('de-DE', {maximumFractionDigits:0})} €</strong></span>` +
-    `<span>Zinsgewinn: <strong>${zinsgewinn.toLocaleString('de-DE', {maximumFractionDigits:0})} €</strong></span>` +
-    `<span>Steuern: <strong>${steuer.toLocaleString('de-DE', {maximumFractionDigits:0})} €</strong></span>` +
-    `<span>Realer Wert: <strong>${realKapital.toLocaleString('de-DE', {maximumFractionDigits:0})} €</strong></span>`;
+  const jahre = wert('laufzeit');
+  const v = sparplanVerlauf({
+    startkapital: wert('startkapital'),
+    sparrate: wert('sparrate'),
+    renditeProzent: wert('rendite'),
+    jahre,
+  });
+  const s = steuerBeimVerkauf({
+    gewinn: v.gewinn,
+    aktienfonds: document.getElementById('fondsart').value === 'aktien',
+    pauschbetrag: parseFloat(document.getElementById('pauschbetrag').value),
+  });
+  const nachSteuer = v.endkapital - s.steuer;
+  const real = nachSteuer / Math.pow(1 + wert('inflation') / 100, jahre);
+  document.getElementById('endkapital').textContent = eur(nachSteuer);
+  document.getElementById('details').innerHTML = [
+    `<span>Eingezahlt: <strong>${eur(v.eingezahlt)}</strong></span>`,
+    `<span>Wert vor Steuer: <strong>${eur(v.endkapital)}</strong></span>`,
+    `<span>Gewinn: <strong>${eur(v.gewinn)}</strong></span>`,
+    s.teilfreistellung > 0 ? `<span>davon steuerfrei (Teilfreistellung): <strong>${eur(s.teilfreistellung)}</strong></span>` : '',
+    `<span>Steuer: <strong>${eur(s.steuer)}</strong></span>`,
+    `<span>Realer Wert in heutigen Preisen: <strong>${eur(real)}</strong></span>`,
+  ].join('');
 }
-['startkapital','sparrate','rendite','laufzeit','inflation'].forEach(id =>
+['startkapital', 'sparrate', 'rendite', 'laufzeit', 'inflation'].forEach((id) =>
   document.getElementById(id).addEventListener('input', berechne));
+['fondsart', 'pauschbetrag'].forEach((id) => document.getElementById(id).addEventListener('change', berechne));
 berechne();
 </script>

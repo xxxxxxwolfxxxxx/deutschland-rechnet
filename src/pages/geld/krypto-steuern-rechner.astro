@@ -3,13 +3,72 @@ import Layout from '../../layouts/Layout.astro';
 import CalculatorShell from '../../components/CalculatorShell.astro';
 import CalculatorGuide from '../../components/CalculatorGuide.astro';
 import { CALCULATORS, CATEGORIES } from '../../data/calculators';
+import { berechneKryptoSteuer, FREIGRENZE, RECHTSSTAND } from '../../../public/scripts/krypto-steuer.js';
 const calc = CALCULATORS.find(c => c.slug === 'krypto-steuern-rechner')!;
 const cat = CATEGORIES[calc.category];
 const year = new Date().getFullYear();
+
+// Alle Zahlen dieser Seite kommen aus demselben Modul, das der Rechner laedt.
+const eur = (n: number) => n.toLocaleString('de-DE', { maximumFractionDigits: 0 }) + ' €';
+const pz = (n: number) => n.toLocaleString('de-DE') + ' %';
+const tarifJahr = RECHTSSTAND.slice(0, 4);
+const ZVE = 40000;
+
+const knappDrunter = berechneKryptoSteuer({ zvEOhne: ZVE, gewinn: FREIGRENZE - 1 });
+const genauDrauf = berechneKryptoSteuer({ zvEOhne: ZVE, gewinn: FREIGRENZE });
+if (knappDrunter.mehrsteuer !== 0) throw new Error('Freigrenze: 999 € muessen steuerfrei sein');
+if (genauDrauf.steuerpflichtig !== FREIGRENZE || genauDrauf.mehrsteuer <= 0) {
+  throw new Error('Freigrenze: 1.000 € muessen voll steuerpflichtig sein');
+}
+
+const GEWINNE = [FREIGRENZE - 1, FREIGRENZE, 1500, 5000, 10000, 25000];
+const tabelle = GEWINNE.map((g) => ({ g, r: berechneKryptoSteuer({ zvEOhne: ZVE, gewinn: g }) }));
+function tabellenzeile(g: number) {
+  const r = berechneKryptoSteuer({ zvEOhne: ZVE, gewinn: g });
+  return '<tr><td>' + eur(g) + '</td><td>' + eur(r.steuerpflichtig) + '</td><td>' + eur(r.mehrsteuer) + '</td><td>' + pz(r.belastungProzent) + '</td></tr>';
+}
+const tabellenzeilen = GEWINNE.map(tabellenzeile).join('');
+
+// Ehepaar: Die Grenze gilt je Ehegatte, nicht gemeinsam.
+const paarEiner = berechneKryptoSteuer({ zvEOhne: 60000, gewinn: 1500, gewinnPartner: 0, zusammen: true });
+const paarBeide = berechneKryptoSteuer({ zvEOhne: 60000, gewinn: 900, gewinnPartner: 900, zusammen: true });
+if (paarEiner.steuerpflichtigGesamt !== 1500 || paarBeide.steuerpflichtigGesamt !== 0) {
+  throw new Error('Freigrenze je Ehegatte falsch');
+}
+
+const guideHtml = `
+<h3>Freigrenze, nicht Freibetrag</h3>
+<p>Nach § 23 Abs. 3 Satz 5 EStG bleiben Gewinne aus privaten Veräußerungsgeschäften steuerfrei, wenn der Gesamtgewinn im Kalenderjahr <strong>weniger als ${eur(FREIGRENZE)}</strong> beträgt. Das ist eine Freigrenze: Unterhalb bleibt alles frei, ab ${eur(FREIGRENZE)} ist der <strong>ganze</strong> Gewinn steuerpflichtig – nicht nur der Teil darüber. Viele Seiten und auch diese Seite bis September 2026 haben die Grenze wie einen Freibetrag abgezogen. Bei ${eur(1500)} Gewinn wird dann auf ${eur(500)} Steuer gerechnet statt auf ${eur(1500)}.</p>
+<p>Der Sprung ist hart. Bei einem zu versteuernden Einkommen von ${eur(ZVE)} kostet ein Gewinn von ${eur(FREIGRENZE - 1)} keinen Cent Einkommensteuer, ein Gewinn von ${eur(FREIGRENZE)} kostet ${eur(genauDrauf.mehrsteuer)}. Wer im Dezember knapp unter der Grenze liegt, kann den nächsten Verkauf ins neue Jahr schieben – oder Verluste realisieren, die den Gesamtgewinn unter die Grenze drücken.</p>
+
+<h3>Steuerpflichtig nur innerhalb eines Jahres</h3>
+<p>§ 23 Abs. 1 Satz 1 Nr. 2 EStG erfasst Veräußerungen, bei denen zwischen Anschaffung und Veräußerung <strong>nicht mehr als ein Jahr</strong> liegt. Was länger gehalten wurde, gehört nicht in den Rechner: Tragen Sie nur den Saldo der Verkäufe mit kurzer Haltedauer ein. Verluste aus solchen Verkäufen dürfen nach § 23 Abs. 3 Satz 7 nur mit Gewinnen aus privaten Veräußerungsgeschäften verrechnet werden, dann auch über Vor- und Folgejahre (Satz 8).</p>
+
+<h3>Was der Gewinn an Steuer kostet</h3>
+<p>Private Veräußerungsgewinne unterliegen nicht der Abgeltungsteuer, sondern dem persönlichen Tarif des § 32a EStG. Der Rechner nimmt deshalb keinen festen Steuersatz an, sondern rechnet die Einkommensteuer einmal ohne und einmal mit dem Gewinn (Tarif ${tarifJahr}). Die Differenz ist die Steuer, die der Gewinn auslöst. Beispiel für ein zu versteuerndes Einkommen von ${eur(ZVE)} ohne den Gewinn:</p>
+<table>
+<thead><tr><th>Gesamtgewinn</th><th>steuerpflichtig</th><th>zusätzliche Einkommensteuer</th><th>Belastung</th></tr></thead>
+<tbody>
+${tabellenzeilen}
+</tbody>
+</table>
+<p>Solidaritätszuschlag und Kirchensteuer kommen gegebenenfalls hinzu; sie sind nicht eingerechnet.</p>
+
+<h3>Ehepaare: je Ehegatte eine Grenze</h3>
+<p>Bei der Zusammenveranlagung werden nach § 26b EStG die Einkünfte zusammengerechnet, „die die Ehegatten erzielt haben". Ermittelt werden sie aber für jeden Ehegatten getrennt – und die Freigrenze gehört zu dieser Ermittlung. Es gibt deshalb keine gemeinsame Grenze von 2.000 €. Erzielt einer ${eur(1500)} und der andere nichts, sind ${eur(paarEiner.steuerpflichtigGesamt)} steuerpflichtig. Erzielen beide je ${eur(900)}, bleiben beide Gewinne frei. Die Steuer rechnet der Rechner dann im Splittingverfahren.</p>
+`;
+
+const faqs = [
+  { q: `Gibt es einen Freibetrag von ${eur(FREIGRENZE)}?`, a: `Nein, eine Freigrenze. Liegt der Gesamtgewinn aus privaten Veräußerungsgeschäften im Kalenderjahr unter ${eur(FREIGRENZE)}, bleibt er steuerfrei (§ 23 Abs. 3 Satz 5 EStG). Ab ${eur(FREIGRENZE)} ist der gesamte Gewinn steuerpflichtig, nicht nur der übersteigende Teil.` },
+  { q: 'Haben Verheiratete 2.000 € frei?', a: `Nicht gemeinsam. Die Freigrenze gilt für jeden Ehegatten und dessen eigenen Gesamtgewinn. ${eur(1500)} Gewinn eines Ehegatten sind voll steuerpflichtig, auch wenn der andere nichts verkauft hat.` },
+  { q: 'Wann sind Krypto-Gewinne steuerfrei?', a: 'Wenn zwischen Kauf und Verkauf mehr als ein Jahr liegt. § 23 Abs. 1 Satz 1 Nr. 2 EStG erfasst nur Veräußerungen, bei denen dieser Zeitraum nicht mehr als ein Jahr beträgt. Und unabhängig davon, wenn der Gesamtgewinn des Jahres unter der Freigrenze bleibt.' },
+  { q: 'Mit welchem Steuersatz werden Krypto-Gewinne besteuert?', a: `Mit dem persönlichen Einkommensteuertarif, nicht mit 25 % Abgeltungsteuer. Wie viel das ist, hängt vom übrigen Einkommen ab: Bei ${eur(ZVE)} zu versteuerndem Einkommen kosten ${eur(5000)} Gewinn ${eur(tabelle[3].r.mehrsteuer)} Einkommensteuer.` },
+  { q: 'Was passiert mit Verlusten?', a: 'Verluste aus Verkäufen innerhalb der Jahresfrist dürfen nur mit Gewinnen aus privaten Veräußerungsgeschäften verrechnet werden – im selben Jahr oder über Verlustrück- und -vortrag (§ 23 Abs. 3 Sätze 7 und 8 EStG). Mit Lohn oder Mieteinnahmen lassen sie sich nicht verrechnen.' },
+];
 ---
 <Layout
   title={`Krypto-Steuern-Rechner ${year}`}
-  description="Krypto-Steuern 2025 berechnen: Haltefrist pruefen, Freibetrag 1.000 EUR nutzen und steuerpflichtigen Gewinn aus Bitcoin, Ethereum und Co. sofort ermitteln."
+  description="Krypto-Gewinne nach § 23 EStG: Freigrenze von 1.000 € richtig anwenden, zusätzliche Einkommensteuer nach dem eigenen Tarif berechnen, auch für Ehepaare."
   canonicalPath="/geld/krypto-steuern-rechner/"
   categoryColor={cat.color}
   categoryLight={cat.colorLight}
@@ -21,48 +80,35 @@ const year = new Date().getFullYear();
   </div>
   <CalculatorShell
     calculator={calc}
-    intro="Mit dem Krypto-Steuern-Rechner prüfen Sie, ob Ihre Krypto-Gewinne steuerpflichtig sind."
-    sourceNote="Nach § 23 EStG (private Veräußerungsgeschäfte)."
-    explanation="Nach einem Jahr Haltedauer sind Gewinne steuerfrei. Freibetrag: 1.000€ (Verheiratete: 2.000€)."
-    faqs={[
-      { q: "Sind Kryptowährungen in Deutschland steuerfrei?", a: "Nein. Krypto-Gewinne sind private Veräußerungsgeschäfte (§23 EStG) und werden nach der Haltefrist beurteilt. UNTER 1 Jahr: Volle Besteuerung nach Einkommensteuer. ÜBER 1 Jahr: Komplett steuerfrei!" },
-      { q: "Was ist die Haltefrist für Steuerfreiheit?", a: "Genau 1 Jahr vom Kauf bis zum Verkauf. Beispiel: Gekauft 1.1.2024, verkauft 1.1.2025 = steuerfrei. 31.12.2024 = noch nicht 1 Jahr = steuerpflichtig. Die Frist wird auf den Tag genau gerechnet." },
-      { q: "Was zählt nicht zur Haltefrist?", a: "Tausch von Krypto gegen Krypto zählt als Veräußerung und setzt die Haltefrist zurück! Beispiel: Bitcoin gekauft Jan 2023, gegen Ethereum getauscht Dez 2023 = neue Haltefrist ab Dez 2023! Mining und Staking sind eigene Einkünfte." },
-      { q: "Gibt es einen Freibetrag?", a: "Ja! 1.000€ pro Jahr steuerfrei (Verheiratete: 2.000€). Erst über diesen Betrag wird besteuert. Beispiel: 5.000€ Gewinn, Freibetrag 1.000€ = 4.000€ steuerpflichtig." },
-      { q: "Wie dokumentiere ich meine Trades?", a: "Pflicht: Jeder Kauf und Verkauf mit Datum, Menge, Preis und Gesamtbetrag. Bitcoin-Steuer-Tools (Bitcoin.Tax, Koinly) helfen. Das FA kann Nachzahlungen fordern, wenn Dokumentation fehlt." },
-      { q: "Was ist mit Staking und Airdrops?", a: "Staking-Ertraege sind sonstige Einkuenfte nach Paragraph 22 Nr. 3 EStG und unterliegen dem persoenlichen Steuersatz (nicht der Abgeltungsteuer). Der Freibetrag betraegt 256 Euro pro Jahr. Airdrops sind steuerpflichtiges Einkommen zum Marktwert beim Erhalt. Beim spaeteren Verkauf der erhaltenen Coins gilt dann wieder die 1-Jahres-Haltefrist." },
-      { q: "Wie berechne ich den Gewinn bei mehreren Kaeufen?", a: "In Deutschland gilt die FiFo-Methode (First in, First out): Die zuerst gekauften Coins werden als zuerst verkauft behandelt. Beispiel: Sie kaufen 1 BTC im Januar fuer 30.000 EUR und 1 BTC im Juni fuer 40.000 EUR. Verkaufen Sie im Oktober 1 BTC fuer 50.000 EUR, gilt der Januar-Kauf als veraeussert – Ihr Gewinn betraegt 20.000 EUR (nicht 10.000 EUR). Dokumentieren Sie jeden Kauf mit Datum und Preis." },
-      { q: "Muss ich Verluste angeben?", a: "Verluste aus Krypto-Verkaeufen (unter 1 Jahr Haltefrist) koennen mit anderen privaten Veraeusserungsgeschaeften im gleichen Jahr verrechnet werden. Nicht verrechenbare Verluste koennen per Verlustfeststellung ins Vorjahr zurueck- oder in kuenftige Jahre vorgetragen werden. Geben Sie Verluste daher immer in der Steuererklaerung an – sie senken Ihre Steuerlast in der Zukunft." },
-      { q: "Was droht bei Nichtangabe von Krypto-Gewinnen?", a: "Krypto-Gewinne nicht anzugeben ist Steuerhinterziehung (Paragraph 370 AO). Das Finanzamt erhaelt zunehmend Daten von Krypto-Boersen (EU-weite DAC8-Meldepflicht ab 2026). Strafen reichen von Nachzahlung plus 6 % Zinsen pro Jahr bis zu Geldstrafen und Freiheitsstrafen bis zu 10 Jahren bei schwerer Steuerhinterziehung. Eine strafbefreiende Selbstanzeige ist moeglich, solange das Finanzamt noch nicht ermittelt." }
-    ]}
+    intro="Der Rechner zeigt, ob Ihre Krypto-Gewinne unter die Freigrenze fallen und wie viel Einkommensteuer sie nach Ihrem persönlichen Tarif zusätzlich kosten."
+    sourceNote={`§ 23 Abs. 1 Satz 1 Nr. 2 und Abs. 3 Satz 5 EStG (Freigrenze, abgerufen am 14.09.2026), § 26b EStG, Tarif nach § 32a EStG (${tarifJahr}). Ohne Solidaritätszuschlag und Kirchensteuer.`}
+    explanation={`Steuerpflichtig sind Verkäufe innerhalb eines Jahres nach dem Kauf. Liegt der Gesamtgewinn eines Jahres unter ${FREIGRENZE} €, bleibt er frei; ab ${FREIGRENZE} € ist er ganz steuerpflichtig. Die Grenze gilt je Ehegatte.`}
+    faqs={faqs}
   >
     <div class="calc-form">
       <div class="calc-grid">
         <div class="calc-group">
-          <label for="gewinn">Krypto-Gewinn (€)</label>
-          <input type="number" id="gewinn" min="0" max="10000000" value="5000" step="100" />
+          <label for="gewinn">Gesamtgewinn im Jahr, Haltedauer bis 1 Jahr (€)</label>
+          <input type="number" id="gewinn" min="-10000000" max="10000000" value="1500" step="100" />
         </div>
         <div class="calc-group">
-          <label for="haltefrist">Haltefrist</label>
-          <select id="haltefrist">
-            <option value="unter" selected>Unter 1 Jahr</option>
-            <option value="ueber">Über 1 Jahr (steuerfrei)</option>
+          <label for="zve">Zu versteuerndes Einkommen ohne diesen Gewinn (€)</label>
+          <input type="number" id="zve" min="0" max="10000000" value="40000" step="1000" />
+        </div>
+        <div class="calc-group">
+          <label for="veranlagung">Veranlagung</label>
+          <select id="veranlagung">
+            <option value="einzel" selected>Einzelveranlagung</option>
+            <option value="zusammen">Zusammenveranlagung</option>
           </select>
         </div>
-        <div class="calc-group">
-          <label for="verheiratet">Steuerstatus</label>
-          <select id="verheiratet">
-            <option value="single" selected>Ledig</option>
-            <option value="verheiratet">Verheiratet (Zusammenveranlagung)</option>
-          </select>
-        </div>
-        <div class="calc-group">
-          <label for="steuersatz">Persönlicher Steuersatz (%)</label>
-          <input type="number" id="steuersatz" min="0" max="45" value="30" step="1" />
+        <div class="calc-group" id="partner-gruppe" hidden>
+          <label for="gewinnPartner">Gesamtgewinn des Ehegatten (€)</label>
+          <input type="number" id="gewinnPartner" min="-10000000" max="10000000" value="0" step="100" />
         </div>
       </div>
       <div class="calc-result">
-        <div class="label">Zu versteuern</div>
+        <div class="label">Zusätzliche Einkommensteuer</div>
         <div id="ergebnis">— €</div>
       </div>
       <div id="details" style="margin-top:0.75rem;font-size:0.88rem;color:#666;display:flex;gap:1.5rem;flex-wrap:wrap;"></div>
@@ -70,78 +116,40 @@ const year = new Date().getFullYear();
   </CalculatorShell>
 
   <CalculatorGuide
-    title="So funktioniert die Besteuerung von Kryptowährungen"
-    content={`<p><strong>In Deutschland sind Krypto-Gewinne private Veraeusserungsgeschaefte (Paragraph 23 EStG).</strong> Das bedeutet: Ob Sie Steuern zahlen, haengt von der Haltefrist ab. Die gute Nachricht: Ueber 1 Jahr Haltedauer = komplett steuerfrei, unabhaengig von der Gewinnhoehe.</p>
-
-<h3>Steuerliche Behandlung nach Krypto-Vorgang</h3>
-<table>
-<thead><tr><th>Vorgang</th><th>Steuerart</th><th>Freibetrag</th><th>Haltefrist relevant?</th></tr></thead>
-<tbody>
-<tr><td>Kauf und Verkauf (unter 1 Jahr)</td><td>Persoenlicher ESt-Satz (14-45 %)</td><td>1.000 EUR / 2.000 EUR (Ehepaar)</td><td>Ja – unter 1 Jahr steuerpflichtig</td></tr>
-<tr><td>Kauf und Verkauf (ueber 1 Jahr)</td><td>Steuerfrei</td><td>Nicht noetig</td><td>Ja – ueber 1 Jahr steuerfrei</td></tr>
-<tr><td>Krypto-zu-Krypto-Tausch</td><td>Persoenlicher ESt-Satz</td><td>1.000 EUR</td><td>Ja – gilt als Veraeusserung</td></tr>
-<tr><td>Staking-Ertraege</td><td>Persoenlicher ESt-Satz (Paragraph 22 Nr. 3)</td><td>256 EUR</td><td>Nein – bei Zufluss steuerpflichtig</td></tr>
-<tr><td>Mining</td><td>Gewerblich oder Paragraph 22 Nr. 3</td><td>256 EUR</td><td>Nein – bei Zufluss steuerpflichtig</td></tr>
-<tr><td>Airdrops</td><td>Persoenlicher ESt-Satz</td><td>256 EUR</td><td>Nein – Marktwert bei Erhalt</td></tr>
-<tr><td>Lending-Zinsen</td><td>Persoenlicher ESt-Satz (Paragraph 22 Nr. 3)</td><td>256 EUR</td><td>Nein – bei Zufluss steuerpflichtig</td></tr>
-</tbody>
-</table>
-
-<p><strong>Die 1-Jahres-Regel:</strong></p>
-<ul>
-  <li><strong>Unter 1 Jahr Haltefrist:</strong> Volle Besteuerung mit Ihrem persoenlichen Steuersatz (bis 45 %)</li>
-  <li><strong>Ueber 1 Jahr Haltefrist:</strong> Komplett steuerfrei – auch bei Gewinnen von mehreren Hunderttausend Euro</li>
-  <li><strong>Freibetrag:</strong> 1.000 Euro pro Jahr steuerfrei (Verheiratete: 2.000 Euro) bei Haltedauer unter 1 Jahr</li>
-</ul>
-
-<h3>Rechenbeispiel: Steuerbelastung nach Einkommenshoehe</h3>
-<table>
-<thead><tr><th>Krypto-Gewinn (unter 1 Jahr)</th><th>Zu versteuerndes Einkommen gesamt</th><th>Grenzsteuersatz</th><th>Steuer auf Krypto-Gewinn</th></tr></thead>
-<tbody>
-<tr><td>5.000 EUR</td><td>40.000 EUR</td><td>ca. 34 %</td><td>ca. 1.360 EUR</td></tr>
-<tr><td>10.000 EUR</td><td>55.000 EUR</td><td>ca. 38 %</td><td>ca. 3.420 EUR</td></tr>
-<tr><td>25.000 EUR</td><td>70.000 EUR</td><td>42 %</td><td>ca. 10.080 EUR</td></tr>
-<tr><td>50.000 EUR</td><td>95.000 EUR</td><td>42 %</td><td>ca. 20.580 EUR</td></tr>
-<tr><td>100.000 EUR</td><td>145.000 EUR</td><td>42 %</td><td>ca. 41.580 EUR</td></tr>
-</tbody>
-</table>
-<p><em>Hinweis: Freibetrag von 1.000 EUR bereits beruecksichtigt. Solidaritaetszuschlag und Kirchensteuer kommen ggf. hinzu.</em></p>
-
-<p><strong>Wichtig – Was als Veraeusserung zaehlt:</strong> Verkauf von Krypto gegen Euro ist eindeutig. Aber auch: Kryptotausch (Bitcoin gegen Ethereum) ist eine Veraeusserung und setzt die Haltefrist zurueck. Bezahlung mit Krypto (z. B. NFT-Kauf mit ETH) gilt ebenfalls als Veraeusserung. Staking und Mining sind separate Einkuenfte und unterliegen nicht der 1-Jahres-Regel.</p>
-
-<p><strong>Dokumentation ist Pflicht:</strong> Jeder Trade muss dokumentiert werden (Datum, Menge, Preis, Gebuehren). Tools wie Koinly, CoinTracking oder Blockpit helfen bei der automatischen Erfassung. Das Finanzamt fordert diese Daten an – ohne Belege drohen Schaetzungen zu Ihren Ungunsten und Nachzahlungszinsen von 0,15 % pro Monat. Ab 2026 muessen EU-Kryptoboersen Transaktionsdaten automatisch an Finanzbehoerden melden (DAC8-Richtlinie).</p>`}
-    relatedSlugs={['abgeltungsteuer-rechner', 'sparen-rechner', 'etf-sparplan-rechner']}
+    title="So werden Krypto-Gewinne besteuert"
+    content={guideHtml}
+    relatedSlugs={['abgeltungsteuer-rechner', 'steuernachzahlung-rechner', 'etf-sparplan-rechner']}
   />
 </Layout>
 
 <script type="module">
-function berechne() {
-  const gewinn = parseFloat(document.getElementById('gewinn').value) || 5000;
-  const haltefrist = document.getElementById('haltefrist').value;
-  const verheiratet = document.getElementById('verheiratet').value;
-  const steuersatz = parseFloat(document.getElementById('steuersatz').value) || 30;
-  const fmt = (n) => n.toLocaleString('de-DE', {minimumFractionDigits:2, maximumFractionDigits:2}) + ' €';
-  let zuVersteuern, steuer, info;
-  if (haltefrist === 'ueber') {
-    zuVersteuern = 0;
-    steuer = 0;
-    info = 'Nach über 1 Jahr Haltefrist: Steuerfrei!';
-    document.getElementById('ergebnis').style.color = '#1e7e34';
-  } else {
-    const freibetrag = verheiratet === 'verheiratet' ? 2000 : 1000;
-    zuVersteuern = Math.max(0, gewinn - freibetrag);
-    steuer = zuVersteuern * (steuersatz / 100);
-    info = `Freibetrag: ${fmt(freibetrag)}`;
-    document.getElementById('ergebnis').style.color = zuVersteuern > 0 ? '#b71c1c' : '#1e7e34';
-  }
-  document.getElementById('ergebnis').textContent = zuVersteuern === 0 ? '0 € (steuerfrei)' : fmt(zuVersteuern);
-  document.getElementById('details').innerHTML =
-    `<span>Gewinn: <strong>${fmt(gewinn)}</strong></span>` +
-    `<span>${info}</span>` +
-    `<span>Zu versteuern: <strong>${fmt(zuVersteuern)}</strong></span>` +
-    `<span>Steuer (${steuersatz}%): <strong>${fmt(steuer)}</strong></span>`;
+const { berechneKryptoSteuer, FREIGRENZE } = await import(window.__base + 'scripts/krypto-steuer.js');
+const eur = (n) => n.toLocaleString('de-DE', { minimumFractionDigits: 0, maximumFractionDigits: 0 }) + ' €';
+const wert = (id) => parseFloat(document.getElementById(id).value) || 0;
+function freiText(gewinn, frei) {
+  if (gewinn <= 0) return 'Verlust oder kein Gewinn: nichts zu versteuern';
+  if (frei) return `unter ${eur(FREIGRENZE)} – steuerfrei (noch ${eur(FREIGRENZE - gewinn)} Luft)`;
+  return `ab ${eur(FREIGRENZE)} voll steuerpflichtig`;
 }
-['gewinn','steuersatz'].forEach(id => document.getElementById(id).addEventListener('input', berechne));
-['haltefrist','verheiratet'].forEach(id => document.getElementById(id).addEventListener('change', berechne));
+function berechne() {
+  const zusammen = document.getElementById('veranlagung').value === 'zusammen';
+  document.getElementById('partner-gruppe').hidden = !zusammen;
+  const gewinn = wert('gewinn');
+  const gewinnPartner = wert('gewinnPartner');
+  const r = berechneKryptoSteuer({ zvEOhne: wert('zve'), gewinn, gewinnPartner, zusammen });
+  document.getElementById('ergebnis').textContent = eur(r.mehrsteuer);
+  const teile = [
+    `<span>Ihr Gewinn: <strong>${freiText(gewinn, r.freiNachFreigrenze)}</strong></span>`,
+  ];
+  if (zusammen) teile.push(`<span>Ehegatte: <strong>${freiText(gewinnPartner, r.freiNachFreigrenzePartner)}</strong></span>`);
+  teile.push(
+    `<span>Steuerpflichtig: <strong>${eur(r.steuerpflichtigGesamt)}</strong></span>`,
+    `<span>Einkommensteuer ohne / mit Gewinn: <strong>${eur(r.steuerOhne)} / ${eur(r.steuerMit)}</strong></span>`,
+  );
+  if (r.steuerpflichtigGesamt > 0) teile.push(`<span>Belastung des Gewinns: <strong>${r.belastungProzent.toLocaleString('de-DE')} %</strong></span>`);
+  document.getElementById('details').innerHTML = teile.join('');
+}
+['gewinn', 'gewinnPartner', 'zve'].forEach((id) => document.getElementById(id).addEventListener('input', berechne));
+document.getElementById('veranlagung').addEventListener('change', berechne);
 berechne();
 </script>

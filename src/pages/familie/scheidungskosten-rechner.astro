@@ -3,24 +3,82 @@ import Layout from '../../layouts/Layout.astro';
 import CalculatorShell from '../../components/CalculatorShell.astro';
 import CalculatorGuide from '../../components/CalculatorGuide.astro';
 import { CALCULATORS, CATEGORIES } from '../../data/calculators';
+import {
+  berechneScheidungskosten,
+  EHESACHE_MINDESTWERT,
+  MONATE_NETTOEINKOMMEN,
+  VERSORGUNGSAUSGLEICH_JE_ANRECHT,
+  VERSORGUNGSAUSGLEICH_MINDESTWERT,
+  KINDSCHAFTSSACHE_ANTEIL,
+  KINDSCHAFTSSACHE_HOECHSTBETRAG,
+  GERICHT_GEBUEHRENSATZ,
+  VERFAHRENSGEBUEHR_SATZ,
+  TERMINSGEBUEHR_SATZ,
+  AUSLAGENPAUSCHALE_HOECHSTBETRAG,
+  UMSATZSTEUERSATZ,
+} from '../../../public/scripts/scheidungskosten.js';
 const calc = CALCULATORS.find(c => c.slug === 'scheidungskosten-rechner')!;
 const cat = CATEGORIES[calc.category];
 const year = new Date().getFullYear();
 
+// Alle Zahlen dieser Seite kommen aus demselben Modul, das der Rechner laedt.
+const eur = (n: number) => n.toLocaleString('de-DE', { maximumFractionDigits: 0 }) + ' €';
+const proz = (n: number) => (n * 100).toLocaleString('de-DE') + ' %';
+const satz = (n: number) => n.toLocaleString('de-DE', { minimumFractionDigits: 1 });
+
+const bsp = berechneScheidungskosten({ nettoMonat: 4000, anrechte: 2, anwaelte: 1 });
+if (bsp.verfahrenswert.gesamt !== 14400 || bsp.gericht !== 688 || bsp.gesamt !== 2978.75) {
+  throw new Error('Scheidungskosten: Beispielrechnung weicht von den Gebuehrentabellen ab');
+}
+const bspKind = berechneScheidungskosten({ nettoMonat: 4000, anrechte: 2, kindschaftssachen: 1, anwaelte: 2 });
+const reich = berechneScheidungskosten({ nettoMonat: 4000, anrechte: 2, anwaelte: 1, vermoegen: 900000 });
+if (reich.gesamt !== bsp.gesamt) throw new Error('Vermoegen darf die Rechnung nicht veraendern');
+
+const NETTO = [2000, 3000, 4000, 6000, 10000];
+const tabelle = NETTO.map((n) => ({
+  n,
+  eins: berechneScheidungskosten({ nettoMonat: n, anrechte: 2, anwaelte: 1 }),
+  zwei: berechneScheidungskosten({ nettoMonat: n, anrechte: 2, anwaelte: 2 }),
+}));
+
+const guideHtml = `
+<h3>Der Verfahrenswert: Einkommen, nicht Vermögen</h3>
+<p>Gerichts- und Anwaltsgebühren richten sich nach dem Verfahrenswert. Für die Scheidung selbst bestimmt ihn das Gericht nach § 43 Abs. 1 FamGKG „nach Ermessen" unter Berücksichtigung von Umfang, Bedeutung und den Vermögens- und Einkommensverhältnissen, mindestens mit ${eur(EHESACHE_MINDESTWERT)}. Fest geregelt ist nur die Einkommensseite: Einzusetzen ist nach Absatz 2 „das in drei Monaten erzielte Nettoeinkommen der Ehegatten". Beide Einkommen zusammen, mal ${MONATE_NETTOEINKOMMEN} – das ist der Kern, und mit ihm rechnet dieser Rechner.</p>
+<p>Ob und wie Vermögen den Wert erhöht oder Kinder ihn mindern, schreibt das Gesetz nicht vor; die Familiengerichte handhaben das unterschiedlich. Der Rechner unterstellt dazu nichts. Die frühere Fassung dieser Seite rechnete die Gebühren aus dem Gesamtvermögen – eine Größe, die in § 43 nur als ein Umstand unter mehreren vorkommt.</p>
+
+<h3>Folgesachen im Verbund</h3>
+<p>Scheidung und Folgesachen gelten als ein Verfahren (§ 44 Abs. 1 FamGKG); ihre Werte werden addiert und die Gebühr einmal aus der Summe berechnet.</p>
+<ul>
+<li><strong>Versorgungsausgleich:</strong> je Anrecht ${proz(VERSORGUNGSAUSGLEICH_JE_ANRECHT)} des dreimonatigen Nettoeinkommens, insgesamt mindestens ${eur(VERSORGUNGSAUSGLEICH_MINDESTWERT)} (§ 50 Abs. 1 FamGKG). Ein Anrecht ist jede einzelne Versorgung – die gesetzliche Rente des einen Ehegatten ist eines, eine Betriebsrente ein weiteres.</li>
+<li><strong>Sorge- oder Umgangsverfahren im Verbund:</strong> je Verfahren ${proz(KINDSCHAFTSSACHE_ANTEIL)} des Werts der Scheidung, höchstens ${eur(KINDSCHAFTSSACHE_HOECHSTBETRAG)}, auch wenn es mehrere Kinder betrifft (§ 44 Abs. 2 FamGKG).</li>
+</ul>
+
+<h3>Welche Gebühren anfallen</h3>
+<p>Das Gericht erhebt für das Verfahren eine ${satz(GERICHT_GEBUEHRENSATZ)}-Gebühr nach Nr. 1110 des Kostenverzeichnisses zum FamGKG, die volle Gebühr ergibt sich aus § 28 FamGKG. Der Anwalt erhält nach dem RVG eine ${satz(VERFAHRENSGEBUEHR_SATZ)}-Verfahrensgebühr (Nr. 3100) und eine ${satz(TERMINSGEBUEHR_SATZ)}-Terminsgebühr (Nr. 3104), dazu höchstens ${eur(AUSLAGENPAUSCHALE_HOECHSTBETRAG)} Auslagenpauschale (Nr. 7002) und ${proz(UMSATZSTEUERSATZ)} Umsatzsteuer. Nicht eingerechnet sind eine Einigungsgebühr, Gebühren für streitige Folgesachen wie Unterhalt oder Zugewinn und Auslagen des Gerichts.</p>
+<p><strong>Beispiel:</strong> ${eur(4000)} Nettoeinkommen beider im Monat, zwei Anrechte im Versorgungsausgleich. Die Scheidung ist ${eur(bsp.verfahrenswert.ehesache)} wert, der Versorgungsausgleich ${eur(bsp.verfahrenswert.versorgungsausgleich)}, zusammen ${eur(bsp.verfahrenswert.gesamt)}. Das Gericht verlangt ${eur(bsp.gericht)}, ein Anwalt ${eur(bsp.anwaltGesamt)} – zusammen ${eur(bsp.gesamt)}. Kommt ein Sorgerechtsverfahren hinzu und hat jeder Ehegatte einen Anwalt, sind es ${eur(bspKind.gesamt)}.</p>
+
+<h3>Kosten nach Einkommen</h3>
+<p>Mit zwei Anrechten im Versorgungsausgleich, ohne Kindschaftssachen:</p>
+<table>
+<thead><tr><th>Netto beider / Monat</th><th>Verfahrenswert</th><th>Gericht</th><th>Gesamt, 1 Anwalt</th><th>Gesamt, 2 Anwälte</th></tr></thead>
+<tbody>
+${tabelle.map(({ n, eins, zwei }) => `<tr><td>${eur(n)}</td><td>${eur(eins.verfahrenswert.gesamt)}</td><td>${eur(eins.gericht)}</td><td>${eur(eins.gesamt)}</td><td>${eur(zwei.gesamt)}</td></tr>`).join('\n')}
+</tbody>
+</table>
+<p>Die Gebühren wachsen langsamer als das Einkommen: Die Tabellen des FamGKG und des RVG sind degressiv gestaffelt.</p>
+`;
+
 const faqs = [
-  { q: 'Was kostet eine Scheidung 2026?', a: 'Eine einvernehmliche Scheidung mit nur einem Anwalt kostet in der Regel zwischen 1.000 € und 3.000 €. Streitige Scheidungen mit zwei Anwälten und mehreren Folgesachen können 4.000 € bis über 8.000 € erreichen. Die genaue Höhe hängt vom Verfahrenswert ab.' },
-  { q: 'Wie wird der Verfahrenswert berechnet?', a: 'Das Gericht setzt den Verfahrenswert nach § 43 FamGKG fest. Grundlage ist das dreifache monatliche Nettoeinkommen beider Ehegatten zusammen. Zusätzlich fließt oft ein Anteil des Vermögens ein (üblich sind 5 % über einem Freibetrag). Bei einem gemeinsamen Nettoeinkommen von 3.000 € ergibt sich so ein Verfahrenswert von rund 9.000 €.' },
-  { q: 'Wie hoch sind die Anwaltsgebühren?', a: 'Anwälte rechnen nach dem Rechtsanwaltsvergütungsgesetz (RVG) ab. Die Gebühren steigen mit dem Verfahrenswert. Bei einem Wert von 15.000 € fallen für einen Anwalt rund 1.500–1.700 € inklusive Umsatzsteuer an. Ein Rechtsanwalt darf die gesetzlichen Gebühren nicht unterschreiten.' },
-  { q: 'Wer trägt die Kosten der Scheidung?', a: 'Die Gerichtskosten werden im Regelfall geteilt: Jeder Ehegatte zahlt die Hälfte. Die Anwaltskosten trägt jeder für seinen eigenen Anwalt. Bei einer einvernehmlichen Scheidung mit nur einem Anwalt vereinbaren die Partner meist, sich diese Kosten intern zu teilen.' },
-  { q: 'Was ist eine einvernehmliche Scheidung?', a: 'Bei einer einvernehmlichen Scheidung sind sich beide Partner über die Scheidung und die Folgen (Unterhalt, Vermögen, Umgang) einig. Dann reicht ein einziger Anwalt, der den Antrag stellt; der andere Partner muss der Scheidung nur zustimmen. Das spart Zeit und oft mehr als die Hälfte der Kosten.' },
-  { q: 'Was ist der Versorgungsausgleich?', a: 'Der Versorgungsausgleich teilt die während der Ehe erworbenen Rentenanwartschaften hälftig zwischen beiden Partnern auf. Er wird im Scheidungsverfahren von Amts wegen durchgeführt und erhöht den Verfahrenswert. Bei kurzen Ehen unter drei Jahren findet er nur auf Antrag statt.' },
-  { q: 'Gibt es finanzielle Unterstützung bei geringem Einkommen?', a: 'Ja. Wer die Kosten nicht aus eigenem Einkommen oder Vermögen aufbringen kann, kann Verfahrenskostenhilfe (VKH) nach §§ 76 ff. FamFG i. V. m. §§ 114 ff. ZPO beantragen. Der Staat übernimmt dann die Kosten ganz oder in Raten. Der Antrag wird beim Familiengericht gestellt.' },
-  { q: 'Wie kann ich bei der Scheidung Kosten sparen?', a: 'Der größte Hebel ist die Einigung: Klären Sie Unterhalt, Vermögensaufteilung und Sorgerecht außergerichtlich, bevor Sie zum Gericht gehen. Jede Folgesache, die das Gericht entscheiden muss, erhöht den Verfahrenswert und damit die Gebühren. Eine einvernehmliche Scheidung mit einem gemeinsamen Anwalt ist die günstigste Variante.' },
+  { q: 'Wonach richten sich die Kosten einer Scheidung?', a: `Nach dem Verfahrenswert. Dessen fester Bestandteil ist das Nettoeinkommen beider Ehegatten aus drei Monaten (§ 43 Abs. 2 FamGKG), mindestens ${eur(EHESACHE_MINDESTWERT)}. Der Versorgungsausgleich und Kindschaftssachen im Verbund kommen hinzu.` },
+  { q: 'Zählt das Vermögen?', a: 'Das Gesetz nennt die Vermögensverhältnisse als einen Umstand, den das Gericht nach Ermessen berücksichtigt, gibt aber keine Formel vor. Der Rechner rechnet deshalb nur mit dem Einkommen; ein Zuschlag für Vermögen würde die Kosten erhöhen.' },
+  { q: 'Was kostet eine Scheidung bei 4.000 € Netto im Monat?', a: `Mit zwei Anrechten im Versorgungsausgleich und einem Anwalt ${eur(bsp.gesamt)}: ${eur(bsp.gericht)} Gerichtsgebühren und ${eur(bsp.anwaltGesamt)} für den Anwalt einschließlich Umsatzsteuer.` },
+  { q: 'Wie erhöht der Versorgungsausgleich die Kosten?', a: `Jedes auszugleichende Anrecht erhöht den Verfahrenswert um ${proz(VERSORGUNGSAUSGLEICH_JE_ANRECHT)} des dreimonatigen Nettoeinkommens, zusammen um mindestens ${eur(VERSORGUNGSAUSGLEICH_MINDESTWERT)} (§ 50 Abs. 1 FamGKG).` },
+  { q: 'Was ändert ein zweiter Anwalt?', a: 'Die Gerichtsgebühr bleibt gleich, die Anwaltskosten verdoppeln sich. Weitere Kosten entstehen, wenn Unterhalt, Zugewinn oder Hausrat streitig im Verbund entschieden werden – diese Folgesachen hat der Rechner nicht.' },
 ];
 ---
 <Layout
   title={`Scheidungskosten-Rechner ${year}`}
-  description="Kosten für Scheidung schätzen – Anwaltskosten, Gerichtsgebühren."
+  description="Scheidungskosten nach FamGKG und RVG: Verfahrenswert aus dem Nettoeinkommen, Versorgungsausgleich, Gerichts- und Anwaltsgebühren nach den amtlichen Tabellen."
   canonicalPath="/familie/scheidungskosten-rechner/"
   categoryColor={cat.color}
   categoryLight={cat.colorLight}
@@ -32,35 +90,36 @@ const faqs = [
   </div>
   <CalculatorShell
     calculator={calc}
-    intro="Mit dem Scheidungskosten-Rechner schätzen Sie die Kosten einer Scheidung. Erfahren Sie, mit welchen Anwalts- und Gerichtsgebühren Sie rechnen müssen und wie eine einvernehmliche Scheidung Kosten spart."
-    sourceNote="1.500-2.500€ einvernehmliche Scheidung."
-    explanation="Die Kosten richten sich nach dem Verfahrenswert (§ 43 FamGKG). Anwaltsgebühren berechnen sich nach dem RVG, Gerichtsgebühren nach dem FamGKG. Bei geringem Einkommen kann Verfahrenskostenhilfe nach §§ 114 ff. ZPO beantragt werden."
+    intro="Der Rechner ermittelt den Verfahrenswert einer Scheidung aus dem Nettoeinkommen beider Ehegatten und rechnet daraus Gerichts- und Anwaltsgebühren nach den gesetzlichen Tabellen."
+    sourceNote="Verfahrenswert nach §§ 43, 44 und 50 FamGKG, Gerichtsgebühr nach § 28 FamGKG und KV Nr. 1110, Anwaltsvergütung nach § 13 RVG und VV Nr. 3100, 3104, 7002, 7008 (Gebührentabellen in der Fassung BGBl. 2025 I Nr. 109, abgerufen am 14.09.2026). Nicht berücksichtigt: Ermessenszu- oder -abschläge für Vermögen und Kinder, Einigungsgebühr, streitige Folgesachen, gerichtliche Auslagen."
+    explanation="Verfahrenswert = Nettoeinkommen beider aus drei Monaten (mindestens 3.000 €), plus 10 % davon je Anrecht im Versorgungsausgleich (mindestens 1.000 €), plus 20 % je Kindschaftssache (höchstens 5.000 €). Gericht: 2,0 Gebühren. Anwalt: 2,5 Gebühren, Pauschale, Umsatzsteuer."
     faqs={faqs}
   >
     <div class="calc-form">
       <div class="calc-grid">
         <div class="calc-group">
-          <label for="vermogenv">Gesamtvermögen (€)</label>
-          <input type="number" id="vermogenv" min="0" max="10000000" value="300000" step="10000" />
+          <label for="netto">Nettoeinkommen beider Ehegatten im Monat (€)</label>
+          <input type="number" id="netto" min="0" max="1000000" value="4000" step="100" />
         </div>
         <div class="calc-group">
-          <label for="anwalt">Anzahl Anwälte</label>
+          <label for="anrechte">Anrechte im Versorgungsausgleich</label>
+          <input type="number" id="anrechte" min="0" max="20" value="2" step="1" />
+        </div>
+        <div class="calc-group">
+          <label for="kindschaft">Sorge- oder Umgangsverfahren im Verbund</label>
+          <input type="number" id="kindschaft" min="0" max="5" value="0" step="1" />
+        </div>
+        <div class="calc-group">
+          <label for="anwalt">Anwälte</label>
           <select id="anwalt">
-            <option value="1" selected>Ein Anwalt (einvernehmlich)</option>
-            <option value="2">Zwei Anwälte (strittig)</option>
-          </select>
-        </div>
-        <div class="calc-group">
-          <label for="verfahren">Verfahren</label>
-          <select id="verfahren">
-            <option value="ein" selected>Einvernehmlich</option>
-            <option value="streit">Streitig (mit Kindern)</option>
+            <option value="1" selected>Ein Anwalt</option>
+            <option value="2">Zwei Anwälte</option>
           </select>
         </div>
       </div>
 
       <div class="calc-result">
-        <div class="label">Geschätzte Gesamtkosten</div>
+        <div class="label">Gerichts- und Anwaltskosten</div>
         <div id="kosten">— €</div>
       </div>
       <div id="details" style="margin-top:0.75rem;font-size:0.88rem;color:#666;display:flex;gap:1.5rem;flex-wrap:wrap;"></div>
@@ -68,112 +127,35 @@ const faqs = [
   </CalculatorShell>
 
   <CalculatorGuide
-    title="Scheidungskosten – Transparente Gebührenberechnung"
-    content={`
-      <p>Die Kosten einer Scheidung setzen sich aus zwei Blöcken zusammen: den <strong>Gerichtskosten</strong> und den <strong>Anwaltskosten</strong>. Beide richten sich nicht nach dem Aufwand, sondern nach dem sogenannten <strong>Verfahrenswert</strong> (früher Streitwert). Je höher dieser Wert, desto höher die gesetzlich festgelegten Gebühren. Der Scheidungskosten-Rechner schätzt auf dieser Basis, mit welcher Größenordnung Sie rechnen müssen.</p>
-
-      <h4>Der Verfahrenswert – Grundlage aller Gebühren</h4>
-      <p>Das Familiengericht setzt den Verfahrenswert nach <strong>§ 43 FamGKG</strong> fest. Ausgangspunkt ist das <strong>dreifache gemeinsame monatliche Nettoeinkommen</strong> beider Ehegatten. Verfügen die Partner über nennenswertes Vermögen, wird häufig ein Anteil davon (in vielen Gerichtsbezirken 5 % oberhalb eines Freibetrags) hinzugerechnet. Kommen Folgesachen wie Versorgungsausgleich, Unterhalt oder Sorgerecht hinzu, erhöht sich der Verfahrenswert und damit die Gebühr entsprechend.</p>
-
-      <h4>Typische Gesamtkosten nach Verfahrenswert</h4>
-      <p>Die folgende Tabelle zeigt Richtwerte für 2026 (Gerichtskosten nach FamGKG, Anwaltskosten nach RVG inklusive 19 % Umsatzsteuer). Bei der einvernehmlichen Scheidung tritt nur ein Anwalt auf, bei der streitigen Scheidung beauftragt jeder Partner einen eigenen Anwalt.</p>
-      <table>
-        <thead>
-          <tr><th>Verfahrenswert</th><th>Gemeinsames Netto/Monat (Beispiel)</th><th>Gerichtskosten</th><th>Einvernehmlich (1 Anwalt)</th><th>Streitig (2 Anwälte)</th></tr>
-        </thead>
-        <tbody>
-          <tr><td>6.000 €</td><td>ca. 2.000 €</td><td>ca. 240 €</td><td>ca. 750 €</td><td>ca. 1.260 €</td></tr>
-          <tr><td>9.000 €</td><td>ca. 3.000 €</td><td>ca. 300 €</td><td>ca. 950 €</td><td>ca. 1.610 €</td></tr>
-          <tr><td>13.000 €</td><td>ca. 4.300 €</td><td>ca. 370 €</td><td>ca. 1.200 €</td><td>ca. 2.030 €</td></tr>
-          <tr><td>26.000 €</td><td>+ Vermögensanteil</td><td>ca. 520 €</td><td>ca. 1.700 €</td><td>ca. 2.870 €</td></tr>
-          <tr><td>50.000 €</td><td>+ Vermögensanteil</td><td>ca. 730 €</td><td>ca. 2.380 €</td><td>ca. 4.030 €</td></tr>
-          <tr><td>100.000 €</td><td>+ Vermögensanteil</td><td>ca. 1.010 €</td><td>ca. 3.290 €</td><td>ca. 5.560 €</td></tr>
-        </tbody>
-      </table>
-
-      <h4>Einvernehmliche versus streitige Scheidung</h4>
-      <p>Der größte Kostenfaktor ist die Frage, ob die Ehegatten sich einig sind. Bei einer <strong>einvernehmlichen Scheidung</strong> stellt nur ein Anwalt den Scheidungsantrag; der andere Partner muss lediglich zustimmen und braucht selbst keinen Anwalt. Das halbiert die Anwaltskosten nahezu. Bei einer <strong>streitigen Scheidung</strong> muss dagegen jeder Partner anwaltlich vertreten sein, und jede gerichtlich zu klärende Folgesache (Unterhalt, Zugewinn, Umgangsrecht) treibt den Verfahrenswert nach oben. Eine streitige Scheidung kostet deshalb oft das Zwei- bis Dreifache einer einvernehmlichen.</p>
-
-      <h4>Versorgungsausgleich</h4>
-      <p>Der <strong>Versorgungsausgleich</strong> teilt die während der Ehe erworbenen Rentenanwartschaften hälftig zwischen beiden Partnern auf. Er wird bei jeder Scheidung von Amts wegen durchgeführt – außer bei kurzen Ehen unter drei Jahren, wo er nur auf Antrag stattfindet. Der Versorgungsausgleich erhöht den Verfahrenswert (pro auszugleichendes Anrecht meist um 10 % des dreifachen Monatsnettos) und damit die Kosten. Ehegatten können ihn durch eine notarielle Vereinbarung ausschließen, was aber gesondert kostet.</p>
-
-      <h4>Verfahrenskostenhilfe bei geringem Einkommen</h4>
-      <p>Wer die Scheidungskosten nicht aus eigenem Einkommen und Vermögen aufbringen kann, hat Anspruch auf <strong>Verfahrenskostenhilfe (VKH)</strong> nach §§ 76 ff. FamFG in Verbindung mit §§ 114 ff. ZPO. Der Staat übernimmt dann die Gerichts- und Anwaltskosten – je nach wirtschaftlicher Lage vollständig oder gegen Ratenzahlung. Der Antrag wird zusammen mit einer Erklärung über die persönlichen und wirtschaftlichen Verhältnisse beim Familiengericht eingereicht.</p>
-
-      <h4>So senken Sie die Kosten</h4>
-      <p>Der wirksamste Spartipp: Einigen Sie sich vor dem Gerichtstermin außergerichtlich über Unterhalt, Vermögensaufteilung und Sorgerecht. Jeder Streitpunkt, den das Gericht entscheiden muss, erhöht den Verfahrenswert und damit die Gebühren. Eine einvernehmliche Scheidung mit einem gemeinsamen Anwalt ist regelmäßig die günstigste Lösung. Anwaltsgebühren selbst sind gesetzlich fixiert und nicht verhandelbar – hier lässt sich nur über den Verfahrensumfang sparen.</p>
-    `}
+    title="So werden Scheidungskosten berechnet"
+    content={guideHtml}
     relatedSlugs={['ehegattenunterhalt-rechner', 'unterhaltsrechner']}
   />
 </Layout>
 
 <script type="module">
-function berechneGerichtsgebuehr(vermogen) {
-  const staffel = [
-    { bis: 3000, gebuehr: 177 },
-    { bis: 6000, gebuehr: 237 },
-    { bis: 9000, gebuehr: 297 },
-    { bis: 13000, gebuehr: 372 },
-    { bis: 19000, gebuehr: 447 },
-    { bis: 26000, gebuehr: 522 },
-    { bis: 35000, gebuehr: 618 },
-    { bis: 50000, gebuehr: 734 },
-    { bis: 70000, gebuehr: 870 },
-    { bis: 100000, gebuehr: 1006 },
-    { bis: 150000, gebuehr: 1163 },
-    { bis: 200000, gebuehr: 1309 },
-    { bis: 500000, gebuehr: 1620 },
-    { bis: 5000000, gebuehr: 2268 },
-  ];
-  for (const s of staffel) {
-    if (vermogen <= s.bis) return s.gebuehr;
-  }
-  return 2268 + Math.ceil((vermogen - 500000) / 500000) * 227;
-}
-
-function berechneAnwaltskosten(vermogen, anzahl) {
-  const staffel = [
-    { bis: 3000, satz: 310 },
-    { bis: 6000, satz: 430 },
-    { bis: 9000, satz: 550 },
-    { bis: 13000, satz: 695 },
-    { bis: 19000, satz: 840 },
-    { bis: 26000, satz: 985 },
-    { bis: 35000, satz: 1150 },
-    { bis: 50000, satz: 1385 },
-    { bis: 70000, satz: 1645 },
-    { bis: 100000, satz: 1915 },
-    { bis: 150000, satz: 2215 },
-    { bis: 200000, satz: 2500 },
-    { bis: 500000, satz: 3100 },
-    { bis: 5000000, satz: 4300 },
-  ];
-  let satz = 500;
-  for (const s of staffel) {
-    if (vermogen <= s.bis) { satz = s.satz; break; }
-  }
-  return satz * anzahl * 1.19;
-}
-
+const { berechneScheidungskosten } = await import(window.__base + 'scripts/scheidungskosten.js');
+const eur = (n) => n.toLocaleString('de-DE', { minimumFractionDigits: 0, maximumFractionDigits: 0 }) + ' €';
+const wert = (id) => parseFloat(document.getElementById(id).value) || 0;
 function berechne() {
-  const vermogen = parseFloat(document.getElementById('vermogenv').value)||300000;
-  const anwalt = parseInt(document.getElementById('anwalt').value)||1;
-  const verfahren = document.getElementById('verfahren').value;
-  
-  const gericht = berechneGerichtsgebuehr(vermogen);
-  const anwalte = berechneAnwaltskosten(vermogen, anwalt);
-  const zuschlag = verfahren === 'streit' ? 500 : 0;
-  const gesamt = gericht + anwalte + zuschlag;
-  
-  document.getElementById('kosten').textContent = gesamt.toLocaleString('de-DE', {minimumFractionDigits:0}) + ' €';
-  document.getElementById('details').innerHTML =
-    `<span>Gerichtsgebühren: <strong>${gericht.toLocaleString('de-DE')} €</strong></span>` +
-    `<span>Anwaltskosten: <strong>${anwalte.toLocaleString('de-DE')} €</strong></span>` +
-    `<span>÷ Pro Person (bei 2 Anwälten): <strong>${(gesamt/2).toLocaleString('de-DE')} €</strong></span>`;
+  const r = berechneScheidungskosten({
+    nettoMonat: wert('netto'),
+    anrechte: wert('anrechte'),
+    kindschaftssachen: wert('kindschaft'),
+    anwaelte: parseInt(document.getElementById('anwalt').value, 10),
+  });
+  const w = r.verfahrenswert;
+  document.getElementById('kosten').textContent = eur(r.gesamt);
+  const wertTeile = [`Scheidung ${eur(w.ehesache)}`];
+  if (w.versorgungsausgleich > 0) wertTeile.push(`Versorgungsausgleich ${eur(w.versorgungsausgleich)}`);
+  if (w.kindschaft > 0) wertTeile.push(`Kindschaft ${eur(w.kindschaft)}`);
+  document.getElementById('details').innerHTML = [
+    `<span>Verfahrenswert: <strong>${eur(w.gesamt)}</strong> (${wertTeile.join(' + ')})</span>`,
+    `<span>Gericht: <strong>${eur(r.gericht)}</strong></span>`,
+    `<span>Je Anwalt: <strong>${eur(r.anwalt.brutto)}</strong></span>`,
+  ].join('');
 }
-['vermogenv'].forEach(id =>
-  document.getElementById(id).addEventListener('input', berechne));
-['anwalt','verfahren'].forEach(id =>
-  document.getElementById(id).addEventListener('change', berechne));
+['netto', 'anrechte', 'kindschaft'].forEach((id) => document.getElementById(id).addEventListener('input', berechne));
+document.getElementById('anwalt').addEventListener('change', berechne);
 berechne();
 </script>
