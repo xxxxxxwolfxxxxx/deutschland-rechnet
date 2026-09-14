@@ -3,13 +3,44 @@ import Layout from '../../layouts/Layout.astro';
 import CalculatorShell from '../../components/CalculatorShell.astro';
 import CalculatorGuide from '../../components/CalculatorGuide.astro';
 import { CALCULATORS, CATEGORIES } from '../../data/calculators';
+import { berechneAbfindung, steuerAufAbfindung, MONATSVERDIENSTE_JE_JAHR } from '../../../public/scripts/abfindung.js';
 const calc = CALCULATORS.find(c => c.slug === 'abfindungsrechner')!;
 const cat = CATEGORIES[calc.category];
 const year = new Date().getFullYear();
+
+// Alle Zahlen dieser Seite kommen aus demselben Modul, das der Rechner laedt.
+const eur = (n: number) => n.toLocaleString('de-DE', { maximumFractionDigits: 0 }) + ' €';
+const satz = MONATSVERDIENSTE_JE_JAHR.toLocaleString('de-DE');
+
+const bsp = berechneAbfindung({ bruttoMonat: 3500, jahre: 7, monate: 8 });
+const bspKnapp = berechneAbfindung({ bruttoMonat: 3500, jahre: 7, monate: 6 });
+if (bsp.jahre !== 8 || bspKnapp.jahre !== 7) throw new Error('Abfindung: Aufrundung stimmt nicht');
+const steuer = steuerAufAbfindung({ zvEOhne: 40000, abfindung: bsp.abfindung });
+if (!(steuer.ersparnis > 0)) throw new Error('Abfindung: Fünftelregelung ohne Wirkung im Beispiel');
+
+const guideHtml = `
+<h3>Wann es einen Anspruch gibt</h3>
+<p>Einen allgemeinen gesetzlichen Anspruch auf eine Abfindung gibt es nicht. § 1a KSchG regelt einen Sonderfall: Kündigt der Arbeitgeber wegen dringender betrieblicher Erfordernisse, weist er in der Kündigung darauf hin, dass die Kündigung darauf gestützt ist und der Arbeitnehmer bei Verstreichenlassen der Klagefrist die Abfindung beanspruchen kann, und erhebt der Arbeitnehmer bis zum Ablauf der Frist des § 4 Satz 1 KSchG keine Kündigungsschutzklage, dann besteht der Anspruch. In allen anderen Fällen – Aufhebungsvertrag, Vergleich vor dem Arbeitsgericht, Sozialplan – ist die Höhe Verhandlungssache; die Formel des § 1a dient dann oft als Vergleichswert.</p>
+
+<h3>Wie die Höhe berechnet wird</h3>
+<p>Nach § 1a Abs. 2 KSchG beträgt die Abfindung ${satz} Monatsverdienste für jedes Jahr des Arbeitsverhältnisses. Als Monatsverdienst gilt nach § 10 Abs. 3 KSchG, was dem Arbeitnehmer bei regelmäßiger Arbeitszeit im Monat der Beendigung an Geld und Sachbezügen zusteht. Ein Zeitraum von mehr als sechs Monaten wird auf ein volles Jahr aufgerundet.</p>
+<p><strong>Beispiel:</strong> ${eur(3500)} Monatsverdienst, sieben Jahre und acht Monate. Die acht Monate zählen als volles Jahr, also ${bsp.jahre} Jahre × ${satz} × ${eur(3500)} = ${eur(bsp.abfindung)}. Bei sieben Jahren und genau sechs Monaten blieben es ${bspKnapp.jahre} Jahre und ${eur(bspKnapp.abfindung)}.</p>
+
+<h3>Steuer: die Fünftelregelung</h3>
+<p>Eine Abfindung ist steuerpflichtig. Als Entschädigung im Sinne des § 24 Nr. 1 EStG gehört sie aber zu den außerordentlichen Einkünften (§ 34 Abs. 2 Nr. 2 EStG), für die § 34 Abs. 1 die Progression mildert: Die Steuer beträgt das Fünffache des Unterschieds zwischen der Steuer auf das übrige Einkommen und der Steuer auf das übrige Einkommen zuzüglich eines Fünftels der Abfindung.</p>
+<p>Bei ${eur(40000)} zu versteuerndem Einkommen ohne die Abfindung kosten die ${eur(bsp.abfindung)} regulär ${eur(steuer.ohneFuenftelregelung)} Einkommensteuer, mit Fünftelregelung ${eur(steuer.mitFuenftelregelung)} – ${eur(steuer.ersparnis)} weniger. Wer ohnehin im Spitzensteuersatz liegt, spart dagegen kaum etwas. Solidaritätszuschlag und Kirchensteuer sind nicht eingerechnet.</p>
+`;
+
+const faqs = [
+  { q: 'Habe ich einen gesetzlichen Anspruch auf eine Abfindung?', a: 'Nur im Fall des § 1a KSchG: betriebsbedingte Kündigung mit Hinweis auf die Abfindung in der Kündigungserklärung und keine Kündigungsschutzklage innerhalb der Klagefrist. Sonst ist die Abfindung Verhandlungssache.' },
+  { q: 'Wie hoch ist die Abfindung nach § 1a KSchG?', a: `${satz} Monatsverdienste je Jahr des Arbeitsverhältnisses; ein Zeitraum von mehr als sechs Monaten wird auf ein volles Jahr aufgerundet (§ 1a Abs. 2 KSchG).` },
+  { q: 'Ist die Abfindung steuerfrei?', a: `Nein. Als Entschädigung kann sie aber nach der Fünftelregelung des § 34 Abs. 1 EStG ermäßigt besteuert werden. Im Beispiel dieser Seite spart das ${eur(steuer.ersparnis)}.` },
+  { q: 'Bekomme ich Arbeitslosengeld, wenn ich eine Abfindung erhalte?', a: 'Die Abfindung selbst geht nicht in das Bemessungsentgelt ein (§ 151 Abs. 2 Nr. 1 SGB III). Der Anspruch kann aber ruhen – nach § 158 SGB III, wenn das Arbeitsverhältnis ohne Einhaltung der Kündigungsfrist endet, und nach § 159 SGB III bei einer Sperrzeit.' },
+];
 ---
 <Layout
   title={`Abfindungsrechner ${year}`}
-  description="Abfindung bei Kündigung kostenlos berechnen nach § 1a KSchG. Orientierungswert: 0,5 Monatsgehälter je Beschäftigungsjahr."
+  description="Abfindung nach § 1a KSchG mit Aufrundung angefangener Jahre berechnen – und die Einkommensteuer mit und ohne Fünftelregelung."
   canonicalPath="/geld/abfindungsrechner/"
   categoryColor={cat.color}
   categoryLight={cat.colorLight}
@@ -17,72 +48,72 @@ const year = new Date().getFullYear();
 >
   <div class="page-header">
     <a href={`${import.meta.env.BASE_URL}geld/`} class="back-link">← Geld &amp; Gehalt</a>
-    <h1>Abfindungsrechner {year} – Orientierungswert berechnen</h1>
+    <h1>Abfindungsrechner {year}</h1>
   </div>
   <CalculatorShell
     calculator={calc}
-    intro="Mit dem Abfindungsrechner berechnen Sie die voraussichtliche Abfindung bei einer Kündigung. Erfahren Sie, welcher Betrag Ihnen nach der Faustformel zusteht und wie sich Betriebszugehörigkeit und Gehalt auf die Höhe auswirken."
-    sourceNote="Verhandlungssache."
-    explanation="Faustformel: 0,5 Monatsgehälter pro Beschäftigungsjahr (§ 1a KSchG). Es besteht kein gesetzlicher Anspruch – die Höhe ist Verhandlungssache. Die Fünftelregelung (§ 34 EStG) kann die Steuerlast auf die Abfindung mildern."
-    faqs={[
-      { q: "Gibt es einen gesetzlichen Anspruch auf Abfindung?", a: "Nein. Abfindung ist grundsätzlich Verhandlungssache (§1 KSchG). Ausnahme: Sozialplan bei Betriebsschließung oder Interessenausgleich bei Betriebsänderung gemäß § 1a KSchG. Der Orientierungswert: 0,5 Monatsgehälter pro Betriebszugehörigkeitsjahr." },
-      { q: "Wie wird die Betriebszugehörigkeit berechnet?", a: "Die gesamte Zeit vom ersten bis zum letzten Arbeitstag wird gezählt. Pausen (z.B. Elternzeit) zählen mit, Unterbrechungen durch Krankheit nicht. Beginnt mit dem ersten Arbeitstag im Unternehmen." },
-      { q: "Ist die Abfindung steuerfrei?", a: "Nicht automatisch. Abfindungen sind Einkünfte aus nichtselbstständiger Arbeit und unterliegen der Einkommensteuer. Es gibt aber die Fünftelregelung (§34 Abs. 1 EStG), die die Progression mildert – die Abfindung auf 5 Jahre verteilt besteuern." },
-      { q: "Werden Sozialversicherungsbeiträge auf die Abfindung fällig?", a: "Nein. Abfindungen sind beitragsfrei für Renten-, Arbeitslosenversicherung und Pflegeversicherung (§3 SGB IV). Nur für die Krankenversicherung können Beiträge anfallen, wenn der Versicherte nicht mehr in der Regelversicherung ist." },
-      { q: "Kann ich mit der Abfindung verhandeln?", a: "Ja! Der Orientierungswert (0,5 Monatsgehälter/Jahr) ist nur eine Richtlinie. Bei Betriebsräten, längerer Betriebszugehörigkeit oder älteren Arbeitnehmern sind oft höhere Abfindungen marktüblich. Ein Arbeitsrechtler kann helfen." },
-      { q: "Bekomme ich Arbeitslosengeld, wenn ich eine Abfindung erhalte?", a: "Die Abfindung mindert das Arbeitslosengeld nicht: Entgelte, die wegen der Beendigung des Arbeitsverhältnisses gezahlt werden, bleiben beim Bemessungsentgelt nach § 151 Abs. 2 Nr. 1 SGB III außer Betracht. Der Anspruch kann aber ruhen – nach § 158 SGB III, wenn die Abfindung bei vorzeitiger Beendigung ohne Einhaltung der Kündigungsfrist gezahlt wird, und nach § 159 SGB III bei einer Sperrzeit, etwa wenn Sie das Arbeitsverhältnis selbst gelöst haben. Beim Grundsicherungsgeld nach dem SGB II zählt eine Abfindung dagegen als Vermögen." }
-    ]}
+    intro="Der Rechner ermittelt die Abfindung nach der Formel des § 1a KSchG und zeigt, wie viel Einkommensteuer sie mit und ohne Fünftelregelung kostet."
+    sourceNote="§ 1a Abs. 1 und 2 KSchG, Monatsverdienst nach § 10 Abs. 3 KSchG, Fünftelregelung nach § 34 Abs. 1 und 2 Nr. 2 EStG, Tarif nach § 32a EStG (abgerufen am 14.09.2026). Ohne Solidaritätszuschlag und Kirchensteuer. Außerhalb des § 1a ist die Höhe Verhandlungssache."
+    explanation="Abfindung = 0,5 × Monatsverdienst × Jahre, wobei mehr als sechs Monate als volles Jahr zählen. Steuer mit Fünftelregelung = 5 × (Steuer auf Einkommen + Abfindung ÷ 5 − Steuer auf Einkommen)."
+    faqs={faqs}
   >
     <div class="calc-form">
       <div class="calc-grid">
         <div class="calc-group">
-          <label for="gehalt">Bruttomonatsgehalt (€)</label>
+          <label for="gehalt">Monatsverdienst brutto (€)</label>
           <input type="number" id="gehalt" min="0" max="100000" value="3500" step="100" />
         </div>
         <div class="calc-group">
-          <label for="jahre">Betriebszugehörigkeit (Jahre)</label>
-          <input type="number" id="jahre" min="1" max="50" value="5" step="1" />
+          <label for="jahre">Dauer: volle Jahre</label>
+          <input type="number" id="jahre" min="0" max="50" value="7" step="1" />
+        </div>
+        <div class="calc-group">
+          <label for="monate">Dauer: zusätzliche Monate</label>
+          <input type="number" id="monate" min="0" max="11" value="8" step="1" />
+        </div>
+        <div class="calc-group">
+          <label for="zve">Zu versteuerndes Einkommen im Jahr ohne Abfindung (€)</label>
+          <input type="number" id="zve" min="0" max="10000000" value="40000" step="1000" />
+        </div>
+        <div class="calc-group">
+          <label for="veranlagung">Veranlagung</label>
+          <select id="veranlagung">
+            <option value="einzel" selected>Einzelveranlagung</option>
+            <option value="zusammen">Zusammenveranlagung</option>
+          </select>
         </div>
       </div>
       <div class="calc-result">
-        <div class="label">Abfindung (Orientierungswert)</div>
+        <div class="label">Abfindung nach § 1a KSchG</div>
         <div id="abfindung">— €</div>
       </div>
-      <p id="info" style="margin-top:0.5rem;font-size:0.85rem;color:#666;"></p>
+      <div id="details" style="margin-top:0.75rem;font-size:0.88rem;color:#666;display:flex;gap:1.5rem;flex-wrap:wrap;"></div>
     </div>
   </CalculatorShell>
 
   <CalculatorGuide
-    title="So funktioniert die Abfindung bei Kündigung"
-    content={`<p><strong>Eine Abfindung</strong> ist eine einmalige Geldzahlung, die ein Arbeitgeber bei Beendigung des Arbeitsverhältnisses leisten kann. Sie soll den Arbeitnehmer für den Verlust des Arbeitsplatzes und die daraus resultierende wirtschaftliche Belastung entschädigen.</p>
-
-<p><strong>Der Orientierungswert nach § 1a KSchG:</strong> Die häufigste Faustformel lautet <strong>0,5 Monatsgehälter je Jahr der Betriebszugehörigkeit</strong>. Bei 10 Jahren und 3.000€ Bruttomonatsgehalt wären das also 15.000€. Wichtig: Dies ist kein Anspruch, sondern ein Orientierungswert für Verhandlungen.</p>
-
-<p><strong>Wann gibt es einen rechtlichen Anspruch?</strong> Ein gesetzlicher Anspruch entsteht nur in speziellen Fällen:
-<ul>
-  <li><strong>Betriebsschließung:</strong> Nach § 1a KSchG bei Kündigung wegen Betriebsschließung</li>
-  <li><strong>Betriebsänderung:</strong> Nach § 112 BetrVG im Interessenausgleich</li>
-  <li><strong>Sozialplan:</strong> Bei Arbeitgeber mit Betriebsrat ist oft ein Sozialplan Pflicht</li>
-</ul>
-</p>
-
-<p><strong>Fünftelregelung (wichtig für die Steuer!):</strong> Um progressive Besteuerung zu vermeiden, können Abfindungen mit der Fünftelregelung (§34 EStG) besteuert werden – die Abfindung wird so berücksichtigt, als würde sie gleichmäßig auf 5 Jahre verteilt. Dies reduziert oft die Steuerlast erheblich.</p>
-
-<p><strong>Verhandlungstipps:</strong> Die Abfindung ist fast immer Verhandlungssache. Faktoren, die höhere Abfindungen rechtfertigen: lange Betriebszugehörigkeit (ab 15+ Jahren), fortgeschrittenes Alter (ab 50+), schwierige Reintegration auf dem Arbeitsmarkt, betriebliche Gründe (Rationalisierung statt Verschulden des AN).</p>`}
+    title="So wird die Abfindung berechnet"
+    content={guideHtml}
     relatedSlugs={['brutto-netto-rechner', 'kuendigungsfrist-rechner', 'arbeitslosengeld-rechner']}
   />
 </Layout>
 
 <script type="module">
-const { berechneAbfindung } = await import(window.__base + 'scripts/abfindung.js');
-function fmt(n) { return n.toLocaleString('de-DE', {minimumFractionDigits:2, maximumFractionDigits:2}) + ' €'; }
+const { berechneAbfindung, steuerAufAbfindung } = await import(window.__base + 'scripts/abfindung.js');
+const eur = (n) => n.toLocaleString('de-DE', { minimumFractionDigits: 0, maximumFractionDigits: 0 }) + ' €';
+const wert = (id) => parseFloat(document.getElementById(id).value) || 0;
 function berechne() {
-  const gehalt = parseFloat(document.getElementById('gehalt').value)||0;
-  const jahre = parseFloat(document.getElementById('jahre').value)||1;
-  const r = berechneAbfindung({ bruttoMonat: gehalt, dienstjahre: jahre });
-  document.getElementById('abfindung').textContent = fmt(r.abfindung);
-  document.getElementById('info').textContent = `${r.monatsgehaelter} Monatsgehälter (${jahre} Jahre × 0,5)`;
+  const r = berechneAbfindung({ bruttoMonat: wert('gehalt'), jahre: wert('jahre'), monate: wert('monate') });
+  const s = steuerAufAbfindung({ zvEOhne: wert('zve'), abfindung: r.abfindung, zusammen: document.getElementById('veranlagung').value === 'zusammen' });
+  document.getElementById('abfindung').textContent = eur(r.abfindung);
+  document.getElementById('details').innerHTML = [
+    `<span>Angerechnete Jahre: <strong>${r.jahre}</strong> (${r.monatsgehaelter.toLocaleString('de-DE')} Monatsverdienste)</span>`,
+    `<span>Einkommensteuer regulär: <strong>${eur(s.ohneFuenftelregelung)}</strong></span>`,
+    `<span>mit Fünftelregelung: <strong>${eur(s.mitFuenftelregelung)}</strong></span>`,
+    `<span>Ersparnis: <strong>${eur(s.ersparnis)}</strong></span>`,
+  ].join('');
 }
-['gehalt','jahre'].forEach(id => document.getElementById(id).addEventListener('input', berechne));
+['gehalt', 'jahre', 'monate', 'zve'].forEach((id) => document.getElementById(id).addEventListener('input', berechne));
+document.getElementById('veranlagung').addEventListener('change', berechne);
 berechne();
 </script>

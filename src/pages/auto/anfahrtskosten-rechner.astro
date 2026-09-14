@@ -3,13 +3,39 @@ import Layout from '../../layouts/Layout.astro';
 import CalculatorShell from '../../components/CalculatorShell.astro';
 import CalculatorGuide from '../../components/CalculatorGuide.astro';
 import { CALCULATORS, CATEGORIES } from '../../data/calculators';
+import { berechneAnfahrtskosten, PAUSCHALE_PRO_KM } from '../../../public/scripts/anfahrtskosten.js';
 const calc = CALCULATORS.find(c => c.slug === 'anfahrtskosten-rechner')!;
 const cat = CATEGORIES[calc.category];
 const year = new Date().getFullYear();
+
+// Alle Zahlen dieser Seite kommen aus demselben Modul, das der Rechner laedt.
+const eur = (n: number) => n.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
+const pauschale = PAUSCHALE_PRO_KM.toLocaleString('de-DE', { minimumFractionDigits: 2 }) + ' €';
+
+const bsp = berechneAnfahrtskosten({ km: 150, verbrauch: 7, spritpreis: 1.7, fahrten: 1 });
+if (bsp.gesamtKm !== 300 || bsp.spritkosten !== 35.7) throw new Error('Anfahrtskosten: Beispiel stimmt nicht');
+
+const guideHtml = `
+<h3>Was die Fahrt kostet</h3>
+<p>Der Rechner multipliziert die gefahrenen Kilometer – einfache Entfernung mal zwei mal Zahl der Hin- und Rückfahrten – mit Ihrem Verbrauch und dem Spritpreis. Den Verbrauch kennen Sie am genauesten aus dem Bordcomputer oder aus Tankbelegen: getankte Liter geteilt durch gefahrene Kilometer, mal 100. Bei einem gemieteten Transporter hilft die Angabe des Vermieters.</p>
+<p><strong>Beispiel:</strong> 150 km einfache Entfernung, eine Hin- und Rückfahrt, 7 l/100 km, 1,70 € je Liter: ${bsp.gesamtKm} km, ${bsp.liter.toLocaleString('de-DE')} Liter, ${eur(bsp.spritkosten)}.</p>
+<p>Nicht enthalten sind Maut, Parkgebühren, Fähren und der Verschleiß des Fahrzeugs. Wer die Vollkosten je Kilometer braucht, rechnet mit dem Kilometerkosten-Rechner.</p>
+
+<h3>Die Kilometerpauschale</h3>
+<p>Für beruflich veranlasste Fahrten außerhalb des Wegs zur ersten Tätigkeitsstätte – Dienstreisen, Kundenbesuche, Einsätze an wechselnden Orten – können Arbeitnehmer statt der tatsächlichen Kosten einen pauschalen Kilometersatz als Werbungskosten ansetzen. § 9 Abs. 1 Satz 3 Nr. 4a Satz 2 EStG verweist dafür auf die höchste Wegstreckenentschädigung nach dem Bundesreisekostengesetz; für Kraftfahrzeuge sind das ${pauschale} je gefahrenem Kilometer (§ 5 Abs. 2 BRKG). Im Beispiel wären das ${eur(bsp.pauschale)}.</p>
+<p>Die Pauschale ist kein zusätzlicher Aufwand, sondern der Betrag, den das Finanzamt für dieselbe Fahrt anerkennt – deshalb addiert der Rechner sie nicht zu den Spritkosten. Für den Weg zwischen Wohnung und erster Tätigkeitsstätte gilt stattdessen die Entfernungspauschale, siehe Fahrtkosten-Rechner. Private Fahrten, etwa ein privater Umzug, sind so nicht absetzbar.</p>
+`;
+
+const faqs = [
+  { q: 'Wie berechne ich meinen Verbrauch?', a: 'Getankte Liter geteilt durch die seit dem letzten Volltanken gefahrenen Kilometer, mal 100. Der Bordcomputer zeigt meist einen ähnlichen Wert.' },
+  { q: 'Zählt der Rechner Hin- und Rückfahrt?', a: 'Ja. Jede Fahrt im Feld „Hin- und Rückfahrten" zählt die einfache Entfernung doppelt.' },
+  { q: 'Welche Kilometerpauschale darf ich ansetzen?', a: `Bei beruflichen Auswärtstätigkeiten ${pauschale} je gefahrenem Kilometer mit dem Pkw (§ 9 Abs. 1 Satz 3 Nr. 4a Satz 2 EStG i. V. m. § 5 Abs. 2 BRKG). Für den Arbeitsweg gilt die Entfernungspauschale.` },
+  { q: 'Welche Kosten fehlen in der Rechnung?', a: 'Maut, Parken, Fähren und der Verschleiß des Fahrzeugs. Addieren Sie diese bei Bedarf selbst.' },
+];
 ---
 <Layout
   title={`Anfahrtskosten-Rechner ${year}`}
-  description="Anfahrtskosten für Umzug, Lieferung oder größere Anschaffungen berechnen."
+  description="Spritkosten für Hin- und Rückfahrten aus Entfernung, eigenem Verbrauch und Spritpreis berechnen – mit der Kilometerpauschale für Dienstreisen."
   canonicalPath="/auto/anfahrtskosten-rechner/"
   categoryColor={cat.color}
   categoryLight={cat.colorLight}
@@ -21,62 +47,32 @@ const year = new Date().getFullYear();
   </div>
   <CalculatorShell
     calculator={calc}
-    intro="Mit dem Anfahrtskosten-Rechner berechnen Sie die Kosten für die Anreise zum Umzugsort."
-    sourceNote="Kraftstoff + Maut + Parken."
-    faqs={[
-      {
-        q: "Wie wird der Spritverbrauch berechnet?",
-        a: "Der Rechner orientiert sich an Standardverbräuchen für verschiedene Fahrzeugklassen. Ein Kleinwagen verbraucht etwa 6 Liter pro 100 km, während ein Transporter 12 Liter pro 100 km benötigt. Aktuelle Spritpreise beeinflussen das Endergebnis direkt."
-      },
-      {
-        q: "Sollte ich Hin- und Rückfahrt einberechnen?",
-        a: "Ja, die meisten Umzüge erfordern mindestens eine Hin- und Rückfahrt. Wenn Sie mehrmals fahren müssen oder mit verschiedenen Fahrzeugen unterwegs sind, addieren Sie die Fahrten einfach hinzu."
-      },
-      {
-        q: "Ist die Kilometerpauschale steuerlich absetzbar?",
-        a: "Bei einer Auswärtstätigkeit – Dienstreise, Kundenbesuch, Montageeinsatz – können Sie 0,30 € je tatsächlich gefahrenem Kilometer als Werbungskosten ansetzen (§ 9 Abs. 1 Satz 3 Nr. 4a EStG). Nicht zu verwechseln mit der Entfernungspauschale für den Weg zur ersten Tätigkeitsstätte: die beträgt seit 2026 einheitlich 0,38 € und zählt nur die einfache Entfernung. Bei privaten Umzügen gelten Besonderheiten nach dem Bundesumzugskostengesetz – fragen Sie im Zweifel einen Steuerberater."
-      },
-      {
-        q: "Wie genau sollte ich den Spritpreis eingeben?",
-        a: "Nutzen Sie den aktuellen Durchschnittspreis an deutschen Tankstellen. Sie finden aktuelle Preise auf Seiten wie Aral, Shell oder mithilfe des ADAC-Spritpreismonitors. Der Preis variiert regional und täglich."
-      },
-      {
-        q: "Welche Kosten sind in dieser Berechnung NICHT enthalten?",
-        a: "Der Rechner berücksichtigt nur Spritkosten und die km-Pauschale. Mautgebühren, Parkplatzkosten, Fähren oder Pannenkosten sind nicht inbegriffen – diese sollten Sie separat addieren, falls relevant."
-      },
-      {
-        q: "Kann ich den Rechner für Geschäftsfahrten nutzen?",
-        a: "Ja, absolut. Der Rechner funktioniert für alle Fahrttypen: Umzüge, Geschäftsfahrten, Kundenbesuche und private Reisen. Die Kategorisierung nach Fahrzeugtyp ermöglicht präzise Kostenkalkulationen für verschiedenste Szenarien."
-      }
-    ]}
+    intro="Der Rechner zeigt, was Hin- und Rückfahrten an Sprit kosten – für einen Umzug, eine Abholung oder eine Dienstreise – und welche Kilometerpauschale bei einer beruflichen Auswärtstätigkeit angesetzt werden kann."
+    sourceNote={`Spritkosten = gefahrene km ÷ 100 × Verbrauch × Preis, alle Werte Ihre Eingaben. Kilometerpauschale ${pauschale} je gefahrenem km nach § 9 Abs. 1 Satz 3 Nr. 4a Satz 2 EStG i. V. m. § 5 Abs. 2 BRKG (abgerufen am 14.09.2026). Ohne Maut, Parken und Verschleiß.`}
+    explanation="Gefahrene Kilometer = einfache Entfernung × 2 × Anzahl der Hin- und Rückfahrten. Die Kilometerpauschale steht neben den Spritkosten und wird nicht addiert."
+    faqs={faqs}
   >
     <div class="calc-form">
       <div class="calc-grid">
         <div class="calc-group">
           <label for="km">Einfache Entfernung (km)</label>
-          <input type="number" id="km" min="1" max="2000" value="50" step="1" />
+          <input type="number" id="km" min="0" max="5000" value="150" step="10" />
         </div>
         <div class="calc-group">
-          <label for="fahrzeug">Fahrzeugtyp</label>
-          <select id="fahrzeug">
-            <option value="small">Kleinwagen (ca. 6l/100km)</option>
-            <option value="compact" selected>Kompaktklasse (ca. 7l/100km)</option>
-            <option value="large">Kombi/SUV (ca. 9l/100km)</option>
-            <option value="van">Transporter (ca. 12l/100km)</option>
-          </select>
+          <label for="verbrauch">Verbrauch (l/100 km)</label>
+          <input type="number" id="verbrauch" min="0" max="50" value="7" step="0.1" />
         </div>
         <div class="calc-group">
           <label for="spritpreis">Spritpreis (€/Liter)</label>
-          <input type="number" id="spritpreis" min="1" max="3" value="1.70" step="0.01" />
+          <input type="number" id="spritpreis" min="0" max="5" value="1.70" step="0.01" />
         </div>
         <div class="calc-group">
           <label for="fahrten">Anzahl Hin- und Rückfahrten</label>
-          <input type="number" id="fahrten" min="1" max="100" value="1" step="1" />
+          <input type="number" id="fahrten" min="0" max="100" value="1" step="1" />
         </div>
       </div>
-
       <div class="calc-result">
-        <div class="label">Gesamtkosten (Hin + Rück)</div>
+        <div class="label">Spritkosten</div>
         <div id="kosten">— €</div>
       </div>
       <div id="details" style="margin-top:0.75rem;font-size:0.88rem;color:#666;display:flex;gap:1.5rem;flex-wrap:wrap;"></div>
@@ -85,43 +81,24 @@ const year = new Date().getFullYear();
 
   <CalculatorGuide
     title="Anfahrtskosten richtig berechnen"
-    content="
-    <p>Anfahrtskosten entstehen bei vielen Gelegenheiten: beim Umzug in eine neue Stadt, bei Geschäftsreisen oder Kundenbesuchen. Eine genaue Kalkulation hilft, versteckte Kosten zu erkennen und Budgets realistisch zu planen.</p>
-
-    <p><strong>Die Grundkomponenten:</strong> Die Hauptkosten setzen sich aus dem Kraftstoffverbrauch, der Fahrtentfernung und aktuellen Spritpreisen zusammen. Hinzu kommt die steuerlich anerkannte km-Pauschale von 0,30 € pro Kilometer, die besonders bei Geschäftsfahrten relevant ist. Diese kann häufig vom Finanzamt anerkannt werden.</p>
-
-    <p><strong>Fahrzeugwahl beeinflusst massiv:</strong> Ein Kleinwagen verbraucht etwa 6 Liter pro 100 km, während ein Transporter schnell 12-14 Liter benötigt. Wer also einen großen Umzugstransporter mietet, sollte mit deutlich höheren Spritkosten rechnen. Moderne Fahrzeuge mit Hybrid- oder Elektroantrieb können Kosten senken.</p>
-
-    <p><strong>Regionale Spritpreisunterschiede:</strong> Tanken Sie an günstigen Orten – an Autobahnen sind die Preise oft 10-15% höher. Nutzen Sie Spritpreisportale, um die günstigsten Tankstellen entlang Ihrer Route zu finden.</p>
-
-    <p><strong>Beispielrechnung:</strong> Eine 300-km-Fahrt mit einem Kompaktklasse-Fahrzeug (7l/100km) bei 1,70 € pro Liter kostet etwa 35,70 € für Sprit. Mit der Fahrten-Multiplikation und der km-Pauschale ergibt sich eine realistisches Gesamtbudget.</p>
-
-    <p><strong>Steuern sparen:</strong> Dokumentieren Sie Ihre Fahrten – bei Geschäftsfahrten können Sie die km-Pauschale von der Steuer absetzen. Führen Sie ein Fahrtenbuch oder nutzen Sie digitale Apps zur Dokumentation.</p>
-
-    <p><strong>Tipp für Umzüge:</strong> Vergleichen Sie die Kosten für die Eigenfahrt mit professionellen Umzugsanbietern. Manchmal lohnt sich ein Umzugsunternehmen, besonders bei langen Strecken oder großem Volumen, weil Sie Zeit und Aufwand sparen.</p>
-    "
-    relatedSlugs={['spritkosten-rechner', 'fahrtkosten-rechner', 'kfz-versicherung-rechner']}
+    content={guideHtml}
+    relatedSlugs={['spritkosten-rechner', 'fahrtkosten-rechner', 'km-kostenrechner']}
   />
 </Layout>
 
 <script type="module">
 const { berechneAnfahrtskosten } = await import(window.__base + 'scripts/anfahrtskosten.js');
-function fmt(n) { return n.toLocaleString('de-DE', {minimumFractionDigits:2, maximumFractionDigits:2}) + ' €'; }
+const eur = (n) => n.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
+const wert = (id) => parseFloat(document.getElementById(id).value) || 0;
 function berechne() {
-  const km = parseFloat(document.getElementById('km').value)||50;
-  const fahrzeug = document.getElementById('fahrzeug').value;
-  const spritpreis = parseFloat(document.getElementById('spritpreis').value)||1.70;
-  const fahrten = parseInt(document.getElementById('fahrten').value)||1;
-  const r = berechneAnfahrtskosten({ km, fahrzeug, spritpreis, fahrten });
-  document.getElementById('kosten').textContent = fmt(r.gesamtkosten);
-  document.getElementById('details').innerHTML =
-    `<span>Verbrauch: <strong>${r.verbrauch} l/100km</strong></span>` +
-    `<span>gefahrene km: <strong>${r.gesamtKm} km</strong></span>` +
-    `<span>Spritkosten: <strong>${fmt(r.spritkosten)}</strong></span>` +
-    `<span>Kilometerpauschale (§ 9 Abs. 1 S. 3 Nr. 4a EStG): <strong>${fmt(r.pauschale)}</strong></span>`;
+  const r = berechneAnfahrtskosten({ km: wert('km'), verbrauch: wert('verbrauch'), spritpreis: wert('spritpreis'), fahrten: wert('fahrten') });
+  document.getElementById('kosten').textContent = eur(r.spritkosten);
+  document.getElementById('details').innerHTML = [
+    `<span>Gefahrene km: <strong>${r.gesamtKm.toLocaleString('de-DE')} km</strong></span>`,
+    `<span>Liter: <strong>${r.liter.toLocaleString('de-DE')}</strong></span>`,
+    `<span>Kilometerpauschale bei Dienstreise: <strong>${eur(r.pauschale)}</strong></span>`,
+  ].join('');
 }
-['km','spritpreis','fahrten'].forEach(id =>
-  document.getElementById(id).addEventListener('input', berechne));
-document.getElementById('fahrzeug').addEventListener('change', berechne);
+['km', 'verbrauch', 'spritpreis', 'fahrten'].forEach((id) => document.getElementById(id).addEventListener('input', berechne));
 berechne();
 </script>

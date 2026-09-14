@@ -22,7 +22,7 @@ const year = new Date().getFullYear();
   <CalculatorShell
     calculator={calc}
     intro="Mit dem Idealgewicht-Rechner berechnen Sie Ihr Idealgewicht nach verschiedenen Methoden. Vergleichen Sie die Ergebnisse von Broca-Index und BMI-Methode, um einen realistischen Zielbereich für Ihr Körpergewicht zu ermitteln. So erkennen Sie, welche Gewichtsspanne für Ihre Größe, Ihr Alter und Geschlecht als gesund gilt."
-    sourceNote="Broca-Index und BMI."
+    sourceNote="Broca: Normalgewicht = Körpergröße in cm minus 100, Idealgewicht 10 % (Männer) bzw. 15 % (Frauen) darunter. BMI-Bereich 18,5 bis 24,9 nach der WHO-Klassifikation für Erwachsene. Beide sind grobe Orientierungswerte ohne Berücksichtigung von Muskelmasse oder Körperbau."
     explanation="Der Broca-Index (Größe in cm minus 100) ist eine der ältesten Faustformeln zur Gewichtseinschätzung, während der BMI-basierte Idealbereich (18,5-24,9) den aktuellen WHO-Standard darstellt. Medizinisch betrachtet gibt es kein einzelnes Idealgewicht, sondern einen gesunden Gewichtsbereich, der von Körperzusammensetzung, Muskelmasse und individueller Konstitution abhängt. Moderne Ernährungsmedizin empfiehlt daher, das Idealgewicht als Orientierung zu nutzen und nicht als starre Zielvorgabe."
     faqs={[
       {
@@ -39,7 +39,7 @@ const year = new Date().getFullYear();
       },
       {
         q: "Warum ändert sich das Idealgewicht mit dem Alter?",
-        a: "Mit zunehmendem Alter wird leicht mehr Körperfett als normal und gesund angesehen, während Muskelmasse sinkt. Der Rechner berücksichtigt dies durch eine Alterskorrektur."
+        a: "Die Körperzusammensetzung ändert sich mit dem Alter, etwa durch abnehmende Muskelmasse. Broca-Formel und BMI-Bereich berücksichtigen das Alter nicht; der Rechner nimmt deshalb keine Alterskorrektur vor. Frühere Fassungen rechneten mit einem Alterszuschlag ohne Quelle."
       },
       {
         q: "Sollte ich auf mein Idealgewicht trainieren?",
@@ -64,10 +64,6 @@ const year = new Date().getFullYear();
             <option value="w">Weiblich</option>
           </select>
         </div>
-        <div class="calc-group">
-          <label for="alter">Alter (Jahre)</label>
-          <input type="number" id="alter" min="18" max="100" value="35" step="1" />
-        </div>
       </div>
 
       <div class="calc-result">
@@ -83,7 +79,7 @@ const year = new Date().getFullYear();
 
 **Broca-Index:** Diese klassische Formel (Körpergröße minus 100) ist schnell, wurde aber vor über 100 Jahren entwickelt und berücksichtigt moderne körperliche Aktivität und Ernährung nicht optimal. Sie eignet sich gut als grobe Orientierung, besonders für Population-Level-Analysen.
 
-**BMI-Bereich:** Der Body-Mass-Index (18,5-24,9) ist statistisch aussagekräftiger und wird weltweit als Standard verwendet. Ein kritischer Punkt: BMI misst Gewicht pro Körperoberfläche, unterscheidet aber nicht zwischen Fett und Muskelmasse. Ein Sportler mit hohem Muskelanteil kann einen hohen BMI haben, obwohl sein Körperfettanteil niedrig ist.
+**BMI-Bereich:** Der Body-Mass-Index (18,5-24,9) ist statistisch aussagekräftiger und wird weltweit als Standard verwendet. Ein kritischer Punkt: BMI setzt das Gewicht ins Verhältnis zum Quadrat der Körpergröße, unterscheidet aber nicht zwischen Fett und Muskelmasse. Ein Sportler mit hohem Muskelanteil kann einen hohen BMI haben, obwohl sein Körperfettanteil niedrig ist.
 
 **Praktische Implikation:** Konzentrieren Sie sich weniger auf die Zahl auf der Waage und mehr auf greifbare Indikatoren wie Energie-Level, Fitnessstatus, wie Ihre Kleidung sitzt und wie Sie sich fühlen. Ein Personal Trainer kann Ihren Körperfettanteil messen und so ein realistisches, gesundes Zielgewicht für Sie ermitteln."
     relatedSlugs={['bmi-rechner', 'grundumsatz-rechner', 'kalorien-rechner']}
@@ -94,28 +90,22 @@ const year = new Date().getFullYear();
 function berechne() {
   const groesse = parseFloat(document.getElementById('groesse').value)||175;
   const geschlecht = document.getElementById('geschlecht').value;
-  const alter = parseInt(document.getElementById('alter').value)||35;
   
   const groesseM = groesse / 100;
   
-  let broca = groesse - 100;
-  if (geschlecht === 'w') broca = (groesse - 100) * 0.85;
+  const broca = groesse - 100;
   
-  const brocaIdeal = broca * 0.9;
+  const brocaIdeal = broca * (geschlecht === 'w' ? 0.85 : 0.9);
   const bmiIdealMin = 18.5 * groesseM * groesseM;
   const bmiIdealMax = 24.9 * groesseM * groesseM;
-  
-  const brocaKorr = broca + ((alter - 20) * 0.1 * (geschlecht === 'm' ? 1 : 0.9));
   
   document.getElementById('idealbroca').textContent = Math.round(brocaIdeal) + ' kg';
   document.getElementById('details').innerHTML =
     `<span>Broca-Normalgewicht: <strong>${Math.round(broca)} kg</strong></span>` +
     `<span>Broca-Idealgewicht: <strong>${Math.round(brocaIdeal)} kg</strong></span>` +
-    `<span>BMI-Idealbereich: <strong>${Math.round(bmiIdealMin)}–${Math.round(bmiIdealMax)} kg</strong></span>` +
-    `<span>BMI 18,5–24,9: <strong>${Math.round(bmiIdealMin)}–${Math.round(bmiIdealMax)} kg</strong></span>` +
-    `<span>Korrigiertes Broca (Alter ${alter}): <strong>${Math.round(brocaKorr)} kg</strong></span>`;
+    `<span>BMI-Idealbereich: <strong>${Math.round(bmiIdealMin)}–${Math.round(bmiIdealMax)} kg</strong></span>`;
 }
-['groesse','alter'].forEach(id =>
+['groesse'].forEach(id =>
   document.getElementById(id).addEventListener('input', berechne));
 document.getElementById('geschlecht').addEventListener('change', berechne);
 berechne();

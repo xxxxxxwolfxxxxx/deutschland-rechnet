@@ -3,13 +3,57 @@ import Layout from '../../layouts/Layout.astro';
 import CalculatorShell from '../../components/CalculatorShell.astro';
 import CalculatorGuide from '../../components/CalculatorGuide.astro';
 import { CALCULATORS, CATEGORIES } from '../../data/calculators';
+import { sparverlaufMitSteuer } from '../../../public/scripts/sparen.js';
+import { SPARERPAUSCHBETRAG_EINZEL, SPARERPAUSCHBETRAG_ZUSAMMEN, belastungssatz } from '../../../public/scripts/abgeltungsteuer.js';
 const calc = CALCULATORS.find(c => c.slug === 'sparen-rechner')!;
 const cat = CATEGORIES[calc.category];
 const year = new Date().getFullYear();
+
+// Alle Zahlen dieser Seite kommen aus denselben Modulen, die der Rechner laedt.
+const eur = (n: number) => n.toLocaleString('de-DE', { maximumFractionDigits: 0 }) + ' €';
+const belastung = belastungssatz().toLocaleString('de-DE', { maximumFractionDigits: 3 });
+
+const bsp = sparverlaufMitSteuer({ startkapital: 10000, sparrate: 200, zinsProzent: 2.5, jahre: 10 });
+const gross = sparverlaufMitSteuer({ startkapital: 100000, sparrate: 0, zinsProzent: 2.5, jahre: 10 });
+const grossOhne = sparverlaufMitSteuer({ startkapital: 100000, sparrate: 0, zinsProzent: 2.5, jahre: 10, pauschbetrag: 0 });
+if (bsp.steuern !== 0 || !(gross.steuern > 0 && grossOhne.steuern > gross.steuern)) {
+  throw new Error('Sparen: Beispiele passen nicht zum Text');
+}
+
+function zeile(jahre: number) {
+  const r = sparverlaufMitSteuer({ startkapital: 10000, sparrate: 200, zinsProzent: 2.5, jahre });
+  return '<tr><td>' + jahre + ' Jahre</td><td>' + eur(r.eingezahlt) + '</td><td>' + eur(r.zinsenBrutto) + '</td><td>' + eur(r.steuern) + '</td><td>' + eur(r.endkapital) + '</td></tr>';
+}
+const zeilen = [5, 10, 20, 30].map(zeile).join('');
+
+const guideHtml = `
+<h3>Zinseszins und die 72er-Regel</h3>
+<p>Werden Zinsen nicht ausgezahlt, sondern dem Guthaben zugeschlagen, verzinsen sie sich in den Folgejahren mit. Als Faustformel für die Verdopplungszeit dient die 72er-Regel: 72 geteilt durch den Zinssatz. Bei 2 % sind das rund 36 Jahre, bei 4 % rund 18. Die Regel ist eine Näherung an die exakte Rechnung, die dieser Rechner monatsgenau ausführt.</p>
+
+<h3>Steuer jedes Jahr, Pauschbetrag jedes Jahr</h3>
+<p>Zinsen auf Tages- und Festgeld unterliegen der Abgeltungsteuer mit Solidaritätszuschlag, zusammen ${belastung} % ohne Kirchensteuer. Frei bleibt der Sparer-Pauschbetrag von ${eur(SPARERPAUSCHBETRAG_EINZEL)} im Jahr, bei Zusammenveranlagung ${eur(SPARERPAUSCHBETRAG_ZUSAMMEN)}. Weil Sparzinsen jährlich zufließen, rechnet der Rechner die Steuer am Ende jedes Jahres und zieht sie vom Guthaben ab – der Pauschbetrag wirkt so in jedem Jahr neu.</p>
+<p>Eine Teilfreistellung wie bei Aktienfonds gibt es für Sparzinsen nicht. Die frühere Fassung dieses Rechners hatte die Steuer trotzdem mit 0,7 multipliziert.</p>
+<p><strong>Beispiel:</strong> Mit ${eur(10000)} Startkapital, ${eur(200)} im Monat und 2,5 % Zins bleiben die Zinsen über zehn Jahre unter dem Pauschbetrag – Steuer: ${eur(bsp.steuern)}. Wer ${eur(100000)} zu 2,5 % anlegt, zahlt in zehn Jahren ${eur(gross.steuern)} Steuer; ohne freien Pauschbetrag wären es ${eur(grossOhne.steuern)}.</p>
+
+<h3>Verlauf</h3>
+<p>${eur(10000)} Startkapital, ${eur(200)} monatlich, 2,5 % Zins, Pauschbetrag ${eur(SPARERPAUSCHBETRAG_EINZEL)}:</p>
+<table>
+<thead><tr><th>Laufzeit</th><th>eingezahlt</th><th>Zinsen</th><th>Steuer</th><th>Guthaben</th></tr></thead>
+<tbody>${zeilen}</tbody>
+</table>
+<p>Der Zinssatz ist Ihre Eingabe. Tragen Sie den Satz Ihres Angebots ein – bei variabel verzinstem Tagesgeld ist das eine Annahme über die Zukunft.</p>
+`;
+
+const faqs = [
+  { q: 'Wie werden Sparzinsen besteuert?', a: `Mit Abgeltungsteuer und Solidaritätszuschlag, zusammen ${belastung} % ohne Kirchensteuer, auf den Teil der Zinsen, der über dem Sparer-Pauschbetrag von ${eur(SPARERPAUSCHBETRAG_EINZEL)} im Jahr liegt.` },
+  { q: 'Gilt der Pauschbetrag jedes Jahr?', a: 'Ja, er gilt je Kalenderjahr für alle Kapitalerträge zusammen. Hat ihn schon ein anderes Konto oder Depot verbraucht, wählen Sie „bereits verbraucht".' },
+  { q: 'Warum ist das Ergebnis niedriger als bei einfachem Zinseszins?', a: 'Weil die Steuer jedes Jahr vom Guthaben abgeht und der abgezogene Betrag nicht mehr mitverzinst wird. Bleiben die Zinsen unter dem Pauschbetrag, gibt es keinen Unterschied.' },
+  { q: 'Berücksichtigt der Rechner die Inflation?', a: 'Nein. Er zeigt den nominalen Endbetrag. Um die Kaufkraft abzuschätzen, nutzen Sie den Inflationsrechner.' },
+];
 ---
 <Layout
   title={`Sparen-Rechner ${year}`}
-  description="Guthabenentwicklung mit Zinseszins berechnen."
+  description="Sparplan mit Zinseszins berechnen – mit jährlicher Abgeltungsteuer und Sparer-Pauschbetrag, wie bei Tages- und Festgeld."
   canonicalPath="/geld/sparen-rechner/"
   categoryColor={cat.color}
   categoryLight={cat.colorLight}
@@ -21,15 +65,10 @@ const year = new Date().getFullYear();
   </div>
   <CalculatorShell
     calculator={calc}
-    intro="Mit dem Sparen-Rechner berechnen Sie, wie Ihr Erspartes mit Zinseszins über die Jahre wächst. Vergleichen Sie Einmalanlage und monatliche Sparraten, um Ihren optimalen Vermögensaufbau zu planen."
-    sourceNote="Zinseszins-Effekt berücksichtigt."
-    explanation="Die Berechnung nutzt den Zinseszins-Effekt: Bei 5% Zins verdoppelt sich das Kapital etwa alle 14 Jahre (72er-Regel). Kapitalerträge über dem Sparerpauschbetrag von 1.000 Euro unterliegen der Abgeltungsteuer von 25% zzgl. Solidaritätszuschlag." faqs={[
-      { q: "Was ist der Zinseszinseffekt und warum ist er so wichtig?", a: "Beim Zinseszins werden die Zinserträge nicht ausgezahlt, sondern dem Kapital zugeschlagen und in der nächsten Periode mitverzinst. Dadurch wächst Ihr Vermögen exponentiell statt linear. Albert Einstein soll den Zinseszins als das achte Weltwunder bezeichnet haben. Bei 5 % Zinsen verdoppelt sich Ihr Kapital etwa alle 14 Jahre (72er-Regel: 72 geteilt durch Zinssatz = Verdoppelungszeit in Jahren)." },
-      { q: "Wie werden Kapitalerträge in Deutschland besteuert?", a: "Auf Zinserträge fällt die Abgeltungsteuer von 25 % an, plus 5,5 % Solidaritätszuschlag darauf und ggf. Kirchensteuer. Effektiv beträgt die Steuerbelastung ohne Kirchensteuer 26,375 %. Jeder Sparer hat einen Sparerpauschbetrag von 1.000 Euro pro Jahr (2.000 Euro für Ehepaare), bis zu dem Kapitalerträge steuerfrei sind. Richten Sie bei Ihrer Bank einen Freistellungsauftrag ein." },
-      { q: "Tagesgeld, Festgeld oder ETF-Sparplan: Was ist besser?", a: "Das hängt vom Anlagehorizont ab. Tagesgeld eignet sich für den Notgroschen (jederzeit verfügbar, aber niedrige Zinsen). Festgeld bietet etwas höhere Zinsen bei fester Laufzeit (1-10 Jahre). Für langfristiges Sparen ab 10 Jahren sind ETF-Sparpläne oft die bessere Wahl, weil die historische Rendite von breit gestreuten Aktien-ETFs bei 7-8 % pro Jahr liegt, deutlich über den Sparzinsen." },
-      { q: "Wie viel sollte ich monatlich sparen?", a: "Finanzexperten empfehlen die 50-30-20-Regel: 50 % des Nettoeinkommens für Grundbedürfnisse, 30 % für Freizeit und Wünsche, 20 % zum Sparen und für Schuldentilgung. Bei einem Nettoeinkommen von 2.500 Euro wären das 500 Euro pro Monat. Wichtig: Starten Sie lieber mit einem kleinen Betrag als gar nicht. Selbst 50 Euro monatlich ergeben bei 5 % Rendite nach 30 Jahren über 40.000 Euro." },
-      { q: "Wird die Inflation beim Rechner berücksichtigt?", a: "Der Rechner zeigt den nominalen Endwert. Die Inflation (durchschnittlich 2 % in der Eurozone als Ziel der EZB) reduziert die reale Kaufkraft. Um die reale Rendite zu schätzen, ziehen Sie die erwartete Inflationsrate vom Zinssatz ab. Bei 5 % Zins und 2 % Inflation beträgt die reale Rendite etwa 3 %." }
-    ]}
+    intro="Der Rechner zeigt, wie ein Guthaben mit monatlicher Einzahlung und Zinseszins wächst – nach Abzug der Steuer, die auf Sparzinsen jedes Jahr fällig wird."
+    sourceNote={`Abgeltungsteuer nach § 32d Abs. 1 EStG mit Solidaritätszuschlag (${belastung} %), Sparer-Pauschbetrag nach § 20 Abs. 9 EStG je Kalenderjahr. Monatliche Einzahlung am Monatsende, monatliche Verzinsung, Steuer am Jahresende. Ohne Kirchensteuer. Der Zinssatz ist Ihre Eingabe.`}
+    explanation="Jeden Monat: Guthaben + Zinsen + Sparrate. Jedes Jahresende: Steuer auf die Zinsen des Jahres über dem Pauschbetrag, abgezogen vom Guthaben."
+    faqs={faqs}
   >
     <div class="calc-form">
       <div class="calc-grid">
@@ -39,24 +78,28 @@ const year = new Date().getFullYear();
         </div>
         <div class="calc-group">
           <label for="sparplan">Monatliche Einzahlung (€)</label>
-          <input type="number" id="sparplan" min="0" max="100000" value="200" step="50" />
+          <input type="number" id="sparplan" min="0" max="100000" value="200" step="25" />
         </div>
         <div class="calc-group">
-          <label for="zins">Zinssatz (% p.a.)</label>
-          <input type="number" id="zins" min="0" max="20" value="3.5" step="0.1" />
+          <label for="zins">Zinssatz (% p. a.)</label>
+          <input type="number" id="zins" min="0" max="20" value="2.5" step="0.1" />
         </div>
         <div class="calc-group">
-          <label for="jahre">Sparanlage (Jahre)</label>
-          <input type="number" id="jahre" min="1" max="50" value="10" step="1" />
+          <label for="jahre">Laufzeit (Jahre)</label>
+          <input type="number" id="jahre" min="1" max="60" value="10" step="1" />
         </div>
         <div class="calc-group">
-          <label for="steuer">Steuersatz (%)</label>
-          <input type="number" id="steuer" min="0" max="50" value="25" step="1" />
+          <label for="pausch">Sparer-Pauschbetrag je Jahr</label>
+          <select id="pausch">
+            <option value="1000" selected>1.000 € (einzeln)</option>
+            <option value="2000">2.000 € (zusammenveranlagt)</option>
+            <option value="0">bereits verbraucht</option>
+          </select>
         </div>
       </div>
 
       <div class="calc-result">
-        <div class="label">Endkapital nach <span id="jahre-label">10</span> Jahren</div>
+        <div class="label">Guthaben nach Steuern</div>
         <div id="endkapital">— €</div>
       </div>
       <div id="details" style="margin-top:0.75rem;font-size:0.88rem;color:#666;display:flex;gap:1.5rem;flex-wrap:wrap;"></div>
@@ -64,55 +107,33 @@ const year = new Date().getFullYear();
   </CalculatorShell>
 
   <CalculatorGuide
-    title="Sparen mit Zinseszins: So wächst Ihr Vermögen langfristig"
-    content="<p>Der Sparen-Rechner zeigt Ihnen, wie sich Ihr Vermögen durch regelmäßige Einzahlungen und den Zinseszinseffekt über die Jahre entwickelt. Dieser Effekt ist der wichtigste Verbündete beim langfristigen Vermögensaufbau: Die erwirtschafteten Zinsen werden dem Kapital zugeschlagen und in den Folgeperioden mitverzinst. Je länger der Anlagezeitraum, desto stärker wirkt dieser Effekt.</p>
-
-<p><strong>Die 72er-Regel zur schnellen Einschätzung:</strong> Teilen Sie 72 durch den Zinssatz, und Sie erhalten die ungefähre Verdoppelungszeit Ihres Kapitals. Bei 3 % dauert es 24 Jahre, bei 6 % nur 12 Jahre, bei 8 % sogar nur 9 Jahre. Diese einfache Faustformel zeigt, warum selbst kleine Unterschiede im Zinssatz langfristig enorme Auswirkungen haben.</p>
-
-<p><strong>Steuern auf Kapitalerträge in Deutschland:</strong> Zinserträge unterliegen der Abgeltungsteuer von 25 % zuzüglich Solidaritätszuschlag (insgesamt 26,375 % ohne Kirchensteuer). Jeder Sparer hat einen jährlichen Sparerpauschbetrag von 1.000 Euro (Ehepaare: 2.000 Euro). Bis zu dieser Grenze bleiben Kapitalerträge steuerfrei. Vergessen Sie nicht, bei Ihrer Bank einen Freistellungsauftrag einzurichten, um die automatische Steuerabführung zu vermeiden.</p>
-
-<p><strong>Konkretes Rechenbeispiel:</strong> Sie starten mit 10.000 Euro Startkapital und sparen monatlich 200 Euro bei 4 % Zinsen. Nach 10 Jahren haben Sie 24.000 Euro eingezahlt und besitzen durch den Zinseszinseffekt rund 39.500 Euro vor Steuern. Nach 20 Jahren sind es 48.000 Euro Einzahlungen und etwa 83.000 Euro Gesamtwert. Nach 30 Jahren haben Sie 72.000 Euro eingezahlt, besitzen aber bereits über 145.000 Euro. Mehr als die Hälfte des Endvermögens stammt aus Zinserträgen.</p>
-
-<p><strong>Sparprodukte im Vergleich:</strong> Tagesgeld bietet aktuell etwa 2-3 % Zinsen bei täglicher Verfügbarkeit und eignet sich für den Notgroschen. Festgeld liegt je nach Laufzeit bei 2,5-3,5 % und eignet sich für mittelfristige Ziele. Für langfristiges Sparen (ab 10 Jahre) empfehlen viele Finanzexperten breit gestreute ETF-Sparpläne, die historisch 7-8 % Rendite pro Jahr erzielt haben, allerdings mit Schwankungsrisiko.</p>
-
-<p><strong>Praxistipp:</strong> Richten Sie einen Dauerauftrag ein, der am Tag nach dem Gehaltseingang automatisch den Sparbetrag überweist. So bezahlen Sie sich selbst zuerst. Erhöhen Sie die Sparrate bei jeder Gehaltserhöhung um mindestens die Hälfte des Nettozuwachses. Selbst kleine Beträge wirken durch den Zinseszinseffekt über Jahrzehnte enorm.</p>"
-    relatedSlugs={['etf-sparplan-rechner', 'abgeltungsteuer-rechner', 'notgroschen-rechner']}
+    title="So wächst ein Sparguthaben nach Steuern"
+    content={guideHtml}
+    relatedSlugs={['etf-sparplan-rechner', 'abgeltungsteuer-rechner', 'inflationsrechner']}
   />
 </Layout>
 
 <script type="module">
+const { sparverlaufMitSteuer } = await import(window.__base + 'scripts/sparen.js');
+const eur = (n) => n.toLocaleString('de-DE', { minimumFractionDigits: 0, maximumFractionDigits: 0 }) + ' €';
+const wert = (id) => parseFloat(document.getElementById(id).value) || 0;
 function berechne() {
-  const start = parseFloat(document.getElementById('start').value)||10000;
-  const sparlan = parseFloat(document.getElementById('sparplan').value)||200;
-  const zins = parseFloat(document.getElementById('zins').value)||3.5;
-  const jahre = parseInt(document.getElementById('jahre').value)||10;
-  const steuer = parseFloat(document.getElementById('steuer').value)||25;
-  
-  document.getElementById('jahre-label').textContent = jahre;
-  
-  const mZins = zins / 100 / 12;
-  const monate = jahre * 12;
-  
-  let guthaben = start;
-  let gesamtEinlagen = start;
-  for (let i = 0; i < monate; i++) {
-    guthaben = guthaben * (1 + mZins) + sparlan;
-    gesamtEinlagen += sparlan;
-  }
-  
-  const zinsErtrag = guthaben - gesamtEinlagen;
-  const steuern = zinsErtrag * (steuer / 100) * 0.7;
-  const endkapital = guthaben - steuern;
-  const nettoZins = zinsErtrag - steuern;
-  
-  document.getElementById('endkapital').textContent = endkapital.toLocaleString('de-DE', {minimumFractionDigits:2, maximumFractionDigits:2}) + ' €';
-  document.getElementById('details').innerHTML =
-    `<span>Einbezahlt: <strong>${gesamtEinlagen.toLocaleString('de-DE', {minimumFractionDigits:0})} €</strong></span>` +
-    `<span>Brutto-Zinsertrag: <strong>${zinsErtrag.toLocaleString('de-DE', {minimumFractionDigits:2})} €</strong></span>` +
-    `<span>Steuern (${steuer}%): <strong>${steuern.toLocaleString('de-DE', {minimumFractionDigits:2})} €</strong></span>` +
-    `<span>Netto-Zinsertrag: <strong>${nettoZins.toLocaleString('de-DE', {minimumFractionDigits:2})} €</strong></span>`;
+  const r = sparverlaufMitSteuer({
+    startkapital: wert('start'),
+    sparrate: wert('sparplan'),
+    zinsProzent: wert('zins'),
+    jahre: wert('jahre'),
+    pauschbetrag: parseFloat(document.getElementById('pausch').value),
+  });
+  document.getElementById('endkapital').textContent = eur(r.endkapital);
+  document.getElementById('details').innerHTML = [
+    `<span>Eingezahlt: <strong>${eur(r.eingezahlt)}</strong></span>`,
+    `<span>Zinsen: <strong>${eur(r.zinsenBrutto)}</strong></span>`,
+    `<span>Steuer: <strong>${eur(r.steuern)}</strong></span>`,
+    `<span>Zinsen nach Steuer: <strong>${eur(r.zinsenNetto)}</strong></span>`,
+  ].join('');
 }
-['start','sparplan','zins','jahre','steuer'].forEach(id =>
-  document.getElementById(id).addEventListener('input', berechne));
+['start', 'sparplan', 'zins', 'jahre'].forEach((id) => document.getElementById(id).addEventListener('input', berechne));
+document.getElementById('pausch').addEventListener('change', berechne);
 berechne();
 </script>

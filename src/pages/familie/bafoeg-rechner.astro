@@ -3,24 +3,77 @@ import Layout from '../../layouts/Layout.astro';
 import CalculatorShell from '../../components/CalculatorShell.astro';
 import CalculatorGuide from '../../components/CalculatorGuide.astro';
 import { CALCULATORS, CATEGORIES } from '../../data/calculators';
+import {
+  berechneBafoeg,
+  SOZIALPAUSCHALE,
+  GRUNDBEDARF_STUDIUM,
+  WOHNEN_BEI_ELTERN,
+  WOHNEN_AUSWAERTS,
+  ZUSCHLAG_KRANKENVERSICHERUNG,
+  ZUSCHLAG_PFLEGEVERSICHERUNG,
+  FREIBETRAG_ELTERN_VERHEIRATET,
+  FREIBETRAG_ELTERNTEIL,
+  FREIBETRAG_JE_KIND,
+  VERMOEGENSFREIBETRAG_UNTER_30,
+  VERMOEGENSFREIBETRAG_AB_30,
+} from '../../../public/scripts/bafoeg.js';
 const calc = CALCULATORS.find(c => c.slug === 'bafoeg-rechner')!;
 const cat = CATEGORIES[calc.category];
 const year = new Date().getFullYear();
 
+// Alle Zahlen dieser Seite kommen aus demselben Modul, das der Rechner laedt.
+const eur = (n: number) => n.toLocaleString('de-DE', { maximumFractionDigits: 0 }) + ' €';
+const pz = (n: number) => (n * 100).toLocaleString('de-DE', { maximumFractionDigits: 1 }) + ' %';
+
+const hoechst = GRUNDBEDARF_STUDIUM + WOHNEN_AUSWAERTS + ZUSCHLAG_KRANKENVERSICHERUNG + ZUSCHLAG_PFLEGEVERSICHERUNG;
+const bsp = berechneBafoeg({
+  verheiratet: true,
+  elternteile: [
+    { einkuenfte: 50000, status: 'rvPflichtig', steuern: 9000 },
+    { einkuenfte: 20000, status: 'rvPflichtig', steuern: 0 },
+  ],
+  kinderMitFreibetrag: 1,
+});
+if (bsp.bedarf !== hoechst || !(bsp.foerderung > 0 && bsp.foerderung < hoechst)) throw new Error('BAföG: Beispiel stimmt nicht');
+const d = bsp.eltern.details[0];
+
+const statusOptionen = Object.entries(SOZIALPAUSCHALE)
+  .map(([key, p]) => '<option value="' + key + '">' + p.label + '</option>')
+  .join('');
+const pauschalZeilen = Object.values(SOZIALPAUSCHALE)
+  .map((p) => '<tr><td>' + p.label + '</td><td>' + pz(p.satz) + '</td><td>' + eur(p.hoechstbetrag) + '</td></tr>')
+  .join('');
+
+const guideHtml = `
+<h3>Der Bedarf</h3>
+<p>Für Studierende an Hochschulen setzt § 13 BAföG einen Grundbedarf von ${eur(GRUNDBEDARF_STUDIUM)} im Monat an, dazu ${eur(WOHNEN_AUSWAERTS)} für die Unterkunft, wer nicht bei den Eltern wohnt, oder ${eur(WOHNEN_BEI_ELTERN)}, wer bei ihnen wohnt. Wer selbst kranken- und pflegeversichert ist, erhält nach § 13a zusätzlich ${eur(ZUSCHLAG_KRANKENVERSICHERUNG)} und ${eur(ZUSCHLAG_PFLEGEVERSICHERUNG)}. Der Höchstbetrag liegt damit bei ${eur(hoechst)}.</p>
+
+<h3>Das Einkommen der Eltern</h3>
+<p>Maßgeblich sind die Einkommensverhältnisse im vorletzten Kalenderjahr vor Beginn des Bewilligungszeitraums (§ 24 Abs. 1). Als Einkommen gilt nach § 21 die Summe der positiven Einkünfte – so, wie sie im Steuerbescheid stehen – abzüglich Einkommen- und Kirchensteuer und einer Sozialpauschale:</p>
+<table><thead><tr><th>Einkommensbezieher</th><th>Pauschale</th><th>höchstens im Jahr</th></tr></thead><tbody>${pauschalZeilen}</tbody></table>
+<p>Je Monat wird ein Zwölftel angerechnet (§ 24 Abs. 4). Davon bleiben nach § 25 frei: ${eur(FREIBETRAG_ELTERN_VERHEIRATET)} bei verheirateten, nicht dauernd getrennt lebenden Eltern, sonst ${eur(FREIBETRAG_ELTERNTEIL)} je Elternteil, jeweils plus ${eur(FREIBETRAG_JE_KIND)} für jedes Kind, das nicht selbst in einer förderungsfähigen Ausbildung steht. Vom übersteigenden Betrag bleiben 50 % anrechnungsfrei und weitere 5 % je solchem Kind. Studieren mehrere Kinder mit BAföG-Anspruch, wird die Anrechnung zu gleichen Teilen aufgeteilt (§ 11 Abs. 4).</p>
+
+<h3>Beispiel</h3>
+<p>Verheiratete Eltern, beide rentenversicherungspflichtig beschäftigt, mit ${eur(50000)} und ${eur(20000)} Einkünften und ${eur(9000)} Einkommen- und Kirchensteuer, ein jüngeres Geschwisterkind in der Schule. Nach Sozialpauschalen und Steuern bleiben ${eur(d.einkommenMonat)} im Monat. Der Freibetrag beträgt ${eur(d.freibetrag)}, übersteigend sind ${eur(d.uebersteigend)}, davon werden ${bsp.eltern.anteilAngerechnetProzent} % angerechnet: ${eur(bsp.eltern.gesamt)}. Wer auswärts wohnt und selbst versichert ist, erhält ${eur(bsp.foerderung)} im Monat – zur Hälfte als Zuschuss, zur Hälfte als Darlehen (§ 17 Abs. 2).</p>
+
+<h3>Vermögen</h3>
+<p>Eigenes Vermögen bleibt bis ${eur(VERMOEGENSFREIBETRAG_UNTER_30)} frei, ab dem 30. Geburtstag bis ${eur(VERMOEGENSFREIBETRAG_AB_30)} (§ 29 Abs. 1). Was darüber liegt, wird auf die Monate des Bewilligungszeitraums verteilt und vom monatlichen Bedarf abgezogen (§ 30).</p>
+
+<h3>Was der Rechner nicht abbildet</h3>
+<p>Eigenes Einkommen aus Nebenjob oder Ausbildungsvergütung, Einkommen eines Ehepartners, den Freibetrag für einen Stiefelternteil, Altersvorsorgebeiträge der Eltern, Härtefreibeträge und die Fälle, in denen das Einkommen der Eltern gar nicht angerechnet wird. Verbindlich entscheidet das Amt für Ausbildungsförderung.</p>
+`;
+
 const faqs = [
-  { q: 'Wie viel BAföG kann ich bekommen?', a: 'Der BAföG-Höchstsatz für Studierende liegt seit dem Wintersemester 2024/25 bei rund 992 € pro Monat. Er setzt sich aus dem Grundbedarf (475 €), der Wohnpauschale (380 €) für auswärts Wohnende und Zuschlägen zur Kranken- und Pflegeversicherung zusammen. Wie viel Sie tatsächlich erhalten, hängt vom Einkommen der Eltern, Ihrem eigenen Einkommen und Ihrem Vermögen ab.' },
-  { q: 'Wie wird das BAföG berechnet?', a: 'Vom Bedarfssatz werden das anrechenbare Elterneinkommen, Ihr eigenes Einkommen und Ihr Vermögen abgezogen. Übrig bleibt der Förderbetrag. Studierende erhalten diesen zur Hälfte als Zuschuss und zur Hälfte als zinsloses Staatsdarlehen; Schüler-BAföG ist ein reiner Zuschuss.' },
-  { q: 'Welcher Freibetrag gilt für das Elterneinkommen?', a: 'Der Grundfreibetrag beträgt bei zusammenlebenden Eltern rund 2.540 € netto pro Monat (etwa 30.480 € im Jahr), bei getrennt lebenden entsprechend weniger. Für jedes weitere Kind in Ausbildung erhöht sich der Freibetrag zusätzlich. Verdienen die Eltern weniger als den Freibetrag, bleibt der volle Höchstsatz erhalten.' },
-  { q: 'Wie wird eigenes Einkommen angerechnet?', a: 'Einkommen aus einem Nebenjob bleibt bis zu einem Freibetrag von rund 556 € brutto pro Monat (Minijob-Grenze 2026) anrechnungsfrei. Was darüber liegt, mindert die Förderung. Ausbildungsvergütungen, Waisenrenten und bestimmte Stipendien werden dagegen stärker angerechnet.' },
-  { q: 'Wie viel Vermögen darf ich haben?', a: 'Für BAföG-Beziehende bis 30 Jahre gilt ein Vermögensfreibetrag von rund 15.000 €, ab 30 Jahren 45.000 €. Vermögen oberhalb dieser Grenze wird auf den Bewilligungszeitraum umgelegt und mindert die monatliche Förderung. Falsche Angaben zum Vermögen führen regelmäßig zu Rückforderungen.' },
-  { q: 'Was ist elternunabhängiges BAföG?', a: 'In bestimmten Fällen wird das Elterneinkommen nicht angerechnet, etwa wenn Sie vor Ausbildungsbeginn mindestens fünf Jahre erwerbstätig waren, eine dreijährige Berufsausbildung plus drei Jahre Berufstätigkeit vorweisen können oder über 30 Jahre alt sind. Dann richtet sich die Förderung allein nach Ihrem eigenen Einkommen und Vermögen.' },
-  { q: 'Wie lange wird BAföG gezahlt?', a: 'BAföG wird grundsätzlich für die Dauer der Regelstudienzeit gezahlt (Förderungshöchstdauer). Bei wichtigen Gründen wie Krankheit, Gremientätigkeit oder Kindererziehung kann die Förderung verlängert werden. Ein Fachrichtungswechsel ist in den ersten Semestern in der Regel unschädlich.' },
-  { q: 'Wie viel muss ich zurückzahlen?', a: 'Nur der Darlehensanteil des Studierenden-BAföG (die Hälfte) muss zurückgezahlt werden – und das zinslos. Die Rückzahlung beginnt fünf Jahre nach Ende der Förderungshöchstdauer in Raten von mindestens 130 € pro Monat. Die Rückzahlung ist auf insgesamt 10.010 € gedeckelt; wer mehr Darlehen erhalten hat, muss den Rest nicht zurückzahlen.' },
+  { q: 'Wie viel BAföG bekomme ich höchstens?', a: `Als Studierende oder Studierender ${eur(hoechst)} im Monat: ${eur(GRUNDBEDARF_STUDIUM)} Grundbedarf, ${eur(WOHNEN_AUSWAERTS)} für die Unterkunft außerhalb des Elternhauses und ${eur(ZUSCHLAG_KRANKENVERSICHERUNG + ZUSCHLAG_PFLEGEVERSICHERUNG)} Zuschläge für die eigene Kranken- und Pflegeversicherung (§§ 13, 13a BAföG).` },
+  { q: 'Welches Einkommen der Eltern zählt?', a: 'Das des vorletzten Kalenderjahres vor dem Bewilligungszeitraum (§ 24 Abs. 1): die Summe der positiven Einkünfte laut Steuerbescheid, abzüglich Einkommen- und Kirchensteuer und einer Sozialpauschale nach § 21 Abs. 2.' },
+  { q: 'Welcher Freibetrag gilt für das Elterneinkommen?', a: `${eur(FREIBETRAG_ELTERN_VERHEIRATET)} im Monat bei verheirateten Eltern, sonst ${eur(FREIBETRAG_ELTERNTEIL)} je Elternteil, jeweils plus ${eur(FREIBETRAG_JE_KIND)} je Kind ohne förderungsfähige Ausbildung. Vom Rest bleiben 50 % und 5 % je solchem Kind frei (§ 25 BAföG).` },
+  { q: 'Wie viel Vermögen darf ich haben?', a: `${eur(VERMOEGENSFREIBETRAG_UNTER_30)} bis zum 30. Geburtstag, danach ${eur(VERMOEGENSFREIBETRAG_AB_30)} (§ 29 Abs. 1 BAföG). Der Teil darüber wird auf den Bewilligungszeitraum verteilt angerechnet.` },
+  { q: 'Muss ich BAföG zurückzahlen?', a: 'An Hochschulen wird der Förderungsbetrag zur Hälfte als Darlehen geleistet (§ 17 Abs. 2 BAföG); diese Hälfte ist zurückzuzahlen.' },
 ];
 ---
 <Layout
   title={`BAföG-Rechner ${year}`}
-  description="BAföG-Höhe berechnen – nach Eltern-Einkommen, Vermögen und Geschwistern. Kostenlos und aktuell."
+  description="BAföG für Studierende nach §§ 13, 21, 25 und 29 BAföG: Bedarf, Anrechnung des Elterneinkommens aus dem Steuerbescheid mit Sozialpauschale und Freibeträgen, Vermögen."
   canonicalPath="/familie/bafoeg-rechner/"
   categoryColor={cat.color}
   categoryLight={cat.colorLight}
@@ -32,41 +85,79 @@ const faqs = [
   </div>
   <CalculatorShell
     calculator={calc}
-    intro="Mit dem BAföG-Rechner berechnen Sie die voraussichtliche BAföG-Förderung. Finden Sie heraus, ob und wie viel Ihnen zusteht – abhängig vom Einkommen Ihrer Eltern, eigenem Verdienst und Vermögen."
-    sourceNote="Maximal 992-1.063€/Monat."
-    explanation="Das BAföG besteht aus 50% Zuschuss und 50% zinslosem Darlehen. Rechtsgrundlage ist das Bundesausbildungsförderungsgesetz (BAföG). Die Berechnung berücksichtigt Freibeträge nach §§ 23-25 BAföG."
+    intro="Der Rechner ermittelt das BAföG für Studierende aus dem Bedarf, dem Einkommen der Eltern laut Steuerbescheid und dem eigenen Vermögen – nach den Freibeträgen und Pauschalen des Gesetzes."
+    sourceNote="Bedarf nach §§ 13, 13a BAföG, Einkommen nach §§ 21, 24, Freibeträge und Anrechnung nach §§ 11 Abs. 4, 25, Vermögen nach §§ 29, 30, Zuschuss und Darlehen nach § 17 Abs. 2 (gesetze-im-internet.de, abgerufen am 14.09.2026). Nicht abgebildet: eigenes Einkommen, Einkommen des Ehepartners, Stiefelternteil, Altersvorsorgebeiträge, Härtefälle, elternunabhängige Förderung. Keine verbindliche Auskunft."
+    explanation="Förderung = Bedarf − Anrechnung aus Vermögen − Anrechnung aus Elterneinkommen. Elterneinkommen je Monat = (Einkünfte − Sozialpauschale − Einkommen- und Kirchensteuer) ÷ 12; angerechnet wird der Teil über dem Freibetrag, abzüglich 50 % und 5 % je Kind."
     faqs={faqs}
   >
     <div class="calc-form">
       <div class="calc-grid">
         <div class="calc-group">
-          <label for="elternEinkommen">Jährliches Einkommen Eltern (€)</label>
-          <input type="number" id="elternEinkommen" min="0" max="500000" value="60000" step="1000" />
-        </div>
-        <div class="calc-group">
-          <label for="eigenEinkommen">Eigenes monatliches Einkommen (€)</label>
-          <input type="number" id="eigenEinkommen" min="0" max="5000" value="200" step="50" />
-        </div>
-        <div class="calc-group">
-          <label for="vermoegen">Vermögen (€)</label>
-          <input type="number" id="vermoegen" min="0" max="100000" value="5000" step="500" />
-        </div>
-        <div class="calc-group">
-          <label for="geschwister">Geschwister in Ausbildung</label>
-          <input type="number" id="geschwister" min="0" max="10" value="0" step="1" />
-        </div>
-        <div class="calc-group">
-          <label for="elternTeil">Eltern getrennt?</label>
-          <select id="elternTeil">
-            <option value="zusammen" selected>Zusammen veranlagt</option>
-            <option value="getrennt">Getrennt lebend</option>
+          <label for="wohnen">Wohnsituation</label>
+          <select id="wohnen">
+            <option value="auswaerts" selected>nicht bei den Eltern</option>
+            <option value="eltern">bei den Eltern</option>
           </select>
         </div>
         <div class="calc-group">
-          <label for="unterkunft">Unterkunftskosten (€)</label>
-          <input type="number" id="unterkunft" min="0" max="1000" value="325" step="25" />
+          <label for="versicherung">Kranken- und Pflegeversicherung</label>
+          <select id="versicherung">
+            <option value="eigen" selected>selbst versichert</option>
+            <option value="familie">familienversichert</option>
+          </select>
+        </div>
+        <div class="calc-group">
+          <label for="eltern">Eltern</label>
+          <select id="eltern">
+            <option value="verheiratet" selected>verheiratet, zusammenlebend</option>
+            <option value="getrennt">getrennt oder nicht verheiratet</option>
+          </select>
+        </div>
+        <div class="calc-group">
+          <label for="e1">Elternteil 1: Summe der Einkünfte (€/Jahr)</label>
+          <input type="number" id="e1" min="0" max="10000000" value="50000" step="1000" />
+        </div>
+        <div class="calc-group">
+          <label for="s1">Elternteil 1: Status</label>
+          <select id="s1" set:html={statusOptionen}></select>
+        </div>
+        <div class="calc-group">
+          <label for="st1">Elternteil 1: Einkommen- und Kirchensteuer (€/Jahr)</label>
+          <input type="number" id="st1" min="0" max="10000000" value="9000" step="100" />
+        </div>
+        <div class="calc-group">
+          <label for="e2">Elternteil 2: Summe der Einkünfte (€/Jahr)</label>
+          <input type="number" id="e2" min="0" max="10000000" value="20000" step="1000" />
+        </div>
+        <div class="calc-group">
+          <label for="s2">Elternteil 2: Status</label>
+          <select id="s2" set:html={statusOptionen}></select>
+        </div>
+        <div class="calc-group">
+          <label for="st2">Elternteil 2: Einkommen- und Kirchensteuer (€/Jahr)</label>
+          <input type="number" id="st2" min="0" max="10000000" value="0" step="100" />
+        </div>
+        <div class="calc-group">
+          <label for="kinder">Weitere Kinder ohne förderungsfähige Ausbildung</label>
+          <input type="number" id="kinder" min="0" max="10" value="1" step="1" />
+        </div>
+        <div class="calc-group">
+          <label for="gefoerdert">Kinder mit BAföG-fähiger Ausbildung (inkl. Ihnen)</label>
+          <input type="number" id="gefoerdert" min="1" max="10" value="1" step="1" />
+        </div>
+        <div class="calc-group">
+          <label for="vermoegen">Eigenes Vermögen (€)</label>
+          <input type="number" id="vermoegen" min="0" max="1000000" value="5000" step="500" />
+        </div>
+        <div class="calc-group">
+          <label for="alter">Alter bei Antragstellung</label>
+          <select id="alter">
+            <option value="unter30" selected>unter 30</option>
+            <option value="ab30">30 oder älter</option>
+          </select>
         </div>
       </div>
+
       <div class="calc-result">
         <div class="label">Voraussichtliches BAföG pro Monat</div>
         <div id="ergebnis">— €</div>
@@ -76,85 +167,47 @@ const faqs = [
   </CalculatorShell>
 
   <CalculatorGuide
-    title="BAföG – Ausbildungsfinanzierung verstehen"
-    content={`
-      <p>Das <strong>BAföG</strong> (Bundesausbildungsförderungsgesetz) ist das wichtigste staatliche Finanzierungsinstrument für Studierende und Schülerinnen und Schüler in Deutschland. Ziel ist es, dass niemand aus finanziellen Gründen auf eine Ausbildung verzichten muss. Der große Vorteil: Für Studierende ist die Hälfte der Förderung ein Zuschuss, den man nie zurückzahlen muss, die andere Hälfte ein <strong>zinsloses</strong> Darlehen. Der BAföG-Rechner schätzt anhand Ihrer Angaben, mit welcher Förderung Sie rechnen können.</p>
-
-      <h4>Wie sich der Bedarfssatz zusammensetzt</h4>
-      <p>Seit dem Wintersemester 2024/25 liegt der BAföG-Höchstsatz für Studierende bei rund <strong>992 € pro Monat</strong>. Er besteht aus einem <strong>Grundbedarf von 475 €</strong>, einer <strong>Wohnpauschale von 380 €</strong> für alle, die nicht bei den Eltern wohnen, sowie Zuschlägen zur Kranken- und Pflegeversicherung. Wer noch bei den Eltern lebt, erhält nur einen deutlich geringeren Wohnanteil.</p>
-
-      <h4>Bedarfssätze nach Wohnsituation und Ausbildungsart</h4>
-      <table>
-        <thead>
-          <tr><th>Gruppe</th><th>Wohnt bei den Eltern</th><th>Eigene Wohnung</th></tr>
-        </thead>
-        <tbody>
-          <tr><td>Studierende (Hochschule)</td><td>ca. 633 €</td><td>ca. 992 €</td></tr>
-          <tr><td>Schüler weiterführende Schulen</td><td>ca. 355 €</td><td>ca. 736 €</td></tr>
-          <tr><td>Berufsfachschüler ohne Abschluss</td><td>ca. 355 €</td><td>ca. 736 €</td></tr>
-          <tr><td>Fach-/Abendschule, Kollegs</td><td>ca. 633 €</td><td>ca. 992 €</td></tr>
-        </tbody>
-      </table>
-      <p style="font-size:0.85rem;color:#777;">Richtwerte inklusive KV-/PV-Zuschlägen. Die genaue Höhe hängt von Alter und Versicherungsstatus ab.</p>
-
-      <h4>Einkommen und Vermögen: Was angerechnet wird</h4>
-      <p>Von diesem Bedarf werden anrechenbare Einkünfte abgezogen. Das <strong>Elterneinkommen</strong> bleibt bis zu einem Grundfreibetrag von rund 2.540 € netto im Monat (zusammenlebende Eltern) unberücksichtigt; für jedes weitere Kind in Ausbildung steigt der Freibetrag. <strong>Eigenes Einkommen</strong> aus einem Nebenjob ist bis zur Minijob-Grenze (2026 rund 556 € pro Monat) anrechnungsfrei. Beim <strong>Vermögen</strong> gilt ein Freibetrag von 15.000 € für unter 30-Jährige und 45.000 € ab 30 Jahren. Ein häufiges Missverständnis: Verdienen die Eltern weniger als den Freibetrag, bleibt der volle Höchstsatz erhalten.</p>
-
-      <h4>Elternunabhängiges BAföG</h4>
-      <p>In bestimmten Konstellationen wird das Einkommen der Eltern gar nicht herangezogen. <strong>Elternunabhängiges BAföG</strong> gibt es unter anderem, wenn Sie vor Ausbildungsbeginn mindestens fünf Jahre erwerbstätig waren, eine dreijährige Berufsausbildung plus drei Jahre Berufstätigkeit abgeschlossen haben oder bei Ausbildungsbeginn über 30 Jahre alt sind. Dann zählt nur Ihr eigenes Einkommen und Vermögen – die Förderung fällt oft höher aus.</p>
-
-      <h4>Rückzahlung und Deckelung</h4>
-      <p>Nur der Darlehensanteil des Studierenden-BAföG muss zurückgezahlt werden, und zwar <strong>zinslos</strong>. Die Rückzahlung beginnt fünf Jahre nach dem Ende der Förderungshöchstdauer in Raten von mindestens 130 € pro Monat. Entscheidend: Die Rückzahlung ist auf insgesamt <strong>höchstens 10.010 €</strong> begrenzt. Wer während des Studiums mehr Darlehen erhalten hat, muss den darüber hinausgehenden Betrag nicht zurückzahlen. Schüler-BAföG ist dagegen ein reiner Zuschuss ohne Rückzahlung.</p>
-
-      <h4>Antrag und Förderungshöchstdauer</h4>
-      <p>Der Antrag wird beim zuständigen <strong>Amt für Ausbildungsförderung</strong> (meist beim Studierendenwerk) gestellt und kann online über <em>BAföG Digital</em> eingereicht werden. Wichtig: BAföG wird erst ab dem Monat der Antragstellung gezahlt, nicht rückwirkend – stellen Sie den Antrag daher rechtzeitig zum Studienbeginn. Gefördert wird grundsätzlich für die Dauer der Regelstudienzeit; bei Krankheit, Kindererziehung oder Gremientätigkeit ist eine Verlängerung möglich.</p>
-    `}
-    relatedSlugs={['kindergeld-rechner', 'elterngeld-rechner']}
+    title="So wird das BAföG berechnet"
+    content={guideHtml}
+    relatedSlugs={['kindergeld-rechner', 'unterhaltsrechner']}
   />
 </Layout>
 
 <script type="module">
+const { berechneBafoeg } = await import(window.__base + 'scripts/bafoeg.js');
+const eur = (n) => n.toLocaleString('de-DE', { minimumFractionDigits: 0, maximumFractionDigits: 0 }) + ' €';
+const wert = (id) => parseFloat(document.getElementById(id).value) || 0;
+const auswahl = (id) => document.getElementById(id).value;
 function berechne() {
-  const elternEinkommen = parseFloat(document.getElementById('elternEinkommen').value) || 60000;
-  const eigenEinkommen = parseFloat(document.getElementById('eigenEinkommen').value) || 200;
-  const vermoegen = parseFloat(document.getElementById('vermoegen').value) || 5000;
-  const geschwister = parseInt(document.getElementById('geschwister').value) || 0;
-  const elternTeil = document.getElementById('elternTeil').value;
-  const unterkunft = parseFloat(document.getElementById('unterkunft').value) || 325;
-  
-  const hoechstsatz = 992;
-  const elternFreibetrag = elternTeil === 'zusammen' ? 37350 : 24850;
-  const geschwisterFreibetrag = geschwister * 8820;
-  const gesamtFreibetrag = elternFreibetrag + geschwisterFreibetrag;
-  
-  const elternMonat = Math.max(0, (elternEinkommen - gesamtFreibetrag)) / 12;
-  const elternAnrechnung = elternMonat * 0.5;
-  
-  const eigenFreibetrag = 55;
-  const eigenAnrechnung = Math.max(0, eigenEinkommen - eigenFreibetrag);
-  
-  const vermoegenFreibetrag = 15000;
-  const vermoegenAnrechnung = vermoegen > vermoegenFreibetrag ? Math.ceil((vermoegen - vermoegenFreibetrag) / 12) : 0;
-  
-  const gesamtAbzug = elternAnrechnung + eigenAnrechnung + vermoegenAnrechnung;
-  const bafoeg = Math.max(0, hoechstsatz - gesamtAbzug);
-  const zuschuss = bafoeg * 0.5;
-  const darlehen = bafoeg * 0.5;
-  
-  document.getElementById('ergebnis').textContent = bafoeg.toFixed(0) + ' €';
-  document.getElementById('ergebnis').style.color = bafoeg > 0 ? '#1e7e34' : '#b71c1c';
-  
-  document.getElementById('details').innerHTML =
-    `<span>Höchstsatz: <strong>${hoechstsatz} €</strong></span>` +
-    `<span>Eltern-Freibetrag: <strong>${gesamtFreibetrag.toLocaleString('de-DE')} €/Jahr</strong></span>` +
-    `<span>Eltern-Anrechnung: <strong>${elternAnrechnung.toFixed(0)} €/Monat</strong></span>` +
-    `<span>Einkommens-Anrechnung: <strong>${eigenAnrechnung.toFixed(0)} €/Monat</strong></span>` +
-    `<span>Vermögens-Anrechnung: <strong>${vermoegenAnrechnung.toFixed(0)} €/Monat</strong></span>` +
-    `<span>Zuschuss (50%): <strong>${zuschuss.toFixed(0)} €</strong></span>` +
-    `<span>Darlehen (50%): <strong>${darlehen.toFixed(0)} €</strong></span>`;
+  const r = berechneBafoeg({
+    auswaerts: auswahl('wohnen') === 'auswaerts',
+    eigeneVersicherung: auswahl('versicherung') === 'eigen',
+    verheiratet: auswahl('eltern') === 'verheiratet',
+    elternteile: [
+      { einkuenfte: wert('e1'), status: auswahl('s1'), steuern: wert('st1') },
+      { einkuenfte: wert('e2'), status: auswahl('s2'), steuern: wert('st2') },
+    ],
+    kinderMitFreibetrag: wert('kinder'),
+    gefoerderteKinder: wert('gefoerdert') || 1,
+    vermoegen: wert('vermoegen'),
+    ab30: auswahl('alter') === 'ab30',
+  });
+  document.getElementById('ergebnis').textContent = eur(r.foerderung);
+  const teile = [
+    `<span>Bedarf: <strong>${eur(r.bedarf)}</strong></span>`,
+    `<span>Anrechnung Eltern: <strong>−${eur(r.eltern.jeAuszubildendem)}</strong></span>`,
+    `<span>Anrechnung Vermögen: <strong>−${eur(r.vermoegenMonat)}</strong></span>`,
+    `<span>davon Zuschuss / Darlehen: <strong>${eur(r.zuschuss)} / ${eur(r.darlehen)}</strong></span>`,
+  ];
+  r.eltern.details.forEach((dd, i) => {
+    const name = r.eltern.details.length > 1 ? `Elternteil ${i + 1}` : 'Eltern';
+    teile.push(`<span>${name}: Einkommen <strong>${eur(dd.einkommenMonat)}</strong>/Monat, Freibetrag ${eur(dd.freibetrag)}</span>`);
+  });
+  document.getElementById('details').innerHTML = teile.join('');
 }
-['elternEinkommen','eigenEinkommen','vermoegen','geschwister','unterkunft'].forEach(id =>
-  document.getElementById(id).addEventListener('input', berechne));
-document.getElementById('elternTeil').addEventListener('change', berechne);
+document.querySelectorAll('.calc-form input, .calc-form select').forEach((el) => {
+  el.addEventListener('input', berechne);
+  el.addEventListener('change', berechne);
+});
 berechne();
 </script>
