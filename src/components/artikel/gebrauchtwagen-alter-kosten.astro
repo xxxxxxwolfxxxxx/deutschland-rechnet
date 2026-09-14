@@ -1,7 +1,7 @@
 ---
 import RechnerArtikel from '../RechnerArtikel.astro';
 import { artikelPfadVonSlug } from '../../data/ratgeber';
-import { berechneWartungskosten } from '../../../public/scripts/wartungskosten.js';
+import { HU_ABSTAND_MONATE } from '../../../public/scripts/wartungskosten.js';
 
 const base = import.meta.env.BASE_URL;
 
@@ -14,6 +14,11 @@ const base = import.meta.env.BASE_URL;
 // Quelle: ADAC Gebrauchtwagenpreise Alle Marken, Frühjahr/Sommer 2026
 // (Preisnotierungen erhoben von der Deutschen Automobil Treuhand, Stand 04/2026),
 // https://assets.adac.de/Autodatenbank/Autokosten/gebrauchtwagenpreise.pdf
+//
+// Bis September 2026 addierte dieser Artikel Werkstattkosten aus einem
+// Klassen- und Altersmodell ohne Quelle und leitete daraus "das günstigste
+// Autojahr" ab. Das Modell ist entfernt; der Artikel stützt sich nur noch auf
+// die Preisnotierungen und rechnet die Werkstattseite als Schwelle aus.
 const STAND = 'Frühjahr/Sommer 2026';
 const ERHEBUNGSJAHR = 2026;
 const FAHRZEUGE_GESAMT = 9772;
@@ -27,9 +32,6 @@ const NEUWAGEN_N = 744;
 const RESTWERT_NACH_ZWEI_JAHREN = 0.669;
 const JUNGWAGEN_ALTER = 2;
 
-const KLASSE = 'kompakt' as const;
-const KM_PRO_JAHR = 15_000;
-
 // Median je Altersstufe: `alter` ist das Alter zu Beginn des Haltejahres,
 // `wert` der Händler-Verkaufspreis zu diesem Zeitpunkt, `verlust` der Rückgang
 // bis zum Ende des Jahres, `n` die Zahl der ausgewerteten Fahrzeugzeilen.
@@ -41,23 +43,9 @@ const wertverlust = [
   { alter: 6, wert: 16_750, verlust: 1_300, quote: 0.079, n: 545 },
   { alter: 7, wert: 15_475, verlust: 1_300, quote: 0.088, n: 578 },
 ];
-
-// Werkstattseite aus demselben Modul, das der Wartungskosten-Rechner lädt –
-// Artikel und Rechner können so nicht auseinanderlaufen.
-const jahre = wertverlust.map((w) => {
-  const werkstatt = berechneWartungskosten({ klasse: KLASSE, alter: w.alter, kmProJahr: KM_PRO_JAHR });
-  return { ...w, werkstatt: werkstatt.gesamtProJahr, alterFaktor: werkstatt.alterFaktor, summe: w.verlust + werkstatt.gesamtProJahr };
-});
-
-const guenstigstesJahr = jahre.reduce((a, b) => (b.summe < a.summe ? b : a));
-const teuerstesJahr = jahre.reduce((a, b) => (b.summe > a.summe ? b : a));
-const spanne = teuerstesJahr.summe - guenstigstesJahr.summe;
-
-// Ab dem vierten Lebensjahr liegen die Jahreskosten dicht beieinander – das ist
-// die eigentliche Aussage, nicht das Minimum selbst.
-const flachesFenster = jahre.filter((j) => j.alter >= 3);
-const flacheSpanne =
-  Math.max(...flachesFenster.map((j) => j.summe)) - Math.min(...flachesFenster.map((j) => j.summe));
+const erstes = wertverlust[0];
+const letztes = wertverlust[wertverlust.length - 1];
+const wertverlustRueckgang = erstes.verlust - letztes.verlust;
 
 // Restwert nach rund zwei Jahren, aufgeschlüsselt nach Preisklasse – gleiche
 // Auswertung, nur anders gruppiert.
@@ -71,19 +59,20 @@ const restwertNachPreisklasse = [
 const bestesRestwertBand = restwertNachPreisklasse.reduce((a, b) => (b.restwert > a.restwert ? b : a));
 const schlechtestesRestwertBand = restwertNachPreisklasse.reduce((a, b) => (b.restwert < a.restwert ? b : a));
 
-// Der Neuwagen als Vergleichsgröße: erste zwei Jahre, gleiche Rechenweise.
+// Der Neuwagen als Vergleichsgröße: Wertverlust der ersten zwei Jahre je Jahr.
 const jungwagenWert = MEDIAN_NEUPREIS * RESTWERT_NACH_ZWEI_JAHREN;
 const neuwagenWertverlustProJahr = (MEDIAN_NEUPREIS - jungwagenWert) / JUNGWAGEN_ALTER;
-const neuwagenWerkstattProJahr =
-  [0, 1].reduce((s, a) => s + berechneWartungskosten({ klasse: KLASSE, alter: a, kmProJahr: KM_PRO_JAHR }).gesamtProJahr, 0)
-  / JUNGWAGEN_ALTER;
-const neuwagenSumme = neuwagenWertverlustProJahr + neuwagenWerkstattProJahr;
-const faktorNeuGegenGuenstigstes = neuwagenSumme / guenstigstesJahr.summe;
+const faktorNeuGegenAlt = neuwagenWertverlustProJahr / letztes.verlust;
+// Der Teaser in ratgeber.ts nennt "mehr als das Vierfache".
+if (faktorNeuGegenAlt <= 4) throw new Error('gebrauchtwagen-alter-kosten: Teaser "mehr als das Vierfache" stimmt nicht mehr');
 
-// Werkstattkosten im ersten und im letzten betrachteten Jahr – zeigt, wie flach
-// die steigende Seite gegenüber der fallenden verläuft.
-const werkstattAnstieg = jahre[jahre.length - 1].werkstatt - jahre[0].werkstatt;
-const wertverlustRueckgang = jahre[0].verlust - jahre[jahre.length - 1].verlust;
+// Schwelle: Um so viel dürfen die Werkstattkosten des älteren Wagens je Jahr
+// höher liegen als die des Neuwagens, bevor der Neuwagen günstiger wäre.
+const schwelleGegenLetztes = neuwagenWertverlustProJahr - letztes.verlust;
+const schwelleGegenErstes = neuwagenWertverlustProJahr - erstes.verlust;
+if (!(schwelleGegenLetztes > schwelleGegenErstes && schwelleGegenErstes > 0)) {
+  throw new Error('gebrauchtwagen-alter-kosten: Wertverlustdaten widersprechen dem Text');
+}
 
 // Kilometerkorrektur aus derselben Liste, Kilometerklasse III (mittlere Laufleistung).
 const KM_KLASSE = 'III';
@@ -99,29 +88,32 @@ const eur = (n: number) => n.toLocaleString('de-DE', { maximumFractionDigits: 0 
 const prozent = (n: number, stellen = 0) =>
   (n * 100).toLocaleString('de-DE', { minimumFractionDigits: stellen, maximumFractionDigits: stellen }) + ' %';
 const ganz = (n: number) => n.toLocaleString('de-DE');
+const faktor = (n: number) => n.toLocaleString('de-DE', { maximumFractionDigits: 1 });
 ---
 <RechnerArtikel
-  titel={`Das günstigste Autojahr ist das ${['erste', 'zweite', 'dritte', 'vierte', 'fünfte', 'sechste', 'siebte', 'achte'][guenstigstesJahr.alter]} – gerechnet aus ${ganz(FAHRZEUGE_GESAMT)} Gebrauchtwagenpreisen`}
-  lead={`„Irgendwann wird der Alte teurer als ein Neuer" – der Satz stimmt für die Werkstattrechnung und ist trotzdem falsch. Wertverlust und Reparaturen zusammengerechnet, ist das ${guenstigstesJahr.alter + 1}. Lebensjahr eines Autos das billigste: ${eur(guenstigstesJahr.summe)}. Die ersten beiden Jahre kosten ${eur(neuwagenSumme)} – das ${faktorNeuGegenGuenstigstes.toLocaleString('de-DE', { maximumFractionDigits: 1 })}-Fache.`}
+  titel={`Der Wertverlust halbiert sich zwischen dem dritten und dem achten Jahr – gerechnet aus ${ganz(FAHRZEUGE_GESAMT)} Gebrauchtwagenpreisen`}
+  lead={`Ein Neuwagen verliert in den ersten beiden Jahren im Median ${eur(neuwagenWertverlustProJahr)} Wert pro Jahr, ein sieben Jahre alter Wagen ${eur(letztes.verlust)}. Wer den älteren fährt, kann sich ${eur(schwelleGegenLetztes)} höhere Werkstattkosten im Jahr leisten, bevor der Neuwagen günstiger wäre.`}
   datum="2026-08-14"
   quellen={[
     { titel: 'ADAC Gebrauchtwagenpreise Alle Marken, Frühjahr/Sommer 2026 (PDF, Preisnotierungen der DAT)', url: 'https://assets.adac.de/Autodatenbank/Autokosten/gebrauchtwagenpreise.pdf' },
-    { titel: 'ADAC: Grundlagen für die standardisierte Autokostenberechnung (PDF)', url: 'https://assets.adac.de/Autodatenbank/Autokosten/autokosten_grundlagen.pdf' },
-    { titel: 'ADAC Autokostenübersicht Frühjahr/Sommer 2026 (PDF)', url: 'https://assets.adac.de/Autodatenbank/Autokosten/autokostenuebersicht.pdf' },
+    { titel: 'Anlage VIII StVZO (Hauptuntersuchung)', url: 'https://www.gesetze-im-internet.de/stvzo_2012/anlage_viii.html' },
     { titel: 'Deutsche Automobil Treuhand (DAT)', url: 'https://www.dat.de/' },
   ]}
 >
   <p>
     Die Frage, ab wann sich ein alter Wagen nicht mehr lohnt, wird fast immer an der
-    falschen Zahl entschieden – an der Werkstattrechnung, die man sieht. Der größere
-    Posten steht auf keiner Rechnung: der Wertverlust. Beide Kurven laufen
-    gegeneinander, und erst ihre Summe beantwortet die Frage.
+    Zahl entschieden, die man sieht – der Werkstattrechnung. Der größere Posten steht
+    auf keiner Rechnung: der Wertverlust. Wie er mit dem Alter verläuft, lässt sich aus
+    Marktpreisen genau ablesen. Für die Werkstattkosten gibt es keine solche
+    Datenbasis; sie hängen am einzelnen Fahrzeug. Dieser Artikel rechnet deshalb die
+    eine Seite aus und macht aus der anderen eine Schwelle, die Sie mit Ihren eigenen
+    Rechnungen vergleichen können.
   </p>
   <p>
-    Für diesen Artikel haben wir sie ausgerechnet. Datenbasis ist die
-    ADAC-Gebrauchtwagenpreisliste {STAND}, deren Notierungen die Deutsche Automobil
-    Treuhand erhebt. Aus ihr wurden alle {ganz(FAHRZEUGE_GESAMT)} Fahrzeugzeilen
-    ausgelesen, die einen Neupreis und mindestens eine Baujahrsnotierung enthalten.
+    Datenbasis ist die ADAC-Gebrauchtwagenpreisliste {STAND}, deren Notierungen die
+    Deutsche Automobil Treuhand erhebt. Aus ihr wurden alle {ganz(FAHRZEUGE_GESAMT)}
+    Fahrzeugzeilen ausgelesen, die einen Neupreis und mindestens eine
+    Baujahrsnotierung enthalten.
   </p>
 
   <h3>Wie gerechnet wurde</h3>
@@ -157,6 +149,13 @@ const ganz = (n: number) => n.toLocaleString('de-DE');
         </tr>
       </thead>
       <tbody>
+        <tr class="neuwagen">
+          <th scope="row">Neuwagen, 1. und 2. Jahr</th>
+          <td class="num">{eur(MEDIAN_NEUPREIS)}</td>
+          <td class="num strong">{eur(neuwagenWertverlustProJahr)}</td>
+          <td class="num">{prozent((1 - RESTWERT_NACH_ZWEI_JAHREN) / JUNGWAGEN_ALTER, 1)}</td>
+          <td class="num dezent">{ganz(NEUWAGEN_N)}</td>
+        </tr>
         {wertverlust.map((w) => (
           <tr>
             <th scope="row">{w.alter}. auf {w.alter + 1}. Jahr</th>
@@ -170,13 +169,14 @@ const ganz = (n: number) => n.toLocaleString('de-DE');
     </table>
   </div>
   <p class="tabellenhinweis">
-    Median über Fahrzeuge mit {eur(PREISBAND.von)} bis {eur(PREISBAND.bis)} Neupreis.
+    Median über Fahrzeuge mit {eur(PREISBAND.von)} bis {eur(PREISBAND.bis)} Neupreis;
+    Neuwagen: Verlust bis zur Notierung des Baujahrs {ERHEBUNGSJAHR - 2}, auf zwei Jahre verteilt.
     Quelle: ADAC-Gebrauchtwagenpreise {STAND}, eigene Auswertung.
   </p>
 
   <p>
     Zwei Dinge fallen auf. Erstens: <strong>Die prozentuale Verlustquote ist
-    bemerkenswert konstant.</strong> Sie liegt über den gesamten Zeitraum zwischen
+    bemerkenswert konstant.</strong> Sie liegt ab dem dritten Jahr zwischen
     {' '}{prozent(Math.min(...wertverlust.map((w) => w.quote)), 1)} und
     {' '}{prozent(Math.max(...wertverlust.map((w) => w.quote)), 1)} – ein alter Wagen
     verliert prozentual kaum weniger als ein junger. Die verbreitete Vorstellung, der
@@ -185,9 +185,11 @@ const ganz = (n: number) => n.toLocaleString('de-DE');
   <p>
     Zweitens, und das ist der entscheidende Punkt: <strong>In Euro halbiert er sich
     trotzdem</strong>, weil der Prozentsatz auf eine immer kleinere Basis wirkt. Vom
-    dritten zum achten Jahr sinkt er von {eur(wertverlust[0].verlust)} auf
-    {' '}{eur(wertverlust[wertverlust.length - 1].verlust)} – ein Rückgang um
-    {' '}{eur(wertverlustRueckgang)} pro Jahr.
+    dritten zum achten Jahr sinkt er von {eur(erstes.verlust)} auf
+    {' '}{eur(letztes.verlust)} – ein Rückgang um {eur(wertverlustRueckgang)} pro Jahr.
+    Der eigentliche Sprung liegt aber davor: Ein Neuwagen verliert in seinen ersten
+    beiden Jahren {eur(neuwagenWertverlustProJahr)} pro Jahr, das
+    {' '}{faktor(faktorNeuGegenAlt)}-Fache eines sieben Jahre alten Wagens.
   </p>
   <p class="hinweis">
     Methodischer Vorbehalt: Das ist ein Querschnitt, keine Kohorte. Verglichen werden
@@ -198,85 +200,36 @@ const ganz = (n: number) => n.toLocaleString('de-DE');
     Fahrzeugwerts nicht.
   </p>
 
-  <h3>Die Werkstattkosten steigen – aber flacher</h3>
+  <h3>Die Werkstattseite als Schwelle</h3>
   <p>
-    Die Gegenkurve stammt aus dem Rechner am Anfang dieser Seite, für die
-    Kompaktklasse bei {ganz(KM_PRO_JAHR)} Kilometern im Jahr. Er trennt Wartung
-    (Inspektion, Öl, HU – überwiegend altersunabhängig), Reifen (rein
-    laufleistungsabhängig) und Verschleiß, der mit dem Alter zunimmt.
+    Werkstattkosten steigen mit dem Alter – wie stark, hängt an Modell, Pflege und
+    Werkstatt. Eine belastbare Durchschnittskurve nach Fahrzeugalter gibt es nicht,
+    und eine geschätzte würde die Rechnung nur scheinbar genauer machen. Umgekehrt
+    lässt sich aber genau sagen, wie hoch der Unterschied sein dürfte:
   </p>
+  <ul>
+    <li>
+      Gegenüber einem drei Jahre alten Wagen spart der Neuwagen nichts, solange der
+      ältere nicht mehr als <strong>{eur(schwelleGegenErstes)} im Jahr</strong> zusätzlich
+      in der Werkstatt kostet.
+    </li>
+    <li>
+      Gegenüber einem sieben Jahre alten Wagen liegt die Schwelle bei
+      {' '}<strong>{eur(schwelleGegenLetztes)} im Jahr</strong>.
+    </li>
+  </ul>
   <p>
-    Der ADAC bestätigt diesen Anstieg unabhängig: In seiner Autokostenberechnung wird
-    eine zusätzliche Reparaturkostenpauschale angesetzt, sobald die Haltedauer drei
-    Jahre überschreitet oder die Gesamtlaufleistung 80.000 Kilometer erreicht. Der
-    Sprung ist also nicht erfunden, er ist branchenüblich einkalkuliert.
-  </p>
-
-  <div class="table-wrap">
-    <table>
-      <thead>
-        <tr>
-          <th scope="col">Haltejahr</th>
-          <th scope="col" class="num">Wertverlust</th>
-          <th scope="col" class="num">Werkstatt</th>
-          <th scope="col" class="num">zusammen</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr class="neuwagen">
-          <th scope="row">Neuwagen, 1. + 2. Jahr</th>
-          <td class="num">{eur(neuwagenWertverlustProJahr)}</td>
-          <td class="num">{eur(neuwagenWerkstattProJahr)}</td>
-          <td class="num strong">{eur(neuwagenSumme)}</td>
-        </tr>
-        {jahre.map((j) => (
-          <tr class={j.alter === guenstigstesJahr.alter ? 'minimum' : undefined}>
-            <th scope="row">
-              {j.alter}. auf {j.alter + 1}. Jahr
-              {j.alter === guenstigstesJahr.alter && <span class="marke">günstigstes Jahr</span>}
-            </th>
-            <td class="num">{eur(j.verlust)}</td>
-            <td class="num">{eur(j.werkstatt)}</td>
-            <td class="num strong">{eur(j.summe)}</td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
-  </div>
-  <p class="tabellenhinweis">
-    Alle Beträge je Jahr. Ohne Kraftstoff, Versicherung, Kfz-Steuer – diese Posten
-    hängen nicht am Fahrzeugalter und verschieben den Vergleich nicht.
+    Ob Ihr Wagen darunter bleibt, rechnet der Rechner am Anfang dieser Seite aus Ihren
+    eigenen Rechnungen: Inspektion, Hauptuntersuchung, Reifen, Bremsen und eine
+    Rücklage für Reparaturen, jeweils mit dem Intervall, in dem sie anfallen.
   </p>
 
+  <h3>Wie hart der Anfang ausfällt, hängt vom Preis ab</h3>
   <p>
-    Die Werkstattkosten steigen über den betrachteten Zeitraum um
-    {' '}{eur(werkstattAnstieg)} im Jahr. Der Wertverlust sinkt im selben Zeitraum um
-    {' '}{eur(wertverlustRueckgang)}. Die fallende Kurve ist also
-    {' '}<strong>rund {(wertverlustRueckgang / werkstattAnstieg).toLocaleString('de-DE', { maximumFractionDigits: 1 })}-mal
-    so steil</strong> wie die steigende. Genau deshalb liegt das Minimum spät.
-  </p>
-
-  <h3>Das Ergebnis: das {guenstigstesJahr.alter + 1}. Jahr</h3>
-  <p>
-    Die Summe erreicht ihr Minimum im {guenstigstesJahr.alter + 1}. Lebensjahr mit
-    {' '}{eur(guenstigstesJahr.summe)}. Danach steigt sie wieder – aber so langsam, dass
-    das teuerste der betrachteten Haltejahre nur {eur(spanne)} über dem günstigsten
-    liegt. Klammert man das dritte Lebensjahr aus, in dem der Wertverlust noch spürbar
-    höher ist, schrumpft die Spanne auf {eur(flacheSpanne)}: Vom vierten bis zum achten
-    Lebensjahr kostet ein Auto praktisch jedes Jahr dasselbe.
-  </p>
-  <p>
-    Der eigentliche Unterschied liegt woanders. Die ersten beiden Jahre kosten
-    {' '}{eur(neuwagenSumme)} im Jahr, weil ein Neuwagen bis zum Alter von
-    {' '}{JUNGWAGEN_ALTER} Jahren im Median auf {prozent(RESTWERT_NACH_ZWEI_JAHREN, 1)} des
-    Neupreises fällt – ausgewertet über {ganz(NEUWAGEN_N)} Fahrzeuge des Preisbands mit
-    einem mittleren Neupreis von {eur(MEDIAN_NEUPREIS)}. Das ist das
-    {' '}{faktorNeuGegenGuenstigstes.toLocaleString('de-DE', { maximumFractionDigits: 1 })}-Fache
-    des günstigsten Gebrauchtwagenjahres.
-  </p>
-  <p>
-    Wie hart der Anfang ausfällt, hängt dabei stark vom Preis ab. Dieselbe Auswertung,
-    nur nach Neupreisklassen gruppiert:
+    Ein Neuwagen fällt bis zum Alter von {JUNGWAGEN_ALTER} Jahren im Median auf
+    {' '}{prozent(RESTWERT_NACH_ZWEI_JAHREN, 1)} des Neupreises – ausgewertet über
+    {' '}{ganz(NEUWAGEN_N)} Fahrzeuge des Preisbands mit einem mittleren Neupreis von
+    {' '}{eur(MEDIAN_NEUPREIS)}. Dieselbe Auswertung, nach Neupreisklassen gruppiert:
   </p>
 
   <div class="table-wrap">
@@ -314,42 +267,30 @@ const ganz = (n: number) => n.toLocaleString('de-DE');
     abgeschrieben – bezahlt wird er beim Kauf, wiedergesehen nur zum Teil.
   </p>
   <p>
-    Oberhalb von {eur(70_000)} dreht sich das leicht zurück. Naheliegende Erklärung:
-    Dort wird der Listenpreis ohnehin selten bezahlt, und die Nachfrage nach jungen
-    Gebrauchten ist stabiler. Wer die Klasse wechselt, sollte den Effekt aber nicht
-    als Regel lesen – die Streuung innerhalb jeder Preisklasse ist größer als der
-    Unterschied zwischen zwei benachbarten Klassen.
-  </p>
-  <p>
-    Damit ist die Ausgangsfrage beantwortet, wenn auch anders als erwartet:
-    {' '}<strong>Innerhalb der ersten acht Jahre holt der Gebrauchte den Neuwagen nicht
-    ein.</strong> Nicht annähernd. Die steigenden Werkstattkosten müssten sich mehr als
-    vervierfachen, um den Vorsprung aufzuzehren.
+    Oberhalb von {eur(70_000)} dreht sich das leicht zurück. Wer die Klasse wechselt,
+    sollte den Effekt aber nicht als Regel lesen – die Streuung innerhalb jeder
+    Preisklasse ist größer als der Unterschied zwischen zwei benachbarten Klassen.
   </p>
   <p class="hinweis">
     Ein Vorbehalt gehört dazu: Der Neupreis ist die Listenpreisempfehlung. Wer einen
     Neuwagen mit Rabatt kauft, startet niedriger und verliert entsprechend weniger. Die
     Gebrauchtwagennotierungen sind dagegen Händler-Verkaufspreise, also bereits
-    Marktpreise. Der Abstand fällt real also etwas kleiner aus als hier gerechnet –
-    aber nicht um den Faktor, der das Ergebnis kippen würde.
+    Marktpreise. Der Abstand fällt real also etwas kleiner aus als hier gerechnet.
   </p>
 
   <h3>Was die Rechnung nicht enthält</h3>
-  <p>
-    Drei Dinge, die den Einzelfall verschieben können:
-  </p>
   <ul>
     <li>
       <strong>Der große Einzelschaden.</strong> Getriebe, Turbolader, Steuerkette,
-      Klimakompressor, bei Elektroautos die Traktionsbatterie – das sind vierstellige
-      Beträge, die kein Durchschnittsmodell abbildet. Sie machen alte Autos nicht
-      teurer im Mittel, aber unberechenbarer. Wer keine Rücklage hat, kauft mit einem
-      Gebrauchtwagen ein Risiko mit, das die Tabelle nicht zeigt.
+      bei Elektroautos die Traktionsbatterie – solche Schäden machen alte Autos
+      unberechenbarer. Wer keine Rücklage hat, kauft mit einem Gebrauchtwagen ein Risiko
+      mit, das keine Preisliste zeigt.
     </li>
     <li>
-      <strong>Die Hauptuntersuchung.</strong> Ab dem achten, neunten Jahr entscheidet
-      sie regelmäßig über die Weiterhaltung: Wenn die Mängelbeseitigung den Restwert
-      übersteigt, endet die Rechnung nicht wirtschaftlich, sondern praktisch.
+      <strong>Die Hauptuntersuchung.</strong> Sie ist bei Pkw nach der ersten alle
+      {' '}{HU_ABSTAND_MONATE} Monate fällig (Anlage VIII StVZO). Übersteigt die
+      Mängelbeseitigung den Restwert, endet die Rechnung nicht wirtschaftlich, sondern
+      praktisch.
     </li>
     <li>
       <strong>Fixkosten pro Kilometer.</strong> Versicherung und Kfz-Steuer laufen
@@ -371,9 +312,9 @@ const ganz = (n: number) => n.toLocaleString('de-DE');
     Händler-Einkaufspreis {prozent(HAENDLER_EINKAUF_ABSCHLAG.von)} bis
     {' '}{prozent(HAENDLER_EINKAUF_ABSCHLAG.bis)}. Wer beim Händler kauft und beim
     Händler in Zahlung gibt, verliert diese Spanne bei jedem Wechsel zusätzlich zum
-    Wertverlust – bei einem Fahrzeug für {eur(wertverlust[0].wert)} sind das
-    {' '}{eur(wertverlust[0].wert * HAENDLER_EINKAUF_ABSCHLAG.von)} bis
-    {' '}{eur(wertverlust[0].wert * HAENDLER_EINKAUF_ABSCHLAG.bis)} pro Runde.
+    Wertverlust – bei einem Fahrzeug für {eur(erstes.wert)} sind das
+    {' '}{eur(erstes.wert * HAENDLER_EINKAUF_ABSCHLAG.von)} bis
+    {' '}{eur(erstes.wert * HAENDLER_EINKAUF_ABSCHLAG.bis)} pro Runde.
   </p>
   <p>
     <strong>Der Kilometerstand.</strong> Für die mittlere Kilometerklasse
@@ -383,28 +324,25 @@ const ganz = (n: number) => n.toLocaleString('de-DE');
     {' '}{prozent(KM_KORREKTUR.minder30)}, 30.000 darüber einen Abschlag von
     {' '}{prozent(Math.abs(KM_KORREKTUR.mehr30))}. Zwischen einem wenig und einem viel
     gefahrenen Wagen desselben Baujahrs liegen also rund
-    {' '}{prozent(KM_SPANNE)} des Werts – bei
-    {' '}{eur(wertverlust[wertverlust.length - 1].wert)} Fahrzeugwert etwa
-    {' '}{eur(wertverlust[wertverlust.length - 1].wert * KM_SPANNE)}.
+    {' '}{prozent(KM_SPANNE)} des Werts – bei {eur(letztes.wert)} Fahrzeugwert etwa
+    {' '}{eur(letztes.wert * KM_SPANNE)}.
   </p>
 
   <h3>Was daraus folgt</h3>
   <ul>
     <li>
-      <strong>Die Haltedauer schlägt die Modellwahl.</strong> Wer denselben Wagen zehn
-      statt vier Jahre fährt, verteilt den teuren Anfang auf mehr Jahre. Das senkt die
-      Kosten stärker als jeder Verbrauchsvorteil.
+      <strong>Die Haltedauer schlägt die Modellwahl.</strong> Wer denselben Wagen länger
+      fährt, verteilt den teuren Anfang auf mehr Jahre.
     </li>
     <li>
-      <strong>„Zu alt" beginnt später, als es sich anfühlt.</strong> Zwischen dem
-      dritten und dem achten Jahr unterscheiden sich die Jahreskosten um
-      {' '}{eur(spanne)}. Ein Fahrzeugwechsel in diesem Fenster spart nichts – er kostet
-      die Handelsspanne.
+      <strong>„Zu alt" ist eine Frage der Werkstattrechnung, nicht des Baujahrs.</strong>
+      Solange die jährlichen Mehrkosten gegenüber einem jüngeren Wagen unter der Schwelle
+      bleiben, spricht der Wertverlust fürs Behalten – und jeder Wechsel kostet die
+      Handelsspanne.
     </li>
     <li>
-      <strong>Der Zeitpunkt zum Verkaufen richtet sich nach dem Zustand, nicht nach dem
-      Alter.</strong> Solange keine Reparatur ansteht, die den Restwert übersteigt,
-      spricht die Rechnung fürs Behalten.
+      <strong>Der Zeitpunkt zum Verkaufen richtet sich nach dem Zustand.</strong> Steht
+      eine Reparatur an, die den Restwert übersteigt, ist die Rechnung beendet.
     </li>
   </ul>
 
@@ -412,7 +350,7 @@ const ganz = (n: number) => n.toLocaleString('de-DE');
   <ul>
     <li><a href={`${base}auto/unterhaltskosten-auto/`}>Unterhaltskosten-Rechner</a> – alle Kostenblöcke, getrennt nach fix und variabel</li>
     <li><a href={`${base}auto/km-kostenrechner/`}>Kilometerkosten-Rechner</a> – Vollkosten je gefahrenem Kilometer</li>
-    <li><a href={`${base}auto/kfz-versicherung-rechner/`}>Kfz-Versicherungsrechner</a> – der zweite altersunabhängige Fixposten</li>
+    <li><a href={`${base}auto/kfz-versicherung-rechner/`}>Kfz-Versicherungsrechner</a> – was eine Schadenmeldung an Rückstufung kostet</li>
     <li><a href={`${import.meta.env.BASE_URL}${artikelPfadVonSlug('kfz-steuer-erstzulassung')}`}>Kfz-Steuer nach Erstzulassung</a> – warum ältere Fahrzeuge hier oft besser dastehen</li>
   </ul>
 
@@ -421,8 +359,7 @@ const ganz = (n: number) => n.toLocaleString('de-DE');
     Preisnotierungen der Deutschen Automobil Treuhand, eigene Auswertung von
     {' '}{ganz(FAHRZEUGE_GESAMT)} Fahrzeugzeilen. Die Notierungen gelten für unfallfreie,
     verkehrssichere Fahrzeuge mit mindestens zwölf Monaten Hauptuntersuchung und
-    durchschnittlicher Laufleistung. Werkstattkosten sind ein Schätzmodell, kein
-    Tarifwerk – tatsächliche Werkstattpreise streuen erheblich.
+    durchschnittlicher Laufleistung. Werkstattkosten sind nicht Teil der Auswertung.
   </p>
 </RechnerArtikel>
 

@@ -1,65 +1,56 @@
+// Werkstattkosten eines Autos aus den eigenen Rechnungen
+//
+// Früher enthielt dieses Modul sechs Fahrzeugklassen mit Wartungs-, Verschleiß-
+// und Reifenwerten und einen Altersfaktor (0,5 plus 0,12 je Jahr). Keine dieser
+// Zahlen hatte eine Quelle; die Seite schrieb die Größenordnungen dem ADAC zu.
+// Werkstattpreise hängen an Modell, Region und Werkstatt – eine belastbare
+// Durchschnittstabelle nach Klasse und Alter gibt es nicht.
+//
+// Das Modul rechnet deshalb nur mit Beträgen und Intervallen, die der Nutzer aus
+// Rechnungen, Serviceheft und Herstellervorgaben kennt: Jeder Posten wird so oft
+// im Jahr fällig, wie es das Kilometer- oder das Zeitintervall verlangt – je
+// nachdem, welches zuerst erreicht wird.
+//
+// Belegt ist nur das Intervall der Hauptuntersuchung: Anlage VIII Nr. 2.1.2.1
+// StVZO, https://www.gesetze-im-internet.de/stvzo_2012/anlage_viii.html
+// (abgerufen am 14.09.2026).
+
+/** Anlage VIII Nr. 2.1.2.1 StVZO: Pkw erstmals nach 36, danach alle 24 Monate */
+export const HU_ERSTE_NACH_MONATEN = 36;
+export const HU_ABSTAND_MONATE = 24;
+
+const zahl = (wert) => (Number.isFinite(Number(wert)) ? Math.max(0, Number(wert)) : 0);
+const runde = (n) => Math.round(n * 100) / 100;
+
 /**
- * Schätzt Wartungs- und Verschleißkosten eines Autos.
+ * Wie oft ein Posten im Jahr fällig wird.
  *
- * Bewusst ein Schätzmodell, kein Tarifwerk: Werkstattpreise und Reparaturbedarf
- * streuen stark. Die Größenordnungen orientieren sich an den Werkstatt- und
- * Reifenanteilen der ADAC-Autokostenrechnung. Drei Blöcke, weil sie sich
- * unterschiedlich verhalten:
- *
- *   Wartung   – Inspektion, Öl, HU/AU. Überwiegend fix, wächst nur leicht mit
- *               der Fahrleistung (mehr km = früher fällige Intervalle).
- *   Verschleiß – Bremsen, Auspuff, Stoßdämpfer, Reparaturen. Wächst mit den
- *               gefahrenen Kilometern und deutlich mit dem Fahrzeugalter.
- *   Reifen    – rein laufleistungsabhängig, ein Satz hält eine feste Strecke.
+ * @param {{ alleKm?: number, alleMonate?: number }} posten
+ * @param {number} kmProJahr
+ * @returns {number} Fälligkeiten je Jahr (auch Bruchteile)
  */
-
-const FAHRZEUGKLASSEN = {
-  kleinwagen:   { label: 'Kleinwagen',   wartungBasis: 280, verschleissCentProKm: 2.5, reifensatzEuro: 380, reifenLaufleistungKm: 35000 },
-  kompakt:      { label: 'Kompaktklasse', wartungBasis: 350, verschleissCentProKm: 3.5, reifensatzEuro: 480, reifenLaufleistungKm: 35000 },
-  mittelklasse: { label: 'Mittelklasse', wartungBasis: 450, verschleissCentProKm: 4.5, reifensatzEuro: 620, reifenLaufleistungKm: 35000 },
-  suv:          { label: 'SUV/Geländewagen', wartungBasis: 500, verschleissCentProKm: 5.0, reifensatzEuro: 750, reifenLaufleistungKm: 32000 },
-  van:          { label: 'Van/Kombi',    wartungBasis: 450, verschleissCentProKm: 4.5, reifensatzEuro: 650, reifenLaufleistungKm: 35000 },
-  oberklasse:   { label: 'Oberklasse',   wartungBasis: 650, verschleissCentProKm: 6.5, reifensatzEuro: 950, reifenLaufleistungKm: 30000 },
-};
-
-const REFERENZ_KM_PRO_JAHR = 15000;
-/** Anteil der Wartung, der unabhängig von der Fahrleistung anfällt (HU, Ölwechsel nach Zeit). */
-const WARTUNG_FIXANTEIL = 0.6;
-/** Reparaturbedarf im ersten Jahr, meist noch Garantie. */
-const ALTER_STARTFAKTOR = 0.5;
-/** Zuwachs des Reparaturbedarfs je Lebensjahr. */
-const ALTER_STEIGUNG = 0.12;
-/** Ab etwa 16 Jahren steigen die Kosten nicht mehr weiter – dann wird eher verschrottet. */
-const ALTER_MAXFAKTOR = 2.5;
-
-function runde(betrag) {
-  return Math.round(betrag * 100) / 100;
+export function faelligkeitenProJahr({ alleKm = 0, alleMonate = 0 }, kmProJahr) {
+  const nachKm = zahl(alleKm) > 0 ? zahl(kmProJahr) / zahl(alleKm) : 0;
+  const nachZeit = zahl(alleMonate) > 0 ? 12 / zahl(alleMonate) : 0;
+  return Math.max(nachKm, nachZeit);
 }
 
-function berechneWartungskosten({ klasse, alter, kmProJahr }) {
-  const k = FAHRZEUGKLASSEN[klasse] ?? FAHRZEUGKLASSEN.kompakt;
-  const jahre = Math.max(0, alter || 0);
-  const km = Math.max(0, kmProJahr || 0);
-
-  const alterFaktor = Math.min(ALTER_MAXFAKTOR, ALTER_STARTFAKTOR + ALTER_STEIGUNG * jahre);
-
-  const wartungProJahr = k.wartungBasis * (WARTUNG_FIXANTEIL + (1 - WARTUNG_FIXANTEIL) * (km / REFERENZ_KM_PRO_JAHR));
-  const verschleissProJahr = km * (k.verschleissCentProKm / 100) * alterFaktor;
-  const reifenProJahr = (km / k.reifenLaufleistungKm) * k.reifensatzEuro;
-
-  const gesamtProJahr = wartungProJahr + verschleissProJahr + reifenProJahr;
-
+/**
+ * @param {object} p
+ * @param {number} p.kmProJahr
+ * @param {{ name: string, betrag: number, alleKm?: number, alleMonate?: number }[]} p.posten
+ */
+export function berechneWartungskosten({ kmProJahr, posten = [] }) {
+  const km = zahl(kmProJahr);
+  const einzeln = posten.map((p) => {
+    const haeufigkeit = faelligkeitenProJahr(p, km);
+    return { name: p.name, haeufigkeit: runde(haeufigkeit), proJahr: runde(zahl(p.betrag) * haeufigkeit) };
+  });
+  const gesamt = einzeln.reduce((summe, p) => summe + p.proJahr, 0);
   return {
-    gesamtProJahr: runde(gesamtProJahr),
-    gesamtProMonat: runde(gesamtProJahr / 12),
-    wartungProJahr: runde(wartungProJahr),
-    verschleissProJahr: runde(verschleissProJahr),
-    reifenProJahr: runde(reifenProJahr),
-    centProKm: km > 0 ? runde((gesamtProJahr / km) * 100) : 0,
-    alterFaktor: runde(alterFaktor),
-    reifenwechselAlleJahre: km > 0 ? runde(k.reifenLaufleistungKm / km) : null,
-    klassenLabel: k.label,
+    posten: einzeln,
+    gesamtProJahr: runde(gesamt),
+    gesamtProMonat: runde(gesamt / 12),
+    centProKm: km > 0 ? runde((gesamt / km) * 100) : null,
   };
 }
-
-export { berechneWartungskosten, FAHRZEUGKLASSEN };

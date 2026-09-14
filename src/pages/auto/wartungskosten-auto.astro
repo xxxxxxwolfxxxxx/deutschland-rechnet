@@ -3,13 +3,14 @@ import Layout from '../../layouts/Layout.astro';
 import CalculatorShell from '../../components/CalculatorShell.astro';
 import ArtikelGebrauchtwagen from '../../components/artikel/gebrauchtwagen-alter-kosten.astro';
 import { CALCULATORS, CATEGORIES } from '../../data/calculators';
+import { HU_ERSTE_NACH_MONATEN, HU_ABSTAND_MONATE } from '../../../public/scripts/wartungskosten.js';
 const calc = CALCULATORS.find(c => c.slug === 'wartungskosten-auto')!;
 const cat = CATEGORIES[calc.category];
 const year = new Date().getFullYear();
 ---
 <Layout
-  title={`Wartungskosten Auto ${year} – Verschleiß pro Kilometer berechnen`}
-  description="Wartung, Verschleiß und Reifen nach Fahrzeugalter und Laufleistung schätzen – inklusive Abnutzung pro Kilometer in Cent."
+  title={`Wartungskosten Auto ${year} – Werkstattkosten pro Kilometer aus den eigenen Rechnungen`}
+  description="Inspektion, Hauptuntersuchung, Reifen und Bremsen mit ihren Intervallen auf Jahr, Monat und Kilometer umlegen – mit Beträgen aus Ihren eigenen Rechnungen."
   canonicalPath="/auto/wartungskosten-auto/"
   categoryColor={cat.color}
   categoryLight={cat.colorLight}
@@ -17,45 +18,37 @@ const year = new Date().getFullYear();
 >
   <div class="page-header">
     <a href={`${import.meta.env.BASE_URL}auto/`} class="back-link">← Auto &amp; Mobilität</a>
-    <h1>Wartungskosten Auto {year} – Verschleiß pro Kilometer</h1>
+    <h1>Wartungskosten Auto {year} – Werkstattkosten pro Kilometer</h1>
   </div>
   <CalculatorShell
     calculator={calc}
-    intro="Was kostet die Abnutzung Ihres Autos pro Kilometer? Dieser Rechner schätzt Wartung, Verschleiß und Reifen getrennt – abhängig von Fahrzeugklasse, Alter und Jahresfahrleistung. Sprit, Steuer und Versicherung bleiben bewusst außen vor."
-    sourceNote="Schätzmodell in drei Blöcken: Wartung (überwiegend fix), Verschleiß (km × Alterfaktor) und Reifen (Laufleistung je Satz). Größenordnungen orientiert an den Werkstatt- und Reifenanteilen der ADAC-Autokostenrechnung. Werkstattpreise streuen regional erheblich – die Werte sind Orientierung, kein Kostenvoranschlag."
-    explanation="Wartung wächst nur leicht mit der Fahrleistung, weil Ölwechsel und HU auch nach Zeit fällig werden. Verschleiß dagegen steigt mit jedem Kilometer und zusätzlich mit dem Alter: Der Alterfaktor beginnt bei 0,5 im ersten Jahr (meist noch Garantie) und wächst um 0,12 pro Lebensjahr bis maximal 2,5. Reifen werden rein über die Laufleistung je Satz umgelegt."
+    intro="Was kostet die Werkstatt Ihres Autos im Jahr, im Monat und je Kilometer? Tragen Sie Beträge und Intervalle aus Ihren Rechnungen und dem Serviceheft ein – der Rechner legt jeden Posten danach um, ob zuerst die Kilometer oder die Zeit erreicht sind."
+    sourceNote={`Keine Durchschnittswerte: Beträge und Intervalle sind Ihre Eingaben, die voreingestellten Zahlen nur Beispiele. Intervall der Hauptuntersuchung für Pkw nach Anlage VIII Nr. 2.1.2.1 StVZO: erstmals nach ${HU_ERSTE_NACH_MONATEN}, danach alle ${HU_ABSTAND_MONATE} Monate (abgerufen am 14.09.2026).`}
+    explanation="Jeder Posten wird so oft im Jahr fällig, wie es sein Kilometer- oder sein Zeitintervall verlangt – maßgeblich ist das, was zuerst erreicht wird. Kosten je Jahr = Betrag × Fälligkeiten je Jahr; Kosten je Kilometer = Summe ÷ Jahresfahrleistung."
     faqs={[
       {
-        q: "Wie viel Verschleiß pro Kilometer ist normal?",
-        a: "Für Wartung, Verschleiß und Reifen zusammen liegen typische Werte bei etwa 5-7 Cent pro Kilometer im Kleinwagen- und Kompaktsegment, 7-10 Cent in der Mittelklasse und 12-16 Cent in der Oberklasse – bei rund 15.000 km im Jahr und mittlerem Fahrzeugalter. Sprit ist darin nicht enthalten."
+        q: "Wie oft muss ein Auto zur Hauptuntersuchung?",
+        a: `Ein Pkw erstmals ${HU_ERSTE_NACH_MONATEN} Monate nach der Erstzulassung, danach alle ${HU_ABSTAND_MONATE} Monate (Anlage VIII Nr. 2.1.2.1 StVZO).`
       },
       {
         q: "Warum sinken die Kosten pro Kilometer, je mehr ich fahre?",
-        a: "Ein Teil der Wartung fällt unabhängig von der Fahrleistung an: Die Hauptuntersuchung ist alle zwei Jahre fällig, Motoröl altert auch im Stand. Diese Fixkosten verteilen sich bei 30.000 km auf doppelt so viele Kilometer wie bei 15.000 km. Der Verschleißanteil bleibt dagegen pro Kilometer konstant."
+        a: "Weil ein Teil der Posten nach Zeit fällig wird: die Hauptuntersuchung und bei vielen Herstellern die Inspektion, wenn das Kilometerintervall nicht vorher erreicht ist. Diese Kosten verteilen sich bei höherer Fahrleistung auf mehr Kilometer."
       },
       {
-        q: "Ab welchem Alter wird ein Auto teuer in der Wartung?",
-        a: "Die ersten Jahre sind meist günstig, weil Garantie und Kulanz greifen. Spürbar teurer wird es typischerweise ab dem sechsten bis achten Jahr, wenn Verschleißteile wie Stoßdämpfer, Auspuffanlage, Kupplung oder Zahnriemen fällig werden. Der Rechner bildet das über einen mit dem Alter steigenden Faktor ab."
+        q: "Wo finde ich die Intervalle für Inspektion und Verschleißteile?",
+        a: "Im Serviceheft oder in der Betriebsanleitung Ihres Fahrzeugs, bei Verschleißteilen wie Reifen und Bremsen am besten aus Ihren eigenen Rechnungen: Kilometerstand beim letzten und vorletzten Wechsel."
       },
       {
-        q: "Was gehört zu Wartung, was zu Verschleiß?",
-        a: "Wartung ist planbar: Inspektion nach Herstellervorgabe, Ölwechsel, Filter, Hauptuntersuchung und Abgasuntersuchung. Verschleiß entsteht durch Nutzung: Bremsbeläge und -scheiben, Kupplung, Stoßdämpfer, Auspuff, Batterie sowie unplanmäßige Reparaturen. Reifen werden getrennt geführt, weil sie fast ausschließlich von der Laufleistung abhängen."
+        q: "Warum schätzt der Rechner keine Werte nach Fahrzeugklasse?",
+        a: "Weil es dafür keine belastbare Quelle gibt. Werkstattpreise hängen an Modell, Region und Werkstatt. Frühere Fassungen dieser Seite rechneten mit Klassenwerten und einem Altersfaktor ohne Beleg; mit Ihren eigenen Rechnungen ist das Ergebnis genauer."
       },
       {
-        q: "Wie oft muss ich Reifen wechseln?",
-        a: "Ein Satz Sommerreifen hält je nach Fahrweise und Fahrzeug etwa 30.000 bis 40.000 Kilometer. Bei 15.000 km im Jahr entspricht das rund zwei bis zweieinhalb Jahren. Unabhängig von der Laufleistung sollten Reifen nach etwa acht bis zehn Jahren ersetzt werden, weil die Gummimischung aushärtet."
-      },
-      {
-        q: "Sind Elektroautos in der Wartung günstiger?",
-        a: "In der Regel ja. Es entfallen Ölwechsel, Zündkerzen, Auspuffanlage und Kupplung, und die Rekuperation schont die Bremsen erheblich. Dafür sind die Reifen wegen des höheren Fahrzeuggewichts und des sofort anliegenden Drehmoments oft früher abgefahren. Unterm Strich liegen die Werkstattkosten meist 20 bis 35 Prozent unter denen eines vergleichbaren Verbrenners."
-      },
-      {
-        q: "Rechnet das Modell auch unvorhergesehene Reparaturen mit ein?",
-        a: "Teilweise. Der Verschleißblock enthält einen über das Alter steigenden Anteil für Reparaturen. Einen kapitalen Schaden – etwa an Getriebe, Motor oder Hochvoltbatterie – bildet ein Durchschnittsmodell naturgemäß nicht ab. Für solche Fälle ist eine Rücklage sinnvoll."
+        q: "Wie berücksichtige ich unvorhergesehene Reparaturen?",
+        a: "Über den Posten „Rücklage für Reparaturen\": ein Jahresbetrag, den Sie selbst festlegen – etwa aus den Reparaturen der vergangenen Jahre."
       },
       {
         q: "Wie unterscheidet sich dieser Rechner vom KM-Kostenrechner?",
-        a: "Der KM-Kostenrechner betrachtet die Vollkosten pro Kilometer inklusive Sprit, Versicherung, Steuer und Wertverlust. Dieser Rechner isoliert bewusst nur den Werkstatt- und Verschleißanteil – nützlich, wenn Sie einschätzen wollen, was ein bestimmtes Fahrzeugalter oder eine höhere Laufleistung tatsächlich kostet."
+        a: "Der KM-Kostenrechner betrachtet die Vollkosten pro Kilometer inklusive Sprit, Versicherung, Steuer und Wertverlust. Dieser Rechner isoliert den Werkstatt- und Verschleißanteil."
       }
     ]}
   >
@@ -72,37 +65,24 @@ const year = new Date().getFullYear();
       </div>
       <div class="calc-grid">
         <div class="calc-group">
-          <label for="klasse">Fahrzeugklasse</label>
-          <select id="klasse">
-            <option value="kleinwagen">Kleinwagen</option>
-            <option value="kompakt" selected>Kompaktklasse</option>
-            <option value="mittelklasse">Mittelklasse</option>
-            <option value="suv">SUV/Geländewagen</option>
-            <option value="van">Van/Kombi</option>
-            <option value="oberklasse">Oberklasse</option>
-          </select>
-        </div>
-        <div class="calc-group">
-          <label for="alter">Fahrzeugalter (Jahre)</label>
-          <input type="number" id="alter" min="0" max="30" value="5" step="1" />
-        </div>
-        <div class="calc-group">
           <label for="km">Fahrleistung (km/Jahr)</label>
           <input type="number" id="km" min="0" max="200000" value="15000" step="1000" />
         </div>
       </div>
+      <p class="hinweis">Beispielwerte – ersetzen Sie sie durch die Beträge aus Ihren Rechnungen. Ein leeres Intervall zählt nicht.</p>
+      <div class="posten-tabelle">
+        <div class="posten-kopf"><span>Posten</span><span>Betrag €</span><span>alle km</span><span>alle Monate</span></div>
+        <div class="posten-zeile" data-name="Inspektion"><span>Inspektion</span><input type="number" min="0" placeholder="Betrag €" value="400" aria-label="Inspektion Betrag" /><input type="number" min="0" placeholder="alle km" value="30000" aria-label="Inspektion Kilometerintervall" /><input type="number" min="0" placeholder="alle Monate" value="24" aria-label="Inspektion Zeitintervall" /></div>
+        <div class="posten-zeile" data-name="Hauptuntersuchung"><span>Hauptuntersuchung</span><input type="number" min="0" placeholder="Betrag €" value="150" aria-label="Hauptuntersuchung Betrag" /><input type="number" min="0" placeholder="alle km" value="" aria-label="Hauptuntersuchung Kilometerintervall" /><input type="number" min="0" placeholder="alle Monate" value={HU_ABSTAND_MONATE} aria-label="Hauptuntersuchung Zeitintervall" /></div>
+        <div class="posten-zeile" data-name="Reifensatz"><span>Reifensatz</span><input type="number" min="0" placeholder="Betrag €" value="600" aria-label="Reifen Betrag" /><input type="number" min="0" placeholder="alle km" value="40000" aria-label="Reifen Kilometerintervall" /><input type="number" min="0" placeholder="alle Monate" value="" aria-label="Reifen Zeitintervall" /></div>
+        <div class="posten-zeile" data-name="Bremsen"><span>Bremsen</span><input type="number" min="0" placeholder="Betrag €" value="350" aria-label="Bremsen Betrag" /><input type="number" min="0" placeholder="alle km" value="60000" aria-label="Bremsen Kilometerintervall" /><input type="number" min="0" placeholder="alle Monate" value="" aria-label="Bremsen Zeitintervall" /></div>
+        <div class="posten-zeile" data-name="Rücklage für Reparaturen"><span>Rücklage Reparaturen</span><input type="number" min="0" placeholder="Betrag €" value="300" aria-label="Rücklage Betrag" /><input type="number" min="0" placeholder="alle km" value="" aria-label="Rücklage Kilometerintervall" /><input type="number" min="0" placeholder="alle Monate" value="12" aria-label="Rücklage Zeitintervall" /></div>
+      </div>
       <div class="calc-result">
-        <div class="label">Abnutzung pro Kilometer</div>
+        <div class="label">Werkstattkosten pro Kilometer</div>
         <div id="proKm">— ct</div>
       </div>
-      <div class="breakdown">
-        <div class="breakdown-row"><span>Wartung (Inspektion, Öl, HU)</span><strong id="wartung">—</strong></div>
-        <div class="breakdown-row"><span>Verschleiß und Reparaturen</span><strong id="verschleiss">—</strong></div>
-        <div class="breakdown-row"><span>Reifen</span><strong id="reifen">—</strong></div>
-        <div class="breakdown-row total"><span>Gesamt pro Jahr</span><strong id="gesamt">—</strong></div>
-        <div class="breakdown-row"><span>Gesamt pro Monat</span><strong id="monat">—</strong></div>
-      </div>
-      <p id="hinweis" class="hinweis"></p>
+      <div class="breakdown" id="breakdown"></div>
     </div>
 
     <ArtikelGebrauchtwagen slot="artikel" />
@@ -110,6 +90,28 @@ const year = new Date().getFullYear();
 </Layout>
 
 <style>
+.posten-tabelle { display: grid; gap: 0.35rem; margin: 0.5rem 0 1rem; }
+.posten-kopf, .posten-zeile {
+  display: grid;
+  grid-template-columns: minmax(7rem, 1.4fr) repeat(3, minmax(0, 1fr));
+  gap: 0.4rem;
+  align-items: center;
+}
+.posten-kopf { font-size: 0.75rem; font-weight: 600; color: var(--text-light); }
+@media (max-width: 480px) {
+  .posten-kopf { display: none; }
+  .posten-zeile { grid-template-columns: repeat(3, minmax(0, 1fr)); margin-bottom: 0.4rem; }
+  .posten-zeile span { grid-column: 1 / -1; font-weight: 600; }
+}
+.posten-zeile span { font-size: 0.85rem; }
+.posten-zeile input {
+  width: 100%;
+  min-width: 0;
+  padding: 0.35rem 0.4rem;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: 0.85rem;
+}
 .presets {
   display: flex;
   gap: 0.5rem;
@@ -161,38 +163,38 @@ const year = new Date().getFullYear();
 <script type="module">
 const { berechneWartungskosten } = await import(window.__base + 'scripts/wartungskosten.js');
 
-function euro(n) { return n.toLocaleString('de-DE', { minimumFractionDigits: 0, maximumFractionDigits: 0 }) + ' €'; }
+const euro = (n) => n.toLocaleString('de-DE', { minimumFractionDigits: 0, maximumFractionDigits: 0 }) + ' €';
+const zahl = (el) => parseFloat(el.value) || 0;
 
 function berechne() {
-  const klasse = document.getElementById('klasse').value;
-  const alter = parseFloat(document.getElementById('alter').value) || 0;
-  const kmProJahr = parseFloat(document.getElementById('km').value) || 0;
-  const r = berechneWartungskosten({ klasse, alter, kmProJahr });
+  const posten = [...document.querySelectorAll('.posten-zeile')].map((zeile) => {
+    const [betrag, alleKm, alleMonate] = zeile.querySelectorAll('input');
+    return { name: zeile.dataset.name, betrag: zahl(betrag), alleKm: zahl(alleKm), alleMonate: zahl(alleMonate) };
+  });
+  const r = berechneWartungskosten({ kmProJahr: zahl(document.getElementById('km')), posten });
 
-  document.getElementById('proKm').textContent =
-    r.centProKm.toLocaleString('de-DE', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + ' ct/km';
-  document.getElementById('wartung').textContent = euro(r.wartungProJahr);
-  document.getElementById('verschleiss').textContent = euro(r.verschleissProJahr);
-  document.getElementById('reifen').textContent = euro(r.reifenProJahr);
-  document.getElementById('gesamt').textContent = euro(r.gesamtProJahr);
-  document.getElementById('monat').textContent = euro(r.gesamtProMonat);
-
-  document.getElementById('hinweis').textContent = r.reifenwechselAlleJahre
-    ? `Bei dieser Fahrleistung steht etwa alle ${r.reifenwechselAlleJahre.toLocaleString('de-DE', { maximumFractionDigits: 1 })} Jahre ein neuer Reifensatz an. Empfohlene monatliche Rücklage: ${euro(r.gesamtProMonat)}.`
-    : 'Ohne Fahrleistung fallen nur die zeitabhängigen Wartungskosten an.';
+  document.getElementById('proKm').textContent = r.centProKm === null
+    ? '— ct/km'
+    : r.centProKm.toLocaleString('de-DE', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + ' ct/km';
+  const zeilen = r.posten.map((p) =>
+    `<div class="breakdown-row"><span>${p.name} (${p.haeufigkeit.toLocaleString('de-DE', { maximumFractionDigits: 2 })}× im Jahr)</span><strong>${euro(p.proJahr)}</strong></div>`);
+  zeilen.push(`<div class="breakdown-row total"><span>Gesamt pro Jahr</span><strong>${euro(r.gesamtProJahr)}</strong></div>`);
+  zeilen.push(`<div class="breakdown-row"><span>Gesamt pro Monat</span><strong>${euro(r.gesamtProMonat)}</strong></div>`);
+  document.getElementById('breakdown').innerHTML = zeilen.join('');
 }
 
-document.querySelectorAll('.preset-btn').forEach(btn => {
+document.querySelectorAll('.preset-btn').forEach((btn) => {
   btn.addEventListener('click', () => {
-    document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.preset-btn').forEach((b) => b.classList.remove('active'));
     btn.classList.add('active');
     document.getElementById('km').value = btn.dataset.km;
     berechne();
   });
 });
-['klasse', 'alter', 'km'].forEach(id => document.getElementById(id).addEventListener('input', () => {
-  if (id === 'km') document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
+document.getElementById('km').addEventListener('input', () => {
+  document.querySelectorAll('.preset-btn').forEach((b) => b.classList.remove('active'));
   berechne();
-}));
+});
+document.querySelectorAll('.posten-zeile input').forEach((el) => el.addEventListener('input', berechne));
 berechne();
 </script>

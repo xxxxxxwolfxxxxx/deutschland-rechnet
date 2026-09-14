@@ -232,8 +232,8 @@ export const ARTIKEL: Artikel[] = [
   },
   {
     slug: 'gebrauchtwagen-alter-kosten',
-    titel: 'Das günstigste Autojahr ist das sechste – gerechnet aus 9.772 Gebrauchtwagenpreisen',
-    teaser: 'Der Wertverlust halbiert sich zwischen dem dritten und dem achten Jahr, die Werkstattkosten steigen deutlich langsamer. Eigene Auswertung der DAT-Preisnotierungen – samt der Antwort, warum ein Gebrauchter den Neuwagen nie einholt.',
+    titel: 'Der Wertverlust halbiert sich zwischen dem dritten und dem achten Jahr – gerechnet aus 9.772 Gebrauchtwagenpreisen',
+    teaser: 'Ein Neuwagen verliert in den ersten beiden Jahren mehr als das Vierfache eines sieben Jahre alten Wagens. Eigene Auswertung der DAT-Preisnotierungen – und die Schwelle, bis zu der sich höhere Werkstattkosten eines Älteren rechnen.',
     datum: '2026-08-14',
     thema: 'Auto',
     rechner: ['wartungskosten-auto', 'unterhaltskosten-auto'],

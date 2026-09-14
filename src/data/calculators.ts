@@ -146,7 +146,7 @@ export const CALCULATORS: Calculator[] = [
   { slug: 'km-kostenrechner',             title: 'KM-Kostenrechner',               description: 'Fahrtkosten pro gefahrenem Kilometer berechnen.',                       category: 'auto',      featured: true,  live: true },
   { slug: 'e-auto-leasing-kostenrechner', title: 'E-Auto Leasing Kostenrechner',   description: 'Gesamtkosten und monatliche Rate für E-Auto-Leasing berechnen.',        category: 'auto',      featured: false, live: true },
   { slug: 'unterhaltskosten-auto',        title: 'Unterhaltskosten Auto',          description: 'Jährliche Kosten deines Autos inkl. Wertverlust, Steuer, Versicherung.', category: 'auto',      featured: true,  live: true },
-  { slug: 'wartungskosten-auto',          title: 'Wartungskosten Auto',            description: 'Wartung, Verschleiß und Reifen nach Alter und Laufleistung schätzen.',  category: 'auto',      featured: false, live: true },
+  { slug: 'wartungskosten-auto',          title: 'Wartungskosten Auto',            description: 'Werkstattkosten aus eigenen Rechnungen auf Jahr und km umlegen.',  category: 'auto',      featured: false, live: true },
   // Geplant, aber noch ohne Seite. live: false, damit Navigation und RelatedLinks
   // nicht auf 404 verlinken – Google hatte diese URLs bereits als "Nicht gefunden" gemeldet.
   { slug: 'elektroauto-verbrennungsmotor',title: 'Elektroauto vs Verbrennungsmotor',description: 'Kostenvergleich E-Auto und Verbrenner über die gesamte Nutzungsdauer.',category: 'auto',      featured: false, live: false },
