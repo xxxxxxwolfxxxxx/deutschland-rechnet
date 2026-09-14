@@ -3,13 +3,46 @@ import Layout from '../../layouts/Layout.astro';
 import CalculatorShell from '../../components/CalculatorShell.astro';
 import CalculatorGuide from '../../components/CalculatorGuide.astro';
 import { CALCULATORS, CATEGORIES } from '../../data/calculators';
+import { berechneEntschaedigung } from '../../../public/scripts/unterversicherung.js';
 const calc = CALCULATORS.find(c => c.slug === 'elementar-rechner')!;
 const cat = CATEGORIES[calc.category];
 const year = new Date().getFullYear();
+
+// Alle Zahlen dieser Seite kommen aus demselben Modul, das der Rechner laedt.
+const eur = (n: number) => n.toLocaleString('de-DE', { maximumFractionDigits: 0 }) + ' €';
+const pz = (n: number) => n.toLocaleString('de-DE', { maximumFractionDigits: 1 }) + ' %';
+
+const bsp = berechneEntschaedigung({ schaden: 50000, versicherungssumme: 300000, versicherungswert: 400000, selbstbehalt: 500 });
+const bspVerzicht = berechneEntschaedigung({ schaden: 50000, versicherungssumme: 300000, versicherungswert: 400000, selbstbehalt: 500, unterversicherungsverzicht: true });
+if (bsp.leistung !== 37000 || bspVerzicht.leistung !== 49500) throw new Error('Unterversicherung: Beispiel stimmt nicht');
+
+const guideHtml = `
+<h3>Warum eine zu niedrige Versicherungssumme jeden Schaden kürzt</h3>
+<p>Nach einer Überschwemmung oder einem Starkregen zeigt sich, ob die Versicherungssumme noch zum Haus oder zum Hausrat passt. § 75 VVG bestimmt: Ist die Versicherungssumme erheblich niedriger als der Versicherungswert zur Zeit des Schadens, muss der Versicherer nur „nach dem Verhältnis der Versicherungssumme zu diesem Wert" leisten. Das trifft nicht erst den Totalschaden, sondern jeden Teilschaden im selben Verhältnis.</p>
+<p><strong>Beispiel:</strong> Das Gebäude wäre heute für ${eur(400000)} wiederherzustellen, versichert sind ${eur(300000)}. Ein Wasserschaden von ${eur(50000)} wird im Verhältnis ${pz(bsp.quoteProzent)} gekürzt – ${eur(bsp.kuerzung)} weniger. Nach ${eur(500)} Selbstbehalt zahlt der Versicherer ${eur(bsp.leistung)}, ${eur(bsp.eigenanteil)} bleiben beim Eigentümer. Mit einem vereinbarten Unterversicherungsverzicht wären es ${eur(bspVerzicht.leistung)}.</p>
+
+<h3>Was der Rechner braucht</h3>
+<ul>
+<li><strong>Versicherungssumme:</strong> steht in der Police.</li>
+<li><strong>Versicherungswert:</strong> der Wert, auf den es nach Ihrem Vertrag ankommt, zum Zeitpunkt des Schadens. Welcher Wert maßgeblich ist, bestimmen die Versicherungsbedingungen.</li>
+<li><strong>Selbstbehalt:</strong> für Elementarschäden oft gesondert vereinbart, ebenfalls in der Police.</li>
+<li><strong>Unterversicherungsverzicht:</strong> Manche Verträge verzichten unter Bedingungen auf die Kürzung. Ob Ihrer das tut, steht in den Bedingungen.</li>
+</ul>
+
+<h3>Was der Rechner nicht weiß</h3>
+<p>Wann eine Unterversicherung „erheblich" ist, sagt § 75 VVG nicht; der Rechner zeigt die Quote deshalb immer an. In welcher Reihenfolge Kürzung und Selbstbehalt angewendet werden, regeln die Bedingungen – gerechnet ist erst die Kürzung, dann der Abzug. Und einen Beitrag für die Elementarversicherung schätzt der Rechner nicht: Den kalkuliert jeder Versicherer nach eigenen Tarifmerkmalen, belegbare Durchschnittswerte gibt es nicht. Frühere Fassungen dieser Seite enthielten eine solche Prämienschätzung ohne Quelle; sie ist entfernt.</p>
+`;
+
+const faqs = [
+  { q: 'Was ist eine Unterversicherung?', a: 'Die Versicherungssumme liegt unter dem Versicherungswert. Ist sie erheblich niedriger, leistet der Versicherer nach § 75 VVG nur im Verhältnis der Summe zum Wert – auch bei Teilschäden.' },
+  { q: 'Wie viel wird bei Unterversicherung gekürzt?', a: `Im Verhältnis Versicherungssumme zu Versicherungswert. Sind ${eur(300000)} bei ${eur(400000)} Wert versichert, werden ${pz(bsp.quoteProzent)} eines Schadens ersetzt: von ${eur(50000)} also ${eur(50000 - bsp.kuerzung)} vor Selbstbehalt.` },
+  { q: 'Was ist ein Unterversicherungsverzicht?', a: 'Eine Vertragsklausel, mit der der Versicherer auf die Kürzung nach § 75 VVG verzichtet, meist unter Bedingungen. Ob sie vereinbart ist, steht in den Versicherungsbedingungen.' },
+  { q: 'Was kostet eine Elementarversicherung?', a: 'Das legt jeder Versicherer nach eigenem Tarif fest. Der Rechner schätzt keine Prämie, sondern zeigt, was im Schadenfall ankommt.' },
+];
 ---
 <Layout
-  title={`Elementarversicherung Rechner ${year}`}
-  description="Elementarversicherung Prämie berechnen – Schutz vor Hochwasser, Sturm und Naturkatastrophen."
+  title={`Elementarschaden-Rechner ${year}`}
+  description="Was zahlt die Versicherung nach Hochwasser oder Starkregen? Kürzung bei Unterversicherung nach § 75 VVG, Selbstbehalt und Unterversicherungsverzicht."
   canonicalPath="/versicherungen/elementar-rechner/"
   categoryColor={cat.color}
   categoryLight={cat.colorLight}
@@ -17,130 +50,79 @@ const year = new Date().getFullYear();
 >
   <div class="page-header">
     <a href={`${import.meta.env.BASE_URL}versicherungen/`} class="back-link">← Versicherungen</a>
-    <h1>Elementarversicherung Rechner {year}</h1>
+    <h1>Elementarschaden-Rechner {year}</h1>
   </div>
   <CalculatorShell
     calculator={calc}
-    intro="Mit dem Elementarversicherung-Rechner berechnen Sie Ihre Prämie und das Risiko für Ihren Standort. Schutz vor Hochwasser, Starkregen und Sturm."
-    sourceNote="Berechnung basiert auf durchschnittlichen Risikogruppen und Prämiensätzen 2026."
-    explanation="Eine Elementarversicherung ergänzt die Hausratversicherung und schützt vor Schäden durch Naturgewalten wie Hochwasser, Starkregen, Lawinen, Erdrutsch und Schneedruck."
-    faqs={[
-      { q: "Was deckt eine Elementarversicherung?", a: "Schäden durch Hochwasser, Starkregen, Blitzschlag, Schneedruck, Erdrutsch und Lawinen. Nicht abgedeckt sind Schäden durch unsachgemäße Nutzung." },
-      { q: "Wie viel kostet eine Elementarversicherung?", a: "Die Kosten hängen vom Risiko ab. In risikoarmen Gebieten 50-150€/Jahr, in Risikogebieten 300-1000€/Jahr." },
-      { q: "Ist eine Elementarversicherung notwendig?", a: "Ja, besonders in Risikogebieten (Nähe zu Flüssen, Küste, Gebirge). In anderen Gebieten optional aber empfohlen." },
-      { q: "Wie wird das Risiko ermittelt?", a: "Anhand der Postleitzahl und des Gebäudetyps. Postleitzahl bestimmt Hochwasser- und Naturgefahrenrisiko." },
-      { q: "Kann ich eine Police mit Hochwasserschaden bekommen?", a: "Nein, bekannte Hochwasserschäden führen zu Äußchlüssen. Manchmal gibt es Tarife mit 'Grauer Liste' für umstrittene Gebäude." }
-    ]}
+    intro="Der Rechner zeigt, was die Versicherung nach einem Elementarschaden tatsächlich zahlt – mit Kürzung bei Unterversicherung und Selbstbehalt, gerechnet mit den Zahlen aus Ihrer Police."
+    sourceNote="Leistungskürzung bei Unterversicherung nach § 75 VVG (abgerufen am 14.09.2026). Versicherungssumme, Selbstbehalt und Unterversicherungsverzicht aus Ihrem Vertrag. Reihenfolge von Kürzung und Selbstbehalt nach den jeweiligen Bedingungen; hier zuerst die Kürzung. Keine Prämienschätzung."
+    explanation="Leistung = Schaden × (Versicherungssumme ÷ Versicherungswert), höchstens die Versicherungssumme, minus Selbstbehalt. Mit Unterversicherungsverzicht entfällt die Kürzung."
+    faqs={faqs}
   >
     <div class="calc-form">
       <div class="calc-grid">
         <div class="calc-group">
-          <label for="versicherungssumme">Versicherungssumme (€)</label>
-          <input type="number" id="versicherungssumme" min="10000" max="1000000" value="100000" step="10000" />
+          <label for="schaden">Schaden (€)</label>
+          <input type="number" id="schaden" min="0" max="100000000" value="50000" step="1000" />
         </div>
         <div class="calc-group">
-          <label for="risikozone">Risikozone (Postleitzahl-Region)</label>
-          <select id="risikozone">
-            <option value="niedrig" selected>Niedrig (z.B. Südbaden, Bayern)</option>
-            <option value="mittel">Mittel (z.B. NRW, Hessen)</option>
-            <option value="hoch">Hoch (z.B. Nähe zu Flüssen)</option>
-            <option value="sehr_hoch">Sehr hoch (z.B. Hochwasser-Risikogebiet)</option>
-          </select>
+          <label for="summe">Versicherungssumme laut Police (€)</label>
+          <input type="number" id="summe" min="0" max="100000000" value="300000" step="10000" />
         </div>
         <div class="calc-group">
-          <label for="gebaeudeart">Gebäudeart</label>
-          <select id="gebaeudeart">
-            <option value="einfamilienhaus" selected>Einfamilienhaus</option>
-            <option value="mehrfamilienhaus">Mehrfamilienhaus</option>
-            <option value="wohnung">Wohnung (nur Hausrat)</option>
-          </select>
+          <label for="wert">Versicherungswert zum Schadenzeitpunkt (€)</label>
+          <input type="number" id="wert" min="0" max="100000000" value="400000" step="10000" />
         </div>
         <div class="calc-group">
-          <label for="selbstbeteiligung">Selbstbeteiligung</label>
-          <select id="selbstbeteiligung">
-            <option value="250" selected>250€</option>
-            <option value="500">500€</option>
-            <option value="1000">1000€</option>
+          <label for="sb">Selbstbehalt (€)</label>
+          <input type="number" id="sb" min="0" max="1000000" value="500" step="100" />
+        </div>
+        <div class="calc-group">
+          <label for="verzicht">Unterversicherungsverzicht</label>
+          <select id="verzicht">
+            <option value="nein" selected>nicht vereinbart</option>
+            <option value="ja">vereinbart</option>
           </select>
         </div>
       </div>
 
       <div class="calc-result">
-        <div class="label">Geschätzte monatliche Prämie</div>
-        <div id="praemie">— €</div>
+        <div class="label">Leistung der Versicherung</div>
+        <div id="leistung">— €</div>
       </div>
-      <div class="calc-result">
-        <div class="label">Risikobewertung</div>
-        <div id="risiko">— </div>
-      </div>
-      <div id="details" style="margin-top:0.75rem;font-size:0.88rem;color:#666;"></div>
+      <div id="details" style="margin-top:0.75rem;font-size:0.88rem;color:#666;display:flex;gap:1.5rem;flex-wrap:wrap;"></div>
     </div>
   </CalculatorShell>
 
   <CalculatorGuide
-    title="Elementarversicherung: Schutz vor Naturgewalten"
-    content="<p>Eine Elementarversicherung schützt Ihr Eigenheim und Ihren Hausrat vor Schäden durch Naturereignisse, die weder die Wohngebäude- noch die Hausratversicherung standardmäßig abdecken. Dazu zählen Hochwasser, Starkregen, Überschwemmung, Erdrutsch, Erdsenkung, Schneedruck, Lawinen und Erdbeben. Seit der verheerenden Ahrtal-Flut im Juli 2021 mit über 180 Todesopfern und Schäden in Milliardenhöhe ist das Thema Elementarversicherungspflicht in Deutschland intensiv diskutiert worden.</p>
-
-<p><strong>Warum ist die Elementarversicherung so wichtig?</strong> Die Klimakrise führt zu immer häufigeren Extremwetterereignissen. Starkregen kann überall auftreten, nicht nur in klassischen Überschwemmungsgebieten. Laut dem Gesamtverband der Deutschen Versicherungswirtschaft (GDV) sind nur rund 50 Prozent aller Wohngebäude in Deutschland gegen Elementarschäden versichert. Eine einzige Überschwemmung kann Schäden von 50.000 Euro und mehr verursachen, die ohne Versicherung komplett selbst getragen werden müssen.</p>
-
-<p><strong>Was kostet eine Elementarversicherung?</strong> Die jährlichen Kosten liegen in risikoarmen Gebieten (ZUERS-Zone 1) bei etwa 50 bis 200 Euro pro Jahr. In Risikogebieten (Zone 3 und 4) steigen die Prämien auf 300 bis über 1.000 Euro jährlich. Die Einstufung erfolgt nach dem Zonierungssystem ZUERS Geo, das jede Adresse in Deutschland einer von vier Gefährdungsklassen zuordnet. Etwa 92 Prozent aller Adressen liegen in der günstigsten Zone 1.</p>
-
-<p><strong>Wann ist eine Elementarversicherung besonders sinnvoll?</strong> Eigentümer sollten grundsätzlich eine Elementarversicherung abschließen. Besonders dringend ist der Schutz bei Immobilien in Flussnähe, in Hanglagen, in Gebieten mit hohem Grundwasserspiegel oder in Regionen mit bekannter Starkregengefährdung. Auch Kellergeschosse mit Wohnräumen oder teurer Ausstattung erhöhen das Risiko erheblich.</p>
-
-<p><strong>Praxistipp:</strong> Prüfen Sie Ihre bestehende Wohngebäude- und Hausratversicherung auf Elementarschutz. Viele Policen bieten die Möglichkeit, Elementarschäden als Zusatzbaustein einzuschließen. Achten Sie dabei auf die Selbstbeteiligung und eventuelle Wartezeiten von meist ein bis drei Monaten nach Vertragsabschluss. Dokumentieren Sie den Zustand Ihres Gebäudes mit Fotos, um im Schadensfall die Regulierung zu beschleunigen.</p>"
+    title="So rechnet die Versicherung nach einem Schaden"
+    content={guideHtml}
     relatedSlugs={['pflege-rechner', 'rechtsschutz-rechner', 'zahnzusatz-rechner']}
   />
 </Layout>
 
 <script type="module">
+const { berechneEntschaedigung } = await import(window.__base + 'scripts/unterversicherung.js');
+const eur = (n) => n.toLocaleString('de-DE', { minimumFractionDigits: 0, maximumFractionDigits: 0 }) + ' €';
+const wert = (id) => parseFloat(document.getElementById(id).value) || 0;
 function berechne() {
-  const versicherungssumme = parseFloat(document.getElementById('versicherungssumme').value)||100000;
-  const risikozone = document.getElementById('risikozone').value;
-  const gebaeudeart = document.getElementById('gebaeudeart').value;
-  const selbstbeteiligung = parseInt(document.getElementById('selbstbeteiligung').value)||250;
-
-  const risikoPraemie = {
-    'niedrig': 0.0008,
-    'mittel': 0.0012,
-    'hoch': 0.0025,
-    'sehr_hoch': 0.0045
-  }[risikozone] || 0.001;
-
-  const gebaeudeFaktor = {
-    'einfamilienhaus': 1.0,
-    'mehrfamilienhaus': 0.85,
-    'wohnung': 1.1
-  }[gebaeudeart] || 1.0;
-
-  const selbstbeteiligungsFaktor = {
-    '250': 1.0,
-    '500': 0.92,
-    '1000': 0.85
-  }[selbstbeteiligung.toString()] || 1.0;
-
-  const jahrespraemie = versicherungssumme * risikoPraemie * gebaeudeFaktor * selbstbeteiligungsFaktor;
-  const monatspraemie = jahrespraemie / 12;
-
-  const risikoText = {
-    'niedrig': 'Niedriges Risiko - Empfohlener Schutz',
-    'mittel': 'Mittleres Risiko - Versicherung empfohlen',
-    'hoch': 'Hohes Risiko - Versicherung stark empfohlen',
-    'sehr_hoch': 'Sehr hohes Risiko - Versicherung essentiell'
-  }[risikozone] || 'Unbekannt';
-
-  document.getElementById('praemie').textContent = monatspraemie.toLocaleString('de-DE', {minimumFractionDigits:2, maximumFractionDigits:2}) + ' €';
-  document.getElementById('risiko').textContent = risikoText;
-  document.getElementById('details').innerHTML = `
-    <div>Jahresprämie: <strong>${jahrespraemie.toLocaleString('de-DE', {minimumFractionDigits:2})} €</strong></div>
-    <div>Selbstbeteiligung: <strong>${selbstbeteiligung}€</strong></div>
-  `;
+  const r = berechneEntschaedigung({
+    schaden: wert('schaden'),
+    versicherungssumme: wert('summe'),
+    versicherungswert: wert('wert'),
+    selbstbehalt: wert('sb'),
+    unterversicherungsverzicht: document.getElementById('verzicht').value === 'ja',
+  });
+  document.getElementById('leistung').textContent = eur(r.leistung);
+  const teile = [
+    `<span>Ersetzt werden: <strong>${r.quoteProzent.toLocaleString('de-DE')} %</strong>${r.unterversichert ? ' (Summe unter dem Wert)' : ''}</span>`,
+    `<span>Kürzung: <strong>${eur(r.kuerzung)}</strong></span>`,
+    `<span>Bleibt bei Ihnen: <strong>${eur(r.eigenanteil)}</strong></span>`,
+  ];
+  if (r.unterversichert) teile.push(`<span>Ohne Kürzung bräuchte es eine Summe von <strong>${eur(r.noetigeSumme)}</strong></span>`);
+  document.getElementById('details').innerHTML = teile.join('');
 }
-
-['versicherungssumme','risikozone','gebaeudeart','selbstbeteiligung'].forEach(id =>
-  document.getElementById(id).addEventListener('change', berechne));
+['schaden', 'summe', 'wert', 'sb'].forEach((id) => document.getElementById(id).addEventListener('input', berechne));
+document.getElementById('verzicht').addEventListener('change', berechne);
 berechne();
 </script>
-
-<style>
-.page-header { margin-bottom: 2rem; }
-</style>

@@ -3,13 +3,56 @@ import Layout from '../../layouts/Layout.astro';
 import CalculatorShell from '../../components/CalculatorShell.astro';
 import CalculatorGuide from '../../components/CalculatorGuide.astro';
 import { CALCULATORS, CATEGORIES } from '../../data/calculators';
+import {
+  berechneRentenluecke,
+  besteuerungsanteil,
+  WERBUNGSKOSTEN_PAUSCHBETRAG_RENTE,
+  SONDERAUSGABEN_PAUSCHBETRAG,
+} from '../../../public/scripts/rentenluecke.js';
+import { BEITRAGSSAETZE } from '../../../public/scripts/sozialversicherung.js';
 const calc = CALCULATORS.find(c => c.slug === 'rentenlucken-rechner')!;
 const cat = CATEGORIES[calc.category];
 const year = new Date().getFullYear();
+
+// Alle Zahlen dieser Seite kommen aus denselben Modulen, die der Rechner laedt.
+const eur = (n: number) => n.toLocaleString('de-DE', { maximumFractionDigits: 0 }) + ' €';
+const pz = (n: number) => n.toLocaleString('de-DE', { maximumFractionDigits: 1 }) + ' %';
+const zusatzProzent = (BEITRAGSSAETZE.zusatzbeitragDurchschnitt * 100).toLocaleString('de-DE');
+
+const bsp = berechneRentenluecke({ bruttoMonat: 1500, jahrRentenbeginn: 2055, wunschNetto: 2000, jahreBisRente: 30, bezugsjahre: 20, renditeProzent: 3 });
+if (!(bsp.rente.netto < 1500 && bsp.lueckeMonat > 0 && bsp.rente.besteuerungsanteil === 98.5)) {
+  throw new Error('Rentenluecke: Beispiel stimmt nicht');
+}
+const bspOhneRendite = berechneRentenluecke({ bruttoMonat: 1500, jahrRentenbeginn: 2055, wunschNetto: 2000, jahreBisRente: 30, bezugsjahre: 20, renditeProzent: 0 });
+
+const JAHRE = [2026, 2030, 2040, 2050, 2058];
+const anteilZeilen = JAHRE.map((j) => '<tr><td>' + j + '</td><td>' + pz(besteuerungsanteil(j)) + '</td></tr>').join('');
+
+const guideHtml = `
+<h3>Die Rente steht in der Renteninformation</h3>
+<p>Eine pauschale Quote, mit der sich die gesetzliche Rente aus dem heutigen Einkommen ableiten ließe, gibt es nicht – sie hängt an Beitragsjahren, Verdiensten und Zeiten ohne Beiträge. Die Deutsche Rentenversicherung schickt Versicherten ab dem 27. Lebensjahr jährlich eine Renteninformation, ab 55 alle drei Jahre eine Rentenauskunft (§ 109 Abs. 1 SGB VI). Darin steht eine Prognose der Regelaltersrente. Tragen Sie den Betrag ohne künftige Rentenanpassungen ein, dann rechnet der Rechner durchgehend in heutiger Kaufkraft.</p>
+
+<h3>Von der Brutto- zur Nettorente</h3>
+<p>Vom Rentenbetrag gehen Kranken- und Pflegeversicherung ab: Rentner zahlen die Hälfte des allgemeinen Beitragssatzes und des Zusatzbeitrags ihrer Kasse sowie den vollen Pflegebeitrag, Kinderlose mit Zuschlag. Voreingestellt ist der durchschnittliche Zusatzbeitrag von ${zusatzProzent} %.</p>
+<p>Dazu kommt die Einkommensteuer. Steuerpflichtig ist nur der Besteuerungsanteil, der vom Jahr des Rentenbeginns abhängt (§ 22 Nr. 1 Satz 3 Buchst. a Doppelbuchst. aa EStG):</p>
+<table><thead><tr><th>Rentenbeginn</th><th>Besteuerungsanteil</th></tr></thead><tbody>${anteilZeilen}</tbody></table>
+<p>Von diesem Anteil zieht der Rechner den Werbungskosten-Pauschbetrag von ${eur(WERBUNGSKOSTEN_PAUSCHBETRAG_RENTE)} (§ 9a EStG), die Kranken- und Pflegeversicherungsbeiträge als Sonderausgaben (§ 10 Abs. 1 Nr. 3 EStG) und den Sonderausgaben-Pauschbetrag von ${eur(SONDERAUSGABEN_PAUSCHBETRAG)} (§ 10c EStG) ab und wendet den Tarif des § 32a EStG an. Unterstellt ist, dass die Rente die einzige Einkunft ist; Betriebsrenten, Mieten oder das Einkommen eines Ehepartners verändern die Steuer.</p>
+
+<h3>Beispiel</h3>
+<p>Laut Renteninformation ${eur(1500)} Regelaltersrente, Rentenbeginn 2055, Wunsch ${eur(2000)} netto im Monat. Nach ${eur(bsp.rente.krankenversicherung)} Krankenversicherung, ${eur(bsp.rente.pflegeversicherung)} Pflegeversicherung und ${eur(bsp.rente.steuerMonat)} Einkommensteuer bleiben ${eur(bsp.rente.netto)}. Die Lücke beträgt ${eur(bsp.lueckeMonat)} im Monat.</p>
+<p>Soll sie 20 Jahre lang gedeckt werden, braucht es bei Rentenbeginn ${eur(bspOhneRendite.kapitalbedarf)}, wenn das Geld unverzinst liegt, oder ${eur(bsp.kapitalbedarf)} bei 3 % Rendite. Über 30 Jahre angespart sind das ${eur(bspOhneRendite.sparrate ?? 0)} beziehungsweise ${eur(bsp.sparrate ?? 0)} im Monat. Rendite und Bezugsdauer sind Annahmen; Steuern auf Kapitalerträge sind nicht berücksichtigt.</p>
+`;
+
+const faqs = [
+  { q: 'Wie hoch wird meine gesetzliche Rente?', a: 'Das steht in Ihrer Renteninformation, die Versicherte ab 27 jährlich erhalten (§ 109 SGB VI). Eine allgemeine Quote vom heutigen Einkommen gibt es nicht.' },
+  { q: 'Wie viel Steuer zahle ich auf die Rente?', a: `Steuerpflichtig ist der Besteuerungsanteil nach dem Jahr des Rentenbeginns – ${pz(besteuerungsanteil(2026))} bei Beginn 2026, ${pz(besteuerungsanteil(2040))} bei 2040, 100 % ab 2058. Ob tatsächlich Steuer anfällt, hängt von der Höhe aller Einkünfte ab.` },
+  { q: 'Welche Beiträge gehen von der Rente ab?', a: 'Kranken- und Pflegeversicherung. Rentner tragen die Hälfte des Krankenversicherungsbeitrags einschließlich Zusatzbeitrag und den vollen Pflegeversicherungsbeitrag.' },
+  { q: 'Wie viel muss ich sparen, um die Lücke zu schließen?', a: `Im Beispiel mit ${eur(bsp.lueckeMonat)} Lücke, 20 Jahren Bezug und 3 % Rendite ${eur(bsp.sparrate ?? 0)} im Monat über 30 Jahre. Tragen Sie Ihre eigenen Annahmen ein – das Ergebnis reagiert stark auf Rendite und Dauer.` },
+];
 ---
 <Layout
-  title={`Rentenlücken Rechner ${year}`}
-  description="Rentenlücke berechnen – wie viel Geld fehlt im Alter? Notwendige Sparquote ermitteln."
+  title={`Rentenlücken-Rechner ${year}`}
+  description="Rentenlücke aus der eigenen Renteninformation: Nettorente nach Kranken- und Pflegeversicherung und Besteuerungsanteil, Kapitalbedarf und Sparrate."
   canonicalPath="/geld/rentenlucken-rechner/"
   categoryColor={cat.color}
   categoryLight={cat.colorLight}
@@ -17,118 +60,100 @@ const year = new Date().getFullYear();
 >
   <div class="page-header">
     <a href={`${import.meta.env.BASE_URL}geld/`} class="back-link">← Geld &amp; Gehalt</a>
-    <h1>Rentenlücken Rechner {year}</h1>
+    <h1>Rentenlücken-Rechner {year}</h1>
   </div>
   <CalculatorShell
     calculator={calc}
-    intro="Mit dem Rentenlücken-Rechner berechnen Sie, wie groß die Lücke zwischen Ihrer gesetzlichen Rente und Ihrem Lebensstandard ist – und wie viel Sie sparen müssen."
-    sourceNote="Berechnung auf Basis durchschnittlicher Rentenniveaus."
-    explanation="Die Rentenlücke ist die Differenz zwischen der erwarteten Rente und den geplanten Lebenshaltungskosten im Alter. Eine Ersparnis von 50-70% des Erwerbstätigeneinkommens ist realistisch."
-    faqs={[
-      { q: "Was ist eine Rentenlücke?", a: "Die Differenz zwischen der gesetzlichen Rente und den Lebenshaltungskosten im Alter. Wenn die Rente 2.000€ ist, aber Sie 3.000€ brauchen, beträgt die Lücke 1.000€/Monat." },
-      { q: "Wie groß ist die Rentenlücke im Schnitt?", a: "Ein Angestellter mit Nettolohn 3.000€ bekommt später ca. 60% davon (1.800€) Rente. Die Lücke beträgt ca. 40% des Einkommens." },
-      { q: "Wie viel muss ich monatlich sparen?", a: "Faustregel: 10-15% des Einkommens für zusätzliche Altersvorsorge. Bei 3.000€ Netto bedeutet das 300-450€/Monat zusätzlich." },
-      { q: "Wann sollte ich anfangen zu sparen?", a: "So früh wie möglich! Der Zinseszins-Effekt verdoppelt Ihre Ersparnisse über 30 Jahre. Mit 25 angefangen spart man leichter als mit 45." },
-      { q: "Welche Sparformen sind sinnvoll?", a: "Riester-Rente (staatliche Zulagen), betriebliche Altersvorsorge (Steuerersparnis), Sparpläne (ETF, Fondssparpläne), private Rente (flexible Beitragszahlung)." }
-    ]}
+    intro="Der Rechner nimmt die Rente aus Ihrer Renteninformation, zieht Kranken- und Pflegeversicherung und die Einkommensteuer ab und zeigt, wie groß die Lücke zu Ihrem Wunsch-Netto ist und was ihr Schließen kostet."
+    sourceNote="Besteuerungsanteil nach § 22 Nr. 1 Satz 3 Buchst. a Doppelbuchst. aa EStG, Pauschbeträge nach §§ 9a, 10c EStG, Vorsorgeaufwendungen nach § 10 Abs. 1 Nr. 3 EStG, Tarif nach § 32a EStG, Renteninformation nach § 109 SGB VI (abgerufen am 14.09.2026). Unterstellt: Rente als einzige Einkunft, ohne Solidaritätszuschlag und Kirchensteuer. Rendite und Bezugsdauer sind Annahmen des Nutzers."
+    explanation="Nettorente = Bruttorente − Kranken- und Pflegeversicherung − Einkommensteuer auf den Besteuerungsanteil. Lücke = Wunsch-Netto − Nettorente. Kapitalbedarf = Barwert der Lücke über die Bezugsdauer, Sparrate = Rate, die dieses Kapital bis zum Rentenbeginn erreicht."
+    faqs={faqs}
   >
     <div class="calc-form">
       <div class="calc-grid">
         <div class="calc-group">
-          <label for="aktuelles_einkommen">Aktuelles Netto-Einkommen (€)</label>
-          <input type="number" id="aktuelles_einkommen" min="1000" max="100000" value="3000" step="100" />
+          <label for="brutto">Rente laut Renteninformation (€/Monat)</label>
+          <input type="number" id="brutto" min="0" max="10000" value="1500" step="50" />
         </div>
         <div class="calc-group">
-          <label for="renteneintritt">Renteneintrittsalter</label>
-          <input type="number" id="renteneintritt" min="62" max="70" value="67" step="1" />
+          <label for="beginn">Jahr des Rentenbeginns</label>
+          <input type="number" id="beginn" min="2005" max="2100" value="2055" step="1" />
         </div>
         <div class="calc-group">
-          <label for="aktuelles_alter">Aktuelles Alter</label>
-          <input type="number" id="aktuelles_alter" min="18" max="67" value="35" step="1" />
+          <label for="wunsch">Gewünschtes Netto im Ruhestand (€/Monat)</label>
+          <input type="number" id="wunsch" min="0" max="20000" value="2000" step="50" />
         </div>
         <div class="calc-group">
-          <label for="ausgabenniveau">Geplantes Ausgabenniveau im Alter</label>
-          <select id="ausgabenniveau">
-            <option value="75">75% des heutigen Einkommens</option>
-            <option value="80" selected>80% des heutigen Einkommens</option>
-            <option value="100">100% des heutigen Einkommens</option>
+          <label for="bis">Jahre bis zum Rentenbeginn</label>
+          <input type="number" id="bis" min="0" max="50" value="30" step="1" />
+        </div>
+        <div class="calc-group">
+          <label for="dauer">Lücke decken über (Jahre)</label>
+          <input type="number" id="dauer" min="1" max="50" value="20" step="1" />
+        </div>
+        <div class="calc-group">
+          <label for="rendite">Angenommene Rendite (% p. a.)</label>
+          <input type="number" id="rendite" min="0" max="15" value="3" step="0.5" />
+        </div>
+        <div class="calc-group">
+          <label for="eltern">Kinder</label>
+          <select id="eltern">
+            <option value="ja" selected>Elternteil</option>
+            <option value="nein">kinderlos</option>
           </select>
+        </div>
+        <div class="calc-group">
+          <label for="zusatz">Zusatzbeitrag der Krankenkasse (%)</label>
+          <input type="number" id="zusatz" min="0" max="10" value={zusatzProzent.replace(',', '.')} step="0.1" />
         </div>
       </div>
 
       <div class="calc-result">
-        <div class="label">Erwartete gesetzliche Rente</div>
-        <div id="gesetzliche_rente">— €</div>
-      </div>
-      <div class="calc-result">
-        <div class="label">Geplantes Ausgabenniveau</div>
-        <div id="ausgabenniveau_wert">— €</div>
-      </div>
-      <div class="calc-result" style="background:#ffebee;">
         <div class="label">Monatliche Rentenlücke</div>
         <div id="luecke">— €</div>
       </div>
-      <div class="calc-result" style="background:#e8f5e9;">
-        <div class="label">Notwendige monatliche Sparquote</div>
-        <div id="sparquote">— €</div>
-      </div>
-
-      <div id="details" style="margin-top:0.75rem;font-size:0.88rem;color:#666;"></div>
+      <div id="details" style="margin-top:0.75rem;font-size:0.88rem;color:#666;display:flex;gap:1.5rem;flex-wrap:wrap;"></div>
     </div>
   </CalculatorShell>
 
   <CalculatorGuide
-    title="Rentenlücke schließen: So sichern Sie Ihren Lebensstandard"
-    content="<p>Die Rentenlücke ist eines der größten finanziellen Risiken für Arbeitnehmer in Deutschland. Das aktuelle Rentenniveau liegt bei etwa 48% des Durchschnittseinkommens - Tendenz sinkend. Wer heute 3.000 Euro netto verdient, erhält nach 45 Beitragsjahren eine gesetzliche Rente von ungefähr 1.500-1.800 Euro. Die Differenz zum gewohnten Lebensstandard muss privat gedeckt werden.</p>
-
-<p><strong>Die drei Säulen der Altersvorsorge:</strong> Das deutsche Rentensystem basiert auf drei Säulen: der gesetzlichen Rentenversicherung, der betrieblichen Altersvorsorge (bAV) und der privaten Vorsorge. Seit 2002 haben Arbeitnehmer einen Rechtsanspruch auf Entgeltumwandlung in der bAV. Bis zu 302 Euro monatlich (2024) können steuer- und sozialabgabenfrei in eine Direktversicherung fließen - ein enormer Vorteil gegenüber privater Vorsorge.</p>
-
-<p><strong>Wie hoch ist Ihre Rentenlücke?</strong> Als Faustregel benötigen Rentner etwa 80% ihres letzten Nettoeinkommens, um den Lebensstandard zu halten. Manche Kosten fallen weg (Berufskleidung, Pendeln), andere steigen (Gesundheit, Freizeit). Prüfen Sie Ihre jährliche Renteninformation der Deutschen Rentenversicherung - dort steht Ihre voraussichtliche Rente bei Weiterbeschäftigung bis zum Rentenalter.</p>
-
-<p><strong>Früh anfangen zahlt sich massiv aus:</strong> Wer mit 25 Jahren beginnt, monatlich 200 Euro bei 6% Rendite anzulegen, hat mit 67 etwa 380.000 Euro. Wer erst mit 40 anfängt, müsste für dasselbe Ergebnis 550 Euro monatlich investieren. Der Zinseszins-Effekt ist der stärkste Verbündete bei der Altersvorsorge.</p>
-
-<p><strong>Praxistipp:</strong> Nutzen Sie zunächst alle staatlich geförderten Möglichkeiten: Arbeitgeber-Zuschuss zur bAV (mindestens 15% seit 2022), Riester-Zulagen (175 Euro Grundzulage plus 300 Euro pro Kind), und den Sparerpauschbetrag von 1.000 Euro. Erst wenn diese ausgeschöpft sind, investieren Sie darüber hinaus privat - am besten in kostengünstige ETF-Sparpläne.</p>"
-    relatedSlugs={['fire-rechner', 'etf-sparplan-rechner', 'sparen-rechner', 'etf-renditerechner']}
+    title="So wird die Rentenlücke berechnet"
+    content={guideHtml}
+    relatedSlugs={['renten-rechner', 'rentenpunkte-rechner', 'etf-sparplan-rechner', 'fire-rechner']}
   />
 </Layout>
 
 <script type="module">
+const { berechneRentenluecke } = await import(window.__base + 'scripts/rentenluecke.js');
+const eur = (n) => n.toLocaleString('de-DE', { minimumFractionDigits: 0, maximumFractionDigits: 0 }) + ' €';
+const wert = (id) => parseFloat(document.getElementById(id).value) || 0;
 function berechne() {
-  const einkommen = parseFloat(document.getElementById('aktuelles_einkommen').value)||3000;
-  const renteneintritt = parseInt(document.getElementById('renteneintritt').value)||67;
-  const aktuelles_alter = parseInt(document.getElementById('aktuelles_alter').value)||35;
-  const ausgabenniveau = parseInt(document.getElementById('ausgabenniveau').value)||80;
-
-  // Vereinfachte Rentenschätzung: ca. 60% des durchschnittlichen Einkommens
-  const gesetzliche_rente = einkommen * 0.60;
-  const ausgabenniveau_betrag = einkommen * (ausgabenniveau / 100);
-  const luecke = Math.max(0, ausgabenniveau_betrag - gesetzliche_rente);
-
-  const jahre_bis_rente = Math.max(0, renteneintritt - aktuelles_alter);
-  const jahre_in_rente = 30; // Durchschnittliche Rentendauer
-  const verdienst_faktor = 1.02; // 2% jährliches Einkomenswachstum
-
-  // Stark vereinfacht: Benötigte Sparquote
-  const luecke_total = luecke * 12 * jahre_in_rente;
-  const sparquote = jahre_bis_rente > 0 ? luecke_total / (jahre_bis_rente * 12 * 20) : 0;
-
-  document.getElementById('gesetzliche_rente').textContent = gesetzliche_rente.toLocaleString('de-DE', {minimumFractionDigits:2}) + ' € / Monat';
-  document.getElementById('ausgabenniveau_wert').textContent = ausgabenniveau_betrag.toLocaleString('de-DE', {minimumFractionDigits:2}) + ' € / Monat';
-  document.getElementById('luecke').textContent = luecke.toLocaleString('de-DE', {minimumFractionDigits:2}) + ' € / Monat';
-  document.getElementById('sparquote').textContent = Math.max(0, sparquote).toLocaleString('de-DE', {minimumFractionDigits:2}) + ' €';
-
-  document.getElementById('details').innerHTML = `
-    <div>Jahre bis Renteneintritt: <strong>${jahre_bis_rente}</strong></div>
-    <div>Geschätzte Rentendauer: <strong>${jahre_in_rente} Jahre</strong></div>
-    <div>Jährliche Lücke: <strong>${(luecke * 12).toLocaleString('de-DE')} €</strong></div>
-  `;
+  const r = berechneRentenluecke({
+    bruttoMonat: wert('brutto'),
+    jahrRentenbeginn: wert('beginn'),
+    wunschNetto: wert('wunsch'),
+    jahreBisRente: wert('bis'),
+    bezugsjahre: wert('dauer'),
+    renditeProzent: wert('rendite'),
+    elternteil: document.getElementById('eltern').value === 'ja',
+    zusatzbeitrag: wert('zusatz') / 100,
+  });
+  const n = r.rente;
+  document.getElementById('luecke').textContent = eur(r.lueckeMonat);
+  const teile = [
+    `<span>Nettorente: <strong>${eur(n.netto)}</strong></span>`,
+    `<span>Kranken- / Pflegeversicherung: <strong>${eur(n.krankenversicherung)} / ${eur(n.pflegeversicherung)}</strong></span>`,
+    `<span>Einkommensteuer: <strong>${eur(n.steuerMonat)}</strong> (Besteuerungsanteil ${n.besteuerungsanteil.toLocaleString('de-DE')} %)</span>`,
+  ];
+  if (r.lueckeMonat > 0) {
+    teile.push(`<span>Kapitalbedarf bei Rentenbeginn: <strong>${eur(r.kapitalbedarf)}</strong></span>`);
+    teile.push(r.sparrate === null
+      ? '<span>Sparrate: <strong>kein Zeitraum mehr zum Ansparen</strong></span>'
+      : `<span>Sparrate bis dahin: <strong>${eur(r.sparrate)}</strong> im Monat</span>`);
+  }
+  document.getElementById('details').innerHTML = teile.join('');
 }
-
-['aktuelles_einkommen','renteneintritt','aktuelles_alter','ausgabenniveau'].forEach(id =>
-  document.getElementById(id).addEventListener('input', berechne));
+['brutto', 'beginn', 'wunsch', 'bis', 'dauer', 'rendite', 'zusatz'].forEach((id) => document.getElementById(id).addEventListener('input', berechne));
+document.getElementById('eltern').addEventListener('change', berechne);
 berechne();
 </script>
-
-<style>
-.page-header { margin-bottom: 2rem; }
-</style>

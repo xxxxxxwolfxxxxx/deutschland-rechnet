@@ -3,13 +3,66 @@ import Layout from '../../layouts/Layout.astro';
 import CalculatorShell from '../../components/CalculatorShell.astro';
 import CalculatorGuide from '../../components/CalculatorGuide.astro';
 import { CALCULATORS, CATEGORIES } from '../../data/calculators';
+import {
+  berechneProzesskosten,
+  vergleicheMitBeitrag,
+  GERICHT_SATZ_URTEIL,
+  GERICHT_SATZ_VERGLEICH,
+  VERFAHRENSGEBUEHR_SATZ,
+  TERMINSGEBUEHR_SATZ,
+  EINIGUNGSGEBUEHR_SATZ,
+} from '../../../public/scripts/prozesskosten.js';
 const calc = CALCULATORS.find(c => c.slug === 'rechtsschutz-rechner')!;
 const cat = CATEGORIES[calc.category];
 const year = new Date().getFullYear();
+
+// Alle Zahlen dieser Seite kommen aus demselben Modul, das der Rechner laedt.
+const eur = (n: number) => n.toLocaleString('de-DE', { maximumFractionDigits: 0 }) + ' €';
+const satz = (n: number) => n.toLocaleString('de-DE', { minimumFractionDigits: 1 });
+
+const bsp = berechneProzesskosten(5000);
+if (bsp.verloren.gesamt !== 2668.38 || bsp.vergleich.gesamt !== 1585.54) {
+  throw new Error('Prozesskosten: Beispiel weicht von den Gebuehrentabellen ab');
+}
+const bspVergleich = vergleicheMitBeitrag({ kosten: bsp.verloren.gesamt, beitragJahr: 300, selbstbeteiligung: 150, jahre: 5 });
+
+const STREITWERTE = [1000, 3000, 5000, 10000, 25000, 50000];
+function zeile(w: number) {
+  const r = berechneProzesskosten(w);
+  return '<tr><td>' + eur(w) + '</td><td>' + eur(r.verloren.gericht) + '</td><td>' + eur(r.verloren.eigenerAnwalt) + '</td><td>' + eur(r.verloren.gesamt) + '</td><td>' + eur(r.vergleich.gesamt) + '</td></tr>';
+}
+const zeilen = STREITWERTE.map(zeile).join('');
+const gross = berechneProzesskosten(50000);
+
+const guideHtml = `
+<h3>Wer im Zivilprozess zahlt</h3>
+<p>Nach § 91 Abs. 1 Satz 1 ZPO trägt die unterliegende Partei die Kosten des Rechtsstreits und erstattet dem Gegner dessen notwendige Kosten. Wer verliert, zahlt also die Gerichtsgebühren, den eigenen und den gegnerischen Anwalt. Wer gewinnt, bekommt seine Kosten erstattet – sofern der Gegner zahlen kann. Endet der Streit mit einem Vergleich, gelten die Kosten nach § 98 ZPO als gegeneinander aufgehoben, wenn nichts anderes vereinbart wird: Jede Seite trägt ihren Anwalt und nach § 92 Abs. 1 Satz 2 ZPO die Hälfte der Gerichtskosten.</p>
+
+<h3>Welche Gebühren anfallen</h3>
+<p>Das Gericht erhebt für das Verfahren erster Instanz ${satz(GERICHT_SATZ_URTEIL)} Gebühren (Nr. 1210 des Kostenverzeichnisses zum GKG); endet es durch Vergleich, ermäßigt sich das auf ${satz(GERICHT_SATZ_VERGLEICH)} (Nr. 1211). Ein Anwalt erhält ${satz(VERFAHRENSGEBUEHR_SATZ)} Verfahrens- und ${satz(TERMINSGEBUEHR_SATZ)} Terminsgebühren, bei einer Einigung zusätzlich ${satz(EINIGUNGSGEBUEHR_SATZ)} Einigungsgebühr, dazu Auslagenpauschale und Umsatzsteuer. Die volle Gebühr ergibt sich jeweils aus dem Streitwert: § 34 GKG für das Gericht, § 13 RVG für den Anwalt.</p>
+<table>
+<thead><tr><th>Streitwert</th><th>Gericht</th><th>je Anwalt</th><th>verloren, gesamt</th><th>Vergleich, eigene Kosten</th></tr></thead>
+<tbody>${zeilen}</tbody>
+</table>
+<p>Die Tabellen sind degressiv: Bei ${eur(5000)} Streitwert kostet ein verlorener Prozess ${eur(bsp.verloren.gesamt)}, mehr als die Hälfte des Streitwerts; bei ${eur(50000)} sind es ${eur(gross.verloren.gesamt)}. Gerade kleine Streitigkeiten sind im Verhältnis teuer. Nicht enthalten sind Zeugen, Sachverständige und weitere Instanzen – ein Gutachten kann die Kosten leicht verdoppeln.</p>
+
+<h3>Arbeitsrecht ist anders</h3>
+<p>Vor dem Arbeitsgericht erster Instanz hat die obsiegende Partei nach § 12a Abs. 1 Satz 1 ArbGG keinen Anspruch auf Erstattung ihrer Anwaltskosten. Wer dort einen Anwalt nimmt, zahlt ihn auch dann selbst, wenn er gewinnt. Die Gerichtskosten folgen dort einem eigenen Kostenverzeichnis; der Rechner bildet Arbeitsgerichtsverfahren nicht ab.</p>
+
+<h3>Beitrag gegen Risiko</h3>
+<p>Was eine Rechtsschutzversicherung kostet, legt jeder Versicherer selbst fest – tragen Sie den Beitrag aus Ihrem Angebot ein. Der Rechner zeigt dann, wie viele Jahresbeiträge ein Prozess der gewählten Größe aufwiegt. Beispiel: ${eur(300)} Jahresbeitrag, ${eur(150)} Selbstbeteiligung, fünf Jahre Laufzeit. Ein verlorener Prozess über ${eur(5000)} kostet ${eur(bsp.verloren.gesamt)}; die Versicherung übernähme ${eur(bspVergleich.erstattung)}, das sind ${bspVergleich.jahresbeitraegeJeFall?.toLocaleString('de-DE')} Jahresbeiträge. Ob sich das lohnt, hängt davon ab, wie wahrscheinlich ein solcher Streit ist und welche Bereiche der Tarif abdeckt – beides kann der Rechner nicht wissen.</p>
+`;
+
+const faqs = [
+  { q: 'Was kostet ein verlorener Prozess?', a: `Bei ${eur(5000)} Streitwert in erster Instanz mit Anwälten auf beiden Seiten ${eur(bsp.verloren.gesamt)}: ${eur(bsp.verloren.gericht)} Gericht und zweimal ${eur(bsp.verloren.eigenerAnwalt)} Anwalt. Die unterliegende Partei trägt nach § 91 ZPO auch die Kosten des Gegners.` },
+  { q: 'Wer zahlt bei einem Vergleich?', a: 'Wenn nichts anderes vereinbart ist, gelten die Kosten als gegeneinander aufgehoben (§ 98 ZPO): Jede Partei trägt ihren eigenen Anwalt und die Hälfte der Gerichtskosten (§ 92 Abs. 1 Satz 2 ZPO). Die Gerichtsgebühr ermäßigt sich dabei von 3,0 auf 1,0.' },
+  { q: 'Bekomme ich als Gewinner vor dem Arbeitsgericht meinen Anwalt erstattet?', a: 'In der ersten Instanz nicht. § 12a Abs. 1 Satz 1 ArbGG schließt die Erstattung der Anwaltskosten der obsiegenden Partei aus.' },
+  { q: 'Was kostet eine Rechtsschutzversicherung?', a: 'Das legt jeder Versicherer nach eigenem Tarif fest; belastbare Durchschnittswerte gibt es nicht. Der Rechner nimmt deshalb Ihren Beitrag als Eingabe und stellt ihm das Kostenrisiko gegenüber.' },
+];
 ---
 <Layout
-  title={`Rechtsschutzversicherung Rechner ${year}`}
-  description="Rechtsschutzversicherung berechnen – monatliche Prämie und Deckungssumme. Kostenloser Online-Rechner."
+  title={`Prozesskosten- und Rechtsschutz-Rechner ${year}`}
+  description="Was kostet ein verlorener Prozess? Gerichts- und Anwaltskosten nach GKG und RVG, Vergleich nach § 98 ZPO, gegenübergestellt dem Beitrag einer Rechtsschutzversicherung."
   canonicalPath="/versicherungen/rechtsschutz-rechner/"
   categoryColor={cat.color}
   categoryLight={cat.colorLight}
@@ -17,108 +70,84 @@ const year = new Date().getFullYear();
 >
   <div class="page-header">
     <a href={`${import.meta.env.BASE_URL}versicherungen/`} class="back-link">← Versicherungen</a>
-    <h1>Rechtsschutzversicherung Rechner {year}</h1>
+    <h1>Prozesskosten- und Rechtsschutz-Rechner {year}</h1>
   </div>
   <CalculatorShell
     calculator={calc}
-    intro="Mit dem Rechtsschutzversicherung-Rechner berechnen Sie schnell die monatliche Prämie basierend auf Alter, Beruf und gewähltem Versicherungsumfang."
-    sourceNote="Berechnung basiert auf durchschnittlichen Marktpreisen 2026."
-    explanation="Rechtsschutzversicherungen bieten Deckunhg für Rechtsstreitigkeiten in verschiedenen Bereichen wie Verkehr, Arbeit, Immobilien und Verbraucherrecht."
-    faqs={[
-      { q: "Was ist eine Rechtsschutzversicherung?", a: "Eine Rechtsschutzversicherung übernimmt die Kosten für Anwälte und Gerichte bei Rechtsstreitigkeiten. Je nach Vertrag sind verschiedene Bereiche wie Verkehr, Arbeit oder Wohnen abgedeckt." },
-      { q: "Wie hoch sind die monatlichen Beiträge?", a: "Die Beiträge liegen zwischen 10-25€ monatlich je nach Umfang. Eine umfassende Deckung kostet etwa 15-20€/Monat." },
-      { q: "Was ist der Unterschied zwischen Klassen?", a: "Versicherungen bieten unterschiedliche Deckungssummen und Berufsbeschränkungen. Standardtarife sind günstiger, Profi-Tarife teurer." },
-      { q: "Lohnt sich eine Rechtsschutzversicherung?", a: "Ja, besonders für Berufstätige mit Vermögen. Ein Rechtsstreit kann schnell 5.000-10.000€ Anwaltskosten verursachen." },
-      { q: "Gibt es Äußchlüsse?", a: "Ja, z.B. vorsätzliche Vergehen, bereits bekannte Konflikte (\"schwebende Fälle\") und manchmal grobe Fahrlässigkeit." }
-    ]}
+    intro="Der Rechner zeigt, was ein Zivilprozess in erster Instanz kostet, wenn Sie verlieren oder sich vergleichen – und wie viele Jahresbeiträge einer Rechtsschutzversicherung das entspricht."
+    sourceNote="Gerichtsgebühren nach § 34 GKG und KV Nr. 1210, 1211; Anwaltsvergütung nach § 13 RVG und VV Nr. 3100, 3104, 1003, 7002, 7008; Kostentragung nach §§ 91, 92, 98 ZPO (abgerufen am 14.09.2026). Unterstellt: Anwälte auf beiden Seiten, ein Verhandlungstermin. Nicht enthalten: Zeugen, Sachverständige, weitere Instanzen, Arbeitsgerichtsverfahren. Beitrag und Selbstbeteiligung sind Ihre Eingaben."
+    explanation="Verloren: 3,0 Gerichtsgebühren plus zwei Anwälte mit je 2,5 Gebühren, Pauschale und Umsatzsteuer. Vergleich: halbe 1,0-Gerichtsgebühr plus eigener Anwalt mit 3,5 Gebühren."
+    faqs={faqs}
   >
     <div class="calc-form">
       <div class="calc-grid">
         <div class="calc-group">
-          <label for="alter">Alter</label>
-          <input type="number" id="alter" min="18" max="120" value="35" step="1" />
+          <label for="streitwert">Streitwert (€)</label>
+          <input type="number" id="streitwert" min="0" max="10000000" value="5000" step="500" />
         </div>
         <div class="calc-group">
-          <label for="beruf">Beruf</label>
-          <select id="beruf">
-            <option value="standard" selected>Angestellt/Standard</option>
-            <option value="selbst">Selbstständig</option>
-            <option value="freiberuf">Freiberufler</option>
-            <option value="unternehmer">Unternehmer</option>
+          <label for="ausgang">Ausgang</label>
+          <select id="ausgang">
+            <option value="verloren" selected>Verloren</option>
+            <option value="vergleich">Vergleich</option>
+            <option value="gewonnen">Gewonnen</option>
           </select>
         </div>
         <div class="calc-group">
-          <label for="umfang">Versicherungsumfang</label>
-          <select id="umfang">
-            <option value="basis">Basis (Verkehr, Wohnung)</option>
-            <option value="standard" selected>Standard (+ Arbeit, Verbraucher)</option>
-            <option value="premium">Premium (+ Immobilien, Verträge)</option>
-            <option value="vollschutz">Vollschutz (Alles)</option>
-          </select>
+          <label for="beitrag">Jahresbeitrag Rechtsschutz laut Angebot (€)</label>
+          <input type="number" id="beitrag" min="0" max="10000" value="300" step="10" />
         </div>
         <div class="calc-group">
-          <label for="familienstand">Familienstand</label>
-          <select id="familienstand">
-            <option value="single" selected>Single</option>
-            <option value="partnerschaft">In Partnerschaft</option>
-            <option value="familie">Familie mit Kindern</option>
-          </select>
+          <label for="sb">Selbstbeteiligung je Fall (€)</label>
+          <input type="number" id="sb" min="0" max="10000" value="150" step="50" />
+        </div>
+        <div class="calc-group">
+          <label for="jahre">Vertragsjahre bis zum Streit</label>
+          <input type="number" id="jahre" min="0" max="50" value="5" step="1" />
         </div>
       </div>
 
       <div class="calc-result">
-        <div class="label">Monatliche Prämie</div>
-        <div id="praemie">— €</div>
+        <div class="label">Ihre Kosten ohne Versicherung</div>
+        <div id="kosten">— €</div>
       </div>
-      <div id="details" style="margin-top:0.75rem;font-size:0.88rem;color:#666;"></div>
+      <div id="details" style="margin-top:0.75rem;font-size:0.88rem;color:#666;display:flex;gap:1.5rem;flex-wrap:wrap;"></div>
     </div>
   </CalculatorShell>
 
   <CalculatorGuide
-    title="Rechtsschutzversicherung: Ihr Recht durchsetzen ohne Kostenrisiko"
-    content="<p>Eine Rechtsschutzversicherung übernimmt die Kosten für Anwälte, Gerichte, Sachverständige und Zeugen bei Rechtsstreitigkeiten. Ohne diese Absicherung kann ein einziger Prozess schnell fünfstellige Kosten verursachen. Bereits ein einfaches Arbeitsgerichtsverfahren kostet 3.000 bis 5.000 Euro, ein Streit mit dem Vermieter 2.000 bis 8.000 Euro und ein Verkehrsrechtsfall nach einem Unfall 5.000 bis 15.000 Euro.</p>
-
-<p><strong>Welche Rechtsbereiche werden abgedeckt?</strong> Die gängigen Rechtsschutzversicherungen bieten Bausteine für verschiedene Lebensbereiche. Verkehrsrechtsschutz greift bei Streitigkeiten nach Unfällen, Bußgeldern oder Führerscheinentzug. Arbeitsrechtsschutz schützt bei Kündigung, Abmahnung oder Gehaltsstreitigkeiten. Mietrechtsschutz hilft bei Konflikten mit Vermietern oder Nachbarn, etwa wegen Mängeln, Nebenkosten oder Kündigung. Privatrechtsschutz deckt allgemeine Vertragsstreitigkeiten und Schadensersatzforderungen ab.</p>
-
-<p><strong>Selbstbeteiligung und Wartezeiten beachten:</strong> Die meisten Tarife enthalten eine Selbstbeteiligung von 150 bis 300 Euro pro Rechtsfall. Eine höhere Selbstbeteiligung senkt die monatliche Prämie deutlich. Wichtig sind auch die Wartezeiten: Nach Vertragsabschluss müssen Sie in der Regel drei Monate warten, bevor der Schutz greift. Für arbeitsrechtliche Streitigkeiten beträgt die Wartezeit sogar häufig drei bis sechs Monate. Nur im Verkehrsrechtsschutz gibt es meist keine Wartezeit.</p>
-
-<p><strong>Wann ist eine Rechtsschutzversicherung besonders sinnvoll?</strong> Arbeitnehmer profitieren stark vom Arbeitsrechtsschutz, da Kündigungsschutzklagen ohne Versicherung kaum finanzierbar sind. Mieter in angespannten Wohnungsmärkten sollten Mietrechtsschutz in Betracht ziehen. Autofahrer sind mit Verkehrsrechtsschutz gut beraten, da bereits ein Bußgeldverfahren mit Fahrverbot anwaltliche Hilfe erfordert. Familien können durch einen Familientarif alle Mitglieder kostengünstig mitversichern.</p>
-
-<p><strong>Praxistipp:</strong> Vergleichen Sie Tarife nicht nur nach dem Preis, sondern auch nach der Deckungssumme. Eine Deckungssumme von mindestens 300.000 Euro ist empfehlenswert. Achten Sie darauf, ob eine telefonische Rechtsberatung im Tarif enthalten ist, da diese bei einfachen Fragen den Gang zum Anwalt ersparen kann. Manche Versicherer bieten auch Mediation als Alternative zum Gerichtsverfahren an, was schneller und günstiger sein kann.</p>"
-    relatedSlugs={['elementar-rechner', 'pflege-rechner', 'zahnzusatz-rechner']}
+    title="So werden Prozesskosten berechnet"
+    content={guideHtml}
+    relatedSlugs={['scheidungskosten-rechner', 'kuendigungsfrist-rechner', 'abfindungsrechner']}
   />
 </Layout>
 
 <script type="module">
+const { berechneProzesskosten, vergleicheMitBeitrag } = await import(window.__base + 'scripts/prozesskosten.js');
+const eur = (n) => n.toLocaleString('de-DE', { minimumFractionDigits: 0, maximumFractionDigits: 0 }) + ' €';
+const wert = (id) => parseFloat(document.getElementById(id).value) || 0;
 function berechne() {
-  const alter = parseInt(document.getElementById('alter').value)||35;
-  const beruf = document.getElementById('beruf').value;
-  const umfang = document.getElementById('umfang').value;
-  const familienstand = document.getElementById('familienstand').value;
-
-  let baseBeitrag = 12;
-  if (alter < 25) baseBeitrag = 11;
-  else if (alter > 65) baseBeitrag = 18;
-
-  const berufZuschlag = { 'standard': 0, 'selbst': 2, 'freiberuf': 3, 'unternehmer': 5 }[beruf] || 0;
-
-  const umfangZuschlag = { 'basis': -2, 'standard': 0, 'premium': 4, 'vollschutz': 8 }[umfang] || 0;
-
-  const familienZuschlag = { 'single': 0, 'partnerschaft': -1, 'familie': -2 }[familienstand] || 0;
-
-  const praemie = Math.max(8, baseBeitrag + berufZuschlag + umfangZuschlag + familienZuschlag);
-
-  document.getElementById('praemie').textContent = praemie.toLocaleString('de-DE', {minimumFractionDigits:2, maximumFractionDigits:2}) + ' €';
-  document.getElementById('details').innerHTML = `
-    <div>Jahresbeitrag: <strong>${(praemie * 12).toLocaleString('de-DE', {minimumFractionDigits:2})} €</strong></div>
-  `;
+  const alle = berechneProzesskosten(wert('streitwert'));
+  const r = alle[document.getElementById('ausgang').value];
+  const v = vergleicheMitBeitrag({ kosten: r.gesamt, beitragJahr: wert('beitrag'), selbstbeteiligung: wert('sb'), jahre: wert('jahre') });
+  document.getElementById('kosten').textContent = eur(r.gesamt);
+  const teile = [
+    `<span>Gericht: <strong>${eur(r.gericht)}</strong></span>`,
+    `<span>Eigener Anwalt: <strong>${eur(r.eigenerAnwalt)}</strong></span>`,
+    `<span>Anwalt der Gegenseite: <strong>${eur(r.gegnerAnwalt)}</strong></span>`,
+  ];
+  if (r.gesamt > 0) {
+    teile.push(
+      `<span>Versicherung zahlt: <strong>${eur(v.erstattung)}</strong></span>`,
+      `<span>Beiträge bis dahin: <strong>${eur(v.beitraege)}</strong></span>`,
+    );
+    if (v.jahresbeitraegeJeFall !== null) teile.push(`<span>Entspricht <strong>${v.jahresbeitraegeJeFall.toLocaleString('de-DE')}</strong> Jahresbeiträgen</span>`);
+  } else {
+    teile.push('<span>Der Gegner erstattet Ihre notwendigen Kosten (§ 91 ZPO) – sofern er zahlen kann.</span>');
+  }
+  document.getElementById('details').innerHTML = teile.join('');
 }
-
-['alter','beruf','umfang','familienstand'].forEach(id =>
-  document.getElementById(id).addEventListener('change', berechne));
+['streitwert', 'beitrag', 'sb', 'jahre'].forEach((id) => document.getElementById(id).addEventListener('input', berechne));
+document.getElementById('ausgang').addEventListener('change', berechne);
 berechne();
 </script>
-
-<style>
-.page-header { margin-bottom: 2rem; }
-</style>

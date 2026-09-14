@@ -3,13 +3,52 @@ import Layout from '../../layouts/Layout.astro';
 import CalculatorShell from '../../components/CalculatorShell.astro';
 import CalculatorGuide from '../../components/CalculatorGuide.astro';
 import { CALCULATORS, CATEGORIES } from '../../data/calculators';
+import { berechneZahnersatz, festzuschussUmrechnen, FESTZUSCHUSS_ANTEIL } from '../../../public/scripts/zahnersatz.js';
 const calc = CALCULATORS.find(c => c.slug === 'zahnzusatz-rechner')!;
 const cat = CATEGORIES[calc.category];
 const year = new Date().getFullYear();
+
+// Alle Zahlen dieser Seite kommen aus demselben Modul, das der Rechner laedt.
+const eur = (n: number) => n.toLocaleString('de-DE', { maximumFractionDigits: 0 }) + ' €';
+const proz = (n: number) => Math.round(n * 100) + ' %';
+
+const ohne = berechneZahnersatz({ gesamtkosten: 3000, festzuschuss: 900 });
+const mitTarif = berechneZahnersatz({ gesamtkosten: 3000, festzuschuss: 900, erstattungProzent: 90, bezug: 'gesamt', beitragMonat: 30, monateBeitrag: 24 });
+const aufEigenanteil = berechneZahnersatz({ gesamtkosten: 3000, festzuschuss: 900, erstattungProzent: 90, bezug: 'eigenanteil' });
+const begrenzt = berechneZahnersatz({ gesamtkosten: 3000, festzuschuss: 900, erstattungProzent: 90, bezug: 'gesamt', hoechstbetrag: 1000 });
+if (ohne.eigenanteil !== 2100 || mitTarif.erstattung !== 1800 || aufEigenanteil.erstattung !== 1890) {
+  throw new Error('Zahnersatz: Beispiel stimmt nicht');
+}
+const bonus10 = festzuschussUmrechnen(900, 'ohneBonus', 'bonus10Jahre');
+
+const guideHtml = `
+<h3>Was die Krankenkasse zahlt</h3>
+<p>Beim Zahnersatz zahlt die gesetzliche Krankenkasse keinen Prozentsatz der Rechnung, sondern Festzuschüsse, die sich am Befund orientieren. Nach § 55 Abs. 1 SGB V betragen sie ${proz(FESTZUSCHUSS_ANTEIL.ohneBonus)} der für die Regelversorgung festgesetzten Beträge. Wer die Zähne regelmäßig gepflegt und in den letzten fünf Jahren die Vorsorgeuntersuchungen wahrgenommen hat, erhält ${proz(FESTZUSCHUSS_ANTEIL.bonus5Jahre)}, nach zehn Jahren ${proz(FESTZUSCHUSS_ANTEIL.bonus10Jahre)}. Wählt man eine aufwendigere Versorgung als die Regelversorgung, bleibt der Festzuschuss gleich – den Rest trägt man selbst.</p>
+<p>Beide Zahlen stehen im Heil- und Kostenplan, den die Zahnarztpraxis vor der Behandlung erstellt: die voraussichtlichen Gesamtkosten und der Festzuschuss. Aus ihnen rechnet dieser Rechner.</p>
+
+<h3>Beispiel</h3>
+<p>Eine Krone mit Brückenglied kostet laut Heil- und Kostenplan ${eur(3000)}, der Festzuschuss ohne Bonus beträgt ${eur(900)}. Der Eigenanteil liegt bei ${eur(ohne.eigenanteil)}. Mit zehn Jahren Bonusheft stiege der Festzuschuss auf ${eur(bonus10)}.</p>
+<p>Wie viel eine Zusatzversicherung davon übernimmt, hängt an einer Formulierung im Tarif, die leicht überlesen wird:</p>
+<ul>
+<li><strong>„90 % inklusive Kassenleistung"</strong>: Der Tarif füllt auf 90 % der Gesamtkosten auf. Das sind ${eur(mitTarif.erstattung)}, es bleiben ${eur(mitTarif.eigenanteilMitTarif)}.</li>
+<li><strong>„90 % des Eigenanteils"</strong>: Der Tarif zahlt 90 % dessen, was nach dem Festzuschuss übrig ist – ${eur(aufEigenanteil.erstattung)}, es bleiben ${eur(aufEigenanteil.eigenanteilMitTarif)}.</li>
+</ul>
+<p>Hat der Tarif im Behandlungsjahr eine Leistungsgrenze von ${eur(1000)}, zahlt er in beiden Fällen nur ${eur(begrenzt.erstattung)}. Solche Grenzen stehen im Tarif meist als Staffel nach Vertragsjahren – tragen Sie den Betrag ein, der im Jahr der Behandlung gilt.</p>
+
+<h3>Beiträge gegenrechnen</h3>
+<p>Wer ${eur(30)} im Monat zahlt und nach zwei Jahren behandelt wird, hat ${eur(mitTarif.beitraege)} Beiträge gezahlt. Die Erstattung von ${eur(mitTarif.erstattung)} übersteigt das um ${eur(mitTarif.saldo)}. Ob sich ein Tarif lohnt, ist damit nicht beantwortet – es hängt davon ab, ob und wann Zahnersatz nötig wird. Mit einem konkreten Heil- und Kostenplan lässt sich aber genau rechnen, was der Tarif in diesem Fall bringt.</p>
+`;
+
+const faqs = [
+  { q: 'Wie viel zahlt die Krankenkasse beim Zahnersatz?', a: `Einen Festzuschuss von ${proz(FESTZUSCHUSS_ANTEIL.ohneBonus)} der Regelversorgung, mit Bonusheft ${proz(FESTZUSCHUSS_ANTEIL.bonus5Jahre)} nach fünf und ${proz(FESTZUSCHUSS_ANTEIL.bonus10Jahre)} nach zehn Jahren (§ 55 Abs. 1 SGB V). Der Betrag steht im Heil- und Kostenplan.` },
+  { q: 'Was bedeutet „90 % inklusive Kassenleistung"?', a: `Der Tarif füllt die Kassenleistung auf 90 % der Gesamtkosten auf. Bei ${eur(3000)} Kosten und ${eur(900)} Festzuschuss zahlt er ${eur(mitTarif.erstattung)}; ein Tarif mit 90 % des Eigenanteils zahlte ${eur(aufEigenanteil.erstattung)}.` },
+  { q: 'Wie hoch ist mein Eigenanteil?', a: 'Gesamtkosten laut Heil- und Kostenplan minus Festzuschuss. Tragen Sie beide Beträge in den Rechner ein.' },
+  { q: 'Was kostet eine Zahnzusatzversicherung?', a: 'Das setzt jeder Versicherer nach Tarif und Eintrittsalter fest. Der Rechner nimmt Ihren Monatsbeitrag als Eingabe und stellt ihn der Erstattung gegenüber.' },
+];
 ---
 <Layout
-  title={`Zahnzusatzversicherung Rechner ${year}`}
-  description="Zahnzusatzversicherung Ersparnis berechnen – Kostenvergleich für Zahnersatz und Zahnbehandlung."
+  title={`Zahnersatz- und Zahnzusatz-Rechner ${year}`}
+  description="Eigenanteil beim Zahnersatz aus dem Heil- und Kostenplan: Festzuschuss nach § 55 SGB V, Erstattung der Zahnzusatzversicherung und Beiträge im Vergleich."
   canonicalPath="/versicherungen/zahnzusatz-rechner/"
   categoryColor={cat.color}
   categoryLight={cat.colorLight}
@@ -17,117 +56,89 @@ const year = new Date().getFullYear();
 >
   <div class="page-header">
     <a href={`${import.meta.env.BASE_URL}versicherungen/`} class="back-link">← Versicherungen</a>
-    <h1>Zahnzusatzversicherung Rechner {year}</h1>
+    <h1>Zahnersatz- und Zahnzusatz-Rechner {year}</h1>
   </div>
   <CalculatorShell
     calculator={calc}
-    intro="Mit dem Zahnzusatzversicherung-Rechner berechnen Sie schnell, wie viel Sie sparen können. Vergleichen Sie die jährliche Prämie mit den durchschnittlichen Zahnkosten."
-    sourceNote="Berechnung basiert auf durchschnittlichen Leistungen und Kosten 2026."
-    explanation="Eine Zahnzusatzversicherung übernimmt Kosten für Zahnersatz (Kronen, Brücken), Zahnbehandlung und Prophylaxe, die die gesetzliche KV nicht deckt."
-    faqs={[
-      { q: "Was deckt eine Zahnzusatzversicherung?", a: "Zahnersatz (Kronen, Brücken, Implantate), Zahnbehandlung (Wurzelbehandlung), Prophylaxe und Zahnreinigung. Der Deckungsumfang liegt zwischen 50-100%." },
-      { q: "Wie hoch sind die Beiträge?", a: "Zahnzusatzversicherungen kosten zwischen 5-25€ monatlich, je nach Alter und Deckungsumfang. Jüngere zahlen weniger." },
-      { q: "Lohnt sich eine Zahnzusatzversicherung?", a: "Ja, besonders für Junge. Eine Zahnkrone kostet 400-600€, ein Implantat 1.500-2.500€. Die Versicherung spart diese Kosten schnell ein." },
-      { q: "Gibt es Wartezeiten?", a: "Ja, typischerweise 4-6 Monate für Zahnbehandlung und bis zu 8 Monate für Zahnersatz. Zahnprophylaxe hat oft keine Wartezeit." },
-      { q: "Kann ich eine Police noch mit 60 abschließen?", a: "Ja, aber der Beitrag ist höher. Mit 60+ Jahren zahlt man oft 15-25€/Monat statt 7-12€." }
-    ]}
+    intro="Der Rechner nimmt Gesamtkosten und Festzuschuss aus Ihrem Heil- und Kostenplan und zeigt, was eine Zahnzusatzversicherung davon übernimmt – und was nach den Beiträgen bleibt."
+    sourceNote="Festzuschüsse nach § 55 Abs. 1 SGB V (abgerufen am 14.09.2026). Gesamtkosten und Festzuschuss aus dem Heil- und Kostenplan, Leistung, Höchstbetrag und Beitrag aus Ihrem Tarif. Der Rechner enthält keine Marktpreise."
+    explanation="Eigenanteil = Gesamtkosten − Festzuschuss. Tarifleistung je nach Bedingung: Prozentsatz der Gesamtkosten minus Festzuschuss oder Prozentsatz des Eigenanteils, begrenzt auf den Höchstbetrag des Jahres und den Eigenanteil."
+    faqs={faqs}
   >
     <div class="calc-form">
       <div class="calc-grid">
         <div class="calc-group">
-          <label for="alter">Alter</label>
-          <input type="number" id="alter" min="18" max="120" value="35" step="1" />
+          <label for="gesamt">Gesamtkosten laut Heil- und Kostenplan (€)</label>
+          <input type="number" id="gesamt" min="0" max="100000" value="3000" step="50" />
         </div>
         <div class="calc-group">
-          <label for="zahngeld">Zahnstatus</label>
-          <select id="zahngeld">
-            <option value="gesund" selected>Gesund, keine fehlenden Zähne</option>
-            <option value="behandelt">Einige Behandlungen, kein Zahnersatz</option>
-            <option value="ersatz">Zahnersatz vorhanden</option>
+          <label for="zuschuss">Festzuschuss laut Heil- und Kostenplan (€)</label>
+          <input type="number" id="zuschuss" min="0" max="100000" value="900" step="10" />
+        </div>
+        <div class="calc-group">
+          <label for="prozent">Leistung des Tarifs (%)</label>
+          <input type="number" id="prozent" min="0" max="100" value="90" step="5" />
+        </div>
+        <div class="calc-group">
+          <label for="bezug">Prozentsatz bezieht sich auf</label>
+          <select id="bezug">
+            <option value="gesamt" selected>Gesamtkosten inkl. Kassenleistung</option>
+            <option value="eigenanteil">den Eigenanteil</option>
           </select>
         </div>
         <div class="calc-group">
-          <label for="deckung">Deckungsumfang</label>
-          <select id="deckung">
-            <option value="basis">Basis (50% Zahnersatz)</option>
-            <option value="standard" selected>Standard (75-80% Zahnersatz)</option>
-            <option value="premium">Premium (90-100% Zahnersatz)</option>
-          </select>
+          <label for="hoechst">Höchstbetrag im Behandlungsjahr (€, 0 = keiner)</label>
+          <input type="number" id="hoechst" min="0" max="100000" value="0" step="100" />
         </div>
         <div class="calc-group">
-          <label for="prophylaxe">Prophylaxe/Zahnreinigung</label>
-          <select id="prophylaxe">
-            <option value="keine">Keine</option>
-            <option value="basis" selected>1x jährlich</option>
-            <option value="plus">2x jährlich</option>
-          </select>
+          <label for="beitrag">Monatsbeitrag (€)</label>
+          <input type="number" id="beitrag" min="0" max="500" value="30" step="1" />
+        </div>
+        <div class="calc-group">
+          <label for="monate">Beitragsmonate bis zur Behandlung</label>
+          <input type="number" id="monate" min="0" max="600" value="24" step="1" />
         </div>
       </div>
 
       <div class="calc-result">
-        <div class="label">Geschätzte monatliche Prämie</div>
-        <div id="praemie">— €</div>
+        <div class="label">Eigenanteil mit Tarif</div>
+        <div id="ergebnis">— €</div>
       </div>
-      <div class="calc-result" style="background:#e8f5e9;">
-        <div class="label">Jährliche Ersparnis bei Zahnersatz</div>
-        <div id="ersparnis">— €</div>
-      </div>
-      <div id="details" style="margin-top:0.75rem;font-size:0.88rem;color:#666;"></div>
+      <div id="details" style="margin-top:0.75rem;font-size:0.88rem;color:#666;display:flex;gap:1.5rem;flex-wrap:wrap;"></div>
     </div>
   </CalculatorShell>
 
   <CalculatorGuide
-    title="Zahnzusatzversicherung: Hochwertigen Zahnersatz bezahlbar machen"
-    content="<p>Die gesetzliche Krankenversicherung (GKV) übernimmt bei Zahnersatz nur die sogenannte Regelversorgung. Das bedeutet: Die Kasse zahlt einen Festzuschuss von 60 Prozent der Kosten für die einfachste, medizinisch ausreichende Versorgung. Mit einem lückenlos geführten Bonusheft steigt der Zuschuss auf 70 Prozent nach fünf Jahren und 75 Prozent nach zehn Jahren. Dennoch bleibt bei hochwertigem Zahnersatz wie Implantaten, Keramikkronen oder Inlays ein erheblicher Eigenanteil, der schnell mehrere tausend Euro betragen kann.</p>
-
-<p><strong>Was deckt eine Zahnzusatzversicherung ab?</strong> Je nach Tarif übernimmt die Zahnzusatzversicherung 70 bis 100 Prozent der Kosten für Zahnersatz, einschließlich Implantate, Kronen, Brücken und Prothesen. Viele Tarife erstatten zusätzlich Kosten für Zahnbehandlungen wie Wurzel- und Parodontosebehandlungen, professionelle Zahnreinigung, Kunststofffüllungen und kieferorthopädische Maßnahmen. Hochwertige Tarife decken auch Funktionsanalyse und Aufbissschienen ab.</p>
-
-<p><strong>Wartezeiten und Leistungsbegrenzungen:</strong> Die meisten Zahnzusatzversicherungen haben eine Wartezeit von drei bis acht Monaten nach Vertragsabschluss. In den ersten Jahren gelten zudem gestaffelte Leistungsbegrenzungen. Typischerweise werden im ersten Vertragsjahr maximal 500 bis 1.000 Euro erstattet, im zweiten Jahr 2.000 Euro, und erst nach drei bis fünf Jahren greift die volle Leistung ohne Begrenzung. Einige Tarife verzichten auf Wartezeiten, verlangen dafür aber höhere Beiträge.</p>
-
-<p><strong>Wann sollte man eine Zahnzusatzversicherung abschließen?</strong> Der beste Zeitpunkt ist möglichst früh, idealerweise zwischen 20 und 35 Jahren. In diesem Alter sind die monatlichen Beiträge am günstigsten, oft nur 7 bis 15 Euro. Außerdem ist der Zahnstatus meist noch gut, sodass keine Ausschlüsse für bereits fehlende oder beschädigte Zähne drohen. Wichtig zu wissen: Bereits geplante oder angeratene Behandlungen werden grundsätzlich nicht übernommen.</p>
-
-<p><strong>Stiftung Warentest als Orientierung:</strong> Die Stiftung Warentest bewertet regelmäßig Zahnzusatzversicherungen im Magazin Finanztest. Besonders gut abschneidende Tarife erstatten mindestens 90 Prozent der Zahnersatzkosten und bieten umfassende Leistungen für Zahnbehandlung und Prophylaxe. Achten Sie beim Vergleich auf die tatsächliche Erstattung inklusive Kassenleistung, nicht nur auf den Prozentsatz der Versicherung.</p>
-
-<p><strong>Praxistipp:</strong> Führen Sie Ihr Bonusheft lückenlos und gehen Sie regelmäßig zur Kontrolle. Schließen Sie die Versicherung ab, bevor Zahnprobleme auftreten. Prüfen Sie, ob Ihr Tarif eine Beitragsrückerstattung bei Leistungsfreiheit bietet. Manche Versicherer erstatten ein bis zwei Monatsbeiträge zurück, wenn Sie ein Jahr lang keine Leistungen in Anspruch genommen haben.</p>"
-    relatedSlugs={['elementar-rechner', 'pflege-rechner', 'rechtsschutz-rechner']}
+    title="So wird der Eigenanteil berechnet"
+    content={guideHtml}
+    relatedSlugs={['pflege-rechner', 'elementar-rechner', 'rechtsschutz-rechner']}
   />
 </Layout>
 
 <script type="module">
+const { berechneZahnersatz } = await import(window.__base + 'scripts/zahnersatz.js');
+const eur = (n) => n.toLocaleString('de-DE', { minimumFractionDigits: 0, maximumFractionDigits: 0 }) + ' €';
+const wert = (id) => parseFloat(document.getElementById(id).value) || 0;
 function berechne() {
-  const alter = parseInt(document.getElementById('alter').value)||35;
-  const zahngeld = document.getElementById('zahngeld').value;
-  const deckung = document.getElementById('deckung').value;
-  const prophylaxe = document.getElementById('prophylaxe').value;
-
-  let baseBeitrag = 12;
-  if (alter < 25) baseBeitrag = 7;
-  else if (alter >= 25 && alter < 35) baseBeitrag = 9;
-  else if (alter >= 35 && alter < 50) baseBeitrag = 12;
-  else if (alter >= 50 && alter < 60) baseBeitrag = 16;
-  else baseBeitrag = 20;
-
-  const zahnZuschlag = { 'gesund': 0, 'behandelt': 1, 'ersatz': 3 }[zahngeld] || 0;
-  const deckungZuschlag = { 'basis': 0, 'standard': 2, 'premium': 5 }[deckung] || 0;
-  const prophylaxeZuschlag = { 'keine': 0, 'basis': 1, 'plus': 2 }[prophylaxe] || 0;
-
-  const praemie = baseBeitrag + zahnZuschlag + deckungZuschlag + prophylaxeZuschlag;
-  const deckungsQuote = { 'basis': 0.5, 'standard': 0.8, 'premium': 1.0 }[deckung] || 0.8;
-  const durchschnittskosten = 1200; // Jährliche Zahnkosten
-  const ersparnis = Math.round(durchschnittskosten * deckungsQuote);
-
-  document.getElementById('praemie').textContent = praemie.toLocaleString('de-DE', {minimumFractionDigits:2, maximumFractionDigits:2}) + ' €';
-  document.getElementById('ersparnis').textContent = ersparnis.toLocaleString('de-DE') + ' € (bei ' + Math.round(deckungsQuote * 100) + '% Deckung)';
-  document.getElementById('details').innerHTML = `
-    <div>Jahresbeitrag: <strong>${(praemie * 12).toLocaleString('de-DE')} €</strong></div>
-  `;
+  const r = berechneZahnersatz({
+    gesamtkosten: wert('gesamt'),
+    festzuschuss: wert('zuschuss'),
+    erstattungProzent: wert('prozent'),
+    bezug: document.getElementById('bezug').value,
+    hoechstbetrag: wert('hoechst'),
+    beitragMonat: wert('beitrag'),
+    monateBeitrag: wert('monate'),
+  });
+  document.getElementById('ergebnis').textContent = eur(r.eigenanteilMitTarif);
+  const teile = [
+    `<span>Eigenanteil ohne Tarif: <strong>${eur(r.eigenanteil)}</strong></span>`,
+    `<span>Tarif zahlt: <strong>${eur(r.erstattung)}</strong>${r.begrenzt ? ' (Höchstbetrag erreicht)' : ''}</span>`,
+    `<span>Beiträge bis zur Behandlung: <strong>${eur(r.beitraege)}</strong></span>`,
+    `<span>Erstattung minus Beiträge: <strong>${r.saldo >= 0 ? '+' : '−'}${eur(Math.abs(r.saldo))}</strong></span>`,
+  ];
+  document.getElementById('details').innerHTML = teile.join('');
 }
-
-['alter','zahngeld','deckung','prophylaxe'].forEach(id =>
-  document.getElementById(id).addEventListener('change', berechne));
+['gesamt', 'zuschuss', 'prozent', 'hoechst', 'beitrag', 'monate'].forEach((id) => document.getElementById(id).addEventListener('input', berechne));
+document.getElementById('bezug').addEventListener('change', berechne);
 berechne();
 </script>
-
-<style>
-.page-header { margin-bottom: 2rem; }
-</style>
