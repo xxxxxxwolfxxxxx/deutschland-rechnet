@@ -2,6 +2,7 @@
 import '../styles/global.css';
 import { relatedSites } from '../data/relatedSites';
 import { CATEGORIES } from '../data/calculators';
+import { istNoindex } from '../data/noindex.mjs';
 
 const categoryLabels: Record<string, string> = {};
 for (const [key, val] of Object.entries(CATEGORIES)) {
@@ -50,6 +51,7 @@ const navLinks = [
   <title>{canonicalPath === '/' ? title : `${title} | Deutschland rechnet`}</title>
   <meta name="description" content={description} />
   <link rel="canonical" href={canonical} />
+  {istNoindex(canonicalPath) && <meta name="robots" content="noindex, follow" />}
   <link rel="icon" type="image/svg+xml" href={`${base}favicon.svg`} />
   <link rel="sitemap" href={`${base}sitemap-index.xml`} />
   <script is:inline>

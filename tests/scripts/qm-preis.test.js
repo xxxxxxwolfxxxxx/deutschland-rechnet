@@ -1,78 +1,80 @@
 import { describe, it, expect } from 'vitest';
-import { berechneQmPreis } from '../../public/scripts/qm-preis.js';
+import {
+  ANRECHNUNG,
+  wohnflaecheNachWoFlV,
+  quadratmeterpreis,
+  berechneQmPreis,
+} from '../../public/scripts/qm-preis.js';
 
-// Nachschlagemodul für Quadratmeterpreise. Die Tabelle enthält gerundete
-// Marktwerte je Stadt beziehungsweise Region – keine amtlichen Werte, sondern
-// Orientierungsgrößen. Getestet wird die Auswahllogik, nicht die Marktlage.
+// § 4 WoFlV, https://www.gesetze-im-internet.de/woflv/__4.html (abgerufen am 14.09.2026).
+// Die frühere Städtetabelle mit erfundenen Marktpreisen ist entfernt – ihre
+// Tests prüften nur, dass die Fiktion in sich stimmig war.
 
-describe('berechneQmPreis – Nachschlagen', () => {
-  it('liefert den Kaufpreis je Quadratmeter für Wohnungen', () => {
-    const r = berechneQmPreis({ region: 'BE', flaeche: 70, typ: 'kauf_wohnung' });
-
-    expect(r.qmPreis).toBe(4500);
-    expect(r.gesamtwert).toBe(315000);
-    expect(r.regionName).toBe('Berlin');
+describe('wohnflaecheNachWoFlV – § 4 WoFlV', () => {
+  it('Anrechnungsfaktoren', () => {
+    expect(ANRECHNUNG.voll).toBe(1);
+    expect(ANRECHNUNG.halb).toBe(0.5);
+    expect(ANRECHNUNG.keine).toBe(0);
+    expect(ANRECHNUNG.wintergarten).toBe(0.5);
+    expect(ANRECHNUNG.balkonRegel).toBe(0.25);
+    expect(ANRECHNUNG.balkonHoechst).toBe(0.5);
   });
 
-  it('liefert den Kaufpreis je Quadratmeter für Häuser', () => {
-    const r = berechneQmPreis({ region: 'L', flaeche: 140, typ: 'kauf_haus' });
+  it('Dachgeschosswohnung: Schrägen und Balkon', () => {
+    const r = wohnflaecheNachWoFlV({ vollHoch: 60, halbHoch: 14, niedrig: 6, balkon: 8 });
 
-    expect(r.qmPreis).toBe(3500);
-    expect(r.gesamtwert).toBe(490000);
-    expect(r.regionName).toBe('Leipzig');
+    // 60 + 7 + 0 + 2
+    expect(r.wohnflaeche).toBe(69);
+    expect(r.grundflaeche).toBe(88);
+    expect(r.nichtAngerechnet).toBe(19);
   });
 
-  it('liefert die Monatsmiete für Mietobjekte', () => {
-    const r = berechneQmPreis({ region: 'HH', flaeche: 65, typ: 'miete' });
+  it('Balkon höchstens zur Hälfte', () => {
+    const regel = wohnflaecheNachWoFlV({ vollHoch: 70, balkon: 10 });
+    const hoechst = wohnflaecheNachWoFlV({ vollHoch: 70, balkon: 10, balkonZurHaelfte: true });
 
-    expect(r.qmPreis).toBe(14);
-    expect(r.gesamtwert).toBe(910);
-    expect(r.regionName).toBe('Hamburg');
-  });
-});
-
-describe('berechneQmPreis – Rückfallwerte', () => {
-  it('unbekannte Region fällt auf den Bundesdurchschnitt zurück', () => {
-    const unbekannt = berechneQmPreis({ region: 'XX', flaeche: 80, typ: 'kauf_wohnung' });
-    const bund = berechneQmPreis({ region: 'DE', flaeche: 80, typ: 'kauf_wohnung' });
-
-    expect(unbekannt).toEqual(bund);
-    expect(unbekannt.regionName).toBe('Deutschland');
+    expect(regel.wohnflaeche).toBe(72.5);
+    expect(hoechst.wohnflaeche).toBe(75);
   });
 
-  it('unbekannter Objekttyp rechnet mit 3000 €/m²', () => {
-    const r = berechneQmPreis({ region: 'BE', flaeche: 50, typ: 'erbbaurecht' });
+  it('unbeheizter Wintergarten zur Hälfte', () => {
+    expect(wohnflaecheNachWoFlV({ vollHoch: 100, wintergarten: 12 }).wohnflaeche).toBe(106);
+  });
 
-    expect(r.qmPreis).toBe(3000);
-    expect(r.gesamtwert).toBe(150000);
+  it('negative und leere Eingaben zählen nicht', () => {
+    expect(wohnflaecheNachWoFlV({ vollHoch: -20, halbHoch: 'x' }).wohnflaeche).toBe(0);
   });
 });
 
-describe('berechneQmPreis – Plausibilität der Tabelle', () => {
-  it('Häuser kosten je Quadratmeter mehr als Wohnungen', () => {
-    for (const region of ['BAY', 'HH', 'BE', 'F', 'S', 'K', 'D', 'DD', 'MS', 'L', 'NRW', 'DE']) {
-      const wohnung = berechneQmPreis({ region, flaeche: 1, typ: 'kauf_wohnung' });
-      const haus = berechneQmPreis({ region, flaeche: 1, typ: 'kauf_haus' });
-
-      expect(haus.qmPreis).toBeGreaterThan(wohnung.qmPreis);
-    }
+describe('quadratmeterpreis', () => {
+  it('teilt den Kaufpreis durch die Fläche', () => {
+    expect(quadratmeterpreis({ kaufpreis: 540000, flaeche: 90 })).toBe(6000);
   });
 
-  it('München ist die teuerste, Leipzig die günstigste Stadt der Tabelle', () => {
-    const muenchen = berechneQmPreis({ region: 'BAY', flaeche: 1, typ: 'kauf_wohnung' }).qmPreis;
-    const leipzig = berechneQmPreis({ region: 'L', flaeche: 1, typ: 'kauf_wohnung' }).qmPreis;
+  it('ohne Fläche kein Preis', () => {
+    expect(quadratmeterpreis({ kaufpreis: 300000, flaeche: 0 })).toBeNull();
+  });
+});
 
-    for (const region of ['HH', 'BE', 'F', 'S', 'K', 'D', 'DD', 'MS', 'NRW', 'DE']) {
-      const preis = berechneQmPreis({ region, flaeche: 1, typ: 'kauf_wohnung' }).qmPreis;
-      expect(preis).toBeLessThan(muenchen);
-      expect(preis).toBeGreaterThanOrEqual(leipzig);
-    }
+describe('berechneQmPreis – beworbene Fläche gegen WoFlV', () => {
+  it('eine als 85 m² beworbene Wohnung mit 72 m² nach WoFlV', () => {
+    const r = berechneQmPreis({
+      kaufpreis: 360000,
+      beworbeneFlaeche: 85,
+      flaechen: { vollHoch: 64, halbHoch: 16, niedrig: 5 },
+    });
+
+    expect(r.wohnflaeche).toBe(72);
+    expect(r.preisBeworben).toBe(4235.29);
+    expect(r.preisWoFlV).toBe(5000);
+    expect(r.aufschlagProzent).toBe(18.1);
   });
 
-  it('skaliert linear mit der Fläche', () => {
-    const klein = berechneQmPreis({ region: 'K', flaeche: 40, typ: 'miete' });
-    const gross = berechneQmPreis({ region: 'K', flaeche: 120, typ: 'miete' });
+  it('ohne Grundflächen kein WoFlV-Preis und kein Aufschlag', () => {
+    const r = berechneQmPreis({ kaufpreis: 300000, beworbeneFlaeche: 80, flaechen: {} });
 
-    expect(gross.gesamtwert).toBe(klein.gesamtwert * 3);
+    expect(r.preisBeworben).toBe(3750);
+    expect(r.preisWoFlV).toBeNull();
+    expect(r.aufschlagProzent).toBeNull();
   });
 });

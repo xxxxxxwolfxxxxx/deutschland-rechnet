@@ -3,13 +3,48 @@ import Layout from '../../layouts/Layout.astro';
 import CalculatorShell from '../../components/CalculatorShell.astro';
 import CalculatorGuide from '../../components/CalculatorGuide.astro';
 import { CALCULATORS, CATEGORIES } from '../../data/calculators';
+import { berechneQmPreis, ANRECHNUNG } from '../../../public/scripts/qm-preis.js';
 const calc = CALCULATORS.find(c => c.slug === 'quadratmeterpreis-vergleich')!;
 const cat = CATEGORIES[calc.category];
 const year = new Date().getFullYear();
+
+// Alle Zahlen dieser Seite kommen aus demselben Modul, das der Rechner laedt.
+const eur = (n: number) => n.toLocaleString('de-DE', { maximumFractionDigits: 0 }) + ' €';
+const qm = (n: number) => n.toLocaleString('de-DE', { maximumFractionDigits: 2 }) + ' m²';
+const anteil = (n: number) => ({ 1: 'vollständig', 0.5: 'zur Hälfte', 0.25: 'zu einem Viertel', 0: 'gar nicht' } as Record<number, string>)[n];
+
+const bsp = berechneQmPreis({ kaufpreis: 360000, beworbeneFlaeche: 85, flaechen: { vollHoch: 64, halbHoch: 16, niedrig: 5 } });
+if (bsp.wohnflaeche !== 72 || bsp.preisWoFlV !== 5000) throw new Error('qm-Preis: Beispiel stimmt nicht');
+
+const guideHtml = `
+<h3>Welche Fläche im Nenner steht</h3>
+<p>Der Quadratmeterpreis ist nur so gut wie die Fläche, durch die man teilt. Für Wohnraum regelt die Wohnflächenverordnung, wie Grundflächen angerechnet werden (§ 4 WoFlV):</p>
+<ul>
+<li>Räume und Raumteile mit mindestens zwei Metern lichter Höhe: ${anteil(ANRECHNUNG.voll)}</li>
+<li>mit mindestens einem, aber weniger als zwei Metern lichter Höhe: ${anteil(ANRECHNUNG.halb)}</li>
+<li>mit weniger als einem Meter lichter Höhe: ${anteil(ANRECHNUNG.keine)}</li>
+<li>unbeheizte Wintergärten und ähnliche Räume: ${anteil(ANRECHNUNG.wintergarten)}</li>
+<li>Balkone, Loggien, Dachgärten und Terrassen: in der Regel ${anteil(ANRECHNUNG.balkonRegel)}, höchstens ${anteil(ANRECHNUNG.balkonHoechst)}</li>
+</ul>
+<p>Keller, Waschküchen, Dachböden, Heizungsräume und Garagen gehören nach § 2 Abs. 3 WoFlV gar nicht zur Wohnfläche.</p>
+
+<h3>Beispiel: Dachgeschoss</h3>
+<p>Eine Wohnung wird für ${eur(360000)} mit ${qm(85)} angeboten – das wären ${eur(bsp.preisBeworben ?? 0)} je Quadratmeter. Die ${qm(85)} sind aber die Grundfläche: ${qm(64)} mit voller Höhe, ${qm(16)} unter Schrägen zwischen einem und zwei Metern, ${qm(5)} unter einem Meter. Nach § 4 WoFlV ergibt das ${qm(bsp.wohnflaeche)} Wohnfläche und ${eur(bsp.preisWoFlV ?? 0)} je Quadratmeter, also ${(bsp.aufschlagProzent ?? 0).toLocaleString('de-DE')} % mehr, als das Exposé nahelegt.</p>
+
+<h3>Vergleichswerte</h3>
+<p>Ob ein Quadratmeterpreis für die Lage hoch oder niedrig ist, beantwortet dieser Rechner nicht. Verlässliche Vergleichswerte veröffentlichen die Gutachterausschüsse für Grundstückswerte in ihren Grundstücksmarktberichten; Bodenrichtwerte stehen in den Portalen der Länder. Frühere Fassungen dieser Seite enthielten eine Tabelle mit Preisen für zwölf Städte ohne belegte Herkunft – sie ist entfernt.</p>
+`;
+
+const faqs = [
+  { q: 'Wie wird der Quadratmeterpreis berechnet?', a: 'Kaufpreis geteilt durch Wohnfläche. Entscheidend ist, welche Fläche man nimmt: Nach § 4 WoFlV zählen Flächen unter Dachschrägen und Balkone nur anteilig.' },
+  { q: 'Wie werden Balkone angerechnet?', a: 'Nach § 4 Nr. 4 WoFlV in der Regel zu einem Viertel, höchstens zur Hälfte.' },
+  { q: 'Zählen Flächen unter Dachschrägen?', a: 'Ab zwei Metern lichter Höhe vollständig, zwischen einem und zwei Metern zur Hälfte, unter einem Meter gar nicht (§ 4 WoFlV).' },
+  { q: 'Wo finde ich Vergleichspreise für meine Region?', a: 'In den Grundstücksmarktberichten der örtlichen Gutachterausschüsse für Grundstückswerte. Dieser Rechner enthält keine regionalen Preise.' },
+];
 ---
 <Layout
-  title={`Quadratmeterpreis-Vergleich ${year}`}
-  description="Immobilienpreise pro m² nach Region vergleichen."
+  title={`Quadratmeterpreis-Rechner ${year}`}
+  description="Quadratmeterpreis aus Kaufpreis und Wohnfläche nach § 4 WoFlV – mit Dachschrägen, Wintergarten und Balkon."
   canonicalPath="/wohnen/quadratmeterpreis-vergleich/"
   categoryColor={cat.color}
   categoryLight={cat.colorLight}
@@ -17,82 +52,95 @@ const year = new Date().getFullYear();
 >
   <div class="page-header">
     <a href={`${import.meta.env.BASE_URL}wohnen/`} class="back-link">← Wohnen &amp; Immobilien</a>
-    <h1>Quadratmeterpreis-Vergleich {year}</h1>
+    <h1>Quadratmeterpreis-Rechner {year}</h1>
   </div>
   <CalculatorShell
     calculator={calc}
-    intro="Mit dem Quadratmeterpreis-Vergleich sehen Sie aktuelle Immobilienpreise pro Quadratmeter nach Region und Immobilientyp. Die Preisunterschiede in Deutschland sind enorm: Während in München Eigentumswohnungen ab 7.000 Euro/m² gehandelt werden, sind vergleichbare Objekte in Chemnitz oder Bremerhaven bereits ab 1.500 Euro/m² erhältlich. Neben der Lage beeinflussen Faktoren wie Baujahr, Energieeffizienzklasse, Ausstattung und die Mikrolage (Stockwerk, Ausrichtung, Nachbarschaft) den Quadratmeterpreis erheblich – dieser Rechner hilft Ihnen, regionale Durchschnittswerte einzuordnen und Angebote realistisch zu bewerten."
-    sourceNote="Preisdaten basieren auf Auswertungen der Gutachterausschüsse für Grundstückswerte (§ 192 BauGB), die Kaufpreise aus notariellen Kaufverträgen erfassen. Ergänzend fließen Daten des Immobilienpreisindex des Statistischen Bundesamtes (Destatis) und des VDPB Research Immobilienpreisindex ein. Die Wohnflächenberechnung richtet sich nach der Wohnflächenverordnung (WoFlV)."
-    explanation="Der Quadratmeterpreis berechnet sich aus dem Gesamtpreis geteilt durch die Wohnfläche nach Wohnflächenverordnung (WoFlV). Aktuelle Richtwerte für Eigentumswohnungen (Bestand): München 7.000–12.000 Euro/m², Frankfurt am Main 5.000–8.000 Euro/m², Hamburg und Berlin 4.500–7.500 Euro/m², Stuttgart, Düsseldorf und Köln 4.000–6.500 Euro/m², Leipzig und Dresden 2.500–4.500 Euro/m². Einfamilienhäuser liegen in der Regel 10–20 % über diesen Werten. Bei Mietwohnungen bewegen sich die Kaltmieten zwischen 5 Euro/m² in ländlichen Regionen und über 20 Euro/m² in Münchner Bestlagen. Der Vervielfältiger (Kaufpreis geteilt durch Jahreskaltmiete) sollte laut Expertenempfehlung nicht über 25 liegen – in gefragten Großstädten werden jedoch häufig Werte von 30–40 erreicht."
-    faqs={[
-      { q: "Wie wird der Quadratmeterpreis berechnet?", a: "Der Quadratmeterpreis ergibt sich aus dem Gesamtpreis geteilt durch die Wohnfläche. Bei einem Haus für 600.000 € mit 200 m² Wohnfläche beträgt der Quadratmeterpreis 3.000 €/m². Wichtig: Nutzen Sie die tatsächliche Wohnfläche nach Wohnflächenverordnung (WoFlV), nicht die Grundfläche. Balkone zählen in der Regel nur zu 25-50%." },
-      { q: "Warum unterscheiden sich Quadratmeterpreise regional so stark?", a: "Die Preisunterschiede spiegeln Angebot und Nachfrage wider. Wirtschaftsstarke Regionen mit guter Infrastruktur, Arbeitsplätzen und Kulturangebot sind teurer. München liegt bei Kaufpreisen oft über 8.000 €/m², während vergleichbare Wohnungen in Chemnitz oder Bremerhaven für 1.500-2.500 €/m² erhältlich sind." },
-      { q: "Welche Faktoren beeinflussen den Quadratmeterpreis einer Immobilie?", a: "Die wichtigsten Faktoren sind: Makrolage (Stadt, Stadtteil), Mikrolage (Straße, Ausrichtung, Nachbarschaft), Baujahr und Zustand, Ausstattung (Balkon, Aufzug, Tiefgarage), Energieeffizienzklasse, Stockwerk und Schnitt der Wohnung. Ein Südbalkon oder eine energetisch sanierte Fassade können den Preis pro m² um 5-15% steigern." },
-      { q: "Wie nutze ich den Quadratmeterpreis als Kaufentscheidung?", a: "Vergleichen Sie den Quadratmeterpreis mit dem lokalen Durchschnitt für ähnliche Objekte. Liegt der Preis deutlich darüber, prüfen Sie ob besondere Ausstattungsmerkmale den Aufpreis rechtfertigen. Als Faustregel gilt: Der Kaufpreis sollte nicht mehr als das 20-25-fache der Jahreskaltmiete betragen (Vervielfältiger)." },
-      { q: "Ist ein hoher Quadratmeterpreis automatisch ein schlechtes Geschäft?", a: "Nicht unbedingt. Zentrale Lagen mit hohen Quadratmeterpreisen bieten oft bessere Wertstabilität und Vermietbarkeit. Entscheidend ist das Verhältnis von Preis zu erzielbarer Miete und die langfristige Standortentwicklung. Stadtteile mit geplanter Infrastruktur (neue U-Bahn-Linie, Quartiersentwicklung) können trotz hoher Preise lohnenswert sein." }
-    ]}
+    intro="Der Rechner teilt den Kaufpreis durch die Fläche – einmal durch die Fläche aus dem Exposé und einmal durch die Wohnfläche nach der Wohnflächenverordnung, die Sie aus den Grundflächen berechnen lassen können."
+    sourceNote="Anrechnung der Grundflächen nach § 4 WoFlV, nicht anrechenbare Räume nach § 2 Abs. 3 WoFlV (abgerufen am 14.09.2026). Der Rechner enthält keine Marktpreise."
+    explanation="Wohnfläche nach WoFlV: volle Höhe ganz, 1 bis 2 m lichte Höhe zur Hälfte, unter 1 m nicht, unbeheizter Wintergarten zur Hälfte, Balkon in der Regel zu einem Viertel. Preis je m² = Kaufpreis ÷ Fläche."
+    faqs={faqs}
   >
     <div class="calc-form">
       <div class="calc-grid">
         <div class="calc-group">
-          <label for="region">Region</label>
-          <select id="region">
-            <option value="BAY">München (Bayern)</option>
-            <option value="HH">Hamburg</option>
-            <option value="BE">Berlin</option>
-            <option value="F">Frankfurt a.M.</option>
-            <option value="S">Stuttgart</option>
-            <option value="K">Köln</option>
-            <option value="D">Düsseldorf</option>
-            <option value="DD">Dresden</option>
-            <option value="MS">Münster</option>
-            <option value="L">Leipzig</option>
-            <option value="NRW">NRW-Durchschnitt</option>
-            <option value="DE" selected>Deutschland-Durchschnitt</option>
-          </select>
+          <label for="kaufpreis">Kaufpreis (€)</label>
+          <input type="number" id="kaufpreis" min="0" max="100000000" value="360000" step="1000" />
         </div>
         <div class="calc-group">
-          <label for="flaeche">Zu bewertende Fläche (m²)</label>
-          <input type="number" id="flaeche" min="10" max="500" value="100" step="5" />
+          <label for="beworben">Fläche laut Exposé (m²)</label>
+          <input type="number" id="beworben" min="0" max="10000" value="85" step="1" />
         </div>
         <div class="calc-group">
-          <label for="typ">Immobilientyp</label>
-          <select id="typ">
-            <option value="kauf_wohnung" selected>Kauf – Eigentumswohnung</option>
-            <option value="kauf_haus">Kauf – Ein-/Zweifamilienhaus</option>
-            <option value="miete">Miete – pro m²/Monat</option>
+          <label for="vollHoch">Grundfläche ab 2 m lichter Höhe (m²)</label>
+          <input type="number" id="vollHoch" min="0" max="10000" value="64" step="1" />
+        </div>
+        <div class="calc-group">
+          <label for="halbHoch">Grundfläche 1 bis unter 2 m Höhe (m²)</label>
+          <input type="number" id="halbHoch" min="0" max="10000" value="16" step="1" />
+        </div>
+        <div class="calc-group">
+          <label for="niedrig">Grundfläche unter 1 m Höhe (m²)</label>
+          <input type="number" id="niedrig" min="0" max="10000" value="5" step="1" />
+        </div>
+        <div class="calc-group">
+          <label for="wintergarten">Unbeheizter Wintergarten (m²)</label>
+          <input type="number" id="wintergarten" min="0" max="10000" value="0" step="1" />
+        </div>
+        <div class="calc-group">
+          <label for="balkon">Balkon, Loggia, Terrasse (m²)</label>
+          <input type="number" id="balkon" min="0" max="10000" value="0" step="1" />
+        </div>
+        <div class="calc-group">
+          <label for="balkonFaktor">Balkon anrechnen</label>
+          <select id="balkonFaktor">
+            <option value="regel" selected>zu einem Viertel (Regel)</option>
+            <option value="haelfte">zur Hälfte (Höchstsatz)</option>
           </select>
         </div>
       </div>
 
       <div class="calc-result">
-        <div class="label">Geschätzter Wert/Preis</div>
+        <div class="label">Preis je m² Wohnfläche nach WoFlV</div>
         <div id="wert">— €</div>
       </div>
       <div id="details" style="margin-top:0.75rem;font-size:0.88rem;color:#666;display:flex;gap:1.5rem;flex-wrap:wrap;"></div>
     </div>
   </CalculatorShell>
 
-  <CalculatorGuide title="Quadratmeterpreise in Deutschland: Regionale Unterschiede und Bewertung" content="<p>Der Quadratmeterpreis ist die wichtigste Vergleichskennzahl am Immobilienmarkt. Er ermöglicht es, Objekte unterschiedlicher Größe und in verschiedenen Regionen miteinander zu vergleichen. In Deutschland zeigt sich dabei ein extremes Preisgefälle zwischen Ballungsräumen und ländlichen Regionen.</p><p><strong>Aktuelle Preisniveaus in deutschen Großstädten:</strong> München führt die Statistik mit Kaufpreisen von 7.000-12.000 €/m² für Eigentumswohnungen an. Frankfurt am Main liegt bei 5.000-8.000 €/m², Hamburg und Berlin bei 4.500-7.500 €/m². Städte wie Stuttgart, Düsseldorf und Köln bewegen sich im Bereich von 4.000-6.500 €/m². Deutlich günstiger sind ostdeutsche Großstädte: Leipzig und Dresden liegen bei 2.500-4.500 €/m², Chemnitz teilweise unter 2.000 €/m².</p><p><strong>Einflussfaktoren auf den Quadratmeterpreis:</strong> Die Makrolage (Region, Stadt, Stadtteil) bestimmt etwa 60% des Preises. Die Mikrolage (konkrete Straße, Ausrichtung, Nachbarschaft) macht weitere 20% aus. Objektbezogene Faktoren wie Baujahr, Zustand, Ausstattung und Energieeffizienz prägen die restlichen 20%. Ein Aufzug kann den Preis in oberen Stockwerken um 5-10% steigern, eine Tiefgarage um 3-5%.</p><p><strong>Rechenbeispiel Kaufentscheidung:</strong> Eine 90 m² Wohnung in Hamburg-Eimsbüttel für 540.000 € ergibt 6.000 €/m². Der Stadtteil-Durchschnitt liegt bei 5.800 €/m². Bei einer erzielbaren Kaltmiete von 15 €/m² (16.200 € Jahresmiete) beträgt der Vervielfältiger 33,3 (Kaufpreis/Jahresmiete). Das liegt über der empfohlenen Grenze von 25, was auf eine eher teure Bewertung hindeutet.</p><p><strong>Wohnfläche korrekt berechnen:</strong> Achten Sie auf die Berechnung nach Wohnflächenverordnung (WoFlV). Balkone und Terrassen werden nur zu 25% angerechnet, Dachschrägen unter 1 m Höhe gar nicht und zwischen 1-2 m nur zur Hälfte. Eine als 85 m² beworbene Dachgeschosswohnung hat nach WoFlV möglicherweise nur 72 m² Wohnfläche, was den effektiven Quadratmeterpreis deutlich erhöht.</p><p><strong>Preisentwicklung als Indikator:</strong> Vergleichen Sie nicht nur aktuelle Preise, sondern auch die Preisentwicklung der letzten 5-10 Jahre. Stadtteile mit steigender Tendenz (Gentrifizierung, neue Infrastruktur) bieten Wertsteigerungspotenzial. Der Immobilienpreisindex des Statistischen Bundesamtes und Gutachterausschüsse der Kommunen liefern verlässliche Vergleichsdaten.</p>" relatedSlugs={['mietrechner', 'hauskauf-rechner', 'immobilienkauf-nebenkosten', 'mietrendite-rechner']} />
+  <CalculatorGuide title="Wohnfläche und Quadratmeterpreis" content={guideHtml} relatedSlugs={['hauskauf-rechner', 'immobilienkauf-nebenkosten', 'mietrendite-rechner']} />
 </Layout>
 
 <script type="module">
 const { berechneQmPreis } = await import(window.__base + 'scripts/qm-preis.js');
-function fmt(n) { return n.toLocaleString('de-DE', {minimumFractionDigits:0, maximumFractionDigits:0}) + ' €'; }
+const eur = (n) => n.toLocaleString('de-DE', { minimumFractionDigits: 0, maximumFractionDigits: 0 }) + ' €';
+const qm = (n) => n.toLocaleString('de-DE', { maximumFractionDigits: 2 }) + ' m²';
+const wert = (id) => parseFloat(document.getElementById(id).value) || 0;
 function berechne() {
-  const region = document.getElementById('region').value;
-  const flaeche = parseFloat(document.getElementById('flaeche').value)||100;
-  const typ = document.getElementById('typ').value;
-  const r = berechneQmPreis({ region, flaeche, typ });
-  document.getElementById('wert').textContent = fmt(r.gesamtwert);
-  document.getElementById('details').innerHTML =
-    `<span>Ø-Preis/m²: <strong>${fmt(r.qmPreis)}/m²</strong></span>` +
-    `<span>Fläche: <strong>${flaeche} m²</strong></span>` +
-    `<span>Region: <strong>${r.regionName}</strong></span>`;
+  const r = berechneQmPreis({
+    kaufpreis: wert('kaufpreis'),
+    beworbeneFlaeche: wert('beworben'),
+    flaechen: {
+      vollHoch: wert('vollHoch'),
+      halbHoch: wert('halbHoch'),
+      niedrig: wert('niedrig'),
+      wintergarten: wert('wintergarten'),
+      balkon: wert('balkon'),
+      balkonZurHaelfte: document.getElementById('balkonFaktor').value === 'haelfte',
+    },
+  });
+  document.getElementById('wert').textContent = r.preisWoFlV === null ? '— €' : `${eur(r.preisWoFlV)}/m²`;
+  const teile = [
+    `<span>Wohnfläche nach WoFlV: <strong>${qm(r.wohnflaeche)}</strong> von ${qm(r.grundflaeche)} Grundfläche</span>`,
+  ];
+  if (r.preisBeworben !== null) teile.push(`<span>Preis je m² laut Exposé: <strong>${eur(r.preisBeworben)}/m²</strong></span>`);
+  if (r.aufschlagProzent !== null && r.aufschlagProzent !== 0) {
+    teile.push(`<span>Unterschied: <strong>${r.aufschlagProzent > 0 ? '+' : ''}${r.aufschlagProzent.toLocaleString('de-DE')} %</strong></span>`);
+  }
+  document.getElementById('details').innerHTML = teile.join('');
 }
-['flaeche'].forEach(id =>
+['kaufpreis', 'beworben', 'vollHoch', 'halbHoch', 'niedrig', 'wintergarten', 'balkon'].forEach((id) =>
   document.getElementById(id).addEventListener('input', berechne));
-['region','typ'].forEach(id =>
-  document.getElementById(id).addEventListener('change', berechne));
+document.getElementById('balkonFaktor').addEventListener('change', berechne);
 berechne();
 </script>
