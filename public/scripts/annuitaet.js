@@ -87,7 +87,7 @@ export function darlehenskosten({ betrag, sollzins, monate }) {
  * @param {number} e.monate      Anzahl der Raten
  * @returns {number} Prozent pro Jahr
  */
-export function effektivzins({ auszahlung, rate, monate }) {
+export function effektivzinsGenau({ auszahlung, rate, monate }) {
   const n = Math.max(1, Math.round(monate));
   if (!(auszahlung > 0) || !(rate > 0)) return 0;
   // Eine Rate, die den Betrag nie zurueckzahlt, hat keinen positiven
@@ -106,10 +106,19 @@ export function effektivzins({ auszahlung, rate, monate }) {
     if (barwert(mitte) > 0) lo = mitte;
     else hi = mitte;
   }
-  return Math.round(((lo + hi) / 2) * 1000) / 1000;
+  return (lo + hi) / 2;
 }
 
 /** Der Sollzins, der zu einer gegebenen Rate gehoert – die Umkehrung oben. */
+/**
+ * Effektiver Jahreszins wie anzugeben: Anlage zu § 16 PAngV, Bemerkung d –
+ * "auf zwei Dezimalstellen genau", ab 5 in der dritten Stelle aufgerundet.
+ * Die ungerundete Größe liefert effektivzinsGenau.
+ */
+export function effektivzins({ auszahlung, rate, monate }) {
+  return Math.round(effektivzinsGenau({ auszahlung, rate, monate }) * 100) / 100;
+}
+
 export function sollzinsAusRate({ betrag, rate, monate }) {
   const n = Math.max(1, Math.round(monate));
   if (!(betrag > 0) || !(rate > 0)) return 0;

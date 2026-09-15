@@ -52,14 +52,14 @@ describe('tilgungsplan und darlehenskosten', () => {
 
 describe('effektivzins', () => {
   it('liegt ohne Nebenkosten ueber dem Sollzins: 5,9 % werden 6,062 %', () => {
-    expect(effektivzins({ auszahlung: 20000, rate: 607.53, monate: 36 })).toBe(6.062);
+    expect(effektivzins({ auszahlung: 20000, rate: 607.53, monate: 36 })).toBe(6.06);
   });
 
   it('entspricht ohne Nebenkosten dem aufgezinsten Sollzins, unabhaengig von der Laufzeit', () => {
     const aufgezinst = (Math.pow(1 + 0.059 / 12, 12) - 1) * 100;
     for (const monate of [12, 24, 36, 48, 84]) {
       const rate = annuitaetenrate({ betrag: 20000, sollzins: 5.9, monate });
-      expect(Math.abs(effektivzins({ auszahlung: 20000, rate, monate }) - aufgezinst)).toBeLessThan(0.002);
+      expect(Math.abs(effektivzins({ auszahlung: 20000, rate, monate }) - aufgezinst)).toBeLessThanOrEqual(0.005);
     }
   });
 

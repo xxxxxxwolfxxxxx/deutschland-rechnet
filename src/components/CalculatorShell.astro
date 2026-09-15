@@ -97,7 +97,7 @@ const faqSchema = faqs && faqs.length > 0 ? {
     <slot />
     {explanation && (
       <div class="explanation">
-        <h3>So wird gerechnet</h3>
+        <h2>So wird gerechnet</h2>
         <p>{explanation}</p>
       </div>
     )}
@@ -120,7 +120,7 @@ const faqSchema = faqs && faqs.length > 0 ? {
 
   {artikel.length > 0 && (
     <aside class="artikel-hinweis" style={`--accent: ${cat.color};`}>
-      <h3>{artikel.length === 1 ? 'Der Artikel dazu' : 'Die Artikel dazu'}</h3>
+      <h2>{artikel.length === 1 ? 'Der Artikel dazu' : 'Die Artikel dazu'}</h2>
       <ul>
         {artikel.map((a) => (
           <li>
@@ -134,7 +134,7 @@ const faqSchema = faqs && faqs.length > 0 ? {
 
   {faqs && faqs.length > 0 && (
     <div class="faq-section">
-      <h3>Häufige Fragen</h3>
+      <h2>Häufige Fragen</h2>
       <div class="faq-items">
         {faqs.map((faq) => (
           <div class="faq-item">
@@ -165,7 +165,7 @@ const faqSchema = faqs && faqs.length > 0 ? {
   padding: 1rem 1.25rem;
   margin: 1rem 0;
 }
-.explanation h3 {
+.explanation h2 {
   font-size: 0.9rem;
   font-family: var(--font-ui);
   font-weight: 600;
@@ -205,7 +205,7 @@ const faqSchema = faqs && faqs.length > 0 ? {
   border-left: 4px solid var(--accent);
   border-radius: var(--radius);
 }
-.artikel-hinweis h3 {
+.artikel-hinweis h2 {
   font-family: var(--font-ui);
   font-size: 0.78rem;
   font-weight: 700;
@@ -242,7 +242,7 @@ const faqSchema = faqs && faqs.length > 0 ? {
   border-radius: var(--radius);
   padding: 1.75rem;
 }
-.faq-section h3 {
+.faq-section h2 {
   font-size: 1.1rem;
   font-weight: 600;
   color: var(--text);

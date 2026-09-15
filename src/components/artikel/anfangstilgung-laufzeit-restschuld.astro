@@ -4,7 +4,7 @@ import { artikelPfadVonSlug } from '../../data/ratgeber';
 import {
   darlehenskosten,
   tilgungsplan,
-  effektivzins,
+  effektivzinsGenau,
   sollzinsAusRate,
 } from '../../../public/scripts/annuitaet.js';
 
@@ -221,7 +221,7 @@ const kippZwei = kippreihe.find((k) => k.anfangstilgung === 2)!;
 const kippDavor = [...kippreihe].reverse().find((k) => k.kipp > 1)!;
 
 // --- Sollzins gegen effektiven Jahreszins --------------------------------
-const effStandard = effektivzins({
+const effStandard = effektivzinsGenau({
   auszahlung: BETRAG,
   rate: standardKosten.rate,
   monate: LAUFZEIT_JAHRE * 12,
@@ -231,7 +231,7 @@ const effAufschlag = effStandard - SOLLZINS;
 // Haengt der Abstand an der Laufzeit? Eine Zeile je Laufzeit, gleicher Sollzins.
 const effLaufzeiten = LAUFZEITEN.map((jahre) => {
   const k = darlehenskosten({ betrag: BETRAG, sollzins: SOLLZINS, monate: jahre * 12 });
-  return { jahre, rate: k.rate, eff: effektivzins({ auszahlung: BETRAG, rate: k.rate, monate: jahre * 12 }) };
+  return { jahre, rate: k.rate, eff: effektivzinsGenau({ auszahlung: BETRAG, rate: k.rate, monate: jahre * 12 }) };
 });
 const effSpanneLaufzeit =
   Math.max(...effLaufzeiten.map((e) => e.eff)) - Math.min(...effLaufzeiten.map((e) => e.eff));
@@ -243,7 +243,7 @@ const disagioreihe = DISAGIO_STUFEN.map((prozent) => {
   return {
     prozent,
     einbehalt,
-    eff: effektivzins({
+    eff: effektivzinsGenau({
       auszahlung: BETRAG - einbehalt,
       rate: standardKosten.rate,
       monate: LAUFZEIT_JAHRE * 12,
