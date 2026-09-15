@@ -12,6 +12,8 @@ import {
   ABRECHNUNGSJAHRE,
   EMISSIONSFAKTOREN_G_JE_KWH,
   FERNWAERME_RUECKFALL,
+  HEIZWERT_ERDGAS_H_KWH_JE_M3,
+  HEIZWERT_ERDGAS_L_KWH_JE_M3,
   HEIZWERT_HEIZOEL_EL_KWH_JE_LITER,
   VERBRAUCH_TRAEGER,
   ausweisPflicht,
@@ -78,7 +80,7 @@ const guideHtml = `
 
 <h3>Warum das Ergebnis kein Ausweiswert ist</h3>
 <p><strong>Witterung:</strong> Der Heizverbrauch ist einer Witterungsbereinigung zu unterziehen (§ 82 Abs. 3 GModG). Die Bekanntmachung rechnet dazu mit Klimafaktoren je Postleitzahl, bezogen auf den Referenzstandort Potsdam. Nach einem kalten Winter liegt der Rechner deshalb über, nach einem milden unter dem Ausweiswert.</p>
-<p><strong>Brennwert und Heizwert:</strong> Verbrauchsangaben, die sich auf den Brennwert beziehen, sind nach Nr. 2 der Bekanntmachung auf den unteren Heizwert umzurechnen; den Faktor legt DIN V 18599-1 Tabelle B.1 fest. Wird Ihr Gas nach Brennwert abgerechnet, ist der Ausweiswert kleiner als die Kilowattstunden auf der Rechnung. Der Rechner nimmt die Rechnungswerte unverändert und liegt bei Gas entsprechend zu hoch. Heizöl rechnet er mit ${HEIZWERT_HEIZOEL_EL_KWH_JE_LITER} kWh je Liter um, dem Heizwert für Heizöl EL nach § 9 Abs. 3 der Heizkostenverordnung, auf die die Bekanntmachung verweist.</p>
+<p><strong>Brennwert und Heizwert:</strong> Verbrauchsangaben, die sich auf den Brennwert beziehen, sind nach Nr. 2 der Bekanntmachung auf den unteren Heizwert umzurechnen; den Faktor legt DIN V 18599-1 Tabelle B.1 fest. Wird Ihr Gas nach Brennwert abgerechnet, ist der Ausweiswert kleiner als die Kilowattstunden auf der Rechnung. Tragen Sie Gas in Kilowattstunden ein, nimmt der Rechner die Rechnungswerte unverändert und liegt entsprechend zu hoch. Die Bekanntmachung lässt aber einen zweiten Weg zu: die verbrauchte Brennstoffmenge mit dem Heizwert nach § 9 Abs. 3 der Heizkostenverordnung umrechnen. Wählen Sie dazu Erdgas H oder Erdgas L und tragen Sie die Kubikmeter ein – der Rechner setzt ${HEIZWERT_ERDGAS_H_KWH_JE_M3} kWh je m³ für Erdgas H und ${HEIZWERT_ERDGAS_L_KWH_JE_M3} kWh je m³ für Erdgas L an. Welche Gasart Sie beziehen, nennt Ihnen im Zweifel der Versorger. Weist Ihre Abrechnung einen Heizwert aus, ist nach der Bekanntmachung dieser zu verwenden. Heizöl rechnet der Rechner mit ${HEIZWERT_HEIZOEL_EL_KWH_JE_LITER} kWh je Liter um, dem Heizwert für Heizöl EL nach derselben Vorschrift.</p>
 <p><strong>Primärenergie und Leerstand:</strong> Der Ausweis nennt auch den Primärenergieverbrauch, berechnet mit den Primärenergiefaktoren nach § 22 GModG, und korrigiert längere Leerstände. Beides bildet der Rechner nicht nach.</p>
 
 <h3>Treibhausgasemissionen</h3>
@@ -119,7 +121,7 @@ const jahrFelder = Array.from({ length: ABRECHNUNGSJAHRE }, (_, i) => ({ id: 'ja
   <CalculatorShell
     calculator={calc}
     intro="Tragen Sie den Heizverbrauch aus Ihren letzten drei Jahresabrechnungen ein. Der Rechner zeigt Kennwert, Effizienzklasse und CO₂-Emissionen so, wie sie ein Energieverbrauchsausweis ermittelt – nur ohne Witterungsbereinigung. Darunter prüfen Sie, ob für Ihr Haus ein Bedarfsausweis vorgeschrieben ist."
-    sourceNote={`Kennwert nach § 82 Abs. 2 und 4 GModG und Nr. 2 der Bekanntmachung der Regeln für Energieverbrauchswerte im Wohngebäudebestand vom 29.03.2021 (BAnz AT 16.04.2021 B1), ohne Witterungsbereinigung und ohne Umrechnung von Brennwert auf Heizwert. Klasse nach Anlage 10, CO₂ nach Anlage 9 GModG; für Fernwärme ist ${faktorFernwaerme} g/kWh (KWK, gasförmige und flüssige Brennstoffe) unterstellt. Heizöl EL ${HEIZWERT_HEIZOEL_EL_KWH_JE_LITER} kWh/l nach § 9 Abs. 3 HeizkostenV. Ausweisart nach § 80 Abs. 3 GModG. Abgerufen am 15.09.2026.`}
+    sourceNote={`Kennwert nach § 82 Abs. 2 und 4 GModG und Nr. 2 der Bekanntmachung der Regeln für Energieverbrauchswerte im Wohngebäudebestand vom 29.03.2021 (BAnz AT 16.04.2021 B1), ohne Witterungsbereinigung; Gas in kWh ohne Umrechnung von Brennwert auf Heizwert. Klasse nach Anlage 10, CO₂ nach Anlage 9 GModG; für Fernwärme ist ${faktorFernwaerme} g/kWh (KWK, gasförmige und flüssige Brennstoffe) unterstellt. Heizwerte nach § 9 Abs. 3 HeizkostenV: Heizöl EL ${HEIZWERT_HEIZOEL_EL_KWH_JE_LITER} kWh/l, Erdgas H ${HEIZWERT_ERDGAS_H_KWH_JE_M3} kWh/m³, Erdgas L ${HEIZWERT_ERDGAS_L_KWH_JE_M3} kWh/m³. Ausweisart nach § 80 Abs. 3 GModG. Abgerufen am 15.09.2026.`}
     explanation={`Kennwert = Mittel der Jahresverbräuche in kWh ÷ Gebäudenutzfläche (falls unbekannt: Wohnfläche × ${dez(NUTZFLAECHE_FAKTOR.sonstige, 1)} bzw. × ${dez(NUTZFLAECHE_FAKTOR.mitBeheiztemKeller)}), bei dezentralem Warmwasser + ${ZUSCHLAG_DEZENTRALES_WARMWASSER} kWh/m². CO₂ = Heizverbrauch je m² × Emissionsfaktor.`}
     faqs={faqs}
   >
@@ -134,7 +136,7 @@ const jahrFelder = Array.from({ length: ABRECHNUNGSJAHRE }, (_, i) => ({ id: 'ja
         {jahrFelder.map(f => (
           <div class="calc-group">
             <label for={f.id}>Verbrauch Jahr {f.nr} (<span class="einheit">kWh</span>)</label>
-            <input type="number" id={f.id} min="0" max="1000000" value={f.wert} step="100" />
+            <input type="number" id={f.id} min="0" max="1000000" value={f.wert} step="1" />
           </div>
         ))}
         <div class="calc-group">

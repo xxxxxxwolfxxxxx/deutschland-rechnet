@@ -13,12 +13,14 @@ import { BRENNSTOFFE, HEIZKOSTEN_STAND, kwhJeLiterHeizoel } from '../../../publi
 import {
   berechneJahresenergie,
   EFFIZIENZKLASSEN,
+  HEIZWERT_HEIZOEL_EL_KWH_JE_LITER,
   NUTZFLAECHE_FAKTOR,
   ZUSCHLAG_DEZENTRALES_WARMWASSER,
 } from '../../../public/scripts/jahresenergie.js';
 const calc = CALCULATORS.find(c => c.slug === 'jahresenergieverbrauch')!;
 const cat = CATEGORIES[calc.category];
 const year = new Date().getFullYear();
+const base = import.meta.env.BASE_URL;
 
 const eur = (n: number) => n.toLocaleString('de-DE', { maximumFractionDigits: 0 }) + ' €';
 const ct = (n: number) => n.toLocaleString('de-DE', { maximumFractionDigits: 1 });
@@ -54,7 +56,7 @@ const guideHtml = `
 <h3>Der Verbrauch steht auf der Abrechnung</h3>
 <p>Wie viel Energie ein Haushalt verbraucht, lässt sich nicht aus Personenzahl oder Baujahr ableiten – zu unterschiedlich sind Gebäude, Geräte und Gewohnheiten. Die Jahresabrechnungen nennen die Mengen genau: Kilowattstunden Strom, Kilowattstunden Gas oder Fernwärme, Liter Heizöl und Kubikmeter Wasser, jeweils mit Arbeits- und Grundpreis. Genau diese Werte fragt der Rechner ab.</p>
 <p>Vorbelegt sind ${STROMPREIS_REFERENZVERBRAUCH_KWH.toLocaleString('de-DE')} kWh Strom, der Referenzverbrauch der ${STROMPREIS_QUELLE}, zum dortigen Durchschnittspreis von ${ct(STROMPREIS_CENT_PRO_KWH)} ct/kWh. Die Heizpreise sind datierte Marktannahmen (Stand ${stand}): Erdgas ${ct(PREISE.gas)} ct/kWh, Heizöl ${OEL_CENT_JE_LITER} ct/Liter, Fernwärme ${ct(PREISE.fernwaerme)} ct/kWh, Wärmepumpenstrom ${ct(PREISE.waermepumpe)} ct/kWh. Ersetzen Sie alle Werte durch die Ihrer Rechnungen. Für Wasser gibt es keinen bundesweiten Preis; die Zeile zählt nur mit, wenn Sie Menge und Preis eintragen.</p>
-<p>Heizöl wird auf Kilowattstunden umgerechnet, damit sich der Verbrauch mit Gas oder Fernwärme vergleichen lässt. Ein Liter Heizöl EL enthält nach den Standardwerten der EBeV 2030 ${dez(kwhJeLiterHeizoel())} kWh.</p>
+<p>Heizöl wird auf Kilowattstunden umgerechnet, damit sich der Verbrauch mit Gas oder Fernwärme vergleichen lässt – mit ${HEIZWERT_HEIZOEL_EL_KWH_JE_LITER} kWh je Liter, dem Heizwert für Heizöl EL nach § 9 Abs. 3 der Heizkostenverordnung. Auf diese Werte verweist die Bekanntmachung der Regeln für Energieverbrauchswerte im Wohngebäudebestand vom 29. März 2021 für den Energieverbrauchsausweis. Nur der vorbelegte Literpreis ist aus dem Kilowattstundenpreis mit dem Standardwert der EBeV 2030 von ${dez(kwhJeLiterHeizoel())} kWh je Liter umgerechnet.</p>
 
 <h3>Einordnung wie im Energieverbrauchsausweis</h3>
 <p>Der Energieverbrauchsausweis gibt den Verbrauch für Heizung und Warmwasser je Quadratmeter Gebäudenutzfläche an (§ 82 Abs. 2 GModG). Diese Fläche ist größer als die Wohnfläche. Ist sie nicht bekannt, darf sie bei Wohngebäuden mit bis zu zwei Wohneinheiten und beheiztem Keller mit dem ${dez(NUTZFLAECHE_FAKTOR.mitBeheiztemKeller)}-Fachen, sonst mit dem ${dez(NUTZFLAECHE_FAKTOR.sonstige, 1)}-Fachen der Wohnfläche angesetzt werden. Wird das Warmwasser dezentral erzeugt, etwa per Durchlauferhitzer, und ist dessen Verbrauch unbekannt, kommen ${ZUSCHLAG_DEZENTRALES_WARMWASSER} kWh je Quadratmeter hinzu.</p>
@@ -64,13 +66,14 @@ const guideHtml = `
 <tbody>${klassenZeilen}</tbody>
 </table>
 <p>Die Klassen stammen aus Anlage 10 GModG. Ein Ausweiswert ist das Ergebnis trotzdem nicht: § 82 Abs. 3 GModG verlangt eine Witterungsbereinigung des Heizverbrauchs, die ein kalter oder milder Winter sonst verzerrt. Vergleichen Sie deshalb mehrere Jahre miteinander.</p>
+<p>Bei Gas kommt ein zweiter Unterschied hinzu: Verbrauchsangaben, die sich auf den Brennwert beziehen, rechnet der Ausweis auf den unteren Heizwert um (Nr. 2 der Bekanntmachung, Faktor nach DIN V 18599-1). Der Kennwert aus den Kilowattstunden der Rechnung liegt dann zu hoch. Mit drei Abrechnungsjahren und Gasmengen in Kubikmetern rechnet die <a href="${base}energie/energieausweis-vorberechnung/">Energieausweis-Vorberechnung</a>.</p>
 `;
 
 const faqs = [
   { q: 'Woher bekomme ich meine Verbrauchswerte?', a: 'Aus den Jahresabrechnungen von Stromversorger, Gasversorger oder Fernwärmeanbieter, aus Heizöl-Lieferscheinen und aus der Wasserabrechnung. Mieter finden Heizung und Wasser in der Betriebs- und Heizkostenabrechnung.' },
   { q: 'Welche Effizienzklassen gibt es?', a: 'Anlage 10 GModG kennt neun Klassen: A+ bis 30, A bis 50, B bis 75, C bis 100, D bis 130, E bis 160, F bis 200, G bis 250 und H über 250 kWh je Quadratmeter Gebäudenutzfläche und Jahr.' },
   { q: 'Warum rechnet der Rechner mit mehr Fläche als meiner Wohnfläche?', a: `Weil der Energieausweis die Gebäudenutzfläche verwendet. Ist sie unbekannt, erlaubt § 82 Abs. 2 GModG den Ansatz mit dem ${dez(NUTZFLAECHE_FAKTOR.sonstige, 1)}-Fachen der Wohnfläche, bei höchstens zwei Wohneinheiten mit beheiztem Keller mit dem ${dez(NUTZFLAECHE_FAKTOR.mitBeheiztemKeller)}-Fachen.` },
-  { q: 'Ist das Ergebnis mein Energieausweis-Wert?', a: 'Nein. Der Ausweis bereinigt den Heizverbrauch um die Witterung (§ 82 Abs. 3 GModG) und nutzt in der Regel mehrere Abrechnungsjahre. Der Rechner ordnet ein einzelnes Jahr ohne Bereinigung ein.' },
+  { q: 'Ist das Ergebnis mein Energieausweis-Wert?', a: 'Nein. Der Ausweis bereinigt den Heizverbrauch um die Witterung (§ 82 Abs. 3 GModG), verlangt Abrechnungen aus mindestens 36 Monaten (§ 82 Abs. 4) und rechnet brennwertbezogene Gasmengen auf den Heizwert um. Der Rechner ordnet ein einzelnes Jahr ohne diese Schritte ein.' },
   { q: 'Warum kann ich keine Pellets auswählen?', a: 'Pellets werden in Kilogramm oder Tonnen abgerechnet, und für die Umrechnung in Kilowattstunden hat der Rechner keinen belegten Standardwert. Liegt Ihnen der Verbrauch in kWh vor, wählen Sie Fernwärme als Rechenweg.' },
 ];
 ---
@@ -88,8 +91,8 @@ const faqs = [
   </div>
   <CalculatorShell
     calculator={calc}
-    intro="Tragen Sie die Mengen und Preise aus Ihren Jahresabrechnungen ein. Der Rechner zeigt die Energiekosten des Haushalts und ordnet den Heizverbrauch so ein, wie es der Energieverbrauchsausweis tut."
-    sourceNote={`Mengen und Preise sind Ihre Eingaben. Vorbelegung: Strom ${ct(STROMPREIS_CENT_PRO_KWH)} ct/kWh und ${STROMPREIS_REFERENZVERBRAUCH_KWH.toLocaleString('de-DE')} kWh nach ${STROMPREIS_QUELLE}; Heizpreise als Marktannahme Stand ${stand}. Heizöl ${dez(kwhJeLiterHeizoel())} kWh/l nach EBeV 2030 Anlage 2. Kennwert und Klasse nach § 82 Abs. 2 und Anlage 10 GModG (abgerufen am 15.09.2026), ohne Witterungsbereinigung.`}
+    intro="Tragen Sie die Mengen und Preise aus Ihren Jahresabrechnungen ein. Der Rechner zeigt die Energiekosten des Haushalts und ordnet den Heizverbrauch nach den Regeln des Energieverbrauchsausweises ein – ohne Witterungsbereinigung und ohne Heizwert-Umrechnung für Gas."
+    sourceNote={`Mengen und Preise sind Ihre Eingaben. Vorbelegung: Strom ${ct(STROMPREIS_CENT_PRO_KWH)} ct/kWh und ${STROMPREIS_REFERENZVERBRAUCH_KWH.toLocaleString('de-DE')} kWh nach ${STROMPREIS_QUELLE}; Heizpreise als Marktannahme Stand ${stand}. Heizöl ${HEIZWERT_HEIZOEL_EL_KWH_JE_LITER} kWh/l nach § 9 Abs. 3 HeizkostenV; Literpreis-Vorbelegung mit ${dez(kwhJeLiterHeizoel())} kWh/l nach EBeV 2030 Anlage 2 umgerechnet. Kennwert und Klasse nach § 82 Abs. 2 und Anlage 10 GModG (abgerufen am 15.09.2026), ohne Witterungsbereinigung und bei Gas ohne Umrechnung von Brennwert auf Heizwert.`}
     explanation={`Kennwert = Heizenergie in kWh ÷ Gebäudenutzfläche (Wohnfläche × ${dez(NUTZFLAECHE_FAKTOR.sonstige, 1)} bzw. × ${dez(NUTZFLAECHE_FAKTOR.mitBeheiztemKeller)}), bei dezentralem Warmwasser + ${ZUSCHLAG_DEZENTRALES_WARMWASSER} kWh/m².`}
     faqs={faqs}
   >
@@ -186,7 +189,7 @@ function berechne() {
   ];
   if (r.wasser) teile.push(`<span>Wasser: <strong>${eur(r.wasser.kosten)}</strong> für ${r.wasser.m3.toLocaleString('de-DE')} m³</span>`);
   teile.push(`<span>Je Monat: <strong>${eur(r.monat)}</strong></span>`);
-  if (r.kennwert) teile.push(`<span>Heizkennwert: <strong>${r.kennwert.kwhJeQm} kWh/m²</strong> bei ${r.kennwert.nutzflaeche.toLocaleString('de-DE')} m² Nutzfläche – Klasse <strong>${r.kennwert.klasse}</strong> (ohne Witterungsbereinigung)</span>`);
+  if (r.kennwert) teile.push(`<span>Heizkennwert: <strong>${r.kennwert.kwhJeQm} kWh/m²</strong> bei ${r.kennwert.nutzflaeche.toLocaleString('de-DE')} m² Nutzfläche – Klasse <strong>${r.kennwert.klasse}</strong> (ohne Witterungsbereinigung${r.kennwert.brennwertbezogen ? '; Gas nach Brennwert abgerechnet? Dann liegt der Ausweiswert niedriger' : ''})</span>`);
   document.getElementById('details').innerHTML = teile.join('');
 }
 traegerFeld.addEventListener('change', () => {

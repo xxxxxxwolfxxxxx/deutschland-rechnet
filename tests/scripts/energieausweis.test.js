@@ -79,6 +79,27 @@ describe('Energieträger des Verbrauchsausweises', () => {
     expect(VERBRAUCH_TRAEGER.heizoel.kwhJeEinheit).toBe(10);
   });
 
+  it('rechnet Erdgas in Kubikmetern mit den Heizwerten H und L aus § 9 Abs. 3 HeizkostenV', () => {
+    expect(VERBRAUCH_TRAEGER.gasH.einheit).toBe('m³');
+    expect(VERBRAUCH_TRAEGER.gasH.kwhJeEinheit).toBe(10);
+    expect(VERBRAUCH_TRAEGER.gasL.einheit).toBe('m³');
+    expect(VERBRAUCH_TRAEGER.gasL.kwhJeEinheit).toBe(9);
+    expect(co2FaktorJeKwhEndenergie('gasH')).toBeCloseTo(0.24, 5);
+    expect(co2FaktorJeKwhEndenergie('gasL')).toBeCloseTo(0.24, 5);
+  });
+
+  it('rechnet den Kennwert aus Gas-Kubikmetern ohne Brennwert-Hinweis', () => {
+    const h = verbrauchskennwert({ traeger: 'gasH', jahresmengen: [1400, 1300, 1200], gebaeudenutzflaeche: 130 });
+    expect(h.mittelKwh).toBe(13000);
+    expect(h.kwhJeQm).toBe(100);
+    expect(h.klasse).toBe('C');
+    expect(h.co2KgJeQm).toBe(24);
+    expect(h.brennwertbezogen).toBe(false);
+    const l = verbrauchskennwert({ traeger: 'gasL', jahresmengen: [1300], gebaeudenutzflaeche: 130 });
+    expect(l.mittelKwh).toBe(11700);
+    expect(l.kwhJeQm).toBe(90);
+  });
+
   it('kennzeichnet nur Erdgas als brennwertbezogen abgerechnet', () => {
     const brennwert = Object.entries(VERBRAUCH_TRAEGER)
       .filter(([, t]) => t.brennwertbezogen)

@@ -26,9 +26,11 @@
 // NICHT nachgebildet – der Kennwert ist deshalb eine Vorberechnung, kein
 // Ausweiswert:
 //   - die Witterungs- und Klimabereinigung (§ 82 Abs. 3, Bekanntmachung Nr. 3.2)
-//   - die Umrechnung von Brennwert auf Heizwert bei Erdgas: Die DIN-Tabelle ist
-//     nicht frei zugänglich, ein Faktor wird hier nicht unterstellt. Die
-//     Seite weist darauf hin, dass der Gas-Kennwert dadurch höher liegt.
+//   - die Umrechnung von Brennwert auf Heizwert bei Erdgas in kWh: Die
+//     DIN-Tabelle ist nicht frei zugänglich, ein Faktor wird hier nicht
+//     unterstellt; die Seite weist darauf hin. Belegt ist dagegen der zweite
+//     Weg der Bekanntmachung – die Gasmenge in m³ mit Hi nach § 9 Abs. 3
+//     HeizkostenV (Energieträger gasH und gasL).
 //   - Leerstandskorrektur (Bekanntmachung Nr. 6) und Primärenergie (§ 22)
 //
 // Das Gebäudeenergiegesetz (GEG) heißt seit dem Änderungsgesetz vom 23.07.2026
@@ -41,6 +43,9 @@
 import {
   effizienzklasse,
   nutzflaecheAusWohnflaeche,
+  HEIZWERT_ERDGAS_H_KWH_JE_M3,
+  HEIZWERT_ERDGAS_L_KWH_JE_M3,
+  HEIZWERT_HEIZOEL_EL_KWH_JE_LITER,
   ZUSCHLAG_DEZENTRALES_WARMWASSER,
 } from './jahresenergie.js';
 
@@ -74,10 +79,10 @@ export const EMISSIONSFAKTOREN_G_JE_KWH = {
 // meistgenutzte Brennstoff (AGFW-Hauptbericht, abgerufen am 12.08.2026).
 export const FERNWAERME_RUECKFALL = 'fernwaermeKwkGasOel';
 
-// § 9 Abs. 3 HeizkostenV: „Als Hi-Werte können verwendet werden für
-// Leichtes Heizöl EL 10 kWh/l“. Die Bekanntmachung (Nr. 2) verweist dorthin.
-// Nicht zu verwechseln mit den 10,046 kWh/l der EBeV in heizkosten.js.
-export const HEIZWERT_HEIZOEL_EL_KWH_JE_LITER = 10;
+// Heizwerte nach § 9 Abs. 3 HeizkostenV, definiert in jahresenergie.js. Die
+// Bekanntmachung (Nr. 2) verweist dorthin. Nicht zu verwechseln mit den
+// 10,046 kWh/l der EBeV in heizkosten.js.
+export { HEIZWERT_HEIZOEL_EL_KWH_JE_LITER, HEIZWERT_ERDGAS_H_KWH_JE_M3, HEIZWERT_ERDGAS_L_KWH_JE_M3 };
 
 // Jahresabrechnungen, die nach Nr. 2 der Bekanntmachung gemittelt werden.
 export const ABRECHNUNGSJAHRE = 3;
@@ -86,7 +91,9 @@ export const ABRECHNUNGSJAHRE = 3;
 // Zeile der Anlage 9. Wärmepumpe und Nachtspeicher sind beide Strom – die
 // Jahresarbeitszahl steckt bereits im gemessenen Verbrauch.
 export const VERBRAUCH_TRAEGER = Object.freeze({
-  gas: { label: 'Erdgas', einheit: 'kWh', kwhJeEinheit: 1, faktor: 'erdgas', brennwertbezogen: true },
+  gas: { label: 'Erdgas laut Rechnung', einheit: 'kWh', kwhJeEinheit: 1, faktor: 'erdgas', brennwertbezogen: true },
+  gasH: { label: 'Erdgas H', einheit: 'm³', kwhJeEinheit: HEIZWERT_ERDGAS_H_KWH_JE_M3, faktor: 'erdgas', brennwertbezogen: false },
+  gasL: { label: 'Erdgas L', einheit: 'm³', kwhJeEinheit: HEIZWERT_ERDGAS_L_KWH_JE_M3, faktor: 'erdgas', brennwertbezogen: false },
   heizoel: { label: 'Heizöl EL', einheit: 'Liter', kwhJeEinheit: HEIZWERT_HEIZOEL_EL_KWH_JE_LITER, faktor: 'heizoel', brennwertbezogen: false },
   fernwaerme: { label: 'Fernwärme', einheit: 'kWh', kwhJeEinheit: 1, faktor: FERNWAERME_RUECKFALL, brennwertbezogen: false },
   strom: { label: 'Strom (Wärmepumpe, Nachtspeicher)', einheit: 'kWh', kwhJeEinheit: 1, faktor: 'stromNetzbezogen', brennwertbezogen: false },
