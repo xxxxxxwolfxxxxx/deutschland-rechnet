@@ -1,130 +1,58 @@
 import { describe, it, expect } from 'vitest';
 import { berechneMietrechner } from '../../public/scripts/mietrechner.js';
+import { berechneNebenkosten, BETRIEBSKOSTENSPIEGEL } from '../../public/scripts/nebenkosten.js';
 
-// Schätzmodell für die Warmmiete. Heiz- und Betriebskosten sind
-// Erfahrungswerte je Quadratmeter und Jahr, gestaffelt nach Baujahr und
-// Heizart; sie werden auf den Monat umgelegt. Es sind keine Rechtswerte,
-// sondern Anhaltspunkte in der Größenordnung des Betriebskostenspiegels.
+const basis = { kaltmiete: 800, flaeche: 70, betriebskosten: 150, heizkosten: 90 };
 
-describe('berechneMietrechner – Zusammensetzung', () => {
-  it('addiert Heiz-, Betriebs- und Warmwasserkosten zur Kaltmiete', () => {
-    // Neubau, Gas: 9 €/m²/Jahr Heizung, 2,50 €/m²/Jahr Betriebskosten
-    // Heizung: 80 × 9 / 12 = 60,00
-    // Betrieb: 80 × 2,50 / 12 = 16,67
-    // Warmwasser: 2 × 15 = 30,00
-    const r = berechneMietrechner({
-      kaltmiete: 800,
-      flaeche: 80,
-      personen: 2,
-      baujahr: 'post2002',
-      heizung: 'gas',
-      warmwasser: 'ja',
-    });
-
-    expect(r.heizkosten).toBe(60);
-    expect(r.betriebskosten).toBe(16.67);
-    expect(r.warmwasserKosten).toBe(30);
-    expect(r.nebenkosten).toBe(106.67);
-    expect(r.warmmiete).toBe(906.67);
+describe('berechneMietrechner – Warmmiete aus dem Vertrag', () => {
+  it('addiert Kaltmiete und beide Vorauszahlungen', () => {
+    const r = berechneMietrechner(basis);
+    expect(r.warmmiete).toBe(1040);
+    expect(r.vorauszahlung).toBe(240);
+    expect(r.gesamt).toBe(1040);
+    expect(r.jahr).toBe(12480);
   });
 
-  it('lässt die Warmwasserkosten weg, wenn sie in der Heizung enthalten sind', () => {
-    const r = berechneMietrechner({
-      kaltmiete: 800,
-      flaeche: 80,
-      personen: 2,
-      baujahr: 'post2002',
-      heizung: 'gas',
-      warmwasser: 'nein',
-    });
+  it('rechnet Sonstiges nur in die Gesamtbelastung, nicht in die Warmmiete', () => {
+    const r = berechneMietrechner({ ...basis, sonstiges: 60 });
+    expect(r.warmmiete).toBe(1040);
+    expect(r.gesamt).toBe(1100);
+  });
 
-    expect(r.warmwasserKosten).toBe(0);
-    expect(r.nebenkosten).toBe(76.67);
+  it('weist die Quadratmeterwerte aus', () => {
+    const r = berechneMietrechner(basis);
+    expect(r.kaltProQm).toBe(11.43);
+    expect(r.warmProQm).toBe(14.86);
+    expect(r.vorauszahlungProQm).toBe(3.43);
+  });
+
+  it('schätzt nichts mehr aus Baujahr, Heizart oder Personenzahl', () => {
+    const a = berechneMietrechner({ ...basis, baujahr: 'pre1978', heizung: 'oil', personen: 5 });
+    expect(a.warmmiete).toBe(berechneMietrechner(basis).warmmiete);
   });
 });
 
-describe('berechneMietrechner – Baujahr und Heizart', () => {
-  it('Altbau vor 1978 kostet mehr Heizenergie als ein Neubau', () => {
-    const basis = { kaltmiete: 700, flaeche: 70, personen: 1, heizung: 'gas', warmwasser: 'nein' };
-    const altbau = berechneMietrechner({ ...basis, baujahr: 'pre1978' });
-    const neubau = berechneMietrechner({ ...basis, baujahr: 'post2002' });
-
-    expect(altbau.heizkosten).toBeGreaterThan(neubau.heizkosten);
-    expect(altbau.betriebskosten).toBeGreaterThan(neubau.betriebskosten);
+describe('berechneMietrechner – Einordnung gegen den Betriebskostenspiegel', () => {
+  it('ordnet die Vorauszahlung je Quadratmeter ein', () => {
+    // 3,43 €/m² liegt über dem Durchschnitt, aber unter dem Wert bei voller Ausstattung.
+    const r = berechneMietrechner(basis);
+    expect(r.vorauszahlungProQm).toBeGreaterThan(BETRIEBSKOSTENSPIEGEL.durchschnittGesamt * 1.1);
+    expect(r.vorauszahlungProQm).toBeLessThanOrEqual(BETRIEBSKOSTENSPIEGEL.alleArtenGesamt);
+    expect(r.einordnung.stufe).toBe('erhoeht');
   });
 
-  it('die Wärmepumpe ist in jeder Baualtersklasse die günstigste Heizart', () => {
-    for (const baujahr of ['pre1978', '1978_2002', 'post2002']) {
-      const basis = { kaltmiete: 700, flaeche: 70, personen: 1, baujahr, warmwasser: 'nein' };
-      const waermepumpe = berechneMietrechner({ ...basis, heizung: 'heatpump' });
-
-      for (const heizung of ['gas', 'oil', 'district', 'other']) {
-        expect(waermepumpe.heizkosten).toBeLessThanOrEqual(
-          berechneMietrechner({ ...basis, heizung }).heizkosten,
-        );
-      }
-    }
+  it('vergleicht mit dem Spiegelwert für dieselbe Ausstattung', () => {
+    const r = berechneMietrechner({ ...basis, aufzug: true });
+    const erwartet = berechneNebenkosten({ flaeche: 70, aufzug: true }).gesamtMonat;
+    expect(r.spiegel.erwartetMonat).toBe(erwartet);
+    expect(r.spiegel.differenzMonat).toBeCloseTo(erwartet - 240, 2);
   });
 
-  it('Öl ist teurer als Gas', () => {
-    const basis = { kaltmiete: 700, flaeche: 70, personen: 1, baujahr: 'pre1978', warmwasser: 'nein' };
-
-    expect(berechneMietrechner({ ...basis, heizung: 'oil' }).heizkosten).toBeGreaterThan(
-      berechneMietrechner({ ...basis, heizung: 'gas' }).heizkosten,
-    );
-  });
-});
-
-describe('berechneMietrechner – Rückfallwerte', () => {
-  it('unbekanntes Baujahr rechnet mit 12 €/m² Heizung und 3 €/m² Betriebskosten', () => {
-    const r = berechneMietrechner({
-      kaltmiete: 600,
-      flaeche: 60,
-      personen: 1,
-      baujahr: 'unbekannt',
-      heizung: 'gas',
-      warmwasser: 'nein',
-    });
-
-    expect(r.heizkosten).toBe(60);
-    expect(r.betriebskosten).toBe(15);
-  });
-
-  it('unbekannte Heizart rechnet mit 12 €/m²', () => {
-    const r = berechneMietrechner({
-      kaltmiete: 600,
-      flaeche: 60,
-      personen: 1,
-      baujahr: 'post2002',
-      heizung: 'pellets',
-      warmwasser: 'nein',
-    });
-
-    expect(r.heizkosten).toBe(60);
-  });
-});
-
-describe('berechneMietrechner – Skalierung', () => {
-  it('doppelte Fläche verdoppelt Heiz- und Betriebskosten', () => {
-    const basis = { kaltmiete: 500, personen: 1, baujahr: 'post2002', heizung: 'gas', warmwasser: 'nein' };
-    const klein = berechneMietrechner({ ...basis, flaeche: 50 });
-    const gross = berechneMietrechner({ ...basis, flaeche: 100 });
-
-    // Toleranz von einem Cent, weil beide Beträge einzeln gerundet werden.
-    expect(gross.heizkosten).toBeCloseTo(klein.heizkosten * 2, 1);
-    expect(gross.betriebskosten).toBeCloseTo(klein.betriebskosten * 2, 1);
-  });
-
-  it('jede weitere Person kostet 15 € Warmwasser im Monat', () => {
-    const basis = {
-      kaltmiete: 500,
-      flaeche: 60,
-      baujahr: 'post2002',
-      heizung: 'gas',
-      warmwasser: 'ja',
-    };
-
-    expect(berechneMietrechner({ ...basis, personen: 4 }).warmwasserKosten).toBe(60);
-    expect(berechneMietrechner({ ...basis, personen: 1 }).warmwasserKosten).toBe(15);
+  it('lässt die Einordnung ohne Wohnfläche weg', () => {
+    const r = berechneMietrechner({ ...basis, flaeche: '' });
+    expect(r.warmmiete).toBe(1040);
+    expect(r.einordnung).toBeNull();
+    expect(r.spiegel).toBeNull();
+    expect(r.warmProQm).toBe(0);
   });
 });

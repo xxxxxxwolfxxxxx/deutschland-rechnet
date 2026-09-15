@@ -3,13 +3,57 @@ import Layout from '../../layouts/Layout.astro';
 import CalculatorShell from '../../components/CalculatorShell.astro';
 import CalculatorGuide from '../../components/CalculatorGuide.astro';
 import { CALCULATORS, CATEGORIES } from '../../data/calculators';
+import { berechneMietrechner } from '../../../public/scripts/mietrechner.js';
+import {
+  BETRIEBSKOSTENSPIEGEL,
+  BETRIEBSKOSTEN_ARTEN,
+  HEIZKOSTEN_VERBRAUCHSANTEIL,
+  abrechnungsfristEnde,
+  einwendungsfristEnde,
+} from '../../../public/scripts/nebenkosten.js';
 const calc = CALCULATORS.find(c => c.slug === 'mietrechner')!;
 const cat = CATEGORIES[calc.category];
 const year = new Date().getFullYear();
+
+// Alle Zahlen dieser Seite kommen aus mietrechner.js und nebenkosten.js.
+const eur = (n: number) => n.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
+const qm = (n: number) => n.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €/m²';
+const datum = (s: string) => s.split('-').reverse().join('.');
+const pz = (n: number) => Math.round(n * 100) + ' %';
+
+const bsp = berechneMietrechner({ kaltmiete: 800, flaeche: 70, betriebskosten: 150, heizkosten: 90 });
+if (bsp.warmmiete !== 1040 || !bsp.spiegel) throw new Error('Mietrechner: Beispiel stimmt nicht');
+const heizung = BETRIEBSKOSTEN_ARTEN.find((a) => a.key === 'heizung')!;
+const abrechnungBis = abrechnungsfristEnde(`${year - 1}-12-31`);
+const einwendungBis = einwendungsfristEnde(`${year}-05-15`);
+
+const guideHtml = `
+<h3>Was in der Warmmiete steckt</h3>
+<p>Die Warmmiete ist keine Schätzung, sondern steht im Inserat oder im Mietvertrag: Nettokaltmiete plus die vereinbarten Vorauszahlungen für Betriebskosten und für Heizung und Warmwasser. Nach § 556 Abs. 1 BGB können die Parteien vereinbaren, dass der Mieter Betriebskosten trägt; welche das sein dürfen, zählt § 2 der Betriebskostenverordnung auf. Nicht umlegen darf der Vermieter Verwaltungskosten und Instandhaltung (§ 1 Abs. 2 BetrKV). Strom für die eigene Wohnung und Internet laufen in aller Regel über eigene Verträge und gehören nicht dazu.</p>
+<p><strong>Beispiel:</strong> 800 € Kaltmiete, 150 € Betriebskosten- und 90 € Heizkostenvorauszahlung für 70 m² ergeben ${eur(bsp.warmmiete)} Warmmiete, also ${qm(bsp.warmProQm)}. Die Vorauszahlungen machen ${qm(bsp.vorauszahlungProQm)} aus.</p>
+
+<h3>Ist die Vorauszahlung angemessen?</h3>
+<p>Vorauszahlungen dürfen nur in angemessener Höhe vereinbart werden (§ 556 Abs. 2 Satz 2 BGB). Einen Anhaltspunkt gibt der Betriebskostenspiegel des Deutschen Mieterbundes für das Abrechnungsjahr ${BETRIEBSKOSTENSPIEGEL.abrechnungsjahr}: Im Durchschnitt zahlen Mieter ${qm(BETRIEBSKOSTENSPIEGEL.durchschnittGesamt)} im Monat, fallen alle Kostenarten an, sind es ${qm(BETRIEBSKOSTENSPIEGEL.alleArtenGesamt)}. Darin enthalten sind Heizung und Warmwasser mit durchschnittlich ${qm(heizung.euroProQmMonat)} – der Rechner vergleicht deshalb die Summe beider Vorauszahlungen.</p>
+<p>Für das Beispiel wären es nach den Durchschnittswerten ${eur(bsp.spiegel.erwartetMonat)} im Monat. Das ist kein Maßstab für die eigene Abrechnung: Ein unsaniertes Haus, ein teurer Energieträger oder ein hoher eigener Verbrauch rechtfertigen höhere Vorauszahlungen. Liegt die Vorauszahlung deutlich unter dem Durchschnitt, ist dagegen eine Nachzahlung wahrscheinlich.</p>
+
+<h3>Abrechnung und Fristen</h3>
+<p>Über die Vorauszahlungen ist jährlich abzurechnen. Die Abrechnung muss dem Mieter spätestens bis zum Ablauf des zwölften Monats nach Ende des Abrechnungszeitraums zugehen; danach kann der Vermieter keine Nachzahlung mehr verlangen, es sei denn, er hat die Verspätung nicht zu vertreten (§ 556 Abs. 3 Satz 2 und 3 BGB). Für das Kalenderjahr ${year - 1} endet diese Frist am ${datum(abrechnungBis)}.</p>
+<p>Einwendungen gegen die Abrechnung muss der Mieter bis zum Ablauf des zwölften Monats nach ihrem Zugang mitteilen (§ 556 Abs. 3 Satz 5 BGB) – bei Zugang am 15.05.${year} also bis zum ${datum(einwendungBis)}. Beide Fristen laufen unabhängig voneinander und werden oft verwechselt.</p>
+<p>Nach einer Abrechnung kann jede Seite die Vorauszahlung durch Erklärung in Textform auf eine angemessene Höhe anpassen (§ 560 Abs. 4 BGB). Umgelegt werden die Betriebskosten, wenn nichts anderes vereinbart ist, nach dem Anteil der Wohnfläche (§ 556a Abs. 1 BGB); Heizkosten sind zu ${pz(HEIZKOSTEN_VERBRAUCHSANTEIL.min)} bis ${pz(HEIZKOSTEN_VERBRAUCHSANTEIL.max)} nach dem erfassten Verbrauch zu verteilen (§ 7 Abs. 1 HeizkostenV).</p>
+`;
+
+const faqs = [
+  { q: 'Was ist der Unterschied zwischen Kalt- und Warmmiete?', a: 'Die Kaltmiete ist die Miete für die Wohnung selbst. Die Warmmiete enthält zusätzlich die Vorauszahlungen für Betriebskosten und für Heizung und Warmwasser. Beide Beträge stehen im Mietvertrag.' },
+  { q: 'Bis wann muss der Vermieter abrechnen?', a: `Bis zum Ablauf des zwölften Monats nach Ende des Abrechnungszeitraums (§ 556 Abs. 3 Satz 2 BGB), für das Kalenderjahr ${year - 1} also bis zum ${datum(abrechnungBis)}. Kommt die Abrechnung später, ist eine Nachforderung ausgeschlossen, außer der Vermieter hat die Verspätung nicht zu vertreten.` },
+  { q: 'Wie lange kann ich Einwendungen erheben?', a: 'Bis zum Ablauf des zwölften Monats nach Zugang der Abrechnung (§ 556 Abs. 3 Satz 5 BGB). Danach sind Einwendungen ausgeschlossen, es sei denn, der Mieter hat die Verspätung nicht zu vertreten.' },
+  { q: 'Darf der Vermieter die Vorauszahlung erhöhen?', a: 'Nach einer Abrechnung kann jede Vertragspartei die Vorauszahlung durch Erklärung in Textform auf eine angemessene Höhe anpassen (§ 560 Abs. 4 BGB) – der Vermieter nach oben, der Mieter nach unten. Eine Betriebskostenpauschale darf der Vermieter nur erhöhen, wenn das im Mietvertrag vereinbart ist (§ 560 Abs. 1 BGB).' },
+  { q: 'Wann verjähren Nachzahlung oder Guthaben?', a: 'Nach der regelmäßigen Verjährungsfrist von drei Jahren (§ 195 BGB). Sie beginnt mit dem Schluss des Jahres, in dem der Anspruch entstanden ist und der Berechtigte davon Kenntnis hat (§ 199 Abs. 1 BGB) – bei einer Nachzahlung in der Regel mit dem Jahr, in dem die Abrechnung zugegangen ist.' },
+  { q: 'Was darf nicht umgelegt werden?', a: 'Verwaltungskosten und die Kosten für Instandhaltung und Instandsetzung (§ 1 Abs. 2 BetrKV), außerdem der Teil der Hauswartvergütung, der auf solche Arbeiten entfällt (§ 2 Nr. 14 BetrKV).' },
+];
 ---
 <Layout
   title={`Mietrechner ${year}`}
-  description="Kaltmiete zu Warmmiete umrechnen. Sofortige Nebenkosten-Schätzung."
+  description="Warmmiete aus Kaltmiete und Vorauszahlungen berechnen und die Vorauszahlung mit dem Betriebskostenspiegel vergleichen – mit den Abrechnungsfristen nach § 556 BGB."
   canonicalPath="/wohnen/mietrechner/"
   categoryColor={cat.color}
   categoryLight={cat.colorLight}
@@ -21,96 +65,78 @@ const year = new Date().getFullYear();
   </div>
   <CalculatorShell
     calculator={calc}
-    intro="Mit dem Mietrechner berechnen Sie die Warmmiete aus der Kaltmiete inklusive aller Nebenkosten. So wissen Sie vor Vertragsabschluss, welche monatliche Gesamtbelastung tatsächlich auf Sie zukommt. Der Rechner schätzt die Betriebskosten auf Basis aktueller Durchschnittswerte des Deutschen Mieterbundes."
-    sourceNote="Kaltmiete + Betriebskosten + Heizung."
-    explanation="Die Warmmiete setzt sich aus Kaltmiete, Betriebskosten und Heizkosten zusammen. Welche Nebenkosten der Vermieter umlegen darf, regelt die Betriebskostenverordnung (BetrKV) abschließend in 17 Positionen. Mieter haben nach § 259 BGB das Recht auf Belegeinsicht und können die Nebenkostenabrechnung innerhalb von 12 Monaten nach Zugang beanstanden."
-    faqs={[
-      { q: "Was ist der Unterschied zwischen Kaltmiete und Warmmiete?", a: "Kaltmiete: nur Miete für Wohnung. Warmmiete: Kaltmiete + Heizung, Wasser, Müll, ggf. Hausmeister. Warmmiete ist oft 30-50% höher. Im Inserat muss beides angegeben sein." },
-      { q: "Was gehört zu den Nebenkosten?", a: "Zwingend: Heizung, Wasser/Abwasser, Müll. Oft: Hausmeister, Reinigung, Versicherung, Schneeräumung. Nicht enthalten: Strom, Gas (sofern separate Zähler), Rundfunk, Internet. Im Mietvertrag sollte dies klar sein." },
-      { q: "Wie prüfe ich, ob die Nebenkosten fair sind?", a: "Vergleich mit ähnlichen Wohnungen in der Gegend. Heizung sollte 3-5€/m²/Monat sein (abhängig von Energieträger und Klima). Wasser 1-2€/m²/Monat. Sind sie deutlich höher, nachfragen oder Abrechnungsüberprüfung anfordern." },
-      { q: "Kann Nebenkosten-Erhöhung unbegrenzt stattfinden?", a: "Nein, Staffelung ist per Gesetz limitiert. In der Regel: max. 20% in 3 Jahren. Große Sprünge erlauben Mietern, zum Jahresende zu kündigen. Immer Abrechnung prüfen!" },
-      { q: "Wann bekomme ich meine Nebenkosten-Nachzahlung?", a: "Spätestens 12 Monate nach Jahresende. Abrechnungen sollten innerhalb 12 Monaten erfolgen. Ist es länger, verfallen Ansprüche. Nachzahlungen > 1 Monatsmiete sind in 3 Monaten zahlbar (Zahlungsfrist)." },
-      { q: "Sind Makler-, Anwalts- oder Gerichtskosten Nebenkosten?", a: "Nein, das sind außergewöhnliche Kosten und darf der Vermieter nicht auf den Mieter umlegen. Auch Renovierungen vor Neu-Vermietung sind keine Nebenkosten, sondern Instandhaltung = Vermieterspflicht." }
-    ]}
+    intro="Tragen Sie Kaltmiete und Vorauszahlungen aus Inserat oder Mietvertrag ein. Der Rechner zeigt Warmmiete, Quadratmeterpreise und wie die Vorauszahlung im Vergleich zum Betriebskostenspiegel liegt."
+    sourceNote={`Warmmiete = Kaltmiete + Vorauszahlungen (Ihre Eingaben). Einordnung nach dem Betriebskostenspiegel des Deutschen Mieterbundes, Abrechnungsjahr ${BETRIEBSKOSTENSPIEGEL.abrechnungsjahr}. Rechtsgrundlagen: §§ 556, 556a, 560 BGB, §§ 1, 2 BetrKV (abgerufen am 15.09.2026).`}
+    explanation="Verglichen wird die Summe aus Betriebskosten- und Heizkostenvorauszahlung je m², weil der Betriebskostenspiegel Heizung und Warmwasser enthält. Aufzug, Garten und Hauswart gehen nur ein, wenn Sie sie ankreuzen."
+    faqs={faqs}
   >
     <div class="calc-form">
       <div class="calc-grid">
         <div class="calc-group">
           <label for="kaltmiete">Kaltmiete (€/Monat)</label>
-          <input type="number" id="kaltmiete" min="100" max="10000" value="800" step="25" />
+          <input type="number" id="kaltmiete" min="0" max="20000" value="800" step="10" />
         </div>
         <div class="calc-group">
           <label for="flaeche">Wohnfläche (m²)</label>
-          <input type="number" id="flaeche" min="10" max="500" value="75" step="5" />
+          <input type="number" id="flaeche" min="0" max="1000" value="70" step="1" />
         </div>
         <div class="calc-group">
-          <label for="personen">Personen im Haushalt</label>
-          <input type="number" id="personen" min="1" max="10" value="2" step="1" />
+          <label for="betriebskosten">Vorauszahlung Betriebskosten (€/Monat)</label>
+          <input type="number" id="betriebskosten" min="0" max="5000" value="150" step="5" />
         </div>
         <div class="calc-group">
-          <label for="baujahr">Baujahr des Gebäudes</label>
-          <select id="baujahr">
-            <option value="pre1978">Vor 1978 (ohne Wärmedämmung)</option>
-            <option value="1978_2002" selected>1978–2002</option>
-            <option value="post2002">Nach 2002 (Neubau)</option>
-          </select>
+          <label for="heizkosten">Vorauszahlung Heizung/Warmwasser (€/Monat)</label>
+          <input type="number" id="heizkosten" min="0" max="5000" value="90" step="5" />
         </div>
         <div class="calc-group">
-          <label for="heizung">Heizungsart</label>
-          <select id="heizung">
-            <option value="gas" selected>Gas</option>
-            <option value="oil">Öl</option>
-            <option value="district">Fernwärme</option>
-            <option value="heatpump">Wärmepumpe</option>
-            <option value="other">Sonstige</option>
-          </select>
+          <label for="sonstiges">Sonstiges, z. B. Stellplatz (€/Monat)</label>
+          <input type="number" id="sonstiges" min="0" max="2000" value="0" step="5" />
         </div>
         <div class="calc-group">
-          <label for="qm">Warmwasser inkl.?</label>
-          <select id="qm">
-            <option value="ja" selected>Ja, inkl. Warmwasser</option>
-            <option value="nein">Nein, Warmwasser separat</option>
-          </select>
+          <span class="label-text">Ausstattung für den Vergleich</span>
+          <label><input type="checkbox" id="aufzug" style="width:auto;margin-right:0.4rem;" />Aufzug</label>
+          <label><input type="checkbox" id="garten" style="width:auto;margin-right:0.4rem;" />Garten</label>
+          <label><input type="checkbox" id="hauswart" style="width:auto;margin-right:0.4rem;" />Hauswart</label>
         </div>
       </div>
-
       <div class="calc-result">
-        <div class="label">Warmmiete (geschätzt)</div>
+        <div class="label">Warmmiete</div>
         <div id="warmmiete">— €</div>
       </div>
-      <div id="details" style="margin-top:0.75rem;font-size:0.88rem;color:#666;display:flex;gap:1.5rem;flex-wrap:wrap;"></div>
+      <div id="details" style="margin-top:0.75rem;font-size:0.9rem;color:#555;display:flex;flex-direction:column;gap:0.3rem;"></div>
     </div>
   </CalculatorShell>
 
   <CalculatorGuide
-    title="Kaltmiete vs. Warmmiete verstehen"
-    content="<p>Der Unterschied zwischen Kalt- und Warmmiete ist essentiell für die Budgetplanung. Die Kaltmiete ist nur der Nutzungsanteil der Wohnung. Die Warmmiete addiert Heizung, Wasser und Abwasser hinzu – und ist oft 30-50% teurer. Unser Rechner hilft, beide transparent zu vergleichen.</p>\n\n<p><strong>Zusammensetzung der Warmmiete:</strong> Kaltmiete (z.B. 800€) + Nebenkosten wie Heizung (150-200€), Wasser/Abwasser (40-80€), Müll (15-30€), Hausmeister/Reinigung (10-50€), Versicherung (5-20€). Total: kann leicht 1.100-1.200€ sein. Überprüfen Sie, was konkret in der Warmmiete enthalten ist!</p>\n\n<p><strong>Wie werden Nebenkosten verteilt:</strong> Die wichtigsten Schlüssel sind Wohnfläche (für Heizung, Wasser oft), Personenzahl (für Müll), Nutzungseinheiten (für Aufzug). Jeder Vermieter verteilt unterschiedlich – das ist Verhandlung. Unfaire Schlüssel können beim Vermieter beanstandet werden.</p>\n\n<p><strong>Heizkostenoptimierung:</strong> Heizung ist der größte Nebenkostenfaktor. Tipps: Temperatur nachts auf 16°C senken = 6-8% Ersparnis. Hydraulischer Abgleich (Handwerker, 300-500€) kann Heizkosten um 5-15% reduzieren. Ventile entlüften (kostenlos, regelmäßig). Alte Heizungen sind Energiefresser – Modern-Sanierung rechnet sich oft.</p>\n\n<p><strong>Rücklage und Abrechnung:</strong> Der Vermieter stellt Vorauszahlungen auf Nebenkosten ein (z.B. 100€/Monat). Einmal pro Jahr erfolgt die Abrechnung – Rückzahlung oder Nachzahlung. Nachzahlung >1 Monatsmiete ist in 3 Monaten zahlbar. Zu lange Abrechnung (>12 Monate) ist unzulässig.</p>\n\n<p><strong>Was Sie prüfen können:</strong> Quittat Sie Rechnungen? Sind Wohnfläche und Quadratmeterzahl korrekt? Vergleichen Sie mit ähnlichen Wohnungen – auffällige Unterschiede? Heizung kann auch Mietverein prüfen lassen. Abrechnung sollte detailliert sein, nicht pauschal.</p>\n\n<p><strong>Spar-Chancen als Mieter:</strong> Wassersparer-Einsätze (5-10€) sparen 20-30% Wasser. Stoßlüften statt Dauerlüften (10 Min, 3-4x täglich). Mietervertrag checken: sind Versicherungen überteuert? Hausmeister-Service überdimensioniert? Alles hinterfragbar.</p>\n\n<p><strong>Streit bei Abrechnungen:</strong> Verstehen Sie Ihre Abrechnung nicht? Mietverein konsultieren (10-15€/Monat Mitgliedschaft) – die prüfen kostenlos. Starke Abweichungen zu Vorjahr? Nachfragen stellen! Falsche Abrechnungen verjähren nach 4 Jahren.</p>"
-    relatedSlugs={['nebenkosten-rechner', 'mietpreisbremse-rechner', 'quadratmeterpreis-vergleich']}
+    title="Warmmiete, Vorauszahlung und Abrechnung"
+    content={guideHtml}
+    relatedSlugs={['nebenkosten-rechner', 'mietpreisbremse-rechner', 'heizkosten-rechner']}
   />
 </Layout>
 
 <script type="module">
 const { berechneMietrechner } = await import(window.__base + 'scripts/mietrechner.js');
-function fmt(n) { return n.toLocaleString('de-DE', {minimumFractionDigits:2, maximumFractionDigits:2}) + ' €'; }
+const eur = (n) => n.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
+const wert = (id) => parseFloat(document.getElementById(id).value) || 0;
+const an = (id) => document.getElementById(id).checked;
 function berechne() {
-  const kaltmiete = parseFloat(document.getElementById('kaltmiete').value)||800;
-  const flaeche = parseFloat(document.getElementById('flaeche').value)||75;
-  const personen = parseInt(document.getElementById('personen').value)||2;
-  const baujahr = document.getElementById('baujahr').value;
-  const heizung = document.getElementById('heizung').value;
-  const warmwasser = document.getElementById('qm').value;
-  const r = berechneMietrechner({ kaltmiete, flaeche, personen, baujahr, heizung, warmwasser });
-  document.getElementById('warmmiete').textContent = fmt(r.warmmiete);
-  document.getElementById('details').innerHTML =
-    `<span>Kaltmiete: <strong>${fmt(kaltmiete)}</strong></span>` +
-    `<span>Nebenkosten: <strong>${fmt(r.nebenkosten)}</strong></span>` +
-    `<span>davon Heizung: <strong>${fmt(r.heizkosten)}</strong></span>` +
-    `<span>davon Betriebskosten: <strong>${fmt(r.betriebskosten)}</strong></span>` +
-    `<span>€/m² warm: <strong>${(r.warmmiete/flaeche).toFixed(2)} €/m²</strong></span>`;
+  const r = berechneMietrechner({
+    kaltmiete: wert('kaltmiete'), flaeche: wert('flaeche'), betriebskosten: wert('betriebskosten'),
+    heizkosten: wert('heizkosten'), sonstiges: wert('sonstiges'), aufzug: an('aufzug'), garten: an('garten'), hauswart: an('hauswart'),
+  });
+  document.getElementById('warmmiete').textContent = eur(r.warmmiete);
+  const teile = [];
+  if (r.gesamt !== r.warmmiete) teile.push(`<span>Mit Sonstigem: <strong>${eur(r.gesamt)}</strong> im Monat</span>`);
+  teile.push(`<span>Im Jahr: <strong>${eur(r.jahr)}</strong></span>`);
+  if (r.einordnung) {
+    teile.push(`<span>Kalt ${eur(r.kaltProQm)}/m², warm ${eur(r.warmProQm)}/m², Vorauszahlungen ${eur(r.vorauszahlungProQm)}/m²</span>`);
+    teile.push(`<span>${r.einordnung.text}</span>`);
+    const d = r.spiegel.differenzMonat;
+    teile.push(`<span>Durchschnitt für diese Fläche und Ausstattung: <strong>${eur(r.spiegel.erwartetMonat)}</strong> im Monat – Ihre Vorauszahlung liegt ${Math.abs(d) < 0.005 ? 'genau darauf' : `${eur(Math.abs(d))} ${d > 0 ? 'darunter' : 'darüber'}`}.</span>`);
+  }
+  document.getElementById('details').innerHTML = teile.join('');
 }
-['kaltmiete','flaeche','personen'].forEach(id =>
-  document.getElementById(id).addEventListener('input', berechne));
-['baujahr','heizung','qm'].forEach(id =>
-  document.getElementById(id).addEventListener('change', berechne));
+document.querySelectorAll('.calc-form input').forEach((el) => el.addEventListener('input', berechne));
+document.querySelectorAll('.calc-form input[type=checkbox]').forEach((el) => el.addEventListener('change', berechne));
 berechne();
 </script>

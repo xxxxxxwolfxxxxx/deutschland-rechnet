@@ -3,13 +3,53 @@ import Layout from '../../layouts/Layout.astro';
 import CalculatorShell from '../../components/CalculatorShell.astro';
 import CalculatorGuide from '../../components/CalculatorGuide.astro';
 import { CALCULATORS, CATEGORIES } from '../../data/calculators';
+import { berechneWieVielHaus } from '../../../public/scripts/wie-viel-haus.js';
+import { BUNDESLAENDER } from '../../../public/scripts/grunderwerbsteuer.js';
+import { MAKLER_PROVISION_PROZENT_JE_SEITE } from '../../../public/scripts/immokauf-nebenkosten.js';
 const calc = CALCULATORS.find(c => c.slug === 'wie-viel-haus')!;
 const cat = CATEGORIES[calc.category];
 const year = new Date().getFullYear();
+
+// Alle Zahlen dieser Seite kommen aus wie-viel-haus.js und den Modulen dahinter.
+const eur = (n: number) => n.toLocaleString('de-DE', { maximumFractionDigits: 0 }) + ' €';
+const pz = (n: number) => n.toLocaleString('de-DE', { maximumFractionDigits: 2 }) + ' %';
+const laender = Object.entries(BUNDESLAENDER).sort((a, b) => a[1].name.localeCompare(b[1].name, 'de'));
+
+const basis = { rate: 1500, eigenkapital: 80000, sollzins: 3.5, tilgung: 2, zinsbindung: 15, mitMakler: false };
+const nw = berechneWieVielHaus({ ...basis, bundesland: 'nw' });
+const by = berechneWieVielHaus({ ...basis, bundesland: 'by' });
+const nwMakler = berechneWieVielHaus({ ...basis, bundesland: 'nw', mitMakler: true });
+const drei = berechneWieVielHaus({ ...basis, bundesland: 'nw', tilgung: 3 });
+const anschluss = berechneWieVielHaus({ ...basis, bundesland: 'nw', anschlusszins: 5.5 });
+if (nw.kaufpreis + (nw.nebenkosten?.gesamt ?? 0) > nw.budget || !(by.kaufpreis > nw.kaufpreis) || !(anschluss.anschlussrate > basis.rate)) {
+  throw new Error('Wie viel Haus: Beispiel widerspricht dem Modul');
+}
+
+const guideHtml = `
+<h3>Von der Rate zum Kaufpreis</h3>
+<p>Der Rechner beginnt bei der Rate, die Sie dauerhaft tragen können – nicht bei einer Faustregel über das Einkommen. Bei einem Annuitätendarlehen ist die Jahresrate die Summe aus Sollzins und anfänglicher Tilgung, jeweils auf den Darlehensbetrag bezogen. Umgekehrt trägt eine Monatsrate von ${eur(basis.rate)} bei ${pz(basis.sollzins)} Zins und ${pz(basis.tilgung)} Tilgung ein Darlehen von ${eur(nw.darlehen)}.</p>
+<p>Zusammen mit ${eur(basis.eigenkapital)} Eigenkapital stehen ${eur(nw.budget)} zur Verfügung. Davon gehen die Kaufnebenkosten ab, die selbst vom Kaufpreis abhängen: Grunderwerbsteuer zum Satz des Bundeslandes, Notar- und Grundbuchgebühren nach dem GNotKG und gegebenenfalls die Maklerprovision. In Nordrhein-Westfalen (${pz(nw.nebenkosten!.gewSatz)} Grunderwerbsteuer) bleibt ohne Makler ein Kaufpreis von ${eur(nw.kaufpreis)}, in Bayern (${pz(by.nebenkosten!.gewSatz)}) sind es ${eur(by.kaufpreis)}. Mit Makler zu ${pz(MAKLER_PROVISION_PROZENT_JE_SEITE)} sinkt der Kaufpreis in Nordrhein-Westfalen auf ${eur(nwMakler.kaufpreis)}.</p>
+
+<h3>Tilgung und Zinsbindung</h3>
+<p>Mit ${pz(basis.tilgung)} Anfangstilgung dauert es ${nw.laufzeitJahre.toLocaleString('de-DE')} Jahre, bis das Darlehen bei gleichbleibendem Zins getilgt ist. Nach ${basis.zinsbindung} Jahren Zinsbindung sind noch ${eur(nw.restschuld)} offen; in dieser Zeit fließen ${eur(nw.zinsenBindung)} Zinsen. Mit ${pz(3)} Tilgung trägt dieselbe Rate nur ${eur(drei.darlehen)}, das Darlehen ist aber nach ${drei.laufzeitJahre.toLocaleString('de-DE')} Jahren abbezahlt.</p>
+<p>Die Restschuld muss nach der Bindung zu dem Zins weiterfinanziert werden, der dann gilt. Liegt er bei ${pz(5.5)} statt ${pz(basis.sollzins)}, steigt die Rate für dasselbe Laufzeitende auf ${eur(anschluss.anschlussrate)}. Tragen Sie im Rechner einen Anschlusszins ein, um diese Frage für Ihre Zahlen zu beantworten.</p>
+
+<h3>Die Haushaltsrechnung</h3>
+<p>Ob die Rate tragbar ist, zeigt nur Ihr eigenes Budget: Nettoeinkommen minus aller festen Ausgaben ohne die bisherige Miete. Was danach nach Abzug der Rate bleibt, muss Lebenshaltung, Rücklagen für das Haus und unerwartete Ausgaben decken. Banken prüfen das mit eigenen Haushaltsrechnungen; eine gesetzliche Obergrenze für den Anteil der Rate am Einkommen gibt es nicht.</p>
+<p>Nicht enthalten sind die Kosten der Grundschuldbestellung, die laufenden Kosten des Hauses (Grundsteuer, Versicherung, Instandhaltung) und Zinsaufschläge, die eine Bank bei wenig Eigenkapital verlangen kann.</p>
+`;
+
+const faqs = [
+  { q: 'Wie hängen Rate und Darlehen zusammen?', a: `Jahresrate = Darlehen × (Sollzins + anfängliche Tilgung). Eine Monatsrate von ${eur(basis.rate)} trägt bei ${pz(basis.sollzins)} Zins und ${pz(basis.tilgung)} Tilgung ${eur(nw.darlehen)} Darlehen.` },
+  { q: 'Welche Kaufnebenkosten rechnet der Rechner?', a: `Grunderwerbsteuer zum Satz Ihres Bundeslandes – zwischen 3,5 und 6,5 % –, Notar- und Grundbuchgebühren nach dem GNotKG und auf Wunsch eine Maklerprovision von ${pz(MAKLER_PROVISION_PROZENT_JE_SEITE)} des Kaufpreises. Die Kosten der Grundschuld sind nicht enthalten.` },
+  { q: 'Was passiert nach der Zinsbindung?', a: `Die Restschuld wird neu finanziert. Im Beispiel sind nach ${basis.zinsbindung} Jahren noch ${eur(nw.restschuld)} offen. Steigt der Zins auf ${pz(5.5)}, braucht es ${eur(anschluss.anschlussrate)} im Monat, um zum selben Zeitpunkt schuldenfrei zu sein.` },
+  { q: 'Wie viel Prozent des Einkommens darf die Rate ausmachen?', a: 'Dafür gibt es keine gesetzliche Grenze, und verbreitete Faustregeln beruhen auf keiner nachprüfbaren Quelle. Maßgeblich ist, was nach Rate und festen Ausgaben zum Leben bleibt – das zeigt die Haushaltsrechnung im Rechner.' },
+  { q: 'Warum ist der Kaufpreis in Bayern höher?', a: `Weil Bayern mit ${pz(by.nebenkosten!.gewSatz)} die niedrigste Grunderwerbsteuer hat. Bei gleichem Budget bleibt dort mehr für den Kaufpreis: im Beispiel ${eur(by.kaufpreis - nw.kaufpreis)} mehr als in Nordrhein-Westfalen.` },
+];
 ---
 <Layout
   title={`Wie viel Haus kann ich mir leisten? ${year}`}
-  description="Berechnen Sie den maximalen Kaufpreis basierend auf Ihrem Einkommen, Eigenkapital und der gewünschten monatlichen Rate."
+  description="Maximaler Kaufpreis aus tragbarer Rate, Eigenkapital und Kaufnebenkosten des Bundeslandes – mit Restschuld nach der Zinsbindung und Anschlussrate."
   canonicalPath="/wohnen/wie-viel-haus/"
   categoryColor={cat.color}
   categoryLight={cat.colorLight}
@@ -21,81 +61,103 @@ const year = new Date().getFullYear();
   </div>
   <CalculatorShell
     calculator={calc}
-    intro="Mit dem Wie-viel-Haus-Rechner berechnen Sie, welchen Kaufpreis Sie sich basierend auf Ihrem Einkommen leisten können. So vermeiden Sie eine Überschuldung und finden den realistischen finanziellen Rahmen für Ihren Immobilienkauf. Der Rechner berücksichtigt Eigenkapital, laufende Ausgaben und die empfohlene Belastungsgrenze."
-    sourceNote="110-120-faches des Nettoeinkommens."
-    explanation="Banken prüfen die Kreditwürdigkeit anhand der Haushaltsrechnung und empfehlen eine maximale Rate von 30-35 % des Nettoeinkommens. Die Kaufnebenkosten (8-15 % nach GrEStG, GNotKG) müssen aus Eigenkapital finanziert werden, da sie nicht beleihbar sind. Wer weniger als 20 % Eigenkapital einbringt, muss mit Zinszuschlägen rechnen, da die Bank ein höheres Risiko trägt."
-    faqs={[
-      { q: "Wie berechnen Banken meine maximale Kreditfähigkeit?", a: "Banken ermitteln Ihre Kreditfähigkeit anhand der Haushaltsrechnung: Vom Nettoeinkommen werden alle festen Ausgaben (bestehende Kredite, Lebenshaltung, Versicherungen) abgezogen. Die verbleibende Summe darf zu maximal 40-50% für die Kreditrate verwendet werden. Als Faustregel gilt: Der maximale Kaufpreis liegt bei etwa dem 100-110-fachen Ihres monatlichen Nettoeinkommens." },
-      { q: "Wie viel Eigenkapital brauche ich für einen Hauskauf?", a: "Empfohlen werden mindestens 20-30% des Kaufpreises inklusive Nebenkosten. Die Kaufnebenkosten (8-15%) sollten vollständig aus Eigenkapital finanziert werden, da Banken diese nicht beleihen. Mit weniger als 10% Eigenkapital steigen die Zinsen um 0,3-0,8 Prozentpunkte, und manche Banken verlangen zusätzlich eine Restschuldversicherung." },
-      { q: "Welchen Anteil meines Einkommens sollte die Rate maximal betragen?", a: "Finanzexperten empfehlen, maximal 30-35% des Nettoeinkommens für die Kreditrate aufzuwenden. Bei einem Haushaltsnettoeinkommen von 4.500 € wären das 1.350-1.575 € monatlich. Berücksichtigen Sie dabei auch Nebenkosten der Immobilie (2-4 €/m²), Rücklagen für Instandhaltung und einen Puffer für unerwartete Ausgaben." },
-      { q: "Wie wirken sich Kaufnebenkosten auf meine Kaufkraft aus?", a: "Die Kaufnebenkosten betragen je nach Bundesland 8-15% des Kaufpreises: Grunderwerbsteuer (3,5-6,5%), Notarkosten (ca. 1,5%), Grundbucheintragung (ca. 0,5%) und eventuell Maklerprovision (bis 3,57%). Bei 400.000 € Kaufpreis in NRW fallen etwa 48.000 € Nebenkosten an. Diese reduzieren Ihr verfügbares Eigenkapital für die Immobilie selbst." },
-      { q: "Sollte ich meine gesamte Kaufkraft ausreizen?", a: "Nein. Planen Sie einen Sicherheitspuffer von mindestens 10-20% unter Ihrer theoretischen Maximalkaufkraft ein. Gründe: Zinsänderungsrisiko bei der Anschlussfinanzierung, mögliche Einkommensausfälle, steigende Lebenshaltungskosten und unerwartete Reparaturen am Haus. Wer 80% seiner Kaufkraft nutzt, schläft deutlich ruhiger." }
-    ]}
+    intro="Der Rechner geht von der Monatsrate aus, die Sie tragen können, und rechnet über Zins, Tilgung, Eigenkapital und die Kaufnebenkosten Ihres Bundeslandes zurück auf den höchsten Kaufpreis – samt Restschuld nach der Zinsbindung."
+    sourceNote="Darlehen = Rate × 12 ÷ (Sollzins + Tilgung); Tilgungsplan als Annuitätendarlehen. Kaufnebenkosten: Grunderwerbsteuer nach Landessatz (§ 11 GrEStG), Notar und Grundbuch nach GNotKG (KV 21100, 22110, 22200, 14110, 14150), Maklerprovision nach Wahl. Ohne Grundschuld, laufende Hauskosten und Zinsaufschläge."
+    explanation="Der Kaufpreis wird so bestimmt, dass Kaufpreis und Nebenkosten zusammen Eigenkapital plus Darlehen nicht übersteigen. Die Anschlussrate tilgt die Restschuld bis zum ursprünglich geplanten Laufzeitende."
+    faqs={faqs}
   >
     <div class="calc-form">
       <div class="calc-grid">
         <div class="calc-group">
-          <label for="einkommen">Monatliches Nettoeinkommen (€)</label>
-          <input type="number" id="einkommen" min="500" max="50000" value="3000" step="100" />
+          <label for="rate">Tragbare Monatsrate (€)</label>
+          <input type="number" id="rate" min="0" max="20000" value={basis.rate} step="50" />
         </div>
         <div class="calc-group">
           <label for="eigenkapital">Eigenkapital (€)</label>
-          <input type="number" id="eigenkapital" min="0" max="2000000" value="50000" step="5000" />
+          <input type="number" id="eigenkapital" min="0" max="5000000" value={basis.eigenkapital} step="5000" />
         </div>
         <div class="calc-group">
-          <label for="rate">Max. monatliche Rate (€)</label>
-          <input type="number" id="rate" min="100" max="10000" value="900" step="50" />
+          <label for="zins">Sollzins (% p. a.)</label>
+          <input type="number" id="zins" min="0" max="15" value={basis.sollzins} step="0.05" />
         </div>
         <div class="calc-group">
-          <label for="zins">Zinssatz (% p.a.)</label>
-          <input type="number" id="zins" min="0.5" max="10" value="3.5" step="0.1" />
+          <label for="tilgung">Anfängliche Tilgung (% p. a.)</label>
+          <input type="number" id="tilgung" min="0" max="20" value={basis.tilgung} step="0.1" />
         </div>
         <div class="calc-group">
-          <label for="laufzeit">Zinsbindung (Jahre)</label>
-          <input type="number" id="laufzeit" min="5" max="30" value="15" step="1" />
+          <label for="zinsbindung">Zinsbindung (Jahre)</label>
+          <input type="number" id="zinsbindung" min="1" max="40" value={basis.zinsbindung} step="1" />
         </div>
         <div class="calc-group">
-          <label for="nebenkosten">Kaufnebenkosten (%)</label>
-          <input type="number" id="nebenkosten" min="5" max="20" value="12" step="0.5" />
+          <label for="anschlusszins">Anschlusszins (% p. a.)</label>
+          <input type="number" id="anschlusszins" min="0" max="15" value={basis.sollzins} step="0.05" />
+        </div>
+        <div class="calc-group">
+          <label for="bundesland">Bundesland</label>
+          <select id="bundesland">
+            {laender.map(([k, l]) => <option value={k} selected={k === 'nw'}>{l.name} ({l.satz.toLocaleString('de-DE')} %)</option>)}
+          </select>
+        </div>
+        <div class="calc-group">
+          <label><input type="checkbox" id="makler" style="width:auto;margin-right:0.4rem;" />Mit Makler ({MAKLER_PROVISION_PROZENT_JE_SEITE.toLocaleString('de-DE')} %)</label>
+        </div>
+        <div class="calc-group">
+          <label for="einkommen">Haushaltsnettoeinkommen (€/Monat, optional)</label>
+          <input type="number" id="einkommen" min="0" max="100000" value="" step="100" placeholder="—" />
+        </div>
+        <div class="calc-group">
+          <label for="ausgaben">Feste Ausgaben ohne Miete (€/Monat, optional)</label>
+          <input type="number" id="ausgaben" min="0" max="100000" value="" step="50" placeholder="—" />
         </div>
       </div>
       <div class="calc-result">
-        <div class="label">Maximaler Kaufpreis</div>
+        <div class="label">Höchster Kaufpreis</div>
         <div id="ergebnis">— €</div>
       </div>
-      <div id="details" style="margin-top:0.75rem;font-size:0.88rem;color:#666;display:flex;gap:1.5rem;flex-wrap:wrap;"></div>
+      <div id="details" style="margin-top:0.75rem;font-size:0.9rem;color:#555;display:flex;flex-direction:column;gap:0.3rem;"></div>
     </div>
   </CalculatorShell>
 
-  <CalculatorGuide title="Wie viel Haus kann ich mir leisten? So kalkulieren Sie richtig" content="<p>Die Frage nach der maximalen Kaufkraft ist der erste und wichtigste Schritt auf dem Weg zum Eigenheim. Eine realistische Kalkulation schützt vor finanzieller Überlastung und gibt Sicherheit bei der Immobiliensuche. Entscheidend sind drei Faktoren: Ihr verfügbares Einkommen, Ihr Eigenkapital und die aktuellen Finanzierungskonditionen.</p><p><strong>Die Haushaltsrechnung als Basis:</strong> Banken rechnen konservativ: Vom Haushaltsnettoeinkommen werden alle festen Ausgaben abgezogen (bestehende Kredite, Unterhalt, Versicherungen). Für die Lebenshaltung setzen Banken Pauschalen an, typischerweise 800-900 € für die erste Person und 200-250 € für jede weitere. Die verbleibende Summe bestimmt Ihre maximale Kreditrate. Bei einem Haushalt mit 4.500 € Nettoeinkommen und 1.800 € Fixkosten bleiben 2.700 € verfügbar. Davon sollten maximal 35% (945 €) für die Rate verwendet werden.</p><p><strong>Eigenkapital richtig einplanen:</strong> Als Faustregel sollten mindestens die Kaufnebenkosten (8-15% je nach Bundesland) vollständig aus Eigenkapital finanziert werden, da Banken diese Kosten nicht beleihen. Bei einem Kaufpreis von 350.000 € in Hessen (Grunderwerbsteuer 6%) fallen etwa 38.500 € Nebenkosten an. Ideal ist eine Eigenkapitalquote von 20-30% des Gesamtvolumens, also 77.000-115.000 € im Beispiel.</p><p><strong>Rechenbeispiel Kaufkraft:</strong> Familie Müller hat 5.000 € Nettoeinkommen und 80.000 € Eigenkapital. Die maximale Rate beträgt 1.750 € (35%). Bei 3,5% Zins und 2% Tilgung ergibt sich ein mögliches Darlehen von rund 382.000 €. Plus 80.000 € Eigenkapital, abzüglich 12% Kaufnebenkosten, ergibt sich ein maximaler Kaufpreis von etwa 412.000 €. Mit Sicherheitspuffer (90%) sollten sie maximal 370.000 € ins Auge fassen.</p><p><strong>Das Zinsänderungsrisiko:</strong> Ein häufig unterschätzter Faktor ist die Anschlussfinanzierung. Bei einer Zinsbindung von 15 Jahren und 2% Anfangstilgung ist nach Ablauf noch etwa 60% der Darlehenssumme offen. Steigt der Zins bei der Anschlussfinanzierung um 2 Prozentpunkte, erhöht sich die monatliche Rate erheblich. Kalkulieren Sie daher mit einem Sicherheitsaufschlag von 1-2% auf den aktuellen Zinssatz.</p><p><strong>Zusätzliche Kosten nicht vergessen:</strong> Neben der Kreditrate fallen laufende Kosten an: Grundsteuer (variiert stark nach Kommune), Gebäudeversicherung (ca. 200-500 € jährlich), Instandhaltungsrücklage (1-2% des Gebäudewerts pro Jahr) und Betriebskosten. Bei einem Einfamilienhaus sollten Sie mit zusätzlich 300-500 € pro Monat rechnen. Diese Kosten reduzieren Ihre verfügbare Rate für die Finanzierung.</p>" relatedSlugs={['hauskauf-rechner', 'tilgungsplan', 'tilgungs-kreditrechner', 'immobilienkauf-nebenkosten']} />
+  <CalculatorGuide
+    title="Wie viel Haus eine Rate trägt"
+    content={guideHtml}
+    relatedSlugs={['hauskauf-rechner', 'tilgungsplan', 'immobilienkauf-nebenkosten', 'grunderwerbsteuer-rechner']}
+  />
 </Layout>
 
 <script type="module">
+const { berechneWieVielHaus } = await import(window.__base + 'scripts/wie-viel-haus.js');
+const eur = (n) => n.toLocaleString('de-DE', { maximumFractionDigits: 0 }) + ' €';
+const wert = (id) => parseFloat(document.getElementById(id).value) || 0;
 function berechne() {
-  const einkommen = parseFloat(document.getElementById('einkommen').value) || 3000;
-  const eigenkapital = parseFloat(document.getElementById('eigenkapital').value) || 50000;
-  const rate = parseFloat(document.getElementById('rate').value) || 900;
-  const zins = parseFloat(document.getElementById('zins').value) || 3.5;
-  const laufzeit = parseInt(document.getElementById('laufzeit').value) || 15;
-  const nebenkostenPct = parseFloat(document.getElementById('nebenkosten').value) || 12;
-  const empfohleneRate = einkommen * 0.35;
-  const tilgung = 0.02;
-  const zinsMonat = zins / 100 / 12;
-  const tilgungMonat = tilgung / 12;
-  const darlehen = rate / (zinsMonat + tilgungMonat);
-  const nebenkostenFaktor = 1 + nebenkostenPct / 100;
-  const maxKaufpreis = (eigenkapital + darlehen) / nebenkostenFaktor;
-  const nebenkostenKosten = maxKaufpreis * nebenkostenPct / 100;
-  const finanzierung = maxKaufpreis - nebenkostenKosten;
-  document.getElementById('ergebnis').textContent = maxKaufpreis.toLocaleString('de-DE', {minimumFractionDigits:0, maximumFractionDigits:0}) + ' €';
-  document.getElementById('details').innerHTML =
-    `<span>Empfohlene max. Rate (35%): <strong>${empfohleneRate.toLocaleString('de-DE', {minimumFractionDigits:0})} €</strong></span>` +
-    `<span>Mögliches Darlehen: <strong>${darlehen.toLocaleString('de-DE', {minimumFractionDigits:0})} €</strong></span>` +
-    `<span>Nebenkosten: <strong>${nebenkostenKosten.toLocaleString('de-DE', {minimumFractionDigits:0})} €</strong></span>` +
-    `<span>Immobilienwert (ohne NK): <strong>${finanzierung.toLocaleString('de-DE', {minimumFractionDigits:0})} €</strong></span>` +
-    `<span>Rate/Einkommen: <strong>${(rate/einkommen*100).toFixed(1)}%</strong></span>`;
+  const r = berechneWieVielHaus({
+    rate: wert('rate'), eigenkapital: wert('eigenkapital'), sollzins: wert('zins'), tilgung: wert('tilgung'),
+    zinsbindung: wert('zinsbindung'), anschlusszins: document.getElementById('anschlusszins').value,
+    bundesland: document.getElementById('bundesland').value, mitMakler: document.getElementById('makler').checked,
+    einkommen: wert('einkommen'), ausgaben: wert('ausgaben'),
+  });
+  document.getElementById('ergebnis').textContent = eur(r.kaufpreis);
+  const nk = r.nebenkosten;
+  const teile = [
+    `<span>Darlehen: <strong>${eur(r.darlehen)}</strong> + Eigenkapital = ${eur(r.budget)}</span>`,
+  ];
+  if (nk) {
+    teile.push(`<span>Kaufnebenkosten: <strong>${eur(nk.gesamt)}</strong> (Grunderwerbsteuer ${eur(nk.grunderwerbsteuer)}, Notar ${eur(nk.notar)}, Grundbuch ${eur(nk.grundbuch)}${nk.maklerKaeufer ? `, Makler ${eur(nk.maklerKaeufer)}` : ''})</span>`);
+  }
+  if (r.darlehen > 0) {
+    teile.push(`<span>Laufzeit bei gleichem Zins: <strong>${r.laufzeitJahre.toLocaleString('de-DE')} Jahre</strong></span>`);
+    teile.push(r.restschuld > 0
+      ? `<span>Restschuld nach der Zinsbindung: <strong>${eur(r.restschuld)}</strong>, Zinsen bis dahin ${eur(r.zinsenBindung)}; Anschlussrate: <strong>${eur(r.anschlussrate)}</strong></span>`
+      : `<span>Das Darlehen ist vor Ende der Zinsbindung getilgt.</span>`);
+  }
+  if (r.haushalt) {
+    teile.push(`<span>Frei nach festen Ausgaben: <strong>${eur(r.haushalt.frei)}</strong>, nach der Rate: <strong style="color:${r.haushalt.nachRate < 0 ? '#b71c1c' : 'inherit'}">${eur(r.haushalt.nachRate)}</strong> (Rate = ${r.haushalt.rateAnteilEinkommen.toLocaleString('de-DE')} % des Einkommens)</span>`);
+  }
+  document.getElementById('details').innerHTML = teile.join('');
 }
-['einkommen','eigenkapital','rate','zins','laufzeit','nebenkosten'].forEach(id =>
-  document.getElementById(id).addEventListener('input', berechne));
+document.querySelectorAll('.calc-form input, .calc-form select').forEach((el) => {
+  el.addEventListener('input', berechne);
+  el.addEventListener('change', berechne);
+});
 berechne();
 </script>
