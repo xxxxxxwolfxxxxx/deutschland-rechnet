@@ -127,3 +127,64 @@ export function berechneStromspeicher({
     verguetungCentProKwh: rundeAufCent(verguetung * 100),
   };
 }
+
+/**
+ * Speichergrößen im Vergleich: Was jede zusätzliche Kilowattstunde Kapazität
+ * im Jahr noch einbringt, und bis zu welcher Größe sie ihren Preis über die
+ * angenommene Nutzungsdauer wieder hereinholt.
+ *
+ * Die frühere Dimensionierungsseite rechnete mit eigenen Nachtanteilen und
+ * Deckeln ohne Quelle. Hier entsteht die Empfehlung aus derselben
+ * Jahresbilanz wie im Stromspeicher-Rechner: Solange die nächste Stufe über
+ * die Nutzungsdauer mehr einspart, als sie kostet, lohnt sie sich; danach
+ * nicht mehr. Nicht abgebildet sind Zinsen, Strompreisänderungen und die
+ * Alterung – die Empfehlung ist deshalb eine Obergrenze.
+ *
+ * @param {object} e
+ * @param {number} e.pvLeistung kWp
+ * @param {number} e.stromverbrauch kWh im Jahr
+ * @param {number} [e.strompreis] Cent je kWh
+ * @param {number} e.preisJeKwh Speicherpreis in Euro je kWh Kapazität
+ * @param {number} e.nutzungsdauer Jahre
+ * @param {number[]} [e.groessen] zu vergleichende Kapazitäten in kWh, aufsteigend
+ */
+export function vergleicheSpeichergroessen({
+  pvLeistung,
+  stromverbrauch,
+  strompreis = STROMPREIS_CENT_PRO_KWH,
+  preisJeKwh,
+  nutzungsdauer,
+  groessen = [2, 4, 6, 8, 10, 12, 15],
+}) {
+  const jahre = zahl(nutzungsdauer);
+  const preis = zahl(preisJeKwh);
+  let vorher = { speicher: 0, ersparnis: 0 };
+  let empfehlung = 0;
+  let nochSteigend = true;
+
+  const zeilen = groessen.map((speicher) => {
+    const r = berechneStromspeicher({ speicher, pvLeistung, stromverbrauch, strompreis, speicherkosten: preis });
+    const mehrKapazitaet = speicher - vorher.speicher;
+    const mehrErsparnis = r.ersparnis - vorher.ersparnis;
+    const grenzertragJeKwh = mehrKapazitaet > 0 ? rundeAufCent(mehrErsparnis / mehrKapazitaet) : 0;
+    // Lohnt die Stufe über die Nutzungsdauer? Nur solange alle kleineren
+    // Stufen es auch taten – sonst würde ein Ausreißer die Empfehlung heben.
+    const lohntStufe = mehrErsparnis * jahre >= mehrKapazitaet * preis && mehrErsparnis > 0;
+    if (nochSteigend && lohntStufe) empfehlung = speicher;
+    else nochSteigend = false;
+    vorher = { speicher, ersparnis: r.ersparnis };
+    return {
+      speicher,
+      ersparnis: r.ersparnis,
+      speicherKwh: r.speicherKwh,
+      autarkiegrad: r.autarkiegrad,
+      eigenverbrauchsquote: r.eigenverbrauchsquote,
+      investition: r.investition,
+      amortisation: r.amortisation,
+      grenzertragJeKwh,
+      lohntStufe,
+    };
+  });
+
+  return { zeilen, empfehlung };
+}

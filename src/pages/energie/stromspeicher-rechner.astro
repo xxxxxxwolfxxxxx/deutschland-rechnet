@@ -7,60 +7,77 @@ import {
   berechneStromspeicher,
   DIREKTVERBRAUCH_ANTEIL,
   SPEICHER_WIRKUNGSGRAD,
+  SPEICHER_NUTZTAGE,
 } from '../../../public/scripts/stromspeicher.js';
-import { verguetungProKwh } from '../../../public/scripts/photovoltaik.js';
-import { STROMPREIS_CENT_PRO_KWH } from '../../../public/scripts/strompreis.js';
+import { verguetungProKwh, SPEZIFISCHER_ERTRAG } from '../../../public/scripts/photovoltaik.js';
+import { STROMPREIS_CENT_PRO_KWH, STROMPREIS_QUELLE } from '../../../public/scripts/strompreis.js';
 const calc = CALCULATORS.find(c => c.slug === 'stromspeicher-rechner')!;
 const cat = CATEGORIES[calc.category];
 const year = new Date().getFullYear();
 
-// Einspeisevergütung nach § 48 Abs. 2 EEG aus dem Photovoltaik-Modul, damit
-// der Ratgebertext nicht von der Rechnung abweichen kann. Der Strompreis
-// kommt aus strompreis.js – vorher standen hier 38 ct ohne Quelle, während
-// das Eingabefeld darunter mit 35 ct startete.
+// Einspeisevergütung nach § 48 Abs. 2 EEG aus photovoltaik.js, Strompreis aus
+// strompreis.js. Speicherpreise stehen hier nicht: Sie kommen aus dem Angebot
+// des Nutzers. Statt eines erfundenen Marktpreises zeigt die Seite, bis zu
+// welchem Preis je kWh sich ein Speicher überhaupt tragen kann.
 const STROMPREIS_CENT = STROMPREIS_CENT_PRO_KWH;
 const verguetungCent = verguetungProKwh(10) * 100;
-const dez = (n: number, stellen = 2) =>
-  n.toLocaleString('de-DE', { minimumFractionDigits: stellen, maximumFractionDigits: stellen });
-const euro = (n: number) => n.toLocaleString('de-DE', { maximumFractionDigits: 0 }) + ' Euro';
+const dez = (n: number, stellen = 2) => n.toLocaleString('de-DE', { minimumFractionDigits: stellen, maximumFractionDigits: stellen });
+const euro = (n: number) => n.toLocaleString('de-DE', { maximumFractionDigits: 0 }) + ' €';
 
-// Beispielszenarien der Ratgebertabelle – gerechnet mit demselben Modul wie
-// der Rechner oben, damit Tabelle und Ergebnis nicht auseinanderlaufen.
+// Preis je kWh Kapazität, bei dem sich der Speicher nach `jahre` Jahren
+// gerade bezahlt hat – ohne Zinsen, Alterung und Strompreisänderung.
+const breakEven = (ersparnis: number, speicher: number, jahre: number) => (speicher > 0 ? (ersparnis * jahre) / speicher : 0);
+
 const szenarien = [
-  { name: '4-Personen-Haushalt, 10 kWp PV', speicher: 10, pvLeistung: 10, verbrauch: 6000, investition: 7000 },
-  { name: '2-Personen-Haushalt, 7 kWp PV', speicher: 5, pvLeistung: 7, verbrauch: 3000, investition: 4000 },
-  { name: 'Einfamilienhaus + Waermepumpe, 12 kWp PV', speicher: 15, pvLeistung: 12, verbrauch: 9000, investition: 9500 },
-  { name: 'Kleiner Haushalt, 5 kWp PV', speicher: 5, pvLeistung: 5, verbrauch: 2500, investition: 4000 },
+  { name: '2 Personen, 3.000 kWh, 7 kWp', speicher: 5, pvLeistung: 7, verbrauch: 3000 },
+  { name: '4 Personen, 5.000 kWh, 10 kWp', speicher: 8, pvLeistung: 10, verbrauch: 5000 },
+  { name: 'Mit Wärmepumpe, 9.000 kWh, 12 kWp', speicher: 12, pvLeistung: 12, verbrauch: 9000 },
+  { name: 'Großer Speicher, kleiner Verbrauch: 2.500 kWh, 10 kWp', speicher: 10, pvLeistung: 10, verbrauch: 2500 },
+];
+const szenarioErgebnisse = szenarien.map((s) => ({
+  ...s,
+  r: berechneStromspeicher({ speicher: s.speicher, pvLeistung: s.pvLeistung, stromverbrauch: s.verbrauch, strompreis: STROMPREIS_CENT, speicherkosten: 0 }),
+}));
+const szenarienZeilen = szenarioErgebnisse
+  .map(({ name, speicher, r }) =>
+    '<tr><td>' + name + '</td><td>' + speicher + ' kWh</td><td>' + r.speicherKwh.toLocaleString('de-DE') + ' kWh</td><td>' + euro(r.ersparnis) + '</td><td>' + euro(breakEven(r.ersparnis, speicher, 10)) + '</td><td>' + euro(breakEven(r.ersparnis, speicher, 15)) + '</td></tr>')
+  .join('\n');
+const gross = szenarioErgebnisse[3];
+const mittel = szenarioErgebnisse[1];
+if (!(breakEven(gross.r.ersparnis, gross.speicher, 15) < breakEven(mittel.r.ersparnis, mittel.speicher, 15))) {
+  throw new Error('Stromspeicher: Ein überdimensionierter Speicher muss je kWh weniger tragen');
+}
+
+const faqs = [
+  { q: 'Wann amortisiert sich ein Stromspeicher?', a: `Das hängt am Preis Ihres Angebots. Jede gespeicherte Kilowattstunde bringt nicht den Strompreis, sondern dessen Abstand zur Einspeisevergütung: ${dez(STROMPREIS_CENT - verguetungCent)} ct. Ein 8-kWh-Speicher an einer 10-kWp-Anlage mit 5.000 kWh Verbrauch verschiebt rund ${mittel.r.speicherKwh.toLocaleString('de-DE')} kWh im Jahr und spart ${euro(mittel.r.ersparnis)}. Soll er sich in 15 Jahren bezahlt machen, darf er höchstens ${euro(breakEven(mittel.r.ersparnis, 8, 15))} je kWh Kapazität kosten – ohne Zinsen und Alterung gerechnet.` },
+  { q: 'Was bringt ein Speicher bei niedrigem Strompreis?', a: 'Weniger. Der Vorteil ist die Differenz aus Netzstrompreis und entgangener Einspeisevergütung – fällt der Strompreis, schrumpft diese Spanne unmittelbar und mit ihr der Preis, den ein Speicher kosten darf.' },
+  { q: 'Lohnt sich ein größerer Speicher?', a: `Nur bis zu dem Punkt, an dem er an den meisten Tagen noch geleert wird. Der Rechner begrenzt die tägliche Entladung auf den Verbrauch, der nicht direkt aus der Anlage gedeckt wird. Im Beispiel eines Haushalts mit 2.500 kWh und 10-kWh-Speicher bleibt ein Teil der Kapazität deshalb ungenutzt: Er dürfte für 15 Jahre nur ${euro(breakEven(gross.r.ersparnis, gross.speicher, 15))} je kWh kosten. Welche Größe sich für Ihre Werte trägt, zeigt die Speicher-Dimensionierung.` },
+  { q: 'Rentiert sich ein Speicher ohne PV-Anlage?', a: 'Nach dieser Rechnung nicht: Ohne Anlage gibt es keinen Überschuss, den der Speicher verschieben könnte. Ein Nutzen entsteht dann nur aus einem Tarif mit unterschiedlichen Preisen je Tageszeit, den der Rechner nicht abbildet.' },
+  { q: 'Was ist der Unterschied zwischen Autarkiegrad und Eigenverbrauchsquote?', a: 'Der Autarkiegrad ist der Anteil Ihres Verbrauchs, den Sie selbst decken. Die Eigenverbrauchsquote ist der Anteil des erzeugten Stroms, den Sie selbst nutzen. Bei großer Anlage und kleinem Verbrauch liegen beide weit auseinander.' },
 ];
 
-// Referenzfall für die FAQ: derselbe 10-kWh-Speicher wie in Zeile 1 der
-// Tabelle, damit die Antwort keine Amortisation behauptet, die der Rechner
-// darunter widerlegt.
-const referenz = berechneStromspeicher({
-  speicher: 10,
-  pvLeistung: 10,
-  stromverbrauch: 6000,
-  strompreis: STROMPREIS_CENT,
-  speicherkosten: 700,
-});
+const guideHtml = `<p>Ein Stromspeicher verdient nicht am Strom, den die Anlage erzeugt, sondern an der Umwidmung: Statt für ${dez(verguetungCent)} ct/kWh Einspeisevergütung nach § 48 Abs. 2 EEG (Anlagen bis 10 kWp) ins Netz zu gehen, ersetzt die gespeicherte Kilowattstunde am Abend Netzstrom zu ${dez(STROMPREIS_CENT)} ct/kWh (${STROMPREIS_QUELLE}). Die Differenz von ${dez(STROMPREIS_CENT - verguetungCent)} ct/kWh ist der wirtschaftliche Kern eines Speichers.</p>
 
-const szenarienZeilen = szenarien
-  .map((s) => {
-    const r = berechneStromspeicher({
-      speicher: s.speicher,
-      pvLeistung: s.pvLeistung,
-      stromverbrauch: s.verbrauch,
-      strompreis: STROMPREIS_CENT,
-      speicherkosten: s.investition / s.speicher,
-    });
-    const amortisation = r.amortisation === null ? 'nicht erreicht' : `${dez(r.amortisation, 1)} Jahre`;
-    return `<tr><td>${s.name}</td><td>${s.speicher} kWh</td><td>${euro(s.investition)}</td><td>${euro(r.ersparnis)}</td><td>${amortisation}</td></tr>`;
-  })
-  .join('\n');
+<h4>Bis zu welchem Preis sich ein Speicher trägt</h4>
+<p>Speicherpreise unterscheiden sich je Hersteller, Installation und Region stark; der Rechner nennt deshalb keinen Marktpreis, sondern rechnet mit dem Preis Ihres Angebots. Die Tabelle zeigt umgekehrt, wie viel ein Speicher je kWh Kapazität höchstens kosten darf, damit ihn die Ersparnis nach 10 oder 15 Jahren bezahlt hat:</p>
+<table>
+  <thead>
+    <tr><th>Szenario</th><th>Speicher</th><th>Verschoben/Jahr</th><th>Ersparnis/Jahr</th><th>Höchstpreis je kWh, 10 Jahre</th><th>15 Jahre</th></tr>
+  </thead>
+  <tbody>
+${szenarienZeilen}
+  </tbody>
+</table>
+
+<p><strong>Annahmen des Rechners:</strong> Strompreis ${dez(STROMPREIS_CENT)} ct/kWh, Einspeisevergütung ${dez(verguetungCent)} ct/kWh, Jahresertrag ${SPEZIFISCHER_ERTRAG} kWh je kWp, Round-Trip-Wirkungsgrad ${Math.round(SPEICHER_WIRKUNGSGRAD * 100)} %, ${SPEICHER_NUTZTAGE} Tage im Jahr mit genug Überschuss zum Laden, ohne Speicher direkt gedeckter Anteil des Verbrauchs ${Math.round(DIREKTVERBRAUCH_ANTEIL * 100)} %. Die letzten drei sind Planungsgrößen, keine Messwerte – ein Haushalt mit hohem Tagesverbrauch deckt mehr direkt und braucht den Speicher weniger. Nicht enthalten sind Zinsen, Strompreisänderungen und die Alterung des Speichers; die Höchstpreise sind deshalb eher zu hoch als zu niedrig.</p>
+
+<p><strong>Autarkiegrad und Eigenverbrauchsquote:</strong> Beide Zahlen werden ständig verwechselt. Der Autarkiegrad ist der Anteil Ihres <em>Verbrauchs</em>, den Sie selbst decken; die Eigenverbrauchsquote ist der Anteil des <em>erzeugten</em> Stroms, den Sie selbst nutzen. Wirtschaftlich zählt keine der beiden Prozentzahlen, sondern die Menge: Jede zusätzlich selbst genutzte Kilowattstunde bringt ${dez(STROMPREIS_CENT - verguetungCent)} ct.</p>
+
+<p><strong>Was im Angebot stehen sollte:</strong> Vergleichen Sie Angebote über den Preis je kWh <em>nutzbarer</em> Kapazität einschließlich Installation und gegebenenfalls Wechselrichter – nur dieser Preis lässt sich mit den Höchstpreisen oben vergleichen.</p>`;
 ---
 <Layout
   title={`Stromspeicher-Rechner ${year}`}
-  description="Stromspeicher-Rechner 2025: Amortisation, Eigenverbrauch und jaehrliche Ersparnis eines Batteriespeichers berechnen. Vergleich 5-15 kWh Speicher mit aktuellen Preisen ab 500 Euro/kWh."
+  description="Jährliche Ersparnis und Amortisation eines Batteriespeichers an der PV-Anlage – mit Einspeisevergütung nach EEG und dem Höchstpreis, zu dem sich ein Speicher trägt."
   canonicalPath="/energie/stromspeicher-rechner/"
   categoryColor={cat.color}
   categoryLight={cat.colorLight}
@@ -72,117 +89,76 @@ const szenarienZeilen = szenarien
   </div>
   <CalculatorShell
     calculator={calc}
-    intro="Berechnen Sie, ob sich ein Stromspeicher für Ihre PV-Anlage wirtschaftlich lohnt. So erfahren Sie die Amortisationszeit und die jährliche Ersparnis durch höheren Eigenverbrauch."
-    sourceNote="500-800€ pro kWh."
-    explanation="Stromspeicher kosten aktuell 500-800 Euro pro kWh nutzbarer Kapazität bei einer Lebensdauer von 15-20 Jahren. Ohne Speicher nutzen Sie nur ca. 30% Ihres PV-Stroms selbst, mit Speicher bis zu 70%."
-    faqs={[
-      { q: "Wann amortisiert sich ein Stromspeicher wirklich?", a: `Entscheidend ist nicht der Strompreis, sondern sein Abstand zur Einspeiseverguetung: ${dez(STROMPREIS_CENT - verguetungCent)} ct je gespeicherter Kilowattstunde. Ein 10-kWh-Speicher fuer ${euro(7000)} an einer 10-kWp-Anlage mit 6.000 kWh Jahresverbrauch verschiebt rund ${referenz.speicherKwh.toLocaleString('de-DE')} kWh im Jahr in den Eigenverbrauch und bringt damit ${euro(referenz.ersparnis)} pro Jahr – rechnerisch ${referenz.amortisation === null ? 'keine Amortisation' : dez(referenz.amortisation, 1) + ' Jahre'}. Ein hoeherer Strompreis oder ein guenstigerer Speicher verkuerzt das, eine kleinere Anlage verlaengert es. Nicht enthalten sind Strompreissteigerung, Zinsen und Speicheralterung.` }, { q: "Was bringt ein Speicher bei niedrigem Strompreis?", a: "Weniger, als oft gerechnet wird. Der Vorteil ist die Differenz aus Netzstrompreis und entgangener Einspeiseverguetung – faellt der Strompreis, schrumpft diese Spanne unmittelbar. Bei sehr niedrigen Preisen traegt allein der Speicher die Investition nicht mehr; dann zaehlen andere Gruende wie Notstromfaehigkeit oder Unabhaengigkeit vom Versorger." },
-      { q: "Rentiert sich Speicher ohne PV-Anlage?", a: "Nein. Ohne PV würde der Speicher nur nachts günstig laden (Nachtstrom-Tarife) – das lohnt sich nicht mehr, da Nachtstrom-Rabatte klein sind (~5-10% Unterschied zu Normaltarif). Speicher + PV ist die wirtschaftliche Kombination." },
-      { q: "Welche Zusatzkosten fallen für einen Speicher an?", a: "Installation/Elektriker: 500-1.500€. Wechselrichter für AC-gekoppelten Speicher: 2.000-4.000€ (optional, oft im Speicher-Komplettpaket). Wartung/Versicherung: ~50-100€/a. Diese Kosten sollten bei der Amortisationszeitberechnung berücksichtigt werden." },
-      { q: "Ist es billiger, einen Speicher später zu installieren?", a: "Nicht unbedingt. Speicherpreise fallen zwar, aber auch Strompreise steigen. Ein Speicher heute mit 10.000€ amortisiert sich, ein zukünftiger zu 7.000€ aber vielleicht nicht schneller – und Sie verpassen Einsparungen dazwischen. Faustregel: Kauf lohnt sich jetzt bei hohem Strompreis." },
-      { q: "Wie wirkt sich Strompreisanstieg auf die Amortisation aus?", a: "Strompreisanstieg +5%/a (realistisch): Nach 10 Jahren 50% höhere Strompreise, die Amortisationszeit verkürzt sich deutlich (von 18 auf 12-14 Jahre). Deshalb sollten Speicher realistisch mit zukünftigen, höheren Strompreisen kalkuliert werden." },
-      { q: "Kann ich mit Speicher autark vom Stromnetz leben?", a: "Nicht komplett. Ein 10-kWh-Speicher + 10-kWp-PV reicht für 2-3 Tage Autarkie. Im Winter oder längeren Schlechtwetter reicht es nicht. Volle Autarkie (365 Tage) würde 50-100 kWh Speicher benötigen (500.000€+). Realistisch: 80-90% Stromversorgung mit Speicher, Rest vom Netz." },
-      { q: "Welche Speichergroesse brauche ich fuer meinen Haushalt?", a: "Faustregel: Speicher in kWh = Jahresverbrauch geteilt durch 1.000. Bei 4.000 kWh Verbrauch also ein 4-5 kWh Speicher. Fuer maximalen Eigenverbrauch (70%+) sollte der Speicher dem 1,5-fachen Tagesverbrauch entsprechen: bei 4.000 kWh/Jahr sind das ca. 16 kWh/Tag, also 8-10 kWh Speicher." },
-      { q: "Wie lange haelt ein Stromspeicher?", a: "Moderne Lithium-Eisenphosphat-Speicher (LFP) halten 6.000-10.000 Zyklen, was bei einem Zyklus pro Tag 15-25 Jahre Lebensdauer bedeutet. Die meisten Hersteller geben 10-15 Jahre Garantie auf mindestens 70-80% Restkapazitaet. NMC-Speicher (aeltere Technologie) schaffen 3.000-5.000 Zyklen." },
-      { q: "Gibt es Foerderung fuer Stromspeicher 2025?", a: "Eine bundesweite Foerderung gibt es seit Ende des KfW-Programms 442 nicht mehr. Regionale Programme existieren aber weiterhin: z.B. Bayern (EnergieBonusBayern), Sachsen, Berlin und mehrere Stadtwerke bieten Zuschuesse von 100-200 Euro pro kWh. Pruefen Sie die Foerderdatenbank Ihrer Gemeinde oder des Bundeslandes." }
-    ]}
+    intro="Berechnen Sie, was ein Stromspeicher an Ihrer PV-Anlage im Jahr einspart, wann er sich zum Preis Ihres Angebots bezahlt macht und bis zu welchem Preis er sich überhaupt tragen kann."
+    sourceNote={`Einspeisevergütung nach § 48 Abs. 2 EEG, Strompreis nach ${STROMPREIS_QUELLE}, Jahresertrag ${SPEZIFISCHER_ERTRAG} kWh/kWp. Planungsannahmen: Wirkungsgrad ${Math.round(SPEICHER_WIRKUNGSGRAD * 100)} %, ${SPEICHER_NUTZTAGE} Ladetage, ${Math.round(DIREKTVERBRAUCH_ANTEIL * 100)} % Direktverbrauch. Der Speicherpreis ist Ihre Eingabe. Ohne Zinsen, Strompreisänderung und Alterung.`}
+    explanation="Ersparnis = zusätzlich selbst genutzte kWh × (Strompreis − Einspeisevergütung). Amortisation = Speicherpreis ÷ Ersparnis. Höchstpreis je kWh = Ersparnis × Jahre ÷ Kapazität."
+    faqs={faqs}
   >
     <div class="calc-form">
       <div class="calc-grid">
         <div class="calc-group">
-          <label for="speicher">Speichergröße (kWh)</label>
-          <input type="number" id="speicher" min="1" max="30" value="10" step="1" />
+          <label for="speicher">Nutzbare Speicherkapazität (kWh)</label>
+          <input type="number" id="speicher" min="0" max="50" value="8" step="0.5" />
         </div>
         <div class="calc-group">
           <label for="pv_leistung">PV-Leistung (kWp)</label>
-          <input type="number" id="pv_leistung" min="3" max="30" value="10" step="1" />
+          <input type="number" id="pv_leistung" min="0" max="30" value="10" step="0.5" />
         </div>
         <div class="calc-group">
           <label for="stromverbrauch">Jahresstromverbrauch (kWh)</label>
-          <input type="number" id="stromverbrauch" min="1000" max="20000" value="4000" step="100" />
+          <input type="number" id="stromverbrauch" min="0" max="30000" value="5000" step="100" />
         </div>
         <div class="calc-group">
           <label for="strompreis">Strompreis (ct/kWh)</label>
-          <input type="number" id="strompreis" min="20" max="60" value={STROMPREIS_CENT} step="0.5" />
+          <input type="number" id="strompreis" min="0" max="100" value={STROMPREIS_CENT} step="0.5" />
         </div>
         <div class="calc-group">
-          <label for="speicherkosten">Speicherkosten (€/kWh)</label>
-          <input type="number" id="speicherkosten" min="500" max="2000" value="1000" step="50" />
+          <label for="speicherkosten">Preis je kWh laut Angebot (€, optional)</label>
+          <input type="number" id="speicherkosten" min="0" max="5000" step="10" placeholder="—" />
         </div>
       </div>
 
       <div class="calc-result">
-        <div class="label">Jährliche Ersparnis</div>
+        <div class="label">Jährliche Ersparnis durch den Speicher</div>
         <div id="ersparnis">— €</div>
       </div>
-      <div id="details" style="margin-top:0.75rem;font-size:0.88rem;color:#666;display:flex;gap:1.5rem;flex-wrap:wrap;"></div>
+      <div id="details" style="margin-top:0.75rem;font-size:0.88rem;color:#555;display:flex;gap:0.35rem 1.5rem;flex-wrap:wrap;"></div>
     </div>
   </CalculatorShell>
 
+  <CalculatorGuide
+    title="Stromspeicher wirtschaftlich bewerten"
+    content={guideHtml}
+    relatedSlugs={['photovoltaik-rechner', 'solarspeicher-dimensionierung', 'waermepumpe-rechner']}
+  />
+</Layout>
+
 <script type="module">
 const { berechneStromspeicher } = await import(window.__base + 'scripts/stromspeicher.js');
-function fmt(n) { return n.toLocaleString('de-DE', {minimumFractionDigits:2, maximumFractionDigits:2}) + ' €'; }
+const eur = (n) => n.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
+const eur0 = (n) => n.toLocaleString('de-DE', { maximumFractionDigits: 0 }) + ' €';
+const wert = (id) => parseFloat(document.getElementById(id).value) || 0;
 function berechne() {
-  const speicher = parseFloat(document.getElementById('speicher').value)||10;
-  const pvLeistung = parseFloat(document.getElementById('pv_leistung').value)||10;
-  const stromverbrauch = parseFloat(document.getElementById('stromverbrauch').value)||4000;
-  const strompreis = parseFloat(document.getElementById('strompreis').value)||35;
-  const speicherkosten = parseFloat(document.getElementById('speicherkosten').value)||1000;
-  const r = berechneStromspeicher({ speicher, pvLeistung, stromverbrauch, strompreis, speicherkosten });
-  document.getElementById('ersparnis').textContent = fmt(r.ersparnis);
-  document.getElementById('details').innerHTML =
-    `<span>Jahresvorteil ohne Speicher: <strong>${fmt(r.ohneSpeicher)}</strong></span>` +
-    `<span>Jahresvorteil mit Speicher: <strong>${fmt(r.mitSpeicher)}</strong></span>` +
-    `<span>Autarkiegrad: <strong>${r.autarkiegrad}%</strong> des Verbrauchs</span>` +
-    `<span>Eigenverbrauchsquote: <strong>${r.eigenverbrauchsquote}%</strong> des Ertrags</span>` +
-    `<span>Einspeisevergütung: <strong>${r.verguetungCentProKwh.toLocaleString('de-DE', {minimumFractionDigits:2})} ct/kWh</strong></span>` +
-    `<span>Investition: <strong>${fmt(r.investition)}</strong></span>` +
-    `<span>Amortisation: <strong>${r.amortisation === null ? 'nicht erreicht' : r.amortisation.toLocaleString('de-DE', {maximumFractionDigits:1}) + ' Jahre'}</strong></span>`;
+  const speicher = wert('speicher');
+  const r = berechneStromspeicher({
+    speicher, pvLeistung: wert('pv_leistung'), stromverbrauch: wert('stromverbrauch'),
+    strompreis: wert('strompreis'), speicherkosten: wert('speicherkosten'),
+  });
+  document.getElementById('ersparnis').textContent = eur(r.ersparnis);
+  const teile = [
+    `<span>Zusätzlich selbst genutzt: <strong>${r.speicherKwh.toLocaleString('de-DE')} kWh/Jahr</strong></span>`,
+    `<span>Autarkiegrad: <strong>${r.autarkiegrad} %</strong> des Verbrauchs</span>`,
+    `<span>Eigenverbrauchsquote: <strong>${r.eigenverbrauchsquote} %</strong> des Ertrags</span>`,
+    `<span>Einspeisevergütung: <strong>${r.verguetungCentProKwh.toLocaleString('de-DE', { minimumFractionDigits: 2 })} ct/kWh</strong></span>`,
+  ];
+  if (speicher > 0) {
+    teile.push(`<span>Höchstpreis je kWh für 10 Jahre: <strong>${eur0((r.ersparnis * 10) / speicher)}</strong>, für 15 Jahre: <strong>${eur0((r.ersparnis * 15) / speicher)}</strong></span>`);
+  }
+  if (r.investition > 0) {
+    teile.push(`<span>Investition: <strong>${eur0(r.investition)}</strong>, Amortisation: <strong>${r.amortisation === null ? 'nicht erreicht' : r.amortisation.toLocaleString('de-DE', { maximumFractionDigits: 1 }) + ' Jahre'}</strong></span>`);
+  }
+  document.getElementById('details').innerHTML = teile.join('');
 }
-['speicher','pv_leistung','stromverbrauch','strompreis','speicherkosten'].forEach(id =>
-  document.getElementById(id).addEventListener('input', berechne));
+document.querySelectorAll('.calc-form input').forEach((el) => el.addEventListener('input', berechne));
 berechne();
 </script>
-
-<CalculatorGuide
-  title="Stromspeicher wirtschaftlich bewerten"
-  content={`<p>Ein Stromspeicher macht Solaranlagen wirtschaftlicher, indem er PV-Ueberschuss fuer Abend und Nacht nutzbar macht. Statt ${dez(verguetungCent)} ct/kWh Einspeiseverguetung nach § 48 Abs. 2 EEG (Anlagen bis 10 kWp) sparen Sie den Netzstrom, der im Bundesdurchschnitt ${dez(STROMPREIS_CENT)} ct/kWh kostet. Die Differenz von ${dez(STROMPREIS_CENT - verguetungCent)} ct/kWh pro gespeicherter Kilowattstunde ist der wirtschaftliche Kern eines Speichers – nicht derStrompreis selbst.</p>
-
-<h4>Stromspeicher-Vergleich: Beliebte Modelle 2025</h4>
-<table>
-  <thead>
-    <tr><th>Modell</th><th>Kapazitaet</th><th>Technologie</th><th>Preis ca.</th><th>Garantie</th></tr>
-  </thead>
-  <tbody>
-    <tr><td>BYD HVS 5.1</td><td>5,1 kWh</td><td>LFP</td><td>3.200 Euro</td><td>10 Jahre</td></tr>
-    <tr><td>BYD HVS 10.2</td><td>10,2 kWh</td><td>LFP</td><td>5.800 Euro</td><td>10 Jahre</td></tr>
-    <tr><td>Huawei LUNA2000 5</td><td>5 kWh</td><td>LFP</td><td>3.000 Euro</td><td>10 Jahre</td></tr>
-    <tr><td>Huawei LUNA2000 10</td><td>10 kWh</td><td>LFP</td><td>5.500 Euro</td><td>10 Jahre</td></tr>
-    <tr><td>Tesla Powerwall 3</td><td>13,5 kWh</td><td>LFP</td><td>8.500 Euro</td><td>10 Jahre</td></tr>
-    <tr><td>Senec Home 4</td><td>10 kWh</td><td>LFP</td><td>7.000 Euro</td><td>15 Jahre</td></tr>
-    <tr><td>sonnen Batterie 10</td><td>11 kWh</td><td>LFP</td><td>9.500 Euro</td><td>10 Jahre</td></tr>
-  </tbody>
-</table>
-
-<h4>Amortisationsrechnung: Beispielszenarien</h4>
-<table>
-  <thead>
-    <tr><th>Szenario</th><th>Speicher</th><th>Investition</th><th>Zusatzersparnis/Jahr</th><th>Amortisation</th></tr>
-  </thead>
-  <tbody>
-${szenarienZeilen}
-  </tbody>
-</table>
-
-<p><strong>Annahmen:</strong> Strompreis ${STROMPREIS_CENT} ct/kWh, Einspeiseverguetung ${dez(verguetungCent)} ct/kWh nach § 48 Abs. 2 EEG, Speicher-Wirkungsgrad ${Math.round(SPEICHER_WIRKUNGSGRAD * 100)} %, Autarkiegrad steigt von ${Math.round(DIREKTVERBRAUCH_ANTEIL * 100)} % ohne Speicher auf 55 bis 75 % mit Speicher.</p>
-
-<p><strong>Autarkiegrad und Eigenverbrauchsquote:</strong> Beide Zahlen werden staendig verwechselt. Der Autarkiegrad ist der Anteil Ihres <em>Verbrauchs</em>, den Sie selbst decken; die Eigenverbrauchsquote ist der Anteil des <em>erzeugten</em> Stroms, den Sie selbst nutzen. Ohne Speicher liegt der Autarkiegrad bei rund ${Math.round(DIREKTVERBRAUCH_ANTEIL * 100)} %, mit passendem Speicher bei 55 bis 75 %. Wirtschaftlich zaehlt aber weder die eine noch die andere Prozentzahl, sondern die Menge: Jede zusaetzlich selbst genutzte Kilowattstunde bringt ${dez(STROMPREIS_CENT - verguetungCent)} ct Vorteil – ${STROMPREIS_CENT} ct ersparter Zukauf abzueglich ${dez(verguetungCent)} ct entgangener Verguetung.</p>
-
-<p><strong>Gesamtkosten richtig kalkulieren:</strong> Zum reinen Speicherpreis kommen hinzu: Installation und Elektriker (800-1.500 Euro), ggf. Hybrid-Wechselrichter (1.500-3.000 Euro falls nicht vorhanden), Notstromfunktion optional (500-1.000 Euro Aufpreis). Rechnen Sie mit 20-30% Aufschlag auf den reinen Speicherpreis fuer die Gesamtinstallation.</p>
-
-<p><strong>Speichertechnologien 2025:</strong> Lithium-Eisenphosphat (LFP) hat sich als Standard durchgesetzt: 6.000-10.000 Zyklen Lebensdauer, kein thermisches Durchgehen, wartungsfrei. NMC-Speicher (aeltere Technologie) bieten hoehere Energiedichte, aber kuerzere Lebensdauer (3.000-5.000 Zyklen). Salzwasserspeicher und Redox-Flow-Batterien sind Nischenprodukte fuer Gewerbe.</p>
-
-<p><strong>Wann sich ein Speicher besonders lohnt:</strong> Ein Strompreis oberhalb des Durchschnitts von ${dez(STROMPREIS_CENT)} ct/kWh, regelmaessiger Abendverbrauch (Kochen, Waschen, E-Auto laden nachts), PV-Anlage mit mindestens 7 kWp, und wenn kein dynamischer Stromtarif genutzt wird. Bei Kombination mit Waermepumpe steigt die Wirtschaftlichkeit deutlich.</p>`}
-  relatedSlugs={['photovoltaik-rechner', 'solarspeicher-dimensionierung', 'waermepumpe-rechner']}
-/>
-</Layout>

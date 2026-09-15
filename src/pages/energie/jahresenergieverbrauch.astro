@@ -6,22 +6,77 @@ import { CALCULATORS, CATEGORIES } from '../../data/calculators';
 import {
   STROMPREIS_CENT_PRO_KWH,
   STROMPREIS_QUELLE,
-  stromkostenProJahr,
+  STROMPREIS_REFERENZVERBRAUCH_KWH,
+  WAERMEPUMPENSTROM_CENT_PRO_KWH,
 } from '../../../public/scripts/strompreis.js';
-import { BRENNSTOFFE } from '../../../public/scripts/heizkosten.js';
+import { BRENNSTOFFE, HEIZKOSTEN_STAND, kwhJeLiterHeizoel } from '../../../public/scripts/heizkosten.js';
+import {
+  berechneJahresenergie,
+  EFFIZIENZKLASSEN,
+  NUTZFLAECHE_FAKTOR,
+  ZUSCHLAG_DEZENTRALES_WARMWASSER,
+} from '../../../public/scripts/jahresenergie.js';
 const calc = CALCULATORS.find(c => c.slug === 'jahresenergieverbrauch')!;
 const cat = CATEGORIES[calc.category];
 const year = new Date().getFullYear();
 
-// Diese Seite stellt Strom und Wärme nebeneinander. Beide Preise kommen aus
-// den Modulen, die auch die jeweiligen Rechner speisen.
-const GASPREIS_CENT = BRENNSTOFFE.gas.arbeitspreisCent;
-const ct = (b: number) => b.toLocaleString('de-DE', { minimumFractionDigits: 1, maximumFractionDigits: 2 });
-const euro = (b: number) => b.toLocaleString('de-DE', { maximumFractionDigits: 0 }) + ' €';
+const eur = (n: number) => n.toLocaleString('de-DE', { maximumFractionDigits: 0 }) + ' €';
+const ct = (n: number) => n.toLocaleString('de-DE', { maximumFractionDigits: 1 });
+const dez = (n: number, s = 2) => n.toLocaleString('de-DE', { minimumFractionDigits: s, maximumFractionDigits: s });
+const stand = HEIZKOSTEN_STAND.split('-').reverse().join('/');
+
+// Vorbelegte Preise je Einheit aus den Modulen. Heizöl rechnet heizkosten.js
+// je kWh; auf der Rechnung steht der Literpreis.
+const OEL_CENT_JE_LITER = Math.round(BRENNSTOFFE.heizoel.arbeitspreisCent * kwhJeLiterHeizoel());
+const PREISE = {
+  gas: BRENNSTOFFE.gas.arbeitspreisCent,
+  heizoel: OEL_CENT_JE_LITER,
+  fernwaerme: BRENNSTOFFE.fernwaerme.arbeitspreisCent,
+  waermepumpe: WAERMEPUMPENSTROM_CENT_PRO_KWH,
+};
+
+// Beispiel: dieselbe Heizmenge in einer 100-m²-Wohnung und in einem Haus mit
+// beheiztem Keller – zeigt, wie stark der Flächenfaktor die Klasse verschiebt.
+const bspWohnung = berechneJahresenergie({ strom: {}, heizung: { traeger: 'gas', menge: 13000, preisCentJeEinheit: PREISE.gas }, wohnflaeche: 100 });
+const bspHaus = berechneJahresenergie({ strom: {}, heizung: { traeger: 'gas', menge: 13000, preisCentJeEinheit: PREISE.gas }, wohnflaeche: 100, mitBeheiztemKeller: true });
+const bspDezentral = berechneJahresenergie({ strom: {}, heizung: { traeger: 'gas', menge: 13000, preisCentJeEinheit: PREISE.gas }, wohnflaeche: 100, dezentralesWarmwasser: true });
+if (!bspWohnung.kennwert || !bspHaus.kennwert || bspHaus.kennwert.kwhJeQm >= bspWohnung.kennwert.kwhJeQm) {
+  throw new Error('Jahresenergie: Beispiel widerspricht § 82 Abs. 2 GModG');
+}
+
+const klassenZeilen = EFFIZIENZKLASSEN.map((k, i) => {
+  const von = i === 0 ? '' : 'über ' + EFFIZIENZKLASSEN[i - 1].bis + ' ';
+  const bis = Number.isFinite(k.bis) ? 'bis ' + k.bis : '';
+  return '<tr><td>' + k.klasse + '</td><td>' + (von + bis).trim() + '</td></tr>';
+}).join('');
+
+const guideHtml = `
+<h3>Der Verbrauch steht auf der Abrechnung</h3>
+<p>Wie viel Energie ein Haushalt verbraucht, lässt sich nicht aus Personenzahl oder Baujahr ableiten – zu unterschiedlich sind Gebäude, Geräte und Gewohnheiten. Die Jahresabrechnungen nennen die Mengen genau: Kilowattstunden Strom, Kilowattstunden Gas oder Fernwärme, Liter Heizöl und Kubikmeter Wasser, jeweils mit Arbeits- und Grundpreis. Genau diese Werte fragt der Rechner ab.</p>
+<p>Vorbelegt sind ${STROMPREIS_REFERENZVERBRAUCH_KWH.toLocaleString('de-DE')} kWh Strom, der Referenzverbrauch der ${STROMPREIS_QUELLE}, zum dortigen Durchschnittspreis von ${ct(STROMPREIS_CENT_PRO_KWH)} ct/kWh. Die Heizpreise sind datierte Marktannahmen (Stand ${stand}): Erdgas ${ct(PREISE.gas)} ct/kWh, Heizöl ${OEL_CENT_JE_LITER} ct/Liter, Fernwärme ${ct(PREISE.fernwaerme)} ct/kWh, Wärmepumpenstrom ${ct(PREISE.waermepumpe)} ct/kWh. Ersetzen Sie alle Werte durch die Ihrer Rechnungen. Für Wasser gibt es keinen bundesweiten Preis; die Zeile zählt nur mit, wenn Sie Menge und Preis eintragen.</p>
+<p>Heizöl wird auf Kilowattstunden umgerechnet, damit sich der Verbrauch mit Gas oder Fernwärme vergleichen lässt. Ein Liter Heizöl EL enthält nach den Standardwerten der EBeV 2030 ${dez(kwhJeLiterHeizoel())} kWh.</p>
+
+<h3>Einordnung wie im Energieverbrauchsausweis</h3>
+<p>Der Energieverbrauchsausweis gibt den Verbrauch für Heizung und Warmwasser je Quadratmeter Gebäudenutzfläche an (§ 82 Abs. 2 GModG). Diese Fläche ist größer als die Wohnfläche. Ist sie nicht bekannt, darf sie bei Wohngebäuden mit bis zu zwei Wohneinheiten und beheiztem Keller mit dem ${dez(NUTZFLAECHE_FAKTOR.mitBeheiztemKeller)}-Fachen, sonst mit dem ${dez(NUTZFLAECHE_FAKTOR.sonstige, 1)}-Fachen der Wohnfläche angesetzt werden. Wird das Warmwasser dezentral erzeugt, etwa per Durchlauferhitzer, und ist dessen Verbrauch unbekannt, kommen ${ZUSCHLAG_DEZENTRALES_WARMWASSER} kWh je Quadratmeter hinzu.</p>
+<p>Wie viel das ausmacht, zeigt ein Beispiel mit 13.000 kWh Gas und 100 m² Wohnfläche: In einer Wohnung sind das ${bspWohnung.kennwert.kwhJeQm} kWh/m² und Klasse ${bspWohnung.kennwert.klasse}, im Einfamilienhaus mit beheiztem Keller ${bspHaus.kennwert.kwhJeQm} kWh/m² und Klasse ${bspHaus.kennwert.klasse}. Mit dezentralem Warmwasser wird die Wohnung zu ${bspDezentral.kennwert.kwhJeQm} kWh/m² und Klasse ${bspDezentral.kennwert.klasse}.</p>
+<table>
+<thead><tr><th>Klasse</th><th>kWh je m² Nutzfläche und Jahr</th></tr></thead>
+<tbody>${klassenZeilen}</tbody>
+</table>
+<p>Die Klassen stammen aus Anlage 10 GModG. Ein Ausweiswert ist das Ergebnis trotzdem nicht: § 82 Abs. 3 GModG verlangt eine Witterungsbereinigung des Heizverbrauchs, die ein kalter oder milder Winter sonst verzerrt. Vergleichen Sie deshalb mehrere Jahre miteinander.</p>
+`;
+
+const faqs = [
+  { q: 'Woher bekomme ich meine Verbrauchswerte?', a: 'Aus den Jahresabrechnungen von Stromversorger, Gasversorger oder Fernwärmeanbieter, aus Heizöl-Lieferscheinen und aus der Wasserabrechnung. Mieter finden Heizung und Wasser in der Betriebs- und Heizkostenabrechnung.' },
+  { q: 'Welche Effizienzklassen gibt es?', a: 'Anlage 10 GModG kennt neun Klassen: A+ bis 30, A bis 50, B bis 75, C bis 100, D bis 130, E bis 160, F bis 200, G bis 250 und H über 250 kWh je Quadratmeter Gebäudenutzfläche und Jahr.' },
+  { q: 'Warum rechnet der Rechner mit mehr Fläche als meiner Wohnfläche?', a: `Weil der Energieausweis die Gebäudenutzfläche verwendet. Ist sie unbekannt, erlaubt § 82 Abs. 2 GModG den Ansatz mit dem ${dez(NUTZFLAECHE_FAKTOR.sonstige, 1)}-Fachen der Wohnfläche, bei höchstens zwei Wohneinheiten mit beheiztem Keller mit dem ${dez(NUTZFLAECHE_FAKTOR.mitBeheiztemKeller)}-Fachen.` },
+  { q: 'Ist das Ergebnis mein Energieausweis-Wert?', a: 'Nein. Der Ausweis bereinigt den Heizverbrauch um die Witterung (§ 82 Abs. 3 GModG) und nutzt in der Regel mehrere Abrechnungsjahre. Der Rechner ordnet ein einzelnes Jahr ohne Bereinigung ein.' },
+  { q: 'Warum kann ich keine Pellets auswählen?', a: 'Pellets werden in Kilogramm oder Tonnen abgerechnet, und für die Umrechnung in Kilowattstunden hat der Rechner keinen belegten Standardwert. Liegt Ihnen der Verbrauch in kWh vor, wählen Sie Fernwärme als Rechenweg.' },
+];
 ---
 <Layout
   title={`Jahresenergieverbrauch ${year}`}
-  description="Strom-, Gas- und Wasserverbrauch deines Haushalts berechnen – mit Vergleich zum Durchschnitt."
+  description="Strom, Heizung und Wasser aus den eigenen Abrechnungen zusammenrechnen und den Heizverbrauch nach § 82 GModG und Anlage 10 in eine Effizienzklasse einordnen."
   canonicalPath="/energie/jahresenergieverbrauch/"
   categoryColor={cat.color}
   categoryLight={cat.colorLight}
@@ -31,190 +86,116 @@ const euro = (b: number) => b.toLocaleString('de-DE', { maximumFractionDigits: 0
     <a href={`${import.meta.env.BASE_URL}energie/`} class="back-link">← Energie</a>
     <h1>Jahresenergieverbrauch {year}</h1>
   </div>
-   <CalculatorShell
-     calculator={calc}
-     intro="Schätzen Sie den Jahresenergieverbrauch Ihres Haushalts für Strom, Gas und Wasser. So erkennen Sie, ob Ihr Verbrauch über dem Durchschnitt liegt und wo Sie sparen können."
-     sourceNote="Strom, Gas, Wasser."
-     explanation="Der Verbrauch wird anhand deutscher Durchschnittswerte für verschiedene Haushaltsgrößen geschätzt. Ein 2-Personen-Haushalt verbraucht im Schnitt 2.500 kWh Strom und 12.000 kWh Gas pro Jahr."
-      faqs={[
-        { q: "Wie vergleiche ich meinen Verbrauch mit dem Durchschnitt?", a: "Durchschnittswerte: Strom 1-Person 1.500 kWh/a, 2-Person 2.500 kWh/a, 4-Person 3.500 kWh/a. Gas 1-Person 5.000 kWh/a, 4-Person 20.000 kWh/a (unsaniert). Sparhaushalte sind 20-30% unter diesen Werten." },
-        { q: "Warum ist mein Verbrauch höher als der Durchschnitt?", a: "Mögliche Gründe: Schlechte Dämmung (vor 1978), alte Heizung, zu hohe Raumtemperatur (jedes °C +6%), alte/viele Elektrogeräte, häufige Dusche/Bad. Ein hydraulischer Abgleich oder Heizungsprüfung kann schon 10-20% sparen." },
-        { q: "Wie zuverlässig sind die prognostizierten Verbrauchswerte?", a: "Sehr zuverlässig für den Wärmebedarf (±10-15% Unsicherheit), da dieser von Gebäudephysik bestimmt wird. Stromverbrauch hängt mehr von Nutzerverhalten ab (±20-30%). Witterung kann Jahr zu Jahr stark variieren (kalter Winter +20%)." },
-        { q: "Kann ich meinen Energieverbrauch senken, ohne die Heizung zu wechseln?", a: "Ja, mit einfachen Maßnahmen: 1°C Temperatursenkung = 6-8%, Fenster abdichten (2-5%), Duschköpfe-Sparaufsätze (10-15% Wasser), alte Heizpumpe prüfen (5%). Größere Effekte: Isolierung von Heizungsrohren (10%), Heizkörper-Thermostaten (5-10%)." },
-        { q: "Wie viel kostet mich eine kWh Energie durchschnittlich?", a: `Strom kostet im Haushaltsdurchschnitt ${ct(STROMPREIS_CENT_PRO_KWH)} ct/kWh (${STROMPREIS_QUELLE}), Erdgas rund ${ct(GASPREIS_CENT)} ct/kWh, Wasser 2 bis 3 Euro je Kubikmeter. Für einen Haushalt mit 2.500 kWh Strom und 15.000 kWh Gas ergibt das ${euro(stromkostenProJahr({ verbrauchKwh: 2500 }).jahr + (15000 * GASPREIS_CENT) / 100)} im Jahr. Regional und je Vertrag weichen die Preise erheblich ab.` },
-        { q: "Wie schnell amortisiert sich eine Energiesparberatung?", a: "Eine professionelle Energieberatung vor Ort kostet nach BAFA-Förderung (bis zu 80 % Zuschuss, gedeckelt) für Eigentümer meist nur noch 30 bis 100 Euro Eigenanteil. Sie führt oft zu 15-25 % Einsparung und amortisiert sich damit in der Regel innerhalb von 1 bis 2 Jahren." },
-        { q: "Wie viel Strom verbraucht ein Haushalt pro Person?", a: "Als Richtwert gelten rund 1.500 kWh für den ersten Haushaltsmitglied und je etwa 800-1.000 kWh für jede weitere Person, da sich Grundlasten wie Kühlschrank oder Router teilen. Ein 1-Personen-Haushalt liegt so bei ca. 1.500 kWh, ein 4-Personen-Haushalt bei rund 3.500-4.000 kWh pro Jahr." },
-        { q: "Erhöht elektrische Warmwasserbereitung meinen Stromverbrauch stark?", a: "Ja, deutlich. Wird das Warmwasser über einen elektrischen Durchlauferhitzer oder Boiler erzeugt statt über die Zentralheizung, kommen pro Person etwa 500-800 kWh Strom pro Jahr hinzu. Ein 3-Personen-Haushalt kann dadurch 1.500-2.400 kWh mehr Strom verbrauchen." },
-        { q: "Wie hoch ist der Heizenergiebedarf pro Quadratmeter?", a: "Das hängt stark vom Baustandard ab: unsanierte Altbauten (vor 1978) benötigen 150-250 kWh/m² pro Jahr, Gebäude der 1980er/90er rund 100 kWh/m², moderne Neubauten 50-70 kWh/m² und KfW-Effizienz- oder Passivhäuser nur 15-40 kWh/m². Multipliziert mit der Wohnfläche ergibt das den Jahres-Heizwärmebedarf." }
-      ]}
-   >
+  <CalculatorShell
+    calculator={calc}
+    intro="Tragen Sie die Mengen und Preise aus Ihren Jahresabrechnungen ein. Der Rechner zeigt die Energiekosten des Haushalts und ordnet den Heizverbrauch so ein, wie es der Energieverbrauchsausweis tut."
+    sourceNote={`Mengen und Preise sind Ihre Eingaben. Vorbelegung: Strom ${ct(STROMPREIS_CENT_PRO_KWH)} ct/kWh und ${STROMPREIS_REFERENZVERBRAUCH_KWH.toLocaleString('de-DE')} kWh nach ${STROMPREIS_QUELLE}; Heizpreise als Marktannahme Stand ${stand}. Heizöl ${dez(kwhJeLiterHeizoel())} kWh/l nach EBeV 2030 Anlage 2. Kennwert und Klasse nach § 82 Abs. 2 und Anlage 10 GModG (abgerufen am 15.09.2026), ohne Witterungsbereinigung.`}
+    explanation={`Kennwert = Heizenergie in kWh ÷ Gebäudenutzfläche (Wohnfläche × ${dez(NUTZFLAECHE_FAKTOR.sonstige, 1)} bzw. × ${dez(NUTZFLAECHE_FAKTOR.mitBeheiztemKeller)}), bei dezentralem Warmwasser + ${ZUSCHLAG_DEZENTRALES_WARMWASSER} kWh/m².`}
+    faqs={faqs}
+  >
     <div class="calc-form">
       <div class="calc-grid">
         <div class="calc-group">
-          <label for="personen">Anzahl Personen im Haushalt</label>
-          <input type="number" id="personen" min="1" max="10" value="2" step="1" />
+          <label for="strom_kwh">Strom (kWh/Jahr)</label>
+          <input type="number" id="strom_kwh" min="0" max="100000" value={STROMPREIS_REFERENZVERBRAUCH_KWH} step="50" />
         </div>
         <div class="calc-group">
-          <label for="wohnflaeche">Wohnfläche (m²)</label>
-          <input type="number" id="wohnflaeche" min="20" max="300" value="80" step="5" />
+          <label for="strom_preis">Strom-Arbeitspreis (ct/kWh)</label>
+          <input type="number" id="strom_preis" min="0" max="200" value={STROMPREIS_CENT_PRO_KWH} step="0.1" />
         </div>
         <div class="calc-group">
-          <label for="baujahr">Baujahr des Gebäudes</label>
-          <select id="baujahr">
-            <option value="vor1978">vor 1978 (unsaniert)</option>
-            <option value="1979-1995" selected>1979-1995</option>
-            <option value="1996-2009">1996-2009</option>
-            <option value="nach2010">nach 2010 (effizient)</option>
-            <option value="nach2020">nach 2020 (KfW/Effizienzhaus)</option>
+          <label for="strom_grund">Strom-Grundpreis (€/Jahr)</label>
+          <input type="number" id="strom_grund" min="0" max="2000" value="0" step="5" />
+        </div>
+        <div class="calc-group">
+          <label for="traeger">Heizung</label>
+          <select id="traeger" data-preise={JSON.stringify(PREISE)}>
+            <option value="gas" selected>Erdgas (kWh)</option>
+            <option value="heizoel">Heizöl (Liter)</option>
+            <option value="fernwaerme">Fernwärme (kWh)</option>
+            <option value="waermepumpe">Wärmepumpe (kWh Strom)</option>
           </select>
         </div>
         <div class="calc-group">
-          <label for="warmewasser">Warmwasseraufbereitung</label>
-          <select id="warmewasser">
-            <option value="zentral" selected>Zentral über Heizung</option>
-            <option value="dezentral">Dezentral (Durchlauferhitzer)</option>
-            <option value="solar">Solarunterstützt</option>
-          </select>
+          <label for="heiz_menge">Heizenergie laut Abrechnung (<span id="einheit">kWh</span>/Jahr)</label>
+          <input type="number" id="heiz_menge" min="0" max="500000" value="12000" step="100" />
+        </div>
+        <div class="calc-group">
+          <label for="heiz_preis">Heiz-Arbeitspreis (ct je <span id="einheit2">kWh</span>)</label>
+          <input type="number" id="heiz_preis" min="0" max="500" value={PREISE.gas} step="0.1" />
+        </div>
+        <div class="calc-group">
+          <label for="heiz_grund">Heiz-Grundpreis (€/Jahr)</label>
+          <input type="number" id="heiz_grund" min="0" max="5000" value="0" step="5" />
+        </div>
+        <div class="calc-group">
+          <label for="wasser_m3">Wasser (m³/Jahr, optional)</label>
+          <input type="number" id="wasser_m3" min="0" max="10000" step="1" placeholder="—" />
+        </div>
+        <div class="calc-group">
+          <label for="wasser_preis">Wasser und Abwasser (€/m³, optional)</label>
+          <input type="number" id="wasser_preis" min="0" max="50" step="0.01" placeholder="—" />
+        </div>
+        <div class="calc-group">
+          <label for="flaeche">Wohnfläche (m², für die Einordnung)</label>
+          <input type="number" id="flaeche" min="0" max="2000" value="100" step="1" />
+        </div>
+        <div class="calc-group">
+          <label><input type="checkbox" id="keller" style="width:auto;margin-right:0.4rem;" />Höchstens zwei Wohneinheiten mit beheiztem Keller</label>
+          <label><input type="checkbox" id="dezentral" style="width:auto;margin-right:0.4rem;" />Warmwasser dezentral (z. B. Durchlauferhitzer)</label>
         </div>
       </div>
-       <div class="calc-result">
-         <div class="label">Gesamtenergiekosten pro Jahr</div>
-         <div id="ergebnis">— €</div>
-         <div class="result-actions">
-           <button 
-             data-copy-result="#ergebnis" 
-             class="btn-copy"
-             title="Resultat kopieren"
-           >
-             📋 Kopieren
-           </button>
-           <button 
-             data-save-pdf="#ergebnis" 
-             class="btn-pdf"
-             title="Als PDF speichern"
-           >
-             📄 PDF
-           </button>
-         </div>
-       </div>
-      <div id="details" style="margin-top:0.75rem;font-size:0.88rem;color:#666;display:flex;gap:1.5rem;flex-wrap:wrap;"></div>
+      <div class="calc-result">
+        <div class="label">Energiekosten im Jahr</div>
+        <div id="ergebnis">— €</div>
+      </div>
+      <div id="details" style="margin-top:0.75rem;font-size:0.9rem;color:#555;display:flex;flex-direction:column;gap:0.3rem;"></div>
     </div>
   </CalculatorShell>
 
+  <CalculatorGuide
+    title="Energieverbrauch aus der Abrechnung einordnen"
+    content={guideHtml}
+    relatedSlugs={['heizkosten-rechner', 'stromkosten-rechner', 'energieausweis-vorberechnung']}
+  />
+</Layout>
+
 <script type="module">
+const { berechneJahresenergie, HEIZENERGIETRAEGER } = await import(window.__base + 'scripts/jahresenergie.js');
+const eur = (n) => n.toLocaleString('de-DE', { maximumFractionDigits: 0 }) + ' €';
+const wert = (id) => parseFloat(document.getElementById(id).value) || 0;
+const traegerFeld = document.getElementById('traeger');
+const PREISE = JSON.parse(traegerFeld.dataset.preise);
 function berechne() {
-  const personen = parseInt(document.getElementById('personen').value) || 2;
-  const wohnflaeche = parseFloat(document.getElementById('wohnflaeche').value) || 80;
-  const baujahr = document.getElementById('baujahr').value;
-  const warmewasser = document.getElementById('warmewasser').value;
-  
-  // Grundverbrauchswerte (Durchschnitt Deutschland)
-  const stromProPerson = 750; // kWh/Jahr pro Person
-  const wasserProPersonProTag = 125; // Liter/Tag pro Person
-  
-  // Heizwärmebedarf abhängig von Baujahr und Wohnfläche
-  let spezHeizwaermeBedarf;
-  switch (baujahr) {
-    case 'vor1978': spezHeizwaermeBedarf = 160; break; // kWh/(m²·a)
-    case '1979-1995': spezHeizwaermeBedarf = 100; break;
-    case '1996-2009': spezHeizwaermeBedarf = 70; break;
-    case 'nach2010': spezHeizwaermeBedarf = 50; break;
-    case 'nach2020': spezHeizwaermeBedarf = 35; break;
-    default: spezHeizwaermeBedarf = 80;
-  }
-  
-  // Warmwasserzuschlag
-  const wwZuschlag = warmewasser === 'dezentral' ? 1.3 : 
-                     warmewasser === 'solar' ? 0.7 : 1.0;
-  
-  // Berechnungen
-  const jahresStrom = personen * stromProPerson;
-  const jahresWasserLiter = personen * wasserProPersonProTag * 365;
-  const jahresWasserM3 = jahresWasserLiter / 1000;
-  const jahresHeizwaermeKwh = wohnflaeche * spezHeizwaermeBedarf * wwZuschlag;
-  
-  // Energiepreise (Durchschnitt 2024)
-  const stromPreis = 0.42; // €/kWh
-  const gasPreis = 0.12; // €/kWh
-  const wasserPreis = 1.80; // €/m³ (inkl. Abwasser)
-  
-  // Kosten
-  const stromKosten = jahresStrom * stromPreis;
-  const gasKosten = jahresHeizwaermeKwh * gasPreis;
-  const wasserKosten = jahresWasserM3 * wasserPreis;
-  const gesamtKosten = stromKosten + gasKosten + wasserKosten;
-  
-  // Vergleichswerte (2-Personen-Haushalt, 80m², Baujahr 1990-2010)
-  const vergleichStrom = 2 * stromProPerson * stromPreis;
-  const vergleichGas = 80 * 85 * gasPreis; // Durchschnittswert
-  const vergleichWasser = 2 * wasserProPersonProTag * 365 / 1000 * wasserPreis;
-  const vergleichGesamt = vergleichStrom + vergleichGas + vergleichWasser;
-  
-  const fmt = (n) => n.toLocaleString('de-DE', {minimumFractionDigits:0, maximumFractionDigits:0}) + ' €';
-  const fmtWh = (n) => n.toLocaleString('de-DE', {minimumFractionDigits:0}) + ' kWh';
-  const fmtLiter = (n) => n.toLocaleString('de-DE', {minimumFractionDigits:0}) + ' Liter';
-  const fmtM3 = (n) => n.toLocaleString('de-DE', {minimumFractionDigits:1}) + ' m³';
-  
-  document.getElementById('ergebnis').textContent = fmt(gesamtKosten);
-  document.getElementById('ergebnis').style.color = gesamtKosten < vergleichGesamt ? '#1e7e34' : '#b71c1c';
-  
-  document.getElementById('details').innerHTML =
-    `<span>Stromverbrauch: <strong>${fmtWh(jahresStrom)}</strong> (Vergleich: ${fmtWh(2 * stromProPerson)})</span>` +
-    `<span>Stromkosten: <strong>${fmt(stromKosten)}</strong> (Vergleich: ${fmt(vergleichStrom)})</span>` +
-    `<span>Heizwärme: <strong>${fmtWh(jahresHeizwaermeKwh)}</strong> (Vergleich: ${fmtWh(80 * 85)})</span>` +
-    `<span>Heizkosten: <strong>${fmt(gasKosten)}</strong> (Vergleich: ${fmt(vergleichGas)})</span>` +
-    `<span>Wasserverbrauch: <strong>${fmtLiter(jahresWasserLiter)}</strong> (${fmtM3(jahresWasserM3)})</span>` +
-    `<span>Wasserkosten: <strong>${fmt(wasserKosten)}</strong> (Vergleich: ${fmt(vergleichWasser)})</span>` +
-    `<span>Dein Gesamtverbrauch: <strong>${((gesamtKosten/vergleichGesamt-1)*100).toFixed(1)}%</strong> gegenüber Durchschnitt</span>`;
+  const traeger = traegerFeld.value;
+  const einheit = HEIZENERGIETRAEGER[traeger].einheit;
+  document.getElementById('einheit').textContent = einheit;
+  document.getElementById('einheit2').textContent = einheit === 'Liter' ? 'Liter' : 'kWh';
+  const r = berechneJahresenergie({
+    strom: { kwh: wert('strom_kwh'), preisCent: wert('strom_preis'), grundpreisJahr: wert('strom_grund') },
+    heizung: { traeger, menge: wert('heiz_menge'), preisCentJeEinheit: wert('heiz_preis'), grundpreisJahr: wert('heiz_grund') },
+    wasser: { m3: wert('wasser_m3'), preisJeM3: wert('wasser_preis') },
+    wohnflaeche: wert('flaeche'),
+    mitBeheiztemKeller: document.getElementById('keller').checked,
+    dezentralesWarmwasser: document.getElementById('dezentral').checked,
+  });
+  document.getElementById('ergebnis').textContent = eur(r.gesamt);
+  const teile = [
+    `<span>Strom: <strong>${eur(r.strom.kosten)}</strong> für ${r.strom.kwh.toLocaleString('de-DE')} kWh</span>`,
+    `<span>Heizung: <strong>${eur(r.heizung.kosten)}</strong> für ${r.heizung.kwh.toLocaleString('de-DE')} kWh</span>`,
+  ];
+  if (r.wasser) teile.push(`<span>Wasser: <strong>${eur(r.wasser.kosten)}</strong> für ${r.wasser.m3.toLocaleString('de-DE')} m³</span>`);
+  teile.push(`<span>Je Monat: <strong>${eur(r.monat)}</strong></span>`);
+  if (r.kennwert) teile.push(`<span>Heizkennwert: <strong>${r.kennwert.kwhJeQm} kWh/m²</strong> bei ${r.kennwert.nutzflaeche.toLocaleString('de-DE')} m² Nutzfläche – Klasse <strong>${r.kennwert.klasse}</strong> (ohne Witterungsbereinigung)</span>`);
+  document.getElementById('details').innerHTML = teile.join('');
 }
-['personen','wohnflaeche'].forEach(id => document.getElementById(id).addEventListener('input', berechne));
-['baujahr','warmewasser'].forEach(id => document.getElementById(id).addEventListener('change', berechne));
+traegerFeld.addEventListener('change', () => {
+  document.getElementById('heiz_preis').value = PREISE[traegerFeld.value];
+  berechne();
+});
+document.querySelectorAll('.calc-form input').forEach((el) => {
+  el.addEventListener('input', berechne);
+  el.addEventListener('change', berechne);
+});
 berechne();
 </script>
-
-<CalculatorGuide
-  title="Energieverbrauch realistisch bewerten"
-  content={`<p>Der Jahresenergieverbrauch eines Haushalts setzt sich aus drei Teilen zusammen: <strong>Heizwärme</strong> (ca. 70-80 % des Gesamtverbrauchs), <strong>Warmwasser</strong> (ca. 10-15 %) und <strong>Strom</strong> für Beleuchtung und Geräte (ca. 10 %). Wie hoch der Verbrauch ausfällt, hängt vor allem vom Gebäudezustand, vom Nutzerverhalten und von der Witterung des jeweiligen Jahres ab. Die folgenden Richtwerte (Stand 2026) helfen Ihnen, Ihren eigenen Verbrauch einzuordnen.</p>
-
-<h4>Stromverbrauch nach Haushaltsgröße</h4>
-<p>Der Stromverbrauch steigt mit jeder Person, aber nicht linear – Grundlasten wie Kühlschrank, Router oder Standby-Geräte teilen sich auf alle Bewohner auf. Deutlich höher liegt der Verbrauch, wenn das Warmwasser elektrisch (per Durchlauferhitzer oder Boiler) statt über die Heizung erzeugt wird.</p>
-<table>
-  <thead>
-    <tr><th>Haushaltsgröße</th><th>Ohne Warmwasser (Strom)</th><th>Mit elektr. Warmwasser</th></tr>
-  </thead>
-  <tbody>
-    <tr><td>1 Person</td><td>ca. 1.500 kWh/a</td><td>ca. 2.300 kWh/a</td></tr>
-    <tr><td>2 Personen</td><td>ca. 2.500 kWh/a</td><td>ca. 3.600 kWh/a</td></tr>
-    <tr><td>3 Personen</td><td>ca. 3.200 kWh/a</td><td>ca. 4.700 kWh/a</td></tr>
-    <tr><td>4 Personen</td><td>ca. 3.800 kWh/a</td><td>ca. 5.500 kWh/a</td></tr>
-    <tr><td>5 Personen</td><td>ca. 4.500 kWh/a</td><td>ca. 6.500 kWh/a</td></tr>
-  </tbody>
-</table>
-
-<h4>Heizenergiebedarf nach Gebäudestandard</h4>
-<p>Der Heizwärmebedarf wird in Kilowattstunden pro Quadratmeter und Jahr (kWh/m²·a) angegeben. Multipliziert mit Ihrer Wohnfläche ergibt sich der Jahres-Heizwärmebedarf. Der Unterschied zwischen einem unsanierten Altbau und einem Passivhaus ist enorm – bis zum Fünf- bis Zehnfachen.</p>
-<table>
-  <thead>
-    <tr><th>Gebäudestandard</th><th>Heizbedarf (kWh/m²·a)</th><th>Beispiel 100 m²</th></tr>
-  </thead>
-  <tbody>
-    <tr><td>Altbau unsaniert (vor 1978)</td><td>150-250</td><td>15.000-25.000 kWh</td></tr>
-    <tr><td>Bestand 1979-1995</td><td>100-150</td><td>10.000-15.000 kWh</td></tr>
-    <tr><td>Bestand 1996-2009</td><td>70-100</td><td>7.000-10.000 kWh</td></tr>
-    <tr><td>Neubau ab 2010</td><td>50-70</td><td>5.000-7.000 kWh</td></tr>
-    <tr><td>KfW-Effizienzhaus / Neubau ab 2020</td><td>30-50</td><td>3.000-5.000 kWh</td></tr>
-    <tr><td>Passivhaus</td><td>≤ 15</td><td>≤ 1.500 kWh</td></tr>
-  </tbody>
-</table>
-
-<h4>Faktoren, die den Verbrauch beeinflussen</h4>
-<p>Der <strong>Gebäudezustand</strong> ist der dominante Faktor – Außenwanddämmung, Fensterqualität und Heizungstechnik entscheiden über den Großteil des Verbrauchs. Daneben zählt das <strong>Nutzerverhalten</strong>: Jedes Grad höhere Raumtemperatur erhöht den Heizbedarf um etwa 6 %, auch Lüftungsgewohnheiten, Duschfrequenz und die Effizienz der Elektrogeräte spielen eine Rolle. Die <strong>Witterung</strong> schwankt von Jahr zu Jahr um rund ±15 % – ein kalter Winter kann den Heizverbrauch spürbar nach oben treiben.</p>
-
-<h4>Verbrauch senken und Sparpotenziale erkennen</h4>
-<p>Die größten Einsparungen bringt eine <strong>Gebäudesanierung</strong> (Dämmung, neue Fenster, moderne Heizung) mit 40-60 %. Ohne bauliche Maßnahmen helfen: hydraulischer Abgleich der Heizung (10-15 %), moderne Thermostatventile (5-10 %), Dämmung freiliegender Heizungsrohre (3-5 %) und der Austausch alter Heizungspumpen. Beim Strom senken LED-Beleuchtung (10-15 %), der Austausch alter Großgeräte (10-20 %) und das konsequente Abschalten von Standby-Geräten (5-10 %) den Verbrauch.</p>
-
-<h4>So ordnen Sie Ihren eigenen Verbrauch ein</h4>
-<p>Der Vergleich mit dem statistischen Durchschnitt ist nützlich, sollte aber realistisch interpretiert werden: Ein älterer Bestand hat naturgemäß höhere Werte als ein Neubau. Entscheidend ist die eigene Entwicklung über die Jahre – stabile Werte sind gut, steigende deuten auf Verschleiß von Heizung oder Fenstern hin. Die Heizwärmeprognose ist mit rund ±10 % recht zuverlässig, weil sie auf der Gebäudephysik beruht; der Stromverbrauch schwankt mit ±20-30 % stärker, weil er stark vom Verhalten abhängt. Eine BAFA-geförderte Energieberatung deckt konkrete Sparpotenziale für Ihr Gebäude auf.</p>`}
-  relatedSlugs={['heizkosten-rechner', 'energieausweis-vorberechnung', 'co2-einsparung-renovierung']}
-/>
-</Layout>

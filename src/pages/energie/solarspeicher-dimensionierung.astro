@@ -5,88 +5,78 @@ import CalculatorGuide from '../../components/CalculatorGuide.astro';
 import { CALCULATORS, CATEGORIES } from '../../data/calculators';
 import {
   berechneStromspeicher,
+  vergleicheSpeichergroessen,
   DIREKTVERBRAUCH_ANTEIL,
   SPEICHER_NUTZTAGE,
   SPEICHER_WIRKUNGSGRAD,
 } from '../../../public/scripts/stromspeicher.js';
 import { verguetungProKwh, SPEZIFISCHER_ERTRAG } from '../../../public/scripts/photovoltaik.js';
-import { STROMPREIS_CENT_PRO_KWH } from '../../../public/scripts/strompreis.js';
+import { STROMPREIS_CENT_PRO_KWH, STROMPREIS_QUELLE } from '../../../public/scripts/strompreis.js';
 const calc = CALCULATORS.find(c => c.slug === 'solarspeicher-dimensionierung')!;
 const cat = CATEGORIES[calc.category];
 const year = new Date().getFullYear();
 
-// Alle Zahlen der Ratgebertabellen stammen aus dem Rechenmodul, damit Text und
-// Rechner nicht auseinanderlaufen können. Die Einspeisevergütung kommt aus
-// photovoltaik.js und damit aus § 48 Abs. 2 EEG – kein zweiter Satz im Text.
-// Der Strompreis kommt aus strompreis.js (BDEW-Strompreisanalyse), vorher
-// standen hier 38 ct ohne Quellenangabe.
+// Alle Zahlen stammen aus stromspeicher.js – derselben Jahresbilanz, die der
+// Stromspeicher-Rechner zeigt. Die frühere Seite rechnete mit eigenen
+// Nachtanteilen, Deckeln und einer Faustregel ohne Quelle.
 const STROMPREIS_CENT = STROMPREIS_CENT_PRO_KWH;
 const REFERENZ_PV_KWP = 10;
 const verguetungCent = verguetungProKwh(REFERENZ_PV_KWP) * 100;
-
 const euro = (n: number) => n.toLocaleString('de-DE', { maximumFractionDigits: 0 }) + ' €';
 const kwh = (n: number) => n.toLocaleString('de-DE', { maximumFractionDigits: 0 }) + ' kWh';
-const dez = (n: number, stellen = 2) =>
-  n.toLocaleString('de-DE', { minimumFractionDigits: stellen, maximumFractionDigits: stellen });
+const dez = (n: number, stellen = 2) => n.toLocaleString('de-DE', { minimumFractionDigits: stellen, maximumFractionDigits: stellen });
 
-const groessen = [
-  { kapazitaet: 3, kosten: '2.500 – 3.500 €', haushalt: '1–2 Personen', verbrauch: 2500 },
-  { kapazitaet: 5, kosten: '4.000 – 6.000 €', haushalt: '2–3 Personen', verbrauch: 4000 },
-  { kapazitaet: 7, kosten: '5.500 – 8.000 €', haushalt: '3–4 Personen', verbrauch: 5000 },
-  { kapazitaet: 10, kosten: '7.500 – 11.000 €', haushalt: '4+ Personen oder Wärmepumpe', verbrauch: 6000 },
-  { kapazitaet: 15, kosten: '11.000 – 16.000 €', haushalt: 'Gewerbe oder Vollautarkie-Ziel', verbrauch: 8000 },
+// Beispiel: 4-Personen-Haushalt, 5.000 kWh, 10 kWp. Preis und Nutzungsdauer
+// sind ausdrücklich angenommene Werte, damit die Empfehlung sichtbar wird.
+const BEISPIEL = { pvLeistung: REFERENZ_PV_KWP, stromverbrauch: 5000, strompreis: STROMPREIS_CENT, nutzungsdauer: 15 };
+const bei600 = vergleicheSpeichergroessen({ ...BEISPIEL, preisJeKwh: 600 });
+// Bis zur Sättigung ist der Grenzertrag je kWh konstant – die Empfehlung
+// kippt deshalb nicht allmählich, sondern auf einen Schlag, sobald der Preis
+// je kWh den Grenzertrag der ersten Stufe über die Nutzungsdauer übersteigt.
+const GRENZE = bei600.zeilen[0].grenzertragJeKwh * BEISPIEL.nutzungsdauer;
+const SCHWELLE = Math.floor(GRENZE);
+const teuer = vergleicheSpeichergroessen({ ...BEISPIEL, preisJeKwh: SCHWELLE + 100 });
+if (!(bei600.empfehlung > 0) || teuer.empfehlung !== 0) throw new Error('Solarspeicher: Beispiel widerspricht dem Modul');
+
+const tabellenzeile = (z: ReturnType<typeof vergleicheSpeichergroessen>['zeilen'][number]) =>
+  '<tr><td>' + z.speicher + ' kWh</td><td>' + kwh(z.speicherKwh) + '</td><td>' + z.autarkiegrad + ' %</td><td>' + z.eigenverbrauchsquote + ' %</td><td>' + euro(z.ersparnis) + '</td><td>' + euro(z.grenzertragJeKwh) + '</td></tr>';
+const groessenZeilen = bei600.zeilen.map(tabellenzeile).join('\n');
+
+const ohneSpeicher = berechneStromspeicher({ speicher: 0, ...BEISPIEL, speicherkosten: 0 });
+const letzte = bei600.zeilen[bei600.zeilen.length - 1];
+const erste = bei600.zeilen[0];
+
+const faqs = [
+  { q: 'Wie groß sollte der Speicher sein?', a: `So groß, wie die letzte zusätzliche Kilowattstunde Kapazität ihren Preis noch hereinholt. Im Beispiel mit 5.000 kWh Verbrauch und 10 kWp bringt die erste Stufe ${euro(erste.grenzertragJeKwh)} je kWh Kapazität im Jahr, die Stufe bis ${letzte.speicher} kWh nur noch ${euro(letzte.grenzertragJeKwh)}. Bis ${bei600.empfehlung} kWh bringt jede Stufe gleich viel, darüber bleibt Kapazität ungenutzt. Bei 15 Jahren Nutzung lohnt sich ein Speicher bis ${bei600.empfehlung} kWh deshalb, solange er weniger als rund ${euro(GRENZE)} je kWh kostet – teurer lohnt sich keine Größe.` },
+  { q: 'Warum bringt ein größerer Speicher immer weniger?', a: 'Weil er an vielen Tagen nicht mehr leer wird. Entladen lässt sich nur, was der Haushalt außerhalb der Sonnenstunden verbraucht; darüber hinaus steht zusätzliche Kapazität ungenutzt. Außerdem füllt die Anlage den Speicher im Winterhalbjahr oft nicht.' },
+  { q: 'Was ist der Unterschied zwischen nutzbarer und nominaler Kapazität?', a: 'Die nominale Kapazität ist die Größe der Batteriezellen, die nutzbare der Teil, den das System tatsächlich lädt und entlädt. Rechnen Sie immer mit der nutzbaren Kapazität aus dem Datenblatt – der Rechner tut das auch.' },
+  { q: 'Ist ein Stromspeicher immer wirtschaftlich?', a: `Nein. Ohne Speicher deckt die Anlage in diesem Rechner bereits ${Math.round(DIREKTVERBRAUCH_ANTEIL * 100)} % des Verbrauchs direkt. Der Speicher verdient nur an der Differenz zwischen Strompreis und Einspeisevergütung, derzeit ${dez(STROMPREIS_CENT - verguetungCent)} ct je verschobener kWh. Ist der Speicher im Verhältnis dazu zu teuer, empfiehlt der Rechner keinen.` },
 ];
 
-const groessenZeilen = groessen
-  .map((g) => {
-    const r = berechneStromspeicher({
-      speicher: g.kapazitaet,
-      pvLeistung: REFERENZ_PV_KWP,
-      stromverbrauch: g.verbrauch,
-      strompreis: STROMPREIS_CENT,
-      speicherkosten: 1000,
-    });
-    return `<tr><td>${g.kapazitaet} kWh</td><td>${g.kosten}</td><td>${g.haushalt}, ${kwh(g.verbrauch)}/a</td><td>${r.autarkiegrad} %</td><td>${r.eigenverbrauchsquote} %</td><td>${euro(r.ersparnis)}</td></tr>`;
-  })
-  .join('\n');
+const guideHtml = `<p>Ein Stromspeicher verschiebt tagsüber erzeugten Überschuss in den Abend. Jede verschobene Kilowattstunde spart ${dez(STROMPREIS_CENT)} ct Netzstrom (${STROMPREIS_QUELLE}), kostet aber die Einspeisevergütung von ${dez(verguetungCent)} ct nach § 48 Abs. 2 EEG. Die richtige Größe ist deshalb keine Frage einer Faustregel, sondern des Grenzertrags: Was bringt die nächste Kilowattstunde Kapazität, und was kostet sie?</p>
 
-// Amortisationsbeispiel: 4-Personen-Haushalt, 5.000 kWh, 10 kWp.
-const BEISPIEL_VERBRAUCH = 5000;
-const beispiel = (speicher: number) =>
-  berechneStromspeicher({
-    speicher,
-    pvLeistung: REFERENZ_PV_KWP,
-    stromverbrauch: BEISPIEL_VERBRAUCH,
-    strompreis: STROMPREIS_CENT,
-    speicherkosten: 1000,
-  });
-const ohneSpeicher = beispiel(0);
-const mit5 = beispiel(5);
-const mit10 = beispiel(10);
+<h3>Grenzertrag nach Speichergröße</h3>
+<p>Für einen Haushalt mit ${kwh(BEISPIEL.stromverbrauch)} Jahresverbrauch und einer ${REFERENZ_PV_KWP}-kWp-Anlage (${kwh(REFERENZ_PV_KWP * SPEZIFISCHER_ERTRAG)} Ertrag). Ohne Speicher deckt er ${ohneSpeicher.autarkiegrad} % des Verbrauchs selbst.</p>
+<table>
+<thead><tr><th>Kapazität</th><th>Verschoben/Jahr</th><th>Autarkiegrad</th><th>Eigenverbrauchsquote</th><th>Ersparnis/Jahr</th><th>Grenzertrag je kWh/Jahr*</th></tr></thead>
+<tbody>
+${groessenZeilen}
+</tbody>
+</table>
+<p><small>* Zusätzliche Ersparnis gegenüber der vorigen Zeile, geteilt durch die zusätzliche Kapazität. Der Autarkiegrad bezieht sich auf den Verbrauch, die Eigenverbrauchsquote auf den Ertrag.</small></p>
 
-const beispielZeile = (name: string, r: ReturnType<typeof beispiel>) =>
-  `<tr><td>${name}</td><td>${r.autarkiegrad} % (${kwh(r.eigenverbrauchKwh)})</td><td>${kwh(r.netzbezugKwh)}</td><td>${euro(r.netzstromkosten)}</td><td>${euro(r.einspeisungKwh * verguetungCent / 100)}</td></tr>`;
+<h3>Von der Tabelle zur Empfehlung</h3>
+<p>Eine Stufe lohnt sich, wenn ihr Grenzertrag über die Nutzungsdauer ihren Preis je kWh deckt. Im Beispiel bringt jede Kilowattstunde bis ${bei600.empfehlung} kWh denselben Grenzertrag; danach fällt er stark ab, weil der Speicher nicht mehr geleert wird. Die Empfehlung ist deshalb entweder ${bei600.empfehlung} kWh oder gar kein Speicher: Bei 15 Jahren Nutzung liegt die Grenze bei rund ${euro(GRENZE)} je kWh – derselbe Höchstpreis, den der Stromspeicher-Rechner für 8 kWh nennt. Mit ${euro(SCHWELLE + 100)} je kWh empfiehlt der Rechner keinen Speicher mehr. Tragen Sie den Preis Ihres Angebots und die Garantie- oder erwartete Nutzungsdauer ein.</p>
 
-const amortisationZeilen = [
-  `<tr><td>Ohne PV</td><td>0 % (0 kWh)</td><td>${kwh(BEISPIEL_VERBRAUCH)}</td><td>${euro((BEISPIEL_VERBRAUCH * STROMPREIS_CENT) / 100)}</td><td>—</td></tr>`,
-  beispielZeile('PV ohne Speicher', ohneSpeicher),
-  beispielZeile('PV + 5 kWh Speicher', mit5),
-  beispielZeile('PV + 10 kWh Speicher', mit10),
-].join('\n');
+<h3>Annahmen</h3>
+<p>Der Rechner nutzt die Jahresbilanz des Stromspeicher-Rechners: ${Math.round(DIREKTVERBRAUCH_ANTEIL * 100)} % des Verbrauchs werden ohne Speicher direkt gedeckt, der Speicher wird an ${SPEICHER_NUTZTAGE} Tagen im Jahr gefüllt und gibt ${Math.round(SPEICHER_WIRKUNGSGRAD * 100)} % der geladenen Energie wieder ab. Das sind Planungsgrößen, keine Messwerte. Ein Haushalt, der tagsüber viel verbraucht, deckt mehr direkt und braucht einen kleineren Speicher. Zinsen, Strompreisänderungen und die Alterung des Speichers sind nicht enthalten – die Empfehlung ist deshalb eine Obergrenze.</p>
 
-// Dasselbe Beispiel bei höherem Strompreis – zeigt, wie stark die
-// Amortisation am Strompreis hängt.
-const mit5Teuer = berechneStromspeicher({
-  speicher: 5,
-  pvLeistung: REFERENZ_PV_KWP,
-  stromverbrauch: BEISPIEL_VERBRAUCH,
-  strompreis: 42,
-  speicherkosten: 1000,
-});
+<h3>Eigenverbrauch ohne größeren Speicher erhöhen</h3>
+<p>Wer Waschmaschine, Geschirrspüler oder das Laden eines Elektroautos in die Mittagsstunden legt, erhöht den direkt gedeckten Anteil. Dann bleibt weniger Überschuss für den Speicher, und eine kleinere Größe erreicht denselben Autarkiegrad.</p>`;
 ---
 <Layout
   title={`Solarspeicher-Dimensionierung ${year}`}
-  description="Solarspeicher-Größe 2026 berechnen: Optimale Batterie für Ihre PV-Anlage nach Verbrauchsprofil. Mit Kosten-Vergleich LiFePO4 vs. Blei, Amortisationsrechnung und Praxistipps."
+  description="Die wirtschaftlich sinnvolle Speichergröße für Ihre PV-Anlage: Grenzertrag je Kilowattstunde Kapazität gegen den Preis Ihres Angebots – mit Einspeisevergütung nach EEG."
   canonicalPath="/energie/solarspeicher-dimensionierung/"
   categoryColor={cat.color}
   categoryLight={cat.colorLight}
@@ -96,199 +86,73 @@ const mit5Teuer = berechneStromspeicher({
     <a href={`${import.meta.env.BASE_URL}energie/`} class="back-link">← Energie</a>
     <h1>Solarspeicher-Dimensionierung {year}</h1>
   </div>
-   <CalculatorShell
-     calculator={calc}
-     intro="Berechnen Sie die optimale Batteriegröße für Ihre PV-Anlage. So vermeiden Sie einen zu großen oder zu kleinen Speicher und maximieren Ihren Eigenverbrauch."
-     sourceNote="1 kWh pro 1.000 kWh Jahresverbrauch."
-     explanation="Die optimale Speichergröße hängt vom Verbrauchsprofil ab. Faustformel: 1 kWh Speicher pro 1.000 kWh Jahresverbrauch. Aktuelle Speicherpreise liegen bei 500-800 Euro pro kWh nutzbarer Kapazität."
-      faqs={[
-        { q: "Was ist der Unterschied zwischen nutzbarer und nominaler Kapazität?", a: "Nominale Kapazität ist die maximale Speichermenge (z.B. 10 kWh), nutzbar ist nur 80-90% (8-9 kWh), um die Batterie zu schonen. Zykling-Verluste: Laden/Entladen kostet 5-10% Energie." },
-        { q: "Wie groß sollte der Speicher sein?", a: "Faustregel: 1 kWh pro 1.000-1.500 kWh Jahresverbrauch. Ein Haushalt mit 4.000 kWh/a benötigt 3-4 kWh nutzbaren Speicher (nominale 4-5 kWh). Zu kleine Speicher (1-2 kWh) helfen wenig, zu große (>10 kWh) rechnen sich nicht mehr." },
-        { q: "Ist ein Stromspeicher immer wirtschaftlich sinnvoll?", a: `Nicht immer. Ohne Speicher deckt die PV-Anlage bereits rund ${Math.round(DIREKTVERBRAUCH_ANTEIL * 100)} % des Jahresverbrauchs direkt – diesen Teil bekommen Sie ohne Zusatzinvestition. Der Speicher verdient nur an der Differenz zwischen Strompreis und Einspeisevergütung, derzeit ${dez(STROMPREIS_CENT - verguetungCent)} ct je gespeicherter Kilowattstunde. Daraus ergeben sich Amortisationszeiten von 12 bis 18 Jahren. Lohnend vor allem bei hohem Strompreis (über 40 ct/kWh) oder hohem Abendverbrauch (Home Office, Wärmepumpe, E-Auto).` },
-        { q: "Welche Batterietechnologie soll ich wählen?", a: "Lithium-Ionen ist Standard, sicher und langlebig (10-15 Jahre). Kosten: ~1.000-1.500€ pro nutzbarer kWh. Blei-Gel ist günstiger (500€/kWh) aber schwächer (weniger Zyklen, kürzere Lebensdauer). Salzwasser-Batterien sind neu, preiswerter und recycelbar, aber noch wenig Langzeit-Daten." },
-        { q: "Kann ich den Speicher mit Notstromfunktion bekommen?", a: "Ja, AC-gekoppelte Systeme mit USV (Unterbrechungsfreie Stromversorgung) können bei Netzausfall automatisch auf Batterie umschalten. Kostet ~500-1.000€ extra. Wichtig: Nur für einzelne Stromkreise möglich, nicht das ganze Haus." },
-        { q: "Wie oft kann eine Batterie geladen/entladen werden?", a: "Moderne LiFePO4-Batterien: 4.000-6.000 vollständige Zyklen (10-15 Jahre bei täglichem Betrieb). Das bedeutet ~60.000-120.000 kWh Durchsatz über die Lebensdauer – oft mehr als der Speicher kostet." },
-        { q: "Lohnt sich ein Speicher eher im Sommer oder im Winter?", a: "Im Sommer eindeutig mehr: Die PV-Anlage produziert 3-5x so viel wie im Winter, der Überschuss ist größer. Ein 5-kWh-Speicher wird im Sommer fast täglich voll geladen, im Winter nur an sonnigen Tagen auf 30-50%. Über das Jahr gesehen kommen 70-80% der Speicher-Ersparnis aus den Monaten April bis September." },
-        { q: "Welche Förderung gibt es 2026 für Stromspeicher?", a: "Die KfW bietet zinsgünstige Kredite (Programm 270) für PV mit Speicher. Einige Bundesländer haben zusätzliche Zuschüsse: Bayern (bis 1.100 €), NRW (150 €/kWh, max. 1.500 €) und Berlin (300 €/kWh, max. 3.000 €). Kommunale Programme variieren stark – bei der Stadt oder dem Landkreis nachfragen. Wichtig: Antrag vor Kaufvertrag stellen!" }
-      ]}
-   >
+  <CalculatorShell
+    calculator={calc}
+    intro="Der Rechner vergleicht Speichergrößen von 2 bis 15 kWh für Ihre Anlage und Ihren Verbrauch und empfiehlt die größte, deren zusätzliche Kapazität sich zum Preis Ihres Angebots über die Nutzungsdauer noch bezahlt macht."
+    sourceNote={`Jahresbilanz aus dem Stromspeicher-Modul: Einspeisevergütung nach § 48 Abs. 2 EEG, Strompreis nach ${STROMPREIS_QUELLE}, ${SPEZIFISCHER_ERTRAG} kWh/kWp; Planungsannahmen ${Math.round(DIREKTVERBRAUCH_ANTEIL * 100)} % Direktverbrauch, ${SPEICHER_NUTZTAGE} Ladetage, ${Math.round(SPEICHER_WIRKUNGSGRAD * 100)} % Wirkungsgrad. Speicherpreis und Nutzungsdauer sind Ihre Eingaben. Ohne Zinsen und Alterung.`}
+    explanation="Eine Stufe lohnt sich, wenn zusätzliche Ersparnis × Nutzungsdauer ≥ zusätzliche Kapazität × Preis je kWh. Empfohlen wird die größte Stufe, bis zu der das ohne Unterbrechung gilt."
+    faqs={faqs}
+  >
     <div class="calc-form">
       <div class="calc-grid">
         <div class="calc-group">
           <label for="jahresverbrauch">Jahresstromverbrauch (kWh)</label>
-          <input type="number" id="jahresverbrauch" min="500" max="20000" value="4000" step="100" />
+          <input type="number" id="jahresverbrauch" min="0" max="30000" value={BEISPIEL.stromverbrauch} step="100" />
         </div>
         <div class="calc-group">
-          <label for="pvleistung">PV-Anlagenleistung (kWp)</label>
-          <input type="number" id="pvleistung" min="1" max="50" value="10" step="0.5" />
+          <label for="pvleistung">PV-Leistung (kWp)</label>
+          <input type="number" id="pvleistung" min="0" max="50" value={REFERENZ_PV_KWP} step="0.5" />
         </div>
         <div class="calc-group">
-          <label for="speicherziel">Speicherziel</label>
-          <select id="speicherziel">
-            <option value="nachtspeicherung" selected>Nachtspeicherung (höhere Unabhängigkeit)</option>
-            <option value="maximaleeigenverbrauch">Maximaler Eigenverbrauch (wirtschaftlich optimum)</option>
-            <option value="notstrom">Notstromversorgung (mind. 1 Tag autonomy)</option>
-          </select>
+          <label for="strompreis">Strompreis (ct/kWh)</label>
+          <input type="number" id="strompreis" min="0" max="100" value={STROMPREIS_CENT} step="0.5" />
         </div>
         <div class="calc-group">
-          <label for="verbrauchsprofil">Dein Verbrauchsprofil</label>
-          <select id="verbrauchsprofil">
-            <option value="haushaltsueblich" selected>Haushaltsüblich (Abendspitze)</option>
-            <option value="gleichmaessig">Gleichmäßig über den Tag</option>
-            <option value="tageslastbetont">Starker Tagesverbrauch (Home Office)</option>
-          </select>
+          <label for="preis">Speicherpreis je kWh laut Angebot (€)</label>
+          <input type="number" id="preis" min="0" max="5000" value="600" step="10" />
+        </div>
+        <div class="calc-group">
+          <label for="dauer">Nutzungsdauer (Jahre)</label>
+          <input type="number" id="dauer" min="1" max="30" value={BEISPIEL.nutzungsdauer} step="1" />
         </div>
       </div>
-       <div class="calc-result">
-         <div class="label">Empfohlene Speichergröße</div>
-         <div id="ergebnis">— kWh</div>
-         <div class="result-actions">
-           <button 
-             data-copy-result="#ergebnis" 
-             class="btn-copy"
-             title="Resultat kopieren"
-           >
-             📋 Kopieren
-           </button>
-           <button 
-             data-save-pdf="#ergebnis" 
-             class="btn-pdf"
-             title="Als PDF speichern"
-           >
-             📄 PDF
-           </button>
-         </div>
-       </div>
-      <div id="details" style="margin-top:0.75rem;font-size:0.88rem;color:#666;display:flex;gap:1.5rem;flex-wrap:wrap;"></div>
+      <p style="margin-top:0.25rem;font-size:0.82rem;color:#777;">Preis und Nutzungsdauer sind angenommen – ersetzen Sie sie durch Angebot und Garantiezeit.</p>
+      <div class="calc-result">
+        <div class="label">Wirtschaftlich sinnvolle Größe</div>
+        <div id="ergebnis">— kWh</div>
+      </div>
+      <div class="ssd-tabelle"><table id="tabelle"></table></div>
     </div>
   </CalculatorShell>
 
+  <CalculatorGuide
+    title="Stromspeicher nach Grenzertrag dimensionieren"
+    content={guideHtml}
+    relatedSlugs={['photovoltaik-rechner', 'stromspeicher-rechner', 'jahresenergieverbrauch']}
+  />
+</Layout>
+
 <script type="module">
-const { berechneStromspeicher } = await import(window.__base + 'scripts/stromspeicher.js');
+const { vergleicheSpeichergroessen } = await import(window.__base + 'scripts/stromspeicher.js');
+const eur = (n) => n.toLocaleString('de-DE', { maximumFractionDigits: 0 }) + ' €';
+const wert = (id) => parseFloat(document.getElementById(id).value) || 0;
 function berechne() {
-  const jahresVerbrauch = parseFloat(document.getElementById('jahresverbrauch').value) || 4000;
-  const pvLeistung = parseFloat(document.getElementById('pvleistung').value) || 10;
-  const speicherZiel = document.getElementById('speicherziel').value;
-  const verbrauchsProfil = document.getElementById('verbrauchsprofil').value;
-  
-  // Jahresertrag der PV-Anlage (kWh/kWp) - abhängig von Standort, Neigung, Ausrichtung
-  const spezifischerJahresertrag = 950; // kWh/kWp für Deutschland Durchschnitt
-  const pvJahresertrag = pvLeistung * spezifischerJahresertrag;
-  
-  // Täglicher Durchschnittsverbrauch
-  const taeglicherDurchschnittsverbrauch = jahresVerbrauch / 365;
-  
-  // Geschätzter nächtlicher Verbrauch (zwischen 22:00 und 06:00)
-  let nachtAnteil;
-  switch (verbrauchsProfil) {
-    case 'haushaltsueblich': nachtAnteil = 0.4; break; // 40% nachts
-    case 'gleichmaessig': nachtAnteil = 0.25; break; // 25% nachts
-    case 'tageslastbetont': nachtAnteil = 0.15; break; // 15% nachts
-    default: nachtAnteil = 0.3;
-  }
-  const nachtverbrauch = taeglicherDurchschnittsverbrauch * nachtAnteil;
-  
-  // Überschüssige Solarproduktion tagsüber (vereinfacht)
-  const tagesertrag = pvJahresertrag / 365; // kWh/Tag
-  const verbrauchTagsüber = taeglicherDurchschnittsverbrauch * (1 - nachtAnteil);
-  const ueberschussTagsüber = Math.max(0, tagesertrag - verbrauchTagsüber);
-  
-  let empfohleneSpeichergröße;
-  switch (speicherZiel) {
-    case 'nachtspeicherung':
-      // Speicher für den nächtlichen Verbrauch
-      empfohleneSpeichergröße = nachtverbrauch;
-      break;
-    case 'maximaleeigenverbrauch':
-      // Optimaler Speicher für maximale Nutzung des PV-Überschusses
-      empfohleneSpeichergröße = Math.min(nachtverbrauch * 2, ueberschussTagsüber * 1.5);
-      break;
-    case 'notstrom':
-      // Speicher für Notstromversorgung (1 Tag Autonomie bei kritischer Last)
-      const kritischeLast = taeglicherDurchschnittsverbrauch * 0.7; // nur essentielle Verbraucher
-      empfohleneSpeichergröße = kritischeLast;
-      break;
-    default:
-      empfohleneSpeichergröße = nachtverbrauch;
-  }
-  
-  // Praktische Grenzen setzen (min 2 kWh, max 80% der PV-Tagesproduktion)
-  const minSpeicher = 2;
-  const maxSpeicherDurchPV = tagesertrag * 0.8;
-  empfohleneSpeichergröße = Math.max(minSpeicher, Math.min(empfohleneSpeichergröße, maxSpeicherDurchPV));
-  
-  // Ergebnisse berechnen
-  const speicherDeckungsNacht = Math.min(100, (empfohleneSpeichergröße / nachtverbrauch) * 100);
-
-  // Wirtschaftliche Bewertung der empfohlenen Größe aus dem gemeinsamen Modul,
-  // damit Dimensionierung und Stromspeicher-Rechner dieselbe Rechnung zeigen.
-  const bilanz = berechneStromspeicher({
-    speicher: empfohleneSpeichergröße,
-    pvLeistung,
-    stromverbrauch: jahresVerbrauch,
-    strompreis: 38,
-    speicherkosten: 1000,
+  const v = vergleicheSpeichergroessen({
+    pvLeistung: wert('pvleistung'), stromverbrauch: wert('jahresverbrauch'), strompreis: wert('strompreis'),
+    preisJeKwh: wert('preis'), nutzungsdauer: wert('dauer'),
   });
-
-  const fmt = (n) => n.toLocaleString('de-DE', {minimumFractionDigits:1, maximumFractionDigits:1});
-  document.getElementById('ergebnis').textContent = fmt(empfohleneSpeichergröße) + ' kWh';
-  document.getElementById('ergebnis').style.color = '#1e7e34';
-  
-  document.getElementById('details').innerHTML =
-    `<span>Jahresertrag PV: <strong>${pvJahresertrag.toLocaleString('de-DE', {minimumFractionDigits:0})} kWh/Jahr</strong></span>` +
-    `<span>Tagesdurchschnittsverbrauch: <strong>${fmt(taeglicherDurchschnittsverbrauch)} kWh/Tag</strong></span>` +
-    `<span>Geschätzter Nachtverbrauch: <strong>${fmt(nachtverbrauch)} kWh/Nacht</strong></span>` +
-    `<span>PV-Überschuss tagsüber: <strong>${fmt(ueberschussTagsüber)} kWh/Tag</strong></span>` +
-    `<span>Speicher deckt Nacht: <strong>${speicherDeckungsNacht.toFixed(0)}%</strong> des Nachtverbrauchs</span>` +
-    `<span>Zusätzlich selbst genutzt: <strong>${bilanz.speicherKwh.toLocaleString('de-DE', {maximumFractionDigits:0})} kWh/Jahr</strong></span>` +
-    `<span>Autarkiegrad: <strong>${bilanz.autarkiegrad}%</strong> des Verbrauchs</span>` +
-    `<span>Eigenverbrauchsquote: <strong>${bilanz.eigenverbrauchsquote}%</strong> des Ertrags</span>`;
+  document.getElementById('ergebnis').textContent = v.empfehlung > 0 ? `${v.empfehlung} kWh` : 'kein Speicher';
+  document.getElementById('tabelle').innerHTML =
+    '<thead><tr><th>Kapazität</th><th>Ersparnis/Jahr</th><th>Grenzertrag je kWh/Jahr</th><th>Autarkie</th><th>Lohnt die Stufe?</th></tr></thead><tbody>' +
+    v.zeilen.map((z) => `<tr><td>${z.speicher} kWh</td><td>${eur(z.ersparnis)}</td><td>${eur(z.grenzertragJeKwh)}</td><td>${z.autarkiegrad} %</td><td>${z.lohntStufe ? 'ja' : 'nein'}</td></tr>`).join('') +
+    '</tbody>';
 }
-['jahresverbrauch','pvleistung'].forEach(id => document.getElementById(id).addEventListener('input', berechne));
-['speicherziel','verbrauchsprofil'].forEach(id => document.getElementById(id).addEventListener('change', berechne));
+document.querySelectorAll('.calc-form input').forEach((el) => el.addEventListener('input', berechne));
 berechne();
 </script>
 
-<CalculatorGuide
-  title="Stromspeicher optimal dimensionieren"
-  content={`<p>Ein Stromspeicher (Batterie) erhöht die Unabhängigkeit vom Stromversorger deutlich. Statt den Überschuss tagsüber für ${dez(verguetungCent)} ct/kWh ins Netz einzuspeisen, nutzen Sie ihn abends selbst und sparen den Zukauf zu ${STROMPREIS_CENT} ct/kWh. Die richtige Speichergröße ist ein Kompromiss zwischen Unabhängigkeit und Wirtschaftlichkeit.</p>
-
-<p><strong>Zwei Prozentzahlen, die oft verwechselt werden:</strong> Der <em>Autarkiegrad</em> ist der Anteil Ihres Verbrauchs, den Sie selbst decken – er beantwortet die Frage, wie wenig Strom Sie noch kaufen. Die <em>Eigenverbrauchsquote</em> ist der Anteil des erzeugten Stroms, den Sie selbst nutzen – sie beantwortet, wie gut die Anlage ausgelastet ist. Bei einer großzügig dimensionierten Anlage liegen beide Zahlen weit auseinander: Die ${REFERENZ_PV_KWP}-kWp-Anlage im Beispiel unten erreicht mit 5 kWh Speicher ${mit5.autarkiegrad} % Autarkie, aber nur ${mit5.eigenverbrauchsquote} % Eigenverbrauchsquote. Wer beides gleichsetzt, rechnet sich eine zu große Anlage schön. Dieser Ratgeber nennt jeweils dazu, worauf sich die Zahl bezieht.</p>
-
-<p><strong>Speichergröße richtig wählen:</strong> Ein Haushalt mit 4.000 kWh/a Jahresverbrauch braucht außerhalb der Sonnenstunden etwa 2.800 kWh, also rund 7,7 kWh pro Tag. Ein Speicher, der größer ist als dieser Abend- und Nachtbedarf, steht zwangsläufig teilweise leer – die Faustregel „1 kWh nutzbarer Speicher pro 1.000 bis 1.500 kWh Jahresverbrauch“ trifft genau dieses Optimum. Größere Speicher bringen nicht mehr proportional mehr: Zwischen 10 und 15 kWh wächst der Autarkiegrad in der Tabelle unten nur noch um wenige Punkte.</p>
-
-<p><strong>Eigenverbrauch erhöhen:</strong> Ohne Speicher decken Sie rund ${Math.round(DIREKTVERBRAUCH_ANTEIL * 100)} % Ihres Verbrauchs direkt aus der Anlage – der Rest der Erzeugung geht für ${dez(verguetungCent)} ct/kWh ins Netz. Mit einem passenden Speicher steigt der Autarkiegrad auf 50 bis 75 %. Entscheidend für die Wirtschaftlichkeit ist dabei nicht der Strompreis allein, sondern die Differenz: Jede gespeicherte Kilowattstunde spart ${STROMPREIS_CENT} ct Zukauf, kostet aber die entgangene Vergütung von ${dez(verguetungCent)} ct. Der Vorteil beträgt also ${dez(STROMPREIS_CENT - verguetungCent)} ct je Kilowattstunde, nicht ${STROMPREIS_CENT} ct.</p>
-
-<p><strong>Verbrauchsprofil und Speicherstrategie:</strong> Ein Home-Office-Haushalt mit tagsüber viel Verbrauch braucht weniger Speicher (der Strom wird direkt genutzt). Ein Haushalt mit Fernweh (lange weg) braucht keinen Speicher. Ideal: Speicher + Wärmepumpe oder Warmwasserspeicher – dann nutzen Sie tagsüber viel PV-Strom und amortisieren den Speicher schneller.</p>
-
-<p><strong>Batterietechnologie und Kosten:</strong> Lithium-Ionen (LiFePO4) ist heute Standard: ~1.000-1.500€ pro nutzbarer kWh, 10-15 Jahre Lebensdauer, 4.000-6.000 Ladezyklen. Beispiel 5 kWh: ~6.000-7.500€. Blei-Gel ist billiger (500€/kWh) aber kurzlebiger (5-8 Jahre). Salzwasser-Batterien sind neu, recycelbar und günstiger, aber Langzeit-Daten fehlen.</p>
-
-<p><strong>Notstromfunktion und Autarkie:</strong> Mit einer isolierten Notstromschaltung (USV) können Sie bei Netzausfall 1-2 Tage autark leben. Kostet ~500-1.000€ extra. Volle Autarkie (365 Tage ohne Netz) ist mit realistischen Speichergrößen unmöglich – schon ein paar wolkige Wochen im Winter braucht dann Netzstrom oder teuer Reservekapazität.</p>
-
-<h3>Speichergröße und Kosten im Vergleich (Stand ${year})</h3>
-<table>
-<thead><tr><th>Nutzbare Kapazität</th><th>LiFePO4-Kosten</th><th>Passend für</th><th>Autarkiegrad</th><th>Eigenverbrauchsquote</th><th>Jährl. Ersparnis*</th></tr></thead>
-<tbody>
-${groessenZeilen}
-</tbody>
-</table>
-<p><small>* Jeweils mit einer ${REFERENZ_PV_KWP}-kWp-Anlage (${kwh(REFERENZ_PV_KWP * SPEZIFISCHER_ERTRAG)} Jahresertrag) und dem in derselben Zeile genannten Jahresverbrauch gerechnet. Die Ersparnis ist die Differenz zwischen Netzstrompreis (${STROMPREIS_CENT} ct/kWh) und Einspeisevergütung (${dez(verguetungCent)} ct/kWh) auf die zusätzlich selbst genutzte Energiemenge. Der Autarkiegrad bezieht sich auf den Verbrauch, die Eigenverbrauchsquote auf den Ertrag – deshalb fällt sie bei kleinem Haushalt und großer Anlage niedrig aus. Die tatsächlichen Werte hängen von Verbrauchsprofil, Standort und Sonnenstunden ab.</small></p>
-
-<h3>Amortisationsbeispiel: Lohnt sich der Speicher?</h3>
-<p>Konkretes Rechenbeispiel für einen 4-Personen-Haushalt mit ${kwh(BEISPIEL_VERBRAUCH)} Jahresverbrauch und ${REFERENZ_PV_KWP} kWp PV-Anlage (${kwh(REFERENZ_PV_KWP * SPEZIFISCHER_ERTRAG)} Ertrag im Jahr, Strompreis ${STROMPREIS_CENT} ct/kWh):</p>
-<table>
-<thead><tr><th>Szenario</th><th>Selbst genutzt (Autarkiegrad)</th><th>Netzstrombezug</th><th>Stromkosten/Jahr</th><th>Einspeisevergütung</th></tr></thead>
-<tbody>
-${amortisationZeilen}
-</tbody>
-</table>
-<p>Der 5-kWh-Speicher verschiebt ${kwh(mit5.speicherKwh)} im Jahr von der Einspeisung in den Eigenverbrauch. Das spart ${euro(mit5.netzstromkosten * -1 + ohneSpeicher.netzstromkosten)} Stromkosten, kostet aber ${euro((ohneSpeicher.einspeisungKwh - mit5.einspeisungKwh) * verguetungCent / 100)} entgangene Vergütung – unterm Strich bleiben ${euro(mit5.ersparnis)} pro Jahr. Bei Anschaffungskosten von ${euro(mit5.investition)} ist der Speicher damit nach ${dez(mit5.amortisation ?? 0, 1)} Jahren bezahlt. Mit steigenden Strompreisen verkürzt sich dieser Zeitraum: Steigt der Netzstrom auf 42 ct/kWh, sind es ${dez(mit5Teuer.amortisation ?? 0, 1)} Jahre. Der 10-kWh-Speicher bringt mit ${euro(mit10.ersparnis)} zwar mehr Ersparnis, kostet aber auch doppelt so viel – an der Amortisationszeit ändert sich in diesem Beispiel nichts.</p>
-
-<h3>Saisonale Leistung: Was der Speicher wirklich bringt</h3>
-<p>Ein häufiger Denkfehler: Der Speicher wird als Ganzjahres-Lösung betrachtet. In der Praxis leistet er im Sommerhalbjahr (April–September) deutlich mehr als im Winter. Eine 10-kWp-Anlage in Süddeutschland erzeugt im Juni etwa 40-45 kWh pro Tag, im Dezember nur 5-10 kWh. Ein 5-kWh-Speicher wird im Sommer täglich komplett gefüllt und entladen, im Winter dagegen nur an sonnigen Tagen auf 30-50% geladen. Das bedeutet: Rund 75 % der jährlichen Speicher-Ersparnis entstehen zwischen April und September. Deshalb rechnet dieser Ratgeber nicht mit 365 vollen Ladezyklen, sondern mit rund ${SPEICHER_NUTZTAGE} Tagen im Jahr, an denen genug Überschuss zum Füllen da ist – abzüglich ${Math.round((1 - SPEICHER_WIRKUNGSGRAD) * 100)} % Verlust beim Laden und Entladen. Wer den Speicher vor allem für Winterautarkie kauft, wird enttäuscht.</p>
-
-<h3>Praxistipp: Den Eigenverbrauch auch ohne größeren Speicher steigern</h3>
-<p>Bevor Sie einen teureren Speicher kaufen, optimieren Sie Ihren Eigenverbrauch über das Verbrauchsprofil: Waschmaschine und Geschirrspüler mittags laufen lassen (Zeitschaltuhr: 5 Euro), E-Auto tagsüber laden, Warmwasserboiler mit PV-Überschuss betreiben (Heizstab-Steuerung: 200-400 Euro). Mit diesen Maßnahmen steigt der direkt gedeckte Anteil Ihres Verbrauchs von ${Math.round(DIREKTVERBRAUCH_ANTEIL * 100)} auf 40 bis 50 %, und ein kleinerer, günstigerer Speicher genügt für denselben Autarkiegrad.</p>`}
-  relatedSlugs={['photovoltaik-rechner', 'stromspeicher-rechner', 'jahresenergieverbrauch']}
-/>
-</Layout>
+<style>
+.ssd-tabelle { overflow-x: auto; margin-top: 1rem; }
+.ssd-tabelle table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+.ssd-tabelle th, .ssd-tabelle td { padding: 0.35rem 0.5rem; text-align: left; white-space: nowrap; }
+</style>

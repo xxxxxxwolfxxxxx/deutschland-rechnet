@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   berechneStromspeicher,
+  vergleicheSpeichergroessen,
   DIREKTVERBRAUCH_ANTEIL,
   SPEICHER_NUTZTAGE,
   SPEICHER_WIRKUNGSGRAD,
@@ -154,6 +155,43 @@ describe('berechneStromspeicher – Wirtschaftlichkeit', () => {
     const ohnePv = berechneStromspeicher({ ...basis, pvLeistung: 0 });
     expect(ohnePv.ersparnis).toBe(0);
     expect(ohnePv.amortisation).toBeNull();
+  });
+});
+
+describe('vergleicheSpeichergroessen – Grenzertrag und Empfehlung', () => {
+  const eingaben = { pvLeistung: 10, stromverbrauch: 5000, strompreis: 38, preisJeKwh: 600, nutzungsdauer: 15 };
+
+  it('rechnet jede Größe mit derselben Jahresbilanz wie der Stromspeicher-Rechner', () => {
+    const { zeilen } = vergleicheSpeichergroessen({ ...eingaben, groessen: [5, 10] });
+    expect(zeilen[0].ersparnis).toBe(berechneStromspeicher({ ...basis, speicherkosten: 600 }).ersparnis);
+    expect(zeilen[1].investition).toBe(6000);
+  });
+
+  it('lässt den Grenzertrag je kWh sinken, sobald der Speicher leer bleibt', () => {
+    const { zeilen } = vergleicheSpeichergroessen(eingaben);
+    const erste = zeilen[0].grenzertragJeKwh;
+    const letzte = zeilen[zeilen.length - 1].grenzertragJeKwh;
+    expect(letzte).toBeLessThan(erste);
+    // Bis 8 kWh wächst die Ersparnis linear: 0,92 × 250 Tage × 30,3 ct.
+    expect(zeilen[1].grenzertragJeKwh).toBeCloseTo(0.92 * 250 * 0.303, 1);
+  });
+
+  it('empfiehlt die größte Stufe, die ihren Preis über die Nutzungsdauer hereinholt', () => {
+    const { zeilen, empfehlung } = vergleicheSpeichergroessen(eingaben);
+    const idx = zeilen.findIndex((z) => z.speicher === empfehlung);
+    expect(zeilen.slice(0, idx + 1).every((z) => z.lohntStufe)).toBe(true);
+    if (idx + 1 < zeilen.length) expect(zeilen[idx + 1].lohntStufe).toBe(false);
+  });
+
+  it('empfiehlt keinen Speicher, wenn schon die kleinste Stufe sich nicht trägt', () => {
+    const { empfehlung } = vergleicheSpeichergroessen({ ...eingaben, preisJeKwh: 2000, nutzungsdauer: 5 });
+    expect(empfehlung).toBe(0);
+  });
+
+  it('empfiehlt bei günstigerem Speicher keine kleinere Größe', () => {
+    const teuer = vergleicheSpeichergroessen({ ...eingaben, preisJeKwh: 900 }).empfehlung;
+    const billig = vergleicheSpeichergroessen({ ...eingaben, preisJeKwh: 400 }).empfehlung;
+    expect(billig).toBeGreaterThanOrEqual(teuer);
   });
 });
 
