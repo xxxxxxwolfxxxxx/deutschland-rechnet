@@ -9,34 +9,76 @@ import {
   LADESTROM_AC_CENT_PRO_KWH,
   LADESTROM_DC_CENT_PRO_KWH,
   LADESTROM_ADHOC_AUTOBAHN_CENT_PRO_KWH,
-  LADESTROM_ADHOC_AUTOBAHN_EURO_PRO_KWH,
   LADESTROM_QUELLE,
-  LADEWEGE,
-  ladekostenJe100km,
 } from '../../../public/scripts/strompreis.js';
+import {
+  ADAC_STAND,
+  ADAC_HALTEDAUER_MONATE,
+  ADAC_KM_PRO_JAHR,
+  BENZINPREIS,
+  ADAC_STROMPREIS,
+  ADAC_PFLEGEPAUSCHALE_PRO_JAHR,
+  corsaBenzin,
+  corsaElektro,
+  adacVerbrauchJe100km,
+} from '../../../public/scripts/adac-autokosten.js';
+import { vergleicheTco } from '../../../public/scripts/eauto-tco.js';
+import { berechneKfzSteuer, ELEKTRO_BEFREIUNG } from '../../../public/scripts/kfz-steuer.js';
 const calc = CALCULATORS.find(c => c.slug === 'elektroauto-tco-rechner')!;
 const cat = CATEGORIES[calc.category];
 const year = new Date().getFullYear();
 
 const ct = (b: number) => b.toLocaleString('de-DE', { maximumFractionDigits: 1 });
-const eur = (b: number) => b.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const eur0 = (n: number) => n.toLocaleString('de-DE', { maximumFractionDigits: 0 }) + ' €';
+const dez = (n: number, s = 1) => n.toLocaleString('de-DE', { minimumFractionDigits: s, maximumFractionDigits: s });
+const datum = (s: string) => s.split('-').reverse().join('.');
 
-// Ladestrom ist kein einzelner Preis, sondern drei: Wer zu Hause lädt, zahlt
-// seinen Haushaltstarif, wer unterwegs lädt, den Preis des Säulenbetreibers.
-// Die Tabelle entsteht zur Buildzeit aus demselben Modul, mit dem der Rechner
-// arbeitet – vorher nannte die Seite vier verschiedene Werte.
-const EV_VERBRAUCH_KWH_JE_100KM = 20;
-const ladewege = LADEWEGE.map(w => ({
-  ...w,
-  je100km: ladekostenJe100km({
-    verbrauchKwhJe100km: EV_VERBRAUCH_KWH_JE_100KM,
-    centProKwh: w.centProKwh,
-  }),
-}));
+// Vorbelegung aus der ADAC Autokostenübersicht: Restwert = Grundpreis minus
+// der vom ADAC über 60 Monate angesetzte Wertverlust.
+const JAHRE = ADAC_HALTEDAUER_MONATE / 12;
+const vorbelegung = (f: typeof corsaBenzin | typeof corsaElektro, preis: number, verbrauchspreis: number) => ({
+  kaufpreis: f.grundpreis,
+  restwert: f.grundpreis - f.wertverlust * ADAC_HALTEDAUER_MONATE,
+  verbrauchJe100km: Math.round(adacVerbrauchJe100km(f, verbrauchspreis) * 10) / 10,
+  energiepreis: preis,
+  fixkostenJahr: f.fix * 12,
+  werkstattJahr: f.werkstatt * 12,
+});
+const benzin = vorbelegung(corsaBenzin, BENZINPREIS, BENZINPREIS);
+const elektro = vorbelegung(corsaElektro, LADESTROM_HEIM_EURO_PRO_KWH, ADAC_STROMPREIS);
+
+// Kontrolle: Mit dem ADAC-Strompreis muss die Summe der ADAC-Monatswerte
+// herauskommen, sonst ist die Vorbelegung falsch übertragen.
+const adacPruefung = vergleicheTco({
+  jahre: JAHRE, kmProJahr: ADAC_KM_PRO_JAHR,
+  a: { ...benzin, verbrauchJe100km: adacVerbrauchJe100km(corsaBenzin, BENZINPREIS) },
+  b: { ...elektro, energiepreis: ADAC_STROMPREIS, verbrauchJe100km: adacVerbrauchJe100km(corsaElektro, ADAC_STROMPREIS) },
+});
+const adacSumme = (f: typeof corsaBenzin | typeof corsaElektro) =>
+  (f.fix + f.werkstatt + f.betrieb + f.wertverlust) * ADAC_HALTEDAUER_MONATE - ADAC_PFLEGEPAUSCHALE_PRO_JAHR * JAHRE;
+if (Math.abs(adacPruefung.a.gesamt - adacSumme(corsaBenzin)) > 1 || Math.abs(adacPruefung.b.gesamt - adacSumme(corsaElektro)) > 1) {
+  throw new Error('TCO: Vorbelegung weicht von den ADAC-Werten ab');
+}
+const heim = vergleicheTco({ jahre: JAHRE, kmProJahr: ADAC_KM_PRO_JAHR, a: benzin, b: elektro });
+const dc = vergleicheTco({ jahre: JAHRE, kmProJahr: ADAC_KM_PRO_JAHR, a: benzin, b: { ...elektro, energiepreis: LADESTROM_DC_CENT_PRO_KWH / 100 } });
+if (!(dc.differenz < heim.differenz)) throw new Error('TCO: Schnellladen muss teurer sein als Heimladen');
+
+// Kfz-Steuer nach Ablauf der Befreiung, aus dem Kfz-Steuer-Modul.
+const steuerNachBefreiung = berechneKfzSteuer({
+  antrieb: 'elektro', gesamtgewicht: 2000, erstzulassung: '2026-03-01', stichtag: '2037-01-01',
+});
+
+const faqs = [
+  { q: 'Woher stammen die vorbelegten Werte?', a: `Aus der ADAC Autokostenübersicht ${ADAC_STAND} für ${corsaBenzin.name} und ${corsaElektro.name} – zwei Varianten desselben Modells. Der ADAC rechnet mit ${ADAC_KM_PRO_JAHR.toLocaleString('de-DE')} km im Jahr und ${JAHRE} Jahren. Restwert, Fixkosten und Werkstatt sind aus seinen Monatswerten übernommen, der Verbrauch aus seinen Betriebskosten zurückgerechnet. Für Ihr eigenes Auto ersetzen Sie die Werte durch Angebot, Versicherungsschein und Werkstattrechnungen.` },
+  { q: 'Warum ist das E-Auto im Beispiel teurer?', a: `Weil es ${eur0(corsaElektro.grundpreis - corsaBenzin.grundpreis)} mehr kostet und der ADAC einen höheren Wertverlust ansetzt. Die geringeren Energie-, Fix- und Werkstattkosten gleichen das in ${JAHRE} Jahren nicht aus: Beim Laden zu Hause bleibt das E-Auto ${eur0(-heim.differenz)} teurer. Mit anderen Modellen, längerer Haltedauer oder mehr Kilometern kann das Ergebnis kippen – genau dafür ist der Rechner da.` },
+  { q: 'Was kostet öffentliches Laden im Vergleich zu Hause?', a: `Zu Hause laden Sie zum Haushaltsstrompreis von ${ct(LADESTROM_HEIM_CENT_PRO_KWH)} ct/kWh. Öffentliches Normalladen (AC) kostet im Schnitt ${ct(LADESTROM_AC_CENT_PRO_KWH)} ct/kWh, Schnellladen (DC) ${ct(LADESTROM_DC_CENT_PRO_KWH)} ct/kWh, ohne Vertrag am Autobahn-Schnelllader bis zu ${ct(LADESTROM_ADHOC_AUTOBAHN_CENT_PRO_KWH)} ct/kWh (${LADESTROM_QUELLE}). Im Beispiel macht reines Schnellladen das E-Auto über ${JAHRE} Jahre um ${eur0(heim.differenz - dc.differenz)} teurer als Laden zu Hause.` },
+  { q: 'Ist mein E-Auto von der Kfz-Steuer befreit?', a: `Reine Elektroautos sind nach § 3d KraftStG zehn Jahre ab Erstzulassung befreit, wenn diese bis zum ${datum(ELEKTRO_BEFREIUNG.zulassungBis)} erfolgt – längstens bis zum ${datum(ELEKTRO_BEFREIUNG.spaetestensBis)}. Danach gilt die Gewichtssteuer nach § 9 Abs. 1 Nr. 3 KraftStG, nach § 9 Abs. 2 um die Hälfte ermäßigt: bei 2.000 kg zulässigem Gesamtgewicht ${steuerNachBefreiung.jahressteuer?.toLocaleString('de-DE', { minimumFractionDigits: 2 })} € im Jahr. In den ADAC-Fixkosten ist die Steuer bereits enthalten.` },
+  { q: 'Was fehlt in der Rechnung?', a: 'Finanzierungskosten, Preissteigerungen bei Strom und Kraftstoff, Förderungen und die Kosten einer Wallbox. Wer finanziert, rechnet die Zinsen zum Kaufpreis hinzu.' },
+];
 ---
 <Layout
   title={`Elektroauto TCO-Rechner ${year}`}
-  description="Elektroauto vs. Benziner TCO berechnen – Gesamtkosten über 5-10 Jahre vergleichen."
+  description="Gesamtkosten von Elektroauto und Benziner über die Haltedauer vergleichen – mit Restwert, Energie, Fixkosten und Werkstatt, vorbelegt mit ADAC-Daten."
   canonicalPath="/auto/elektroauto-tco-rechner/"
   categoryColor={cat.color}
   categoryLight={cat.colorLight}
@@ -48,67 +90,47 @@ const ladewege = LADEWEGE.map(w => ({
   </div>
   <CalculatorShell
     calculator={calc}
-    intro="Mit dem Elektroauto TCO-Rechner vergleichen Sie die Gesamtkosten (Total Cost of Ownership) eines E-Autos mit einem vergleichbaren Benziner über 5-10 Jahre."
-    sourceNote="Berechnung basiert auf aktuellen Strompreisen, Benzinpreisen und Wartungskosten."
-    explanation="TCO (Total Cost of Ownership) berücksichtigt nicht nur den Kaufpreis, sondern auch Versicherung, Wartung, Sprit/Strom und Wertverlust."
-    faqs={[
-      { q: "Wann lohnt sich ein Elektroauto wirtschaftlich?", a: "Ab 10.000-15.000 km/Jahr ist ein E-Auto meist günstiger als ein Benziner über 8+ Jahre. Bei 5.000 km/Jahr rechnet es sich nicht." },
-      { q: "Was kostet der Strom vs. Benzin?", a: "E-Auto: ca. 3-5€ pro 100 km (bei 20€/kWh). Benziner: ca. 8-10€ pro 100 km (bei 1,80€/Liter). E-Auto ist ca. 50% günstiger beim Betrieb." },
-      { q: "Ist die Batterie ein Kostenfaktor?", a: "Batterien halten heute 10+ Jahre. Garantie meist 8 Jahre oder 160.000 km. Austausch kostet 5.000-10.000€, aber sehr selten nötig." },
-      { q: "Wartungskosten E-Auto vs. Benziner?", a: "E-Auto: 100-150€/Jahr (Reifen, Inspektion). Benziner: 400-600€/Jahr (Öl, Filter, Zündkerzen, TÜV)." },
-      { q: "Gibt es noch Förderungen?", a: "Die bundesweite Umweltprämie (BAFA) ist Ende 2023 ausgelaufen. 2026 gibt es je nach Bundesland und Kommune noch regionale Zuschüsse sowie vergünstigte KfW-Kredite für Wallboxen. Die größten geldwerten Vorteile liegen bei der Dienstwagenbesteuerung (0,25 % statt 1 %) und der Kfz-Steuerbefreiung." },
-      { q: "Ist mein E-Auto von der Kfz-Steuer befreit?", a: "Reine Elektroautos sind nach § 3d KraftStG für zehn Jahre ab dem Tag der Erstzulassung befreit, wenn diese zwischen dem 18.05.2011 und dem 31.12.2030 liegt – längstens bis zum 31.12.2035. Das Zulassungsfenster endete ursprünglich am 31.12.2025 und wurde durch das Gesetz vom 22.12.2025 verlängert. Nach Ablauf der Befreiung gilt die Gewichtssteuer des § 9 Abs. 1 Nr. 3 KraftStG, nach § 9 Abs. 2 um die Hälfte ermäßigt: bei 2.000 kg zulässigem Gesamtgewicht 56,25 € im Jahr." },
-      { q: "Was bringt die THG-Quote?", a: "Halter reiner E-Autos können jährlich ihre Treibhausgasminderungsquote (THG-Quote) über einen Anbieter verkaufen. Die Prämie ist von anfänglich mehreren Hundert Euro stark gefallen und liegt 2026 meist nur noch bei etwa 25 bis 100 Euro pro Jahr, abhängig vom Zertifikatspreis." },
-      { q: "Was kostet öffentliches Laden im Vergleich zu Hause?", a: `Zu Hause laden Sie zum Haushaltsstrompreis von ${ct(LADESTROM_HEIM_CENT_PRO_KWH)} ct/kWh. Öffentliches Normalladen (AC) kostet im Schnitt ${ct(LADESTROM_AC_CENT_PRO_KWH)} ct/kWh, Schnellladen (DC) ${ct(LADESTROM_DC_CENT_PRO_KWH)} ct/kWh. Ohne Vertrag an einem Autobahn-Schnelllader werden bis zu ${ct(LADESTROM_ADHOC_AUTOBAHN_CENT_PRO_KWH)} ct/kWh fällig. Unterwegs laden kostet also grob das Anderthalb- bis Zweifache – wer überwiegend zu Hause oder am Arbeitsplatz lädt, senkt die Energiekosten erheblich.` },
-      { q: "Wie stark verliert ein E-Auto an Wert?", a: "Der Restwert ist stark modellabhängig. Gefragte Modelle mit guter Reichweite und aktueller Batterietechnik halten ihren Wert ähnlich gut wie Verbrenner. Ältere E-Autos mit kleiner Batterie verlieren dagegen überdurchschnittlich. Setzen Sie im Rechner einen realistischen Restwert für Ihr konkretes Modell an." }
-    ]}
+    intro={`Der Rechner vergleicht die Gesamtkosten zweier Autos über dieselbe Haltedauer. Vorbelegt ist ein Corsa als Benziner und als Elektroauto mit den Werten der ADAC Autokostenübersicht – tragen Sie für Ihren Vergleich eigene Angebote ein.`}
+    sourceNote={`Vorbelegung: ADAC Autokostenübersicht ${ADAC_STAND} (${corsaBenzin.name}, ${corsaElektro.name}); Heimladestrom ${ct(LADESTROM_HEIM_CENT_PRO_KWH)} ct/kWh aus der BDEW-Strompreisanalyse; Kfz-Steuer nach §§ 3d, 9 KraftStG. Gesamtkosten = Kaufpreis − Restwert + Jahre × (Energie + Fixkosten + Werkstatt), ohne Finanzierung und Pflege.`}
+    explanation="Energie je Jahr = km ÷ 100 × Verbrauch × Preis. Ein positives Ergebnis heißt: Das Elektroauto ist über die Haltedauer günstiger; ein negatives: Es ist teurer."
+    faqs={faqs}
   >
     <div class="calc-form">
       <div class="calc-grid">
         <div class="calc-group">
-          <label for="ev_preis">E-Auto Kaufpreis (€)</label>
-          <input type="number" id="ev_preis" min="20000" max="150000" value="40000" step="5000" />
+          <label for="jahre">Haltedauer (Jahre)</label>
+          <input type="number" id="jahre" min="1" max="20" value={JAHRE} step="1" />
         </div>
         <div class="calc-group">
-          <label for="benziner_preis">Benziner Kaufpreis (€)</label>
-          <input type="number" id="benziner_preis" min="15000" max="100000" value="35000" step="5000" />
+          <label for="km">Fahrleistung (km/Jahr)</label>
+          <input type="number" id="km" min="1000" max="100000" value={ADAC_KM_PRO_JAHR} step="1000" />
         </div>
-        <div class="calc-group">
-          <label for="jahres_km">Jährliche Fahrtleistung (km)</label>
-          <input type="number" id="jahres_km" min="1000" max="50000" value="12000" step="1000" />
-        </div>
-        <div class="calc-group">
-          <label for="zeitraum">Zeitraum (Jahre)</label>
-          <select id="zeitraum">
-            <option value="5">5 Jahre</option>
-            <option value="8" selected>8 Jahre</option>
-            <option value="10">10 Jahre</option>
-          </select>
-        </div>
-        <div class="calc-group">
-          <label for="strompreis">Strompreis (€/kWh)</label>
-          <input type="number" id="strompreis" min="0.15" max={LADESTROM_ADHOC_AUTOBAHN_EURO_PRO_KWH} value={LADESTROM_HEIM_EURO_PRO_KWH} step="0.01" />
-        </div>
-        <div class="calc-group">
-          <label for="benzinpreis">Benzinpreis (€/Liter)</label>
-          <input type="number" id="benzinpreis" min="1.5" max="2.5" value="1.85" step="0.05" />
-        </div>
+      </div>
+      <div class="tco-spalten">
+        {[['b', 'Benziner', benzin, 'l/100 km', '€/Liter'], ['e', 'Elektroauto', elektro, 'kWh/100 km', '€/kWh']].map(([p, titel, v, einheitV, einheitP]) => (
+          <fieldset class="tco-spalte">
+            <legend>{titel}</legend>
+            <label for={`${p}_kaufpreis`}>Kaufpreis (€)</label>
+            <input type="number" id={`${p}_kaufpreis`} min="0" step="500" value={v.kaufpreis} />
+            <label for={`${p}_restwert`}>Restwert am Ende (€)</label>
+            <input type="number" id={`${p}_restwert`} min="0" step="500" value={v.restwert} />
+            <label for={`${p}_verbrauch`}>Verbrauch ({einheitV})</label>
+            <input type="number" id={`${p}_verbrauch`} min="0" step="0.1" value={v.verbrauchJe100km} />
+            <label for={`${p}_preis`}>Energiepreis ({einheitP})</label>
+            <input type="number" id={`${p}_preis`} min="0" step="0.01" value={v.energiepreis} />
+            <label for={`${p}_fix`}>Fixkosten je Jahr: Versicherung, Steuer, HU (€)</label>
+            <input type="number" id={`${p}_fix`} min="0" step="10" value={v.fixkostenJahr} />
+            <label for={`${p}_werkstatt`}>Werkstatt und Reifen je Jahr (€)</label>
+            <input type="number" id={`${p}_werkstatt`} min="0" step="10" value={v.werkstattJahr} />
+          </fieldset>
+        ))}
       </div>
 
       <div class="calc-result">
-        <div class="label">E-Auto Gesamtkosten</div>
-        <div id="ev_kosten">— €</div>
+        <div class="label">Vorteil des Elektroautos über die Haltedauer</div>
+        <div id="differenz">— €</div>
       </div>
-      <div class="calc-result">
-        <div class="label">Benziner Gesamtkosten</div>
-        <div id="benziner_kosten">— €</div>
-      </div>
-      <div class="calc-result" style="background:#e8f5e9;">
-        <div class="label">Ersparnis mit E-Auto</div>
-        <div id="ersparnis">— €</div>
-      </div>
-
-      <div id="details" style="margin-top:0.75rem;font-size:0.88rem;color:#666;"></div>
+      <div id="details" style="margin-top:0.75rem;font-size:0.88rem;color:#555;display:flex;flex-direction:column;gap:0.3rem;"></div>
     </div>
 
     <ArtikelElektroauto slot="artikel" />
@@ -116,52 +138,33 @@ const ladewege = LADEWEGE.map(w => ({
 </Layout>
 
 <script type="module">
+const { vergleicheTco } = await import(window.__base + 'scripts/eauto-tco.js');
+const eur = (n) => n.toLocaleString('de-DE', { maximumFractionDigits: 0 }) + ' €';
+const wert = (id) => parseFloat(document.getElementById(id).value) || 0;
+const fahrzeug = (p) => ({
+  kaufpreis: wert(p + '_kaufpreis'), restwert: wert(p + '_restwert'),
+  verbrauchJe100km: wert(p + '_verbrauch'), energiepreis: wert(p + '_preis'),
+  fixkostenJahr: wert(p + '_fix'), werkstattJahr: wert(p + '_werkstatt'),
+});
 function berechne() {
-  const ev_preis = parseFloat(document.getElementById('ev_preis').value)||40000;
-  const benziner_preis = parseFloat(document.getElementById('benziner_preis').value)||35000;
-  const jahres_km = parseFloat(document.getElementById('jahres_km').value)||12000;
-  const zeitraum = parseInt(document.getElementById('zeitraum').value)||8;
-  const strompreis = parseFloat(document.getElementById('strompreis').value)||0;
-  const benzinpreis = parseFloat(document.getElementById('benzinpreis').value)||1.85;
-
-  const gesamtKm = jahres_km * zeitraum;
-  const ev_verbrauch = 0.20; // 20 kWh/100km
-  const benziner_verbrauch = 0.07; // 7 Liter/100km
-  const ev_betrieb = gesamtKm * ev_verbrauch * strompreis / 100;
-  const benziner_betrieb = gesamtKm * benziner_verbrauch * benzinpreis / 100;
-
-  const ev_wert = ev_preis * 0.50; // 50% Restwert nach zeitraum
-  const benziner_wert = benziner_preis * 0.45; // 45% Restwert
-
-  const ev_versicherung = 120 * zeitraum; // 120€/Jahr
-  const benziner_versicherung = 150 * zeitraum; // 150€/Jahr
-
-  const ev_wartung = 100 * zeitraum; // 100€/Jahr
-  const benziner_wartung = 400 * zeitraum; // 400€/Jahr
-
-  const ev_gesamt = ev_preis + ev_betrieb + ev_versicherung + ev_wartung - ev_wert;
-  const benziner_gesamt = benziner_preis + benziner_betrieb + benziner_versicherung + benziner_wartung - benziner_wert;
-  const ersparnis = benziner_gesamt - ev_gesamt;
-
-  document.getElementById('ev_kosten').textContent = ev_gesamt.toLocaleString('de-DE', {minimumFractionDigits:2}) + ' €';
-  document.getElementById('benziner_kosten').textContent = benziner_gesamt.toLocaleString('de-DE', {minimumFractionDigits:2}) + ' €';
-  document.getElementById('ersparnis').textContent = Math.max(0, ersparnis).toLocaleString('de-DE', {minimumFractionDigits:2}) + ' €';
-
-  const kosten_pro_km_ev = ev_gesamt / gesamtKm;
-  const kosten_pro_km_benziner = benziner_gesamt / gesamtKm;
-
-  document.getElementById('details').innerHTML = `
-    <div>Gesamtfahrleistung: <strong>${gesamtKm.toLocaleString('de-DE')} km</strong></div>
-    <div>E-Auto Kosten pro km: <strong>${kosten_pro_km_ev.toLocaleString('de-DE', {maximumFractionDigits:2})} €</strong></div>
-    <div>Benziner Kosten pro km: <strong>${kosten_pro_km_benziner.toLocaleString('de-DE', {maximumFractionDigits:2})} €</strong></div>
-  `;
+  const v = vergleicheTco({ jahre: wert('jahre'), kmProJahr: wert('km'), a: fahrzeug('b'), b: fahrzeug('e') });
+  const ziel = document.getElementById('differenz');
+  ziel.textContent = (v.differenz > 0 ? '+' : '') + eur(v.differenz);
+  ziel.style.color = v.differenz >= 0 ? '#1e7e34' : '#b71c1c';
+  const zeile = (name, r) => `<span>${name}: <strong>${eur(r.gesamt)}</strong> gesamt – Wertverlust ${eur(r.wertverlust)}, laufend ${eur(r.laufendJahr)} je Jahr, ${r.jeKm.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} € je km</span>`;
+  const teile = [zeile('Benziner', v.a), zeile('Elektroauto', v.b)];
+  if (v.ausgleichNachJahren !== null) teile.push(`<span>Der höhere Wertverlust wäre bei gleichbleibenden laufenden Kosten nach rund <strong>${v.ausgleichNachJahren.toLocaleString('de-DE')} Jahren</strong> ausgeglichen – der Restwert sinkt dann aber weiter.</span>`);
+  document.getElementById('details').innerHTML = teile.join('');
 }
-
-['ev_preis','benziner_preis','jahres_km','zeitraum','strompreis','benzinpreis'].forEach(id =>
-  document.getElementById(id).addEventListener('input', berechne));
+document.querySelectorAll('.calc-form input').forEach((el) => el.addEventListener('input', berechne));
 berechne();
 </script>
 
 <style>
 .page-header { margin-bottom: 2rem; }
+.tco-spalten { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1rem; margin-top: 1rem; }
+.tco-spalte { border: 1px solid #ddd; border-radius: 8px; padding: 0.75rem 1rem 1rem; display: flex; flex-direction: column; gap: 0.3rem; min-width: 0; }
+.tco-spalte legend { font-weight: 600; padding: 0 0.3rem; }
+.tco-spalte label { font-size: 0.85rem; margin-top: 0.35rem; }
+.tco-spalte input { width: 100%; box-sizing: border-box; }
 </style>

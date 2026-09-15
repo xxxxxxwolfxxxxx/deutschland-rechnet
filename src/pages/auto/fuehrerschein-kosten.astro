@@ -3,13 +3,82 @@ import Layout from '../../layouts/Layout.astro';
 import CalculatorShell from '../../components/CalculatorShell.astro';
 import CalculatorGuide from '../../components/CalculatorGuide.astro';
 import { CALCULATORS, CATEGORIES } from '../../data/calculators';
+import {
+  berechneFuehrerschein,
+  pruefgebuehren,
+  SONDERFAHRTEN_B,
+  GEBUEHREN,
+  MINUTEN_JE_AUSBILDUNGSFAHRT,
+} from '../../../public/scripts/fuehrerschein.js';
 const calc = CALCULATORS.find(c => c.slug === 'fuehrerschein-kosten')!;
 const cat = CATEGORIES[calc.category];
 const year = new Date().getFullYear();
+
+// Alle Zahlen dieser Seite kommen aus demselben Modul, das der Rechner laedt.
+const eur = (n: number) => n.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
+const eur0 = (n: number) => n.toLocaleString('de-DE', { maximumFractionDigits: 0 }) + ' €';
+const geb = pruefgebuehren();
+const gebNetto = pruefgebuehren({ mitUmsatzsteuer: false });
+const sonder = SONDERFAHRTEN_B.ueberland + SONDERFAHRTEN_B.autobahn + SONDERFAHRTEN_B.dunkelheit;
+
+// Rechenbeispiel mit ausgedachter Preisliste – ausdrücklich als solche
+// benannt. Es zeigt nur, wie stark die Zahl der Übungsstunden wirkt.
+const preisliste = { grundbetrag: 400, preisUebungsstunde: 65, preisSonderfahrt: 80, vorstellungTheorie: 50, vorstellungPraxis: 180, sonstiges: 100 };
+const mit20 = berechneFuehrerschein({ ...preisliste, uebungsstunden: 20 });
+const mit35 = berechneFuehrerschein({ ...preisliste, uebungsstunden: 35 });
+const mitWiederholung = berechneFuehrerschein({ ...preisliste, uebungsstunden: 20, versuchePraxis: 2 });
+if (Math.round((mit35.gesamt - mit20.gesamt) * 100) !== 15 * 65 * 100 || mit20.sonderfahrten !== 12) {
+  throw new Error('Führerschein: Beispiel widerspricht dem Modul');
+}
+
+const guideHtml = `
+<h3>Was die Fahrschule berechnet</h3>
+<p>Die Preise legt jede Fahrschule selbst fest. § 32 des Fahrlehrergesetzes verpflichtet sie aber, einen Preisaushang zu führen, der für jede Klasse dieselben Posten nennt: den Grundbetrag für den theoretischen Unterricht und die allgemeinen Aufwendungen, die Vorstellungsentgelte für die theoretische und die praktische Prüfung, das Entgelt für eine Fahrstunde zu 45 Minuten und das für die besonderen Ausbildungsfahrten. Genau diese Felder fragt der Rechner ab – Sie können die Preisliste Ihrer Fahrschule also Zeile für Zeile übertragen und mehrere Schulen vergleichen.</p>
+
+<h3>Die Pflichtfahrten nach Anlage 4 FahrschAusbO</h3>
+<p>Unabhängig davon, wie schnell jemand lernt, schreibt die Fahrschüler-Ausbildungsordnung für Klasse B besondere Ausbildungsfahrten zu je ${MINUTEN_JE_AUSBILDUNGSFAHRT} Minuten vor (§ 5 Abs. 3 mit Anlage 4):</p>
+<table>
+<thead><tr><th>Ausbildungsfahrt</th><th>Anzahl</th></tr></thead>
+<tbody>
+<tr><td>Überland (Bundes- oder Landstraße)</td><td>${SONDERFAHRTEN_B.ueberland}</td></tr>
+<tr><td>Autobahn oder Kraftfahrstraße</td><td>${SONDERFAHRTEN_B.autobahn}</td></tr>
+<tr><td>Bei Dämmerung oder Dunkelheit</td><td>${SONDERFAHRTEN_B.dunkelheit}</td></tr>
+<tr><td><strong>Zusammen</strong></td><td><strong>${sonder}</strong></td></tr>
+</tbody>
+</table>
+<p>Das sind Mindestanforderungen (§ 5 Abs. 6 FahrschAusbO). Die Übungsstunden der Grundausbildung kommen hinzu; wie viele es werden, entscheidet der Ausbildungsstand – dafür gibt es keine gesetzliche Zahl.</p>
+
+<h3>Die amtlichen Gebühren</h3>
+<p>Für Prüfung und Erteilung gelten bundeseinheitliche Sätze aus der Gebührenordnung für Maßnahmen im Straßenverkehr (GebOSt):</p>
+<table>
+<thead><tr><th>Gebühr</th><th>GebOSt-Nr.</th><th>Satz</th><th>mit 19 % USt</th></tr></thead>
+<tbody>
+<tr><td>Theoretische Prüfung, am PC</td><td>401.1, 401.3</td><td>${eur(gebNetto.theorie)}</td><td>${eur(geb.theorie)}</td></tr>
+<tr><td>Praktische Prüfung Klasse B</td><td>402.3</td><td>${eur(gebNetto.praxis)}</td><td>${eur(geb.praxis)}</td></tr>
+<tr><td>Erteilung der Fahrerlaubnis</td><td>202.1</td><td>${eur(GEBUEHREN.erteilung)}</td><td>–</td></tr>
+</tbody>
+</table>
+<p>Die Prüfstelle darf nach § 1 Abs. 3 GebOSt die Umsatzsteuer hinzurechnen, wenn die Prüfung ihr unterliegt; der Rechner rechnet sie deshalb standardmäßig ein. Fällt eine Prüfung ohne ausreichende Entschuldigung aus, wird die volle Gebühr erhoben. Jede Wiederholung kostet die Prüfgebühr erneut – und bei der Fahrschule in aller Regel auch das Vorstellungsentgelt.</p>
+
+<h3>Wo die Kosten tatsächlich entstehen</h3>
+<p>Ein Rechenbeispiel mit einer <em>angenommenen</em> Preisliste (Grundbetrag 400 €, Übungsstunde 65 €, Sonderfahrt 80 €, Vorstellung 50 € und 180 €, Sonstiges 100 €): Mit 20 Übungsstunden kommen ${eur0(mit20.gesamt)} zusammen, davon nur ${eur(mit20.posten.amtlich)} amtliche Gebühren. Jede weitere Übungsstunde kostet den vollen Stundensatz – 35 statt 20 Stunden machen ${eur0(mit35.gesamt)}. Eine zweite praktische Prüfung erhöht die Summe auf ${eur0(mitWiederholung.gesamt)}.</p>
+<p>Die amtlichen Gebühren machen also nur einen kleinen Teil aus. Den Unterschied zwischen zwei Fahrschulen bestimmen der Stundensatz und die Zahl der Übungsstunden.</p>
+
+<h3>Was außerdem nötig ist</h3>
+<p>Wer die Fahrerlaubnis beantragt, braucht einen Sehtest bei einer amtlich anerkannten Sehteststelle (§ 12 Abs. 2 FeV) und den Nachweis einer Schulung in Erster Hilfe mit mindestens neun Unterrichtseinheiten zu je 45 Minuten (§ 19 Abs. 1 FeV). Deren Preise und die für Lichtbild und Lernmaterial sind nicht geregelt – tragen Sie sie unter „Sonstiges“ ein.</p>
+`;
+
+const faqs = [
+  { q: 'Wie viele Fahrstunden sind Pflicht?', a: `Vorgeschrieben sind nur die ${sonder} besonderen Ausbildungsfahrten für Klasse B: ${SONDERFAHRTEN_B.ueberland} Überland-, ${SONDERFAHRTEN_B.autobahn} Autobahn- und ${SONDERFAHRTEN_B.dunkelheit} Fahrten bei Dämmerung oder Dunkelheit zu je 45 Minuten (§ 5 Abs. 3 und Anlage 4 FahrschAusbO). Die Zahl der übrigen Übungsstunden legt das Gesetz nicht fest.` },
+  { q: 'Was kosten Theorie- und Fahrprüfung?', a: `Die theoretische Prüfung am PC kostet ${eur(gebNetto.theorie)} (GebOSt Nr. 401.1 und 401.3), die praktische Prüfung Klasse B ${eur(gebNetto.praxis)} (Nr. 402.3), jeweils zuzüglich Umsatzsteuer, sofern die Prüfstelle sie erhebt – also ${eur(geb.theorie)} und ${eur(geb.praxis)}. Hinzu kommt das Vorstellungsentgelt der Fahrschule.` },
+  { q: 'Was kostet die Fahrerlaubnis bei der Behörde?', a: `Die Erteilung kostet nach GebOSt Nr. 202.1 ${eur(GEBUEHREN.erteilung)}. Wird eine anlassbezogene Eignungsbegutachtung nötig, kommen weitere Gebühren hinzu.` },
+  { q: 'Wie lange ist der Führerschein gültig?', a: 'Führerscheine, die ab dem 19. Januar 2013 ausgestellt werden, sind 15 Jahre gültig (§ 24a Abs. 1 FeV). Befristet ist das Dokument, nicht die Fahrerlaubnis – eine neue Prüfung ist beim Umtausch nicht nötig.' },
+  { q: 'Woher bekomme ich die Preise meiner Fahrschule?', a: 'Aus ihrem Preisaushang. § 32 FahrlG verpflichtet Fahrschulen, die Entgelte je Klasse anzugeben – Grundbetrag, Fahrstunde, besondere Ausbildungsfahrten und Vorstellung zur Prüfung – und das auch in Werbung mit Preisangaben.' },
+];
 ---
 <Layout
   title={`Führerschein-Kosten ${year}`}
-  description="Kosten für Auto- oder Motorradführerschein schätzen."
+  description="Kosten für den Führerschein Klasse B aus der Preisliste der eigenen Fahrschule – mit den Pflichtfahrten nach FahrschAusbO und den amtlichen Gebühren nach GebOSt."
   canonicalPath="/auto/fuehrerschein-kosten/"
   categoryColor={cat.color}
   categoryLight={cat.colorLight}
@@ -21,134 +90,85 @@ const year = new Date().getFullYear();
   </div>
   <CalculatorShell
     calculator={calc}
-    intro="Mit dem Führerschein-Kosten-Rechner schätzen Sie die Gesamtkosten für den Erwerb eines Führerscheins. Planen Sie Ihr Budget realistisch, indem Sie Fahrstunden, Prüfungsgebühren und Lehrmaterial einzeln kalkulieren."
-    sourceNote="2.000-3.500€ für Klasse B."
-    explanation="Die Fahrerlaubnis-Verordnung (FeV) legt Mindestfahrstunden und Prüfungsanforderungen fest. Die tatsächlichen Kosten variieren je nach Bundesland und Fahrschule erheblich – in Großstädten zahlen Sie oft 30-50 % mehr als auf dem Land."
-    faqs={[
-      {
-        q: "Warum sind Fahrstunden so teuer?",
-        a: "Fahrstunden kosten 45-55 € pro Stunde in Großstädten, manchmal mehr. Diese Kosten decken den Versicherungs- und Treibstoffaufwand des Fahrlehrers, Abnutzung des Fahrzeugs und seine Dienstleistung. In ländlichen Regionen sind die Preise oft günstiger."
-      },
-      {
-        q: "Wie viele Fahrstunden sind für den Führerschein notwendig?",
-        a: "Das Minimum liegt bei 12 Fahrstunden für Klasse B, wenn Sie besonders schnell lernen. Die meisten Menschen benötigen 25-40 Stunden. Schüler ohne Vorerfahrung sollten eher von 30-40 Stunden ausgehen."
-      },
-      {
-        q: "Was kostet die Fahrschule in verschiedenen Bundesländern?",
-        a: "Berlin und Köln sind teurer (durchschnittlich 55+ € pro Stunde), während Sachsen und Thüringen günstiger sind (38-42 € pro Stunde). In Bayern liegt der Schnitt um 48 €. Vergleichen Sie Schulen in Ihrer Region!"
-      },
-      {
-        q: "Lohnt sich ein Automatik-Führerschein?",
-        a: "Automatik-Führerscheine kosten weniger (keine Schaltung zu lernen), aber Sie dürfen damit keine Schaltfahrzeuge fahren. Heute kaufen viele Menschen Automatik-Autos, daher kann sich dieser Weg lohnen – prüfen Sie aber, ob Sie je ein Schaltfahrzeug brauchen."
-      },
-      {
-        q: "Wann muss ich den Führerschein verlängern oder erneuern?",
-        a: "Der Führerschein ist 15 Jahre gültig (früher 10 Jahre). Die Erneuerung kostet etwa 35-50 €. Es gibt keinen Fahrtest – nur ein neues Dokument mit biometrischem Foto."
-      },
-      {
-        q: "Gibt es Rabatte oder Vergünstigungen für Fahrschulen?",
-        a: "Ja! Manche Schulen bieten Paketpreise an (z. B. 20 Fahrstunden für einen reduzierten Satz). Auch Schüler, Azubis oder Arbeitslose können in manchen Schulen Rabatte aushandeln. Fragen Sie direkt nach!"
-      }
-    ]}
+    intro="Übertragen Sie die Preisliste Ihrer Fahrschule: Der Rechner addiert die Pflichtfahrten nach der Fahrschüler-Ausbildungsordnung und die amtlichen Prüfungs- und Erteilungsgebühren – für Klasse B."
+    sourceNote={`Besondere Ausbildungsfahrten nach § 5 Abs. 3 und Anlage 4 FahrschAusbO; Gebühren nach GebOSt Nr. 202.1, 401.1, 401.3 und 402.3, Umsatzsteuer nach § 1 Abs. 3 GebOSt; Preisaushang nach § 32 FahrlG (abgerufen am 15.09.2026). Die Fahrschulpreise sind Ihre Eingaben.`}
+    explanation={`Gesamt = Grundbetrag + Übungsstunden × Preis + ${sonder} Sonderfahrten × Preis + Vorstellungsentgelte + amtliche Gebühren + Sonstiges. Wiederholungen zählen Prüfgebühr und Vorstellungsentgelt erneut.`}
+    faqs={faqs}
   >
     <div class="calc-form">
       <div class="calc-grid">
         <div class="calc-group">
-          <label for="fuehrerschein">Führerscheinklasse</label>
-          <select id="fuehrerschein">
-            <option value="B" selected>PKW (Klasse B)</option>
-            <option value="A">Motorrad (Klasse A)</option>
-            <option value="A2">Motorrad (Klasse A2)</option>
-            <option value="A1">Motorrad (Klasse A1)</option>
-            <option value="BE">Anhänger (Klasse BE)</option>
+          <label for="grundbetrag">Grundbetrag (€)</label>
+          <input type="number" id="grundbetrag" min="0" max="3000" value="400" step="10" />
+        </div>
+        <div class="calc-group">
+          <label for="preisUebungsstunde">Preis je Übungsstunde, 45 min (€)</label>
+          <input type="number" id="preisUebungsstunde" min="0" max="200" value="65" step="1" />
+        </div>
+        <div class="calc-group">
+          <label for="uebungsstunden">Übungsstunden ohne Sonderfahrten</label>
+          <input type="number" id="uebungsstunden" min="0" max="100" value="20" step="1" />
+        </div>
+        <div class="calc-group">
+          <label for="preisSonderfahrt">Preis je Sonderfahrt, 45 min (€)</label>
+          <input type="number" id="preisSonderfahrt" min="0" max="200" value="80" step="1" />
+        </div>
+        <div class="calc-group">
+          <label for="vorstellungTheorie">Vorstellung Theorieprüfung (€)</label>
+          <input type="number" id="vorstellungTheorie" min="0" max="500" value="50" step="5" />
+        </div>
+        <div class="calc-group">
+          <label for="vorstellungPraxis">Vorstellung praktische Prüfung (€)</label>
+          <input type="number" id="vorstellungPraxis" min="0" max="1000" value="180" step="5" />
+        </div>
+        <div class="calc-group">
+          <label for="sonstiges">Sonstiges: Sehtest, Erste Hilfe, Foto, Lernmaterial (€)</label>
+          <input type="number" id="sonstiges" min="0" max="2000" value="100" step="5" />
+        </div>
+        <div class="calc-group">
+          <label for="versuchePraxis">Anläufe praktische Prüfung</label>
+          <select id="versuchePraxis">
+            <option value="1" selected>1</option>
+            <option value="2">2</option>
+            <option value="3">3</option>
           </select>
-        </div>
-        <div class="calc-group">
-          <label for="region">Region</label>
-          <select id="region">
-            <option value="gross" selected>Großstadt</option>
-            <option value="mittel">Mittelstadt</option>
-            <option value="klein">Kleinstadt/Land</option>
-          </select>
-        </div>
-        <div class="calc-group">
-          <label for="stunden">Erwartete Fahrstunden</label>
-          <input type="number" id="stunden" min="6" max="60" value="30" step="1" />
-        </div>
-        <div class="calc-group">
-          <label for="extras">
-            <input type="checkbox" id="automatik" style="width:auto;margin-right:0.5rem;" />
-            Nur Automatik (kein Schaltfahrzeug)
-          </label>
         </div>
       </div>
-
       <div class="calc-result">
-        <div class="label">Geschätzte Gesamtkosten</div>
+        <div class="label">Gesamtkosten Klasse B</div>
         <div id="kosten">— €</div>
       </div>
-      <div id="details" style="margin-top:0.75rem;font-size:0.88rem;color:#666;display:flex;gap:1.5rem;flex-wrap:wrap;"></div>
+      <div id="details" style="margin-top:0.75rem;font-size:0.88rem;color:#666;display:flex;gap:0.35rem 1.5rem;flex-wrap:wrap;"></div>
+      <p style="margin-top:0.5rem;font-size:0.82rem;color:#777;">Vorbelegt ist eine angenommene Preisliste – ersetzen Sie die Werte durch die Ihrer Fahrschule.</p>
     </div>
   </CalculatorShell>
 
   <CalculatorGuide
-    title="Führerschein-Kosten verstehen und sparen"
-    content="
-    <p>Der Führerschein ist teuer – für viele Teenager und junge Erwachsene eine beachtliche finanzielle Hürde. Die Gesamtkosten sind viel mehr als nur Fahrstunden: Verwaltungsgebühren, Lernmaterialien, Prüfungen und Sehtests addieren sich schnell zu 2.000-3.500 €.</p>
-
-    <p><strong>Die Kostenstruktur im Detail:</strong> Fahrstunden machen etwa 50-60% der Gesamtkosten aus. Eine 30er-Fahrtstunde in einer Großstadt (55 €/h) kostet 1.650 €. Dazu kommen Grundgebühr der Fahrschule (300-400 €), TÜV-Prüfung (800 €), Theorie-Prüfung (80-100 €) und kleine Posten wie Sehtest und Erste-Hilfe-Kurs.</p>
-
-    <p><strong>Regionale Preisunterschiede sind erheblich:</strong> In Berlin zahlen Sie für eine Fahrstunde 55-60 €, in Mecklenburg-Vorpommern oft nur 38-42 €. Der Unterschied ergibt sich aus Lebenshaltungskosten, Fahrzeugversicherungen und lokaler Konkurrenz zwischen Fahrschulen.</p>
-
-    <p><strong>Sparstrategie 1: Sorgfältige Vorbereitung:</strong> Wer die Theorie gründlich lernt, braucht weniger Fahrstunden. Ein Gratis-Lernportal (wie die Staatliche Fahrschul-App) und YouTube-Videos können helfen. Ernsthaftes Lernen spart 10-15 Stunden Fahrunterricht – das sind 500-800 € Ersparnis!</p>
-
-    <p><strong>Sparstrategie 2: Fahrschulen vergleichen:</strong> Preis ist nicht alles, aber lokale Konkurrenz schafft Preisunterschiede. Holen Sie Kostenvoranschläge ein. Manche Schulen bieten Pakete an: „30 Fahrstunden + Theorie für 1.400 €" statt Einzelpreise.</p>
-
-    <p><strong>Sparstrategie 3: Automatik-Führerschein:</strong> Wenn Sie nur Automatik fahren möchten, sparen Sie eine Fahrtstunde pro Woche (ca. 4-5 Fahrstunden = 200-270 €). Allerdings: Sie dürfen dann keine Schaltfahrzeuge fahren.</p>
-
-    <p><strong>Kombinierte Klassen sparen Geld:</strong> Die BE-Klasse (Anhänger) kostet günstiger, wenn Sie sie zusammen mit B machen. Motorrad-Klassen (A1, A2, A) kosten anfangs mehr, aber sind für echte Motorbike-Fans ein gutes Investment.</p>
-    "
-    relatedSlugs={['kfz-versicherung-rechner', 'kfz-steuer-co2', 'spritkosten-rechner']}
+    title="Was der Führerschein kostet – und was davon festgelegt ist"
+    content={guideHtml}
+    relatedSlugs={['kfz-versicherung-rechner', 'kfz-steuer-rechner', 'km-kostenrechner']}
   />
 </Layout>
 
 <script type="module">
-const GRUNDKOSTEN = { B: 350, A: 400, A2: 350, A1: 300, BE: 200 };
-const STUNDENKOSTEN = { gross: 55, mittel: 45, klein: 38 };
-const REGION_FAKTOR = { gross: 1.2, mittel: 1.0, klein: 0.85 };
-
+const { berechneFuehrerschein } = await import(window.__base + 'scripts/fuehrerschein.js');
+const eur = (n) => n.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
+const wert = (id) => parseFloat(document.getElementById(id).value) || 0;
+const felder = ['grundbetrag', 'preisUebungsstunde', 'uebungsstunden', 'preisSonderfahrt', 'vorstellungTheorie', 'vorstellungPraxis', 'sonstiges'];
 function berechne() {
-  const klasse = document.getElementById('fuehrerschein').value;
-  const region = document.getElementById('region').value;
-  const stunden = parseInt(document.getElementById('stunden').value)||30;
-  const automatik = document.getElementById('automatik').checked;
-  
-  const grund = GRUNDKOSTEN[klasse] || 350;
-  const stundenkosten = STUNDENKOSTEN[region] || 45;
-  const faktor = REGION_FAKTOR[region] || 1.0;
-  const avgStundenkosten = stundenkosten * faktor;
-  
-  const fahrstunden = stunden * avgStundenkosten;
-  const prufungsgebuehr = automatik ? 0 : 0;
-  const gebuhren = automatik ? 350 : 250;
-  const sehtest = 6;
-  const erstehilfe = 15;
-  const foto = 10;
-  const turovprufung = automatik ? 650 : 800;
-  
-  const gesamt = grund + fahrstunden + gebuhren + sehtest + erstehilfe + foto + turovprufung;
-  
-  document.getElementById('kosten').textContent = gesamt.toLocaleString('de-DE', {minimumFractionDigits:0}) + ' €';
-  document.getElementById('details').innerHTML =
-    `<span>Grundgebühr: <strong>${grund} €</strong></span>` +
-    `<span>${stunden} Fahrstunden: <strong>${fahrstunden.toLocaleString('de-DE', {minimumFractionDigits:0})} €</strong></span>` +
-    `<span>Gebühren: <strong>${gebuhren + sehtest + erstehilfe + foto} €</strong></span>` +
-    `<span>TÜV-Prüfung: <strong>${turovprufung} €</strong></span>`;
+  const r = berechneFuehrerschein({
+    ...Object.fromEntries(felder.map((id) => [id, wert(id)])),
+    versuchePraxis: wert('versuchePraxis'),
+  });
+  document.getElementById('kosten').textContent = eur(r.gesamt);
+  document.getElementById('details').innerHTML = [
+    `<span>Fahrschule: <strong>${eur(r.fahrschule)}</strong> (${r.anteilFahrschule} %)</span>`,
+    `<span>davon ${r.sonderfahrten} Pflicht-Sonderfahrten: <strong>${eur(r.posten.sonderfahrten)}</strong></span>`,
+    `<span>Fahrstunden insgesamt: <strong>${r.fahrstundenGesamt}</strong></span>`,
+    `<span>Amtliche Gebühren: <strong>${eur(r.posten.amtlich)}</strong></span>`,
+  ].join('');
 }
-['stunden'].forEach(id =>
-  document.getElementById(id).addEventListener('input', berechne));
-['fuehrerschein','region'].forEach(id =>
-  document.getElementById(id).addEventListener('change', berechne));
-document.getElementById('automatik').addEventListener('change', berechne);
+[...felder, 'versuchePraxis'].forEach((id) => document.getElementById(id).addEventListener('input', berechne));
+document.getElementById('versuchePraxis').addEventListener('change', berechne);
 berechne();
 </script>

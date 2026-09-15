@@ -4,18 +4,68 @@ import CalculatorShell from '../../components/CalculatorShell.astro';
 import CalculatorGuide from '../../components/CalculatorGuide.astro';
 import { CALCULATORS, CATEGORIES } from '../../data/calculators';
 import {
+  LADESTROM_HEIM_CENT_PRO_KWH,
   LADESTROM_HEIM_EURO_PRO_KWH,
   LADESTROM_AC_CENT_PRO_KWH,
-  LADESTROM_ADHOC_AUTOBAHN_EURO_PRO_KWH,
-  ladekostenJe100km,
+  LADESTROM_QUELLE,
 } from '../../../public/scripts/strompreis.js';
+import { corsaElektro, ADAC_STROMPREIS, ADAC_STAND, adacVerbrauchJe100km } from '../../../public/scripts/adac-autokosten.js';
+import { berechneLeasingkosten } from '../../../public/scripts/eauto-leasing.js';
+import { ELEKTRO_BEFREIUNG } from '../../../public/scripts/kfz-steuer.js';
+const datum = (s: string) => s.split('-').reverse().join('.');
 const calc = CALCULATORS.find(c => c.slug === 'e-auto-leasing-kostenrechner')!;
 const cat = CATEGORIES[calc.category];
 const year = new Date().getFullYear();
+
+const eur = (n: number) => n.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
+const eur0 = (n: number) => n.toLocaleString('de-DE', { maximumFractionDigits: 0 }) + ' €';
+const pz = (n: number) => n.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' %';
+const ct = (n: number) => n.toLocaleString('de-DE', { maximumFractionDigits: 1 });
+
+// Verbrauch des Corsa Electric aus der ADAC Autokostenübersicht – derselbe
+// Wert, mit dem der TCO-Rechner vorbelegt ist.
+const VERBRAUCH = Math.round(adacVerbrauchJe100km(corsaElektro, ADAC_STROMPREIS) * 10) / 10;
+
+// Zwei ausgedachte Angebote für dasselbe Auto, ausdrücklich als Beispiel
+// gekennzeichnet: gleiche Rate, einmal mit Sonderzahlung.
+const beispiel = {
+  listenpreis: 40000, rate: 299, laufzeitMonate: 36, sonderzahlung: 0, ueberfuehrung: 1000,
+  vertragsKmJahr: 10000, erwarteteKmJahr: 10000, mehrKmSatz: 0.1,
+  verbrauchJe100km: VERBRAUCH, strompreis: LADESTROM_HEIM_EURO_PRO_KWH,
+};
+const ohneSonder = berechneLeasingkosten(beispiel);
+const mitSonder = berechneLeasingkosten({ ...beispiel, sonderzahlung: 5000 });
+const mehrKm = berechneLeasingkosten({ ...beispiel, erwarteteKmJahr: 15000 });
+const oeffentlich = berechneLeasingkosten({ ...beispiel, strompreis: LADESTROM_AC_CENT_PRO_KWH / 100 });
+if (ohneSonder.leasingfaktor !== mitSonder.leasingfaktor || !(mitSonder.gesamtkostenfaktor > ohneSonder.gesamtkostenfaktor)) {
+  throw new Error('Leasing: Sonderzahlung muss nur den Gesamtkostenfaktor erhöhen');
+}
+
+const guideHtml = `
+<h3>Der Leasingfaktor – und warum er allein nicht reicht</h3>
+<p>Die Monatsrate steht im Angebot; berechnen lässt sie sich nicht. Um Angebote für unterschiedlich teure Autos vergleichbar zu machen, ist der <strong>Leasingfaktor</strong> gebräuchlich: Monatsrate geteilt durch den Bruttolistenpreis, mal 100. Er ist keine gesetzlich definierte Größe, sondern eine Vergleichszahl. Wichtig ist der Bezug: Er gilt je <em>Monat</em>. Eine Rate von 299 € für ein Auto mit 40.000 € Listenpreis ergibt ${pz(ohneSonder.leasingfaktor)}.</p>
+<p>Der Leasingfaktor lässt sich schönen – mit einer Sonderzahlung. Dasselbe Angebot mit 5.000 € Sonderzahlung hat denselben Leasingfaktor von ${pz(mitSonder.leasingfaktor)}, kostet über 36 Monate aber ${eur0(mitSonder.vertragskosten - ohneSonder.vertragskosten)} mehr. Der <strong>Gesamtkostenfaktor</strong> legt Sonderzahlung und Überführung auf die Laufzeit um: ${pz(ohneSonder.gesamtkostenfaktor)} gegen ${pz(mitSonder.gesamtkostenfaktor)}. Vergleichen Sie Angebote deshalb mit dem Gesamtkostenfaktor.</p>
+
+<h3>Kilometer: der zweite Kostenblock</h3>
+<p>Beim Kilometerleasing ist eine Jahresfahrleistung vereinbart. Wer mehr fährt, zahlt je Mehrkilometer den Satz aus dem Vertrag. Ob und bis zu welcher Grenze Minderkilometer vergütet werden, regelt ebenfalls der Vertrag – der Rechner setzt sie vorsichtshalber nicht an. Im Beispiel kosten 15.000 statt 10.000 km im Jahr bei 0,10 € je Kilometer ${eur0(mehrKm.mehrKmKosten)} Nachzahlung am Vertragsende. Ist absehbar, dass Sie mehr fahren, ist ein Vertrag mit höherer Fahrleistung meist die bessere Wahl – vergleichen lässt sich das, indem Sie beide Angebote nacheinander eintragen.</p>
+
+<h3>Stromkosten: Wo Sie laden, entscheidet</h3>
+<p>Der Rechner rechnet den Strom über die erwartete Fahrleistung. Vorbelegt ist der Verbrauch des ${corsaElektro.name} von ${VERBRAUCH.toLocaleString('de-DE')} kWh je 100 km aus der ADAC Autokostenübersicht ${ADAC_STAND} und der Haushaltsstrompreis von ${ct(LADESTROM_HEIM_CENT_PRO_KWH)} ct/kWh. Wer statt zu Hause an öffentlichen Normalladesäulen lädt (im Schnitt ${ct(LADESTROM_AC_CENT_PRO_KWH)} ct/kWh nach ${LADESTROM_QUELLE}), zahlt im Beispiel über drei Jahre ${eur0(oeffentlich.stromkosten)} statt ${eur0(ohneSonder.stromkosten)}.</p>
+
+<h3>Was im Rechner fehlt</h3>
+<p>Versicherung, Wartung und Reifen sind nur dann in der Rate enthalten, wenn das Angebot sie ausdrücklich einschließt – sonst kommen sie hinzu. Ebenfalls nicht enthalten sind Kosten für Schäden, die bei Rückgabe über normale Gebrauchsspuren hinausgehen, und eine Wallbox.</p>
+`;
+
+const faqs = [
+  { q: 'Wie berechnet sich der Leasingfaktor?', a: `Monatsrate ÷ Bruttolistenpreis × 100. Er bezieht sich auf einen Monat, nicht auf ein Jahr: 299 € Rate bei 40.000 € Listenpreis ergeben ${pz(ohneSonder.leasingfaktor)}. Eine gesetzliche Definition gibt es nicht; die Zahl dient nur dem Vergleich von Angeboten.` },
+  { q: 'Was ist der Gesamtkostenfaktor?', a: 'Er rechnet Sonderzahlung und Überführungskosten gleichmäßig auf die Monate um und teilt dann durch den Listenpreis. Anders als der Leasingfaktor steigt er, wenn ein Angebot die Rate mit einer hohen Sonderzahlung drückt.' },
+  { q: 'Was kosten Mehrkilometer?', a: 'So viel, wie der Vertrag je Kilometer festlegt. Tragen Sie den Satz aus Ihrem Angebot ein; der Rechner multipliziert ihn mit der Differenz aus erwarteter und vereinbarter Fahrleistung über die Laufzeit.' },
+  { q: 'Muss ich für ein geleastes E-Auto Kfz-Steuer zahlen?', a: `Reine Elektroautos sind nach § 3d KraftStG ${ELEKTRO_BEFREIUNG.jahre} Jahre ab Erstzulassung befreit, sofern die Erstzulassung bis zum ${datum(ELEKTRO_BEFREIUNG.zulassungBis)} erfolgt, längstens bis zum ${datum(ELEKTRO_BEFREIUNG.spaetestensBis)}. Die Befreiung knüpft an das Fahrzeug und seine Erstzulassung an, nicht daran, ob es gekauft oder geleast wurde.` },
+];
 ---
 <Layout
   title={`E-Auto Leasing Kostenrechner ${year}`}
-  description="E-Auto Leasing Kostenrechner – Gesamtkosten, monatliche Leasingrate und Stromkosten berechnen."
+  description="Was ein E-Auto-Leasingvertrag wirklich kostet: Leasingfaktor, Gesamtkostenfaktor, Mehrkilometer und Stromkosten aus dem eigenen Angebot berechnen."
   canonicalPath="/auto/e-auto-leasing-kostenrechner/"
   categoryColor={cat.color}
   categoryLight={cat.colorLight}
@@ -27,158 +77,98 @@ const year = new Date().getFullYear();
   </div>
   <CalculatorShell
     calculator={calc}
-    intro="Mit dem E-Auto Leasing Kostenrechner berechnen Sie Gesamtkosten, Leasingrate, Stromkosten und Kosten pro Kilometer. So sehen Sie auf einen Blick, ob Leasing oder Kauf günstiger ist und welche monatliche Belastung auf Sie zukommt."
-    sourceNote="Berechnung basiert auf gängigen Leasingfaktoren und aktuellen Strompreisen."
-    explanation="E-Auto-Leasing ist oft günstiger als der Kauf, besonders bei niedriger Jahresfahrleistung. Reine E-Autos sind nach § 3d KraftStG für zehn Jahre ab Erstzulassung von der Kfz-Steuer befreit (Zulassung bis 31.12.2030, längstens bis Ende 2035), und die Wartungskosten liegen 30-40 % unter denen eines Verbrenners."
-    faqs={[
-      { q: "Wie wird die Leasingrate berechnet?", a: "Leasingrate = (Auto-Kaufpreis × Leasingfaktor %) ÷ 12 Monate. Der Leasingfaktor liegt typisch zwischen 2-5% des Kaufpreises pro Jahr und hängt ab von Fahrzeugtypklasse, Restwert und Hersteller." },
-      { q: "Was ist der Leasingfaktor?", a: "Der Leasingfaktor ist ein prozentualer Satz des Kaufpreises, der die monatliche Rate bestimmt. Beispiel: 45.000€ Auto × 3,5% = 1.575€/Jahr = 131,25€/Monat. Beliebte E-Autos haben Faktoren von 2,5-4,5%." },
-      { q: "Sind Wartung und Reparatur inklusive?", a: "Ja, meist inbegriffen. E-Autos haben deutlich weniger Verschleiß (keine Ölwechsel, weniger Bremsenverschleiß durch Rekuperation). Wartungskosten sind 30-40% niedriger als bei Verbrennern." },
-      { q: "Wie wirken sich Kilometerüberschreitungen aus?", a: "Leasing-Verträge haben Kilometergrenzen (z.B. 15.000/Jahr). Überschreitungen kosten 0,10-0,20€/km extra. Unser Rechner zeigt, ob Ihre geplante Jahresfahrleistung passt." },
-      { q: "Ist E-Auto-Leasing günstiger als Kauf?", a: "Ja, wenn Sie < 20.000 km/Jahr fahren und das Auto regelmäßig wechseln wollen. Bei > 30.000 km/Jahr lohnt sich Kauf mehr. E-Auto-Leasing hat auch Steuervergünstigungen." },
-      { q: "Wie berechne ich den Stromverbrauch?", a: "Typische E-Autos verbrauchen 15-20 kWh/100km. Tesla Model 3: 16 kWh/100km, VW ID.4: 18 kWh/100km, Nissan Leaf: 17 kWh/100km. Sommerbetrieb ist effizienter als Winter." }
-    ]}
+    intro="Tragen Sie die Werte aus Ihrem Leasingangebot ein. Der Rechner zeigt Leasingfaktor und Gesamtkostenfaktor zum Vergleich von Angeboten und rechnet Mehrkilometer und Strom zu den Gesamtkosten dazu."
+    sourceNote={`Leasingfaktor = Rate ÷ Bruttolistenpreis × 100; Gesamtkostenfaktor zusätzlich mit (Sonderzahlung + Überführung) ÷ Laufzeit – gebräuchliche Vergleichszahlen, keine Rechtsgrößen. Vertragswerte sind Ihre Eingaben. Vorbelegter Verbrauch: ADAC Autokostenübersicht ${ADAC_STAND} (${corsaElektro.name}); Strompreis ${ct(LADESTROM_HEIM_CENT_PRO_KWH)} ct/kWh aus der BDEW-Strompreisanalyse.`}
+    explanation="Gesamtkosten = Rate × Laufzeit + Sonderzahlung + Überführung + Mehrkilometer × Satz + Stromkosten. Minderkilometer werden nicht gegengerechnet."
+    faqs={faqs}
   >
     <div class="calc-form">
       <div class="calc-grid">
         <div class="calc-group">
-          <label for="carPrice">Auto-Kaufpreis (€)</label>
-          <input type="number" id="carPrice" min="20000" max="200000" value="45000" step="1000" />
+          <label for="listenpreis">Bruttolistenpreis (€)</label>
+          <input type="number" id="listenpreis" min="0" max="300000" value={beispiel.listenpreis} step="500" />
         </div>
         <div class="calc-group">
-          <label for="duration">Leasingdauer (Monate)</label>
-          <select id="duration">
-            <option value="24">24 Monate</option>
-            <option value="36" selected>36 Monate</option>
-            <option value="48">48 Monate</option>
-            <option value="60">60 Monate</option>
-          </select>
+          <label for="rate">Monatsrate (€)</label>
+          <input type="number" id="rate" min="0" max="5000" value={beispiel.rate} step="1" />
         </div>
         <div class="calc-group">
-          <label for="annualKm">Jährliche Kilometerleistung</label>
-          <input type="number" id="annualKm" min="5000" max="50000" value="15000" step="1000" />
+          <label for="laufzeit">Laufzeit (Monate)</label>
+          <input type="number" id="laufzeit" min="1" max="96" value={beispiel.laufzeitMonate} step="1" />
         </div>
         <div class="calc-group">
-          <label for="leasingFactor">Leasingfaktor (% des Kaufpreises)</label>
-          <input type="number" id="leasingFactor" min="2" max="5" value="3.5" step="0.1" />
+          <label for="sonderzahlung">Sonderzahlung (€)</label>
+          <input type="number" id="sonderzahlung" min="0" max="100000" value={beispiel.sonderzahlung} step="100" />
         </div>
         <div class="calc-group">
-          <label for="electricityPrice">Strompreis (€/kWh)</label>
-          <input type="number" id="electricityPrice" min="0.1" max={LADESTROM_ADHOC_AUTOBAHN_EURO_PRO_KWH} value={LADESTROM_HEIM_EURO_PRO_KWH} step="0.01" />
+          <label for="ueberfuehrung">Überführung und Zulassung (€)</label>
+          <input type="number" id="ueberfuehrung" min="0" max="5000" value={beispiel.ueberfuehrung} step="10" />
         </div>
         <div class="calc-group">
-          <label for="consumption">Verbrauch (kWh/100km)</label>
-          <input type="number" id="consumption" min="12" max="30" value="18" step="0.5" />
+          <label for="vertragsKm">Vereinbarte Fahrleistung (km/Jahr)</label>
+          <input type="number" id="vertragsKm" min="0" max="100000" value={beispiel.vertragsKmJahr} step="1000" />
+        </div>
+        <div class="calc-group">
+          <label for="erwarteteKm">Erwartete Fahrleistung (km/Jahr)</label>
+          <input type="number" id="erwarteteKm" min="0" max="100000" value={beispiel.erwarteteKmJahr} step="1000" />
+        </div>
+        <div class="calc-group">
+          <label for="mehrKmSatz">Mehrkilometer laut Vertrag (€/km)</label>
+          <input type="number" id="mehrKmSatz" min="0" max="2" value={beispiel.mehrKmSatz} step="0.01" />
+        </div>
+        <div class="calc-group">
+          <label for="verbrauch">Verbrauch (kWh/100 km)</label>
+          <input type="number" id="verbrauch" min="0" max="50" value={VERBRAUCH} step="0.1" />
+        </div>
+        <div class="calc-group">
+          <label for="strompreis">Strompreis (€/kWh)</label>
+          <input type="number" id="strompreis" min="0" max="2" value={LADESTROM_HEIM_EURO_PRO_KWH} step="0.01" />
         </div>
       </div>
 
-      <div class="calc-result" style="background:#fff3e0;">
-        <div class="label">Gesamtkosten</div>
-        <div id="totalCost">— €</div>
+      <div class="calc-result">
+        <div class="label">Gesamtkosten über die Laufzeit</div>
+        <div id="gesamt">— €</div>
       </div>
-
-      <div style="margin-top: 1.5rem; display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem;">
-        <div class="calc-result">
-          <div class="label">Monatliche Leasingrate</div>
-          <div id="monthlyRate">— €</div>
-        </div>
-        <div class="calc-result">
-          <div class="label">Monatliche Stromkosten</div>
-          <div id="monthlyElectricity">— €</div>
-        </div>
-        <div class="calc-result">
-          <div class="label">Monatliche Gesamtkosten</div>
-          <div id="monthlyTotal">— €</div>
-        </div>
-        <div class="calc-result">
-          <div class="label">Kosten pro km</div>
-          <div id="costPerKm">— €</div>
-        </div>
-        <div class="calc-result">
-          <div class="label">Jährliche Stromkosten</div>
-          <div id="yearlyElectricity">— €</div>
-        </div>
-        <div class="calc-result">
-          <div class="label">Gesamtkilometer</div>
-          <div id="totalKm">— km</div>
-        </div>
-      </div>
-
-      <div id="details" style="margin-top:0.75rem;font-size:0.88rem;color:#666;"></div>
+      <div id="details" style="margin-top:0.75rem;font-size:0.88rem;color:#555;display:flex;gap:0.35rem 1.5rem;flex-wrap:wrap;"></div>
+      <p style="margin-top:0.5rem;font-size:0.82rem;color:#777;">Vorbelegt ist ein angenommenes Angebot – ersetzen Sie die Vertragswerte durch Ihre.</p>
     </div>
   </CalculatorShell>
 
   <CalculatorGuide
-    title="E-Auto Leasing verstehen und sparen"
-    content={`
-    <p>E-Auto-Leasing ist eine attraktive Alternative zum Autokauf, besonders für Berufstätige mit regelmäßiger Kilometerleistung. Im Gegensatz zum Kauf zahlen Sie monatlich eine Leasingrate und erhalten dafür ein modernes Auto mit Garantie, Versicherung (oft inklusive) und Wartung.</p>
-
-    <p><strong>Wie funktioniert E-Auto-Leasing?</strong> Der Autohersteller oder ein Leasing-Unternehmen bleibt Eigentümer des Fahrzeugs. Sie zahlen eine monatliche Rate, die aus mehreren Komponenten besteht: (1) Abschreibung des Fahrzeugs über die Laufzeit, (2) Finanzierungskosten (Zinsen), (3) Versicherung und Verschleißschutz, (4) Wartungskosten. Nach Ablauf geben Sie das Auto zurück – keine Sorge um Restwert oder Verkauf!</p>
-
-    <p><strong>Der Leasingfaktor erklärt:</strong> Der Leasingfaktor ist der Schlüssel zur Berechnung. Er wird als Prozentsatz des Kaufpreises pro Jahr angegeben und liegt typisch zwischen 2-5%. Beispiel: Ein VW ID.4 mit 45.000€ Kaufpreis und 3,5% Leasingfaktor kostet monatlich (45.000 × 0,035) ÷ 12 = 131,25€. Der Faktor variiert je nach Hersteller, Fahrzeugklasse und Restwert-Vorhersage. Premium-Hersteller (BMW, Mercedes) haben oft höhere Faktoren (4-5%), während Volkswagen und Hyundai günstiger sind (2,5-3,5%).</p>
-
-    <p><strong>Leasen vs. Kaufen – wann lohnt sich Leasing?</strong> Leasing ist sinnvoll, wenn Sie (1) < 20.000 km/Jahr fahren, (2) das Auto regelmäßig austauschen möchten (alle 3-4 Jahre), (3) keine Lust auf Reparaturen und Verschleiß haben, und (4) ein modernes Auto mit aktueller Batterie-Technik fahren wollen. Kaufen ist günstiger, wenn Sie > 30.000 km/Jahr fahren oder das Auto 8+ Jahre halten. Bei E-Autos ist Leasing oft billiger, weil die Batterieentwicklung schnell vorangeht und große Reparaturen teuer sind.</p>
-
-    <p><strong>Stromkosten beim E-Auto-Leasing:</strong> Der größte Vorteil gegenüber Verbrennern. Ein durchschnittliches E-Auto (18 kWh/100 km) kostet beim Heimladen zu ${LADESTROM_HEIM_EURO_PRO_KWH.toLocaleString('de-DE', { minimumFractionDigits: 2 })} €/kWh etwa ${ladekostenJe100km({ verbrauchKwhJe100km: 18, centProKwh: LADESTROM_HEIM_EURO_PRO_KWH * 100 }).toLocaleString('de-DE', { minimumFractionDigits: 2 })} € pro 100 km. Ein Benziner (7 Liter/100 km) bei 1,85 €/Liter kostet 12,95 € pro 100 km – gut das Doppelte. Wer überwiegend an öffentlichen Säulen lädt (${LADESTROM_AC_CENT_PRO_KWH} ct/kWh), zahlt dagegen ${ladekostenJe100km({ verbrauchKwhJe100km: 18, centProKwh: LADESTROM_AC_CENT_PRO_KWH }).toLocaleString('de-DE', { minimumFractionDigits: 2 })} € je 100 km und verliert den größten Teil des Vorteils.</p>
-
-    <p><strong>Kilometer-Klauseln und Strafgebühren:</strong> Leasing-Verträge haben Kilometerbudgets – oft 10.000, 15.000 oder 20.000 km/Jahr. Überschreitungen kosten 0,10-0,20€/km extra (durchschnittlich 0,15€/km). Wenn Sie über das Budget gehen, addieren sich die Kosten schnell: 5.000 km × 0,15€ = 750€ extra! Deshalb ist es wichtig, Ihre typische Jahresfahrleistung realistisch einzuschätzen. Unser Rechner zeigt, ob Ihre geplante Kilometerleistung kostenoptimal ist.</p>
-
-    <p><strong>Wartung und Reparaturen:</strong> E-Autos haben deutlich weniger Verschleiß als Verbrenner. Keine Ölwechsel, weniger Bremsenverschleiß (durch Rekuperation), keine Getriebe-Reparaturen. Wartungskosten sind 30-40% niedriger. Bei Leasing ist Wartung meist inklusive – Sie sparen einen weiteren Kostenvorteil ein.</p>
-
-    <p><strong>Versicherung und Steuern:</strong> E-Autos sind versicherungstechnisch günstiger (Kasko oft 10-20% günstiger). Die Kfz-Steuer entfällt für reine E-Autos nach § 3d KraftStG zehn Jahre lang ab dem Tag der Erstzulassung, sofern diese bis zum 31.12.2030 erfolgt – längstens bis Ende 2035. Danach gilt nicht der Hubraum, sondern die halbierte Gewichtssteuer des § 9 Abs. 2 KraftStG: bei 2.000 kg zulässigem Gesamtgewicht 56,25 € im Jahr. Bei Leasingverträgen ist die Versicherung oft inklusive – achten Sie auf die Vertragsbedingungen!</p>
-
-    <p><strong>Tipp für E-Auto-Leasing:</strong> Vergleichen Sie verschiedene Leasingfaktoren über Online-Broker wie LeasingMarkt.de, Arval oder Sixt Leasing. Die Faktoren schwanken je nach Marktlage und Ausstattung des Autos. Ein Auto mit kleinerer Batterie ist günstiger zu leasen, hat aber weniger Reichweite – ein guter Kompromiss ist oft 50-60 kWh Batteriekapazität. Laden Sie zu Hause (Wallbox), nicht an öffentlichen Säulen – das spart 30-40% Stromkosten!</p>
-    `}
-    relatedSlugs={['spritkosten-vergleich', 'elektroauto-tco-rechner', 'leasing-rechner']}
+    title="Leasingangebote richtig vergleichen"
+    content={guideHtml}
+    relatedSlugs={['leasing-rechner', 'elektroauto-tco-rechner', 'spritkosten-vergleich']}
   />
 </Layout>
 
 <script type="module">
+const { berechneLeasingkosten } = await import(window.__base + 'scripts/eauto-leasing.js');
+const eur = (n) => n.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
+const pz = (n) => n.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' %';
+const wert = (id) => parseFloat(document.getElementById(id).value) || 0;
 function berechne() {
-  const carPrice = parseFloat(document.getElementById('carPrice').value) || 45000;
-  const duration = parseInt(document.getElementById('duration').value) || 36;
-  const annualKm = parseFloat(document.getElementById('annualKm').value) || 15000;
-  const leasingFactor = parseFloat(document.getElementById('leasingFactor').value) || 3.5;
-  const electricityPrice = parseFloat(document.getElementById('electricityPrice').value) || 0;
-  const consumption = parseFloat(document.getElementById('consumption').value) || 18;
-
-  // Berechnung
-  const monthlyLeasingRate = (carPrice * (leasingFactor / 100)) / 12;
-  const monthlyKm = annualKm / 12;
-  const monthlyElectricityCost = (monthlyKm * (consumption / 100)) * electricityPrice;
-  const monthlyTotalCost = monthlyLeasingRate + monthlyElectricityCost;
-  const totalKm = annualKm * (duration / 12);
-  const totalCost = monthlyTotalCost * duration;
-  const costPerKm = totalKm > 0 ? totalCost / totalKm : 0;
-  const yearlyElectricityCost = (annualKm * (consumption / 100)) * electricityPrice;
-
-  // Anzeige formatieren
-  const fmt = (n) => n.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
-  const fmtKm = (n) => n.toLocaleString('de-DE', { maximumFractionDigits: 0 }) + ' km';
-
-  document.getElementById('totalCost').textContent = fmt(totalCost);
-  document.getElementById('monthlyRate').textContent = fmt(monthlyLeasingRate);
-  document.getElementById('monthlyElectricity').textContent = fmt(monthlyElectricityCost);
-  document.getElementById('monthlyTotal').textContent = fmt(monthlyTotalCost);
-  document.getElementById('costPerKm').textContent = costPerKm.toLocaleString('de-DE', { minimumFractionDigits: 3, maximumFractionDigits: 3 }) + ' €';
-  document.getElementById('yearlyElectricity').textContent = fmt(yearlyElectricityCost);
-  document.getElementById('totalKm').textContent = fmtKm(totalKm);
-
-  document.getElementById('details').innerHTML = `
-    <div>Leasingfaktor p.a.: <strong>${leasingFactor.toFixed(1)}%</strong> (${fmt(carPrice * (leasingFactor / 100))} pro Jahr)</div>
-    <div>Stromverbrauch: <strong>${consumption.toFixed(1)} kWh/100km</strong> | Strompreis: <strong>${electricityPrice.toFixed(2)}€/kWh</strong></div>
-    <div>Gesamtleasingdauer: <strong>${duration} Monate (${(duration / 12).toFixed(1)} Jahre)</strong> | Gesamtfahrleistung: <strong>${fmtKm(totalKm)}</strong></div>
-  `;
+  const r = berechneLeasingkosten({
+    listenpreis: wert('listenpreis'), rate: wert('rate'), laufzeitMonate: wert('laufzeit'),
+    sonderzahlung: wert('sonderzahlung'), ueberfuehrung: wert('ueberfuehrung'),
+    vertragsKmJahr: wert('vertragsKm'), erwarteteKmJahr: wert('erwarteteKm'), mehrKmSatz: wert('mehrKmSatz'),
+    verbrauchJe100km: wert('verbrauch'), strompreis: wert('strompreis'),
+  });
+  document.getElementById('gesamt').textContent = eur(r.gesamt);
+  document.getElementById('details').innerHTML = [
+    `<span>Leasingfaktor: <strong>${pz(r.leasingfaktor)}</strong></span>`,
+    `<span>Gesamtkostenfaktor: <strong>${pz(r.gesamtkostenfaktor)}</strong></span>`,
+    `<span>Vertrag: <strong>${eur(r.vertragskosten)}</strong></span>`,
+    `<span>Mehrkilometer: <strong>${r.mehrKm.toLocaleString('de-DE')} km = ${eur(r.mehrKmKosten)}</strong></span>`,
+    `<span>Strom: <strong>${eur(r.stromkosten)}</strong></span>`,
+    `<span>Je Monat: <strong>${eur(r.jeMonat)}</strong></span>`,
+    `<span>Je km: <strong>${r.jeKm.toLocaleString('de-DE', { minimumFractionDigits: 3 })} €</strong></span>`,
+  ].join('');
 }
-
-['carPrice', 'duration', 'annualKm', 'leasingFactor', 'electricityPrice', 'consumption'].forEach(id =>
-  document.getElementById(id).addEventListener('change', berechne));
-['carPrice', 'annualKm', 'leasingFactor', 'electricityPrice', 'consumption'].forEach(id =>
-  document.getElementById(id).addEventListener('input', berechne));
+document.querySelectorAll('.calc-form input').forEach((el) => el.addEventListener('input', berechne));
 berechne();
 </script>
 
 <style>
 .page-header { margin-bottom: 2rem; }
 </style>
-</Layout>

@@ -5,19 +5,79 @@ import CalculatorGuide from '../../components/CalculatorGuide.astro';
 import { CALCULATORS, CATEGORIES } from '../../data/calculators';
 import {
   LADESTROM_HEIM_CENT_PRO_KWH,
+  LADESTROM_HEIM_EURO_PRO_KWH,
   LADESTROM_AC_CENT_PRO_KWH,
   LADESTROM_DC_CENT_PRO_KWH,
   LADESTROM_ADHOC_AUTOBAHN_CENT_PRO_KWH,
   LADESTROM_QUELLE,
-  ladekostenJe100km,
 } from '../../../public/scripts/strompreis.js';
+import { corsaBenzin, corsaElektro, BENZINPREIS, ADAC_STROMPREIS, ADAC_STAND, adacVerbrauchJe100km } from '../../../public/scripts/adac-autokosten.js';
+import { vergleicheAntriebe } from '../../../public/scripts/antriebsvergleich.js';
 const calc = CALCULATORS.find(c => c.slug === 'spritkosten-vergleich')!;
 const cat = CATEGORIES[calc.category];
 const year = new Date().getFullYear();
+
+const eur = (n: number) => n.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
+const eur0 = (n: number) => n.toLocaleString('de-DE', { maximumFractionDigits: 0 }) + ' €';
+const ct = (n: number) => n.toLocaleString('de-DE', { maximumFractionDigits: 1 });
+const r1 = (n: number) => Math.round(n * 10) / 10;
+
+// Vorbelegung: Verbrauch der beiden Corsa-Varianten aus der ADAC-Übersicht,
+// Benzinpreis wie vom ADAC angesetzt, Strom zum Haushaltstarif.
+const VERBRAUCH_BENZIN = r1(adacVerbrauchJe100km(corsaBenzin, BENZINPREIS));
+const VERBRAUCH_STROM = r1(adacVerbrauchJe100km(corsaElektro, ADAC_STROMPREIS));
+const KM = 12000;
+
+const ladeweg = (cent: number) =>
+  vergleicheAntriebe({
+    kmProJahr: KM,
+    antriebe: [
+      { name: 'Benzin', verbrauch: VERBRAUCH_BENZIN, preis: BENZINPREIS },
+      { name: 'Strom', verbrauch: VERBRAUCH_STROM, preis: cent / 100 },
+    ],
+  });
+const zeilen = [
+  ['Zu Hause', LADESTROM_HEIM_CENT_PRO_KWH],
+  ['Öffentlich AC', LADESTROM_AC_CENT_PRO_KWH],
+  ['Öffentlich DC', LADESTROM_DC_CENT_PRO_KWH],
+  ['Ad hoc an der Autobahn', LADESTROM_ADHOC_AUTOBAHN_CENT_PRO_KWH],
+].map(([name, cent]) => {
+  const v = ladeweg(cent as number);
+  const strom = v.antriebe.find((a) => a.name === 'Strom')!;
+  const benzin = v.antriebe.find((a) => a.name === 'Benzin')!;
+  return '<tr><td>' + name + '</td><td>' + ct(cent as number) + ' ct</td><td>' + eur(strom.je100km) + '</td><td>' + eur0(benzin.jahr - strom.jahr) + '</td></tr>';
+}).join('');
+const heim = ladeweg(LADESTROM_HEIM_CENT_PRO_KWH);
+if (heim.guenstigster !== 'Strom') throw new Error('Spritvergleich: Heimladen muss im Beispiel günstiger sein');
+// Strompreis, ab dem das E-Auto im Beispiel teurer fährt als der Benziner.
+const gleichstandCent = (VERBRAUCH_BENZIN * BENZINPREIS) / VERBRAUCH_STROM * 100;
+
+const guideHtml = `
+<h3>Die Rechnung</h3>
+<p>Kosten je 100 km sind Verbrauch je 100 km mal Preis je Liter oder Kilowattstunde. Den Verbrauch kennen Sie am genauesten aus Tankbelegen oder Ladeabrechnungen: getankte Liter oder geladene kWh geteilt durch die gefahrenen Kilometer, mal 100. Beim Elektroauto zählt die Menge, die an der Wallbox oder Säule abgerechnet wird – sie liegt wegen der Ladeverluste über dem Wert im Bordcomputer.</p>
+
+<h3>Beispiel: derselbe Corsa als Benziner und als Elektroauto</h3>
+<p>Aus den Betriebskosten der ADAC Autokostenübersicht ${ADAC_STAND} ergeben sich ${VERBRAUCH_BENZIN.toLocaleString('de-DE')} l Benzin und ${VERBRAUCH_STROM.toLocaleString('de-DE')} kWh Strom je 100 km. Bei ${BENZINPREIS.toLocaleString('de-DE')} € je Liter kostet der Benziner ${eur(VERBRAUCH_BENZIN * BENZINPREIS)} je 100 km. Was das Elektroauto kostet, hängt am Ladeort (Preise nach ${LADESTROM_QUELLE}, Heimstrom nach BDEW):</p>
+<table>
+<thead><tr><th>Ladeort</th><th>Preis je kWh</th><th>Strom je 100 km</th><th>Ersparnis gegenüber Benzin bei ${KM.toLocaleString('de-DE')} km/Jahr</th></tr></thead>
+<tbody>${zeilen}</tbody>
+</table>
+<p>Ab rund ${ct(gleichstandCent)} ct je kWh fährt das Elektroauto in diesem Beispiel teurer als der Benziner. Wer überwiegend ohne Vertrag schnell lädt, verliert den Energiekostenvorteil also vollständig.</p>
+
+<h3>Was der Vergleich nicht zeigt</h3>
+<p>Nur die Energiekosten. Kaufpreis, Wertverlust, Versicherung, Steuer und Werkstatt vergleicht der Elektroauto-TCO-Rechner – dort kann ein niedriger Energiepreis durch einen höheren Kaufpreis wieder aufgezehrt werden.</p>
+`;
+
+const faqs = [
+  { q: 'Wie ermittle ich meinen Verbrauch?', a: 'Aus Tank- oder Ladebelegen: Liter oder kWh seit dem letzten vollen Tanken oder Laden, geteilt durch die gefahrenen Kilometer, mal 100. Beim Elektroauto die abgerechneten kWh nehmen, nicht den Bordcomputerwert.' },
+  { q: 'Was kostet Laden an öffentlichen Säulen?', a: `Öffentliches Normalladen (AC) kostet im Schnitt ${ct(LADESTROM_AC_CENT_PRO_KWH)} ct/kWh, Schnellladen (DC) ${ct(LADESTROM_DC_CENT_PRO_KWH)} ct/kWh, ohne Vertrag an der Autobahn bis zu ${ct(LADESTROM_ADHOC_AUTOBAHN_CENT_PRO_KWH)} ct/kWh (${LADESTROM_QUELLE}). Zu Hause gilt der Haushaltstarif, im Durchschnitt ${ct(LADESTROM_HEIM_CENT_PRO_KWH)} ct/kWh.` },
+  { q: 'Warum bleibt ein Feld leer?', a: 'Ein Antrieb ohne Verbrauch oder Preis wird nicht gewertet – sonst erschiene er mit 0 € als der günstigste. Für Diesel ist nichts vorbelegt; tragen Sie Verbrauch und Preis Ihres Fahrzeugs ein.' },
+  { q: 'Ist das E-Auto damit insgesamt günstiger?', a: 'Das zeigt dieser Rechner nicht. Er vergleicht nur die Energiekosten. Für Kaufpreis, Wertverlust, Versicherung und Werkstatt gibt es den Elektroauto-TCO-Rechner.' },
+];
 ---
 <Layout
   title={`Spritkosten-Vergleich ${year}`}
-  description="Spritkosten vs. Stromkosten vergleichen – Benzin, Diesel und Strom für E-Autos."
+  description="Energiekosten von Benzin, Diesel und Strom nebeneinander: Kosten je 100 km, im Monat und im Jahr aus eigenem Verbrauch und Preis."
   canonicalPath="/auto/spritkosten-vergleich/"
   categoryColor={cat.color}
   categoryLight={cat.colorLight}
@@ -29,128 +89,68 @@ const year = new Date().getFullYear();
   </div>
   <CalculatorShell
     calculator={calc}
-    intro="Mit dem Spritkosten-Vergleich sehen Sie, welcher Energieträger (Benzin, Diesel, Strom) für Ihre Fahrleistung am günstigsten ist. So treffen Sie eine fundierte Entscheidung beim nächsten Autokauf."
-    sourceNote="Berechnung basiert auf aktuellen Energiepreisen."
-    explanation="Die Betriebskosten variieren stark: E-Autos verbrauchen ca. 15-20 kWh/100 km und kosten bei Heimladung rund 4-6 € pro 100 km. Benziner liegen bei 10-14 €. Die Kfz-Steuerbefreiung für E-Autos bis 2030 (§ 3d KraftStG) verstärkt den Kostenvorteil."
-    faqs={[
-      { q: "Warum ist das E-Auto günstiger?", a: "Elektromotoren sind effizienter (90% vs. 30% bei Benzin). Weniger Energieverlust = niedrigere Kosten. Zusätzlich: kein Öl, weniger Wartung." },
-      { q: "Was ist der Verbrauch eines E-Autos?", a: "Kompaktklasse: 15-18 kWh/100km. SUV: 20-25 kWh/100km. Benziner gleiche Klasse: 6-8 Liter/100km." },
-      { q: "Wie wirken sich Strompreise aus?", a: "Bei 0,20€/kWh: sehr günstig. Bei 0,40€/kWh: immer noch günstiger als Benzin. Wichtig: Zuhause laden ist billiger als öffentliche Ladesäulen." },
-      { q: "Diesel vs. Benzin – was ist günstiger?", a: "Diesel ca. 3-10% billiger pro Liter. Aber: Diesel-Fahrzeuge sind teurer, höhere KFZ-Steuer, mehr Wartung. Ab 15.000 km/Jahr lohnt sich Diesel." },
-      { q: "Was kostet Laden an öffentlichen Ladesäulen?", a: `Öffentliches Normalladen (AC) kostet im Schnitt ${LADESTROM_AC_CENT_PRO_KWH} ct/kWh, Schnellladen (DC) ${LADESTROM_DC_CENT_PRO_KWH} ct/kWh, ohne Vertrag an der Autobahn bis zu ${LADESTROM_ADHOC_AUTOBAHN_CENT_PRO_KWH} ct/kWh. Zu Hause zahlen Sie dagegen nur den Haushaltsstrompreis von ${LADESTROM_HEIM_CENT_PRO_KWH} ct/kWh – eine Wallbox rechnet sich deshalb schnell.` }
-    ]}
+    intro="Tragen Sie für bis zu drei Antriebe Verbrauch und Preis ein. Der Rechner zeigt die Energiekosten je 100 km, im Monat und im Jahr – und was der teurere Antrieb mehr kostet."
+    sourceNote={`Kosten = km ÷ 100 × Verbrauch × Preis. Vorbelegung: Verbrauch aus der ADAC Autokostenübersicht ${ADAC_STAND} (${corsaBenzin.name}, ${corsaElektro.name}), Benzinpreis ${BENZINPREIS.toLocaleString('de-DE')} €/l wie vom ADAC angesetzt, Strom ${ct(LADESTROM_HEIM_CENT_PRO_KWH)} ct/kWh aus der BDEW-Strompreisanalyse; Ladepreise nach ${LADESTROM_QUELLE}.`}
+    explanation="Ein Antrieb ohne Verbrauch oder Preis wird nicht gewertet. Die Mehrkosten beziehen sich auf den günstigsten gewerteten Antrieb."
+    faqs={faqs}
   >
     <div class="calc-form">
       <div class="calc-grid">
         <div class="calc-group">
-          <label for="fahrtleistung">Jährliche Fahrtleistung (km)</label>
-          <input type="number" id="fahrtleistung" min="1000" max="50000" value="12000" step="1000" />
-        </div>
-        <div class="calc-group">
-          <label for="energietraeger">Energieträger</label>
-          <select id="energietraeger">
-            <option value="benzin" selected>Benzin</option>
-            <option value="diesel">Diesel</option>
-            <option value="strom">Strom (E-Auto)</option>
-          </select>
-        </div>
-        <div class="calc-group">
-          <label for="verbrauch">Verbrauch</label>
-          <input type="number" id="verbrauch" min="3" max="30" value="7" step="0.5" />
-          <small id="verbrauch-einheit">Liter/100km</small>
-        </div>
-        <div class="calc-group">
-          <label for="preis">Preis</label>
-          <input type="number" id="preis" min="0.15" max="2.50" value="1.85" step="0.05" />
-          <small id="preis-einheit">€/Liter</small>
+          <label for="km">Fahrleistung (km/Jahr)</label>
+          <input type="number" id="km" min="0" max="100000" value={KM} step="1000" />
         </div>
       </div>
-
-      <div class="calc-result">
-        <div class="label">Kosten pro 100 km</div>
-        <div id="kosten_100">— €</div>
+      <div class="sv-tabelle">
+        <table>
+          <thead><tr><th>Antrieb</th><th>Verbrauch je 100 km</th><th>Preis</th></tr></thead>
+          <tbody>
+            <tr><td>Benzin</td><td><input type="number" id="v_benzin" aria-label="Verbrauch Benzin in Liter" min="0" step="0.1" value={VERBRAUCH_BENZIN} /> l</td><td><input type="number" id="p_benzin" aria-label="Preis Benzin je Liter" min="0" step="0.01" value={BENZINPREIS} /> €/l</td></tr>
+            <tr><td>Diesel</td><td><input type="number" id="v_diesel" aria-label="Verbrauch Diesel in Liter" min="0" step="0.1" placeholder="—" /> l</td><td><input type="number" id="p_diesel" aria-label="Preis Diesel je Liter" min="0" step="0.01" placeholder="—" /> €/l</td></tr>
+            <tr><td>Strom</td><td><input type="number" id="v_strom" aria-label="Verbrauch Strom in kWh" min="0" step="0.1" value={VERBRAUCH_STROM} /> kWh</td><td><input type="number" id="p_strom" aria-label="Strompreis je kWh" min="0" step="0.01" value={LADESTROM_HEIM_EURO_PRO_KWH} /> €/kWh</td></tr>
+          </tbody>
+        </table>
       </div>
       <div class="calc-result">
-        <div class="label">Monatliche Kosten (bei 1.000 km)</div>
-        <div id="kosten_monatlich">— €</div>
+        <div class="label">Günstigster Antrieb</div>
+        <div id="guenstigster">—</div>
       </div>
-      <div class="calc-result" style="background:#fff3e0;">
-        <div class="label">Jährliche Kosten</div>
-        <div id="kosten_jahrelich">— €</div>
-      </div>
-
-      <div id="vergleich" style="margin-top:1.5rem; padding:1rem; background:#f0f0f0; border-radius:8px; display:none;">
-        <strong>Vergleich mit anderen Energieträgern:</strong>
-        <div id="vergleich-inhalt"></div>
-      </div>
-
-      <div id="details" style="margin-top:0.75rem;font-size:0.88rem;color:#666;"></div>
+      <div class="sv-tabelle"><table id="ergebnis"></table></div>
     </div>
   </CalculatorShell>
 
   <CalculatorGuide
-    title="Spritkosten, Stromkosten und Antriebsarten im Vergleich"
-    content={`<p>Der Energieverbrauch ist einer der größten laufenden Kostenfaktoren beim Autofahren. Ob Benzin, Diesel, Erdgas oder Strom: Jeder Energieträger hat andere Kosten pro gefahrenem Kilometer, und die Unterschiede können über die Nutzungsdauer eines Fahrzeugs mehrere tausend Euro betragen. Ein <strong>systematischer Vergleich</strong> hilft bei der Wahl des richtigen Antriebs.</p>
-
-<p><strong>Benzin und Diesel im Vergleich:</strong> Dieselkraftstoff ist pro Liter etwas günstiger als Benzin, allerdings verbrauchen Dieselmotoren auch weniger Kraftstoff pro 100 km (ca. 5-7 Liter vs. 6-9 Liter bei Benzinern gleicher Leistungsklasse). Die niedrigeren Betriebskosten des Diesels werden jedoch durch höhere Anschaffungspreise, eine höhere Kfz-Steuer und teurere Wartung (Dieselpartikelfilter, AdBlue) relativiert. Als Faustregel gilt: Diesel lohnt sich ab ca. 15.000-20.000 km Jahresfahrleistung.</p>
-
-<p><strong>Strom als Energieträger:</strong> E-Autos verbrauchen typischerweise 15 bis 22 kWh pro 100 km. Zu Hause geladen, zum Haushaltsstrompreis von ${LADESTROM_HEIM_CENT_PRO_KWH} ct/kWh, kostet das ${ladekostenJe100km({ verbrauchKwhJe100km: 15, centProKwh: LADESTROM_HEIM_CENT_PRO_KWH }).toLocaleString('de-DE', { minimumFractionDigits: 2 })} bis ${ladekostenJe100km({ verbrauchKwhJe100km: 22, centProKwh: LADESTROM_HEIM_CENT_PRO_KWH }).toLocaleString('de-DE', { minimumFractionDigits: 2 })} Euro je 100 km. Ein Benziner mit 7 Litern kommt bei 1,85 Euro/Liter auf 12,95 Euro – der Vorteil liegt also bei rund der Hälfte. Er schrumpft aber deutlich, sobald öffentlich geladen wird: Am Schnelllader (${LADESTROM_DC_CENT_PRO_KWH} ct/kWh) sind es schon ${ladekostenJe100km({ verbrauchKwhJe100km: 20, centProKwh: LADESTROM_DC_CENT_PRO_KWH }).toLocaleString('de-DE', { minimumFractionDigits: 2 })} Euro je 100 km bei 20 kWh Verbrauch. Ladepreise nach ${LADESTROM_QUELLE}.</p>
-
-<p><strong>Einflussfaktoren auf den Verbrauch:</strong> Der tatsächliche Verbrauch weicht oft vom Herstellerwert ab. Fahrweise, Reifendruck, Klimaanlage, Beladung und Geschwindigkeit beeinflussen den Kraftstoffverbrauch erheblich. Bei Autobahnfahrten über 130 km/h steigt der Verbrauch überproportional. E-Autos verlieren bei niedrigen Temperaturen bis zu 30 Prozent Reichweite, da die Batterieheizung und Innenraumheizung zusätzlich Strom benötigen.</p>
-
-<p><strong>Alternative Kraftstoffe:</strong> Autogas (LPG) kostet ca. 0,70-0,90 Euro/Liter, hat aber einen höheren Verbrauch (ca. 20 Prozent mehr als Benzin). Erdgas (CNG) bietet günstige Betriebskosten, doch das Tankstellennetz ist begrenzt. Wasserstoff-Fahrzeuge (FCEV) sind noch selten und haben hohe Betankungskosten von ca. 12-15 Euro pro 100 km.</p>
-
-<p><strong>Praxistipp:</strong> Führen Sie ein Fahrtenbuch oder nutzen Sie eine Verbrauchs-App, um Ihren tatsächlichen Verbrauch zu kennen. Der Normverbrauch nach WLTP weicht oft um 10-25 Prozent vom Realverbrauch ab. Nur mit Ihren echten Werten erhalten Sie eine realistische Kostenberechnung.</p>`}
+    title="Benzin, Diesel und Strom: Was die Energie je Kilometer kostet"
+    content={guideHtml}
     relatedSlugs={['spritkosten-rechner', 'elektroauto-tco-rechner', 'fahrtkosten-rechner', 'kfz-steuer-rechner']}
   />
 </Layout>
 
 <script type="module">
+const { vergleicheAntriebe } = await import(window.__base + 'scripts/antriebsvergleich.js');
+const eur = (n) => n.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
+const wert = (id) => parseFloat(document.getElementById(id).value) || 0;
 function berechne() {
-  const fahrtleistung = parseFloat(document.getElementById('fahrtleistung').value)||12000;
-  const energietraeger = document.getElementById('energietraeger').value;
-  const verbrauch = parseFloat(document.getElementById('verbrauch').value)||7;
-  const preis = parseFloat(document.getElementById('preis').value)||1.85;
-
-  let kosten_100 = 0;
-  const einheiten = { 'benzin': 'Liter/100km', 'diesel': 'Liter/100km', 'strom': 'kWh/100km' };
-  document.getElementById('verbrauch-einheit').textContent = einheiten[energietraeger];
-
-  const preiseinheiten = { 'benzin': '€/Liter', 'diesel': '€/Liter', 'strom': '€/kWh' };
-  document.getElementById('preis-einheit').textContent = preiseinheiten[energietraeger];
-
-  kosten_100 = verbrauch * preis;
-
-  const kosten_monatlich = (fahrtleistung / 12 / 100) * kosten_100;
-  const kosten_jahrelich = (fahrtleistung / 100) * kosten_100;
-
-  document.getElementById('kosten_100').textContent = kosten_100.toLocaleString('de-DE', {minimumFractionDigits:2, maximumFractionDigits:2}) + ' €';
-  document.getElementById('kosten_monatlich').textContent = kosten_monatlich.toLocaleString('de-DE', {minimumFractionDigits:2}) + ' €';
-  document.getElementById('kosten_jahrelich').textContent = kosten_jahrelich.toLocaleString('de-DE', {minimumFractionDigits:2}) + ' €';
-
-  // Vergleiche
-  const benzin_100 = 7 * 1.85;
-  const diesel_100 = 6 * 1.70;
-  const strom_100 = 18 * 0.32;
-
-  document.getElementById('vergleich').style.display = 'block';
-  document.getElementById('vergleich-inhalt').innerHTML = `
-    <table style="width:100%; margin-top:0.5rem; border-collapse:collapse;">
-      <tr><td style="padding:0.5rem;">Benzin:</td><td style="padding:0.5rem;"><strong>${benzin_100.toLocaleString('de-DE', {maximumFractionDigits:2})}€ / 100km</strong></td></tr>
-      <tr><td style="padding:0.5rem;">Diesel:</td><td style="padding:0.5rem;"><strong>${diesel_100.toLocaleString('de-DE', {maximumFractionDigits:2})}€ / 100km</strong></td></tr>
-      <tr style="background:#e8f5e9;"><td style="padding:0.5rem;">Strom (E-Auto):</td><td style="padding:0.5rem;"><strong>${strom_100.toLocaleString('de-DE', {maximumFractionDigits:2})}€ / 100km</strong></td></tr>
-    </table>
-  `;
+  const v = vergleicheAntriebe({
+    kmProJahr: wert('km'),
+    antriebe: ['Benzin', 'Diesel', 'Strom'].map((name) => ({
+      name, verbrauch: wert('v_' + name.toLowerCase()), preis: wert('p_' + name.toLowerCase()),
+    })),
+  });
+  document.getElementById('guenstigster').textContent = v.guenstigster ?? '—';
+  document.getElementById('ergebnis').innerHTML =
+    '<thead><tr><th>Antrieb</th><th>je 100 km</th><th>je Monat</th><th>je Jahr</th><th>Mehrkosten/Jahr</th></tr></thead><tbody>' +
+    v.antriebe.map((a) => `<tr><td>${a.name}</td><td>${eur(a.je100km)}</td><td>${eur(a.monat)}</td><td>${eur(a.jahr)}</td><td>${a.mehrkostenJahr > 0 ? eur(a.mehrkostenJahr) : '–'}</td></tr>`).join('') +
+    '</tbody>';
 }
-
-['fahrtleistung','energietraeger','verbrauch','preis'].forEach(id =>
-  document.getElementById(id).addEventListener('change', berechne));
-document.getElementById('verbrauch').addEventListener('input', berechne);
-document.getElementById('preis').addEventListener('input', berechne);
+document.querySelectorAll('.calc-form input').forEach((el) => el.addEventListener('input', berechne));
 berechne();
 </script>
 
 <style>
 .page-header { margin-bottom: 2rem; }
+.sv-tabelle { overflow-x: auto; margin-top: 1rem; }
+.sv-tabelle table { width: 100%; border-collapse: collapse; }
+.sv-tabelle th, .sv-tabelle td { padding: 0.4rem 0.5rem; text-align: left; white-space: nowrap; }
+.sv-tabelle input { width: 5.5rem; }
 </style>
-</Layout>

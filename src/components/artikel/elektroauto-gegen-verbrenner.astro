@@ -11,6 +11,18 @@ import {
   LADESTROM_QUELLE,
   LADESTROM_DATENSTAND,
 } from '../../../public/scripts/strompreis.js';
+// Fahrzeugdaten und Kraftstoffpreise aus der ADAC Autokostenuebersicht
+// (Stand 04/2026), zwei Varianten desselben Modells. Sie stehen in
+// adac-autokosten.js, weil der TCO-Rechner dieselben Werte vorbelegt.
+import {
+  ADAC_STAND,
+  ADAC_HALTEDAUER_MONATE,
+  BENZINPREIS,
+  ADAC_STROMPREIS,
+  ADAC_PFLEGEPAUSCHALE_PRO_JAHR,
+  corsaBenzin,
+  corsaElektro,
+} from '../../../public/scripts/adac-autokosten.js';
 
 const base = import.meta.env.BASE_URL;
 
@@ -20,31 +32,6 @@ const STICHTAG = '2026-08-14';
 const ERSTZULASSUNG = '2026-03-01';
 const HALTEDAUER_JAHRE = 8;
 const KM_PRO_JAHR = 15_000;
-
-// Fahrzeugdaten und Kraftstoffpreise: ADAC Autokostenübersicht Frühjahr/Sommer
-// 2026 (Stand 04/2026), zwei Varianten desselben Modells.
-// https://assets.adac.de/Autodatenbank/Autokosten/autokostenuebersicht.pdf
-const ADAC_STAND = 'Frühjahr/Sommer 2026';
-const ADAC_HALTEDAUER_MONATE = 60;
-const BENZINPREIS = 1.92;
-const ADAC_STROMPREIS = 0.44;
-const ADAC_PFLEGEPAUSCHALE_PRO_JAHR = 250;
-
-// Alle Monatsbeträge aus der ADAC-Übersicht.
-const corsaBenzin = {
-  name: 'Opel Corsa 1.2 DI Turbo Edition',
-  kurz: 'Corsa Benziner',
-  grundpreis: 22_890,
-  fix: 147, werkstatt: 76, betrieb: 144, wertverlust: 264, gesamt: 632,
-  hubraum: 1199, co2: 124,
-};
-const corsaElektro = {
-  name: 'Opel Corsa Electric (50 kWh)',
-  kurz: 'Corsa Electric',
-  grundpreis: 29_990,
-  fix: 127, werkstatt: 64, betrieb: 107, wertverlust: 384, gesamt: 682,
-  gesamtgewicht: 1905,
-};
 
 // Verbrauch wird aus den ADAC-Betriebskosten zurückgerechnet, statt ihn als
 // zweite, driftende Zahl danebenzustellen. Die Pflegepauschale muss vorher raus,
