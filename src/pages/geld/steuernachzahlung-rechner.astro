@@ -138,7 +138,7 @@ ${tarifZeileSpitze}
   <CalculatorShell
     calculator={calc}
     intro="Mit dem Steuernachzahlung-Rechner schätzen Sie, ob Sie mit einer Nachzahlung oder einer Erstattung rechnen können – so können Sie rechtzeitig Rücklagen bilden."
-    sourceNote={`Einbehalt nach § 39b Abs. 2 EStG, Jahressteuer nach § 32a EStG (Grund- oder Splittingtarif), Solidaritätszuschlag nach SolzG 1995, Beitragssätze ${tarifJahr}. Die Vorsorgeaufwendungen werden mit der Vorsorgepauschale angesetzt; die Veranlagung rechnet sie nach § 10 EStG, davon kann das Ergebnis abweichen. Kinderfreibeträge, Kirchensteuer und Progressionsvorbehalt sind nicht abgebildet. Abgabefristen und Zinsen nach §§ 149, 152, 233a und 238 AO, Wortlaut abgerufen am 16.09.2026.`}
+    sourceNote={`Einbehalt nach § 39b Abs. 2 EStG, Jahressteuer nach § 32a EStG (Grund- oder Splittingtarif), Solidaritätszuschlag nach SolzG 1995, Beitragssätze ${tarifJahr}. Die Vorsorgeaufwendungen werden mit der Vorsorgepauschale angesetzt; die Veranlagung rechnet sie nach § 10 EStG, davon kann das Ergebnis abweichen. Kinder mit Günstigerprüfung nach § 31 EStG, Entlastungsbetrag nach § 24b Abs. 2 EStG, zulässige Steuerklassen nach § 38b EStG. Beim einbehaltenen Solidaritätszuschlag sind Kinderfreibeträge nicht berücksichtigt; bei Eltern mit hohem Einkommen fällt die Erstattung deshalb etwas zu hoch aus. Kirchensteuer und Progressionsvorbehalt sind nicht abgebildet. Abgabefristen und Zinsen nach §§ 149, 152, 233a und 238 AO, Wortlaut abgerufen am 16.09.2026.`}
     explanation="Der Rechner stellt zwei Größen gegenüber: die Lohnsteuer, die Ihr Arbeitgeber über das Jahr einbehalten hat, und die Einkommensteuer, die Sie tatsächlich schulden. Die Differenz ist die Nachzahlung oder Erstattung. Verbindlich rechnet erst das Finanzamt."
     faqs={faqs}
   >
@@ -151,10 +151,10 @@ ${tarifZeileSpitze}
         <div class="calc-group">
           <label for="stklasse">Ihre Steuerklasse</label>
           <select id="stklasse">
-            <option value="1">I</option>
+            <option value="1" selected>I</option>
             <option value="2">II (Alleinerziehende)</option>
             <option value="3">III</option>
-            <option value="4" selected>IV</option>
+            <option value="4">IV</option>
             <option value="5">V</option>
             <option value="6">VI</option>
           </select>
@@ -181,15 +181,19 @@ ${tarifZeileSpitze}
           <input type="number" id="sonder" min="0" max="100000" value="0" step="100" />
         </div>
         <div class="calc-group">
-          <label for="kinder">Kinder unter 25 Jahren</label>
+          <label for="kinder">Kinder unter 25 Jahren (für die Pflegeversicherung)</label>
           <select id="kinder">
-            <option value="0">keine</option>
-            <option value="1" selected>1 Kind</option>
+            <option value="0" selected>keine</option>
+            <option value="1">1 Kind</option>
             <option value="2">2 Kinder</option>
             <option value="3">3 Kinder</option>
             <option value="4">4 Kinder</option>
             <option value="5">5 Kinder oder mehr</option>
           </select>
+        </div>
+        <div class="calc-group">
+          <label for="kinderKindergeld">Kinder mit Kindergeld im ganzen Jahr</label>
+          <input type="number" id="kinderKindergeld" min="0" max="20" value="0" step="1" />
         </div>
       </div>
 
@@ -214,18 +218,31 @@ const { berechneSteuernachzahlung } = await import(window.__base + 'scripts/steu
 function fmt(n) { return Math.abs(n).toLocaleString('de-DE', {minimumFractionDigits:2, maximumFractionDigits:2}) + ' €'; }
 
 function berechne() {
-  const r = berechneSteuernachzahlung({
-    bruttoJahr: parseFloat(document.getElementById('brutto').value) || 0,
-    steuerklasse: parseInt(document.getElementById('stklasse').value),
-    partnerBruttoJahr: parseFloat(document.getElementById('partnerBrutto').value) || 0,
-    partnerSteuerklasse: parseInt(document.getElementById('partnerKlasse').value) || 0,
-    werbungskosten: parseFloat(document.getElementById('werbung').value) || 0,
-    sonderausgaben: parseFloat(document.getElementById('sonder').value) || 0,
-    kinder: parseInt(document.getElementById('kinder').value) || 0,
-  });
-
   const ergebnisEl = document.getElementById('ergebnis');
   const labelEl = document.getElementById('result-label');
+  const detailsEl = document.getElementById('details');
+
+  let r;
+  try {
+    r = berechneSteuernachzahlung({
+      bruttoJahr: parseFloat(document.getElementById('brutto').value) || 0,
+      steuerklasse: parseInt(document.getElementById('stklasse').value),
+      partnerBruttoJahr: parseFloat(document.getElementById('partnerBrutto').value) || 0,
+      partnerSteuerklasse: parseInt(document.getElementById('partnerKlasse').value) || 0,
+      werbungskosten: parseFloat(document.getElementById('werbung').value) || 0,
+      sonderausgaben: parseFloat(document.getElementById('sonder').value) || 0,
+      kinder: parseInt(document.getElementById('kinder').value) || 0,
+      kinderKindergeld: Math.max(0, Math.floor(Number(document.getElementById('kinderKindergeld').value) || 0)),
+    });
+  } catch (fehler) {
+    labelEl.textContent = 'Eingaben prüfen';
+    ergebnisEl.textContent = '—';
+    ergebnisEl.style.color = '';
+    const hinweis = document.createElement('span');
+    hinweis.textContent = fehler.message;
+    detailsEl.replaceChildren(hinweis);
+    return;
+  }
 
   if (r.nachzahlung > 0) {
     ergebnisEl.textContent = '− ' + fmt(r.nachzahlung);
@@ -248,7 +265,10 @@ function berechne() {
     ['Zu versteuerndes Einkommen: ', fmt(r.zuVersteuerndesEinkommen)],
     ['Veranlagung: ', r.zusammenveranlagung ? 'zusammen' : 'einzeln'],
   ];
-  document.getElementById('details').replaceChildren(...zeilen.map(([text, wert]) => {
+  if (r.freibetraegeGuenstiger) {
+    zeilen.push(['Kinder: Freibeträge günstiger, Kindergeld hinzugerechnet: ', fmt(r.hinzurechnungKindergeld)]);
+  }
+  detailsEl.replaceChildren(...zeilen.map(([text, wert]) => {
     const span = document.createElement('span');
     const strong = document.createElement('strong');
     strong.textContent = wert;
@@ -257,7 +277,7 @@ function berechne() {
   }));
 }
 
-['brutto','partnerBrutto','werbung','sonder','stklasse','partnerKlasse','kinder'].forEach(id => {
+['brutto','partnerBrutto','werbung','sonder','stklasse','partnerKlasse','kinder','kinderKindergeld'].forEach(id => {
   const el = document.getElementById(id);
   el.addEventListener('input', berechne);
   el.addEventListener('change', berechne);

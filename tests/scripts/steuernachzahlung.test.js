@@ -1,6 +1,12 @@
 import { describe, it, expect } from 'vitest';
-import { berechneSteuernachzahlung } from '../../public/scripts/steuernachzahlung.js';
+import {
+  berechneSteuernachzahlung,
+  pruefeKombination,
+  ENTLASTUNGSBETRAG_JE_WEITEREM_KIND,
+} from '../../public/scripts/steuernachzahlung.js';
 import { jahreslohnsteuer, ARBEITNEHMER_PAUSCHBETRAG } from '../../public/scripts/lohnsteuer.js';
+import { berechneEinkommensteuer } from '../../public/scripts/einkommensteuer-rechner.js';
+import { KINDERGELD_MONAT } from '../../public/scripts/kindergeld.js';
 
 const ledig = { bruttoJahr: 50000, steuerklasse: 1, kinder: 1 };
 
@@ -48,10 +54,13 @@ describe('berechneSteuernachzahlung', () => {
   });
 
   it('weist Nachzahlung und Erstattung nie gleichzeitig aus', () => {
+    const kombinationen = [[1, 0], [3, 5], [5, 3], [4, 4]];
     for (const werbung of [0, 2000, 8000]) {
-      for (const sk of [1, 3, 5]) {
-        const r = berechneSteuernachzahlung({ ...ledig, steuerklasse: sk, werbungskosten: werbung });
-        expect(r.nachzahlung === 0 || r.erstattung === 0, `SK ${sk}, WK ${werbung}`).toBe(true);
+      for (const [sk, psk] of kombinationen) {
+        const r = berechneSteuernachzahlung({
+          ...ledig, steuerklasse: sk, partnerSteuerklasse: psk, partnerBruttoJahr: psk ? 25000 : 0, werbungskosten: werbung,
+        });
+        expect(r.nachzahlung === 0 || r.erstattung === 0, `SK ${sk}/${psk}, WK ${werbung}`).toBe(true);
         expect(r.erstattung - r.nachzahlung).toBeCloseTo(r.differenz, 2);
       }
     }
@@ -92,8 +101,95 @@ describe('Zusammenveranlagung', () => {
   });
 
   it('ohne Partner-Steuerklasse wird einzeln veranlagt', () => {
-    const r = berechneSteuernachzahlung({ ...paar, partnerSteuerklasse: 0 });
+    const r = berechneSteuernachzahlung({ ...paar, steuerklasse: 1, partnerSteuerklasse: 0 });
     expect(r.zusammenveranlagung).toBe(false);
+  });
+});
+
+describe('Steuerklassen-Kombinationen (§ 38b Abs. 1 Satz 2 EStG)', () => {
+  it('lässt I, II mit Kind und VI ohne Partner zu', () => {
+    expect(pruefeKombination({ steuerklasse: 1 })).toBeNull();
+    expect(pruefeKombination({ steuerklasse: 2, kinderKindergeld: 1 })).toBeNull();
+    expect(pruefeKombination({ steuerklasse: 6 })).toBeNull();
+  });
+
+  it('lässt nur III/V, V/III und IV/IV als Ehegatten-Kombination zu', () => {
+    expect(pruefeKombination({ steuerklasse: 3, partnerSteuerklasse: 5 })).toBeNull();
+    expect(pruefeKombination({ steuerklasse: 5, partnerSteuerklasse: 3 })).toBeNull();
+    expect(pruefeKombination({ steuerklasse: 4, partnerSteuerklasse: 4 })).toBeNull();
+    expect(pruefeKombination({ steuerklasse: 1, partnerSteuerklasse: 5 })).toMatch(/passt nicht/);
+    expect(pruefeKombination({ steuerklasse: 4, partnerSteuerklasse: 3 })).toMatch(/passt nicht/);
+    expect(pruefeKombination({ steuerklasse: 3, partnerSteuerklasse: 3 })).toMatch(/passt nicht/);
+    expect(pruefeKombination({ steuerklasse: 2, partnerSteuerklasse: 4, kinderKindergeld: 1 })).toMatch(/passt nicht/);
+  });
+
+  it('verlangt für III, IV und V einen Ehegatten', () => {
+    for (const sk of [3, 4, 5]) {
+      expect(pruefeKombination({ steuerklasse: sk })).toMatch(/Ehegatten/);
+    }
+  });
+
+  it('verlangt für II ein Kind mit Kindergeld oder Freibetrag (§ 24b Abs. 1)', () => {
+    expect(pruefeKombination({ steuerklasse: 2 })).toMatch(/§ 24b/);
+  });
+
+  it('weist unbekannte Steuerklassen zurück', () => {
+    expect(pruefeKombination({ steuerklasse: 9 })).toMatch(/Unbekannte/);
+    expect(pruefeKombination({ steuerklasse: 3, partnerSteuerklasse: 7 })).toMatch(/Unbekannte/);
+  });
+
+  it('rechnet ungültige Kombinationen nicht, sondern wirft', () => {
+    expect(() => berechneSteuernachzahlung({ bruttoJahr: 60000, steuerklasse: 1, partnerBruttoJahr: 30000, partnerSteuerklasse: 5 })).toThrow(/passt nicht/);
+    expect(() => berechneSteuernachzahlung({ bruttoJahr: 50000, steuerklasse: 4 })).toThrow(/Ehegatten/);
+    expect(() => berechneSteuernachzahlung({ bruttoJahr: 50000, steuerklasse: 9 })).toThrow();
+  });
+});
+
+describe('Kinder in der Veranlagung', () => {
+  const paar = { bruttoJahr: 150000, steuerklasse: 4, partnerBruttoJahr: 60000, partnerSteuerklasse: 4, kinder: 2 };
+
+  it('zieht bei hohem Einkommen die Freibeträge ab und rechnet das Kindergeld hinzu (§ 31 EStG)', () => {
+    const ohne = berechneSteuernachzahlung(paar);
+    const mit = berechneSteuernachzahlung({ ...paar, kinderKindergeld: 2 });
+    expect(mit.freibetraegeGuenstiger).toBe(true);
+    expect(mit.hinzurechnungKindergeld).toBe(2 * 12 * KINDERGELD_MONAT);
+    expect(mit.jahressteuer).toBeLessThan(ohne.jahressteuer);
+    expect(mit.einbehalten).toBe(ohne.einbehalten);
+  });
+
+  it('lässt die Einkommensteuer bei niedrigem Einkommen unverändert, wenn das Kindergeld günstiger ist', () => {
+    const basis = { bruttoJahr: 40000, steuerklasse: 3, partnerBruttoJahr: 10000, partnerSteuerklasse: 5, kinder: 1 };
+    const ohne = berechneSteuernachzahlung(basis);
+    const mit = berechneSteuernachzahlung({ ...basis, kinderKindergeld: 1 });
+    expect(mit.freibetraegeGuenstiger).toBe(false);
+    expect(mit.einkommensteuer).toBe(ohne.einkommensteuer);
+  });
+
+  it('bemisst den Soli der Veranlagung mit Kinderfreibeträgen (§ 3 Abs. 2 SolzG)', () => {
+    const basis = { bruttoJahr: 120000, steuerklasse: 1, kinder: 1 };
+    const ohne = berechneSteuernachzahlung(basis);
+    const mit = berechneSteuernachzahlung({ ...basis, kinderKindergeld: 1 });
+    expect(mit.soli).toBe(berechneEinkommensteuer({ einkommen: mit.einkommen, kinder: 1 }).soli);
+    expect(mit.soli).toBeLessThan(ohne.soli);
+  });
+
+  it('erhöht den Entlastungsbetrag je weiterem Kind um 240 € (§ 24b Abs. 2 Satz 2 EStG)', () => {
+    expect(ENTLASTUNGSBETRAG_JE_WEITEREM_KIND).toBe(240);
+    const einKind = berechneSteuernachzahlung({ bruttoJahr: 45000, steuerklasse: 2, kinder: 1, kinderKindergeld: 1 });
+    const dreiKinder = berechneSteuernachzahlung({ bruttoJahr: 45000, steuerklasse: 2, kinder: 1, kinderKindergeld: 3 });
+    expect(einKind.einkommen - dreiKinder.einkommen).toBe(2 * 240);
+  });
+
+  it('behält im Lohnsteuerabzug nur den Betrag für ein Kind (§ 39b Abs. 2 Satz 5 Nr. 4 EStG)', () => {
+    const einKind = berechneSteuernachzahlung({ bruttoJahr: 45000, steuerklasse: 2, kinder: 1, kinderKindergeld: 1 });
+    const dreiKinder = berechneSteuernachzahlung({ bruttoJahr: 45000, steuerklasse: 2, kinder: 1, kinderKindergeld: 3 });
+    expect(dreiKinder.einbehaltenLohnsteuer).toBe(einKind.einbehaltenLohnsteuer);
+    expect(dreiKinder.erstattung).toBeGreaterThan(einKind.erstattung);
+  });
+
+  it('weist eine ungültige Kinderzahl zurück', () => {
+    expect(() => berechneSteuernachzahlung({ ...ledig, kinderKindergeld: -1 })).toThrow();
+    expect(() => berechneSteuernachzahlung({ ...ledig, kinderKindergeld: 1.5 })).toThrow();
   });
 });
 
@@ -109,10 +205,6 @@ describe('Randfälle', () => {
     const r = berechneSteuernachzahlung({ bruttoJahr: 10000, steuerklasse: 1, kinder: 1 });
     expect(r.jahressteuer).toBe(0);
     expect(r.nachzahlung).toBe(0);
-  });
-
-  it('weist unbekannte Steuerklassen zurück', () => {
-    expect(() => berechneSteuernachzahlung({ bruttoJahr: 50000, steuerklasse: 9 })).toThrow();
   });
 
   it('behandelt negative Eingaben wie null', () => {
