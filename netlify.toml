@@ -12,8 +12,8 @@
 
 # Die Startseite verlinkte lange auf /geld/rentenrechner/ und
 # /geld/einkommensteuer-berechnung/. Beide URLs gab es nie: Der Rentenrechner
-# liegt unter familie/, und einen Einkommensteuer-Rechner gibt es nicht – am
-# nächsten kommt der Steuernachzahlungs-Rechner.
+# liegt unter familie/, der Einkommensteuer-Rechner seit 16.09.2026 unter
+# geld/einkommensteuer-rechner/.
 
 [[redirects]]
   from = "/geld/rentenrechner/*"
@@ -22,7 +22,7 @@
 
 [[redirects]]
   from = "/geld/einkommensteuer-berechnung/*"
-  to = "/geld/steuernachzahlung-rechner/"
+  to = "/geld/einkommensteuer-rechner/"
   status = 301
 
 # unterhaltskosten-auto und wartungskosten-auto hatten hier Redirects auf den

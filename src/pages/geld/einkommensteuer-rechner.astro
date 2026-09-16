@@ -1,0 +1,258 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import CalculatorShell from '../../components/CalculatorShell.astro';
+import CalculatorGuide from '../../components/CalculatorGuide.astro';
+import { CALCULATORS, CATEGORIES } from '../../data/calculators';
+import {
+  GRUNDFREIBETRAG,
+  ZONE_2_OBERGRENZE,
+  ZONE_3_OBERGRENZE,
+  ZONE_4_OBERGRENZE,
+  TARIF_STAND,
+  tariflicheEinkommensteuer,
+} from '../../../public/scripts/einkommensteuer.js';
+import { SOLI_FREIGRENZE, SOLI_FREIGRENZE_SPLITTING } from '../../../public/scripts/lohnsteuer.js';
+import {
+  KINDERGELD_MONAT,
+  KINDERFREIBETRAG_JE_ELTERNTEIL,
+  BEA_FREIBETRAG_JE_ELTERNTEIL,
+} from '../../../public/scripts/kindergeld.js';
+import { KIRCHENSTEUER_LAENDER } from '../../../public/scripts/kirchensteuer.js';
+import { TARIFE, GRENZSATZ_SCHRITT, berechneEinkommensteuer } from '../../../public/scripts/einkommensteuer-rechner.js';
+
+const calc = CALCULATORS.find(c => c.slug === 'einkommensteuer-rechner')!;
+const cat = CATEGORIES[calc.category];
+const year = new Date().getFullYear();
+const tarifJahr = TARIF_STAND.slice(0, 4);
+
+const eur = (n: number) => n.toLocaleString('de-DE', { maximumFractionDigits: 0 }) + ' €';
+const eurCent = (n: number) => n.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
+const pct = (n: number, s = 1) => (n * 100).toLocaleString('de-DE', { minimumFractionDigits: s, maximumFractionDigits: s }) + ' %';
+
+// Höchstes zu versteuerndes Einkommen, bei dem noch kein Solidaritätszuschlag
+// anfällt – per Bisektion auf dem Tarif, damit keine eigene Zahl entsteht.
+function hoechstesEinkommenOhneSoli(splitting: boolean) {
+  const grenze = splitting ? SOLI_FREIGRENZE_SPLITTING : SOLI_FREIGRENZE;
+  let unten = 0;
+  let oben = 1000000;
+  while (oben - unten > 1) {
+    const mitte = Math.floor((unten + oben) / 2);
+    if (tariflicheEinkommensteuer(mitte, splitting) <= grenze) unten = mitte;
+    else oben = mitte;
+  }
+  return unten;
+}
+const soliFreiEinzeln = hoechstesEinkommenOhneSoli(false);
+const soliFreiSplitting = hoechstesEinkommenOhneSoli(true);
+
+const freibetragJeKind = KINDERFREIBETRAG_JE_ELTERNTEIL + BEA_FREIBETRAG_JE_ELTERNTEIL;
+const bspEinzeln = berechneEinkommensteuer({ einkommen: 50000 });
+const bspPaar = berechneEinkommensteuer({ einkommen: 50000, tarif: 'zusammen' });
+const bspKinder = berechneEinkommensteuer({ einkommen: 100000, tarif: 'zusammen', kinder: 2 });
+
+// Kernaussagen absichern: Tarifwerte nach § 32a, Soli-Grenze nach § 3 SolzG,
+// Günstigerprüfung nach § 31 EStG.
+if (tariflicheEinkommensteuer(30000) !== 4217 || tariflicheEinkommensteuer(GRUNDFREIBETRAG) !== 0) {
+  throw new Error('Einkommensteuer: Tarif weicht von § 32a EStG ab');
+}
+if (
+  berechneEinkommensteuer({ einkommen: soliFreiEinzeln }).soli !== 0 ||
+  berechneEinkommensteuer({ einkommen: soliFreiEinzeln + 1 }).soli <= 0 ||
+  berechneEinkommensteuer({ einkommen: soliFreiSplitting, tarif: 'zusammen' }).soli !== 0
+) {
+  throw new Error('Einkommensteuer: Soli-Grenze widerspricht § 3 Abs. 3 SolzG');
+}
+if (bspPaar.einkommensteuer !== 2 * tariflicheEinkommensteuer(25000) || bspEinzeln.einkommensteuer <= bspPaar.einkommensteuer) {
+  throw new Error('Einkommensteuer: Splitting widerspricht § 32a Abs. 5 EStG');
+}
+if (bspKinder.freibetraegeGuenstiger && bspKinder.einkommensteuer !== bspKinder.tariflicheSteuer + bspKinder.kindergeldJahr) {
+  throw new Error('Einkommensteuer: Hinzurechnung widerspricht § 31 Satz 4 EStG');
+}
+
+const BEISPIEL_EINKOMMEN = [15000, 25000, 40000, 60000, 80000, 120000, 300000];
+function beispielZeile(einkommen: number) {
+  const r = berechneEinkommensteuer({ einkommen });
+  return '<tr><td>' + eur(einkommen) + '</td><td>' + eur(r.einkommensteuer) + '</td><td>' + pct(r.durchschnittssatz) + '</td><td>' + pct(r.grenzsteuersatz, 0) + '</td></tr>';
+}
+const beispielZeilen = BEISPIEL_EINKOMMEN.map(beispielZeile).join('');
+
+const kinderText = bspKinder.freibetraegeGuenstiger
+  ? 'Hier entlasten die Freibeträge stärker als das Kindergeld: Das Finanzamt zieht ' + eur(bspKinder.freibetraegeKinder) + ' ab, rechnet auf ' + eur(bspKinder.zvE) + ' eine tarifliche Steuer von ' + eur(bspKinder.tariflicheSteuer) + ' und erhöht sie um den Kindergeldanspruch von ' + eur(bspKinder.kindergeldJahr) + ' auf ' + eur(bspKinder.einkommensteuer) + '.'
+  : 'Hier genügt das Kindergeld: Die Freibeträge würden weniger entlasten als die ' + eur(bspKinder.kindergeldJahr) + ' Kindergeld, das zu versteuernde Einkommen bleibt bei ' + eur(bspKinder.zvE) + '.';
+
+// Länder mit 8 % aus kirchensteuer.js, damit der Text der Tabelle folgt.
+const laenderAchtListe = Object.values(KIRCHENSTEUER_LAENDER).filter(l => l.satz === 0.08).map(l => l.name).sort((a, b) => a.localeCompare(b, 'de'));
+if (laenderAchtListe.length === 0 || Object.values(KIRCHENSTEUER_LAENDER).some(l => l.satz !== 0.08 && l.satz !== 0.09)) {
+  throw new Error('Einkommensteuer: Kirchensteuersätze sind nicht mehr nur 8 und 9 %');
+}
+const laenderAcht = laenderAchtListe.length === 1
+  ? laenderAchtListe[0]
+  : laenderAchtListe.slice(0, -1).join(', ') + ' und ' + laenderAchtListe[laenderAchtListe.length - 1];
+
+// § 2 Abs. 2 und 4 EStG, Wortlaut abgerufen am 16.09.2026.
+const einkommenSatz = 'Das Einkommen ist der Gesamtbetrag der Einkünfte, vermindert um die Sonderausgaben und die außergewöhnlichen Belastungen (§ 2 Abs. 4 EStG); Einkünfte aus nichtselbständiger Arbeit sind dabei der Überschuss der Einnahmen über die Werbungskosten (§ 2 Abs. 2 EStG).';
+
+const guideHtml = `
+<h3>Vom Einkommen zur Steuer</h3>
+<p>Die Einkommensteuer bemisst sich nach dem zu versteuernden Einkommen. Das ist das Einkommen, vermindert um die Kinderfreibeträge und die sonstigen abzuziehenden Beträge (§ 2 Abs. 5 EStG). ${einkommenSatz} Ohne Kinder tragen Sie ihn direkt ein – mit Kindern den Betrag vor Abzug der Kinderfreibeträge, denn ob sie abgezogen werden, prüft der Rechner selbst.</p>
+
+<h3>Der Tarif ${tarifJahr}</h3>
+<p>Nach § 32a Abs. 1 EStG bleiben ${eur(GRUNDFREIBETRAG)} steuerfrei (Grundfreibetrag). Bis ${eur(ZONE_2_OBERGRENZE)} und bis ${eur(ZONE_3_OBERGRENZE)} folgen zwei Zonen, in denen der Steuersatz auf jeden weiteren Euro stetig steigt. Ab ${eur(ZONE_3_OBERGRENZE + 1)} beträgt er 42 %, ab ${eur(ZONE_4_OBERGRENZE + 1)} 45 %. Die Steuer wird auf volle Euro abgerundet.</p>
+<table>
+<thead><tr><th>Zu versteuerndes Einkommen</th><th>Einkommensteuer</th><th>Durchschnittssatz</th><th>Grenzsteuersatz</th></tr></thead>
+<tbody>${beispielZeilen}</tbody>
+</table>
+<p><em>Grundtarif, ohne Kinder. Der Grenzsteuersatz ist die Mehrsteuer auf die nächsten ${GRENZSATZ_SCHRITT} €. Alle Werte stammen aus demselben Rechenmodul wie der Rechner oben.</em></p>
+
+<h3>Splitting</h3>
+<p>Werden Ehegatten zusammen veranlagt, beträgt die Steuer das Zweifache der Steuer auf die Hälfte des gemeinsamen Einkommens (§ 32a Abs. 5 EStG). Bei ${eur(50000)} sind das ${eur(bspPaar.einkommensteuer)} statt ${eur(bspEinzeln.einkommensteuer)} im Grundtarif. Dasselbe Verfahren gilt unter den Voraussetzungen des § 32a Abs. 6 EStG für bestimmte Verwitwete und in bestimmten Fällen nach Auflösung der Ehe.</p>
+
+<h3>Kinder: Kindergeld oder Freibeträge</h3>
+<p>Das Existenzminimum eines Kindes wird entweder über das Kindergeld oder über die Freibeträge nach § 32 Abs. 6 EStG steuerfrei gestellt (§ 31 EStG). Je Kind sind das ${eur(KINDERFREIBETRAG_JE_ELTERNTEIL)} Kinderfreibetrag und ${eur(BEA_FREIBETRAG_JE_ELTERNTEIL)} für Betreuung, Erziehung oder Ausbildung, zusammen ${eur(freibetragJeKind)}; bei Zusammenveranlagung verdoppeln sich die Beträge. Das Kindergeld beträgt ${eur(KINDERGELD_MONAT)} im Monat (§ 66 Abs. 1 EStG). Entlasten die Freibeträge stärker, zieht das Finanzamt sie ab und erhöht die Steuer um den Kindergeldanspruch des Jahres – bei nicht zusammen veranlagten Eltern in dem Umfang, der dem Kinderfreibetrag entspricht.</p>
+<p>Beispiel: Ein Ehepaar mit ${eur(100000)} Einkommen und zwei Kindern. ${kinderText}</p>
+
+<h3>Solidaritätszuschlag</h3>
+<p>Der Zuschlag beträgt 5,5 % der Einkommensteuer (§ 4 SolzG), wird aber nur erhoben, wenn die Steuer ${eur(SOLI_FREIGRENZE)} übersteigt – bei Splitting ${eur(SOLI_FREIGRENZE_SPLITTING)} (§ 3 Abs. 3 SolzG). Knapp oberhalb dieser Grenze ist er auf 11,9 % des übersteigenden Betrags begrenzt, damit er nicht sprunghaft einsetzt. Ohne Kinder fällt im Grundtarif bis zu einem zu versteuernden Einkommen von ${eur(soliFreiEinzeln)} kein Zuschlag an, im Splittingtarif bis ${eur(soliFreiSplitting)}.</p>
+
+<h3>Kirchensteuer</h3>
+<p>Die Kirchensteuer beträgt in ${laenderAcht} 8 %, in den übrigen Ländern 9 % der Einkommensteuer. Soli und Kirchensteuer bemessen sich immer nach der Steuer, die sich mit den Kinderfreibeträgen ergäbe – auch dann, wenn für die Einkommensteuer selbst das Kindergeld günstiger ist (§ 51a Abs. 2 EStG, § 3 Abs. 2 SolzG). Eine Kappung der Kirchensteuer rechnet der Rechner nicht.</p>
+
+<h3>Was der Rechner nicht abbildet</h3>
+<p>Nicht enthalten sind der Progressionsvorbehalt (§ 32b EStG), der gesonderte Steuertarif für Einkünfte aus Kapitalvermögen (§ 32d EStG), die Besteuerung außerordentlicher Einkünfte (§ 34 EStG) und Steuerermäßigungen, etwa für haushaltsnahe Dienstleistungen und Handwerkerleistungen (§ 35a EStG). Bei den Kindern geht der Rechner davon aus, dass für das ganze Jahr Kindergeld zusteht und jeder Elternteil die ihm zustehenden Freibeträge erhält.</p>
+`;
+
+const faqs = [
+  { q: 'Was ist der Unterschied zwischen Grenz- und Durchschnittssteuersatz?', a: `Der Durchschnittssteuersatz ist die Steuer geteilt durch das zu versteuernde Einkommen. Der Grenzsteuersatz sagt, wie viel von jedem zusätzlichen Euro an Steuer abgeht. Bei ${eur(60000)} im Grundtarif liegt der Durchschnittssatz bei ${pct(berechneEinkommensteuer({ einkommen: 60000 }).durchschnittssatz)}, der Grenzsteuersatz bei ${pct(berechneEinkommensteuer({ einkommen: 60000 }).grenzsteuersatz, 0)}.` },
+  { q: 'Was ist das zu versteuernde Einkommen?', a: 'Das Einkommen, vermindert um die Kinderfreibeträge und die sonstigen abzuziehenden Beträge (§ 2 Abs. 5 EStG). Bruttolohn und zu versteuerndes Einkommen sind nicht dasselbe: Dazwischen liegen die Werbungskosten, die Sonderausgaben und die außergewöhnlichen Belastungen (§ 2 Abs. 2 und 4 EStG).' },
+  { q: 'Wann fällt Solidaritätszuschlag an?', a: `Wenn die Einkommensteuer ${eur(SOLI_FREIGRENZE)} übersteigt, bei Zusammenveranlagung ${eur(SOLI_FREIGRENZE_SPLITTING)} (§ 3 Abs. 3 SolzG). Ohne Kinder entspricht das einem zu versteuernden Einkommen von ${eur(soliFreiEinzeln)} beziehungsweise ${eur(soliFreiSplitting)}.` },
+  { q: 'Wie wirken sich Kinder auf die Einkommensteuer aus?', a: `Entweder über das Kindergeld von ${eur(KINDERGELD_MONAT)} im Monat oder über die Freibeträge von ${eur(freibetragJeKind)} je Kind und Elternteil – das Finanzamt wählt das Günstigere (§ 31 EStG). Für Soli und Kirchensteuer werden die Freibeträge immer abgezogen.` },
+  { q: 'Warum weicht mein Steuerbescheid vom Ergebnis ab?', a: 'Der Rechner bildet den Progressionsvorbehalt, den gesonderten Tarif für Kapitalerträge, die Besteuerung außerordentlicher Einkünfte, Steuerermäßigungen und die Kappung der Kirchensteuer nicht ab. Auch Kinder, für die nur einen Teil des Jahres Kindergeld zustand, rechnet er nicht anteilig.' },
+];
+
+const tarifOptionen = Object.entries(TARIFE).map(([wert, t]) => ({ wert, text: t.label }));
+const laenderOptionen = Object.entries(KIRCHENSTEUER_LAENDER)
+  .map(([wert, l]) => ({ wert, text: l.name + ' (' + pct(l.satz, 0) + ')' }))
+  .sort((a, b) => a.text.localeCompare(b.text, 'de'));
+---
+<Layout
+  title={`Einkommensteuer-Rechner ${year}`}
+  description={`Einkommensteuer ${year} nach § 32a EStG berechnen – Grund- und Splittingtarif, Kinderfreibeträge mit Günstigerprüfung, Solidaritätszuschlag und Kirchensteuer.`}
+  canonicalPath="/geld/einkommensteuer-rechner/"
+  categoryColor={cat.color}
+  categoryLight={cat.colorLight}
+  categoryImage={cat.image}
+>
+  <div class="page-header">
+    <a href={`${import.meta.env.BASE_URL}geld/`} class="back-link">← Geld &amp; Gehalt</a>
+    <h1>Einkommensteuer-Rechner {year}</h1>
+  </div>
+  <CalculatorShell
+    calculator={calc}
+    intro={`Tragen Sie Ihr zu versteuerndes Einkommen ein. Der Rechner zeigt die Einkommensteuer nach dem Tarif ${tarifJahr}, Durchschnitts- und Grenzsteuersatz sowie Solidaritätszuschlag und Kirchensteuer – im Grund- oder Splittingtarif und mit Kindern.`}
+    sourceNote={`Tarif nach § 32a Abs. 1, 5 und 6 EStG (Veranlagungszeitraum ${tarifJahr}); Günstigerprüfung nach § 31 EStG mit Freibeträgen nach § 32 Abs. 6 (${eur(freibetragJeKind)} je Kind und Elternteil) und Kindergeld nach § 66 Abs. 1 EStG (${eur(KINDERGELD_MONAT)} im Monat); Zuschlagsteuern nach § 51a Abs. 2 EStG, Solidaritätszuschlag nach §§ 3 und 4 SolzG 1995; Kirchensteuersätze der Länder. Wortlaut abgerufen am 16.09.2026.`}
+    explanation={`Steuer = Tarif nach § 32a EStG auf das zu versteuernde Einkommen, im Splittingtarif das Zweifache der Steuer auf die Hälfte. Grenzsteuersatz = Mehrsteuer auf die nächsten ${GRENZSATZ_SCHRITT} €.`}
+    faqs={faqs}
+  >
+    <div class="calc-form">
+      <div class="calc-grid">
+        <div class="calc-group">
+          <label for="einkommen">Zu versteuerndes Einkommen (€/Jahr, vor Kinderfreibeträgen)</label>
+          <input type="number" id="einkommen" min="0" max="10000000" value="50000" step="1" />
+        </div>
+        <div class="calc-group">
+          <label for="tarif">Tarif</label>
+          <select id="tarif">
+            {tarifOptionen.map(o => <option value={o.wert}>{o.text}</option>)}
+          </select>
+        </div>
+        <div class="calc-group">
+          <label for="kinder">Kinder mit Kindergeld im ganzen Jahr</label>
+          <input type="number" id="kinder" min="0" max="20" value="0" step="1" />
+        </div>
+        <div class="calc-group">
+          <label for="bundesland">Bundesland (für die Kirchensteuer)</label>
+          <select id="bundesland">
+            {laenderOptionen.map(o => <option value={o.wert} selected={o.wert === 'NW'}>{o.text}</option>)}
+          </select>
+        </div>
+        <div class="calc-group">
+          <label><input type="checkbox" id="kirche" style="width:auto;margin-right:0.4rem;" />Kirchensteuerpflichtig</label>
+        </div>
+      </div>
+      <div class="calc-result">
+        <div class="label">Einkommensteuer im Jahr</div>
+        <div id="ergebnis">— €</div>
+        <div class="result-actions">
+          <button data-copy-result="#ergebnis" class="btn-copy" title="Resultat kopieren">📋 Kopieren</button>
+          <button data-save-pdf="#ergebnis" class="btn-pdf" title="Als PDF speichern">📄 PDF</button>
+        </div>
+      </div>
+      <div id="details" style="margin-top:0.75rem;font-size:0.9rem;color:#555;display:flex;flex-direction:column;gap:0.3rem;"></div>
+    </div>
+  </CalculatorShell>
+
+  <CalculatorGuide
+    title="Einkommensteuer berechnen: Tarif, Splitting, Kinder und Zuschläge"
+    content={guideHtml}
+    relatedSlugs={['steuernachzahlung-rechner', 'kirchensteuer-rechner', 'steuerklassen-vergleich']}
+  />
+</Layout>
+
+<script type="module">
+const { berechneEinkommensteuer } = await import(window.__base + 'scripts/einkommensteuer-rechner.js');
+
+const feld = (id) => document.getElementById(id);
+const eur = (n) => n.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
+const pct = (n, s) => (n * 100).toLocaleString('de-DE', { minimumFractionDigits: s, maximumFractionDigits: s }) + ' %';
+
+function zeile(text, fett) {
+  const span = document.createElement('span');
+  span.append(text);
+  if (fett !== undefined) {
+    const strong = document.createElement('strong');
+    strong.textContent = fett;
+    span.append(strong);
+  }
+  return span;
+}
+
+function berechne() {
+  const kinder = Math.max(0, Math.floor(Number(feld('kinder').value) || 0));
+  const r = berechneEinkommensteuer({
+    einkommen: Number(feld('einkommen').value) || 0,
+    tarif: feld('tarif').value,
+    kinder,
+    kirchensteuer: feld('kirche').checked,
+    bundesland: feld('bundesland').value,
+  });
+  feld('ergebnis').textContent = eur(r.einkommensteuer);
+  const details = feld('details');
+  details.replaceChildren(zeile('Zu versteuerndes Einkommen: ', eur(r.zvE)));
+  if (r.hinzurechnungKindergeld > 0) {
+    details.append(zeile('Tarifliche Einkommensteuer: ', eur(r.tariflicheSteuer)));
+  }
+  details.append(
+    zeile('Durchschnittssteuersatz (auf die tarifliche Steuer): ', pct(r.durchschnittssatz, 1)),
+    zeile('Grenzsteuersatz: ', pct(r.grenzsteuersatz, 0)),
+  );
+  if (kinder > 0) {
+    details.append(r.freibetraegeGuenstiger
+      ? zeile('Kinder: Freibeträge von ' + eur(r.freibetraegeKinder) + ' abgezogen, Kindergeldanspruch von ' + eur(r.hinzurechnungKindergeld) + ' hinzugerechnet (§ 31 EStG)')
+      : zeile('Kinder: Das Kindergeld ist günstiger als die Freibeträge von ' + eur(r.freibetraegeKinder)));
+  }
+  details.append(zeile('Solidaritätszuschlag: ', eur(r.soli)));
+  if (r.kirchensteuersatz > 0) {
+    details.append(zeile('Kirchensteuer (' + pct(r.kirchensteuersatz, 0) + '): ', eur(r.kirchensteuer)));
+  }
+  if (kinder > 0) {
+    details.append(zeile('Bemessungsgrundlage für Soli und Kirchensteuer (mit Kinderfreibeträgen): ' + eur(r.bemessungZuschlag)));
+  }
+  details.append(zeile('Steuer insgesamt: ', eur(r.gesamt)));
+}
+
+document.querySelectorAll('.calc-form input, .calc-form select').forEach((el) => {
+  el.addEventListener('input', berechne);
+  el.addEventListener('change', berechne);
+});
+berechne();
+</script>
