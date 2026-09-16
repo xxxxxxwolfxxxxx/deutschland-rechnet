@@ -33,6 +33,7 @@
 import {
   ARBEITNEHMER_PAUSCHBETRAG,
   jahreslohnsteuer,
+  bemessungsgrundlageZuschlagsteuern,
   solidaritaetszuschlagJahr,
 } from './lohnsteuer.js';
 import { PFLEGE_ARBEITNEHMER_GRUNDSATZ } from './sozialversicherung.js';
@@ -143,9 +144,11 @@ const STEUERKLASSEN_BEEG = [1, 2, 3, 4, 5];
  *   nichtselbstständiger Arbeit, ohne sonstige Bezüge (§ 2c Abs. 1 Satz 2 BEEG)
  * @param {number} eingabe.steuerklasse 1 bis 5
  * @param {boolean} [eingabe.kirchensteuer] Kirchensteuerpflicht (§ 2e Abs. 1 Satz 1 BEEG)
+ * @param {number} [eingabe.kinderfreibetraege] Zahl der Kinderfreibeträge; mindert
+ *   nach § 2e Abs. 4 und 5 BEEG die Bemessungsgrundlage für Soli und Kirchensteuer
  * @returns {number} Einkommen aus Erwerbstätigkeit im Monat, in Euro, nie negativ
  */
-export function elterngeldNetto({ einnahmenMonat, steuerklasse, kirchensteuer = false }) {
+export function elterngeldNetto({ einnahmenMonat, steuerklasse, kirchensteuer = false, kinderfreibetraege = 0 }) {
   pruefeSteuerklasse(steuerklasse);
   const einnahmen = Number.isFinite(einnahmenMonat) ? Math.max(0, einnahmenMonat) : 0;
   if (einnahmen === 0) return 0;
@@ -155,8 +158,16 @@ export function elterngeldNetto({ einnahmenMonat, steuerklasse, kirchensteuer = 
     steuerklasse,
     pflegesatz: PFLEGE_ARBEITNEHMER_GRUNDSATZ,
   });
-  const soli = solidaritaetszuschlagJahr(lohnsteuer, steuerklasse);
-  const kirche = kirchensteuer ? lohnsteuer * KIRCHENSTEUERSATZ : 0;
+  // § 2e Abs. 4 und 5 BEEG: Freibeträge für Kinder nach § 3 Abs. 2a SolzG und
+  // § 51a Abs. 2a EStG – Soli und Kirchensteuer nach der geminderten Lohnsteuer.
+  const bemessung = bemessungsgrundlageZuschlagsteuern({
+    jahresarbeitslohn: einnahmen * 12,
+    steuerklasse,
+    pflegesatz: PFLEGE_ARBEITNEHMER_GRUNDSATZ,
+    kinderfreibetraege,
+  });
+  const soli = solidaritaetszuschlagJahr(bemessung, steuerklasse);
+  const kirche = kirchensteuer ? bemessung * KIRCHENSTEUERSATZ : 0;
   const steuernMonat = (lohnsteuer + soli + kirche) / 12;
 
   const sozialabgaben = einnahmen * (
@@ -209,16 +220,17 @@ export function basiselterngeld({
   einnahmenMonat,
   steuerklasse,
   kirchensteuer = false,
+  kinderfreibetraege = 0,
   einnahmenBezugMonat,
   geschwisterbonus = false,
   kinderZahl = 1,
 }) {
-  const einkommen = elterngeldNetto({ einnahmenMonat, steuerklasse, kirchensteuer });
+  const einkommen = elterngeldNetto({ einnahmenMonat, steuerklasse, kirchensteuer, kinderfreibetraege });
   const satz = ersatzrate(einkommen);
 
   const hatBezugseinkommen = einnahmenBezugMonat !== undefined;
   const einkommenBezug = hatBezugseinkommen
-    ? elterngeldNetto({ einnahmenMonat: einnahmenBezugMonat, steuerklasse, kirchensteuer })
+    ? elterngeldNetto({ einnahmenMonat: einnahmenBezugMonat, steuerklasse, kirchensteuer, kinderfreibetraege })
     : 0;
 
   // § 2 Abs. 3 Satz 1 und 2 BEEG: Bei Einkommen während des Bezugs tritt der
@@ -253,20 +265,21 @@ export function elterngeldPlus({
   einnahmenMonat,
   steuerklasse,
   kirchensteuer = false,
+  kinderfreibetraege = 0,
   einnahmenBezugMonat,
   geschwisterbonus = false,
   kinderZahl = 1,
 }) {
   const ohneEinkommen = basiselterngeld({
-    einnahmenMonat, steuerklasse, kirchensteuer, geschwisterbonus, kinderZahl,
+    einnahmenMonat, steuerklasse, kirchensteuer, kinderfreibetraege, geschwisterbonus, kinderZahl,
   });
   const deckel = ausCent(Math.round(inCent(ohneEinkommen.betrag) * PLUS_ANTEIL));
 
-  const einkommen = elterngeldNetto({ einnahmenMonat, steuerklasse, kirchensteuer });
+  const einkommen = elterngeldNetto({ einnahmenMonat, steuerklasse, kirchensteuer, kinderfreibetraege });
   const satz = ersatzrate(einkommen);
   const einkommenBezug = einnahmenBezugMonat === undefined
     ? 0
-    : elterngeldNetto({ einnahmenMonat: einnahmenBezugMonat, steuerklasse, kirchensteuer });
+    : elterngeldNetto({ einnahmenMonat: einnahmenBezugMonat, steuerklasse, kirchensteuer, kinderfreibetraege });
   const bemessung = einnahmenBezugMonat === undefined
     ? einkommen
     : Math.max(0, Math.min(einkommen, KAPPUNG_VORGEBURTLICH) - einkommenBezug);
@@ -301,6 +314,7 @@ export function berechneElterngeld({
   einnahmenMonat,
   steuerklasse = 1,
   kirchensteuer = false,
+  kinderfreibetraege = 0,
   einnahmenBezugMonat,
   geschwisterbonus = false,
   kinderZahl = 1,
@@ -310,7 +324,7 @@ export function berechneElterngeld({
   pruefeSteuerklasse(steuerklasse);
 
   const eingabe = {
-    einnahmenMonat, steuerklasse, kirchensteuer, einnahmenBezugMonat, geschwisterbonus, kinderZahl,
+    einnahmenMonat, steuerklasse, kirchensteuer, kinderfreibetraege, einnahmenBezugMonat, geschwisterbonus, kinderZahl,
   };
   const basis = basiselterngeld(eingabe);
   const plus = elterngeldPlus(eingabe);
