@@ -154,7 +154,13 @@ describe('Kinder in der Veranlagung', () => {
     expect(mit.freibetraegeGuenstiger).toBe(true);
     expect(mit.hinzurechnungKindergeld).toBe(2 * 12 * KINDERGELD_MONAT);
     expect(mit.jahressteuer).toBeLessThan(ohne.jahressteuer);
-    expect(mit.einbehalten).toBe(ohne.einbehalten);
+    expect(mit.einbehaltenLohnsteuer).toBe(ohne.einbehaltenLohnsteuer);
+  });
+
+  it('mindert auch den einbehaltenen Soli um die Kinderfreibeträge (§ 3 Abs. 2a SolzG)', () => {
+    const ohne = berechneSteuernachzahlung(paar);
+    const mit = berechneSteuernachzahlung({ ...paar, kinderKindergeld: 2 });
+    expect(mit.einbehaltenSoli).toBeLessThan(ohne.einbehaltenSoli);
   });
 
   it('lässt die Einkommensteuer bei niedrigem Einkommen unverändert, wenn das Kindergeld günstiger ist', () => {

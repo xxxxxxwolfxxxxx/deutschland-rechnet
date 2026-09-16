@@ -11,6 +11,7 @@ import {
 } from '../../../public/scripts/sozialversicherung.js';
 import { SOLI_FREIGRENZE, ARBEITNEHMER_PAUSCHBETRAG, VORSORGEPAUSCHALE_HOECHSTBETRAG } from '../../../public/scripts/lohnsteuer.js';
 import { GRUNDFREIBETRAG } from '../../../public/scripts/einkommensteuer.js';
+import { berechneNettoGehalt } from '../../../public/scripts/brutto-netto.js';
 const calc = CALCULATORS.find(c => c.slug === 'brutto-netto-rechner')!;
 const cat = CATEGORIES[calc.category];
 const year = new Date().getFullYear();
@@ -21,7 +22,8 @@ const year = new Date().getFullYear();
 // 102.600 € und die Rentenversicherung mit 8,4 % – alle drei falsch.
 const laender = bundeslaenderAlphabetisch();
 
-const euro = (n: number) => n.toLocaleString('de-DE') + ' €';
+const euro = (n: number) =>
+  n.toLocaleString('de-DE', Number.isInteger(n) ? {} : { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
 const proz = (n: number) => (n * 100).toLocaleString('de-DE', { maximumFractionDigits: 3 }) + ' %';
 
 const kvAn = krankenkasseArbeitnehmerSatz();
@@ -33,6 +35,18 @@ const avAn = BEITRAGSSAETZE.arbeitslosenversicherung / 2;
 const kiSaetze = [...new Set(Object.values(KIRCHENSTEUER_LAENDER).map(l => l.satz))].sort();
 const achtProzentLaender = Object.values(KIRCHENSTEUER_LAENDER)
   .filter(l => l.satz === Math.min(...kiSaetze)).map(l => l.name);
+
+// Abzugsquote an zwei Beispielen statt einer unbelegten Spanne.
+const BSP_NIEDRIG = 2000;
+const BSP_HOCH = 8000;
+const abzugsquote = (bruttoMonat: number) =>
+  1 - berechneNettoGehalt({ bruttoMonat, steuerklasse: 1, bundesland: 'NW', kinder: 1 }).netto / bruttoMonat;
+const quoteNiedrig = abzugsquote(BSP_NIEDRIG);
+const quoteHoch = abzugsquote(BSP_HOCH);
+if (!(quoteNiedrig > 0 && quoteHoch > quoteNiedrig)) {
+  throw new Error('Brutto-Netto: Beispielquoten ergeben keine Progression');
+}
+const KFB_OPTIONEN = [0, 0.5, 1, 1.5, 2, 2.5, 3, 4, 5];
 ---
 <Layout
   title={`Brutto-Netto-Rechner ${year}`}
@@ -49,12 +63,12 @@ const achtProzentLaender = Object.values(KIRCHENSTEUER_LAENDER)
   <CalculatorShell
     calculator={calc}
     intro="Mit dem Brutto-Netto-Rechner 2026 berechnen Sie Ihren monatlichen Nettolohn aus dem Bruttogehalt. Geben Sie Bruttogehalt, Steuerklasse, Bundesland und die Zahl Ihrer Kinder unter 25 Jahren ein – Lohnsteuer, Solidaritätszuschlag, Kirchensteuer und Sozialversicherung werden daraus berechnet."
-    sourceNote="Lohnsteuerabzug nach § 39b Abs. 2 EStG mit dem Tarif des § 32a EStG (VZ 2026), Solidaritätszuschlag nach SolzG 1995, Beitragssätze und Bemessungsgrenzen nach der Sozialversicherungsrechengrößen-Verordnung 2026."
-    explanation={`Aus dem Jahresbruttolohn werden der Arbeitnehmer-Pauschbetrag von ${euro(ARBEITNEHMER_PAUSCHBETRAG)}, der Sonderausgaben-Pauschbetrag und die Vorsorgepauschale abgezogen; auf den Rest wird der Tarif des § 32a EStG angewendet. Der Solidaritätszuschlag beträgt ${proz(0.055)} der Lohnsteuer, fällt aber erst über einer Jahreslohnsteuer von ${euro(SOLI_FREIGRENZE)} an. Die Kirchensteuer liegt bei ${kiSaetze.map(proz).join(' oder ')} der Lohnsteuer.`}
+    sourceNote="Lohnsteuerabzug nach § 39b Abs. 2 EStG mit dem Tarif des § 32a EStG (VZ 2026), Solidaritätszuschlag nach SolzG 1995, Bemessungsgrundlage für Soli und Kirchensteuer nach § 3 Abs. 2a SolzG und § 51a Abs. 2a EStG, Beitragssätze und Bemessungsgrenzen nach der Sozialversicherungsrechengrößen-Verordnung 2026."
+    explanation={`Aus dem Jahresbruttolohn werden der Arbeitnehmer-Pauschbetrag von ${euro(ARBEITNEHMER_PAUSCHBETRAG)}, der Sonderausgaben-Pauschbetrag und die Vorsorgepauschale abgezogen; auf den Rest wird der Tarif des § 32a EStG angewendet. Der Solidaritätszuschlag beträgt ${proz(0.055)} der Lohnsteuer, fällt aber erst über einer Jahreslohnsteuer von ${euro(SOLI_FREIGRENZE)} an. Die Kirchensteuer liegt bei ${kiSaetze.map(proz).join(' oder ')} der Lohnsteuer. Für Soli und Kirchensteuer wird die Lohnsteuer vorher mit den Kinderfreibeträgen neu berechnet.`}
     faqs={[
-      { q: "Wie hoch sind die Abzüge?", a: `Die Sozialversicherung kostet den Arbeitnehmer ${proz(kvAn + pvAn + rvAn + avAn)} des Bruttolohns bis zu den Beitragsbemessungsgrenzen. Dazu kommen Lohnsteuer, gegebenenfalls Solidaritätszuschlag und Kirchensteuer. Zusammen liegen die Abzüge je nach Steuerklasse und Einkommen zwischen etwa 20 und 45 Prozent.` },
+      { q: "Wie hoch sind die Abzüge?", a: `Die Sozialversicherung kostet den Arbeitnehmer ${proz(kvAn + pvAn + rvAn + avAn)} des Bruttolohns bis zu den Beitragsbemessungsgrenzen. Dazu kommen Lohnsteuer, gegebenenfalls Solidaritätszuschlag und Kirchensteuer. In Steuerklasse I mit einem Kind in Nordrhein-Westfalen und ohne Kirchensteuer sind es bei ${euro(BSP_NIEDRIG)} brutto im Monat ${proz(Math.round(quoteNiedrig * 1000) / 1000)} und bei ${euro(BSP_HOCH)} ${proz(Math.round(quoteHoch * 1000) / 1000)} des Bruttolohns.` },
       { q: "Welche Steuerklasse sollte ich wählen?", a: "Ledig: Klasse I. Alleinerziehend mit Anspruch auf den Entlastungsbetrag: II. Verheiratet mit deutlich höherem Einkommen: III, der Partner dann V. Verheiratet mit ähnlichem Einkommen: beide IV. Zweites Arbeitsverhältnis: VI." },
-      { q: "Warum weicht mein Netto ab?", a: `Der Rechner nimmt den gesetzlichen Regelfall an: gesetzlich kranken- und pflegeversichert, durchschnittlicher Zusatzbeitrag von ${proz(BEITRAGSSAETZE.zusatzbeitragDurchschnitt)}, keine Freibeträge nach § 39a EStG. Abweichungen entstehen durch einen anderen Zusatzbeitrag Ihrer Krankenkasse, eingetragene Freibeträge, private Krankenversicherung oder Kinderfreibeträge beim Solidaritätszuschlag.` },
+      { q: "Warum weicht mein Netto ab?", a: `Der Rechner nimmt den gesetzlichen Regelfall an: gesetzlich kranken- und pflegeversichert, durchschnittlicher Zusatzbeitrag von ${proz(BEITRAGSSAETZE.zusatzbeitragDurchschnitt)}, keine Freibeträge nach § 39a EStG. Abweichungen entstehen durch einen anderen Zusatzbeitrag Ihrer Krankenkasse, eingetragene Freibeträge, private Krankenversicherung oder das Faktorverfahren.` },
       { q: "Was ist die Beitragsbemessungsgrenze?", a: `Der Betrag, bis zu dem Beiträge erhoben werden; darüber liegender Lohn bleibt beitragsfrei. 2026 liegt sie in der Renten- und Arbeitslosenversicherung bei ${euro(BBG_RV_AV_JAHR)} im Jahr (${euro(BBG_RV_AV_MONAT)} im Monat) und in der Kranken- und Pflegeversicherung bei ${euro(BBG_KV_PV_JAHR)} im Jahr (${euro(BBG_KV_PV_MONAT)} im Monat).` },
       { q: "Beeinflusst das Bundesland den Nettolohn?", a: `Ja, an zwei Stellen. Die Kirchensteuer beträgt in ${achtProzentLaender.join(' und ')} ${proz(Math.min(...kiSaetze))}, in allen übrigen Ländern ${proz(Math.max(...kiSaetze))} der Lohnsteuer. Und in Sachsen trägt der Arbeitnehmer nach § 58 Abs. 3 SGB XI einen Prozentpunkt der Pflegeversicherung allein, zahlt also ${proz(pvAnSachsen)} statt ${proz(pvAn)}.` },
       { q: "Was ist die Vorsorgepauschale?", a: `Beim Lohnsteuerabzug werden nicht die tatsächlichen Sozialabgaben abgezogen, sondern die Vorsorgepauschale nach § 39b Abs. 2 Satz 5 Nr. 3 EStG. Sie rechnet die Krankenversicherung mit dem ermäßigten Beitragssatz von ${proz(BEITRAGSSAETZE.krankenversicherungErmaessigt)} und berücksichtigt die Arbeitslosenversicherung nur, soweit die Teilbeträge zusammen ${euro(VORSORGEPAUSCHALE_HOECHSTBETRAG)} nicht übersteigen.` }
@@ -93,7 +107,7 @@ const achtProzentLaender = Object.values(KIRCHENSTEUER_LAENDER)
           </select>
         </div>
         <div class="calc-group">
-          <label for="kinder">Kinder unter 25 Jahren</label>
+          <label for="kinder">Kinder unter 25 Jahren (Pflegeversicherung)</label>
           <select id="kinder">
             <option value="0">keine ({proz(pvAnKinderlos)} Pflegeversicherung)</option>
             <option value="1" selected>1 Kind ({proz(pvAn)})</option>
@@ -101,6 +115,12 @@ const achtProzentLaender = Object.values(KIRCHENSTEUER_LAENDER)
             <option value="3">3 Kinder ({proz(pflegeArbeitnehmerSatz({ kinder: 3 }))})</option>
             <option value="4">4 Kinder ({proz(pflegeArbeitnehmerSatz({ kinder: 4 }))})</option>
             <option value="5">5 Kinder oder mehr ({proz(pflegeArbeitnehmerSatz({ kinder: 5 }))})</option>
+          </select>
+        </div>
+        <div class="calc-group">
+          <label for="kfb">Zahl der Kinderfreibeträge (Lohnsteuerabzugsmerkmal)</label>
+          <select id="kfb">
+            {KFB_OPTIONEN.map(z => <option value={z} selected={z === 0}>{z.toLocaleString('de-DE')}</option>)}
           </select>
         </div>
       </div>
@@ -133,7 +153,7 @@ const achtProzentLaender = Object.values(KIRCHENSTEUER_LAENDER)
 
 <p>Die <strong>Vorsorgepauschale</strong> ist nicht dasselbe wie die tatsächlichen Sozialabgaben. Sie setzt sich zusammen aus der Hälfte des Rentenbeitrags, dem Arbeitnehmeranteil zur Krankenversicherung gerechnet mit dem <em>ermäßigten</em> Beitragssatz von ${proz(BEITRAGSSAETZE.krankenversicherungErmaessigt)}, dem Pflegeanteil und dem Beitrag zur Arbeitslosenversicherung – letzterer nur, soweit die Teilbeträge zusammen ${euro(VORSORGEPAUSCHALE_HOECHSTBETRAG)} nicht übersteigen.</p>
 
-<p>Der <strong>Solidaritätszuschlag</strong> beträgt 5,5 % der Lohnsteuer. Er wird erst erhoben, wenn die Jahreslohnsteuer ${euro(SOLI_FREIGRENZE)} übersteigt (Steuerklasse III: ${euro(SOLI_FREIGRENZE * 2)}). Direkt oberhalb dieser Freigrenze greift eine Milderungszone: Der Zuschlag beträgt dort höchstens 11,9 % des übersteigenden Betrags und wächst erst allmählich auf die vollen 5,5 % an.</p>
+<p>Der <strong>Solidaritätszuschlag</strong> beträgt 5,5 % der Lohnsteuer. Er wird erst erhoben, wenn die Jahreslohnsteuer ${euro(SOLI_FREIGRENZE)} übersteigt (Steuerklasse III: ${euro(SOLI_FREIGRENZE * 2)}). Direkt oberhalb dieser Freigrenze greift eine Milderungszone: Der Zuschlag beträgt dort höchstens 11,9 % des übersteigenden Betrags und wächst erst allmählich auf die vollen 5,5 % an. Maßgebend ist dabei die Lohnsteuer, die sich ergibt, wenn der Jahresbetrag um die Freibeträge für Kinder gemindert wird – in den Steuerklassen I bis III um den doppelten, in IV um den einfachen Betrag je Kind, jeweils nach der Zahl der Kinderfreibeträge (§ 3 Abs. 2a SolzG). Für die Kirchensteuer gilt dasselbe (§ 51a Abs. 2a EStG).</p>
 
 <p><strong>Sozialversicherungsbeiträge</strong> tragen Arbeitgeber und Arbeitnehmer grundsätzlich je zur Hälfte. Die Arbeitnehmeranteile 2026:
 <ul>
@@ -160,7 +180,8 @@ function berechne() {
   const bl = document.getElementById('bundesland').value;
   const ki = document.getElementById('kirche').value === 'ja';
   const kinder = parseInt(document.getElementById('kinder').value);
-  const r = berechneNettoGehalt({ bruttoMonat: brutto, steuerklasse: sk, bundesland: bl, kirchensteuer: ki, kinder });
+  const kinderfreibetraege = parseFloat(document.getElementById('kfb').value) || 0;
+  const r = berechneNettoGehalt({ bruttoMonat: brutto, steuerklasse: sk, bundesland: bl, kirchensteuer: ki, kinder, kinderfreibetraege });
   document.getElementById('netto-wert').textContent = fmt(r.netto);
   document.getElementById('r-brutto').textContent = fmt(brutto);
   document.getElementById('r-lst').textContent = '− ' + fmt(r.lohnsteuer);
@@ -172,7 +193,7 @@ function berechne() {
   document.getElementById('r-pv').textContent = '− ' + fmt(r.pflegeversicherung);
   document.getElementById('r-netto').innerHTML = '<strong>' + fmt(r.netto) + '</strong>';
 }
-document.querySelectorAll('#brutto, #steuerklasse, #bundesland, #kirche, #kinder').forEach(el => {
+document.querySelectorAll('#brutto, #steuerklasse, #bundesland, #kirche, #kinder, #kfb').forEach(el => {
   el.addEventListener('input', berechne);
   el.addEventListener('change', berechne);
 });

@@ -32,8 +32,9 @@
 //   Satz 5 Nr. 3 EStG angesetzt, wie es § 39f Satz 3 EStG für die
 //   Faktorermittlung vorsieht. Die Veranlagung setzt sie nach § 10 Abs. 1
 //   Nr. 2, 3 und 3a EStG mit den dortigen Höchstbeträgen an.
-// - Der einbehaltene Soli kommt aus lohnsteuer.js, das beim Soli keine
-//   Kinderfreibeträge berücksichtigt.
+// - Der einbehaltene Soli mindert die Bemessungsgrundlage um die
+//   Kinderfreibeträge (§ 3 Abs. 2a SolzG) mit einem angenommenen Zähler
+//   (siehe ZAEHLER_JE_KIND).
 // - Für den Entlastungsbetrag zählt der Rechner die Kinder mit Kindergeld als
 //   Kinder im Haushalt.
 // - Verwitwete in Steuerklasse III, Kirchensteuer und Progressionsvorbehalt
@@ -42,6 +43,7 @@
 import { berechneEinkommensteuer } from './einkommensteuer-rechner.js';
 import {
   jahreslohnsteuer,
+  bemessungsgrundlageZuschlagsteuern,
   vorsorgepauschale,
   solidaritaetszuschlagJahr,
   ARBEITNEHMER_PAUSCHBETRAG,
@@ -123,8 +125,8 @@ export function berechneSteuernachzahlung({
   const partnerLohn = zusammen ? betrag(partnerBruttoJahr) : 0;
 
   // Einbehalten: Lohnsteuer und Solidaritätszuschlag beider Partner.
-  const eigen = einbehalt(lohn, steuerklasse, kinder, zusatzbeitrag);
-  const partner = zusammen ? einbehalt(partnerLohn, partnerSteuerklasse, kinder, zusatzbeitrag) : leer();
+  const eigen = einbehalt(lohn, steuerklasse, kinder, kinderKindergeld, zusatzbeitrag);
+  const partner = zusammen ? einbehalt(partnerLohn, partnerSteuerklasse, kinder, kinderKindergeld, zusatzbeitrag) : leer();
   const einbehalten = runde(eigen.gesamt + partner.gesamt);
 
   // Geschuldet: Einkommensteuer und Soli der Veranlagung. Werbungskosten und
@@ -162,9 +164,21 @@ export function berechneSteuernachzahlung({
   };
 }
 
-function einbehalt(lohn, steuerklasse, kinder, zusatzbeitrag) {
+// Zahl der Kinderfreibeträge je Kind als Lohnsteuerabzugsmerkmal (§ 38b Abs. 2
+// EStG): Annahme 0,5 für Alleinstehende in I und II (einfacher Freibetrag nach
+// § 32 Abs. 6 Satz 1), 1 für Ehegatten in III und IV. V und VI mindern nicht.
+const ZAEHLER_JE_KIND = { 1: 0.5, 2: 0.5, 3: 1, 4: 1, 5: 0, 6: 0 };
+
+function einbehalt(lohn, steuerklasse, kinder, kinderKindergeld, zusatzbeitrag) {
   const lohnsteuer = jahreslohnsteuer({ jahresarbeitslohn: lohn, steuerklasse, kinder, zusatzbeitrag });
-  const soli = solidaritaetszuschlagJahr(lohnsteuer, steuerklasse);
+  const bemessung = bemessungsgrundlageZuschlagsteuern({
+    jahresarbeitslohn: lohn,
+    steuerklasse,
+    kinder,
+    kinderfreibetraege: kinderKindergeld * ZAEHLER_JE_KIND[steuerklasse],
+    zusatzbeitrag,
+  });
+  const soli = solidaritaetszuschlagJahr(bemessung, steuerklasse);
   return { lohnsteuer, soli, gesamt: runde(lohnsteuer + soli) };
 }
 

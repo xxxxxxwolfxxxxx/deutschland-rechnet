@@ -19,6 +19,7 @@
 // 11.08.2026 auf etwa ein Fünftel der richtigen Lohnsteuer gebracht.
 
 import { einkommensteuer } from './einkommensteuer.js';
+import { KINDERFREIBETRAG_JE_ELTERNTEIL, BEA_FREIBETRAG_JE_ELTERNTEIL } from './kindergeld.js';
 import {
   BBG_KV_PV_JAHR,
   BBG_RV_AV_JAHR,
@@ -141,7 +142,39 @@ export function zuVersteuernderJahresbetrag({ jahresarbeitslohn, steuerklasse, k
 export function jahreslohnsteuer({ jahresarbeitslohn, steuerklasse, kinder = 0, zusatzbeitrag, pflegesatz }) {
   pruefeSteuerklasse(steuerklasse);
   const zvJB = zuVersteuernderJahresbetrag({ jahresarbeitslohn, steuerklasse, kinder, zusatzbeitrag, pflegesatz });
+  return lohnsteuerAusJahresbetrag(zvJB, steuerklasse);
+}
 
+/**
+ * Bemessungsgrundlage für Solidaritätszuschlag und Kirchensteuer beim
+ * Lohnsteuerabzug (§ 3 Abs. 2a SolzG 1995, § 51a Abs. 2a EStG, Wortlaut
+ * abgerufen am 16.09.2026).
+ *
+ * Maßgebend ist die Lohnsteuer auf den zu versteuernden Jahresbetrag,
+ * vermindert um die Freibeträge nach § 32 Abs. 6 Satz 1 EStG – in den
+ * Steuerklassen I bis III um den doppelten, in IV um den einfachen Betrag je
+ * Kind. „Maßgebend ist die als Lohnsteuerabzugsmerkmal gebildete Zahl der
+ * Kinderfreibeträge“ (§ 51a Abs. 2a Satz 2), also der Zähler 0,5 oder 1 je Kind
+ * nach § 38b Abs. 2 EStG. Die Klassen V und VI nennt das Gesetz nicht; dort
+ * bleibt es bei der Lohnsteuer. Das Faktorverfahren (Satz 3) ist nicht
+ * abgebildet.
+ *
+ * @param {object} eingabe siehe vorsorgepauschale
+ * @param {number} [eingabe.kinderfreibetraege] Zahl der Kinderfreibeträge, Vielfaches von 0,5
+ * @returns {number} Bemessungsgrundlage in vollen Euro
+ */
+export function bemessungsgrundlageZuschlagsteuern({ jahresarbeitslohn, steuerklasse, kinder = 0, kinderfreibetraege = 0, zusatzbeitrag, pflegesatz }) {
+  pruefeSteuerklasse(steuerklasse);
+  if (!Number.isInteger(kinderfreibetraege * 2) || kinderfreibetraege < 0) {
+    throw new Error(`Ungültige Zahl der Kinderfreibeträge: ${kinderfreibetraege}`);
+  }
+  const zvJB = zuVersteuernderJahresbetrag({ jahresarbeitslohn, steuerklasse, kinder, zusatzbeitrag, pflegesatz });
+  const faktor = steuerklasse <= 3 ? 2 : steuerklasse === 4 ? 1 : 0;
+  const minderung = kinderfreibetraege * faktor * (KINDERFREIBETRAG_JE_ELTERNTEIL + BEA_FREIBETRAG_JE_ELTERNTEIL);
+  return lohnsteuerAusJahresbetrag(Math.max(0, zvJB - minderung), steuerklasse);
+}
+
+function lohnsteuerAusJahresbetrag(zvJB, steuerklasse) {
   if (steuerklasse === 3) {
     // § 32a Abs. 5 EStG, Splittingverfahren.
     return 2 * einkommensteuer(zvJB / 2);

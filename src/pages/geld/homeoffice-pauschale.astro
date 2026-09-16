@@ -3,13 +3,82 @@ import Layout from '../../layouts/Layout.astro';
 import CalculatorShell from '../../components/CalculatorShell.astro';
 import CalculatorGuide from '../../components/CalculatorGuide.astro';
 import { CALCULATORS, CATEGORIES } from '../../data/calculators';
+import { TAGESPAUSCHALE, TAGESPAUSCHALE_HOECHSTBETRAG, steuervorteil } from '../../../public/scripts/homeoffice.js';
+import { ARBEITNEHMER_PAUSCHBETRAG } from '../../../public/scripts/lohnsteuer.js';
+import { ENTFERNUNGSPAUSCHALE_JE_KM } from '../../../public/scripts/fahrtkosten.js';
+
 const calc = CALCULATORS.find(c => c.slug === 'homeoffice-pauschale')!;
 const cat = CATEGORIES[calc.category];
 const year = new Date().getFullYear();
+
+// Alle Beträge aus den Modulen. Bis zum 16.09.2026 stand hier unter anderem
+// eine Pendlerpauschale von „1,30 €/km für Hin- und Rückweg“, ein
+// Arbeitszimmer „bis 1.250 €“ und ein Rechner, der die Pauschale mit einem
+// frei gewählten Steuersatz multiplizierte und den Arbeitnehmer-Pauschbetrag
+// übersah.
+const eur = (n: number) => n.toLocaleString('de-DE', { maximumFractionDigits: 0 }) + ' €';
+const eurCent = (n: number) => n.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
+
+const TAGE_BIS_HOECHSTBETRAG = TAGESPAUSCHALE_HOECHSTBETRAG / TAGESPAUSCHALE;
+const TAGE_BIS_PAUSCHBETRAG = Math.ceil(ARBEITNEHMER_PAUSCHBETRAG / TAGESPAUSCHALE);
+if (!Number.isInteger(TAGE_BIS_HOECHSTBETRAG) || TAGE_BIS_PAUSCHBETRAG >= TAGE_BIS_HOECHSTBETRAG) {
+  throw new Error('Homeoffice: Pauschbetrag und Tagespauschale passen nicht mehr zum Text');
+}
+
+// Tabelle: Ersparnis bei 50.000 € zu versteuerndem Einkommen, Grundtarif.
+const BSP_ZVE = 50000;
+const BSP_SONSTIGE = 1500;
+const TABELLEN_TAGE = [50, 100, 150, TAGE_BIS_HOECHSTBETRAG];
+function tabellenZeile(tage: number) {
+  const ohne = steuervorteil({ tage, zvE: BSP_ZVE });
+  const mit = steuervorteil({ tage, zvE: BSP_ZVE, sonstigeWerbungskosten: BSP_SONSTIGE });
+  return '<tr><td>' + tage + '</td><td>' + eur(ohne.pauschale) + '</td><td>' + eur(ohne.ersparnis) + '</td><td>' + eur(mit.ersparnis) + '</td></tr>';
+}
+const tabellenZeilen = TABELLEN_TAGE.map(tabellenZeile).join('');
+if (steuervorteil({ tage: 100, zvE: BSP_ZVE }).ersparnis !== 0) {
+  throw new Error('Homeoffice: Pauschale unter dem Pauschbetrag darf nichts sparen');
+}
+
+// Beispiel Pendeln und Homeoffice in derselben Woche. Die Zahl der
+// Arbeitswochen ist eine Annahme des Beispiels.
+const BSP_KM = 25;
+const BSP_BUEROTAGE = 3;
+const BSP_HOMEOFFICETAGE = 2;
+const BSP_WOCHEN = 46;
+const pendelJeTag = BSP_KM * ENTFERNUNGSPAUSCHALE_JE_KM;
+const jeWoche = BSP_BUEROTAGE * pendelJeTag + BSP_HOMEOFFICETAGE * TAGESPAUSCHALE;
+const jeJahr = jeWoche * BSP_WOCHEN;
+
+const guideHtml = `
+<h3>Was die Tagespauschale ist</h3>
+<p>Für jeden Kalendertag, an dem Sie überwiegend in der eigenen Wohnung arbeiten und keine erste Tätigkeitsstätte außerhalb aufsuchen, können Sie ${eur(TAGESPAUSCHALE)} abziehen, höchstens ${eur(TAGESPAUSCHALE_HOECHSTBETRAG)} im Jahr (§ 4 Abs. 5 Satz 1 Nr. 6c EStG). Der Höchstbetrag ist nach ${TAGE_BIS_HOECHSTBETRAG} Tagen erreicht. Steht Ihnen dauerhaft kein anderer Arbeitsplatz zur Verfügung, zählt der Tag auch dann, wenn Sie am selben Tag auswärts oder an der ersten Tätigkeitsstätte arbeiten. Die Pauschale gilt für Selbständige als Betriebsausgabe und über § 9 Abs. 5 EStG für Arbeitnehmer als Werbungskosten. Ein eigenes Zimmer ist nicht nötig.</p>
+
+<h3>Arbeitnehmer: erst der Pauschbetrag, dann die Pauschale</h3>
+<p>Arbeitnehmer erhalten ohne jeden Nachweis den Arbeitnehmer-Pauschbetrag von ${eur(ARBEITNEHMER_PAUSCHBETRAG)} (§ 9a EStG). Die Tagespauschale spart deshalb nur, soweit alle Werbungskosten zusammen diesen Betrag übersteigen. Ohne weitere Werbungskosten ist das erst ab ${TAGE_BIS_PAUSCHBETRAG} Homeoffice-Tagen der Fall. Wer dagegen Fahrtkosten, Arbeitsmittel oder Fortbildungen absetzt, liegt schneller darüber – dann zählt jeder Homeoffice-Tag voll.</p>
+<table>
+<thead><tr><th>Homeoffice-Tage</th><th>Pauschale</th><th>Ersparnis ohne weitere Werbungskosten</th><th>Ersparnis bei ${eur(BSP_SONSTIGE)} weiteren Werbungskosten</th></tr></thead>
+<tbody>${tabellenZeilen}</tbody>
+</table>
+<p><em>Einkommensteuer im Grundtarif bei ${eur(BSP_ZVE)} zu versteuerndem Einkommen, ohne Solidaritätszuschlag und Kirchensteuer; gerechnet mit demselben Modul wie der Rechner oben.</em></p>
+
+<h3>Pauschale oder Arbeitszimmer?</h3>
+<p>Aufwendungen für ein häusliches Arbeitszimmer sind nur abziehbar, wenn es den Mittelpunkt der gesamten betrieblichen und beruflichen Betätigung bildet (§ 4 Abs. 5 Satz 1 Nr. 6b EStG). Dann können Sie die tatsächlichen Kosten oder pauschal ${eur(TAGESPAUSCHALE_HOECHSTBETRAG)} im Jahr ansetzen; für jeden vollen Monat ohne diese Voraussetzung sinkt die Jahrespauschale um ein Zwölftel. Bildet das Zimmer nicht den Mittelpunkt, ist es gar nicht abziehbar – dann bleibt nur die Tagespauschale. Beides zugleich geht nicht: Die Tagespauschale entfällt, soweit ein Abzug für das Arbeitszimmer vorgenommen wird (Nr. 6c).</p>
+
+<h3>Pendeln und Homeoffice in derselben Woche</h3>
+<p>An Tagen, an denen Sie die erste Tätigkeitsstätte aufsuchen, gibt es die Entfernungspauschale von ${ENTFERNUNGSPAUSCHALE_JE_KM.toLocaleString('de-DE', { minimumFractionDigits: 2 })} € je vollem Entfernungskilometer, an den übrigen die Tagespauschale. Beispiel mit ${BSP_KM} km einfachem Weg, ${BSP_BUEROTAGE} Bürotagen und ${BSP_HOMEOFFICETAGE} Homeoffice-Tagen je Woche: ${eurCent(jeWoche)} Werbungskosten in der Woche, bei ${BSP_WOCHEN} Arbeitswochen ${eur(jeJahr)} im Jahr – mehr als der Arbeitnehmer-Pauschbetrag.</p>
+`;
+
+const faqs = [
+  { q: 'Wie viel bringt die Homeoffice-Pauschale?', a: `${eur(TAGESPAUSCHALE)} je Tag, höchstens ${eur(TAGESPAUSCHALE_HOECHSTBETRAG)} im Jahr. Wie viel Steuer das spart, hängt von Ihrem Einkommen und Ihren übrigen Werbungskosten ab: Arbeitnehmer profitieren erst, soweit alle Werbungskosten den Pauschbetrag von ${eur(ARBEITNEHMER_PAUSCHBETRAG)} übersteigen. Der Rechner oben rechnet das mit dem Einkommensteuertarif aus.` },
+  { q: 'Welche Tage zählen?', a: 'Tage, an denen Sie überwiegend in der häuslichen Wohnung arbeiten und keine erste Tätigkeitsstätte außerhalb aufsuchen. Haben Sie dauerhaft keinen anderen Arbeitsplatz, zählen auch Tage, an denen Sie zusätzlich auswärts oder an der ersten Tätigkeitsstätte tätig sind (§ 4 Abs. 5 Satz 1 Nr. 6c EStG).' },
+  { q: 'Gilt die Pauschale auch für Selbständige?', a: 'Ja. Sie steht in § 4 Abs. 5 EStG bei den Betriebsausgaben und gilt über § 9 Abs. 5 EStG ebenso für die Werbungskosten von Arbeitnehmern.' },
+  { q: 'Kann ich Pauschale und Arbeitszimmer kombinieren?', a: `Nein. Die Tagespauschale entfällt, soweit ein Abzug für das häusliche Arbeitszimmer vorgenommen wird. Das Arbeitszimmer ist ohnehin nur abziehbar, wenn es den Mittelpunkt der gesamten Tätigkeit bildet – dann mit den tatsächlichen Kosten oder ${eur(TAGESPAUSCHALE_HOECHSTBETRAG)} im Jahr (§ 4 Abs. 5 Satz 1 Nr. 6b EStG).` },
+  { q: 'Und die Pendlerpauschale?', a: `Für Tage, an denen Sie die erste Tätigkeitsstätte aufsuchen, gilt die Entfernungspauschale von ${ENTFERNUNGSPAUSCHALE_JE_KM.toLocaleString('de-DE', { minimumFractionDigits: 2 })} € je vollem Kilometer der einfachen Strecke. An Homeoffice-Tagen gilt die Tagespauschale. Beides zusammen zählt zu den Werbungskosten.` },
+];
 ---
 <Layout
   title={`Homeoffice-Pauschale ${year}`}
-  description="Homeoffice-Pauschale 2026 berechnen: 6 €/Tag, max. 1.260 €/Jahr. Steuervorteil je Steuersatz ermitteln. Mit Vergleich Pauschale vs. Arbeitszimmer und Praxistipps zur Kombination mit Pendlerpauschale."
+  description={`Homeoffice-Pauschale berechnen: ${TAGESPAUSCHALE} € je Tag, höchstens ${TAGESPAUSCHALE_HOECHSTBETRAG.toLocaleString('de-DE')} € im Jahr – und wie viel Steuer sie nach Abzug des Arbeitnehmer-Pauschbetrags wirklich spart.`}
   canonicalPath="/geld/homeoffice-pauschale/"
   categoryColor={cat.color}
   categoryLight={cat.colorLight}
@@ -17,120 +86,90 @@ const year = new Date().getFullYear();
 >
   <div class="page-header">
     <a href={`${import.meta.env.BASE_URL}geld/`} class="back-link">← Geld &amp; Gehalt</a>
-    <h1>Homeoffice-Pauschale {year} – Steuer sparen</h1>
+    <h1>Homeoffice-Pauschale {year}</h1>
   </div>
   <CalculatorShell
     calculator={calc}
-    intro="Mit dem Homeoffice-Pauschale-Rechner berechnen Sie den steuerlichen Vorteil für das Arbeiten von zu Hause. Ermitteln Sie, wie viel Steuern Sie durch die Pauschale sparen und ob sich ein häusliches Arbeitszimmer zusätzlich lohnt."
-    sourceNote="6€ pro Tag, max. 1.260€."
-    explanation="Die Homeoffice-Pauschale beträgt 6 Euro pro Arbeitstag im Homeoffice, maximal 1.260 Euro pro Jahr für 210 Tage (§ 4 Abs. 5 Nr. 6c EStG). Sie wird als Werbungskosten angerechnet und benötigt keine Belege. Ein separates Arbeitszimmer ist nicht erforderlich."
-    faqs={[
-      { q: "Wie viel ist die Homeoffice-Pauschale wert?", a: "6€ pro Arbeitstag im Homeoffice, maximal 210 Tage = 1.260€/Jahr. Sie schreiben das als Werbungskosten ab, ohne Belege. Das reduziert Ihr zu versteuerndes Einkommen. Bei 30% persönlichem Steuersatz spart das ca. 378€ Steuern pro Jahr." },
-      { q: "Was muss ich dokumentieren?", a: "Nichts! Das ist das Schöne der Pauschale. Während der Pandemie kam das, weil Menschen Homeoffice machen mussten – ohne Belege nachzuweisen. Sie schreiben einfach die Tage auf Ihrer Steuererklärung ein." },
-      { q: "Kann ich trotzdem teurere Ausgaben absetzen?", a: "Ja! Wenn Sie echte Nebenkosten haben (Möbel, Beleuchtung, Software, Telefon) UND diese nachweisen können, können Sie alternativ die HÖHEREN KOSTEN absetzen (statt der Pauschale). Das lohnt sich aber meist erst ab echtem Heimarbeitszimmer." },
-      { q: "Wer kann die Pauschale nutzen?", a: "Nur Angestellte, die sich im Homeoffice Kosten selbst tragen. Selbstständige und Freiberufler mit eigenem Arbeitszimmer können das Arbeitszimmer (bis 1.250€/Jahr) absetzen – das ist ähnlich, aber eine andere Regel." },
-      { q: "Gilt das auch für Mischarbeit (hybrid)?", a: "Ja! Jeder Tag, an dem Sie zu Hause arbeiten (auch 4h/Tag zählt), ist ein Homeoffice-Tag. 2 Tage/Woche = ca. 100 Tage/Jahr. 3 Tage/Woche = ca. 150 Tage/Jahr." },
-      { q: "Was ist mit Pendlerpauschale und Homeoffice-Pauschale?", a: "Beide können kombiniert werden! Wenn Sie an Bürotagen pendeln und an Homeoffice-Tagen nicht, schreiben Sie sowohl Pendlerpauschale (1,30€/km für Hin+Rückweg) als auch Homeoffice ab. Das addiert sich." },
-      { q: "Kann ich die Homeoffice-Pauschale nutzen, wenn ich keinen eigenen Raum habe?", a: "Ja, genau dafür wurde sie geschaffen. Sie brauchen kein separates Arbeitszimmer und keinen eigenen Schreibtisch. Selbst wer am Küchentisch arbeitet, kann die 6 €/Tag geltend machen. Der einzige Nachweis: Sie haben an dem Tag überwiegend von zu Hause gearbeitet." },
-      { q: "Lohnt sich die Pauschale auch unter dem Werbungskosten-Pauschbetrag?", a: "Der Werbungskosten-Pauschbetrag beträgt 1.230 € (2026). Die Homeoffice-Pauschale zählt als Werbungskosten. Haben Sie sonst keine weiteren Werbungskosten, lohnt sich die Homeoffice-Pauschale erst ab ca. 205 Tagen (1.230 €), weil der Pauschbetrag ohnehin gewährt wird. Haben Sie aber andere Werbungskosten (Fachliteratur, Fortbildung, Berufskleidung), addiert sich alles und überschreitet den Pauschbetrag schneller." }
-    ]}
+    intro="Der Rechner zeigt, wie viel Einkommensteuer die Homeoffice-Pauschale Ihnen tatsächlich spart – mit Ihrem zu versteuernden Einkommen und Ihren übrigen Werbungskosten."
+    sourceNote={`Tagespauschale nach § 4 Abs. 5 Satz 1 Nr. 6c EStG, für Werbungskosten über § 9 Abs. 5 EStG; Arbeitnehmer-Pauschbetrag nach § 9a EStG (${eur(ARBEITNEHMER_PAUSCHBETRAG)}); Tarif nach § 32a EStG. Ersparnis ohne Solidaritätszuschlag und Kirchensteuer. Wortlaut abgerufen am 16.09.2026.`}
+    explanation={`Pauschale = Tage × ${eur(TAGESPAUSCHALE)}, höchstens ${eur(TAGESPAUSCHALE_HOECHSTBETRAG)}. Bei Arbeitnehmern wirkt davon nur, was die Werbungskosten über den Pauschbetrag hebt. Ersparnis = Einkommensteuer vorher − Einkommensteuer nach diesem zusätzlichen Abzug.`}
+    faqs={faqs}
   >
     <div class="calc-form">
       <div class="calc-grid">
         <div class="calc-group">
-          <label for="tage">Homeoffice-Tage pro Jahr</label>
-          <input type="number" id="tage" min="0" max="250" value="120" step="1" />
+          <label for="tage">Homeoffice-Tage im Jahr</label>
+          <input type="number" id="tage" min="0" max="366" value="120" step="1" />
         </div>
         <div class="calc-group">
-          <label for="steuersatz">Persönlicher Steuersatz (%)</label>
-          <input type="number" id="steuersatz" min="0" max="45" value="30" step="1" />
+          <label for="einkommen">Zu versteuerndes Einkommen ohne die Pauschale (€)</label>
+          <input type="number" id="einkommen" min="0" max="10000000" value="50000" step="100" />
         </div>
         <div class="calc-group">
-          <label for="einkommen">Zu versteuerndes Einkommen (€)</label>
-          <input type="number" id="einkommen" min="0" max="1000000" value="50000" step="1000" />
+          <label for="sonstige">Übrige Werbungskosten (€/Jahr)</label>
+          <input type="number" id="sonstige" min="0" max="1000000" value="0" step="10" />
+        </div>
+        <div class="calc-group">
+          <label><input type="checkbox" id="arbeitnehmer" checked style="width:auto;margin-right:0.4rem;" />Arbeitnehmer (sonst Selbständige: Betriebsausgabe)</label>
+          <label><input type="checkbox" id="splitting" style="width:auto;margin-right:0.4rem;" />Zusammenveranlagung (Splittingtarif)</label>
         </div>
       </div>
       <div class="calc-result">
-        <div class="label">Steuervorteil</div>
+        <div class="label">Einkommensteuer-Ersparnis im Jahr</div>
         <div id="ergebnis">— €</div>
       </div>
-      <div id="details" style="margin-top:0.75rem;font-size:0.88rem;color:#666;display:flex;gap:1.5rem;flex-wrap:wrap;"></div>
+      <div id="details" style="margin-top:0.75rem;font-size:0.9rem;color:#555;display:flex;flex-direction:column;gap:0.3rem;"></div>
     </div>
   </CalculatorShell>
 
   <CalculatorGuide
-    title="So funktioniert die Homeoffice-Pauschale"
-    content={`<p><strong>Die Homeoffice-Pauschale</strong> ist ein vereinfachter Steuerabzug für alle Arbeitnehmer, die ganz oder teilweise von zu Hause aus arbeiten. Sie beträgt <strong>6 Euro pro Arbeitstag</strong>, maximal 1.260 Euro pro Jahr (= 210 Tage). Ursprünglich als Corona-Maßnahme eingeführt, wurde sie 2023 dauerhaft ins Einkommensteuergesetz (§ 4 Abs. 5 Nr. 6c EStG) aufgenommen. Es werden keine Belege benötigt.</p>
-
-<p><strong>Wie funktioniert es?</strong> Sie tragen die Anzahl Ihrer Homeoffice-Tage in der <strong>Anlage N</strong> Ihrer Steuererklärung ein (Zeile 45). Das Finanzamt rechnet automatisch: Tage × 6 €. Diese Summe wird als Werbungskosten von Ihrem zu versteuernden Einkommen abgezogen. Ergebnis: Geringeres Einkommen, weniger Steuern.</p>
-
-<h3>Steuervorteil nach Homeoffice-Tagen und Steuersatz</h3>
-<table>
-<thead><tr><th>Homeoffice-Tage/Jahr</th><th>Pauschale</th><th>Vorteil bei 25 %</th><th>Vorteil bei 30 %</th><th>Vorteil bei 35 %</th><th>Vorteil bei 42 %</th></tr></thead>
-<tbody>
-<tr><td>50 Tage (1 Tag/Woche)</td><td>300 €</td><td>75 €</td><td>90 €</td><td>105 €</td><td>126 €</td></tr>
-<tr><td>100 Tage (2 Tage/Woche)</td><td>600 €</td><td>150 €</td><td>180 €</td><td>210 €</td><td>252 €</td></tr>
-<tr><td>150 Tage (3 Tage/Woche)</td><td>900 €</td><td>225 €</td><td>270 €</td><td>315 €</td><td>378 €</td></tr>
-<tr><td>200 Tage (4 Tage/Woche)</td><td>1.200 €</td><td>300 €</td><td>360 €</td><td>420 €</td><td>504 €</td></tr>
-<tr><td>210 Tage (Maximum)</td><td>1.260 €</td><td>315 €</td><td>378 €</td><td>441 €</td><td>529 €</td></tr>
-</tbody>
-</table>
-
-<h3>Vergleich: Homeoffice-Pauschale vs. häusliches Arbeitszimmer</h3>
-<table>
-<thead><tr><th>Kriterium</th><th>Homeoffice-Pauschale</th><th>Häusliches Arbeitszimmer</th></tr></thead>
-<tbody>
-<tr><td>Maximaler Abzug</td><td>1.260 €/Jahr</td><td>1.260 €/Jahr (Pauschale) oder unbegrenzt (Mittelpunkt)</td></tr>
-<tr><td>Eigener Raum nötig?</td><td>Nein</td><td>Ja, abgeschlossener Raum</td></tr>
-<tr><td>Belege erforderlich?</td><td>Nein</td><td>Ja (Miete, Nebenkosten, Ausstattung)</td></tr>
-<tr><td>Berechnung</td><td>Pauschal 6 €/Tag</td><td>Anteilige tatsächliche Kosten (qm-Anteil)</td></tr>
-<tr><td>Geeignet für</td><td>Küchentisch, Wohnzimmer-Ecke, Co-Working</td><td>Separates Zimmer, das fast nur beruflich genutzt wird</td></tr>
-<tr><td>Kombination möglich?</td><td>Nicht mit Arbeitszimmer</td><td>Nicht mit Pauschale</td></tr>
-</tbody>
-</table>
-
-<p><strong>Wann lohnt sich das Arbeitszimmer statt der Pauschale?</strong> Rechnen Sie nach: Wenn Ihre Wohnung 80 m² hat und das Arbeitszimmer 15 m² misst, beträgt der anteilige Flächenanteil 18,75 %. Bei einer Warmmiete von 1.200 €/Monat wären das 225 €/Monat bzw. 2.700 €/Jahr an absetzbaren Kosten. Das übersteigt die Pauschale von 1.260 € deutlich. Allerdings gilt der unbegrenzte Abzug nur, wenn das Arbeitszimmer den <strong>Mittelpunkt Ihrer beruflichen Tätigkeit</strong> bildet. Fahren Sie regelmäßig ins Büro, ist der Abzug auf 1.260 € gedeckelt – dann bietet das Arbeitszimmer keinen Vorteil gegenüber der Pauschale.</p>
-
-<p><strong>Praxistipp – Werbungskosten-Pauschbetrag beachten:</strong> Der allgemeine Werbungskosten-Pauschbetrag beträgt 2026 voraussichtlich 1.230 €. Die Homeoffice-Pauschale ist Teil Ihrer Werbungskosten. Wenn Sie keine weiteren Werbungskosten haben, bringt die Homeoffice-Pauschale erst dann zusätzliche Steuerersparnis, wenn sie zusammen mit anderen Werbungskosten den Pauschbetrag übersteigt. Sammeln Sie deshalb alle weiteren Werbungskosten: Fachliteratur, Fortbildungen, Arbeitsmittel (Laptop, Monitor, Schreibtisch), Telefon- und Internetkosten (pauschal 20 % der Rechnung, max. 20 €/Monat).</p>
-
-<p><strong>Kombination mit Pendlerpauschale – so maximieren Sie den Abzug:</strong> Homeoffice-Pauschale und Pendlerpauschale schließen sich nicht aus, aber sie gelten nie für denselben Tag. An Bürotagen setzen Sie die Entfernungspauschale ab (0,38 €/km je Entfernungskilometer ab dem ersten Kilometer). An Homeoffice-Tagen die 6 €. Ein Beispiel: Bei 25 km einfachem Arbeitsweg und einem Hybrid-Modell mit 3 Tagen Büro und 2 Tagen Homeoffice ergeben sich pro Woche 3 × 9,50 € Entfernungspauschale + 2 × 6 € Homeoffice = 40,50 €. Aufs Jahr gerechnet (46 Arbeitswochen): 1.863 € Werbungskosten – das übersteigt den Arbeitnehmer-Pauschbetrag deutlich.</p>
-
-<h3>Entwicklung der Homeoffice-Regelung</h3>
-<table>
-<thead><tr><th>Jahr</th><th>Regelung</th><th>Betrag pro Tag</th><th>Maximum pro Jahr</th></tr></thead>
-<tbody>
-<tr><td>2020</td><td>Erstmals eingeführt (Corona-Maßnahme)</td><td>5 €</td><td>600 € (120 Tage)</td></tr>
-<tr><td>2021</td><td>Verlängerung</td><td>5 €</td><td>600 € (120 Tage)</td></tr>
-<tr><td>2022</td><td>Verlängerung</td><td>5 €</td><td>600 € (120 Tage)</td></tr>
-<tr><td>2023</td><td>Dauerhaft ins EStG aufgenommen, Erhöhung</td><td>6 €</td><td>1.260 € (210 Tage)</td></tr>
-<tr><td>2024–2026</td><td>Fortgeltung</td><td>6 €</td><td>1.260 € (210 Tage)</td></tr>
-</tbody>
-</table>
-
-<p><strong>Insider-Tipp für Selbstständige:</strong> Die Homeoffice-Pauschale gilt auch für Selbstständige und Freiberufler, die kein separates Arbeitszimmer haben. Sie wird als Betriebsausgabe abgezogen. Selbstständige mit eigenem Arbeitszimmer sollten allerdings prüfen, ob die anteiligen Raumkosten die 1.260 € übersteigen – dann ist der Einzelnachweis günstiger.</p>`}
-    relatedSlugs={['brutto-netto-rechner', 'gehaltserhoehung-rechner', 'arbeitslosengeld-rechner']}
+    title="So wirkt die Homeoffice-Pauschale"
+    content={guideHtml}
+    relatedSlugs={['einkommensteuer-rechner', 'steuernachzahlung-rechner', 'brutto-netto-rechner']}
   />
 </Layout>
 
 <script type="module">
-function berechne() {
-  const tage = parseInt(document.getElementById('tage').value) || 120;
-  const steuersatz = parseFloat(document.getElementById('steuersatz').value) || 30;
-  const einkommen = parseFloat(document.getElementById('einkommen').value) || 50000;
-  const pauschale = Math.min(tage, 210) * 6;
-  const maxPauschal = 1260;
-  const steuervorteil = pauschale * (steuersatz / 100);
-  const einkommenReduziert = Math.max(0, einkommen - pauschale);
-  const fmt = (n) => n.toLocaleString('de-DE', {minimumFractionDigits:2, maximumFractionDigits:2}) + ' €';
-  document.getElementById('ergebnis').textContent = fmt(steuervorteil);
-  document.getElementById('ergebnis').style.color = steuervorteil > 0 ? '#1e7e34' : '#666';
-  document.getElementById('details').innerHTML =
-    `<span>Homeoffice-Tage: <strong>${tage}</strong></span>` +
-    `<span>Pauschale: <strong>${fmt(pauschale)}</strong></span>` +
-    `<span>Maximal: <strong>${fmt(maxPauschal)}</strong></span>` +
-    `<span>Steuervorteil (${steuersatz}%): <strong>${fmt(steuervorteil)}</strong></span>` +
-    `<span>Einkommen neu: <strong>${fmt(einkommenReduziert)}</strong></span>`;
+const { steuervorteil } = await import(window.__base + 'scripts/homeoffice.js');
+const feld = (id) => document.getElementById(id);
+const fmt = (n) => n.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
+
+function zeile(text, wert) {
+  const span = document.createElement('span');
+  span.append(text);
+  if (wert !== undefined) {
+    const strong = document.createElement('strong');
+    strong.textContent = wert;
+    span.append(strong);
+  }
+  return span;
 }
-['tage','steuersatz','einkommen'].forEach(id => document.getElementById(id).addEventListener('input', berechne));
+
+function berechne() {
+  const arbeitnehmer = feld('arbeitnehmer').checked;
+  feld('sonstige').disabled = !arbeitnehmer;
+  const r = steuervorteil({
+    tage: Number(feld('tage').value) || 0,
+    zvE: Number(feld('einkommen').value) || 0,
+    sonstigeWerbungskosten: Number(feld('sonstige').value) || 0,
+    arbeitnehmer,
+    splitting: feld('splitting').checked,
+  });
+  feld('ergebnis').textContent = fmt(r.ersparnis);
+  const zeilen = [
+    zeile('Tagespauschale: ', fmt(r.pauschale)),
+    zeile('Davon wirksamer Abzug: ', fmt(r.zusaetzlicherAbzug)),
+  ];
+  if (arbeitnehmer && r.tageBisPauschbetrag > 0) {
+    zeilen.push(zeile('Ohne weitere Werbungskosten wirkt die Pauschale erst ab ' + r.tageBisPauschbetrag + ' Tagen – bis dahin deckt der Arbeitnehmer-Pauschbetrag alles ab.'));
+  }
+  zeilen.push(zeile('Ohne Solidaritätszuschlag und Kirchensteuer.'));
+  feld('details').replaceChildren(...zeilen);
+}
+
+document.querySelectorAll('.calc-form input').forEach((el) => {
+  el.addEventListener('input', berechne);
+  el.addEventListener('change', berechne);
+});
 berechne();
 </script>
