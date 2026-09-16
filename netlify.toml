@@ -10,6 +10,21 @@
   to = "/geld/ratenkredit-detailrechner/"
   status = 301
 
+# Die Startseite verlinkte lange auf /geld/rentenrechner/ und
+# /geld/einkommensteuer-berechnung/. Beide URLs gab es nie: Der Rentenrechner
+# liegt unter familie/, und einen Einkommensteuer-Rechner gibt es nicht – am
+# nächsten kommt der Steuernachzahlungs-Rechner.
+
+[[redirects]]
+  from = "/geld/rentenrechner/*"
+  to = "/familie/renten-rechner/"
+  status = 301
+
+[[redirects]]
+  from = "/geld/einkommensteuer-berechnung/*"
+  to = "/geld/steuernachzahlung-rechner/"
+  status = 301
+
 # unterhaltskosten-auto und wartungskosten-auto hatten hier Redirects auf den
 # KM-Kostenrechner. Beide existieren jetzt als eigene Seiten – die Redirects
 # sind entfallen, sonst wären die neuen Seiten nicht erreichbar.
