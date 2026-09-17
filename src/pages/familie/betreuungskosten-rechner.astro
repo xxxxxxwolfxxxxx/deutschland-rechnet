@@ -2,6 +2,7 @@
 import Layout from '../../layouts/Layout.astro';
 import CalculatorShell from '../../components/CalculatorShell.astro';
 import CalculatorGuide from '../../components/CalculatorGuide.astro';
+import ArtikelKitaZuschuss from '../../components/artikel/kita-zuschuss-und-steuerdeckel.astro';
 import { CALCULATORS, CATEGORIES } from '../../data/calculators';
 import {
   berechneBetreuungskosten,
@@ -37,7 +38,7 @@ const groesste = tabelle[2].ersparnis[EINKOMMEN.length - 1];
 
 const guideHtml = `
 <h3>Was dieser Rechner rechnet – und was nicht</h3>
-<p>Wie hoch der Elternbeitrag für Krippe, Kita, Hort oder Kindertagespflege ist, legt kein Bundesgesetz fest. § 90 Abs. 1 Nr. 3 SGB VIII erlaubt Kostenbeiträge, und Absatz 3 verlangt, sie zu staffeln – insbesondere nach dem Einkommen, der Zahl der kindergeldberechtigten Kinder und der täglichen Betreuungszeit. Wie genau, entscheiden Länder, Kommunen und Träger; manche Länder stellen bestimmte Jahrgänge oder Betreuungsumfänge beitragsfrei. Eine bundesweite Gebührenformel gibt es deshalb nicht, und dieser Rechner erfindet keine. Er nimmt den Beitrag aus Ihrem Bescheid und rechnet, was bundeseinheitlich im Gesetz steht: Arbeitgeberzuschuss, Sonderausgabenabzug und Steuerersparnis.</p>
+<p>Wie hoch der Elternbeitrag für Krippe, Kita, Hort oder Kindertagespflege ist, legt kein Bundesgesetz fest. § 90 Abs. 1 Nr. 3 SGB VIII erlaubt Kostenbeiträge, und Absatz 3 verlangt, sie zu staffeln. Als Kriterien nennt das Gesetz beispielhaft das Einkommen der Eltern, die Zahl der kindergeldberechtigten Kinder und die tägliche Betreuungszeit. Wie genau, entscheiden Länder, Kommunen und Träger; manche Länder stellen bestimmte Jahrgänge oder Betreuungsumfänge beitragsfrei. Eine bundesweite Gebührenformel gibt es deshalb nicht, und dieser Rechner erfindet keine. Er nimmt den Beitrag aus Ihrem Bescheid und rechnet, was bundeseinheitlich im Gesetz steht: Arbeitgeberzuschuss, Sonderausgabenabzug und Steuerersparnis.</p>
 
 <h3>Steuer: ${quote} Prozent, höchstens ${eur(HOECHSTBETRAG_JE_KIND)} je Kind</h3>
 <p>§ 10 Abs. 1 Nr. 5 EStG erlaubt den Abzug von <strong>${quote} Prozent der Aufwendungen, höchstens ${eur(HOECHSTBETRAG_JE_KIND)} je Kind</strong>, für die Betreuung eines zum Haushalt gehörenden Kindes, das das ${ALTERSGRENZE}. Lebensjahr noch nicht vollendet hat – bei einer Behinderung, die vor dem 25. Lebensjahr eingetreten ist, auch darüber hinaus. Der Höchstbetrag ist ab ${eur(KOSTEN_BIS_ZUM_DECKEL)} eigenen Kosten im Jahr erreicht; jeder weitere Euro wirkt sich nicht mehr aus. Voraussetzung sind eine Rechnung und die Zahlung auf das Konto des Leistungserbringers. Nicht begünstigt sind Aufwendungen für Unterricht, die Vermittlung besonderer Fähigkeiten sowie für sportliche und andere Freizeitbetätigungen. Bis 2024 galten zwei Drittel und 4.000 €.</p>
@@ -104,7 +105,7 @@ const faqs = [
         <div class="calc-group">
           <label for="zve">Zu versteuerndes Einkommen ohne Betreuungskosten (€)</label>
           <input type="number" id="zve" min="0" max="1000000" value="60000" step="1000" />
-          <small style="color:#666;">Steht im letzten Steuerbescheid.</small>
+          <small style="color:#666;">Im Steuerbescheid sind abgesetzte Betreuungskosten bereits abgezogen – zählen Sie diese wieder hinzu, sonst wird der Abzug doppelt gerechnet.</small>
         </div>
         <div class="calc-group">
           <label for="veranlagung">Veranlagung</label>
@@ -121,13 +122,14 @@ const faqs = [
       </div>
       <div id="details" style="margin-top:0.75rem;font-size:0.88rem;color:#666;display:flex;gap:1.5rem;flex-wrap:wrap;"></div>
     </div>
+    <ArtikelKitaZuschuss slot="artikel" />
   </CalculatorShell>
-
   <CalculatorGuide
     title="Betreuungskosten: was bundesweit gilt"
     content={guideHtml}
     relatedSlugs={['kindergeld-rechner', 'elterngeld-rechner']}
   />
+
 </Layout>
 
 <script type="module">

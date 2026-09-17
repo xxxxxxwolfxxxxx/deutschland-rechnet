@@ -1,0 +1,424 @@
+---
+import RechnerArtikel from '../RechnerArtikel.astro';
+import { artikelPfadVonSlug } from '../../data/ratgeber';
+import {
+  berechneBetreuungskosten,
+  steuerNachTarif,
+  ABZUGSQUOTE,
+  HOECHSTBETRAG_JE_KIND,
+  KOSTEN_BIS_ZUM_DECKEL,
+  ALTERSGRENZE,
+  TARIF_STAND,
+} from '../../../public/scripts/betreuungskosten.js';
+import { einkommensteuer, ZONE_3_OBERGRENZE } from '../../../public/scripts/einkommensteuer.js';
+import {
+  zuVersteuernderJahresbetrag,
+  SONDERAUSGABEN_PAUSCHBETRAG,
+  SOLI_FREIGRENZE,
+} from '../../../public/scripts/lohnsteuer.js';
+import { berechneSozialabgaben, BBG_KV_PV_MONAT } from '../../../public/scripts/sozialversicherung.js';
+
+// Alle Zahlen zur Buildzeit aus denselben Modulen, die auch die Rechner laden.
+const eur = (n: number) => n.toLocaleString('de-DE', { maximumFractionDigits: 0 }) + ' €';
+const zahl = (n: number, d = 0) =>
+  n.toLocaleString('de-DE', { minimumFractionDigits: d, maximumFractionDigits: d });
+const proz = (n: number, d = 0) => zahl(n, d) + ' %';
+const tarifJahr = TARIF_STAND.slice(0, 4);
+const quote = Math.round(ABZUGSQUOTE * 100);
+const deckelMonat = KOSTEN_BIS_ZUM_DECKEL / 12;
+
+// --- 1. Was der letzte Euro Betreuungskosten zurückbringt -------------------
+// Gemessen unterhalb des Höchstbetrags: 3.000 € gegen 4.000 € Jahreskosten.
+// Tausend Euro Schritt, damit die Abrundung des Tarifs auf volle Euro die
+// Cent-Werte nicht verzerrt.
+const K_UNTEN = 3000;
+const K_OBEN = 4000;
+if (K_OBEN * ABZUGSQUOTE > HOECHSTBETRAG_JE_KIND) {
+  throw new Error('Kita-Artikel: Die Messspanne fuer den Grenzwert liegt nicht mehr unter dem Hoechstbetrag.');
+}
+const rueckfluss = (zvE: number, zusammen: boolean) => {
+  const a = berechneBetreuungskosten({ kinder: 1, beitragMonat: K_UNTEN / 12, zvE, zusammen });
+  const b = berechneBetreuungskosten({ kinder: 1, beitragMonat: K_OBEN / 12, zvE, zusammen });
+  return ((b.steuerersparnis - a.steuerersparnis) / (K_OBEN - K_UNTEN)) * 100;
+};
+const grenzsatz = (zvE: number) => ((einkommensteuer(zvE) - einkommensteuer(zvE - 1000)) / 1000) * 100;
+const GRENZ_ZVE = [20000, 35000, 50000, 80000, 100000, 150000];
+const grenzTabelle = GRENZ_ZVE.map((zvE) => ({
+  zvE,
+  satz: grenzsatz(zvE),
+  einzeln: rueckfluss(zvE, false),
+  zusammen: rueckfluss(zvE, true),
+}));
+const hoechsterRueckfluss = Math.max(...grenzTabelle.map((g) => g.einzeln));
+const niedrigsterRueckfluss = Math.min(...grenzTabelle.map((g) => g.einzeln));
+if (hoechsterRueckfluss > ABZUGSQUOTE * 42 + 0.5) {
+  throw new Error('Kita-Artikel: Rueckfluss ueber 80 Prozent von 42 Prozent – Tabelle pruefen.');
+}
+// Der Splittingvorteil muss den Rückfluss senken, sonst stimmt der Absatz nicht.
+if (!grenzTabelle.every((g) => g.zusammen <= g.einzeln)) {
+  throw new Error('Kita-Artikel: Bei Zusammenveranlagung ist der Rueckfluss nicht mehr durchweg kleiner.');
+}
+// Beispiel für den Absatz zur Zusammenveranlagung: dieselben 50.000 €.
+const zvePaar = GRENZ_ZVE[2];
+const paarZeile = grenzTabelle[2];
+// Die kleinste Zeile: Beim Paar liegt die Hälfte unter dem Grundfreibetrag.
+const paarNull = grenzTabelle[0];
+if (paarNull.zusammen !== 0 || paarNull.einzeln <= 0) {
+  throw new Error('Kita-Artikel: Die erste Zeile zeigt keinen Nullwert beim Splitting mehr.');
+}
+if (grenzTabelle[grenzTabelle.length - 1].zusammen !== grenzTabelle[grenzTabelle.length - 1].einzeln) {
+  throw new Error('Kita-Artikel: In der letzten Zeile sind Splitting und Einzelveranlagung nicht mehr gleich.');
+}
+
+// --- 2. Die Musterperson ----------------------------------------------------
+// Setzung dieses Artikels: 5.000 € Monatsbrutto, Steuerklasse I, ein Kind,
+// gesetzlich versichert, ohne Kirchensteuer. Das zu versteuernde Einkommen
+// wird vereinfachend wie beim Lohnsteuerabzug ermittelt (Vorsorgepauschale,
+// Arbeitnehmer- und Sonderausgaben-Pauschbetrag).
+const BRUTTO_MONAT = 5000;
+const ZUSCHUSS_MONAT = 100;
+const BUNDESLAND = 'NW';
+const zvE = zuVersteuernderJahresbetrag({ jahresarbeitslohn: BRUTTO_MONAT * 12, steuerklasse: 1, kinder: 1 });
+const zvEPlus = zuVersteuernderJahresbetrag({
+  jahresarbeitslohn: (BRUTTO_MONAT + ZUSCHUSS_MONAT) * 12,
+  steuerklasse: 1,
+  kinder: 1,
+});
+if (BRUTTO_MONAT + ZUSCHUSS_MONAT > BBG_KV_PV_MONAT) {
+  throw new Error('Kita-Artikel: Musterperson liegt ueber der Beitragsbemessungsgrenze.');
+}
+if (zvEPlus > ZONE_3_OBERGRENZE) {
+  throw new Error('Kita-Artikel: Musterperson ist in die 42-Prozent-Zone gerutscht.');
+}
+if (einkommensteuer(zvEPlus) >= SOLI_FREIGRENZE) {
+  throw new Error('Kita-Artikel: Musterperson zahlt Solidaritaetszuschlag – Text rechnet ohne.');
+}
+const zuschussJahr = ZUSCHUSS_MONAT * 12;
+const svMehr =
+  (berechneSozialabgaben({ bruttoMonat: BRUTTO_MONAT + ZUSCHUSS_MONAT, kinder: 1, bundesland: BUNDESLAND }).gesamt -
+    berechneSozialabgaben({ bruttoMonat: BRUTTO_MONAT, kinder: 1, bundesland: BUNDESLAND }).gesamt) *
+  12;
+
+// --- 3. Zuschuss gegen Beitragshöhe -----------------------------------------
+const BEITRAEGE = [300, 450, 500, 550, 600, 800];
+const zuschussTabelle = BEITRAEGE.map((beitragMonat) => {
+  const ohne = berechneBetreuungskosten({ kinder: 1, beitragMonat, zvE });
+  const mit = berechneBetreuungskosten({ kinder: 1, beitragMonat, zuschussMonat: ZUSCHUSS_MONAT, zvE });
+  // Gehaltserhöhung um denselben Betrag: mehr Sozialabgaben, mehr Steuer;
+  // der Kita-Abzug bleibt dabei unverändert.
+  const mitErhoehung = berechneBetreuungskosten({ kinder: 1, beitragMonat, zvE: zvEPlus });
+  const steuerMehr = mitErhoehung.steuerMit - ohne.steuerMit;
+  const tot = Math.min(mit.zuschuss, Math.max(0, ohne.aufwand - KOSTEN_BIS_ZUM_DECKEL));
+  return {
+    beitragMonat,
+    aufwand: ohne.aufwand,
+    nettoOhne: ohne.nettokosten,
+    nettoMit: mit.nettokosten,
+    wirkung: ohne.nettokosten - mit.nettokosten,
+    tot,
+    erhoehungNetto: zuschussJahr - svMehr - steuerMehr,
+    steuerMehr,
+    deckel: ohne.deckelErreicht,
+  };
+});
+const unterDeckel = zuschussTabelle.filter((z) => !z.deckel);
+if (unterDeckel.length !== 3 || unterDeckel[2].beitragMonat !== zuschussTabelle[2].beitragMonat) {
+  throw new Error('Kita-Artikel: Die ersten drei Zeilen liegen nicht mehr genau unterhalb des Hoechstbetrags.');
+}
+if (zuschussTabelle[4].aufwand - zuschussJahr < KOSTEN_BIS_ZUM_DECKEL) {
+  throw new Error('Kita-Artikel: Ab der fuenften Zeile liegen die eigenen Kosten nicht mehr ueber dem Deckel.');
+}
+const centMin = Math.min(...unterDeckel.map((z) => (z.wirkung / zuschussJahr) * 100));
+const centMax = Math.max(...unterDeckel.map((z) => (z.wirkung / zuschussJahr) * 100));
+const guenstig = zuschussTabelle[0];
+const mittig = zuschussTabelle[3];
+const teuer = zuschussTabelle[zuschussTabelle.length - 1];
+if (!(guenstig.wirkung < zuschussJahr)) {
+  throw new Error('Kita-Artikel: Bei guenstiger Kita wirkt der Zuschuss nicht mehr gemindert.');
+}
+if (teuer.wirkung !== zuschussJahr) {
+  throw new Error('Kita-Artikel: Bei teurer Kita wirkt der Zuschuss nicht mehr voll.');
+}
+if (!(mittig.tot > 0 && mittig.tot < zuschussJahr && mittig.wirkung > guenstig.wirkung && mittig.wirkung < zuschussJahr)) {
+  throw new Error('Kita-Artikel: Die 550-€-Zeile ist kein Mischfall mehr.');
+}
+const minWirkung = Math.min(...zuschussTabelle.map((z) => z.wirkung));
+const maxErhoehung = Math.max(...zuschussTabelle.map((z) => z.erhoehungNetto));
+if (!(maxErhoehung < minWirkung)) {
+  throw new Error('Kita-Artikel: Die Gehaltserhoehung schlaegt den Zuschuss in mindestens einer Zeile.');
+}
+const erhoehung = guenstig.erhoehungNetto;
+const faktorTeuer = teuer.wirkung / erhoehung;
+const faktorGuenstig = guenstig.wirkung / erhoehung;
+
+// --- Geschwister: der Deckel gilt je Kind -----------------------------------
+const GESCHWISTER_BEITRAG = 400;
+const geschwister = berechneBetreuungskosten({ kinder: 2, beitragMonat: GESCHWISTER_BEITRAG, zvE });
+if (geschwister.deckelErreicht || geschwister.aufwand <= KOSTEN_BIS_ZUM_DECKEL
+  || geschwister.sonderausgaben !== geschwister.aufwand * ABZUGSQUOTE) {
+  throw new Error('Kita-Artikel: Das Geschwisterbeispiel zeigt nicht mehr den ungedeckelten Fall.');
+}
+
+// --- 4. Der Sonderausgaben-Pauschbetrag -------------------------------------
+// § 10c EStG: 36 € stecken schon im zvE, wenn keine anderen Sonderausgaben
+// dieser Gruppe nachgewiesen werden. Der Kita-Abzug ersetzt sie, statt zu
+// ihnen hinzuzukommen.
+const bspPausch = berechneBetreuungskosten({ kinder: 1, beitragMonat: 450, zvE });
+const echteErsparnis =
+  steuerNachTarif(zvE) - steuerNachTarif(zvE - (bspPausch.sonderausgaben - SONDERAUSGABEN_PAUSCHBETRAG));
+const pauschUeberschaetzung = bspPausch.steuerersparnis - echteErsparnis;
+if (pauschUeberschaetzung < 0) {
+  throw new Error('Kita-Artikel: Pauschbetrag-Korrektur hat das falsche Vorzeichen.');
+}
+
+const quellen = [
+  { titel: '§ 10 EStG – Sonderausgaben (Kinderbetreuungskosten in Absatz 1 Nummer 5)', url: 'https://www.gesetze-im-internet.de/estg/__10.html' },
+  { titel: '§ 3 EStG – Steuerfreie Einnahmen (Kindergartenzuschuss in Nummer 33)', url: 'https://www.gesetze-im-internet.de/estg/__3.html' },
+  { titel: '§ 10c EStG – Sonderausgaben-Pauschbetrag', url: 'https://www.gesetze-im-internet.de/estg/__10c.html' },
+  { titel: '§ 35a EStG – Haushaltsnahe Dienstleistungen (Ausschluss in Absatz 5)', url: 'https://www.gesetze-im-internet.de/estg/__35a.html' },
+  { titel: '§ 32a EStG – Einkommensteuertarif', url: 'https://www.gesetze-im-internet.de/estg/__32a.html' },
+  { titel: '§ 1 SvEV – Nicht dem Arbeitsentgelt zuzurechnende Zuwendungen', url: 'https://www.gesetze-im-internet.de/svev/__1.html' },
+];
+---
+<RechnerArtikel
+  titel="Der Kita-Zuschuss wirkt am stärksten bei teuren Kitas"
+  datum="2026-09-17"
+  lead={`Ein steuerfreier Kita-Zuschuss des Arbeitgebers von ${eur(ZUSCHUSS_MONAT)} im Monat ist nicht immer ${eur(zuschussJahr)} im Jahr wert. Bei einem Beitrag von ${eur(guenstig.beitragMonat)} bleiben davon ${eur(guenstig.wirkung)} übrig, bei ${eur(teuer.beitragMonat)} die vollen ${eur(zuschussJahr)}. Der Grund ist der Höchstbetrag beim Sonderausgabenabzug: Ab ${eur(deckelMonat)} Beitrag im Monat bringt jeder weitere Euro keine Steuerersparnis mehr – und genau diese Euro übernimmt der Zuschuss zuerst. Schlechter als dieselbe Summe als Gehaltserhöhung ist er in keinem der durchgerechneten Fälle.`}
+  quellen={quellen}
+>
+  <h3>Zwei Regeln, die ineinandergreifen</h3>
+  <p>
+    Für Kinderbetreuung gibt es im Einkommensteuergesetz zwei Vergünstigungen, und
+    sie stehen an verschiedenen Stellen. § 10 Abs. 1 Nr. 5 Satz 1 EStG macht
+    {' '}{quote} Prozent der Betreuungskosten zu Sonderausgaben, höchstens
+    {' '}{eur(HOECHSTBETRAG_JE_KIND)} je Kind, solange das Kind das
+    {' '}{ALTERSGRENZE}. Lebensjahr nicht vollendet hat. § 3 Nr. 33 EStG stellt
+    Leistungen des Arbeitgebers zur Unterbringung und Betreuung nicht
+    schulpflichtiger Kinder steuerfrei, wenn sie zusätzlich zum ohnehin geschuldeten
+    Arbeitslohn gezahlt werden – ohne Höchstbetrag.
+  </p>
+  <p>
+    Beide zusammen gibt es nicht doppelt. Absetzen kann man nur, was man selbst
+    getragen hat; was der Arbeitgeber steuerfrei übernimmt, fällt aus den
+    abziehbaren Kosten heraus. Der Rechner oben auf dieser Seite zieht den Zuschuss
+    deshalb zuerst ab und wendet den Abzug auf den Rest an. Aus diesem
+    Zusammenspiel ergibt sich eine Rechnung, die in kaum einer Darstellung steht:
+    Wie viel ein Euro Zuschuss wirklich wert ist, hängt davon ab, wie teuer die
+    Betreuung ist.
+  </p>
+
+  <h3>Was ein Euro Kita-Beitrag zurückbringt</h3>
+  <p>
+    Zuerst die Gegenrichtung: Was bekommt man von einem selbst bezahlten Euro über die
+    Steuer zurück? Nicht den Grenzsteuersatz, sondern {quote} Prozent davon, weil nur
+    dieser Anteil abziehbar ist. Die Tabelle misst es zwischen
+    {' '}{eur(K_UNTEN)} und {eur(K_OBEN)} Jahreskosten für ein Kind, also unterhalb
+    des Höchstbetrags, nach dem Tarif {tarifJahr} und ohne Solidaritätszuschlag
+    und Kirchensteuer.
+  </p>
+
+  <table>
+    <caption class="visually-hidden">
+      Steuerlicher Rückfluss je Euro Betreuungskosten nach zu versteuerndem Einkommen
+    </caption>
+    <thead>
+      <tr>
+        <th scope="col" class="num">zu versteuerndes Einkommen</th>
+        <th scope="col" class="num">Grenzsteuersatz</th>
+        <th scope="col" class="num">Rückfluss je Euro, einzeln</th>
+        <th scope="col" class="num">Rückfluss je Euro, Splitting</th>
+      </tr>
+    </thead>
+    <tbody>
+      {grenzTabelle.map((g) => (
+        <tr>
+          <th scope="row" class="num">{eur(g.zvE)}</th>
+          <td class="num">{proz(g.satz, 1)}</td>
+          <td class="num">{zahl(g.einzeln, 1)} Cent</td>
+          <td class="num">{zahl(g.zusammen, 1)} Cent</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+
+  <p>
+    Bei Einzelveranlagung kommen in der Tabelle höchstens
+    {' '}{zahl(hoechsterRueckfluss, 1)} Cent je Euro zurück, im unteren
+    Einkommensbereich {zahl(niedrigsterRueckfluss, 1)} Cent. Die Betreuung wird durch den Abzug
+    billiger, aber sie bleibt zum größten Teil eine Ausgabe aus versteuertem Geld.
+  </p>
+  <p>
+    Die rechte Spalte gilt für Ehepaare, die zusammen veranlagt werden, bei
+    demselben gemeinsamen Einkommen. Weil das Splittingverfahren das Einkommen
+    halbiert, liegt der Grenzsteuersatz niedriger – und damit auch der Wert des
+    Abzugs. Erst wenn auch die Hälfte des Einkommens in der 42-Prozent-Zone liegt,
+    wie in der letzten Zeile, sind beide Spalten gleich. Ein Paar mit {eur(zvePaar)} gemeinsamem zu versteuerndem Einkommen
+    bekommt je Euro {zahl(paarZeile.zusammen, 1)} Cent zurück, eine
+    Einzelperson mit demselben Einkommen {zahl(paarZeile.einzeln, 1)} Cent. Bei
+    {' '}{eur(paarNull.zvE)} liegt jede Hälfte unter dem Grundfreibetrag; das Paar
+    zahlt keine Einkommensteuer, und der Abzug bringt ihm nichts. Der
+    Höchstbetrag verdoppelt sich für das Paar nicht: Das Gesetz nennt ihn je Kind.
+  </p>
+
+  <h3>Ab {eur(deckelMonat)} im Monat ist jeder weitere Euro steuerlich tot</h3>
+  <p>
+    Der Höchstbetrag von {eur(HOECHSTBETRAG_JE_KIND)} ist bei
+    {' '}{eur(KOSTEN_BIS_ZUM_DECKEL)} eigenen Kosten im Jahr erreicht – bei zwölf
+    Monatsbeiträgen also bei {eur(deckelMonat)} im Monat. Was darüber liegt, ändert
+    an der Steuer nichts mehr. Wer {eur(teuer.beitragMonat)} im Monat für einen
+    Krippenplatz oder eine Tagesmutter zahlt, trägt
+    {' '}{eur(teuer.aufwand - KOSTEN_BIS_ZUM_DECKEL)} im Jahr vollständig aus
+    versteuertem Einkommen.
+  </p>
+  <p>
+    Auch ein Umweg über die Steuerermäßigung für haushaltsnahe Dienstleistungen ist
+    versperrt. § 35a Abs. 5 Satz 1 EStG schließt sie für Aufwendungen aus, die „dem
+    Grunde nach" unter § 10 Abs. 1 Nr. 5 fallen. Das trifft auch den Teil, der
+    wegen der {quote}-Prozent-Quote oder des Höchstbetrags gar nicht abgezogen
+    wird: Er gehört dem Grunde nach dazu, und damit bleibt er ohne jede Wirkung.
+  </p>
+  <p>
+    Die Grenze gilt je Kind, nicht je Familie. Zwei Kinder zu je
+    {' '}{eur(GESCHWISTER_BEITRAG)} im Monat kosten {eur(geschwister.aufwand)} im Jahr,
+    deutlich mehr als {eur(KOSTEN_BIS_ZUM_DECKEL)} – trotzdem ist kein Euro davon
+    tot. Abziehbar sind die vollen {quote} Prozent, {eur(geschwister.sonderausgaben)},
+    weil jedes Kind seinen eigenen Höchstbetrag hat. Maßgeblich ist der Beitrag für
+    das einzelne Kind, und ein Geschwisterrabatt kann ihn unter die Grenze drücken.
+  </p>
+
+  <h3>Der Zuschuss nimmt zuerst die toten Euro</h3>
+  <p>
+    Hier greifen die beiden Regeln ineinander. Der Zuschuss mindert die eigenen
+    Kosten, und wenn diese über {eur(KOSTEN_BIS_ZUM_DECKEL)} liegen, mindert er
+    zunächst genau den Teil, der steuerlich ohnehin nichts bringt. Der
+    Sonderausgabenabzug bleibt dann vollständig erhalten, und der Zuschuss kommt
+    Euro für Euro bei der Familie an. Erst wenn die eigenen Kosten unter die Grenze
+    sinken, kostet jeder weitere Zuschuss-Euro einen Teil des Abzugs.
+  </p>
+  <p>
+    Die Tabelle rechnet das für eine Musterperson durch: {eur(BRUTTO_MONAT)}
+    Monatsbrutto, Steuerklasse I, ein Kind, gesetzlich versichert, keine
+    Kirchensteuer. Ihr zu versteuerndes Einkommen setzt der Artikel vereinfachend
+    mit dem Jahresbetrag aus dem Lohnsteuerabzug an, das sind
+    {' '}{eur(zvE)}. Der Arbeitgeber zahlt {eur(ZUSCHUSS_MONAT)} im Monat, also
+    {' '}{eur(zuschussJahr)} im Jahr.
+  </p>
+
+  <table>
+    <caption class="visually-hidden">
+      Wirkung von {eur(zuschussJahr)} Kita-Zuschuss im Jahr nach Höhe des Beitrags
+    </caption>
+    <thead>
+      <tr>
+        <th scope="col" class="num">Beitrag im Monat</th>
+        <th scope="col" class="num">nach Steuern ohne Zuschuss</th>
+        <th scope="col" class="num">nach Steuern mit Zuschuss</th>
+        <th scope="col" class="num">Zuschuss wirkt mit</th>
+        <th scope="col" class="num">davon auf tote Euro</th>
+      </tr>
+    </thead>
+    <tbody>
+      {zuschussTabelle.map((z) => (
+        <tr>
+          <th scope="row" class="num">{eur(z.beitragMonat)}</th>
+          <td class="num">{eur(z.nettoOhne)}</td>
+          <td class="num">{eur(z.nettoMit)}</td>
+          <td class="num">{eur(z.wirkung)}</td>
+          <td class="num">{eur(z.tot)}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+
+  <p>
+    Bis {eur(zuschussTabelle[2].beitragMonat)} im Monat liegt der Beitrag
+    nicht über der Grenze, und von jedem Euro Zuschuss kommen nur
+    {' '}{zahl(centMin, 1)} bis {zahl(centMax, 1)} Cent an – der Rest geht als verlorene
+    Steuerersparnis wieder weg. Ab {eur(zuschussTabelle[4].beitragMonat)} liegen
+    die eigenen Kosten auch nach dem Zuschuss noch bei mindestens
+    {' '}{eur(KOSTEN_BIS_ZUM_DECKEL)}, und der Zuschuss wirkt voll. Die Zeile mit
+    {' '}{eur(mittig.beitragMonat)} ist der Mischfall: Von den
+    {' '}{eur(zuschussJahr)} treffen {eur(mittig.tot)} tote Euro und wirken voll, der
+    Rest wirkt gemindert – zusammen {eur(mittig.wirkung)}.
+  </p>
+  <p>
+    Daraus folgt eine einfache Faustregel für die Verhandlung mit dem Arbeitgeber:
+    Ein Zuschuss bis zur Höhe von „Jahresbeitrag minus
+    {' '}{eur(KOSTEN_BIS_ZUM_DECKEL)}" kommt ungeschmälert an. Jeder Euro darüber
+    ist immer noch steuerfrei, aber er nimmt einen Teil des Sonderausgabenabzugs mit.
+  </p>
+
+  <h3>Zuschuss oder Gehaltserhöhung</h3>
+  <p>
+    Die naheliegende Alternative ist, dieselben {eur(ZUSCHUSS_MONAT)} im Monat als
+    Gehaltserhöhung zu nehmen. Das ist in jeder Zeile der Tabelle schlechter. Eine
+    Erhöhung um {eur(zuschussJahr)} brutto im Jahr kostet die Musterperson
+    {' '}{eur(svMehr)} Sozialabgaben und {eur(guenstig.steuerMehr)} Einkommensteuer;
+    übrig bleiben {eur(erhoehung)}. Der steuerfreie Zuschuss ist dagegen auch nach
+    § 1 Abs. 1 Satz 1 Nr. 1 SvEV kein Arbeitsentgelt, auf ihn fallen also keine
+    Beiträge an.
+  </p>
+  <p>
+    Selbst im ungünstigsten Fall, bei einer günstigen Kita, ist der Zuschuss mit
+    {' '}{eur(guenstig.wirkung)} rund {zahl(faktorGuenstig, 1)}-mal so viel wert wie
+    die Erhöhung. Bei einer teuren Kita ist es das
+    {' '}{zahl(faktorTeuer, 1)}-Fache. Zwei Einschränkungen gehören dazu: Ein
+    Zuschuss ist kein beitragspflichtiges Arbeitsentgelt, auf ihn werden also auch
+    keine Rentenbeiträge gezahlt, und er erhöht die spätere Rente nicht. Und er muss zusätzlich zum ohnehin
+    geschuldeten Lohn gezahlt werden – ein Tausch gegen einen Teil des bestehenden
+    Gehalts erfüllt die Voraussetzung des § 3 Nr. 33 EStG nicht. Wie sich eine echte
+    Gehaltserhöhung netto auswirkt, zeigt der
+    {' '}<a href={`${import.meta.env.BASE_URL}geld/gehaltserhoehung-rechner/`}>Gehaltserhöhung-Rechner</a>.
+  </p>
+
+  <h3>Mit der Schulpflicht endet der Zuschuss, nicht der Abzug</h3>
+  <p>
+    Die beiden Regeln haben verschiedene Altersgrenzen. § 3 Nr. 33 EStG gilt nur
+    für nicht schulpflichtige Kinder; danach ist ein Zuschuss des
+    Arbeitgebers, etwa für den Hort, gewöhnlicher Arbeitslohn. Der
+    Sonderausgabenabzug läuft dagegen bis zum {ALTERSGRENZE}. Geburtstag weiter.
+    Sobald das Kind schulpflichtig ist, fällt der Vorteil aus dem vorigen
+    Abschnitt also weg: Ein weiter gezahlter Zuschuss wird versteuert und
+    verbeitragt wie eine Gehaltserhöhung. Im Rechner oben gehört er dann nicht mehr
+    in das Zuschussfeld, das nur für nicht schulpflichtige Kinder gedacht ist.
+  </p>
+  <p>
+    Nicht begünstigt ist nach § 10 Abs. 1 Nr. 5 Satz 2 EStG, was über Betreuung
+    hinausgeht: Unterricht, die Vermittlung besonderer Fähigkeiten, Sport und andere
+    Freizeitbetätigungen. Nach Satz 4 zählt außerdem nur, was mit Rechnung und
+    Zahlung auf das Konto des Leistungserbringers belegt ist.
+  </p>
+
+  <h3>Was diese Rechnung nicht abbildet</h3>
+  <p>
+    Der Rechner und die Zahlen hier setzen das zu versteuernde Einkommen voraus,
+    <em>bevor</em> die Betreuungskosten abgezogen sind. Wer die Zahl aus dem letzten
+    Steuerbescheid nimmt und dort schon Kinderbetreuungskosten geltend gemacht
+    hat, muss den damals abgezogenen Betrag wieder hinzurechnen, sonst rechnet der
+    Rechner den Abzug zweimal.
+  </p>
+  <p>
+    Außerdem steckt im zu versteuernden Einkommen meist schon der
+    Sonderausgaben-Pauschbetrag von {eur(SONDERAUSGABEN_PAUSCHBETRAG)} nach
+    § 10c EStG. Er wird nur abgezogen, wenn keine höheren Sonderausgaben dieser
+    Gruppe nachgewiesen werden – und Kinderbetreuungskosten gehören zu dieser
+    Gruppe. Der Kita-Abzug ersetzt die Pauschale also, statt zu ihr hinzuzukommen.
+    Bei der Musterperson und {eur(bspPausch.aufwand)} Jahreskosten macht das
+    {' '}{eur(pauschUeberschaetzung)} weniger Steuerersparnis aus, als die reine
+    Tarifdifferenz ergibt. Wer ohnehin Kirchensteuer oder Spenden von mehr als
+    {' '}{eur(SONDERAUSGABEN_PAUSCHBETRAG)} absetzt, ist davon nicht betroffen.
+  </p>
+  <p>
+    Nicht berücksichtigt sind die Kirchensteuer und – bei hohen Einkommen – der
+    Solidaritätszuschlag, die den Wert des Abzugs etwas erhöhen, sowie das Essensgeld, das keine Betreuung ist und
+    auf der Rechnung getrennt stehen sollte. Die Sozialabgaben der Musterperson
+    beruhen auf dem durchschnittlichen Zusatzbeitrag der Krankenkassen; Mitglieder
+    einer Kasse mit höherem Zusatzbeitrag verlieren bei einer Gehaltserhöhung etwas
+    mehr. Das Nettogehalt insgesamt rechnet der
+    {' '}<a href={`${import.meta.env.BASE_URL}geld/brutto-netto-rechner/`}>Brutto-Netto-Rechner</a>{' '}
+    aus, und ob sich für ein Paar ein
+    {' '}<a href={`${import.meta.env.BASE_URL}${artikelPfadVonSlug('steuerklasse-wechseln-was-bringt')}`}>Steuerklassenwechsel</a>
+    {' '}lohnt, ist eine eigene Frage – an der Jahressteuer und damit am Wert des
+    Kita-Abzugs ändert er nichts.
+  </p>
+</RechnerArtikel>
