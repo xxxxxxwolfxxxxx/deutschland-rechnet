@@ -5,6 +5,7 @@ import {
   DIREKTVERBRAUCH_ANTEIL,
   SPEICHER_NUTZTAGE,
   SPEICHER_WIRKUNGSGRAD,
+  spanneJeEntladenerKwh,
 } from '../../public/scripts/stromspeicher.js';
 import { verguetungProKwh, SPEZIFISCHER_ERTRAG } from '../../public/scripts/photovoltaik.js';
 
@@ -48,9 +49,16 @@ describe('berechneStromspeicher – Bezugsgrößen des Eigenverbrauchs', () => {
     expect(r.eigenverbrauchsquote).toBe(100);
   });
 
-  it('summiert Eigenverbrauch und Einspeisung zum Jahresertrag', () => {
+  it('summiert Eigenverbrauch, Einspeisung und Ladeverlust zum Jahresertrag', () => {
     const r = berechneStromspeicher(basis);
-    expect(r.eigenverbrauchKwh + r.einspeisungKwh).toBe(basis.pvLeistung * SPEZIFISCHER_ERTRAG);
+    expect(r.eigenverbrauchKwh + r.einspeisungKwh + r.ladeverlustKwh).toBe(basis.pvLeistung * SPEZIFISCHER_ERTRAG);
+  });
+
+  it('lädt mehr in den Speicher, als er abgibt', () => {
+    // 1.150 kWh Entladung brauchen 1.150 / 0,92 = 1.250 kWh Ladung.
+    const r = berechneStromspeicher(basis);
+    expect(r.ladeverlustKwh).toBe(100);
+    expect(r.einspeisungKwh).toBe(9500 - 1500 - 1250);
   });
 });
 
@@ -75,7 +83,8 @@ describe('berechneStromspeicher – Grenzen der Speichernutzung', () => {
   it('begrenzt den Speicher auf den vorhandenen Überschuss', () => {
     // 2 kWp erzeugen 1.900 kWh, davon gehen 1.500 kWh direkt in den Haushalt.
     const r = berechneStromspeicher({ ...basis, pvLeistung: 2, speicher: 10 });
-    expect(r.speicherKwh).toBe(400);
+    // Aus 400 kWh Ladung kommen nach Verlusten 368 kWh zurück.
+    expect(r.speicherKwh).toBe(368);
     expect(r.einspeisungKwh).toBe(0);
   });
 
@@ -90,7 +99,7 @@ describe('berechneStromspeicher – Grenzen der Speichernutzung', () => {
   });
 });
 
-describe('berechneStromspeicher – Einspeisevergütung nach § 48 Abs. 2 EEG', () => {
+describe('berechneStromspeicher – Einspeisevergütung nach Bundesnetzagentur', () => {
   it('übernimmt den Satz aus dem Photovoltaik-Modul statt eines eigenen Werts', () => {
     expect(berechneStromspeicher(basis).verguetungCentProKwh).toBe(
       Math.round(verguetungProKwh(10) * 100 * 100) / 100,
@@ -111,18 +120,18 @@ describe('berechneStromspeicher – Einspeisevergütung nach § 48 Abs. 2 EEG', 
 });
 
 describe('berechneStromspeicher – Wirtschaftlichkeit', () => {
-  it('bewertet jede gespeicherte kWh mit Strompreis minus Einspeisevergütung', () => {
-    // Die gespeicherte kWh ersetzt Netzstrom (38 ct) und kostet die
-    // entgangene Vergütung (7,70 ct) – der Vorteil ist die Differenz.
+  it('bewertet die Entladung mit dem Strompreis und die Ladung mit der Vergütung', () => {
+    // Jede entladene kWh ersetzt Netzstrom (38 ct). Dafür wurden 1 / 0,92 kWh
+    // geladen, die sonst für 7,70 ct eingespeist worden wären.
     const r = berechneStromspeicher(basis);
-    expect(r.ersparnis).toBe(1150 * (0.38 - 0.077));
-    expect(r.ersparnis).toBe(348.45);
+    expect(r.ersparnis).toBeCloseTo(1150 * 0.38 - (1150 / 0.92) * 0.077, 2);
+    expect(r.ersparnis).toBe(340.75);
   });
 
   it('führt die Ersparnis als Differenz der beiden Jahresbilanzen', () => {
     const r = berechneStromspeicher(basis);
     expect(r.ohneSpeicher).toBe(1186); // 1.500 × 38 ct + 8.000 × 7,70 ct
-    expect(r.mitSpeicher).toBe(1534.45); // 2.650 × 38 ct + 6.850 × 7,70 ct
+    expect(r.mitSpeicher).toBe(1526.75); // 2.650 × 38 ct + 6.750 × 7,70 ct
     expect(r.ersparnis).toBeCloseTo(r.mitSpeicher - r.ohneSpeicher, 2);
   });
 
@@ -139,15 +148,15 @@ describe('berechneStromspeicher – Wirtschaftlichkeit', () => {
     expect(r.netzstromkosten).toBe(1900);
   });
 
-  it('amortisiert den Beispielspeicher nach 14,3 Jahren', () => {
+  it('amortisiert den Beispielspeicher nach 14,7 Jahren', () => {
     const r = berechneStromspeicher(basis);
     expect(r.investition).toBe(5000);
-    expect(r.amortisation).toBe(14.3);
+    expect(r.amortisation).toBe(14.7); // 5.000 € / 340,75 €
   });
 
   it('verkürzt die Amortisation bei höherem Strompreis', () => {
     const teuer = berechneStromspeicher({ ...basis, strompreis: 42 });
-    expect(teuer.amortisation).toBe(12.7);
+    expect(teuer.amortisation).toBe(12.9); // 5.000 € / 386,75 €
     expect(teuer.amortisation).toBeLessThan(berechneStromspeicher(basis).amortisation);
   });
 
@@ -155,6 +164,17 @@ describe('berechneStromspeicher – Wirtschaftlichkeit', () => {
     const ohnePv = berechneStromspeicher({ ...basis, pvLeistung: 0 });
     expect(ohnePv.ersparnis).toBe(0);
     expect(ohnePv.amortisation).toBeNull();
+  });
+});
+
+describe('spanneJeEntladenerKwh', () => {
+  it('zieht die Vergütung für die ganze geladene Menge ab', () => {
+    expect(spanneJeEntladenerKwh(37, 7.7)).toBeCloseTo(37 - 7.7 / 0.92, 10);
+  });
+
+  it('ergibt mal Wirkungsgrad und Ladetagen den Grenzertrag je kWh Kapazität', () => {
+    const r = berechneStromspeicher({ ...basis, speicher: 1, speicherkosten: 0 });
+    expect(r.ersparnis).toBeCloseTo((SPEICHER_WIRKUNGSGRAD * SPEICHER_NUTZTAGE * spanneJeEntladenerKwh(38, 7.7)) / 100, 2);
   });
 });
 
@@ -172,8 +192,9 @@ describe('vergleicheSpeichergroessen – Grenzertrag und Empfehlung', () => {
     const erste = zeilen[0].grenzertragJeKwh;
     const letzte = zeilen[zeilen.length - 1].grenzertragJeKwh;
     expect(letzte).toBeLessThan(erste);
-    // Bis 8 kWh wächst die Ersparnis linear: 0,92 × 250 Tage × 30,3 ct.
-    expect(zeilen[1].grenzertragJeKwh).toBeCloseTo(0.92 * 250 * 0.303, 1);
+    // Bis 8 kWh wächst die Ersparnis linear: je kWh Kapazität 250 Ladungen,
+    // davon 92 % als Netzstrom zu 38 ct, alle als entgangene Vergütung zu 7,70 ct.
+    expect(zeilen[1].grenzertragJeKwh).toBeCloseTo(250 * (0.92 * 0.38 - 0.077), 1);
   });
 
   it('empfiehlt die größte Stufe, die ihren Preis über die Nutzungsdauer hereinholt', () => {

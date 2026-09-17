@@ -15,7 +15,7 @@
 //   Eigenverbrauchsquote = selbst genutzter Strom / Jahresertrag
 //   Autarkiegrad         = selbst genutzter Strom / Jahresstromverbrauch
 //
-// Quellen: Einspeisevergütung nach § 48 Abs. 2 EEG über ./photovoltaik.js;
+// Quellen: Einspeisevergütung nach § 21 Abs. 1 i. V. m. §§ 48, 49, 53 Abs. 1 EEG 2023 (Bundesnetzagentur) über ./photovoltaik.js;
 // spezifischer Ertrag ebenda. Die Nutzungsannahmen für den Speicher sind
 // Planungsgrößen, keine Rechtsgrößen.
 
@@ -37,6 +37,16 @@ export const SPEICHER_WIRKUNGSGRAD = 0.92;
 export const SPEICHER_NUTZTAGE = 250;
 
 const TAGE_JE_JAHR = 365;
+
+/**
+ * Was eine vom Speicher abgegebene Kilowattstunde netto einbringt, in Cent:
+ * Sie ersetzt Netzstrom, kostet aber die Vergütung für die größere Menge, die
+ * dafür geladen werden musste (1 / Wirkungsgrad). Für direkt verbrauchten
+ * Solarstrom ohne Speicher gilt dagegen Strompreis minus Vergütung.
+ */
+export function spanneJeEntladenerKwh(strompreisCent, verguetungCent) {
+  return strompreisCent - verguetungCent / SPEICHER_WIRKUNGSGRAD;
+}
 
 function rundeAufCent(betrag) {
   return Math.round(betrag * 100) / 100;
@@ -88,14 +98,22 @@ export function berechneStromspeicher({
   // außerhalb der Erzeugungsstunden braucht – ein größerer Speicher steht
   // dann teilweise ungenutzt. Über das Jahr begrenzt zusätzlich der
   // Überschuss, der überhaupt zum Laden zur Verfügung steht.
+  // Was der Speicher abgibt, hat er vorher um den Wirkungsgrad vermehrt
+  // aufgenommen – die Differenz geht als Wärme verloren und wird weder
+  // verbraucht noch eingespeist.
   const entladungProTag = Math.min(
     kapazitaet * SPEICHER_WIRKUNGSGRAD,
     restverbrauchKwh / TAGE_JE_JAHR,
   );
-  const speicherKwh = Math.min(entladungProTag * SPEICHER_NUTZTAGE, ueberschussKwh);
+  const speicherKwh = Math.min(
+    entladungProTag * SPEICHER_NUTZTAGE,
+    ueberschussKwh * SPEICHER_WIRKUNGSGRAD,
+  );
+  const ladungKwh = speicherKwh / SPEICHER_WIRKUNGSGRAD;
+  const ladeverlustKwh = ladungKwh - speicherKwh;
 
   const eigenverbrauchKwh = direktKwh + speicherKwh;
-  const einspeisungKwh = jahresertrag - eigenverbrauchKwh;
+  const einspeisungKwh = jahresertrag - direktKwh - ladungKwh;
   const netzbezugKwh = verbrauch - eigenverbrauchKwh;
 
   // Jahresvorteil der Anlage: ersparter Zukauf plus Vergütung für den Rest.
@@ -103,7 +121,7 @@ export function berechneStromspeicher({
   const mitSpeicher = eigenverbrauchKwh * preis + einspeisungKwh * verguetung;
 
   // Identisch zur Differenz beider Bilanzen, nur ohne Rundungsfehler.
-  const ersparnis = speicherKwh * (preis - verguetung);
+  const ersparnis = speicherKwh * preis - ladungKwh * verguetung;
 
   const investition = kapazitaet * zahl(speicherkosten);
   const amortisation = ersparnis > 0 ? Math.round((investition / ersparnis) * 10) / 10 : null;
@@ -115,6 +133,7 @@ export function berechneStromspeicher({
     speicherKwh: Math.round(speicherKwh),
     eigenverbrauchKwh: Math.round(eigenverbrauchKwh),
     einspeisungKwh: Math.round(einspeisungKwh),
+    ladeverlustKwh: Math.round(ladeverlustKwh),
     netzbezugKwh: Math.round(netzbezugKwh),
     netzstromkosten: rundeAufCent(netzbezugKwh * preis),
     ohneSpeicher: rundeAufCent(ohneSpeicher),

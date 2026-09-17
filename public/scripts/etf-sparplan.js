@@ -26,19 +26,31 @@ const runde = (n) => Math.round(n * 100) / 100;
 
 /**
  * Wachstum eines Sparplans mit monatlicher Einzahlung am Monatsende.
- * Die Jahresrendite wird als nominaler Satz gleichmäßig auf zwölf Monate verteilt.
+ *
+ * `renditeProzent` ist die Rendite im Jahr: 7 heißt, das Depot wächst in einem
+ * Jahr um genau 7 Prozent. Jeder Monat bekommt deshalb den Faktor
+ * (1 + R)^(1/12), nicht R/12 – das wären über ein Jahr 7,23 Prozent.
+ *
+ * `jahreswerte[j]` ist der Stand am Ende von Jahr j (Index 0 = Start).
  */
 export function sparplanVerlauf({ startkapital = 0, sparrate = 0, renditeProzent = 0, jahre = 0 }) {
   const monate = Math.max(0, Math.round(zahl(jahre) * 12));
-  const r = zahl(renditeProzent) / 100 / 12;
+  const monatsfaktor = Math.pow(1 + zahl(renditeProzent) / 100, 1 / 12);
   const rate = Math.max(0, zahl(sparrate));
   let kapital = Math.max(0, zahl(startkapital));
   let eingezahlt = kapital;
-  for (let m = 0; m < monate; m += 1) {
-    kapital = kapital * (1 + r) + rate;
+  const jahreswerte = [runde(kapital)];
+  for (let m = 1; m <= monate; m += 1) {
+    kapital = kapital * monatsfaktor + rate;
     eingezahlt += rate;
+    if (m % 12 === 0) jahreswerte.push(runde(kapital));
   }
-  return { endkapital: runde(kapital), eingezahlt: runde(eingezahlt), gewinn: runde(kapital - eingezahlt) };
+  return {
+    endkapital: runde(kapital),
+    eingezahlt: runde(eingezahlt),
+    gewinn: runde(kapital - eingezahlt),
+    jahreswerte,
+  };
 }
 
 /**
