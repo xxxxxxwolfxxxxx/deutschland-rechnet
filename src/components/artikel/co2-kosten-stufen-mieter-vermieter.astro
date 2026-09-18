@@ -1,0 +1,745 @@
+---
+import RechnerArtikel from '../RechnerArtikel.astro';
+import { artikelPfadVonSlug } from '../../data/ratgeber';
+import {
+  emissionsfaktor,
+  mieteranteilCo2Kosten,
+  MIETERANTEIL_STUFEN,
+  BEHG_STANDARDWERTE,
+  BRENNSTOFFE,
+  CO2_PREIS_AKTUELL,
+  CO2_PREISKORRIDOR_2026,
+  CO2_FESTPREIS_EURO_JE_TONNE,
+  UMSATZSTEUERSATZ,
+  HEIZKOSTEN_STAND,
+} from '../../../public/scripts/heizkosten.js';
+import { EMISSIONSFAKTOREN_G_JE_KWH } from '../../../public/scripts/energieausweis.js';
+
+const base = import.meta.env.BASE_URL;
+
+// --- Formatierer ----------------------------------------------------------
+// toLocaleString liefert bei negativen Zahlen einen Bindestrich; im Fliesstext
+// gehoert dort ein Minuszeichen hin.
+const nz = (s: string) => s.replace('-', '−');
+const zahl = (n: number, d = 2) =>
+  nz(n.toLocaleString('de-DE', { minimumFractionDigits: d, maximumFractionDigits: d }));
+const eur = (n: number, d = 2) => zahl(n, d) + ' €';
+const eurGlatt = (n: number) => nz(n.toLocaleString('de-DE', { maximumFractionDigits: 0 })) + ' €';
+const proz = (n: number, d = 1) => zahl(n, d) + ' %';
+const glatt = (n: number) => nz(n.toLocaleString('de-DE', { maximumFractionDigits: 0 }));
+
+// --- Kerngroessen, alle aus den Modulen der Rechnerseite -------------------
+const fGas = emissionsfaktor('gas');
+const fOel = emissionsfaktor('heizoel');
+const fFluessig = emissionsfaktor('fluessiggas');
+
+// Preis je Kilogramm CO2 einschliesslich Umsatzsteuer (§ 3 Abs. 3 CO2KostAufG).
+const preisJeKg = (CO2_PREIS_AKTUELL / 1000) * (1 + UMSATZSTEUERSATZ);
+const preisJeKgMax = (CO2_PREISKORRIDOR_2026.max / 1000) * (1 + UMSATZSTEUERSATZ);
+// Arbeitspreis Erdgas je Kilowattstunde in Euro.
+const arbeitspreis = BRENNSTOFFE.gas.arbeitspreisCent / 100;
+
+// Die Einstufung erfolgt nach § 5 Abs. 1 Satz 3 CO2KostAufG mit einer
+// Nachkommastelle; erst der gerundete Wert geht in die Tabelle der Anlage.
+const stufeNachGesetz = (kgJeQm: number) => mieteranteilCo2Kosten(Math.round(kgJeQm * 10) / 10);
+
+// Kosten je Quadratmeter Wohnflaeche und Jahr bei einem Gasverbrauch von
+// `kwhJeQm` abgerechneten Kilowattstunden je Quadratmeter und Jahr.
+const vermieterKosten = (kwhJeQm: number) => {
+  const kg = kwhJeQm * fGas;
+  return stufeNachGesetz(kg).vermieter * kg * preisJeKg;
+};
+const mieterKosten = (kwhJeQm: number) => kwhJeQm * arbeitspreis - vermieterKosten(kwhJeQm);
+
+// --- 1. Die Stufengrenzen, in Kilowattstunden ausgedrueckt ----------------
+const grenzen = MIETERANTEIL_STUFEN.slice(0, -1).map((s) => s.bis);
+const stufenTabelle = MIETERANTEIL_STUFEN.map((s, i) => ({
+  nummer: i + 1,
+  von: i === 0 ? null : MIETERANTEIL_STUFEN[i - 1].bis,
+  bis: Number.isFinite(s.bis) ? s.bis : null,
+  mieter: s.mieter * 100,
+  vermieter: s.vermieter * 100,
+  kwhGas: Number.isFinite(s.bis) ? s.bis / fGas : null,
+  kwhOel: Number.isFinite(s.bis) ? s.bis / fOel : null,
+  kwhFluessig: Number.isFinite(s.bis) ? s.bis / fFluessig : null,
+}));
+if (stufenTabelle.length !== 10) {
+  throw new Error('Die Anlage zum CO2KostAufG hat zehn Stufen; das Modul liefert eine andere Zahl.');
+}
+if (MIETERANTEIL_STUFEN[0].mieter !== 1 || MIETERANTEIL_STUFEN.at(-1)!.mieter !== 0.05) {
+  throw new Error('Erste und letzte Stufe weichen von der Anlage zum CO2KostAufG ab.');
+}
+
+// --- 2. Energieausweis gegen Heizkostenabrechnung -------------------------
+// § 82 Abs. 2 Satz 4 GModG: Gebaeudenutzflaeche pauschal aus der Wohnflaeche.
+const AN_FAKTOR_MEHRFAMILIEN = 1.2;
+const AN_FAKTOR_KLEIN_MIT_KELLER = 1.35;
+const fAnlage9 = EMISSIONSFAKTOREN_G_JE_KWH.erdgas / 1000;
+// Auf die Wohnflaeche umgerechnet: kg je Kilowattstunde, wie sie sich ergeben,
+// wenn man die Ausweisangabe je Quadratmeter Gebaeudenutzflaeche unbesehen als
+// Angabe je Quadratmeter Wohnflaeche liest.
+const fAusweisMfh = fAnlage9 / AN_FAKTOR_MEHRFAMILIEN;
+const fAusweisKlein = fAnlage9 / AN_FAKTOR_KLEIN_MIT_KELLER;
+const ueberschaetzungMfh = (fAusweisMfh / fGas - 1) * 100;
+const abweichungKlein = (fAusweisKlein / fGas - 1) * 100;
+// Zerlegung der Abweichung: Brennwertschritt (EBeV 2030 Anlage 2 Teil 4, Nr. 6)
+// gegen den Rest.
+const fHeizwertbasis = 3.6 * BEHG_STANDARDWERTE.gas.tCo2JeGj;
+const brennwertSchritt = (fHeizwertbasis / fGas - 1) * 100;
+const restSchritt = (fAusweisMfh / fHeizwertbasis - 1) * 100;
+if (!(ueberschaetzungMfh > 0)) {
+  throw new Error('Die Ausweisangabe liegt nicht mehr ueber dem Wert nach EBeV 2030.');
+}
+if (!(abweichungKlein < 0)) {
+  throw new Error('Der 1,35-Fall liegt nicht mehr unter dem Wert nach EBeV 2030.');
+}
+
+// Wie oft fuehrt die Verwechslung zu einer anderen Stufe? Gemessen ueber den
+// Verbrauchsbereich, in dem Wohngebaeude ueberhaupt liegen.
+const MESS_VON = 40;
+const MESS_BIS = 300;
+const MESS_SCHRITT = 0.01;
+let abweichend = 0;
+let gesamt = 0;
+let maxStufenabstand = 0;
+for (let e = MESS_VON; e <= MESS_BIS + 1e-9; e += MESS_SCHRITT) {
+  gesamt += 1;
+  const richtig = stufeNachGesetz(e * fGas).stufe;
+  const ausAusweis = stufeNachGesetz(e * fAusweisMfh).stufe;
+  if (richtig !== ausAusweis) {
+    abweichend += 1;
+    maxStufenabstand = Math.max(maxStufenabstand, ausAusweis - richtig);
+  }
+}
+const anteilAbweichend = (abweichend / gesamt) * 100;
+if (maxStufenabstand < 1) {
+  throw new Error('Kein Verbrauch im Messbereich fuehrt zu einer abweichenden Stufe.');
+}
+const AUSWEIS_PROBEN = [80, 120, 160, 200, 240, 280];
+const ausweisProben = AUSWEIS_PROBEN.map((e) => ({
+  kwh: e,
+  kgRichtig: e * fGas,
+  stufeRichtig: stufeNachGesetz(e * fGas),
+  kgAusweis: e * fAusweisMfh,
+  stufeAusweis: stufeNachGesetz(e * fAusweisMfh),
+}));
+
+// --- 3. Was eine eingesparte Kilowattstunde wem bringt --------------------
+const jeKwh = MIETERANTEIL_STUFEN.map((s, i) => ({
+  nummer: i + 1,
+  vermieterCent: s.vermieter * fGas * preisJeKg * 100,
+  mieterCent: arbeitspreis * 100 - s.vermieter * fGas * preisJeKg * 100,
+}));
+const maxVermieterCent = jeKwh.at(-1)!.vermieterCent;
+const arbeitspreisCent = arbeitspreis * 100;
+const maxVermieterAnteil = (maxVermieterCent / arbeitspreisCent) * 100;
+if (!(maxVermieterCent < arbeitspreisCent * 0.15)) {
+  throw new Error('Der Vermieteranteil je Kilowattstunde ist groesser als angenommen.');
+}
+
+// --- 4. Szenario: wer wieviel von der Sanierung hat -----------------------
+// Annahme dieses Artikels, nicht des Rechners: ein unsaniertes Gebaeude mit
+// Gasheizung und diesem Verbrauch je Quadratmeter Wohnflaeche und Jahr.
+const AUSGANG_KWH_JE_QM = 250;
+const WOHNFLAECHE = 100;
+const MASSNAHMEN_KWH = [20, 50, 80, 150];
+const szenarien = MASSNAHMEN_KWH.map((sparen) => {
+  const nachher = AUSGANG_KWH_JE_QM - sparen;
+  const entlastungVermieter = vermieterKosten(AUSGANG_KWH_JE_QM) - vermieterKosten(nachher);
+  const entlastungMieter = mieterKosten(AUSGANG_KWH_JE_QM) - mieterKosten(nachher);
+  const gesamtEntlastung = sparen * arbeitspreis;
+  return {
+    sparen,
+    nachher,
+    kgNachher: nachher * fGas,
+    stufeNachher: stufeNachGesetz(nachher * fGas),
+    entlastungVermieter,
+    entlastungMieter,
+    gesamtEntlastung,
+    anteilVermieter: (entlastungVermieter / gesamtEntlastung) * 100,
+  };
+});
+const lastVermieterVorher = vermieterKosten(AUSGANG_KWH_JE_QM);
+const stufeVorher = stufeNachGesetz(AUSGANG_KWH_JE_QM * fGas);
+const kgVorher = AUSGANG_KWH_JE_QM * fGas;
+// Der Anteil des Vermieters an der Gesamtentlastung muss mit dem Umfang der
+// Massnahme fallen – das ist der Befund dieses Abschnitts.
+for (let i = 1; i < szenarien.length; i += 1) {
+  if (!(szenarien[i].anteilVermieter < szenarien[i - 1].anteilVermieter)) {
+    throw new Error('Der Vermieteranteil an der Entlastung faellt nicht mehr monoton.');
+  }
+}
+// Und er kann nie groesser werden als das, was der Vermieter heute traegt.
+for (const s of szenarien) {
+  if (!(s.entlastungVermieter <= lastVermieterVorher + 1e-9)) {
+    throw new Error('Die Entlastung des Vermieters uebersteigt seine heutige Last.');
+  }
+}
+// Kontrolle, dass die beiden ausgewiesenen Entlastungen zusammen die gesamte
+// Energiekostenersparnis ergeben – auch nach dem Runden auf zwei Stellen.
+for (const s of szenarien) {
+  const summeGerundet =
+    Math.round(s.entlastungVermieter * 100) + Math.round(s.entlastungMieter * 100);
+  if (summeGerundet !== Math.round(s.gesamtEntlastung * 100)) {
+    throw new Error('Die gerundeten Entlastungen ergeben nicht die gerundete Gesamtersparnis.');
+  }
+}
+
+// --- 5. Was die Entlastung als Investition wert ist -----------------------
+const BETRACHTUNGSJAHRE = 20;
+const MODERNISIERUNGSSATZ = 0.08; // § 559 Abs. 1 Satz 1 BGB
+const KAPPUNG_JE_QM_MONAT = 3; // § 559 Abs. 3a Satz 1 BGB
+const KAPPUNG_NIEDRIGE_MIETE = 2; // § 559 Abs. 3a Satz 2 BGB
+const KAPPUNG_HEIZUNG = 0.5; // § 559 Abs. 3a Satz 3 BGB
+const KAPPUNG_MIETSCHWELLE = 7; // § 559 Abs. 3a Satz 2 BGB
+const KAPPUNG_JAHRE = 6;
+const kappungJeQmJahr = KAPPUNG_JE_QM_MONAT * 12;
+const investitionen = szenarien.map((s) => ({
+  sparen: s.sparen,
+  entlastungVermieter: s.entlastungVermieter,
+  deckelInvestition: s.entlastungVermieter * BETRACHTUNGSJAHRE,
+  gleichwertigeInvestition: s.entlastungVermieter / MODERNISIERUNGSSATZ,
+}));
+const groessteMassnahme = szenarien.at(-1)!;
+const groessteInvestition = investitionen.at(-1)!;
+if (!(kappungJeQmJahr > groessteMassnahme.entlastungVermieter)) {
+  throw new Error('Die Kappungsgrenze liegt nicht mehr ueber der CO2-Entlastung.');
+}
+const kappungVielfaches = kappungJeQmJahr / groessteMassnahme.entlastungVermieter;
+
+// --- 6. Die Stufengrenze, an der Sparen den Mieter Geld kostet ------------
+const totzonen = grenzen.map((B, i) => {
+  const eGrenze = B / fGas;
+  const kostenVorher = mieterKosten(eGrenze);
+  const stufeOben = stufeNachGesetz(B).stufe;
+  let schwelle = 0;
+  for (let e = eGrenze; e > 0; e -= 0.001) {
+    if (stufeNachGesetz(e * fGas).stufe < stufeOben && mieterKosten(e) < kostenVorher) {
+      schwelle = e;
+      break;
+    }
+  }
+  const dv = MIETERANTEIL_STUFEN[i + 1].vermieter - MIETERANTEIL_STUFEN[i].vermieter;
+  return {
+    grenzeKg: B,
+    eGrenze,
+    sprung: dv * B * preisJeKg,
+    totzoneKwh: eGrenze - schwelle,
+  };
+});
+const totzoneOben = totzonen.at(-1)!;
+const totzoneUnten = totzonen[0];
+if (!(totzoneOben.totzoneKwh > totzoneUnten.totzoneKwh)) {
+  throw new Error('Die Totzone an der obersten Grenze ist nicht die groesste.');
+}
+
+// Ein Grenzfall zum Nachrechnen: Gebaeude genau auf der obersten Stufengrenze.
+const SPAREN_IM_GRENZFALL = 3;
+const grenzfallVorher = totzoneOben.eGrenze;
+const grenzfallNachher = grenzfallVorher - SPAREN_IM_GRENZFALL;
+const grenzfallMieterVorher = mieterKosten(grenzfallVorher);
+const grenzfallMieterNachher = mieterKosten(grenzfallNachher);
+const grenzfallMehrJeQm = grenzfallMieterNachher - grenzfallMieterVorher;
+const grenzfallMehrWohnung = grenzfallMehrJeQm * WOHNFLAECHE;
+if (!(grenzfallMehrJeQm > 0)) {
+  throw new Error('Der Grenzfall belastet den Mieter nicht mehr zusaetzlich.');
+}
+if (!(SPAREN_IM_GRENZFALL < totzoneOben.totzoneKwh)) {
+  throw new Error('Die Beispielmassnahme liegt nicht mehr innerhalb der Totzone.');
+}
+const grenzfallStufeVorher = stufeNachGesetz(grenzfallVorher * fGas);
+const grenzfallStufeNachher = stufeNachGesetz(grenzfallNachher * fGas);
+
+// --- 7. Einordnung des CO2-Preises ---------------------------------------
+const preisStart = CO2_FESTPREIS_EURO_JE_TONNE[2021];
+const preisFaktorSeit2021 = CO2_PREIS_AKTUELL / preisStart;
+const standLesbar = (() => {
+  const [j, m] = HEIZKOSTEN_STAND.split('-');
+  return new Date(Number(j), Number(m) - 1, 1).toLocaleDateString('de-DE', {
+    month: 'long',
+    year: 'numeric',
+  });
+})();
+
+const quellen = [
+  {
+    titel: 'Anlage zu den §§ 5 bis 7 CO2KostAufG – Stufenmodell für Wohngebäude',
+    url: 'https://www.gesetze-im-internet.de/co2kostaufg/anlage.html',
+  },
+  {
+    titel: '§ 5 CO2KostAufG – Ermittlung und Einstufung des Kohlendioxidausstoßes',
+    url: 'https://www.gesetze-im-internet.de/co2kostaufg/__5.html',
+  },
+  {
+    titel: '§ 6 CO2KostAufG – Begrenzung der Umlagefähigkeit, Erstattungsanspruch',
+    url: 'https://www.gesetze-im-internet.de/co2kostaufg/__6.html',
+  },
+  {
+    titel: '§ 7 CO2KostAufG – Abrechnung, Ausweis und Kürzungsrecht',
+    url: 'https://www.gesetze-im-internet.de/co2kostaufg/__7.html',
+  },
+  {
+    titel: '§ 3 CO2KostAufG – Angaben auf der Rechnung des Lieferanten',
+    url: 'https://www.gesetze-im-internet.de/co2kostaufg/__3.html',
+  },
+  {
+    titel: '§ 8 CO2KostAufG – Nichtwohngebäude',
+    url: 'https://www.gesetze-im-internet.de/co2kostaufg/__8.html',
+  },
+  {
+    titel: '§ 10 BEHG – Veräußerung der Emissionszertifikate, Preiskorridor 2026',
+    url: 'https://www.gesetze-im-internet.de/behg/__10.html',
+  },
+  {
+    titel: 'EBeV 2030 Anlage 2 Teil 4 – Standardwerte für Emissionsfaktoren',
+    url: 'https://www.gesetze-im-internet.de/ebev_2030/anlage_2.html',
+  },
+  {
+    titel: 'Anlage 9 GModG – Emissionsfaktoren für den Energieausweis',
+    url: 'https://www.gesetze-im-internet.de/geg/anlage_9.html',
+  },
+  {
+    titel: '§ 82 GModG – Energieverbrauchsausweis, Gebäudenutzfläche',
+    url: 'https://www.gesetze-im-internet.de/geg/__82.html',
+  },
+  {
+    titel: '§ 559 BGB – Mieterhöhung nach Modernisierungsmaßnahmen',
+    url: 'https://www.gesetze-im-internet.de/bgb/__559.html',
+  },
+];
+---
+<RechnerArtikel
+  titel="Wer saniert, spart am wenigsten"
+  datum="2026-09-18"
+  lead={`Eine Sanierung senkt die Heizenergie – aber das Geld landet nicht bei dem, der sie bezahlt. Von jeder eingesparten Kilowattstunde Erdgas kommen beim Vermieter höchstens ${zahl(maxVermieterCent, 2)} Cent an, beim Mieter mindestens ${zahl(jeKwh.at(-1)!.mieterCent, 2)} Cent. Und je gründlicher saniert wird, desto kleiner wird der Anteil des Vermieters: von ${proz(szenarien[0].anteilVermieter)} bei einer kleinen Maßnahme auf ${proz(groessteMassnahme.anteilVermieter)} bei einer großen.`}
+  quellen={quellen}
+>
+  <h3>Die Zahl, die das Gesetz braucht, steht nicht im Ergebnis</h3>
+  <p>
+    Das Kohlendioxidkostenaufteilungsgesetz verteilt seit 2023 die CO₂-Kosten einer
+    Wohnung zwischen Mieter und Vermieter. Maßgeblich ist nach § 5 Abs. 1 Satz 1
+    CO2KostAufG eine einzige Kennzahl: der Kohlendioxidausstoß des Gebäudes in
+    Kilogramm je Quadratmeter Wohnfläche und Jahr. Wer das Jahresergebnis in
+    Kilogramm durch die eingegebene Wohnfläche teilt, hat genau diese Größe – und
+    zwar als das, was eine Sanierung von ihr abzieht.
+  </p>
+  <p>
+    Die Tabelle in der Anlage zum Gesetz kennt zehn Stufen. Sie sind in Kilogramm
+    formuliert, was sie unanschaulich macht: Kaum jemand kennt den CO₂-Ausstoß seines
+    Hauses, fast jeder kennt seinen Jahresverbrauch. Für Erdgas rechnet die
+    EBeV&nbsp;2030 in Anlage 2 Teil 4 Nr. 6 mit {zahl(fGas, 4)} Kilogramm CO₂ je
+    abgerechneter Kilowattstunde; damit lässt sich jede Stufengrenze in
+    Kilowattstunden je Quadratmeter übersetzen.
+  </p>
+
+  <table>
+    <caption class="visually-hidden">
+      Stufenmodell der Anlage zum CO2KostAufG, mit den Stufengrenzen umgerechnet in
+      abgerechnete Kilowattstunden je Quadratmeter Wohnfläche und Jahr
+    </caption>
+    <thead>
+      <tr>
+        <th scope="col" class="num">Stufe</th>
+        <th scope="col" class="num">kg CO₂/m²·a</th>
+        <th scope="col" class="num">Mieter</th>
+        <th scope="col" class="num">Vermieter</th>
+        <th scope="col" class="num">Erdgas bis</th>
+        <th scope="col" class="num">Heizöl bis</th>
+      </tr>
+    </thead>
+    <tbody>
+      {stufenTabelle.map((s) => (
+        <tr>
+          <th scope="row" class="num">{s.nummer}</th>
+          <td class="num">
+            {s.von === null ? `unter ${glatt(s.bis!)}` : s.bis === null ? `ab ${glatt(s.von)}` : `${glatt(s.von)} bis unter ${glatt(s.bis)}`}
+          </td>
+          <td class="num">{proz(s.mieter, 0)}</td>
+          <td class="num">{proz(s.vermieter, 0)}</td>
+          <td class="num">{s.kwhGas === null ? '–' : `${zahl(s.kwhGas, 0)} kWh/m²`}</td>
+          <td class="num">{s.kwhOel === null ? '–' : `${zahl(s.kwhOel, 0)} kWh/m²`}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+
+  <p>
+    Die beiden rechten Spalten zeigen den ersten unbequemen Punkt: Dieselbe
+    Kilowattstundenzahl landet je nach Brennstoff in einer anderen Stufe. Ein
+    Gebäude mit {glatt(150)} Kilowattstunden je Quadratmeter fällt mit Erdgas in
+    Stufe {stufeNachGesetz(150 * fGas).stufe}, mit Heizöl in Stufe
+    {' '}{stufeNachGesetz(150 * fOel).stufe} – der Vermieter trägt einmal
+    {' '}{proz(stufeNachGesetz(150 * fGas).vermieter * 100, 0)}, einmal
+    {' '}{proz(stufeNachGesetz(150 * fOel).vermieter * 100, 0)}. Flüssiggas liegt mit
+    {' '}{zahl(fFluessig, 4)} Kilogramm je Kilowattstunde dazwischen; die Stufengrenze
+    von {glatt(grenzen[0])} Kilogramm entspricht dort
+    {' '}{zahl(stufenTabelle[0].kwhFluessig!, 0)} Kilowattstunden je Quadratmeter statt
+    {' '}{zahl(stufenTabelle[0].kwhGas!, 0)} wie beim Erdgas.
+  </p>
+  <p class="ra-hinweis">
+    Alle Kilowattstunden in diesem Artikel sind abgerechnete Kilowattstunden – die
+    Zahl, die auf der Gasrechnung steht. Bei Erdgas ist das eine
+    Brennwert-Kilowattstunde, und genau darauf bezieht sich der Standardwert der
+    EBeV&nbsp;2030: Der dortige Umrechnungsfaktor von {zahl(BEHG_STANDARDWERTE.gas.gjJeMwh, 4)}
+    {' '}Gigajoule je Megawattstunde liegt unter den physikalischen 3,6.
+  </p>
+
+  <h3>Der CO₂-Wert aus dem Energieausweis gehört nicht in diese Tabelle</h3>
+  <p>
+    Wer seinen CO₂-Ausstoß nicht ausrechnen will, findet im Energieausweis eine
+    fertige Zahl – und liegt damit falsch. Der Energieausweis rechnet nach § 85
+    Abs. 6 GModG mit den Emissionsfaktoren der Anlage 9, und die nennt für Erdgas
+    {' '}{glatt(EMISSIONSFAKTOREN_G_JE_KWH.erdgas)} Gramm CO₂-Äquivalent je
+    Kilowattstunde statt der {glatt(fGas * 1000)} Gramm der EBeV&nbsp;2030. Das sind
+    zwei amtliche Faktoren für dasselbe Gas, und sie unterscheiden sich um fast ein
+    Drittel.
+  </p>
+  <p>
+    Der zweite Unterschied hebt den ersten fast auf. Der Energieausweis bezieht seine
+    Angaben bei Wohngebäuden nicht auf die Wohnfläche, sondern auf die
+    Gebäudenutzfläche; § 82 Abs. 2 Satz 4 GModG erlaubt, sie pauschal mit dem
+    {' '}{zahl(AN_FAKTOR_MEHRFAMILIEN, 1)}-fachen der Wohnfläche anzusetzen, bei
+    Gebäuden mit bis zu zwei Wohneinheiten und beheiztem Keller mit dem
+    {' '}{zahl(AN_FAKTOR_KLEIN_MIT_KELLER, 2)}-fachen. Die Ausweisangabe verteilt
+    dieselben Emissionen also auf eine größere Fläche.
+  </p>
+  <p>
+    Rechnet man beides zusammen, bleibt von der Abweichung wenig übrig – aber nicht
+    nichts. Wer den Ausweiswert eines Mehrfamilienhauses unbesehen als Kilogramm je
+    Quadratmeter Wohnfläche liest, rechnet effektiv mit
+    {' '}{zahl(fAusweisMfh, 4)} statt {zahl(fGas, 4)} Kilogramm je Kilowattstunde und
+    liegt um {proz(ueberschaetzungMfh)} zu hoch. Beim Ein- oder Zweifamilienhaus mit
+    beheiztem Keller kippt das Vorzeichen: Dort liegt derselbe Griff um
+    {' '}{proz(Math.abs(abweichungKlein))} zu <em>niedrig</em>.
+  </p>
+  <p>
+    Die verbleibenden {proz(ueberschaetzungMfh)} sind fast vollständig der
+    Brennwertschritt. Auf den Heizwert bezogen ergibt die EBeV&nbsp;2030
+    {' '}{zahl(fHeizwertbasis, 5)} Kilogramm je Kilowattstunde und liegt damit
+    {' '}{proz(Math.abs(brennwertSchritt))} über dem Faktor für die abgerechnete
+    Brennwert-Kilowattstunde. Der auf die Wohnfläche zurückgerechnete
+    Ausweisfaktor weicht von dieser Heizwertbasis dagegen nur um
+    {' '}{proz(Math.abs(restSchritt), 2)} ab.
+  </p>
+  <p>
+    Praktisch heißt das: Im Bereich von {glatt(MESS_VON)} bis {glatt(MESS_BIS)}
+    {' '}Kilowattstunden je Quadratmeter führt der Griff zum Ausweiswert bei
+    {' '}{proz(anteilAbweichend)} aller Verbrauchswerte zu einer anderen Stufe – und
+    zwar immer zu einer schlechteren, nie um mehr als eine.
+  </p>
+
+  <table>
+    <caption class="visually-hidden">
+      Einstufung nach CO2KostAufG gegenüber der Einstufung, die sich aus einem
+      unbesehen übernommenen Energieausweiswert eines Mehrfamilienhauses ergäbe
+    </caption>
+    <thead>
+      <tr>
+        <th scope="col" class="num">Erdgas</th>
+        <th scope="col" class="num">kg nach CO2KostAufG</th>
+        <th scope="col" class="num">Stufe</th>
+        <th scope="col" class="num">kg aus dem Ausweis</th>
+        <th scope="col" class="num">Stufe</th>
+      </tr>
+    </thead>
+    <tbody>
+      {ausweisProben.map((p) => (
+        <tr>
+          <th scope="row" class="num">{glatt(p.kwh)} kWh/m²</th>
+          <td class="num">{zahl(p.kgRichtig, 1)}</td>
+          <td class="num">{p.stufeRichtig.stufe} ({proz(p.stufeRichtig.vermieter * 100, 0)})</td>
+          <td class="num">{zahl(p.kgAusweis, 1)}</td>
+          <td class="num">{p.stufeAusweis.stufe} ({proz(p.stufeAusweis.vermieter * 100, 0)})</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+
+  <p>
+    In Klammern steht jeweils der Anteil des Vermieters. Bei
+    {' '}{glatt(ausweisProben.at(-1)!.kwh)} Kilowattstunden je Quadratmeter macht der
+    falsche Griff aus {proz(ausweisProben.at(-1)!.stufeRichtig.vermieter * 100, 0)}
+    {' '}Vermieteranteil {proz(ausweisProben.at(-1)!.stufeAusweis.vermieter * 100, 0)}.
+    Die Einstufung gehört nach § 7 Abs. 3 CO2KostAufG samt Berechnungsgrundlagen in
+    die Heizkostenabrechnung; fehlt sie, darf der Mieter seinen Heizkostenanteil nach
+    § 7 Abs. 4 CO2KostAufG um {proz(3, 0)} kürzen. Die Grundlage ist der auf der
+    Brennstoffrechnung nach § 3 Abs. 1 Nr. 3 CO2KostAufG ausgewiesene Emissionsfaktor
+    in Kilogramm je Kilowattstunde – nicht der Energieausweis. Wer eine
+    Ausweiszahl einordnen will, findet die dortige Systematik in der
+    {' '}<a href={`${base}energie/energieausweis-vorberechnung/`}>Vorberechnung zum Energieausweis</a>.
+  </p>
+
+  <h3>Was eine eingesparte Kilowattstunde wem bringt</h3>
+  <p>
+    Jetzt zur eigentlichen Frage: Eine Sanierung senkt den Verbrauch – wer hat davon
+    etwas? Die Energiekosten trägt der Mieter; vom CO₂-Anteil im Arbeitspreis trägt
+    er nur den Teil, den die Stufe ihm zuweist. Bei einem CO₂-Preis von
+    {' '}{eurGlatt(CO2_PREIS_AKTUELL)} je Tonne und
+    {' '}{proz(UMSATZSTEUERSATZ * 100, 0)} Umsatzsteuer kostet ein Kilogramm CO₂
+    {' '}{zahl(preisJeKg * 100, 3)} Cent; eine Kilowattstunde Erdgas trägt davon
+    {' '}{zahl(fGas * preisJeKg * 100, 3)} Cent.
+  </p>
+
+  <table>
+    <caption class="visually-hidden">
+      Aufteilung einer eingesparten Kilowattstunde Erdgas zwischen Vermieter und
+      Mieter nach Stufe
+    </caption>
+    <thead>
+      <tr>
+        <th scope="col" class="num">Stufe</th>
+        <th scope="col" class="num">spart der Vermieter</th>
+        <th scope="col" class="num">spart der Mieter</th>
+      </tr>
+    </thead>
+    <tbody>
+      {jeKwh.map((z) => (
+        <tr>
+          <th scope="row" class="num">{z.nummer}</th>
+          <td class="num">{zahl(z.vermieterCent, 3)} ct</td>
+          <td class="num">{zahl(z.mieterCent, 3)} ct</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+
+  <p>
+    Der Arbeitspreis beträgt in dieser Rechnung {zahl(arbeitspreisCent, 2)} Cent je
+    Kilowattstunde (Marktannahme, Stand {standLesbar}). Selbst im schlechtesten
+    Gebäudezustand, Stufe {jeKwh.at(-1)!.nummer} mit
+    {' '}{proz(MIETERANTEIL_STUFEN.at(-1)!.vermieter * 100, 0)} Vermieteranteil, kommen
+    beim Vermieter {zahl(maxVermieterCent, 3)} Cent an – das sind
+    {' '}{proz(maxVermieterAnteil)} der Ersparnis. In Stufe 2 sind es
+    {' '}{zahl(jeKwh[1].vermieterCent, 3)} Cent. Wer die Sanierung bezahlt, bekommt
+    also je nach Ausgangslage zwischen einem Prozent und gut einem Zehntel ihres
+    Ertrags.
+  </p>
+
+  <h3>Je gründlicher saniert wird, desto weniger bleibt beim Vermieter</h3>
+  <p>
+    Der Stufensprung müsste das eigentlich ausgleichen: Wer viel spart, rutscht
+    mehrere Stufen nach unten, und der Vermieteranteil fällt in großen Schritten.
+    Nachgerechnet passiert das Gegenteil. Ausgangspunkt ist hier ein unsaniertes
+    Gebäude mit Gasheizung und {glatt(AUSGANG_KWH_JE_QM)} abgerechneten
+    Kilowattstunden je Quadratmeter Wohnfläche und Jahr – eine Annahme dieses
+    Artikels, keine Eingabe des Rechners. Das sind {zahl(kgVorher, 1)} Kilogramm CO₂
+    je Quadratmeter, Stufe {stufeVorher.stufe} mit
+    {' '}{proz(stufeVorher.vermieter * 100, 0)} Vermieteranteil.
+  </p>
+
+  <table>
+    <caption class="visually-hidden">
+      Jährliche Entlastung von Vermieter und Mieter je Quadratmeter Wohnfläche nach
+      Umfang der Sanierung
+    </caption>
+    <thead>
+      <tr>
+        <th scope="col" class="num">spart</th>
+        <th scope="col" class="num">danach</th>
+        <th scope="col" class="num">Stufe</th>
+        <th scope="col" class="num">Vermieter</th>
+        <th scope="col" class="num">Mieter</th>
+        <th scope="col" class="num">Anteil Vermieter</th>
+      </tr>
+    </thead>
+    <tbody>
+      {szenarien.map((s) => (
+        <tr>
+          <th scope="row" class="num">{glatt(s.sparen)} kWh/m²</th>
+          <td class="num">{zahl(s.kgNachher, 1)} kg/m²</td>
+          <td class="num">{stufeVorher.stufe} → {s.stufeNachher.stufe}</td>
+          <td class="num">{eur(s.entlastungVermieter)}</td>
+          <td class="num">{eur(s.entlastungMieter)}</td>
+          <td class="num">{proz(s.anteilVermieter)}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+
+  <p>
+    Vermieter- und Mieterspalte sind Beträge je Quadratmeter Wohnfläche und Jahr;
+    zusammen ergeben sie jeweils die gesamte Energiekostenersparnis, bei der größten
+    Maßnahme {eur(groessteMassnahme.gesamtEntlastung)} je Quadratmeter. Der Anteil
+    des Vermieters fällt dabei von {proz(szenarien[0].anteilVermieter)} auf
+    {' '}{proz(groessteMassnahme.anteilVermieter)}.
+  </p>
+  <p>
+    Der Grund ist eine harte Obergrenze, die man leicht übersieht: Der Vermieter kann
+    durch keine Sanierung mehr sparen, als er heute trägt. In diesem Gebäude sind das
+    {' '}{eur(lastVermieterVorher)} je Quadratmeter und Jahr. Die Entlastung des
+    Mieters dagegen wächst mit jeder eingesparten Kilowattstunde linear weiter und
+    kennt keine solche Grenze. Je größer die Maßnahme, desto stärker dominiert der
+    Teil, der beim Mieter bleibt – bei der größten Maßnahme holt der Vermieter
+    {' '}{eur(groessteMassnahme.entlastungVermieter)} von seinen maximal möglichen
+    {' '}{eur(lastVermieterVorher)}, während der Mieter
+    {' '}{eur(groessteMassnahme.entlastungMieter)} spart.
+  </p>
+
+  <h3>Was die Entlastung als Investition wert ist</h3>
+  <p>
+    Dieselben Zahlen lassen sich als Investitionsgrenze lesen. Damit sich eine
+    Maßnahme allein aus der CO₂-Entlastung des Vermieters in
+    {' '}{glatt(BETRACHTUNGSJAHRE)} Jahren trägt, darf sie höchstens so viel kosten:
+  </p>
+
+  <table>
+    <caption class="visually-hidden">
+      Investition je Quadratmeter, die sich allein aus der CO₂-Entlastung des
+      Vermieters rechnen würde
+    </caption>
+    <thead>
+      <tr>
+        <th scope="col" class="num">spart</th>
+        <th scope="col" class="num">Entlastung je Jahr</th>
+        <th scope="col" class="num">Deckel für {glatt(BETRACHTUNGSJAHRE)} Jahre</th>
+      </tr>
+    </thead>
+    <tbody>
+      {investitionen.map((i) => (
+        <tr>
+          <th scope="row" class="num">{glatt(i.sparen)} kWh/m²</th>
+          <td class="num">{eur(i.entlastungVermieter)}</td>
+          <td class="num">{eur(i.deckelInvestition)}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+
+  <p>
+    Selbst die größte Maßnahme trägt nur eine Investition von
+    {' '}{eur(groessteInvestition.deckelInvestition)} je Quadratmeter – ohne Zinsen,
+    ohne Instandhaltung. Das ist die Größenordnung, in der die CO₂-Kostenaufteilung
+    einen Vermieter zum Sanieren bewegt, wenn man sie für sich betrachtet.
+  </p>
+  <p>
+    Der zweite Hebel ist ungleich größer. Nach § 559 Abs. 1 Satz 1 BGB darf der
+    Vermieter die Jahresmiete um {proz(MODERNISIERUNGSSATZ * 100, 0)} der für die
+    Wohnung aufgewendeten Modernisierungskosten erhöhen – abzüglich der ohnehin
+    fälligen Erhaltungskosten nach Absatz 2. Eine Investition von
+    {' '}{eur(groessteInvestition.gleichwertigeInvestition)} je Quadratmeter reicht
+    damit bereits aus, um jährlich denselben Betrag einzunehmen, den die gesamte
+    CO₂-Entlastung der größten Maßnahme abwirft. Die Kappungsgrenze des § 559
+    Abs. 3a Satz 1 BGB liegt bei {eur(KAPPUNG_JE_QM_MONAT, 0)} je Quadratmeter
+    monatlich innerhalb von {glatt(KAPPUNG_JAHRE)} Jahren, also
+    {' '}{eur(kappungJeQmJahr, 0)} je Quadratmeter und Jahr – das
+    {' '}{zahl(kappungVielfaches, 1)}-fache der CO₂-Entlastung. Liegt die Miete unter
+    {' '}{eur(KAPPUNG_MIETSCHWELLE, 0)} je Quadratmeter, sinkt die Grenze nach Satz 2
+    auf {eur(KAPPUNG_NIEDRIGE_MIETE, 0)}; für den Einbau einer Heizungsanlage gilt
+    nach Satz 3 eine eigene Grenze von {eur(KAPPUNG_HEIZUNG)} je Quadratmeter und
+    Monat.
+  </p>
+  <p class="ra-hinweis">
+    Die Kappungsgrenzen sind Monatsbeträge, die CO₂-Entlastung ist ein Jahresbetrag.
+    Ein Vergleich der beiden Zahlen ohne den Faktor zwölf führt um eine ganze
+    Größenordnung in die Irre.
+  </p>
+
+  <h3>Die Stufengrenze, an der Sparen den Mieter Geld kostet</h3>
+  <p>
+    Das Stufenmodell hat neun Sprungstellen, und an jeder verliert der Mieter
+    schlagartig einen Teil der Vermieterbeteiligung. § 5 Abs. 1 Satz 3 CO2KostAufG
+    schreibt vor, den spezifischen Ausstoß auf die erste Nachkommastelle zu runden –
+    die Grenze von {glatt(grenzen.at(-1)!)} Kilogramm wirkt deshalb schon bei
+    {' '}{zahl(grenzen.at(-1)! - 0.05, 2)} Kilogramm.
+  </p>
+
+  <table>
+    <caption class="visually-hidden">
+      Höhe des Sprungs an jeder Stufengrenze und die Einsparung, die nötig ist, damit
+      der Mieter unter dem Strich nicht schlechter dasteht
+    </caption>
+    <thead>
+      <tr>
+        <th scope="col" class="num">Grenze</th>
+        <th scope="col" class="num">Erdgas</th>
+        <th scope="col" class="num">Sprung je Jahr</th>
+        <th scope="col" class="num">nötige Einsparung</th>
+      </tr>
+    </thead>
+    <tbody>
+      {totzonen.map((t) => (
+        <tr>
+          <th scope="row" class="num">{glatt(t.grenzeKg)} kg/m²</th>
+          <td class="num">{zahl(t.eGrenze, 0)} kWh/m²</td>
+          <td class="num">{eur(t.sprung)}</td>
+          <td class="num">{zahl(t.totzoneKwh, 1)} kWh/m²</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+
+  <p>
+    Die letzte Spalte ist der eigentliche Fund. Liegt ein Gebäude genau auf einer
+    Stufengrenze, muss eine Sanierung mindestens so viel einsparen, damit der Mieter
+    überhaupt etwas davon hat – darunter zahlt er mehr als vorher. An der obersten
+    Grenze sind das {zahl(totzoneOben.totzoneKwh, 1)} Kilowattstunden je Quadratmeter
+    und Jahr.
+  </p>
+  <p>
+    Zum Nachrechnen: Ein Gebäude verbraucht {zahl(grenzfallVorher, 1)}
+    {' '}Kilowattstunden Erdgas je Quadratmeter und Jahr, also genau
+    {' '}{glatt(totzoneOben.grenzeKg)} Kilogramm CO₂ – Stufe
+    {' '}{grenzfallStufeVorher.stufe},
+    {' '}{proz(grenzfallStufeVorher.vermieter * 100, 0)} Vermieteranteil. Der Mieter
+    zahlt {eur(grenzfallMieterVorher)} je Quadratmeter und Jahr. Eine Maßnahme spart
+    {' '}{glatt(SPAREN_IM_GRENZFALL)} Kilowattstunden je Quadratmeter: Das Gebäude
+    fällt auf Stufe {grenzfallStufeNachher.stufe} mit
+    {' '}{proz(grenzfallStufeNachher.vermieter * 100, 0)} Vermieteranteil, und der
+    Mieter zahlt {eur(grenzfallMieterNachher)} – also
+    {' '}{eur(grenzfallMehrJeQm)} mehr. Bei {glatt(WOHNFLAECHE)} Quadratmetern
+    Wohnfläche sind das {eur(grenzfallMehrWohnung, 0)} im Jahr, die eine Sanierung den
+    Mieter zusätzlich kostet.
+  </p>
+  <p>
+    Der Effekt ist klein und verschwindet, sobald die Maßnahme ernsthaft etwas
+    bewirkt. Er zeigt aber, dass die Stufen keine Anreizleiter sind, sondern
+    Kanten: Zwischen zwei Stufen ist der Grenzertrag des Sparens für den Mieter
+    maximal, an der Kante selbst ist er negativ.
+  </p>
+
+  <h3>Was diese Rechnung nicht abbildet</h3>
+  <p>
+    Der CO₂-Preis ist eine bewegliche Größe. Seit dem Start bei
+    {' '}{eurGlatt(preisStart)} je Tonne im Jahr 2021 hat er sich nach § 10 Abs. 2
+    BEHG auf {eurGlatt(CO2_PREIS_AKTUELL)} im Jahr 2025 erhöht, das
+    {' '}{zahl(preisFaktorSeit2021, 1)}-Fache des Startwerts. Seit 2026 werden die
+    Zertifikate nach § 10 Abs. 1 Satz 2 BEHG versteigert, für dieses Jahr gilt ein
+    Preiskorridor zwischen {eurGlatt(CO2_PREISKORRIDOR_2026.min)} und
+    {' '}{eurGlatt(CO2_PREISKORRIDOR_2026.max)}. Alle Beträge hier rechnen mit dem
+    Mindestpreis; am Höchstpreis wären sie um
+    {' '}{proz((preisJeKgMax / preisJeKg - 1) * 100)} höher. Der Arbeitspreis von
+    {' '}{zahl(arbeitspreisCent, 2)} Cent ist eine Marktannahme und auf der
+    Rechnerseite überschreibbar.
+  </p>
+  <p>
+    Nicht jeder Brennstoff hat einen solchen Preisbestandteil. Das
+    Brennstoffemissionshandelsgesetz erfasst fossile Brennstoffe; Holzpellets,
+    Wärmepumpenstrom und Fernwärme fallen nicht unter die Standardwerte der
+    EBeV&nbsp;2030, sondern werden vom Lieferanten nach § 3 Abs. 4 CO2KostAufG
+    gesondert ausgewiesen. Eine Sanierung, die von Gas auf Wärmepumpe wechselt,
+    verschiebt die Rechnung deshalb nicht nur, sie beendet sie: Der CO₂-Anteil fällt
+    auf null, und mit ihm die Vermieterbeteiligung. Was dafür an Strom hinzukommt,
+    steht im {' '}<a href={`${base}energie/heizkosten-rechner/`}>Heizkostenrechner</a>.
+  </p>
+  <p>
+    Weggelassen ist außerdem der Grundpreis, der vom Verbrauch unabhängig ist und
+    deshalb an keiner Sanierung hängt. Das Stufenmodell gilt nur für Wohngebäude; bei
+    Nichtwohngebäuden teilt § 8 Abs. 1 CO2KostAufG die Kosten pauschal hälftig.
+    Versorgt sich der Mieter selbst mit Wärme, zahlt nicht der Vermieter weniger,
+    sondern er erstattet – und der Mieter muss diesen Anspruch nach § 6 Abs. 2 Satz 3
+    CO2KostAufG innerhalb von zwölf Monaten in Textform geltend machen, sonst
+    verfällt er. Wie sich der Rest der Heizkosten auf die Wohnungen verteilt, regelt
+    nicht dieses Gesetz, sondern die Heizkostenverordnung; was davon überhaupt
+    umlagefähig ist, steht in der Rechnung zu den
+    {' '}<a href={`${base}${artikelPfadVonSlug('nebenkosten-was-umlagefaehig-ist')}`}>umlagefähigen Nebenkosten</a>,
+    und wie sich Vorauszahlung und Nachzahlung dazu verhalten, in der Rechnung zur
+    {' '}<a href={`${base}${artikelPfadVonSlug('warmmiete-vorauszahlung-nachzahlung')}`}>Warmmiete</a>.
+  </p>
+  <p>
+    Schließlich rechnet dieser Artikel mit einem festen Ausgangsverbrauch und einer
+    festen Einsparung je Quadratmeter. Beides sind Modellannahmen: Der tatsächliche
+    Verbrauch vor und nach einer Sanierung hängt von Gebäude, Ausführung und
+    Nutzerverhalten ab, und nur der gemessene Verbrauch des Abrechnungszeitraums
+    entscheidet über die Stufe.
+  </p>
+</RechnerArtikel>

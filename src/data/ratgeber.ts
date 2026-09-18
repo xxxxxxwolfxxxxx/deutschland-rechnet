@@ -42,6 +42,33 @@ export interface Artikel {
 
 export const ARTIKEL: Artikel[] = [
   {
+    slug: 'co2-kosten-stufen-mieter-vermieter',
+    titel: 'Wer saniert, spart am wenigsten',
+    teaser: 'Eine Sanierung senkt die Heizenergie – aber das Geld landet nicht bei dem, der sie bezahlt. Von jeder eingesparten Kilowattstunde Erdgas kommen beim Vermieter höchstens 1,13 Cent an, beim Mieter mindestens 9,87 Cent. Und je gründlicher saniert wird, desto kleiner wird der Anteil des Vermieters: von 20,0 auf 11,2 Prozent. Dazu die Stufengrenzen des CO2KostAufG, umgerechnet in Kilowattstunden je Quadratmeter.',
+    datum: '2026-09-18',
+    thema: 'Energie',
+    rechner: ['co2-einsparung-renovierung', 'heizkosten-rechner', 'energieausweis-vorberechnung'],
+    aufRechnerseite: true,
+  },
+  {
+    slug: 'drittelregel-gegenstrom-grenze',
+    titel: 'Die Drittelregel hält nur bis zu einem Drittel Strom',
+    teaser: 'Ein Drittel hin, ein Drittel zurück, ein Drittel Reserve: Bei 1,5 kn Versatz bleiben von 200 l Tank am Steg nicht 66,7 l übrig, sondern 22,3 l. Ab einem Versatz von einem Drittel der Marschfahrt reicht der volle Tank nicht einmal mehr zurück – unabhängig von Tankgröße und Verbrauch. Ein großer Tank hilft gegen Entfernung, nicht gegen Strom.',
+    datum: '2026-09-18',
+    thema: 'Boot',
+    rechner: ['spritverbrauch-boot', 'rumpfgeschwindigkeit', 'ankerkette-rechner'],
+    aufRechnerseite: true,
+  },
+  {
+    slug: 'rumpfgeschwindigkeit-was-der-faktor-verschweigt',
+    titel: 'Die Formel kennt das Gewicht des Bootes nicht',
+    teaser: 'Die Rumpfgeschwindigkeit hat genau eine Eingabe: die Wasserlinienlänge. Rechnet man den Faktor 2,43 gegen ein gängiges Konstrukteursmodell zurück, beschreibt er ein Boot, das bei 9 m Wasserlinie rund 9.000 kg wiegt. Eine 5,5-Tonnen-Yacht derselben Länge kommt auf 8,51 kn statt 7,29 kn – ohne zu gleiten. Dazu: warum 2,43 und 1,34 dieselbe Regel sind und was die letzten 20 Prozent Fahrt kosten.',
+    datum: '2026-09-18',
+    thema: 'Boot',
+    rechner: ['rumpfgeschwindigkeit', 'spritverbrauch-boot'],
+    aufRechnerseite: true,
+  },
+  {
     slug: 'spaete-geburt-verlaengert-den-mutterschutz',
     titel: 'Eine späte Geburt verlängert den Mutterschutz',
     teaser: 'Der errechnete Termin ist ein einzelner Kalendertag, und § 3 MuSchG rechnet fest damit, dass er nicht eintrifft. Wer sieben Tage zu früh entbindet, hat am Ende dieselbe Schutzfrist wie bei einer Geburt am Termin – wer sieben Tage zu spät entbindet, hat sieben Tage mehr. Bei 2.200 € Nettoentgelt sind das 513,31 € zusätzlich, von denen die Krankenkasse 91,00 € trägt.',
