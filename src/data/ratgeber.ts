@@ -42,6 +42,15 @@ export interface Artikel {
 
 export const ARTIKEL: Artikel[] = [
   {
+    slug: 'sparquote-schlaegt-rendite',
+    titel: 'Wie lange es dauert, hängt nicht am Einkommen',
+    teaser: 'Zwei Menschen sparen 40 % ihres Einkommens – der eine 24.000 € im Jahr, der andere 400.000 €. Beide brauchen exakt gleich lange bis zur finanziellen Unabhängigkeit, weil sich das Einkommen aus der Rechnung herauskürzt. Wer die Sparquote von 20 auf 40 Prozent verdoppelt, spart gut 17 Jahre; ein Prozentpunkt mehr Rendite bringt an derselben Stelle nur gut vier. Dazu: was die deutsche Abgeltungsteuer aus dem 25-Fachen macht.',
+    datum: '2026-09-18',
+    thema: 'Geld',
+    rechner: ['fire-rechner', 'etf-sparplan-rechner', 'sparen-rechner'],
+    aufRechnerseite: true,
+  },
+  {
     slug: 'co2-kosten-stufen-mieter-vermieter',
     titel: 'Wer saniert, spart am wenigsten',
     teaser: 'Eine Sanierung senkt die Heizenergie – aber das Geld landet nicht bei dem, der sie bezahlt. Von jeder eingesparten Kilowattstunde Erdgas kommen beim Vermieter höchstens 1,13 Cent an, beim Mieter mindestens 9,87 Cent. Und je gründlicher saniert wird, desto kleiner wird der Anteil des Vermieters: von 20,0 auf 11,2 Prozent. Dazu die Stufengrenzen des CO2KostAufG, umgerechnet in Kilowattstunden je Quadratmeter.',
