@@ -1,0 +1,478 @@
+---
+import RechnerArtikel from '../RechnerArtikel.astro';
+import {
+  berechneZahnersatz,
+  festzuschussUmrechnen,
+  FESTZUSCHUSS_ANTEIL,
+} from '../../../public/scripts/zahnersatz.js';
+
+// Alle Zahlen zur Buildzeit aus demselben Modul, das auch der Rechner laedt.
+const eur = (n: number) => {
+  const ganz = Math.abs(n - Math.round(n)) < 0.005;
+  const s = n.toLocaleString('de-DE', {
+    minimumFractionDigits: ganz ? 0 : 2,
+    maximumFractionDigits: ganz ? 0 : 2,
+  });
+  return s.replace('-', '−') + ' €';
+};
+const eurRund = (n: number) => n.toLocaleString('de-DE', { maximumFractionDigits: 0 }).replace('-', '−') + ' €';
+const proz = (anteil: number) =>
+  (anteil * 100).toLocaleString('de-DE', { maximumFractionDigits: 2 }) + ' %';
+
+// --- Das durchgehende Beispiel ---------------------------------------------
+// Setzung dieses Artikels (dieselbe wie im Beispiel des Rechners): 900 €
+// Festzuschuss ohne Bonus, 3.000 € Gesamtkosten, Tarif mit 90 Prozent.
+const FZ_OHNE = 900;
+const KOSTEN = 3000;
+const QUOTE = 90;
+const HOECHSTBETRAG = 1000;
+const BEITRAG = 30;
+
+// § 55 Abs. 2 Satz 1 SGB V: Im Haertefall kommen zu den Festzuschuessen nach
+// Abs. 1 Satz 2 (60 %) weitere 40 Prozent der festgesetzten Betraege hinzu.
+// Das Modul enthaelt diesen Satz nicht; er steht deshalb hier.
+const HAERTEFALL_ZUSATZ = 0.4;
+// § 55 Abs. 3 Satz 2 SGB V: das Dreifache der Differenz zur Einnahmegrenze.
+const GLEITEND_FAKTOR = 3;
+
+// Der festgesetzte Betrag der Regelversorgung, aus dem alle Stufen folgen.
+const REGELBETRAG = FZ_OHNE / FESTZUSCHUSS_ANTEIL.ohneBonus;
+const HAERTEFALL_ANTEIL = FESTZUSCHUSS_ANTEIL.ohneBonus + HAERTEFALL_ZUSATZ;
+
+const stufen = [
+  { name: 'ohne Bonus', anteil: FESTZUSCHUSS_ANTEIL.ohneBonus, fz: FZ_OHNE },
+  { name: 'Bonus nach fünf Jahren', anteil: FESTZUSCHUSS_ANTEIL.bonus5Jahre, fz: festzuschussUmrechnen(FZ_OHNE, 'ohneBonus', 'bonus5Jahre') },
+  { name: 'Bonus nach zehn Jahren', anteil: FESTZUSCHUSS_ANTEIL.bonus10Jahre, fz: festzuschussUmrechnen(FZ_OHNE, 'ohneBonus', 'bonus10Jahre') },
+  { name: 'Härtefall', anteil: HAERTEFALL_ANTEIL, fz: REGELBETRAG * HAERTEFALL_ANTEIL },
+];
+const [sOhne, s5, s10, sHaerte] = stufen;
+if (Math.abs(HAERTEFALL_ANTEIL - 1) > 1e-9 || Math.abs(sHaerte.fz - REGELBETRAG) > 0.005) {
+  throw new Error('Zahnersatz-Artikel: Härtefall ergibt nicht mehr 100 % der Regelversorgung.');
+}
+const bonusPlus10 = s10.fz - sOhne.fz;
+const bonusPlus5 = s5.fz - sOhne.fz;
+
+// --- 1. Eigenanteil nach Aufwand der Versorgung ------------------------------
+const FAKTOREN = [1, 1.5, 2, 3];
+const aufwandreihe = FAKTOREN.map((f) => {
+  const kosten = REGELBETRAG * f;
+  return {
+    kosten,
+    zellen: stufen.map((s) => {
+      const r = berechneZahnersatz({ gesamtkosten: kosten, festzuschuss: s.fz });
+      return { eigen: r.eigenanteil, quote: r.eigenanteil / kosten };
+    }),
+  };
+});
+const erste = aufwandreihe[0];
+const letzte = aufwandreihe[aufwandreihe.length - 1];
+// Behauptung: Der Bonus ist in jeder Zeile derselbe Eurobetrag.
+for (const z of aufwandreihe) {
+  if (Math.abs(z.zellen[0].eigen - z.zellen[2].eigen - bonusPlus10) > 0.005) {
+    throw new Error('Zahnersatz-Artikel: Bonus ist nicht in jeder Zeile gleich hoch.');
+  }
+}
+const entlastungErste = 1 - erste.zellen[2].eigen / erste.zellen[0].eigen;
+const entlastungLetzte = 1 - letzte.zellen[2].eigen / letzte.zellen[0].eigen;
+
+// --- 2. Bonusheft und Tarif --------------------------------------------------
+const tarifreihe = stufen.map((s) => {
+  const basis = { gesamtkosten: KOSTEN, festzuschuss: s.fz, erstattungProzent: QUOTE };
+  const ohneTarif = berechneZahnersatz(basis);
+  const gesamt = berechneZahnersatz({ ...basis, bezug: 'gesamt' });
+  const eigen = berechneZahnersatz({ ...basis, bezug: 'eigenanteil' });
+  const gedeckelt = berechneZahnersatz({ ...basis, bezug: 'gesamt', hoechstbetrag: HOECHSTBETRAG });
+  const gedeckeltEigen = berechneZahnersatz({ ...basis, bezug: 'eigenanteil', hoechstbetrag: HOECHSTBETRAG });
+  return { ...s, ohneTarif, gesamt, eigen, gedeckelt, gedeckeltEigen };
+});
+const [tOhne, , t10, tHaerte] = tarifreihe;
+const q0 = QUOTE / 100;
+const restGesamt = tOhne.gesamt.eigenanteilMitTarif;
+if (tarifreihe.some((t) => Math.abs(t.gesamt.eigenanteilMitTarif - restGesamt) > 0.005)) {
+  throw new Error('Zahnersatz-Artikel: Tarif "inklusive Kassenleistung" lässt nicht in jeder Stufe denselben Rest.');
+}
+if (Math.abs(restGesamt - KOSTEN * (1 - QUOTE / 100)) > 0.005) {
+  throw new Error('Zahnersatz-Artikel: Rest entspricht nicht dem nicht versicherten Prozentsatz.');
+}
+const tarifSpart10 = tOhne.gesamt.erstattung - t10.gesamt.erstattung;
+if (Math.abs(tarifSpart10 - bonusPlus10) > 0.005) {
+  throw new Error('Zahnersatz-Artikel: Die Ersparnis des Tarifs entspricht nicht dem Bonus.');
+}
+const eigenVorteil10 = tOhne.eigen.eigenanteilMitTarif - t10.eigen.eigenanteilMitTarif;
+if (tarifreihe.some((t) => !t.gedeckelt.begrenzt || !t.gedeckeltEigen.begrenzt)) {
+  throw new Error('Zahnersatz-Artikel: Der Höchstbetrag greift nicht in jeder Zeile.');
+}
+if (Math.abs(eigenVorteil10 - bonusPlus10 * (1 - q0)) > 0.005) {
+  throw new Error('Zahnersatz-Artikel: Beim Tarif vom Eigenanteil kommt nicht der Restanteil des Bonus an.');
+}
+if (tarifreihe.some((t) => !(t.eigen.eigenanteilMitTarif < t.gesamt.eigenanteilMitTarif))) {
+  throw new Error('Zahnersatz-Artikel: Tarif vom Eigenanteil lässt nicht in jeder Stufe weniger übrig.');
+}
+const gedeckeltVorteil10 = tOhne.gedeckelt.eigenanteilMitTarif - t10.gedeckelt.eigenanteilMitTarif;
+if (Math.abs(gedeckeltVorteil10 - bonusPlus10) > 0.005) {
+  throw new Error('Zahnersatz-Artikel: Mit Höchstbetrag kommt der Bonus nicht voll beim Versicherten an.');
+}
+
+// --- 3. Ab welchen Kosten der Hoechstbetrag greift ---------------------------
+// Tarifleistung "inklusive": q·K − FZ > H  →  K > (H + FZ) / q
+// Tarifleistung "Eigenanteil": q·(K − FZ) > H  →  K > FZ + H / q
+const q = QUOTE / 100;
+const schwellen = stufen.map((s) => ({
+  ...s,
+  gesamt: (HOECHSTBETRAG + s.fz) / q,
+  eigen: s.fz + HOECHSTBETRAG / q,
+}));
+// Numerisch gegenpruefen: knapp unter der Schwelle nicht begrenzt, knapp darueber begrenzt.
+for (const s of schwellen) {
+  const probe = (k: number, bezug: string) =>
+    berechneZahnersatz({ gesamtkosten: k, festzuschuss: s.fz, erstattungProzent: QUOTE, bezug, hoechstbetrag: HOECHSTBETRAG }).begrenzt;
+  if (probe(s.gesamt - 1, 'gesamt') || !probe(s.gesamt + 1, 'gesamt') || probe(s.eigen - 1, 'eigenanteil') || !probe(s.eigen + 1, 'eigenanteil')) {
+    throw new Error('Zahnersatz-Artikel: Schwelle des Höchstbetrags stimmt nicht.');
+  }
+}
+const schwOhne = schwellen[0];
+
+// --- 4. Gleitende Haertefallregelung (§ 55 Abs. 3) ----------------------------
+// Kasse = Festzuschuss (60 %) + max(0, Festzuschuss − 3 · Differenz),
+// hoechstens 100 % der Regelversorgung und hoechstens die Kosten.
+// Gerechnet fuer eine Versorgung, die genau die festgesetzten Betraege kostet.
+const DIFFERENZEN = [50, 100, 200, 300];
+const gleitend = DIFFERENZEN.map((d) => {
+  const zumutbar = GLEITEND_FAKTOR * d;
+  const kasse = Math.min(REGELBETRAG, FZ_OHNE + Math.max(0, FZ_OHNE - zumutbar));
+  const r = berechneZahnersatz({ gesamtkosten: REGELBETRAG, festzuschuss: kasse });
+  return { d, zumutbar, kasse, eigen: r.eigenanteil };
+});
+const g100 = gleitend.find((z) => z.d === 100)!;
+const g200 = gleitend.find((z) => z.d === 200)!;
+const g300 = gleitend.find((z) => z.d === 300)!;
+if (g100.eigen !== 0 || !(g200.eigen > 0 && g200.eigen < g200.zumutbar) || g300.kasse !== FZ_OHNE) {
+  throw new Error('Zahnersatz-Artikel: Beispiel zur gleitenden Härtefallregelung stimmt nicht.');
+}
+// Der Eigenanteil liegt um 20 % der Regelversorgung unter dem "zumutbaren" Betrag.
+const abschlag = g200.zumutbar - g200.eigen;
+if (Math.abs(abschlag - (2 * FESTZUSCHUSS_ANTEIL.ohneBonus - 1) * REGELBETRAG) > 0.005) {
+  throw new Error('Zahnersatz-Artikel: Abschlag der gleitenden Regelung stimmt nicht.');
+}
+const nullBis = abschlag / GLEITEND_FAKTOR;
+
+// --- 5. Beitraege gegen Erstattung ------------------------------------------
+function ersterVerlustmonat(fz: number): number {
+  for (let m = 0; m <= 600; m += 1) {
+    const r = berechneZahnersatz({ gesamtkosten: KOSTEN, festzuschuss: fz, erstattungProzent: QUOTE, bezug: 'gesamt', beitragMonat: BEITRAG, monateBeitrag: m });
+    if (r.saldo < 0) return m;
+  }
+  throw new Error('Zahnersatz-Artikel: kein Verlustmonat gefunden.');
+}
+const verlustOhne = ersterVerlustmonat(FZ_OHNE);
+const verlust10 = ersterVerlustmonat(s10.fz);
+if (!(verlust10 < verlustOhne)) {
+  throw new Error('Zahnersatz-Artikel: Mit Bonus müsste der Tarif früher ins Minus kippen.');
+}
+
+const quellen = [
+  { titel: '§ 55 SGB V – Leistungsanspruch (Festzuschüsse, Bonus, Härtefälle)', url: 'https://www.gesetze-im-internet.de/sgb_5/__55.html' },
+  { titel: '§ 56 SGB V – Festsetzung der Regelversorgungen', url: 'https://www.gesetze-im-internet.de/sgb_5/__56.html' },
+  { titel: '§ 18 SGB IV – Bezugsgröße', url: 'https://www.gesetze-im-internet.de/sgb_4/__18.html' },
+  { titel: '§ 197 VVG – Wartezeiten', url: 'https://www.gesetze-im-internet.de/vvg_2008/__197.html' },
+];
+---
+<RechnerArtikel
+  titel="Das Bonusheft spart oft der Versicherer, nicht Sie"
+  datum="2026-09-17"
+  lead={`Zehn Jahre lückenloses Bonusheft erhöhen den Festzuschuss im Beispiel von ${eur(sOhne.fz)} auf ${eur(s10.fz)}. Wer aber eine Zusatzversicherung mit „${QUOTE} % inklusive Kassenleistung“ hat, zahlt danach genau so viel wie vorher: ${eur(restGesamt)}. Die ${eur(bonusPlus10)} Bonus spart der Versicherer. Dasselbe gilt sogar für den Härtefall – und erst ein Höchstbetrag im Tarif dreht das um.`}
+  quellen={quellen}
+>
+  <h3>Woraus der Festzuschuss besteht</h3>
+  <p>
+    Für die Befunde, für die es Festzuschüsse gibt, legt der Gemeinsame
+    Bundesausschuss eine Regelversorgung fest und macht nach § 56 Abs. 4 SGB V die darauf
+    entfallenden Beträge bekannt. Die Krankenkasse zahlt davon nach § 55 Abs. 1
+    Satz 2 SGB V {proz(FESTZUSCHUSS_ANTEIL.ohneBonus)}. Satz 3 erhöht das auf
+    {' '}{proz(FESTZUSCHUSS_ANTEIL.bonus5Jahre)}, wenn die Zähne regelmäßig gepflegt
+    und die Vorsorgeuntersuchungen der letzten fünf Jahre wahrgenommen wurden,
+    Satz 5 auf {proz(FESTZUSCHUSS_ANTEIL.bonus10Jahre)} nach zehn Kalenderjahren
+    ohne Unterbrechung. Nach Satz 7 kann die Kasse die
+    {' '}{proz(FESTZUSCHUSS_ANTEIL.bonus10Jahre)} in begründeten Ausnahmefällen auch
+    bei einer einmaligen Lücke gewähren.
+  </p>
+  <p>
+    Alle Stufen sind Anteile desselben Betrags. Steht im Heil- und Kostenplan ein
+    Festzuschuss von {eur(sOhne.fz)} ohne Bonus, beträgt die festgesetzte
+    Regelversorgung {eur(REGELBETRAG)}. Daraus folgen {eur(s5.fz)} mit fünf und
+    {' '}{eur(s10.fz)} mit zehn Jahren Bonusheft. Der Bonus ist also ein fester
+    Eurobetrag – hier {eur(bonusPlus5)} beziehungsweise {eur(bonusPlus10)} –,
+    und er hängt nur am Befund, nicht an der Rechnung.
+  </p>
+
+  <h3>Je aufwendiger die Versorgung, desto weniger zählt der Bonus</h3>
+  <p>
+    Wer eine Versorgung wählt, die über die Regelversorgung hinausgeht, erhält
+    denselben Festzuschuss; die Mehrkosten trägt er nach § 55 Abs. 4 SGB V
+    selbst. Bei einer andersartigen Versorgung erstattet die Kasse die
+    bewilligten Festzuschüsse nach Absatz 5. Die Tabelle legt denselben Befund
+    zugrunde und verändert nur die Gesamtkosten. Die erste Zeile unterstellt,
+    dass die Rechnung genau den festgesetzten Beträgen entspricht; das ist eine
+    Modellannahme, reale Rechnungen weichen davon ab.
+  </p>
+
+  <table>
+    <caption class="visually-hidden">
+      Eigenanteil ohne Zusatzversicherung nach Gesamtkosten und Bonusstufe,
+      bei {eur(REGELBETRAG)} festgesetzter Regelversorgung
+    </caption>
+    <thead>
+      <tr>
+        <th scope="col" class="num">Gesamtkosten</th>
+        {stufen.map((s) => <th scope="col" class="num">{s.name}</th>)}
+      </tr>
+    </thead>
+    <tbody>
+      {aufwandreihe.map((z) => (
+        <tr>
+          <th scope="row" class="num">{eur(z.kosten)}</th>
+          {z.zellen.map((c) => (
+            <td class="num">{eur(c.eigen)} ({proz(c.quote)})</td>
+          ))}
+        </tr>
+      ))}
+    </tbody>
+  </table>
+
+  <p>
+    In jeder Zeile liegt die Spalte mit zehn Jahren Bonusheft um dieselben
+    {' '}{eur(bonusPlus10)} unter der ersten. Bei der Regelversorgung ist das
+    viel: Der Eigenanteil sinkt von {eur(erste.zellen[0].eigen)} auf
+    {' '}{eur(erste.zellen[2].eigen)}, um {proz(entlastungErste)}. Bei
+    {' '}{eur(letzte.kosten)} Gesamtkosten sinkt er von
+    {' '}{eur(letzte.zellen[0].eigen)} auf {eur(letzte.zellen[2].eigen)}, nur noch
+    um {proz(entlastungLetzte)}. Wer ohnehin eine aufwendige Versorgung plant,
+    gewinnt durch das Bonusheft denselben Betrag, aber einen kleinen Teil
+    seiner Rechnung.
+  </p>
+  <p>
+    Die letzte Spalte gehört zum Härtefall, der weiter unten erklärt wird. Sie
+    zeigt schon hier, dass auch 100 Prozent Kassenleistung bei einer
+    aufwendigen Versorgung einen großen Eigenanteil lassen: Bezogen wird der
+    Zuschuss immer auf die Regelversorgung.
+  </p>
+
+  <h3>Was der Bonus neben einer Zusatzversicherung bewirkt</h3>
+  <p>
+    Der Rechner unterscheidet zwei Formulierungen, mit denen Tarife ihre
+    Leistung beschreiben. Die eine füllt die Kassenleistung auf einen Prozentsatz der Gesamtkosten auf
+    („{QUOTE} % inklusive Kassenleistung"), die andere erstattet einen
+    Prozentsatz dessen, was nach dem Festzuschuss übrig bleibt. Die Tabelle
+    rechnet beide mit {eur(KOSTEN)} Gesamtkosten und {QUOTE} Prozent, zunächst
+    ohne Höchstbetrag.
+  </p>
+
+  <table>
+    <caption class="visually-hidden">
+      Tarifleistung und verbleibender Eigenanteil bei {eur(KOSTEN)} Gesamtkosten
+      nach Bonusstufe und Tarifart
+    </caption>
+    <thead>
+      <tr>
+        <th scope="col">Stufe</th>
+        <th scope="col" class="num">Festzuschuss</th>
+        <th scope="col" class="num">Tarif „inklusive“ zahlt</th>
+        <th scope="col" class="num">Rest</th>
+        <th scope="col" class="num">Tarif „vom Eigenanteil“ zahlt</th>
+        <th scope="col" class="num">Rest</th>
+      </tr>
+    </thead>
+    <tbody>
+      {tarifreihe.map((t) => (
+        <tr>
+          <th scope="row">{t.name}</th>
+          <td class="num">{eur(t.fz)}</td>
+          <td class="num">{eur(t.gesamt.erstattung)}</td>
+          <td class="num">{eur(t.gesamt.eigenanteilMitTarif)}</td>
+          <td class="num">{eur(t.eigen.erstattung)}</td>
+          <td class="num">{eur(t.eigen.eigenanteilMitTarif)}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+
+  <p>
+    In der vierten Spalte steht viermal derselbe Betrag: {eur(restGesamt)}. Ein
+    Tarif, der auf {QUOTE} Prozent der Gesamtkosten auffüllt, lässt immer die
+    übrigen {100 - QUOTE} Prozent beim Versicherten – egal, wie viel die Kasse
+    vorher gezahlt hat. Jeder Euro mehr Festzuschuss ist ein Euro weniger
+    Tarifleistung. Mit zehn Jahren Bonusheft zahlt der Tarif
+    {' '}{eur(t10.gesamt.erstattung)} statt {eur(tOhne.gesamt.erstattung)}; die
+    Differenz von {eur(tarifSpart10)} ist genau der Bonus. Selbst der Härtefall
+    ändert daran nichts: Die Kasse zahlt {eur(tHaerte.fz)}, der Tarif nur noch
+    {' '}{eur(tHaerte.gesamt.erstattung)}, und es bleiben wieder
+    {' '}{eur(tHaerte.gesamt.eigenanteilMitTarif)}.
+  </p>
+  <p>
+    Beim Tarif, der vom Eigenanteil rechnet, kommt ein Teil des Bonus an: Der
+    Rest sinkt von {eur(tOhne.eigen.eigenanteilMitTarif)} auf
+    {' '}{eur(t10.eigen.eigenanteilMitTarif)}, also um
+    {' '}{eur(eigenVorteil10)}. Das sind {100 - QUOTE} Prozent des Bonus; die
+    übrigen {QUOTE} Prozent spart auch hier der Versicherer. Dafür ist der Rest
+    bei diesem Tarif in jeder Stufe kleiner als beim Tarif „inklusive“.
+  </p>
+  <p>
+    Das heißt nicht, dass sich das Bonusheft nicht lohnt. Es heißt, dass sein
+    Wert davon abhängt, wer die Differenz sonst trägt – und davon, ob die
+    Zusatzversicherung im Behandlungsjahr überhaupt voll leistet.
+  </p>
+
+  <h3>Mit Höchstbetrag kehrt sich das um</h3>
+  <p>
+    Ein Tarif kann seine Leistung je Behandlungsjahr auf einen festen Betrag
+    begrenzen, auch gestaffelt nach Vertragsjahren. Ob und in welcher Höhe,
+    steht nur im eigenen Tarif; der Artikel rechnet mit {eur(HOECHSTBETRAG)} im
+    Behandlungsjahr als Beispiel. Greift diese Grenze, zahlt der Tarif in allen
+    Stufen und bei beiden Tarifarten {eur(tOhne.gedeckelt.erstattung)}.
+  </p>
+
+  <table>
+    <caption class="visually-hidden">
+      Verbleibender Eigenanteil bei {eur(KOSTEN)} Gesamtkosten und
+      {eur(HOECHSTBETRAG)} Höchstbetrag nach Bonusstufe
+    </caption>
+    <thead>
+      <tr>
+        <th scope="col">Stufe</th>
+        <th scope="col" class="num">Tarif zahlt</th>
+        <th scope="col" class="num">Rest</th>
+        <th scope="col" class="num">Höchstbetrag greift ab („inklusive“)</th>
+        <th scope="col" class="num">Höchstbetrag greift ab („vom Eigenanteil“)</th>
+      </tr>
+    </thead>
+    <tbody>
+      {tarifreihe.map((t, i) => (
+        <tr>
+          <th scope="row">{t.name}</th>
+          <td class="num">{eur(t.gedeckelt.erstattung)}</td>
+          <td class="num">{eur(t.gedeckelt.eigenanteilMitTarif)}</td>
+          <td class="num">{eurRund(schwellen[i].gesamt)}</td>
+          <td class="num">{eurRund(schwellen[i].eigen)}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+
+  <p>
+    Jetzt kommt der Bonus voll beim Versicherten an: Der Rest sinkt von
+    {' '}{eur(tOhne.gedeckelt.eigenanteilMitTarif)} auf
+    {' '}{eur(t10.gedeckelt.eigenanteilMitTarif)}, um die ganzen
+    {' '}{eur(gedeckeltVorteil10)}. Die beiden rechten Spalten zeigen, ab welchen
+    Gesamtkosten der Höchstbetrag die Rechnung bestimmt (auf volle Euro
+    gerundet). Ohne Bonus und beim Tarif „inklusive“ ist das ab rund
+    {' '}{eurRund(schwOhne.gesamt)} der Fall. Von dort an geht jeder weitere Euro
+    der Rechnung vollständig zulasten des Versicherten, und der Prozentsatz im
+    Tarif spielt keine Rolle mehr.
+  </p>
+  <p>
+    Der Höchstbetrag ist damit die wichtigste Zahl, wenn eine Behandlung in den
+    ersten Vertragsjahren ansteht. Hinzu kommen Wartezeiten: § 197 Abs. 1 VVG
+    lässt für Zahnersatz eine besondere Wartezeit von höchstens acht Monaten zu,
+    sofern der Vertrag überhaupt eine vorsieht. Was darüber hinaus
+    ausgeschlossen ist, regelt der einzelne Tarif, nicht das Gesetz.
+  </p>
+
+  <h3>Der Härtefall: 100 Prozent, aber von der Regelversorgung</h3>
+  <p>
+    Nach § 55 Abs. 2 Satz 1 SGB V erhalten Versicherte, die sonst unzumutbar
+    belastet würden, zusätzlich zu den {proz(FESTZUSCHUSS_ANTEIL.ohneBonus)} einen
+    Betrag von {proz(HAERTEFALL_ZUSATZ)} der festgesetzten Beträge, zusammen also
+    {' '}{proz(HAERTEFALL_ANTEIL)}. Ein Bonus kommt nicht hinzu, weil das Gesetz
+    auf den Festzuschuss ohne Bonus aufsetzt. Unzumutbar ist die Belastung nach
+    Satz 2 unter anderem, wenn die monatlichen Bruttoeinnahmen zum
+    Lebensunterhalt 40 Prozent der monatlichen Bezugsgröße nach § 18 SGB IV
+    nicht überschreiten oder Leistungen zum Lebensunterhalt nach dem SGB II,
+    Hilfe zum Lebensunterhalt nach dem SGB XII oder Ausbildungsförderung
+    bezogen werden.
+    Für Angehörige im Haushalt erhöht sich die Grenze nach Satz 6.
+  </p>
+  <p>
+    Bei der Regelversorgung wird der Betrag an die tatsächlichen Kosten
+    angepasst; der Eigenanteil ist dann null. Wählt der Versicherte eine
+    aufwendigere Versorgung, zahlt die Kasse nach dem zweiten Halbsatz nur den
+    festen Betrag von {eur(tHaerte.fz)}. Das zeigt die letzte Spalte der ersten
+    Tabelle: Bei {eur(letzte.kosten)} bleiben trotz Härtefall
+    {' '}{eur(letzte.zellen[3].eigen)}.
+  </p>
+
+  <h4>Knapp über der Grenze</h4>
+  <p>
+    Wer die Einnahmegrenze nur wenig überschreitet, fällt nicht sofort auf den
+    normalen Festzuschuss zurück. § 55 Abs. 3 SGB V gibt einen weiteren Betrag:
+    den Teil des Festzuschusses ohne Bonus, der das
+    Dreifache der
+    Differenz zwischen Einnahmen und Grenze übersteigt. Insgesamt zahlt die
+    Kasse höchstens so viel wie im Härtefall. Die Tabelle rechnet das für
+    Versicherte ohne Bonus und eine Versorgung, die genau die festgesetzten
+    {' '}{eur(REGELBETRAG)} kostet.
+  </p>
+
+  <table>
+    <caption class="visually-hidden">
+      Gleitende Härtefallregelung: Kassenleistung und Eigenanteil nach
+      Überschreitung der Einnahmegrenze
+    </caption>
+    <thead>
+      <tr>
+        <th scope="col" class="num">Einnahmen über der Grenze (Monat)</th>
+        <th scope="col" class="num">{GLEITEND_FAKTOR}-fache Differenz</th>
+        <th scope="col" class="num">Kasse zahlt</th>
+        <th scope="col" class="num">Eigenanteil</th>
+      </tr>
+    </thead>
+    <tbody>
+      {gleitend.map((z) => (
+        <tr>
+          <th scope="row" class="num">{eur(z.d)}</th>
+          <td class="num">{eur(z.zumutbar)}</td>
+          <td class="num">{eur(z.kasse)}</td>
+          <td class="num">{eur(z.eigen)}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+
+  <p>
+    Das Ergebnis ist milder, als die Formel klingt. Der Eigenanteil ist nicht
+    das Dreifache der Differenz, sondern liegt um {eur(abschlag)} darunter – im
+    Beispiel bis zu einer Differenz von {eur(nullBis)} im Monat bleibt er bei
+    null. Der Grund: Die Kasse zieht das Dreifache vom Festzuschuss ab und legt
+    den Rest noch einmal obendrauf, zahlt also zweimal
+    {' '}{proz(FESTZUSCHUSS_ANTEIL.ohneBonus)} abzüglich der Belastung. Weil zweimal
+    {' '}{proz(FESTZUSCHUSS_ANTEIL.ohneBonus)} mehr ist als die ganze
+    Regelversorgung, bleibt ein Überhang von {eur(abschlag)}, der zuerst
+    aufgezehrt wird. Ab {eur(g300.d)} Differenz bleibt es beim normalen
+    Festzuschuss von {eur(g300.kasse)}.
+  </p>
+
+  <h3>Wann die Beiträge die Erstattung übersteigen</h3>
+  <p>
+    Ob sich eine Zusatzversicherung lohnt, lässt sich nur für einen konkreten
+    Fall rechnen. Mit einem angenommenen Beitrag von {eur(BEITRAG)} im Monat –
+    einer Setzung dieses Beispiels, keinem Marktpreis – und dem Tarif
+    „inklusive“ ohne Höchstbetrag übersteigen die gezahlten Beiträge die
+    Erstattung von {eur(tOhne.gesamt.erstattung)} ab dem {verlustOhne}. Monat.
+    Mit zehn Jahren Bonusheft ist die Erstattung um {eur(tarifSpart10)} kleiner,
+    und der Punkt rückt auf den {verlust10}. Monat vor. Wer sein Bonusheft
+    lückenlos führt, braucht die Versicherung für denselben Befund also
+    weniger.
+  </p>
+
+  <h3>Was diese Rechnung nicht abbildet</h3>
+  <p>
+    Der Artikel rechnet mit einem einzigen Befund und festen Beträgen. Reale
+    Heil- und Kostenpläne enthalten oft mehrere Befunde, und die Kosten einer
+    Regelversorgung weichen je nach Praxis und Labor von den festgesetzten
+    Beträgen ab. Wie die gleitende
+    Härtefallregelung mit einem Bonusheft zusammenwirkt, legt die Tabelle oben
+    nicht fest; sie rechnet ohne Bonus. Tarifbedingungen – Staffeln,
+    Ausschlüsse, laufende Behandlungen – unterscheiden sich stark und sind vor
+    jeder Rechnung im eigenen Vertrag nachzulesen. Der Heil- und Kostenplan
+    liefert die beiden Zahlen, die der Rechner oben auf dieser Seite braucht.
+  </p>
+</RechnerArtikel>

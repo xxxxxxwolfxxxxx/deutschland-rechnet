@@ -1,6 +1,7 @@
 ---
 import Layout from '../../layouts/Layout.astro';
 import CalculatorShell from '../../components/CalculatorShell.astro';
+import ArtikelNullProzent from '../../components/artikel/null-prozent-finanzierung-barzahlerrabatt.astro';
 import CalculatorGuide from '../../components/CalculatorGuide.astro';
 import { CALCULATORS, CATEGORIES } from '../../data/calculators';
 const calc = CALCULATORS.find(c => c.slug === 'autofinanzierung-rechner')!;
@@ -71,6 +72,7 @@ const year = new Date().getFullYear();
 
       <div id="details" style="margin-top:0.75rem;font-size:0.88rem;color:#666;"></div>
     </div>
+    <ArtikelNullProzent slot="artikel" />
   </CalculatorShell>
 
   <CalculatorGuide

@@ -1,6 +1,7 @@
 ---
 import Layout from '../../layouts/Layout.astro';
 import CalculatorShell from '../../components/CalculatorShell.astro';
+import ArtikelDienstreise from '../../components/artikel/dienstreise-kilometerpauschale-gegen-arbeitsweg.astro';
 import CalculatorGuide from '../../components/CalculatorGuide.astro';
 import { CALCULATORS, CATEGORIES } from '../../data/calculators';
 import { berechneAnfahrtskosten, PAUSCHALE_PRO_KM } from '../../../public/scripts/anfahrtskosten.js';
@@ -77,6 +78,7 @@ const faqs = [
       </div>
       <div id="details" style="margin-top:0.75rem;font-size:0.88rem;color:#666;display:flex;gap:1.5rem;flex-wrap:wrap;"></div>
     </div>
+    <ArtikelDienstreise slot="artikel" />
   </CalculatorShell>
 
   <CalculatorGuide
