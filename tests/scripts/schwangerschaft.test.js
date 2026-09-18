@@ -5,6 +5,7 @@ import {
   SCHUTZFRIST_VOR_GEBURT_TAGE,
   SCHUTZFRIST_NACH_GEBURT_TAGE,
   MUTTERSCHAFTSGELD_HOECHSTBETRAG_TAG,
+  ZAHLTAGE,
 } from '../../public/scripts/schwangerschaft.js';
 
 // Rechtsgrundlagen: § 3 MuSchG (Schutzfristen), § 20 MuSchG (Zuschuss des
@@ -114,14 +115,16 @@ describe('Mutterschaftsgeld der Krankenkasse (§ 24i SGB V)', () => {
 
 describe('Arbeitgeberzuschuss (§ 20 MuSchG)', () => {
   it('gleicht die Differenz zwischen 13 € und dem Nettoentgelt je Kalendertag aus', () => {
-    // 2400 € Netto sind 80 € je Kalendertag, der Zuschuss also 67 € × 98 Tage.
+    // 2400 € Netto sind 80 € je Kalendertag, der Zuschuss also 67 € × 99 Tage:
+    // die 14 Wochen Schutzfrist plus den Entbindungstag (§ 24i Abs. 3 Satz 1
+    // SGB V, § 20 Abs. 1 Satz 1 MuSchG).
     const r = berechneSchwangerschaft({
       letztePeriode: LETZTE_PERIODE,
       netto: 2400,
       arbeitgeberZuschuss: true,
     });
 
-    expect(r.arbeitgeberzuschuss).toBe(67 * 98);
+    expect(r.arbeitgeberzuschuss).toBe(67 * 99);
   });
 
   it('deckt zusammen mit dem Mutterschaftsgeld das volle Nettoentgelt der Schutzfrist', () => {
@@ -132,7 +135,7 @@ describe('Arbeitgeberzuschuss (§ 20 MuSchG)', () => {
       arbeitgeberZuschuss: true,
     });
 
-    expect(r.gesamt).toBeCloseTo((netto / 30) * 98, 2);
+    expect(r.gesamt).toBeCloseTo((netto / 30) * 99, 2);
   });
 
   it('entfällt ohne Zuschussvereinbarung', () => {
@@ -143,7 +146,7 @@ describe('Arbeitgeberzuschuss (§ 20 MuSchG)', () => {
     });
 
     expect(r.arbeitgeberzuschuss).toBe(0);
-    expect(r.gesamt).toBe(13 * 98);
+    expect(r.gesamt).toBe(13 * 99);
   });
 
   it('bleibt bei einem Nettoentgelt unter 13 € je Tag bei null', () => {
@@ -154,6 +157,15 @@ describe('Arbeitgeberzuschuss (§ 20 MuSchG)', () => {
     });
 
     expect(r.arbeitgeberzuschuss).toBe(0);
-    expect(r.gesamt).toBe(10 * 98);
+    expect(r.gesamt).toBe(10 * 99);
+  });
+});
+
+describe('berechneSchwangerschaft – der Entbindungstag zählt mit', () => {
+  it('zahlt für 99 Kalendertage, nicht für 98', () => {
+    const r = berechneSchwangerschaft({ letztePeriode: '2026-01-05', netto: 2400 });
+    expect(ZAHLTAGE).toBe(99);
+    expect(r.zahltage).toBe(99);
+    expect(r.mutterschaftsgeldGesamt).toBe(13 * 99);
   });
 });

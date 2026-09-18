@@ -1,0 +1,445 @@
+---
+import RechnerArtikel from '../RechnerArtikel.astro';
+import {
+  berechneSchwangerschaft,
+  TRAGZEIT_TAGE,
+  SCHUTZFRIST_VOR_GEBURT_TAGE,
+  SCHUTZFRIST_NACH_GEBURT_TAGE,
+  MUTTERSCHAFTSGELD_HOECHSTBETRAG_TAG,
+  TAGE_JE_MONAT,
+} from '../../../public/scripts/schwangerschaft.js';
+import {
+  berechneMutterschutz,
+  SCHUTZFRIST_NACH_VERLAENGERT_TAGE,
+} from '../../../public/scripts/mutterschutz.js';
+
+// Alle Zahlen zur Buildzeit aus denselben Modulen, die auch die Rechner laden.
+const eur = (n: number, d = 2) =>
+  n.toLocaleString('de-DE', { minimumFractionDigits: d, maximumFractionDigits: d }).replace('-', '−') + ' €';
+const eurGlatt = (n: number) =>
+  n.toLocaleString('de-DE', { maximumFractionDigits: 0 }).replace('-', '−') + ' €';
+const proz = (n: number, d = 1) =>
+  n.toLocaleString('de-DE', { minimumFractionDigits: d, maximumFractionDigits: d }).replace('-', '−') + ' %';
+const zahl = (n: number, d = 0) =>
+  n.toLocaleString('de-DE', { minimumFractionDigits: d, maximumFractionDigits: d }).replace('-', '−');
+/** Die Module rechnen in UTC-Mitternacht; ohne timeZone verschiebt die Ausgabe. */
+const tag = (d: Date | string) =>
+  (typeof d === 'string' ? new Date(`${d}T00:00:00Z`) : d)
+    .toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'UTC' });
+
+// --- Fester Stichtag ------------------------------------------------------
+// Das Modul liest fuer die Schwangerschaftswoche die Systemzeit. Dieser Artikel
+// verwendet deshalb nur die datumsunabhaengigen Rueckgaben und einen festen
+// ersten Periodentag als durchgehendes Beispiel. Er ist Setzung, nicht Ergebnis.
+const LETZTE_PERIODE = '2026-01-05';
+const NETTO_BEISPIEL = 2200;
+
+const basis = berechneSchwangerschaft({
+  letztePeriode: LETZTE_PERIODE,
+  netto: NETTO_BEISPIEL,
+  arbeitgeberZuschuss: true,
+});
+const termin = basis.geburtstermin;
+const terminISO = termin.toISOString().split('T')[0];
+
+const wochenTragzeit = TRAGZEIT_TAGE / 7;
+const wochenVor = SCHUTZFRIST_VOR_GEBURT_TAGE / 7;
+const wochenNach = SCHUTZFRIST_NACH_GEBURT_TAGE / 7;
+const wochenNachLang = SCHUTZFRIST_NACH_VERLAENGERT_TAGE / 7;
+/** § 24i Abs. 3 Satz 1 SGB V: beide Schutzfristen und zusaetzlich der Entbindungstag. */
+const zahltage = SCHUTZFRIST_VOR_GEBURT_TAGE + SCHUTZFRIST_NACH_GEBURT_TAGE + 1;
+
+// --- 1. Die Zykluslaenge verschiebt den Termin ----------------------------
+// Modellannahme der erweiterten Naegele-Regel: Von den 280 Tagen entfaellt die
+// erste Haelfte des Zyklus auf die Zeit bis zum Eisprung. Weicht der Zyklus von
+// 28 Tagen ab, verschiebt sich der Eisprung – und mit ihm der Termin – um
+// dieselbe Differenz. Die 280 Tage selbst bleiben unangetastet.
+const ZYKLUS_STANDARD = 28;
+const ZYKLEN = [24, 26, 28, 30, 32, 35];
+const TAG_MS = 24 * 60 * 60 * 1000;
+const zyklusreihe = ZYKLEN.map((zyklus) => {
+  const korrektur = zyklus - ZYKLUS_STANDARD;
+  const t = new Date(termin.getTime() + korrektur * TAG_MS);
+  const m = berechneMutterschutz({ geburtstermin: t.toISOString().split('T')[0] });
+  return { zyklus, korrektur, termin: t, beginn: m.beginn };
+});
+const zyklusKurz = zyklusreihe[0];
+const zyklusLang = zyklusreihe[zyklusreihe.length - 1];
+const zyklusStandard = zyklusreihe.find((z) => z.zyklus === ZYKLUS_STANDARD);
+if (!zyklusStandard) {
+  throw new Error('Die Zyklustabelle enthaelt den Standardzyklus nicht als Vergleichszeile.');
+}
+if (zyklusLang.korrektur <= 0) {
+  throw new Error('Die laengste Zykluszeile verschiebt den Termin nicht nach hinten.');
+}
+const zyklusSpanne = zyklusLang.korrektur - zyklusKurz.korrektur;
+
+// --- 2. Die Asymmetrie der Schutzfrist ------------------------------------
+// § 3 Abs. 1 Satz 3 MuSchG haengt den Beginn an den voraussichtlichen Tag,
+// § 3 Abs. 2 Satz 1 das Ende an die tatsaechliche Entbindung, und Satz 3 gibt
+// die vorne verlorenen Tage hinten zurueck. Nur nach hinten ist die Frist offen.
+const ABWEICHUNGEN = [-21, -14, -7, 0, 7, 14, 21];
+const asymmetrie = ABWEICHUNGEN.map((abweichung) => {
+  const entbindung = new Date(termin.getTime() + abweichung * TAG_MS);
+  const m = berechneMutterschutz({
+    geburtstermin: terminISO,
+    entbindung: entbindung.toISOString().split('T')[0],
+  });
+  return { abweichung, entbindung, ...m };
+});
+const regelfall = asymmetrie.find((a) => a.abweichung === 0)!;
+const regelSpanne = regelfall.tageGesamt;
+const zuFrueh = asymmetrie.filter((a) => a.abweichung < 0);
+const zuSpaet = asymmetrie.filter((a) => a.abweichung > 0);
+
+if (zuFrueh.some((a) => a.tageGesamt !== regelSpanne)) {
+  throw new Error('Artikelthese widerlegt: vorzeitige Entbindung veraendert die Gesamtdauer.');
+}
+if (zuSpaet.some((a) => a.tageGesamt !== regelSpanne + a.abweichung)) {
+  throw new Error('Artikelthese widerlegt: verspaetete Entbindung verlaengert nicht Tag um Tag.');
+}
+if (asymmetrie.some((a) => a.beginn !== regelfall.beginn)) {
+  throw new Error('Artikelthese widerlegt: der Fristbeginn haengt nicht allein am Termin.');
+}
+
+// --- 3. Der Deckel von 13 Euro --------------------------------------------
+// Der Hoechstbetrag je Kalendertag entspricht einem Monatsnetto von
+// 13 x 30 Euro. Darueber traegt jeden weiteren Cent der Arbeitgeber.
+const DECKEL_SCHWELLE_MONAT = MUTTERSCHAFTSGELD_HOECHSTBETRAG_TAG * TAGE_JE_MONAT;
+const NETTOSTUFEN = [1200, 1800, NETTO_BEISPIEL, 3000, 4500];
+const geldreihe = NETTOSTUFEN.map((netto) => {
+  const r = berechneSchwangerschaft({ letztePeriode: LETZTE_PERIODE, netto, arbeitgeberZuschuss: true });
+  const nettoTag = netto / TAGE_JE_MONAT;
+  const arbeitgeberTag = Math.max(0, nettoTag - r.mutterschaftsgeldTag);
+  return {
+    netto,
+    nettoTag,
+    kasseTag: r.mutterschaftsgeldTag,
+    arbeitgeberTag,
+    anteilKasse: (r.mutterschaftsgeldTag / nettoTag) * 100,
+  };
+});
+if (NETTOSTUFEN.some((n) => n <= DECKEL_SCHWELLE_MONAT)) {
+  throw new Error('Eine Nettostufe liegt unter der Deckelschwelle – die Tabellenaussage stimmt dann nicht.');
+}
+if (new Set(geldreihe.map((g) => g.kasseTag)).size !== 1) {
+  throw new Error('Artikelthese widerlegt: der Kassenanteil je Tag ist nicht konstant.');
+}
+const beispiel = geldreihe.find((g) => g.netto === NETTO_BEISPIEL)!;
+if (beispiel.anteilKasse >= 20) {
+  throw new Error('Artikelthese widerlegt: der Kassenanteil liegt nicht unter einem Fuenftel.');
+}
+// Probe: Summe der gerundeten Anzeigewerte muss den gerundeten Tagessatz treffen.
+const rund = (n: number) => Math.round(n * 100) / 100;
+if (rund(beispiel.kasseTag) + rund(beispiel.arbeitgeberTag) !== rund(beispiel.nettoTag)) {
+  throw new Error('Gerundete Tageswerte addieren sich nicht zum gerundeten Nettotag.');
+}
+
+const kasseVor = basis.mutterschaftsgeldVorGeburt;
+const kasseNach = basis.mutterschaftsgeldNachGeburt;
+
+// Was kosten die Tage, die eine verspaetete Entbindung hinzufuegt?
+const VERSPAETUNG_BEISPIEL = 7;
+const tagVoll = rund(beispiel.kasseTag) + rund(beispiel.arbeitgeberTag);
+const verspaetungWert = tagVoll * VERSPAETUNG_BEISPIEL;
+const spaetFall = asymmetrie.find((a) => a.abweichung === VERSPAETUNG_BEISPIEL)!;
+/** Was in der Frist vor der Entbindung insgesamt auf dem Spiel steht. */
+const vorfristWert = tagVoll * SCHUTZFRIST_VOR_GEBURT_TAGE;
+
+const quellen = [
+  { titel: '§ 3 MuSchG – Schutzfristen vor und nach der Entbindung', url: 'https://www.gesetze-im-internet.de/muschg_2018/__3.html' },
+  { titel: '§ 20 MuSchG – Zuschuss zum Mutterschaftsgeld', url: 'https://www.gesetze-im-internet.de/muschg_2018/__20.html' },
+  { titel: '§ 21 MuSchG – Ermittlung des durchschnittlichen Arbeitsentgelts', url: 'https://www.gesetze-im-internet.de/muschg_2018/__21.html' },
+  { titel: '§ 24i SGB V – Mutterschaftsgeld', url: 'https://www.gesetze-im-internet.de/sgb_5/__24i.html' },
+];
+---
+<RechnerArtikel
+  titel="Eine späte Geburt verlängert den Mutterschutz"
+  datum="2026-09-18"
+  lead={`Der errechnete Termin ist ein einzelner Kalendertag, und das Gesetz rechnet fest damit, dass er nicht eintrifft. Wer ${zahl(VERSPAETUNG_BEISPIEL)} Tage zu früh entbindet, hat am Ende dieselbe Schutzfrist wie bei einer Geburt am Termin – wer ${zahl(VERSPAETUNG_BEISPIEL)} Tage zu spät entbindet, hat ${zahl(VERSPAETUNG_BEISPIEL)} Tage mehr. Die Frist ist nach hinten offen und nach vorn nicht. Bei ${eurGlatt(NETTO_BEISPIEL)} Nettoentgelt sind das ${eur(verspaetungWert)} zusätzlich, von denen die Krankenkasse ${eur(beispiel.kasseTag * VERSPAETUNG_BEISPIEL)} trägt.`}
+  quellen={quellen}
+>
+  <h3>Der Termin ist eine Rechengröße, keine Prognose</h3>
+  <p>
+    Die Naegele-Regel addiert {zahl(TRAGZEIT_TAGE)} Tage – {zahl(wochenTragzeit)} Wochen –
+    auf den ersten Tag der letzten Regelblutung. Sie zählt damit ab einem Ereignis,
+    das rund zwei Wochen vor der Befruchtung liegt. Das ist keine Nachlässigkeit,
+    sondern Absicht: Der erste Periodentag ist der letzte Tag, den man verlässlich
+    erinnert, der Eisprung nicht.
+  </p>
+  <p>
+    Rechtlich bindend ist dieses Datum allerdings nicht. § 3 Abs. 1 Satz 3 MuSchG
+    verlangt für die Berechnung der Schutzfrist den voraussichtlichen Tag der
+    Entbindung, „wie er sich aus dem ärztlichen Zeugnis oder dem Zeugnis einer
+    Hebamme oder eines Entbindungspflegers ergibt". Maßgeblich ist also das
+    Zeugnis, nicht die Formel – und das Zeugnis weicht regelmäßig ab, weil es
+    Ultraschallmaße einbezieht. Eine Rechnung wie die hier vorgeführte ersetzt
+    keine ärztliche Terminbestimmung und keine medizinische Beratung; sie zeigt
+    nur, was an dem Datum hängt.
+  </p>
+  <p>
+    Dass der Termin nicht trifft, ist im Gesetz bereits eingebaut. § 3 Abs. 1
+    Satz 4 MuSchG regelt ausdrücklich den Fall, dass „eine Frau nicht am
+    voraussichtlichen Tag" entbindet. Ein Gesetzgeber, der eine Punktprognose für
+    zuverlässig hielte, bräuchte diesen Satz nicht.
+  </p>
+
+  <h3>Die Zykluslänge verschiebt die Schutzfrist mit</h3>
+  <p>
+    Die {zahl(TRAGZEIT_TAGE)} Tage unterstellen einen Zyklus von
+    {' '}{zahl(ZYKLUS_STANDARD)} Tagen mit Eisprung in der Mitte. Bei einem längeren
+    Zyklus liegt der Eisprung entsprechend später, bei einem kürzeren früher – die
+    Zeit von der Befruchtung bis zur Geburt bleibt im Modell gleich. Die erweiterte
+    Naegele-Regel verschiebt den Termin deshalb um die Differenz zu
+    {' '}{zahl(ZYKLUS_STANDARD)} Tagen. Das ist eine Modellannahme, keine Messung: Sie
+    unterstellt, dass die Zykluslänge sich vollständig in der ersten Zyklushälfte
+    niederschlägt.
+  </p>
+  <p>
+    Interessant ist, was diese Korrektur anrichtet. Der Beginn der Schutzfrist
+    liegt nach § 3 Abs. 1 Satz 1 und 3 MuSchG {zahl(wochenVor)} Wochen vor dem
+    voraussichtlichen Tag. Er wandert also mit:
+  </p>
+
+  <table>
+    <caption class="visually-hidden">
+      Voraussichtlicher Entbindungstag und Beginn der Schutzfrist nach Zykluslänge,
+      erster Periodentag {tag(LETZTE_PERIODE)}
+    </caption>
+    <thead>
+      <tr>
+        <th scope="col" class="num">Zykluslänge</th>
+        <th scope="col" class="num">Korrektur</th>
+        <th scope="col" class="num">Termin</th>
+        <th scope="col" class="num">Schutzfrist beginnt</th>
+      </tr>
+    </thead>
+    <tbody>
+      {zyklusreihe.map((z) => (
+        <tr>
+          <th scope="row" class="num">{zahl(z.zyklus)} Tage</th>
+          <td class="num">{z.korrektur === 0 ? '—' : `${z.korrektur > 0 ? '+' : '−'}${zahl(Math.abs(z.korrektur))} Tage`}</td>
+          <td class="num">{tag(z.termin)}</td>
+          <td class="num">{tag(z.beginn)}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+
+  <p>
+    Zwischen der kürzesten und der längsten Zeile liegen {zahl(zyklusSpanne)} Tage.
+    Bei einem {zahl(zyklusLang.zyklus)}-Tage-Zyklus beginnt die Schutzfrist am
+    {' '}{tag(zyklusLang.beginn)}; die unkorrigierte Rechnung setzt sie auf den
+    {' '}{tag(zyklusStandard.beginn)} und damit {zahl(zyklusLang.korrektur)} Tage zu
+    früh. Für die Übergabe im Betrieb, den Urlaubsplan und den Antrag bei der
+    Krankenkasse verschiebt sich damit alles um dieselbe Zahl von Tagen.
+  </p>
+
+  <h3>Zu früh kostet nichts, zu spät bringt Tage</h3>
+  <p>
+    Drei Sätze des § 3 MuSchG greifen ineinander, und erst zusammen ergeben sie
+    eine Regel, die man nicht erwartet. Absatz 1 Satz 1 setzt
+    {zahl(wochenVor)} Wochen an, Satz 3 hängt sie an den voraussichtlichen Tag der
+    Entbindung. Absatz 2 Satz 1 hängt das Ende dagegen an die tatsächliche
+    Entbindung: {zahl(wochenNach)} Wochen danach.
+    Absatz 2 Satz 3 schließlich ordnet an, dass sich die Frist nach der Entbindung
+    „bei vorzeitiger Entbindung … um den Zeitraum der Verkürzung der Schutzfrist
+    vor der Entbindung" verlängert.
+  </p>
+  <p>
+    Der Beginn steht damit fest, sobald das Zeugnis vorliegt – er ändert sich
+    nicht mehr, egal wann das Kind kommt. In der folgenden Tabelle ist das die
+    Spalte „Frist beginnt": Sie steht still, während alles andere wandert.
+  </p>
+
+  <table>
+    <caption class="visually-hidden">
+      Beginn, letzter Tag und Gesamtdauer der Schutzfrist nach Abweichung vom
+      voraussichtlichen Entbindungstag {tag(termin)}
+    </caption>
+    <thead>
+      <tr>
+        <th scope="col" class="num">Abweichung</th>
+        <th scope="col" class="num">Entbindung</th>
+        <th scope="col" class="num">Frist beginnt</th>
+        <th scope="col" class="num">letzter Tag</th>
+        <th scope="col" class="num">zusätzliche Tage</th>
+      </tr>
+    </thead>
+    <tbody>
+      {asymmetrie.map((a) => (
+        <tr>
+          <th scope="row" class="num">
+            {a.abweichung === 0 ? 'am Termin' : `${a.abweichung > 0 ? '+' : '−'}${zahl(Math.abs(a.abweichung))} Tage`}
+          </th>
+          <td class="num">{tag(a.entbindung)}</td>
+          <td class="num">{tag(a.beginn)}</td>
+          <td class="num">{tag(a.ende)}</td>
+          <td class="num">{a.tageGesamt - regelSpanne === 0 ? '—' : `+${zahl(a.tageGesamt - regelSpanne)}`}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+
+  <p class="ra-hinweis">
+    Gezählt sind hier die Kalendertage zwischen dem ersten und dem letzten Tag der
+    Frist. Der Regelfall umfasst {zahl(SCHUTZFRIST_VOR_GEBURT_TAGE)} Tage vor der
+    Entbindung, den Entbindungstag selbst und
+    {' '}{zahl(SCHUTZFRIST_NACH_GEBURT_TAGE)} Tage danach, zusammen also
+    {' '}{zahl(zahltage)} Kalendertage, für die nach § 24i Abs. 3 Satz 1 SGB V
+    Mutterschaftsgeld gezahlt wird.
+  </p>
+
+  <p>
+    Die oberen {zahl(zuFrueh.length + 1)} Zeilen enden am selben Tag: Wer früher
+    entbindet, verliert nichts. Die {zahl(zuFrueh[0].verkuerzung)} Tage, die im
+    Beispiel der obersten Zeile vorn wegfallen, hängt Absatz 2 Satz 3 hinten wieder
+    an. Nach unten hin gilt das nicht. Jeder Tag nach dem Termin verschiebt nur das
+    Ende, weil der Beginn schon gelaufen ist – bei
+    {' '}{zahl(VERSPAETUNG_BEISPIEL)} Tagen Verspätung endet die Frist am
+    {' '}{tag(spaetFall.ende)} statt am {tag(regelfall.ende)}.
+  </p>
+  <p>
+    Das läuft der Alltagsintuition zuwider. Man erwartet, dass eine Frühgeburt den
+    Mutterschutz beschneidet und eine späte Geburt ihn aufbraucht. Tatsächlich ist
+    die Regeldauer eine Untergrenze, keine feste Größe – jedenfalls in diese
+    Richtung.
+  </p>
+
+  <h3>Was ein zusätzlicher Tag wert ist</h3>
+  <p>
+    Diese Tage sind nicht nur frei, sie sind bezahlt, und zwar aus zwei Töpfen.
+    Die Krankenkasse zahlt nach § 24i Abs. 2 Satz 1 SGB V das durchschnittliche
+    kalendertägliche Nettoentgelt – aber Satz 2 begrenzt das: „Es beträgt höchstens
+    {' '}{zahl(MUTTERSCHAFTSGELD_HOECHSTBETRAG_TAG)} Euro für den Kalendertag."
+    Übersteigt das Entgelt diesen Betrag, zahlt der Arbeitgeber nach § 20 Abs. 1
+    Satz 2 MuSchG den Unterschiedsbetrag.
+  </p>
+  <p>
+    {eurGlatt(MUTTERSCHAFTSGELD_HOECHSTBETRAG_TAG)} am Kalendertag entsprechen
+    {' '}{eurGlatt(DECKEL_SCHWELLE_MONAT)} im Monat. Oberhalb dieser Schwelle ist der
+    Kassenanteil eine Konstante: Er ändert sich nicht mehr, wie hoch das Entgelt
+    auch ist.
+  </p>
+
+  <table>
+    <caption class="visually-hidden">
+      Aufteilung des kalendertäglichen Nettoentgelts zwischen Krankenkasse und
+      Arbeitgeber während der Schutzfrist
+    </caption>
+    <thead>
+      <tr>
+        <th scope="col" class="num">Nettoentgelt im Monat</th>
+        <th scope="col" class="num">je Kalendertag</th>
+        <th scope="col" class="num">Krankenkasse</th>
+        <th scope="col" class="num">Arbeitgeber</th>
+        <th scope="col" class="num">Anteil der Kasse</th>
+      </tr>
+    </thead>
+    <tbody>
+      {geldreihe.map((g) => (
+        <tr>
+          <th scope="row" class="num">{eurGlatt(g.netto)}</th>
+          <td class="num">{eur(g.nettoTag)}</td>
+          <td class="num">{eur(g.kasseTag)}</td>
+          <td class="num">{eur(g.arbeitgeberTag)}</td>
+          <td class="num">{proz(g.anteilKasse)}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+
+  <p class="ra-hinweis">
+    Das kalendertägliche Entgelt ist hier als Monatsnetto geteilt durch
+    {' '}{zahl(TAGE_JE_MONAT)} angesetzt. § 20 Abs. 1 Satz 2 MuSchG stellt auf die
+    letzten drei abgerechneten Kalendermonate vor Fristbeginn ab, § 21 MuSchG
+    nimmt Einmalzahlungen und unverschuldete Fehlzeiten heraus. Wer Weihnachtsgeld
+    oder Kurzarbeit im Berechnungszeitraum hatte, landet bei einem anderen
+    Tagessatz als in dieser Tabelle.
+  </p>
+
+  <p>
+    Der Befund der letzten Spalte: Bei {eurGlatt(NETTO_BEISPIEL)} Nettoentgelt trägt
+    die Krankenkasse {proz(beispiel.anteilKasse)} der Lohnfortzahlung, der
+    Arbeitgeber den Rest. Bei {eurGlatt(geldreihe[geldreihe.length - 1].netto)} sind
+    es noch {proz(geldreihe[geldreihe.length - 1].anteilKasse)}. Das viel zitierte
+    „Mutterschaftsgeld der Krankenkasse" ist bei jedem Einkommen derselbe Betrag:
+    {' '}{eur(kasseVor)} für die {zahl(SCHUTZFRIST_VOR_GEBURT_TAGE)} Tage vor der
+    Entbindung und {eur(kasseNach)} für die
+    {' '}{zahl(SCHUTZFRIST_NACH_GEBURT_TAGE)} Tage danach. Alles, was das
+    Nettoentgelt darüber hinaus ausmacht, ist Arbeitgeberzuschuss.
+  </p>
+  <p>
+    Damit lässt sich die Asymmetrie aus dem vorigen Abschnitt beziffern. Jeder Tag,
+    den eine Entbindung nach dem Termin liegt, ist ein zusätzlicher Tag mit
+    vollem Nettoentgelt: bei {eurGlatt(NETTO_BEISPIEL)} im Monat
+    {' '}{eur(tagVoll)} am Tag, davon {eur(beispiel.kasseTag)} von der Kasse und
+    {' '}{eur(beispiel.arbeitgeberTag)} vom Arbeitgeber.
+    {' '}{zahl(VERSPAETUNG_BEISPIEL)} Tage Verspätung ergeben
+    {' '}{eur(verspaetungWert)}. Eine Entbindung vor dem Termin verschiebt dieselbe
+    Summe lediglich nach hinten, sie kürzt sie nicht.
+  </p>
+  <p>
+    Umgekehrt heißt das auch: Ein zu früh angesetzter voraussichtlicher Termin –
+    etwa weil die Zykluskorrektur des vorigen Abschnitts unterblieben ist –
+    verlängert die Schutzfrist rechnerisch, weil die Entbindung dann eher nach dem
+    eingetragenen Termin liegt. Das ist kein Gestaltungsspielraum: Maßgeblich ist allein
+    das ärztliche Zeugnis nach § 3 Abs. 1 Satz 3 MuSchG.
+  </p>
+
+  <h3>Wer vorn weiterarbeitet, bekommt die Tage hinten nicht zurück</h3>
+  <p>
+    Die Schutzfrist vor der Entbindung ist kein absolutes Beschäftigungsverbot.
+    § 3 Abs. 1 Satz 1 MuSchG verbietet die Beschäftigung nur, „soweit sie sich
+    nicht zur Arbeitsleistung ausdrücklich bereit erklärt"; Satz 2 lässt den
+    Widerruf jederzeit zu. Nach der Entbindung gilt das nicht: Absatz 2 Satz 1
+    kennt keine solche Einschränkung.
+  </p>
+  <p>
+    Daraus zieht man leicht den falschen Schluss – nämlich den, dass die vorn nicht
+    genommenen Tage hinten angehängt würden, so wie es bei einer vorzeitigen
+    Entbindung geschieht. Der Gesetzestext gibt das nicht her. Absatz 2 Satz 3
+    verlängert die Frist nach der Entbindung ausdrücklich nur „bei vorzeitiger
+    Entbindung" und nur „um den Zeitraum der Verkürzung der Schutzfrist vor der
+    Entbindung nach Absatz 1 Satz 4". Satz 4 ist die Regel über den Tag der
+    Entbindung, nicht Satz 1 über die Bereiterklärung. Wer in der Frist vor der
+    Entbindung arbeitet, verkürzt die Frist nicht; sie läuft weiter. Und was nicht
+    verkürzt ist, wird nach Satz 3 auch nicht verlängert.
+  </p>
+  <p>
+    Geld bringt diese Entscheidung ebenfalls nicht: Der Anspruch auf
+    Mutterschaftsgeld ruht nach § 24i Abs. 4 Satz 1 SGB V, „soweit und solange das
+    Mitglied beitragspflichtiges Arbeitsentgelt … erhält". Statt
+    {' '}{eur(beispiel.kasseTag)} Mutterschaftsgeld und {eur(beispiel.arbeitgeberTag)}
+    {' '}Zuschuss gibt es an einem gearbeiteten Tag Arbeitsentgelt. Die
+    {' '}{zahl(SCHUTZFRIST_VOR_GEBURT_TAGE)} Tage vor der Entbindung sind im Beispiel
+    {' '}{eur(vorfristWert)} wert – und sie sind so oder so bezahlt. Eingetauscht
+    wird also freie Zeit gegen Arbeitszeit, nicht Zeit gegen Geld.
+  </p>
+
+  <h3>Wo diese Rechnung endet</h3>
+  <p>
+    Drei Fälle bildet sie nicht ab. Erstens verlängert § 3 Abs. 2 Satz 2 MuSchG die
+    Frist nach der Entbindung auf {zahl(wochenNachLang)} Wochen – bei Frühgeburten,
+    bei Mehrlingsgeburten und, auf Antrag, wenn beim Kind vor Ablauf von
+    {' '}{zahl(wochenNach)} Wochen eine Behinderung ärztlich festgestellt wird. Das sind
+    {' '}{zahl(SCHUTZFRIST_NACH_VERLAENGERT_TAGE - SCHUTZFRIST_NACH_GEBURT_TAGE)} Tage
+    mehr, und die Verlängerung nach Satz 3 kommt gegebenenfalls noch obendrauf.
+    Diese Varianten rechnet der
+    {' '}<a href={`${import.meta.env.BASE_URL}familie/mutterschutz-rechner/`}>Mutterschutz-Rechner</a>
+    {' '}durch.
+  </p>
+  <p>
+    Zweitens kennt § 3 MuSchG eigene Fristen für Fehlgeburten (Absatz 5), eine
+    Ausnahme von der Verlängerung bei Totgeburten (Absatz 2 Satz 5) und eine
+    Sonderregel nach dem Tod des Kindes (Absatz 4). Sie folgen anderen Zahlen als
+    den hier gerechneten.
+  </p>
+  <p>
+    Drittens endet mit der Schutzfrist die Lohnersatzleistung nicht, sie wechselt:
+    Das Elterngeld schließt an, rechnet aber nach eigenen Regeln und wird auf die
+    Monate nach der Geburt bezogen, nicht auf Kalendertage. Was davon übrig bleibt,
+    zeigt der
+    {' '}<a href={`${import.meta.env.BASE_URL}familie/elterngeld-rechner/`}>Elterngeld-Rechner</a>.
+  </p>
+</RechnerArtikel>

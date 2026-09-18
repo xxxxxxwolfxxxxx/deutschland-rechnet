@@ -1,0 +1,593 @@
+---
+import RechnerArtikel from '../RechnerArtikel.astro';
+import { artikelPfadVonSlug } from '../../data/ratgeber';
+import { einkommensteuer, TARIF_STAND } from '../../../public/scripts/einkommensteuer.js';
+import { solidaritaetszuschlag } from '../../../public/scripts/lohnsteuer.js';
+import { ABGELTUNGSTEUERSATZ, SOLI_SATZ } from '../../../public/scripts/abgeltungsteuer.js';
+
+// ---------------------------------------------------------------------------
+// Rechtsgrößen, für die es im Projekt (noch) kein eigenes Modul gibt.
+// Einkommensteuertarif und Solidaritätszuschlag kommen aus denselben Dateien,
+// die auch der Rechner oben lädt; Gewerbe- und Körperschaftsteuer stehen hier,
+// jeweils mit der Fundstelle im Gesetz.
+// ---------------------------------------------------------------------------
+
+/** § 11 Abs. 2 GewStG – Steuermesszahl für den Gewerbeertrag. */
+const MESSZAHL = 0.035;
+/** § 11 Abs. 1 Satz 3 Nr. 1 GewStG – Freibetrag für natürliche Personen und Personengesellschaften. */
+const GEWST_FREIBETRAG = 24500;
+/** § 35 Abs. 1 Satz 1 Nr. 1 EStG – das Vierfache des Steuermessbetrags. */
+const ANRECHNUNGSFAKTOR = 4;
+/** § 23 Abs. 1 KStG – Körperschaftsteuersatz, ab 2028 in Jahresschritten abgesenkt. */
+const KST_SATZ: Record<number, number> = {
+  2026: 0.15, 2027: 0.15, 2028: 0.14, 2029: 0.13, 2030: 0.12, 2031: 0.11, 2032: 0.10,
+};
+const STICHJAHR = 2026;
+
+/** Hebesatz, der allen Beispielrechnungen zugrunde liegt – ein gewähltes Rechenbeispiel, kein Durchschnittswert. */
+const H = 410;
+/** Gewinn, an dem die Beispiele in Euro gezeigt werden. */
+const BEISPIEL_GEWINN = 150000;
+
+// --- Bausteine -------------------------------------------------------------
+
+function gewerbesteuer(ertrag: number, hebesatz: number, freibetrag: number) {
+  // § 11 Abs. 1 Satz 3 GewStG: Gewerbeertrag auf volle 100 Euro nach unten abrunden.
+  const abgerundet = Math.floor(Math.max(0, ertrag) / 100) * 100;
+  const basis = Math.max(0, abgerundet - freibetrag);
+  const messbetrag = basis * MESSZAHL;
+  return { messbetrag, steuer: messbetrag * (hebesatz / 100) };
+}
+
+/** Einzelunternehmen: Gewerbesteuer, Einkommensteuer, Anrechnung nach § 35 EStG, Soli. */
+function einzelunternehmen(gewinn: number, hebesatz: number) {
+  const { messbetrag, steuer: gewSt } = gewerbesteuer(gewinn, hebesatz, GEWST_FREIBETRAG);
+  const tariflich = einkommensteuer(gewinn);
+  // § 35 Abs. 1 Satz 1 Nr. 1 EStG: das Vierfache des Messbetrags. Satz 2 begrenzt
+  // auf den Anteil der Steuer, der auf gewerbliche Einkünfte entfällt – hier ist
+  // das die gesamte tarifliche Steuer. Satz 5 begrenzt zusätzlich auf die
+  // tatsächlich zu zahlende Gewerbesteuer.
+  const anrechnung = Math.min(ANRECHNUNGSFAKTOR * messbetrag, tariflich, gewSt);
+  const estFest = tariflich - anrechnung;
+  const soli = solidaritaetszuschlag(estFest);
+  const gesamt = estFest + soli + gewSt;
+  return { gewSt, messbetrag, tariflich, anrechnung, estFest, soli, gesamt, quote: (gesamt / gewinn) * 100 };
+}
+
+/** GmbH mit voller Ausschüttung des verbleibenden Gewinns, optional mit Geschäftsführergehalt. */
+function gmbhVollausschuettung(gewinn: number, hebesatz: number, jahr = STICHJAHR, gfGehalt = 0) {
+  const ertrag = gewinn - gfGehalt;
+  const { steuer: gewSt } = gewerbesteuer(ertrag, hebesatz, 0);
+  const kSt = Math.max(0, ertrag) * KST_SATZ[jahr];
+  const soliKSt = kSt * SOLI_SATZ;
+  const ausschuettung = Math.max(0, ertrag - gewSt - kSt - soliKSt);
+  const kapSt = ausschuettung * ABGELTUNGSTEUERSATZ;
+  const soliKap = kapSt * SOLI_SATZ;
+  const estGehalt = einkommensteuer(gfGehalt);
+  const soliGehalt = solidaritaetszuschlag(estGehalt);
+  const gesamt = gewSt + kSt + soliKSt + kapSt + soliKap + estGehalt + soliGehalt;
+  return { gewSt, kSt, soliKSt, ausschuettung, kapSt, soliKap, estGehalt, soliGehalt, gesamt, quote: (gesamt / gewinn) * 100 };
+}
+
+/** GmbH, die den Gewinn einbehält: nur Gewerbe- und Körperschaftsteuer. */
+function gmbhThesaurierung(gewinn: number, hebesatz: number, jahr = STICHJAHR) {
+  const { steuer: gewSt } = gewerbesteuer(gewinn, hebesatz, 0);
+  const kSt = gewinn * KST_SATZ[jahr];
+  const gesamt = gewSt + kSt + kSt * SOLI_SATZ;
+  return { gewSt, kSt, gesamt, quote: (gesamt / gewinn) * 100 };
+}
+
+// Spitzensteuersatz nicht abgeschrieben, sondern aus dem Tarifmodul abgeleitet.
+const SPITZENSTEUERSATZ = (einkommensteuer(1e9 + 1e6) - einkommensteuer(1e9)) / 1e6;
+
+/**
+ * Obergrenze, der sich die Belastung des Einzelunternehmens mit wachsendem
+ * Gewinn annähert: Spitzensteuersatz, um die Anrechnung gemindert, mit Soli,
+ * plus die volle Gewerbesteuer.
+ */
+function euGrenzquote(hebesatz: number) {
+  const gewStAnteil = MESSZAHL * (hebesatz / 100);
+  const anrechnung = Math.min(ANRECHNUNGSFAKTOR * MESSZAHL, gewStAnteil);
+  return ((SPITZENSTEUERSATZ - anrechnung) * (1 + SOLI_SATZ) + gewStAnteil) * 100;
+}
+
+// --- 1. Vollausschüttung: eine Quote ohne Gewinnabhängigkeit ---------------
+
+const gmbhVollQuote = gmbhVollausschuettung(1e6, H).quote;
+for (const probe of [50000, 123456, 400000, 2e6]) {
+  if (Math.abs(gmbhVollausschuettung(probe, H).quote - gmbhVollQuote) > 0.01) {
+    throw new Error('Die GmbH-Quote bei Vollausschüttung ist doch gewinnabhängig – Artikeltext prüfen.');
+  }
+}
+const euGrenze = euGrenzquote(H);
+if (!(gmbhVollQuote > euGrenze)) {
+  throw new Error(`Bei Hebesatz ${H} ist die GmbH bei Vollausschüttung nicht mehr durchgehend teurer.`);
+}
+const grosserGewinn = einzelunternehmen(1e9, H).quote;
+if (!(grosserGewinn < euGrenze && grosserGewinn > euGrenze - 0.01)) {
+  throw new Error('Die hergeleitete Grenzquote passt nicht zur durchgerechneten Belastung.');
+}
+
+const STUFEN = [40000, 60000, 80000, 100000, 150000, 250000, 500000];
+const stufen = STUFEN.map((g) => ({
+  gewinn: g,
+  eu: einzelunternehmen(g, H),
+  voll: gmbhVollausschuettung(g, H),
+  thes: gmbhThesaurierung(g, H),
+}));
+// Die Belastung des Einzelunternehmens muss über alle Stufen steigen, sonst
+// trägt die Erzählung vom Annähern an eine Obergrenze nicht.
+for (let i = 1; i < stufen.length; i++) {
+  if (!(stufen[i].eu.quote > stufen[i - 1].eu.quote)) {
+    throw new Error('Die Belastungsquote des Einzelunternehmens steigt nicht durchgehend.');
+  }
+}
+
+const beispielEU = einzelunternehmen(BEISPIEL_GEWINN, H);
+const beispielVoll = gmbhVollausschuettung(BEISPIEL_GEWINN, H);
+const beispielThes = gmbhThesaurierung(BEISPIEL_GEWINN, H);
+// Differenz aus den gerundeten Werten bilden, damit Nachrechnen aufgeht.
+const cent = (n: number) => Math.round(n * 100) / 100;
+const beispielDiff = cent(beispielVoll.gesamt) - cent(beispielEU.gesamt);
+
+// --- 2. Das Hebesatzband ---------------------------------------------------
+
+/** Untere und obere Grenze des Bereichs, in dem die GmbH bei Vollausschüttung nie gewinnt. */
+function totzone(jahr: number) {
+  let unten: number | null = null;
+  let oben: number | null = null;
+  for (let schritt = 20000; schritt <= 150000; schritt++) {
+    const h = schritt / 100;
+    const gmbhQ = gmbhVollausschuettung(1e6, h, jahr).quote;
+    const euQ = euGrenzquote(h);
+    if (unten === null && gmbhQ >= euQ) unten = h;
+    if (unten !== null && oben === null && gmbhQ < euQ) { oben = h; break; }
+  }
+  return { unten, oben };
+}
+const band = totzone(STICHJAHR);
+if (band.unten === null || band.oben === null) {
+  throw new Error('Für das Stichjahr lässt sich kein Hebesatzband bestimmen.');
+}
+if (!(H > band.unten && H < band.oben)) {
+  throw new Error(`Der Beispielhebesatz ${H} liegt nicht im ermittelten Band.`);
+}
+
+const HEBESAETZE = [250, 340, 400, 410, 490, 580, 700];
+const hebesatzZeilen = HEBESAETZE.map((h) => ({
+  h,
+  eu: einzelunternehmen(BEISPIEL_GEWINN, h),
+  gmbh: gmbhVollausschuettung(BEISPIEL_GEWINN, h),
+  euGrenze: euGrenzquote(h),
+  gmbhGrenze: gmbhVollausschuettung(1e6, h).quote,
+}));
+// Der Kipppunkt der Anrechnung muss genau bei 400 Prozent liegen.
+const bei400 = einzelunternehmen(BEISPIEL_GEWINN, 400);
+const bei410 = einzelunternehmen(BEISPIEL_GEWINN, 410);
+if (!(cent(bei400.anrechnung) === cent(bei400.gewSt) && bei410.anrechnung < bei410.gewSt)) {
+  throw new Error('Die Anrechnung kippt nicht bei einem Hebesatz von 400 Prozent.');
+}
+const nichtAngerechnet = cent(bei410.gewSt) - cent(bei410.anrechnung);
+
+// --- 3. Thesaurierung ------------------------------------------------------
+
+const thesQuote = gmbhThesaurierung(1e6, H).quote;
+/** Gewinn, ab dem die einbehaltende GmbH durchgehend günstiger ist. */
+function thesaurierungsschwelle(hebesatz: number) {
+  let letzterWechsel = 0;
+  for (let g = 30000; g <= 400000; g++) {
+    if (einzelunternehmen(g, hebesatz).gesamt <= gmbhThesaurierung(g, hebesatz).gesamt) letzterWechsel = g;
+  }
+  return letzterWechsel + 1;
+}
+const thesSchwelle = thesaurierungsschwelle(H);
+if (!(gmbhThesaurierung(thesSchwelle, H).gesamt < einzelunternehmen(thesSchwelle, H).gesamt)) {
+  throw new Error('An der ermittelten Schwelle ist die thesaurierende GmbH nicht günstiger.');
+}
+if (!(thesQuote < euGrenze && thesQuote < gmbhVollQuote)) {
+  throw new Error('Die Thesaurierungsquote liegt nicht unter den beiden Vergleichswerten.');
+}
+const nachversteuerung = cent(gmbhVollQuote) - cent(thesQuote);
+
+// --- 4. Geschäftsführergehalt ---------------------------------------------
+
+const GEHALTSSTUFEN = [0, 30000, 60000, 90000, 120000, BEISPIEL_GEWINN];
+const gehaltsZeilen = GEHALTSSTUFEN.map((gf) => ({
+  gf,
+  r: gmbhVollausschuettung(BEISPIEL_GEWINN, H, STICHJAHR, gf),
+}));
+const ohneGehalt = gehaltsZeilen[0].r;
+const vollGehalt = gehaltsZeilen[gehaltsZeilen.length - 1].r;
+if (!(vollGehalt.gesamt < ohneGehalt.gesamt)) {
+  throw new Error('Ein volles Geschäftsführergehalt senkt die GmbH-Last nicht.');
+}
+if (!(vollGehalt.gesamt > beispielEU.gesamt)) {
+  throw new Error('Die GmbH mit vollem Gehalt schlägt das Einzelunternehmen – Artikeltext prüfen.');
+}
+const gehaltErsparnis = cent(ohneGehalt.gesamt) - cent(vollGehalt.gesamt);
+// Der Hebesatz, bei dem die Anrechnung genau die Gewerbesteuer deckt:
+// Messbetrag × Hebesatz = 4 × Messbetrag, also 400 Prozent.
+const ANRECHNUNG_HEBESATZ = ANRECHNUNGSFAKTOR * 100;
+{
+  const probe = einzelunternehmen(BEISPIEL_GEWINN, ANRECHNUNG_HEBESATZ / 100);
+  if (Math.abs(probe.gewSt - probe.anrechnung) > 0.005) {
+    throw new Error(`GmbH-Artikel: Bei ${ANRECHNUNG_HEBESATZ} % decken sich Anrechnung und Gewerbesteuer nicht (${probe.gewSt}, ${probe.anrechnung}).`);
+  }
+}
+const restLuecke = cent(vollGehalt.gesamt) - cent(beispielEU.gesamt);
+// Woher die Luecke kommt: Die Anrechnung nach § 35 EStG mindert die festgesetzte
+// Einkommensteuer und damit zugleich die Bemessungsgrundlage des
+// Solidaritaetszuschlags. Dem steht die Gewerbesteuer gegenueber, die ueber die
+// Anrechnung hinausgeht. Die GmbH mit vollem Gehalt zahlt gar keine Gewerbesteuer.
+const soliVorteilEU = cent(vollGehalt.soliGehalt) - cent(beispielEU.soli);
+const gewStRest = cent(beispielEU.gewSt) - cent(beispielEU.anrechnung);
+if (Math.abs(soliVorteilEU - gewStRest - restLuecke) > 0.02) {
+  throw new Error(`GmbH-Artikel: Soli-Vorteil und Gewerbesteuerrest erklaeren die Luecke nicht (${soliVorteilEU}, ${gewStRest}, ${restLuecke}).`);
+}
+if (vollGehalt.gewSt !== 0) throw new Error('GmbH-Artikel: Die GmbH mit vollem Gehalt zahlt doch Gewerbesteuer.');
+
+// --- 5. Die Körperschaftsteuer-Staffel ab 2028 -----------------------------
+
+const JAHRE = [2026, 2028, 2029, 2030, 2032];
+const jahresZeilen = JAHRE.map((j) => {
+  const b = totzone(j);
+  return { jahr: j, satz: KST_SATZ[j] * 100, quote: gmbhVollausschuettung(1e6, H, j).quote, ...b };
+});
+const erstesJahrOhneBand = jahresZeilen.find((z) => z.unten === null || z.oben === null);
+if (!erstesJahrOhneBand) {
+  throw new Error('In keinem der betrachteten Jahre verschwindet das Band – Artikeltext prüfen.');
+}
+const quoteStichjahr = jahresZeilen[0].quote;
+const quoteLetztesJahr = jahresZeilen[jahresZeilen.length - 1].quote;
+if (!(quoteLetztesJahr < quoteStichjahr)) {
+  throw new Error('Die Körperschaftsteuer-Staffel senkt die Vollausschüttungsquote nicht.');
+}
+
+// --- Formatierer -----------------------------------------------------------
+
+const fix = (s: string) => s.replace(/-/g, '−');
+const eur = (n: number, d = 2) =>
+  fix(n.toLocaleString('de-DE', { minimumFractionDigits: d, maximumFractionDigits: d })) + ' €';
+const eurGlatt = (n: number) => fix(n.toLocaleString('de-DE', { maximumFractionDigits: 0 })) + ' €';
+const proz = (n: number, d = 2) =>
+  fix(n.toLocaleString('de-DE', { minimumFractionDigits: d, maximumFractionDigits: d })) + ' %';
+const zahl = (n: number, d = 2) =>
+  fix(n.toLocaleString('de-DE', { minimumFractionDigits: d, maximumFractionDigits: d }));
+const tarifStand = new Date(TARIF_STAND).toLocaleDateString('de-DE', {
+  day: 'numeric', month: 'long', year: 'numeric',
+});
+
+const quellen = [
+  { titel: '§ 11 GewStG – Steuermesszahl und Steuermessbetrag (Freibetrag in Absatz 1 Satz 3 Nr. 1)', url: 'https://www.gesetze-im-internet.de/gewstg/__11.html' },
+  { titel: '§ 16 GewStG – Hebesatz', url: 'https://www.gesetze-im-internet.de/gewstg/__16.html' },
+  { titel: '§ 8 GewStG – Hinzurechnungen', url: 'https://www.gesetze-im-internet.de/gewstg/__8.html' },
+  { titel: '§ 35 EStG – Steuerermäßigung bei Einkünften aus Gewerbebetrieb', url: 'https://www.gesetze-im-internet.de/estg/__35.html' },
+  { titel: '§ 32a EStG – Einkommensteuertarif', url: 'https://www.gesetze-im-internet.de/estg/__32a.html' },
+  { titel: '§ 32d EStG – Gesonderter Steuertarif für Einkünfte aus Kapitalvermögen', url: 'https://www.gesetze-im-internet.de/estg/__32d.html' },
+  { titel: '§ 3 Nr. 40 EStG – Teileinkünfteverfahren', url: 'https://www.gesetze-im-internet.de/estg/__3.html' },
+  { titel: '§ 34a EStG – Begünstigung der nicht entnommenen Gewinne', url: 'https://www.gesetze-im-internet.de/estg/__34a.html' },
+  { titel: '§ 4 EStG – Gewinnbegriff (Abzugsverbot für die Gewerbesteuer in Absatz 5b)', url: 'https://www.gesetze-im-internet.de/estg/__4.html' },
+  { titel: '§ 23 KStG – Steuersatz', url: 'https://www.gesetze-im-internet.de/kstg_1977/__23.html' },
+  { titel: '§ 3 SolzG 1995 – Bemessungsgrundlage', url: 'https://www.gesetze-im-internet.de/solzg_1995/__3.html' },
+  { titel: '§ 4 SolzG 1995 – Zuschlagsatz', url: 'https://www.gesetze-im-internet.de/solzg_1995/__4.html' },
+];
+---
+<RechnerArtikel
+  titel="Der Break-even ist ein Hebesatz, kein Gewinn"
+  datum="2026-09-18"
+  lead={`Die verbreitete Regel „ab rund 80.000 € Gewinn lohnt die GmbH" hält dem Nachrechnen nicht stand. Wer den Gewinn vollständig ausschüttet, zahlt als GmbH-Gesellschafter bei einem Hebesatz von ${proz(H, 0)} konstant ${proz(gmbhVollQuote, 2)} – und zwar bei jedem Gewinn. Das Einzelunternehmen kommt selbst bei unbegrenzt wachsendem Gewinn nie über ${proz(euGrenze, 2)} hinaus. Es gibt in diesem Fall keine Gewinnschwelle, ab der die GmbH gewinnt. Was den Ausschlag gibt, ist der Hebesatz der Gemeinde – und zwischen ${proz(band.unten, 0)} und ${proz(band.oben, 0)} gewinnt die GmbH bei Vollausschüttung nie.`}
+  quellen={quellen}
+>
+  <h3>Zwei Steuersysteme, die sich nicht vergleichen lassen wollen</h3>
+  <p>
+    Der Einzelunternehmer versteuert seinen Gewinn einmal: Er fließt in sein zu
+    versteuerndes Einkommen und läuft durch den Tarif des § 32a EStG. Daneben zahlt
+    der Betrieb Gewerbesteuer, die nach § 4 Abs. 5b EStG nicht als Betriebsausgabe
+    abziehbar ist – dafür rechnet § 35 EStG einen Teil davon auf die Einkommensteuer
+    an.
+  </p>
+  <p>
+    Die GmbH versteuert denselben Gewinn zweimal. Zuerst auf Gesellschaftsebene:
+    {' '}{proz(KST_SATZ[STICHJAHR] * 100, 0)} Körperschaftsteuer nach § 23 Abs. 1 KStG,
+    darauf {proz(SOLI_SATZ * 100, 1)} Solidaritätszuschlag, dazu die volle
+    Gewerbesteuer ohne Freibetrag. Was übrig bleibt und ausgeschüttet wird, trifft
+    beim Gesellschafter ein zweites Mal auf {proz(ABGELTUNGSTEUERSATZ * 100, 0)}
+    {' '}Kapitalertragsteuer nach § 32d Abs. 1 Satz 1 EStG plus Soli.
+  </p>
+  <p>
+    Aus dieser Bauart folgt eine Eigenschaft, die die ganze Diskussion um
+    „Gewinnschwellen" ins Leere laufen lässt: Die GmbH-Belastung kennt keine
+    Progression. Weder die Körperschaftsteuer noch die Gewerbesteuer noch die
+    Abgeltungsteuer haben einen steigenden Tarif. Die Gesamtquote ist deshalb bei
+    {' '}{eurGlatt(50000)} Gewinn dieselbe wie bei {eurGlatt(2000000)}. Progressiv ist
+    nur die Seite des Einzelunternehmens – und sie startet sehr weit unten.
+  </p>
+
+  <h3>Bei Vollausschüttung gibt es keine Gewinnschwelle</h3>
+  <p>
+    Die folgende Tabelle rechnet beides für einen Hebesatz von {proz(H, 0)} durch, für
+    Rechtsstand {tarifStand}. Die dritte Spalte ist die GmbH, die alles ausschüttet,
+    was nach Gesellschaftsteuern übrig ist; die vierte die GmbH, die alles einbehält.
+  </p>
+
+  <table>
+    <caption class="visually-hidden">
+      Gesamte Steuerbelastung nach Rechtsform und Gewinn bei einem Hebesatz von {proz(H, 0)}
+    </caption>
+    <thead>
+      <tr>
+        <th scope="col" class="num">Gewinn</th>
+        <th scope="col" class="num">Einzelunternehmen</th>
+        <th scope="col" class="num">GmbH, voll ausgeschüttet</th>
+        <th scope="col" class="num">GmbH, einbehalten</th>
+      </tr>
+    </thead>
+    <tbody>
+      {stufen.map((s) => (
+        <tr>
+          <th scope="row" class="num">{eurGlatt(s.gewinn)}</th>
+          <td class="num">{eur(s.eu.gesamt)}<br /><small>{proz(s.eu.quote, 2)}</small></td>
+          <td class="num">{eur(s.voll.gesamt)}<br /><small>{proz(s.voll.quote, 2)}</small></td>
+          <td class="num">{eur(s.thes.gesamt)}<br /><small>{proz(s.thes.quote, 2)}</small></td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+
+  <p>
+    In der dritten Spalte steht unter jedem Betrag dieselbe Prozentzahl. Sie ändert
+    sich nicht, weil sich an ihr nichts ändern kann. Die zweite Spalte dagegen
+    klettert von {proz(stufen[0].eu.quote, 2)} auf
+    {' '}{proz(stufen[stufen.length - 1].eu.quote, 2)} – und läuft dabei gegen eine
+    Obergrenze. Diese Obergrenze lässt sich ausrechnen: Bei sehr großen Gewinnen
+    beträgt die Einkommensteuer {proz(SPITZENSTEUERSATZ * 100, 0)} des Gewinns,
+    davon geht die Anrechnung nach § 35 EStG ab, auf den Rest kommt der
+    Solidaritätszuschlag, und die Gewerbesteuer bleibt in voller Höhe stehen. Das
+    ergibt {proz(euGrenze, 2)}.
+  </p>
+  <p>
+    Die GmbH liegt mit {proz(gmbhVollQuote, 2)} darüber. Nicht knapp darunter, nicht
+    ab irgendeinem Punkt darunter – durchgehend darüber, um
+    {' '}{zahl(cent(gmbhVollQuote) - cent(euGrenze), 2)} Prozentpunkte. Bei
+    {' '}{eurGlatt(BEISPIEL_GEWINN)} Gewinn sind das {eur(beispielEU.gesamt)} gegen
+    {' '}{eur(beispielVoll.gesamt)}, ein Unterschied von {eur(beispielDiff)} im Jahr.
+    Gründungs- und Bilanzierungskosten sind dabei noch nicht mitgerechnet.
+  </p>
+
+  <h3>Der Hebesatz entscheidet – und er tut es in einem Band</h3>
+  <p>
+    Wenn der Gewinn nicht die Stellschraube ist, bleibt der Hebesatz. Er wirkt auf
+    beide Rechtsformen, aber nicht gleich stark, und das ist der eigentliche Fund.
+  </p>
+  <p>
+    Beim Einzelunternehmen hängt alles an § 35 Abs. 1 EStG. Angerechnet wird das
+    {' '}{ANRECHNUNGSFAKTOR}-Fache des Steuermessbetrags. Der Messbetrag ist
+    {' '}{proz(MESSZAHL * 100, 1)} des Gewerbeertrags, angerechnet werden also
+    {' '}{proz(ANRECHNUNGSFAKTOR * MESSZAHL * 100, 1)} davon – genau so viel
+    Gewerbesteuer, wie bei einem Hebesatz von
+    {' '}{proz(ANRECHNUNGSFAKTOR * 100, 0)} anfällt. Satz 5 begrenzt
+    den Abzug auf die tatsächlich zu zahlende Gewerbesteuer – darunter wird also
+    weniger angerechnet, als der Faktor hergäbe. Darüber ist die Anrechnung
+    eingefroren: Bei {proz(410, 0)} Hebesatz und {eurGlatt(BEISPIEL_GEWINN)} Gewinn
+    fallen {eur(bei410.gewSt)} Gewerbesteuer an, angerechnet werden
+    {' '}{eur(bei410.anrechnung)}, und {eur(nichtAngerechnet)} bleiben endgültig hängen.
+    Jeder weitere Hebesatzpunkt trifft den Einzelunternehmer voll.
+  </p>
+  <p>
+    Bei der GmbH trifft er ihn nur zu gut drei Vierteln. Jeder Euro Gewerbesteuer
+    mindert nämlich zugleich die Ausschüttung – und damit die Abgeltungsteuer, die
+    sonst darauf angefallen wäre. Von jedem zusätzlichen Euro Gewerbesteuer holt der
+    Gesellschafter {proz(ABGELTUNGSTEUERSATZ * 100 * (1 + SOLI_SATZ), 3)} an anderer
+    Stelle zurück.
+  </p>
+
+  <table>
+    <caption class="visually-hidden">
+      Wirkung des Hebesatzes auf beide Rechtsformen, bei {eurGlatt(BEISPIEL_GEWINN)} Gewinn
+    </caption>
+    <thead>
+      <tr>
+        <th scope="col" class="num">Hebesatz</th>
+        <th scope="col" class="num">Einzelunternehmen</th>
+        <th scope="col" class="num">GmbH, voll ausgeschüttet</th>
+        <th scope="col" class="num">Obergrenze Einzelunternehmen</th>
+        <th scope="col" class="num">GmbH-Quote</th>
+      </tr>
+    </thead>
+    <tbody>
+      {hebesatzZeilen.map((z) => (
+        <tr>
+          <th scope="row" class="num">{proz(z.h, 0)}</th>
+          <td class="num">{eur(z.eu.gesamt)}</td>
+          <td class="num">{eur(z.gmbh.gesamt)}</td>
+          <td class="num">{proz(z.euGrenze, 2)}</td>
+          <td class="num">{proz(z.gmbhGrenze, 2)}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+
+  <p>
+    Die beiden rechten Spalten sind die entscheidenden. Solange die GmbH-Quote über
+    der Obergrenze des Einzelunternehmens liegt, kann die GmbH bei keinem noch so
+    hohen Gewinn gewinnen. Unterschreitet sie diese Obergrenze, gibt es einen
+    Gewinn, ab dem sie gewinnt – meist einen sehr großen.
+  </p>
+  <p>
+    Sucht man die Hebesätze, bei denen sich die beiden Spalten kreuzen, feinschrittig
+    ab, ergibt sich ein Band: Zwischen einem Hebesatz von {proz(band.unten, 2)} und
+    {' '}{proz(band.oben, 2)} ist die GmbH bei Vollausschüttung bei jedem Gewinn
+    teurer. Unterhalb dieses Bandes gewinnt sie, weil die Gewerbesteuer dort so
+    niedrig ist, dass der Einzelunternehmer von der Anrechnung kaum noch profitiert –
+    § 35 Abs. 1 Satz 5 EStG deckelt sie ja auf die tatsächlich gezahlte
+    Gewerbesteuer. Oberhalb des Bandes gewinnt sie, weil dem Einzelunternehmer die
+    eingefrorene Anrechnung nicht mehr hilft. Dazwischen, und dort liegen die
+    Hebesätze der allermeisten deutschen Gemeinden, verliert sie immer.
+  </p>
+
+  <h3>Erst das Einbehalten dreht das Bild – aber es ist eine Stundung</h3>
+  <p>
+    Die vierte Spalte der ersten Tabelle zeigt, worum es bei der GmbH tatsächlich
+    geht. Wer nichts ausschüttet, zahlt nur Körperschaft- und Gewerbesteuer:
+    {' '}{proz(thesQuote, 3)} bei einem Hebesatz von {proz(H, 0)}. Auch diese Quote ist
+    gewinnunabhängig, und sie liegt weit unter allem, was der Einkommensteuertarif
+    bei hohen Gewinnen verlangt.
+  </p>
+  <p>
+    Die Schwelle dafür lässt sich genau bestimmen. Ab einem Gewinn von
+    {' '}{eurGlatt(thesSchwelle)} ist die einbehaltende GmbH bei diesem Hebesatz
+    durchgehend günstiger als das Einzelunternehmen. Bei {eurGlatt(BEISPIEL_GEWINN)}
+    {' '}zahlt sie {eur(beispielThes.gesamt)} statt {eur(beispielEU.gesamt)}.
+  </p>
+  <p>
+    Nur ist das kein gesparter, sondern ein aufgeschobener Betrag. Die
+    {' '}{zahl(nachversteuerung, 2)} Prozentpunkte Abstand zwischen der einbehaltenden
+    und der ausschüttenden GmbH sind die Steuer, die anfällt, sobald das Geld die
+    Gesellschaft verlässt. Wer es nie entnimmt, hat sie nie bezahlt; wer es entnimmt,
+    landet bei {proz(gmbhVollQuote, 2)} – und damit über dem Einzelunternehmen. Der
+    Vorteil der GmbH ist mithin kein Steuersatz, sondern Kapital, das im Unternehmen
+    weiterarbeiten darf. Wer die ersparte Liquidität nicht produktiv einsetzt,
+    verschiebt seine Steuerlast nur und zahlt am Ende mehr.
+  </p>
+  <p>
+    Für Einzelunternehmer gibt es dazu ein Gegenstück, das in Vergleichen fast immer
+    fehlt: § 34a EStG besteuert nicht entnommene Gewinne auf Antrag mit einem
+    gesonderten Satz, der bis 2027 {proz(28.25, 2)} beträgt und danach in Stufen auf
+    {' '}{proz(25, 0)} sinkt. Auch dort folgt bei der Entnahme eine Nachversteuerung.
+    Die Frage „GmbH oder nicht" ist damit in Wahrheit die Frage, ob Gewinne im
+    Betrieb bleiben – nicht die Frage nach der Rechtsform.
+  </p>
+
+  <h3>Was ein Geschäftsführergehalt verändert</h3>
+  <p>
+    Das Gehalt des Gesellschafter-Geschäftsführers ist Betriebsausgabe der GmbH. Es
+    mindert Gewerbeertrag und Körperschaftsteuer-Bemessungsgrundlage und wird
+    stattdessen beim Empfänger nach § 32a EStG versteuert – also einmal statt zweimal.
+    Bei {eurGlatt(BEISPIEL_GEWINN)} Gewinn und einem Hebesatz von {proz(H, 0)} sieht
+    das so aus:
+  </p>
+
+  <table>
+    <caption class="visually-hidden">
+      Gesamtbelastung der GmbH bei {eurGlatt(BEISPIEL_GEWINN)} Gewinn nach Höhe des Geschäftsführergehalts
+    </caption>
+    <thead>
+      <tr>
+        <th scope="col" class="num">Geschäftsführergehalt</th>
+        <th scope="col" class="num">Gewerbe- und Körperschaftsteuer</th>
+        <th scope="col" class="num">Abgeltungsteuer</th>
+        <th scope="col" class="num">Einkommensteuer auf das Gehalt</th>
+        <th scope="col" class="num">gesamt</th>
+      </tr>
+    </thead>
+    <tbody>
+      {gehaltsZeilen.map((z) => (
+        <tr>
+          <th scope="row" class="num">{eurGlatt(z.gf)}</th>
+          <td class="num">{eur(z.r.gewSt + z.r.kSt + z.r.soliKSt)}</td>
+          <td class="num">{eur(z.r.kapSt + z.r.soliKap)}</td>
+          <td class="num">{eur(z.r.estGehalt + z.r.soliGehalt)}</td>
+          <td class="num">{eur(z.r.gesamt)}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+
+  <p>
+    Von {eur(ohneGehalt.gesamt)} ohne Gehalt auf {eur(vollGehalt.gesamt)}, wenn der
+    gesamte Gewinn als Gehalt ausgezahlt wird: {eur(gehaltErsparnis)} weniger Steuer,
+    ohne dass sich am Gewinn etwas geändert hat. Das Finanzamt zieht dieser Gestaltung
+    allerdings eine Grenze – ein unangemessen hohes Gehalt wird als verdeckte
+    Gewinnausschüttung behandelt und dann doch wie eine Ausschüttung besteuert.
+  </p>
+  <p>
+    Bemerkenswert ist der Rest: Selbst wenn das Gehalt den ganzen Gewinn aufzehrt, die
+    GmbH also steuerlich fast zum Einzelunternehmen wird, bleibt sie mit
+    {' '}{eur(restLuecke)} teurer. Der Grund ist nicht die Gewerbesteuer – die zahlt
+    diese GmbH gar nicht mehr, weil das Gehalt den Gewerbeertrag auf null drückt.
+    Er liegt im Solidaritätszuschlag: Die Anrechnung nach § 35 EStG mindert die
+    festgesetzte Einkommensteuer des Einzelunternehmers und damit zugleich die
+    Bemessungsgrundlage des Zuschlags. Das spart ihm {eur(soliVorteilEU)}, denen
+    nur {eur(gewStRest)} nicht angerechnete Gewerbesteuer gegenüberstehen. Diese
+    Anrechnung gibt es nur beim Einzelunternehmen, ebenso den Freibetrag von
+    {' '}{eurGlatt(GEWST_FREIBETRAG)} nach § 11 Abs. 1 Satz 3 Nr. 1 GewStG, der
+    Kapitalgesellschaften nicht zusteht.
+  </p>
+
+  <h3>Ab 2028 verschiebt sich das Band – und verschwindet</h3>
+  <p>
+    § 23 Abs. 1 KStG enthält seit der Senkung des Körperschaftsteuersatzes eine
+    Staffel: {proz(KST_SATZ[2026] * 100, 0)} bis einschließlich 2027, dann jährlich
+    einen Punkt weniger bis zu {proz(KST_SATZ[2032] * 100, 0)} ab 2032. Das verändert
+    die Rechnung Jahr für Jahr, und zwar deutlich stärker, als der eine Prozentpunkt
+    vermuten lässt – denn jeder eingesparte Euro Körperschaftsteuer erhöht die
+    Ausschüttung, auf die dann Abgeltungsteuer anfällt.
+  </p>
+
+  <table>
+    <caption class="visually-hidden">
+      Vollausschüttungsquote bei einem Hebesatz von {proz(H, 0)} und Hebesatzband je Veranlagungszeitraum
+    </caption>
+    <thead>
+      <tr>
+        <th scope="col" class="num">Jahr</th>
+        <th scope="col" class="num">Körperschaftsteuer</th>
+        <th scope="col" class="num">GmbH-Quote bei {proz(H, 0)}</th>
+        <th scope="col">Hebesatzband ohne Chance für die GmbH</th>
+      </tr>
+    </thead>
+    <tbody>
+      {jahresZeilen.map((z) => (
+        <tr>
+          <th scope="row" class="num">{z.jahr === 2026 ? 'bis 2027' : (z.jahr === 2032 ? 'ab 2032' : String(z.jahr))}</th>
+          <td class="num">{proz(z.satz, 0)}</td>
+          <td class="num">{proz(z.quote, 2)}</td>
+          <td>{z.unten !== null && z.oben !== null ? `${proz(z.unten, 2)} bis ${proz(z.oben, 2)}` : 'kein Band'}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+
+  <p>
+    Das Band schrumpft von beiden Seiten und ist ab dem Veranlagungszeitraum
+    {' '}{erstesJahrOhneBand.jahr} verschwunden: Von da an gibt es zu jedem Hebesatz
+    einen Gewinn, ab dem die GmbH auch bei Vollausschüttung günstiger ist. Die
+    Vollausschüttungsquote sinkt bei {proz(H, 0)} Hebesatz von
+    {' '}{proz(quoteStichjahr, 2)} auf {proz(quoteLetztesJahr, 2)}. Wer heute eine
+    Rechtsform für die nächsten zehn Jahre wählt, rechnet also gegen ein bewegliches
+    Ziel – und § 34a EStG bewegt sich parallel mit, sodass sich die Rangfolge beim
+    Einbehalten weniger stark verschiebt als beim Ausschütten.
+  </p>
+
+  <h3>Was diese Rechnung nicht abbildet</h3>
+  <p>
+    Das Modell setzt das zu versteuernde Einkommen des Einzelunternehmers mit seinem
+    Gewinn gleich. Sonderausgaben, Vorsorgeaufwendungen, weitere Einkünfte, ein
+    Ehegattensplitting und die Kirchensteuer bleiben außen vor; jede dieser Größen
+    verschiebt die Einkommensteuerseite, nicht aber die konstante GmbH-Quote. Auch
+    Hinzurechnungen und Kürzungen nach §§ 8 und 9 GewStG sind nicht berücksichtigt –
+    ein Betrieb mit hohen Mieten oder Zinsen hat einen Gewerbeertrag deutlich über
+    seinem Gewinn, und das trifft beide Rechtsformen.
+  </p>
+  <p>
+    Nicht abgebildet ist außerdem das Teileinkünfteverfahren: Unter den Voraussetzungen
+    des § 32d Abs. 2 Nr. 3 EStG kann ein wesentlich beteiligter
+    Gesellschafter-Geschäftsführer beantragen, die Ausschüttung statt mit
+    {' '}{proz(ABGELTUNGSTEUERSATZ * 100, 0)} nach dem Tarif zu versteuern, wobei
+    {' '}{proz(40, 0)} der Bezüge nach § 3 Nr. 40 EStG steuerfrei bleiben. Das lohnt nur
+    unterhalb des Spitzensteuersatzes und ändert an der Rangfolge bei hohen Gewinnen
+    nichts. Ebenfalls unberücksichtigt bleiben die laufenden Kosten der GmbH –
+    Notar, Handelsregister, Jahresabschluss –, die den Abstand zulasten der GmbH
+    weiter vergrößern, sowie Haftungs-, Nachfolge- und Finanzierungsgründe, die für
+    eine GmbH sprechen können, auch wenn die Steuerrechnung dagegen spricht.
+  </p>
+  <p>
+    Wer die Gewerbesteuer für seinen Hebesatz einzeln nachrechnen will, findet sie im
+    {' '}<a href={`${import.meta.env.BASE_URL}geld/gewerbesteuer-rechner/`}>Gewerbesteuer-Rechner</a>;
+    die Belastung der Ausschüttung steht im
+    {' '}<a href={`${import.meta.env.BASE_URL}geld/abgeltungsteuer-rechner/`}>Abgeltungsteuer-Rechner</a>.
+    Warum die {proz(ABGELTUNGSTEUERSATZ * 100, 0)} aus dem Gesetz in der Praxis nie
+    genau {proz(ABGELTUNGSTEUERSATZ * 100, 0)} sind, steht im Artikel
+    {' '}<a href={`${import.meta.env.BASE_URL}${artikelPfadVonSlug('abgeltungsteuer-nie-25-prozent')}`}>Warum niemand 25 Prozent zahlt</a>.
+  </p>
+</RechnerArtikel>

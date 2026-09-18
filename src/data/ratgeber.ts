@@ -42,6 +42,24 @@ export interface Artikel {
 
 export const ARTIKEL: Artikel[] = [
   {
+    slug: 'spaete-geburt-verlaengert-den-mutterschutz',
+    titel: 'Eine späte Geburt verlängert den Mutterschutz',
+    teaser: 'Der errechnete Termin ist ein einzelner Kalendertag, und § 3 MuSchG rechnet fest damit, dass er nicht eintrifft. Wer sieben Tage zu früh entbindet, hat am Ende dieselbe Schutzfrist wie bei einer Geburt am Termin – wer sieben Tage zu spät entbindet, hat sieben Tage mehr. Bei 2.200 € Nettoentgelt sind das 513,31 € zusätzlich, von denen die Krankenkasse 91,00 € trägt.',
+    datum: '2026-09-18',
+    thema: 'Familie',
+    rechner: ['schwangerschafts-rechner', 'mutterschutz-rechner', 'elterngeld-rechner'],
+    aufRechnerseite: true,
+  },
+  {
+    slug: 'gmbh-break-even-ist-ein-hebesatz',
+    titel: 'Der Break-even ist ein Hebesatz, kein Gewinn',
+    teaser: 'Die Regel „ab rund 80.000 € Gewinn lohnt die GmbH“ hält dem Nachrechnen nicht stand. Wer voll ausschüttet, zahlt bei einem Hebesatz von 410 % konstant 48,59 % – bei jedem Gewinn. Das Einzelunternehmen kommt selbst bei unbegrenzt wachsendem Gewinn nie über 47,05 %. Zwischen 341 % und 576 % Hebesatz gewinnt die GmbH bei Vollausschüttung nie; erst das Einbehalten dreht das Bild, und das ist eine Stundung.',
+    datum: '2026-09-18',
+    thema: 'Geld',
+    rechner: ['gmbh-vs-einzelunternehmen', 'gewerbesteuer-rechner', 'abgeltungsteuer-rechner'],
+    aufRechnerseite: true,
+  },
+  {
     slug: 'blutdruck-optimal-und-erhoeht',
     titel: 'Optimal und erhöht zugleich',
     teaser: 'Für Blutdruck gibt es in Europa zwei Tabellen, und sie sind sich nur an einer Stelle einig: ab 140/90 mmHg ist es Bluthochdruck. Darunter nennt die ESH-Leitlinie 118/75 „optimal“, die ESC-Leitlinie „erhöht“. Welche Kategorie gilt, entscheidet außerdem immer der ungünstigere der beiden Werte – und der Ort, an dem gemessen wurde: Zu Hause liegt die Grenze bei 135/85.',

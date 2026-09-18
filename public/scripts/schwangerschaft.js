@@ -28,8 +28,23 @@ const SCHUTZFRIST_NACH_GEBURT_TAGE = 56;
 /** § 24i Abs. 2 Satz 2 SGB V – Höchstbetrag der Krankenkasse je Kalendertag. */
 const MUTTERSCHAFTSGELD_HOECHSTBETRAG_TAG = 13;
 
-/** § 20 MuSchG rechnet das Nettoentgelt auf Kalendertage um. */
+/**
+ * Divisor, mit dem dieses Modul das Monatsnetto auf Kalendertage umrechnet.
+ *
+ * Eine Modellannahme, keine Gesetzesgröße: § 20 Abs. 1 Satz 2 MuSchG stellt auf
+ * das durchschnittliche kalendertägliche Nettoentgelt der letzten drei
+ * abgerechneten Kalendermonate ab (§ 21 MuSchG), nicht auf einen festen Teiler.
+ */
 const TAGE_JE_MONAT = 30;
+
+/**
+ * Kalendertage, für die gezahlt wird: die 14 Wochen Schutzfrist und zusätzlich
+ * der Entbindungstag. Beide Leistungen nennen ihn ausdrücklich – § 24i Abs. 3
+ * Satz 1 SGB V für das Mutterschaftsgeld, § 20 Abs. 1 Satz 1 MuSchG für den
+ * Zuschuss des Arbeitgebers. Bis September 2026 rechnete dieses Modul nur mit
+ * den 98 Tagen der Schutzfristen.
+ */
+const ZAHLTAGE = SCHUTZFRIST_VOR_GEBURT_TAGE + SCHUTZFRIST_NACH_GEBURT_TAGE + 1;
 
 /** Ein Kalendertag in Millisekunden. */
 const TAG_MS = 24 * 60 * 60 * 1000;
@@ -61,12 +76,12 @@ function berechneSchwangerschaft({ letztePeriode, netto, arbeitgeberZuschuss }) 
   const mutterschaftsgeldTag = Math.min(MUTTERSCHAFTSGELD_HOECHSTBETRAG_TAG, nettoTag);
   const mutterschaftsgeldVorGeburt = mutterschaftsgeldTag * SCHUTZFRIST_VOR_GEBURT_TAGE;
   const mutterschaftsgeldNachGeburt = mutterschaftsgeldTag * SCHUTZFRIST_NACH_GEBURT_TAGE;
+  const mutterschaftsgeldGesamt = mutterschaftsgeldTag * ZAHLTAGE;
 
   // § 20 Abs. 1 MuSchG: der Arbeitgeber zahlt die Differenz zwischen 13 Euro
-  // und dem kalendertäglichen Nettoentgelt für die gesamte Schutzfrist.
-  const schutzfristTage = SCHUTZFRIST_VOR_GEBURT_TAGE + SCHUTZFRIST_NACH_GEBURT_TAGE;
+  // und dem kalendertäglichen Nettoentgelt – für dieselben Tage.
   const arbeitgeberTag = arbeitgeberZuschuss ? Math.max(0, nettoTag - mutterschaftsgeldTag) : 0;
-  const gesamt = mutterschaftsgeldVorGeburt + mutterschaftsgeldNachGeburt + arbeitgeberTag * schutzfristTage;
+  const gesamt = mutterschaftsgeldGesamt + arbeitgeberTag * ZAHLTAGE;
 
   return {
     geburtstermin,
@@ -75,7 +90,9 @@ function berechneSchwangerschaft({ letztePeriode, netto, arbeitgeberZuschuss }) 
     mutterschaftsgeldTag: Math.round(mutterschaftsgeldTag * 100) / 100,
     mutterschaftsgeldVorGeburt: Math.round(mutterschaftsgeldVorGeburt * 100) / 100,
     mutterschaftsgeldNachGeburt: Math.round(mutterschaftsgeldNachGeburt * 100) / 100,
-    arbeitgeberzuschuss: Math.round(arbeitgeberTag * schutzfristTage * 100) / 100,
+    mutterschaftsgeldGesamt: Math.round(mutterschaftsgeldGesamt * 100) / 100,
+    zahltage: ZAHLTAGE,
+    arbeitgeberzuschuss: Math.round(arbeitgeberTag * ZAHLTAGE * 100) / 100,
     gesamt: Math.round(gesamt * 100) / 100,
   };
 }
@@ -86,4 +103,6 @@ export {
   SCHUTZFRIST_VOR_GEBURT_TAGE,
   SCHUTZFRIST_NACH_GEBURT_TAGE,
   MUTTERSCHAFTSGELD_HOECHSTBETRAG_TAG,
+  TAGE_JE_MONAT,
+  ZAHLTAGE,
 };
