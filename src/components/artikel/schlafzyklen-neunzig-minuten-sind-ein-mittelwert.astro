@@ -1,0 +1,404 @@
+---
+import RechnerArtikel from '../RechnerArtikel.astro';
+
+// Die Rechnerseite hat KEIN eigenes Modul – die Logik steht inline im
+// <script type="module"> von src/pages/gesundheit/schlaf-rechner.astro.
+// Dieser Artikel legt deshalb alle Annahmen hier oben offen und bildet die
+// Formel der Seite nach (siehe formelDerSeite). Herkunft der Zahlen:
+//   ZYKLUS_MODELL = 90  -> aus dem Seitenskript (schlaftime = zyklen * 90)
+//   OPTIONEN      = 4/5/6 -> aus dem <select id="zyklen"> derselben Seite
+//   EINSCHLAF_*   -> aus dem <input id="einschlafzeit"> (min 0, max 60, step 1)
+//   ZYKLUS_MIN/MAX = 80/100 -> NHLBI, "Sleep Phases and Stages": "The cycle
+//     starts over every 80 to 100 minutes. Usually there are four to six
+//     cycles per night." Dieselbe Spanne nennt die Seite in ihrem eigenen FAQ.
+//   EMPFEHLUNG_*  = 7 bis 9 Stunden -> NHLBI, "How Much Sleep Is Enough?":
+//     "Experts recommend that adults sleep between 7 and 9 hours a night."
+// Keine Zahl im Fliesstext ist getippt; jede stammt aus einer Variablen.
+
+const zahl = (n: number, d = 0) =>
+  n.toLocaleString('de-DE', { minimumFractionDigits: d, maximumFractionDigits: d }).replace('-', '−');
+const hm = (m: number) => {
+  const h = Math.floor(m / 60);
+  const r = m % 60;
+  return r === 0 ? `${zahl(h)} Stunden` : `${zahl(h)} Stunden ${zahl(r)} Minuten`;
+};
+const uhr = (m: number) => {
+  const n = ((m % 1440) + 1440) % 1440;
+  return `${String(Math.floor(n / 60)).padStart(2, '0')}:${String(n % 60).padStart(2, '0')}`;
+};
+
+// --- Die Annahmen der Seite ------------------------------------------------
+const ZYKLUS_MODELL = 90;
+const OPTIONEN = [4, 5, 6];
+const ABSTAND = ZYKLUS_MODELL; // Abstand zweier benachbarter Empfehlungen
+const EINSCHLAF_MIN = 0;
+const EINSCHLAF_MAX = 60;
+const EINSCHLAF_SCHRITT = 1;
+const EINSCHLAF_VORGABE = 15;
+const WECKZEIT_VORGABE = 7 * 60;
+const ZYKLEN_VORGABE = 5;
+
+// --- Die Spanne aus der Schlafforschung ------------------------------------
+const ZYKLUS_MIN = 80;
+const ZYKLUS_MAX = 100;
+const SPANNE = ZYKLUS_MAX - ZYKLUS_MIN;
+const EMPFEHLUNG_MIN = 7 * 60;
+const EMPFEHLUNG_MAX = 9 * 60;
+
+// Die Formel der Seite, nachgebaut: Modus "aufstehen".
+const formelDerSeite = (weckzeit: number, einschlafzeit: number, zyklen: number) =>
+  weckzeit - einschlafzeit - zyklen * ZYKLUS_MODELL;
+
+// --- 1. Das Band je Zyklenzahl ---------------------------------------------
+const baender = OPTIONEN.map((n) => {
+  const modell = n * ZYKLUS_MODELL;
+  const von = n * ZYKLUS_MIN;
+  const bis = n * ZYKLUS_MAX;
+  return { n, modell, von, bis, breite: bis - von, breiterAlsRaster: bis - von > ABSTAND };
+});
+const b4 = baender[0];
+const b5 = baender[1];
+const b6 = baender[2];
+const SCHWELLE = OPTIONEN.find((n) => n * SPANNE > ABSTAND);
+if (SCHWELLE !== 5) {
+  throw new Error('Schlaf-Artikel: Die Schwelle, ab der das Band breiter ist als das Raster, liegt nicht mehr bei 5 Zyklen.');
+}
+if (!(b4.breite <= ABSTAND && b5.breite > ABSTAND)) {
+  throw new Error('Schlaf-Artikel: Vier Zyklen liegen nicht mehr unter, fuenf nicht mehr ueber dem Rasterabstand.');
+}
+if (ZYKLEN_VORGABE !== SCHWELLE) {
+  throw new Error('Schlaf-Artikel: Die Voreinstellung der Seite ist nicht mehr die Zyklenzahl, an der die Schwelle liegt.');
+}
+// Ueberlappung der Baender von fuenf und sechs Zyklen
+const ueberVon = Math.max(b5.von, b6.von);
+const ueberBis = Math.min(b5.bis, b6.bis);
+const ueberBreite = ueberBis - ueberVon;
+if (!(ueberBreite > 0)) {
+  throw new Error('Schlaf-Artikel: Die Baender von fuenf und sechs Zyklen ueberlappen nicht mehr.');
+}
+// Union aller drei Baender gegen die Spanne der drei Modellwerte
+const unionBreite = b6.bis - b4.von;
+const modellSpanne = b6.modell - b4.modell;
+if (!(unionBreite > modellSpanne)) {
+  throw new Error('Schlaf-Artikel: Die Baender zusammen sind nicht mehr breiter als die Spanne der drei Empfehlungen.');
+}
+
+// --- 2. Abstand zur naechsten echten Zyklusgrenze ---------------------------
+// Dauert ein Zyklus in Wahrheit L Minuten, liegen die Grenzen bei Vielfachen
+// von L. Wie weit ist die vom Rechner genannte Weckzeit davon entfernt?
+const abstandZurGrenze = (t: number, laenge: number) => {
+  const rest = t % laenge;
+  return Math.min(rest, laenge - rest);
+};
+const RASTER = [80, 85, 90, 95, 100];
+const treffer = baender.map((b) => {
+  let maxAbstand = -1;
+  let maxBei = 0;
+  const exakt: number[] = [];
+  for (let L = ZYKLUS_MIN; L <= ZYKLUS_MAX; L += 1) {
+    const a = abstandZurGrenze(b.modell, L);
+    if (a > maxAbstand) { maxAbstand = a; maxBei = L; }
+    if (a === 0) exakt.push(L);
+  }
+  return {
+    ...b,
+    exakt,
+    maxAbstand,
+    maxBei,
+    zeile: RASTER.map((L) => ({ L, a: abstandZurGrenze(b.modell, L) })),
+  };
+});
+const t5 = treffer[1];
+const t4 = treffer[0];
+const ANZAHL_LAENGEN = ZYKLUS_MAX - ZYKLUS_MIN + 1;
+for (const t of treffer) {
+  if (t.exakt.length !== 1 || t.exakt[0] !== ZYKLUS_MODELL) {
+    throw new Error(`Schlaf-Artikel: Bei ${t.n} Zyklen trifft nicht mehr genau eine Zykluslaenge die Grenze exakt.`);
+  }
+}
+// Bei fuenf Zyklen und 100 Minuten Zykluslaenge ist der Abstand ein halber
+// Zyklus – weiter kann ein Zeitpunkt von einer Grenze nicht entfernt sein.
+if (t5.maxAbstand !== t5.maxBei / 2) {
+  throw new Error('Schlaf-Artikel: Der groesste Abstand bei fuenf Zyklen ist kein halber Zyklus mehr.');
+}
+if (t4.maxAbstand !== t4.maxBei / 2) {
+  throw new Error('Schlaf-Artikel: Der groesste Abstand bei vier Zyklen ist kein halber Zyklus mehr.');
+}
+
+// --- 3. Wie viele Zyklen wirklich in der Zeit stecken -----------------------
+const enthalten = baender.map((b) => ({
+  n: b.n,
+  wenig: b.modell / ZYKLUS_MAX,
+  viel: b.modell / ZYKLUS_MIN,
+}));
+const e5 = enthalten[1];
+if (!(e5.wenig < ZYKLEN_VORGABE && e5.viel > ZYKLEN_VORGABE)) {
+  throw new Error('Schlaf-Artikel: Die Voreinstellung liefert nicht mehr eine Spanne um fuenf Zyklen herum.');
+}
+
+// --- 4. Die Voreinstellung der Seite, konkret ------------------------------
+const insBett = formelDerSeite(WECKZEIT_VORGABE, EINSCHLAF_VORGABE, ZYKLEN_VORGABE);
+const einschlafPunkt = WECKZEIT_VORGABE - ZYKLEN_VORGABE * ZYKLUS_MODELL;
+const weckFrueh = einschlafPunkt + b5.von;
+const weckSpaet = einschlafPunkt + b5.bis;
+if (uhr(insBett) !== '23:15' || uhr(WECKZEIT_VORGABE) !== '07:00') {
+  throw new Error('Schlaf-Artikel: Die Voreinstellung der Rechnerseite ergibt nicht mehr 23:15 zu 07:00.');
+}
+if (weckSpaet - weckFrueh !== b5.breite) {
+  throw new Error('Schlaf-Artikel: Das Weckfenster der Voreinstellung passt nicht zur Bandbreite.');
+}
+
+// --- 5. Der Stellhebel Einschlafzeit ---------------------------------------
+const feldSpanne = EINSCHLAF_MAX - EINSCHLAF_MIN;
+const feldAnteil = (feldSpanne / b5.breite) * 100;
+const schritteImBand = b5.breite / EINSCHLAF_SCHRITT;
+if (!(feldSpanne < b5.breite)) {
+  throw new Error('Schlaf-Artikel: Das Einschlafzeit-Feld deckt das Band bei fuenf Zyklen inzwischen ganz ab.');
+}
+
+// --- 6. Die Gesamtdauer, der robuste Teil ----------------------------------
+const imKorridor = baender.map((b) => ({
+  n: b.n,
+  modell: b.modell,
+  drin: b.modell >= EMPFEHLUNG_MIN && b.modell <= EMPFEHLUNG_MAX,
+}));
+if (imKorridor[0].drin || !imKorridor[1].drin || !imKorridor[2].drin) {
+  throw new Error('Schlaf-Artikel: Die Lage der drei Optionen zum Korridor 7 bis 9 Stunden hat sich geaendert.');
+}
+const zyklenImKorridorMin = Math.floor(EMPFEHLUNG_MIN / ZYKLUS_MAX);
+const zyklenImKorridorMax = Math.floor(EMPFEHLUNG_MAX / ZYKLUS_MIN);
+if (zyklenImKorridorMin !== 4 || zyklenImKorridorMax !== 6) {
+  throw new Error('Schlaf-Artikel: Der Korridor 7 bis 9 Stunden umfasst nicht mehr vier bis sechs volle Zyklen.');
+}
+
+const quellen = [
+  { titel: 'National Heart, Lung, and Blood Institute (NIH) – How Sleep Works: Sleep Phases and Stages („The cycle starts over every 80 to 100 minutes. Usually there are four to six cycles per night.“)', url: 'https://www.nhlbi.nih.gov/health/sleep/stages-of-sleep' },
+  { titel: 'National Heart, Lung, and Blood Institute (NIH) – How Much Sleep Is Enough? („Experts recommend that adults sleep between 7 and 9 hours a night.“)', url: 'https://www.nhlbi.nih.gov/health/sleep/how-much-sleep' },
+];
+---
+<RechnerArtikel
+  titel={`Ab dem fünften Zyklus ist die Unschärfe größer als der Abstand zur nächsten Weckzeit`}
+  datum="2026-09-23"
+  lead={`Der Rechner oben teilt die Nacht in Blöcke zu ${zahl(ZYKLUS_MODELL)} Minuten und nennt eine Uhrzeit auf die Minute genau. Die ${zahl(ZYKLUS_MODELL)} Minuten sind aber ein Mittelwert: Das NIH gibt die Zykluslänge mit ${zahl(ZYKLUS_MIN)} bis ${zahl(ZYKLUS_MAX)} Minuten an. Diese Unsicherheit wächst mit jedem Zyklus um ${zahl(SPANNE)} Minuten – und überholt bei ${zahl(SCHWELLE!)} Zyklen den Abstand von ${zahl(ABSTAND)} Minuten, der die drei Empfehlungen des Rechners voneinander trennt. Genau diese ${zahl(SCHWELLE!)} Zyklen sind die Voreinstellung.`}
+  quellen={quellen}
+>
+  <h3>Was der Rechner rechnet</h3>
+  <p>
+    Die Rechnung hinter dem Formular ist eine Addition. Die Schlafdauer ist die
+    Zyklenzahl mal {zahl(ZYKLUS_MODELL)} Minuten; dazu kommt die Einschlafzeit.
+    Wer um {uhr(WECKZEIT_VORGABE)} Uhr aufstehen will, {zahl(EINSCHLAF_VORGABE)} Minuten
+    zum Einschlafen braucht und {zahl(ZYKLEN_VORGABE)} Zyklen anpeilt, bekommt
+    {' '}{uhr(WECKZEIT_VORGABE)} − {zahl(EINSCHLAF_VORGABE)} − {zahl(ZYKLEN_VORGABE)} ×
+    {' '}{zahl(ZYKLUS_MODELL)} = {uhr(insBett)} Uhr als Zeitpunkt zum Hinlegen.
+    Drei Zyklenzahlen stehen zur Wahl, und weil jede einen Zyklus mehr bedeutet,
+    liegen die drei Ergebnisse jeweils {zahl(ABSTAND)} Minuten auseinander.
+  </p>
+  <p>
+    Dieses Raster von {zahl(ABSTAND)} Minuten ist der Maßstab, an dem sich der
+    Rechner messen lassen muss. Eine Empfehlung ist nur dann eine Empfehlung,
+    wenn sie sich von der Nachbarempfehlung unterscheiden lässt.
+  </p>
+
+  <h3>Die {zahl(ZYKLUS_MODELL)} Minuten sind ein Mittelwert</h3>
+  <p>
+    Das National Heart, Lung, and Blood Institute der amerikanischen
+    Gesundheitsbehörde NIH beschreibt den Ablauf so: Der Zyklus beginnt alle
+    {' '}{zahl(ZYKLUS_MIN)} bis {zahl(ZYKLUS_MAX)} Minuten von vorn, und pro Nacht
+    sind es üblicherweise {zahl(zyklenImKorridorMin)} bis {zahl(zyklenImKorridorMax)}
+    {' '}Zyklen. Dieselbe Spanne nennt die Seite in ihrem eigenen FAQ. Die
+    {' '}{zahl(ZYKLUS_MODELL)} Minuten des Rechners liegen genau in deren Mitte –
+    sie sind kein Naturgesetz, sondern der Mittelwert eines Intervalls von
+    {' '}{zahl(SPANNE)} Minuten.
+  </p>
+  <p>
+    Damit ist die Weckzeit keine Zahl, sondern ein Bereich. Nach einem Zyklus ist
+    er {zahl(SPANNE)} Minuten breit, nach zwei Zyklen {zahl(2 * SPANNE)}, und so
+    fort: Die Breite ist die Zyklenzahl mal {zahl(SPANNE)} Minuten. Der Fehler
+    summiert sich, weil sich auch die Zyklen summieren.
+  </p>
+
+  <table>
+    <caption class="visually-hidden">
+      Modellwert und tatsächlicher Bereich der Weckzeit je Zyklenzahl, gemessen ab dem Einschlafen
+    </caption>
+    <thead>
+      <tr>
+        <th scope="col">Auswahl</th>
+        <th scope="col" class="num">Rechner sagt</th>
+        <th scope="col" class="num">Bereich bei {zahl(ZYKLUS_MIN)}–{zahl(ZYKLUS_MAX)} Min.</th>
+        <th scope="col" class="num">Breite</th>
+        <th scope="col">gegen {zahl(ABSTAND)} Min. Raster</th>
+      </tr>
+    </thead>
+    <tbody>
+      {baender.map((b) => (
+        <tr>
+          <th scope="row">{zahl(b.n)} Zyklen</th>
+          <td class="num">{hm(b.modell)}</td>
+          <td class="num">{hm(b.von)} – {hm(b.bis)}</td>
+          <td class="num">{zahl(b.breite)} Min.</td>
+          <td>{b.breiterAlsRaster ? 'breiter' : 'schmaler'}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+  <p class="ra-hinweis">
+    Alle Zeiten gerechnet ab dem Einschlafen, ohne die Einschlafzeit. „Breite“
+    ist die Zyklenzahl mal {zahl(SPANNE)} Minuten, dem Abstand zwischen der
+    kürzesten und der längsten vom NIH genannten Zykluslänge.
+  </p>
+  <p>
+    Bei {zahl(b4.n)} Zyklen ist der Bereich {zahl(b4.breite)} Minuten breit und
+    bleibt damit unter dem Raster von {zahl(ABSTAND)} Minuten. Bei
+    {' '}{zahl(b5.n)} Zyklen sind es {zahl(b5.breite)} Minuten – mehr als der
+    Abstand zur nächsten Auswahl. Ab hier lässt sich die Empfehlung von ihrer
+    Nachbarin nicht mehr trennen: Die Bereiche für {zahl(b5.n)} und
+    {' '}{zahl(b6.n)} Zyklen überschneiden sich auf {zahl(ueberBreite)} Minuten,
+    von {hm(ueberVon)} bis {hm(ueberBis)} nach dem Einschlafen. Wer in diesem
+    Fenster aufwacht, kann ebenso gut fünf wie sechs Zyklen hinter sich haben.
+  </p>
+  <p>
+    In Uhrzeiten der Voreinstellung heißt das: Wer um {uhr(insBett)} Uhr ins
+    Bett geht und {zahl(EINSCHLAF_VORGABE)} Minuten später einschläft, hat
+    {' '}{zahl(ZYKLEN_VORGABE)} Zyklen irgendwann zwischen {uhr(weckFrueh)} und
+    {' '}{uhr(weckSpaet)} Uhr hinter sich. Der Rechner nennt aus diesem
+    {' '}{zahl(b5.breite)} Minuten breiten Fenster einen einzigen Zeitpunkt:
+    {' '}{uhr(WECKZEIT_VORGABE)} Uhr.
+  </p>
+
+  <h3>Nur eine einzige Zykluslänge trifft</h3>
+  <p>
+    Der zweite Weg, dasselbe zu prüfen, dreht die Frage um. Angenommen, ein
+    Zyklus dauert bei einem bestimmten Menschen wirklich L Minuten – dann liegen
+    seine Zyklusgrenzen bei den Vielfachen von L. Trifft die vom Rechner
+    genannte Zeit eine davon? Rechnet man das für jede ganze Zykluslänge von
+    {' '}{zahl(ZYKLUS_MIN)} bis {zahl(ZYKLUS_MAX)} Minuten durch, also für
+    {' '}{zahl(ANZAHL_LAENGEN)} Fälle, bleibt bei jeder der drei Auswahlmöglichkeiten
+    genau eine übrig: {zahl(ZYKLUS_MODELL)} Minuten. Bei allen anderen
+    {' '}{zahl(ANZAHL_LAENGEN - 1)} Längen fällt die genannte Uhrzeit mitten in
+    einen Zyklus.
+  </p>
+
+  <table>
+    <caption class="visually-hidden">
+      Abstand der vom Rechner genannten Weckzeit zur nächsten echten Zyklusgrenze, je nach tatsächlicher Zykluslänge
+    </caption>
+    <thead>
+      <tr>
+        <th scope="col">Auswahl</th>
+        {RASTER.map((L) => <th scope="col" class="num">{zahl(L)} Min.</th>)}
+        <th scope="col" class="num">größter Abstand</th>
+      </tr>
+    </thead>
+    <tbody>
+      {treffer.map((t) => (
+        <tr>
+          <th scope="row">{zahl(t.n)} Zyklen</th>
+          {t.zeile.map((z) => <td class="num">{z.a === 0 ? 'trifft' : `${zahl(z.a)} Min.`}</td>)}
+          <td class="num">{zahl(t.maxAbstand)} Min. (bei {zahl(t.maxBei)})</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+  <p class="ra-hinweis">
+    Abstand zur nächstgelegenen Zyklusgrenze, in beide Richtungen gemessen. Die
+    Spalte „größter Abstand“ sucht über alle ganzen Zykluslängen von
+    {' '}{zahl(ZYKLUS_MIN)} bis {zahl(ZYKLUS_MAX)} Minuten das ungünstigste Ergebnis.
+  </p>
+  <p>
+    Die letzte Spalte ist der eigentliche Befund. Bei {zahl(t5.n)} Zyklen und
+    einer tatsächlichen Zykluslänge von {zahl(t5.maxBei)} Minuten liegt die
+    genannte Weckzeit {zahl(t5.maxAbstand)} Minuten von der nächsten Grenze
+    entfernt. Das ist kein beliebiger Wert, sondern exakt ein halber Zyklus:
+    {' '}{zahl(t5.maxBei)} geteilt durch zwei. Weiter kann ein Zeitpunkt von einer
+    Zyklusgrenze überhaupt nicht entfernt sein. Bei {zahl(t4.n)} Zyklen und
+    {' '}{zahl(t4.maxBei)} Minuten Zykluslänge gilt dasselbe mit
+    {' '}{zahl(t4.maxAbstand)} Minuten. Der Rechner landet in diesen Fällen also
+    nicht knapp daneben, sondern so weit daneben, wie es geht – am Punkt, den
+    sein eigenes Modell gerade vermeiden will.
+  </p>
+
+  <h3>Wie viele Zyklen tatsächlich in der Zeit stecken</h3>
+  <p>
+    Dieselbe Unsicherheit lässt sich auch in Zyklen statt in Minuten ausdrücken.
+    Die als „empfohlen“ markierte Auswahl verspricht {zahl(ZYKLEN_VORGABE)} Zyklen
+    in {hm(b5.modell)}. Dauert ein Zyklus {zahl(ZYKLUS_MAX)} Minuten, sind darin
+    {' '}{zahl(e5.wenig, 2)} Zyklen enthalten; dauert er {zahl(ZYKLUS_MIN)} Minuten,
+    sind es {zahl(e5.viel, 2)}.
+  </p>
+  <ul>
+    {enthalten.map((e) => (
+      <li>
+        <strong>{zahl(e.n)} Zyklen</strong> ({hm(e.n * ZYKLUS_MODELL)}) enthalten
+        tatsächlich {zahl(e.wenig, 2)} bis {zahl(e.viel, 2)} Zyklen.
+      </li>
+    ))}
+  </ul>
+  <p>
+    Die drei Auswahlmöglichkeiten decken im Modell eine Spanne von
+    {' '}{zahl(modellSpanne)} Minuten ab, von {hm(b4.modell)} bis {hm(b6.modell)}.
+    Ihre Bereiche zusammengenommen reichen dagegen von {hm(b4.von)} bis
+    {' '}{hm(b6.bis)} – {zahl(unionBreite)} Minuten. Das Modell beansprucht also
+    ein feineres Raster, als seine eigene Streuung hergibt.
+  </p>
+
+  <h3>Der feinste Regler ist der kleinste</h3>
+  <p>
+    Das Feld für die Einschlafzeit lässt Eingaben von {zahl(EINSCHLAF_MIN)} bis
+    {' '}{zahl(EINSCHLAF_MAX)} Minuten zu, in Schritten von
+    {' '}{zahl(EINSCHLAF_SCHRITT)} Minute. Jede Minute dort verschiebt das Ergebnis
+    um genau eine Minute – das ist die feinste Stellschraube der Seite. Gegen das
+    Band bei {zahl(ZYKLEN_VORGABE)} Zyklen gehalten, wirkt sie klein: Um dessen
+    {' '}{zahl(b5.breite)} Minuten abzudecken, bräuchte es
+    {' '}{zahl(schritteImBand)} Schritte. Selbst der gesamte Eingabebereich des
+    Felds, {zahl(feldSpanne)} Minuten von Anschlag zu Anschlag, deckt nur
+    {' '}{zahl(feldAnteil, 0)} Prozent davon ab.
+  </p>
+  <p>
+    Das heißt nicht, dass die Eingabe sinnlos wäre – sie verschiebt die Zeit
+    korrekt. Es heißt, dass die minutengenaue Anzeige eine Auflösung vorspiegelt,
+    die das dahinterliegende Modell nicht besitzt. Wer die Einschlafzeit von
+    {' '}{zahl(EINSCHLAF_VORGABE)} auf {zahl(EINSCHLAF_VORGABE + 5)} Minuten
+    korrigiert, verändert das Ergebnis um {zahl(5)} Minuten, während die
+    Zykluslänge im selben Ergebnis für {zahl(b5.breite)} Minuten Spielraum sorgt.
+  </p>
+
+  <h3>Wo das Modell am verlässlichsten ist</h3>
+  <p>
+    Die Streuung wächst mit der Zyklenzahl – umgekehrt ist sie bei einem einzigen
+    Zyklus am kleinsten. Für ein Nickerchen von einem Zyklus beträgt sie
+    {' '}{zahl(SPANNE)} Minuten, ein Fünftel des Werts bei
+    {' '}{zahl(ZYKLEN_VORGABE)} Zyklen. Das Modell ist also genau dort am
+    belastbarsten, wo der Rechner es nicht anbietet: Seine kleinste Auswahl
+    beginnt bei {zahl(b4.n)} Zyklen.
+  </p>
+  <p>
+    Dazu kommt eine Eigenschaft der Nacht, die das NIH ebenfalls beschreibt: Im
+    Tiefschlaf verbringt man mehr Zeit früh in der Nacht, im REM-Schlaf mehr Zeit
+    später. Die Sorge, aus dem Tiefschlaf gerissen zu werden, betrifft damit vor
+    allem die ersten Zyklen – dort, wo das Raster des Rechners noch halbwegs
+    trägt. In den späten Zyklen, wo seine Unschärfe am größten ist, ist auch am
+    wenigsten Tiefschlaf zu treffen. Die beiden Effekte laufen in dieselbe
+    Richtung, und beide sprechen gegen die minutengenaue Lesart der Ausgabe.
+  </p>
+  <p>
+    Robust ist am Rechner etwas anderes: die Gesamtdauer. Sie hängt nicht davon
+    ab, wie lang ein Zyklus wirklich dauert, sondern folgt direkt aus der
+    Auswahl. {hm(b5.modell)} und {hm(b6.modell)} liegen im Korridor von
+    {' '}{zahl(EMPFEHLUNG_MIN / 60)} bis {zahl(EMPFEHLUNG_MAX / 60)} Stunden, den
+    das NIH für Erwachsene angibt; {hm(b4.modell)} liegen darunter, obwohl die
+    Auswahl sie als „Minimal“ führt. Dieser Korridor entspricht rechnerisch
+    {' '}{zahl(zyklenImKorridorMin)} bis {zahl(zyklenImKorridorMax)} vollen Zyklen –
+    dieselbe Zahl, die das NIH unabhängig davon für eine übliche Nacht nennt.
+  </p>
+  <p class="ra-hinweis">
+    Grundlage dieses Artikels sind die Annahmen der Rechnerseite selbst
+    ({zahl(ZYKLUS_MODELL)} Minuten je Zyklus, {OPTIONEN.map((n) => zahl(n)).join('/')} Zyklen
+    zur Auswahl) und die Angaben des NIH zu Zykluslänge und Schlafdauer. Alle
+    Bereiche sind rein rechnerisch aus der Spanne {zahl(ZYKLUS_MIN)} bis
+    {' '}{zahl(ZYKLUS_MAX)} Minuten abgeleitet und mit ganzen Minuten gerechnet.
+    Nicht betrachtet sind der Einfluss von Alter, Schlafmitteln, Erkrankungen
+    und Schichtarbeit sowie die Frage, wie stark sich die Zykluslänge innerhalb
+    einer einzelnen Nacht verändert.
+  </p>
+</RechnerArtikel>
