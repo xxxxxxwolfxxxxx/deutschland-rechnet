@@ -42,6 +42,15 @@ export interface Artikel {
 
 export const ARTIKEL: Artikel[] = [
   {
+    slug: 'doppelte-rate-oder-doppelte-laufzeit',
+    titel: 'Doppelte Rate verdoppelt das Ergebnis – doppelte Laufzeit versechsfacht den Gewinn',
+    teaser: 'Wer die monatliche Sparrate verdoppelt, verdoppelt Endkapital und Gewinn – exakt, nicht ungefähr. Wer stattdessen doppelt so lange spart, bekommt bei 5 % Rendite nicht das Doppelte, sondern das 3,65-fache Kapital und das 6,05-fache im Gewinn. Der Grund: Die Rate steckt nur additiv in der Rechnung, die Laufzeit dagegen im Exponenten des Zinseszinses.',
+    datum: '2026-09-23',
+    thema: 'Geld',
+    rechner: ['etf-sparplan-rechner'],
+    aufRechnerseite: true,
+  },
+  {
     slug: 'trinkgeld-teilen-rundungsreihenfolge',
     titel: 'Wer beim Teilen zuerst rundet, zahlt nicht dasselbe wie wer zuletzt rundet',
     teaser: 'Ohne Rundung sind beide Reihenfolgen identisch: Trinkgeld auf die ganze Rechnung und dann teilen, oder erst teilen und dann pro Kopf Trinkgeld drauf. Sobald am Tisch aber auf 50 Cent oder volle Euro gerundet wird, ergeben beide Wege unterschiedliche Summen – ohne feste Richtung: Bei 6 Personen ist der eine Weg 3 € günstiger, bei 3 bzw. 7 Personen 1,50 € bzw. 3,50 € teurer.',
