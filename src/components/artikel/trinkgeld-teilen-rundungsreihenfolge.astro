@@ -1,0 +1,218 @@
+---
+import RechnerArtikel from '../RechnerArtikel.astro';
+
+// Der Trinkgeld-Rechner hat kein eigenes Modul unter public/scripts/. Seine
+// Logik steht inline im <script> von src/pages/geld/trinkgeld-rechner.astro:
+//   trinkgeld = rechnung * (prozent / 100)
+//   gesamt    = rechnung + trinkgeld
+// Genau diese zwei Zeilen bilden auch dieser Artikel hier im Frontmatter nach,
+// erweitert um das Teilen auf mehrere Personen und die Rundung auf einen
+// bargeldfreundlichen Betrag. Keine Zahl im Fließtext ist abgetippt.
+
+const minus = (text: string) => text.replace(/^-/, '−');
+const zahl = (n: number, d = 2) =>
+  minus(n.toLocaleString('de-DE', { minimumFractionDigits: d, maximumFractionDigits: d }));
+const eur = (n: number) => zahl(n, 2) + ' €';
+const eur0 = (n: number) => zahl(n, 0) + ' €';
+const proz = (n: number, d = 0) => zahl(n * 100, d) + ' %';
+
+/** Kaufmännisch auf einen Schritt runden (0,50 € oder 1 €). */
+const rundeAuf = (x: number, schritt: number) => Math.round(x / schritt) * schritt;
+
+/**
+ * Zwei Rechenwege für dieselbe Frage: "Was zahlt jede Person, wenn n Personen
+ * eine Rechnung B mit Trinkgeldsatz p teilen und auf einen Bargeldbetrag
+ * runden?"
+ *
+ * Weg A – Gesamtbetrag zuerst: Trinkgeld auf die ganze Rechnung berechnen,
+ * durch die Personenzahl teilen, erst den Pro-Kopf-Betrag runden.
+ * Weg B – Anteil zuerst: Die Rechnung ohne Trinkgeld pro Kopf teilen und auf
+ * einen runden Betrag bringen (so, wie man am Tisch Bargeld einsammelt),
+ * dann je Kopf den Trinkgeldsatz aufschlagen und wieder runden.
+ *
+ * Ohne Rundung sind beide Wege identisch: (B·(1+p))/n = (B/n)·(1+p).
+ */
+function wegA(rechnung: number, personen: number, prozent: number, schritt: number) {
+  const proKopfExakt = (rechnung * (1 + prozent)) / personen;
+  const proKopf = rundeAuf(proKopfExakt, schritt);
+  return { proKopf, summe: proKopf * personen };
+}
+function wegB(rechnung: number, personen: number, prozent: number, schritt: number) {
+  const anteilGerundet = rundeAuf(rechnung / personen, schritt);
+  const proKopf = rundeAuf(anteilGerundet * (1 + prozent), schritt);
+  return { proKopf, summe: proKopf * personen };
+}
+
+// --- Baseline: ohne Rundung sind beide Wege exakt gleich -------------------
+const PROZENT = 0.1;
+const SCHRITT = 0.5;
+const probeOhneRundung: Array<[number, number]> = [
+  [100, 6],
+  [45, 3],
+  [132, 7],
+];
+for (const [B, n] of probeOhneRundung) {
+  const a = (B * (1 + PROZENT)) / n;
+  const b = (B / n) * (1 + PROZENT);
+  if (Math.abs(a - b) > 1e-9) {
+    throw new Error(`Trinkgeld-Artikel: Weg A und Weg B sind ohne Rundung nicht gleich (B=${B}, n=${n}).`);
+  }
+}
+
+// --- Die drei Beispiele fuer den Text --------------------------------------
+const RECHNUNG = 100;
+const bsp3 = { ...wegA(RECHNUNG, 3, PROZENT, SCHRITT), b: wegB(RECHNUNG, 3, PROZENT, SCHRITT) };
+const bsp6 = { ...wegA(RECHNUNG, 6, PROZENT, SCHRITT), b: wegB(RECHNUNG, 6, PROZENT, SCHRITT) };
+const bsp7 = { ...wegA(RECHNUNG, 7, PROZENT, SCHRITT), b: wegB(RECHNUNG, 7, PROZENT, SCHRITT) };
+
+const diff3 = bsp3.b.summe - bsp3.summe;
+const diff6 = bsp6.b.summe - bsp6.summe;
+const diff7 = bsp7.b.summe - bsp7.summe;
+
+// Kernbehauptung 1: Bei gleichem Rechnungsbetrag und Trinkgeldsatz kann allein
+// die Personenzahl das Vorzeichen des Unterschieds umdrehen.
+if (!(diff3 > 0 && diff6 < 0 && diff7 > 0)) {
+  throw new Error('Trinkgeld-Artikel: Die erwarteten Vorzeichen der drei Beispiele stimmen nicht mehr.');
+}
+
+// --- Wie haeufig tritt der Unterschied auf? Simulation ueber einen
+// realistischen Rahmen (Gruppenrechnung 40-250 Euro, 2-8 Personen). ---------
+const B_MIN = 40, B_MAX = 250, B_SCHRITT = 0.5;
+const N_MIN = 2, N_MAX = 8;
+let anzahlFaelle = 0;
+let anzahlUnterschiede = 0;
+let summeAbsDiff = 0;
+let groessteAbsDiff = 0;
+let groessterFall: { B: number; n: number; diff: number } | null = null;
+
+for (let B = B_MIN; B <= B_MAX; B += B_SCHRITT) {
+  for (let n = N_MIN; n <= N_MAX; n += 1) {
+    anzahlFaelle += 1;
+    const a = wegA(B, n, PROZENT, SCHRITT).summe;
+    const b = wegB(B, n, PROZENT, SCHRITT).summe;
+    const d = Math.abs(b - a);
+    if (d > 0.001) anzahlUnterschiede += 1;
+    summeAbsDiff += d;
+    if (d > groessteAbsDiff) {
+      groessteAbsDiff = d;
+      groessterFall = { B, n, diff: b - a };
+    }
+  }
+}
+const anteilUnterschiede = anzahlUnterschiede / anzahlFaelle;
+const mittlereAbsDiff = summeAbsDiff / anzahlFaelle;
+
+// Kernbehauptung 2: Der Unterschied ist kein Randfall – er tritt in einem
+// nennenswerten Teil der geprueften Kombinationen auf, im Mittel aber klein.
+if (!(anteilUnterschiede > 0.15 && anteilUnterschiede < 0.4)) {
+  throw new Error('Trinkgeld-Artikel: Der Anteil der Faelle mit Unterschied liegt ausserhalb des erwarteten Bereichs.');
+}
+if (!(mittlereAbsDiff > 0.3 && mittlereAbsDiff < 1.2)) {
+  throw new Error('Trinkgeld-Artikel: Die mittlere Abweichung liegt ausserhalb des erwarteten Bereichs.');
+}
+if (!groessterFall || groessteAbsDiff < 3) {
+  throw new Error('Trinkgeld-Artikel: Kein hinreichend grosser Beispielfall gefunden.');
+}
+
+// Zusatz: Wie stark waechst der Unterschied, wenn statt auf 50 Cent auf den
+// vollen Euro gerundet wird (grobere Stufe, gleiches Beispiel)?
+const SCHRITT_EURO = 1;
+const bsp6VollerEuro = {
+  ...wegA(RECHNUNG, 6, PROZENT, SCHRITT_EURO),
+  b: wegB(RECHNUNG, 6, PROZENT, SCHRITT_EURO),
+};
+const diff6VollerEuro = bsp6VollerEuro.b.summe - bsp6VollerEuro.summe;
+if (!(Math.abs(diff6VollerEuro) > Math.abs(diff6))) {
+  throw new Error('Trinkgeld-Artikel: Die groebere Rundungsstufe vergroessert den Unterschied nicht wie behauptet.');
+}
+---
+<RechnerArtikel
+  titel="Wer beim Teilen zuerst rundet, zahlt nicht dasselbe wie wer zuletzt rundet"
+  lead={`Der Rechner oben beantwortet eine Einzelfrage: Rechnungsbetrag mal Prozentsatz. Sitzt man zu mehreren am Tisch, kommt ein zweiter Rechenschritt dazu – teilen. Ohne Rundung ist die Reihenfolge egal: Trinkgeld auf die ganze Rechnung und dann teilen ergibt exakt denselben Betrag wie erst teilen und dann Trinkgeld pro Kopf drauf. Sobald aber, wie am Tisch ueblich, auf ${eur(SCHRITT)} gerundet wird, gilt das nicht mehr – und welcher Weg mehr verlangt, wechselt von Fall zu Fall.`}
+  datum="2026-09-23"
+  quellen={[
+    { titel: '§ 3 Nr. 51 EStG – Steuerfreie Einnahmen (Trinkgeld in Nummer 51)', url: 'https://www.gesetze-im-internet.de/estg/__3.html' },
+  ]}
+>
+  <h3>Zwei Wege, die ohne Rundung exakt gleich sind</h3>
+  <p>
+    Eine Gruppe teilt eine Rechnung von {eur0(RECHNUNG)} zu {proz(PROZENT)} Trinkgeld auf sechs Personen. Weg A: Trinkgeld auf die
+    ganze Rechnung berechnen ({eur(RECHNUNG * PROZENT)}), Gesamtbetrag bilden ({eur(RECHNUNG * (1 + PROZENT))}) und erst
+    danach durch sechs teilen. Weg B: die Rechnung zuerst durch sechs teilen ({eur(RECHNUNG / 6)} pro Kopf) und danach jedem
+    Anteil {proz(PROZENT)} Trinkgeld aufschlagen. Beide Wege ergeben denselben Pro-Kopf-Betrag von {zahl((RECHNUNG * (1 + PROZENT)) / 6, 4)} €
+    – Punktrechnung ist kommutativ, das Klammern aendert nichts. Genau das prueft der Build oben mit einem <code>throw</code>:
+    weicht einer der drei getesteten Faelle auch nur um einen Cent ab, bricht die Seite.
+  </p>
+
+  <h3>Sobald gerundet wird, bricht die Gleichheit</h3>
+  <p>
+    Am Tisch wird aber nicht mit Nachkommastellen bezahlt, sondern mit Scheinen und Muenzen. Ueblich ist, auf {eur(SCHRITT)}
+    zu runden. Fuer dieselben sechs Personen und dieselbe Rechnung ({eur0(RECHNUNG)}, {proz(PROZENT)}) sieht das dann so aus:
+  </p>
+  <p>
+    <strong>Weg A – erst der Gesamtbetrag:</strong> Pro-Kopf-Anteil exakt {zahl((RECHNUNG * (1 + PROZENT)) / 6, 4)} €, gerundet auf {eur(bsp6.proKopf)}.
+    Sechsmal {eur(bsp6.proKopf)} ergibt {eur(bsp6.summe)} insgesamt.
+  </p>
+  <p>
+    <strong>Weg B – erst der Anteil an der Rechnung:</strong> {eur0(RECHNUNG)} durch sechs sind {zahl(RECHNUNG / 6, 4)} €, am Tisch
+    gerundet auf {eur(rundeAuf(RECHNUNG / 6, SCHRITT))}. Auf diesen bereits gerundeten Betrag kommt jetzt erst das Trinkgeld:
+    {eur(rundeAuf(RECHNUNG / 6, SCHRITT))} mal {proz(1 + PROZENT, 0)} sind {eur(rundeAuf(RECHNUNG / 6, SCHRITT) * (1 + PROZENT))}, wieder gerundet auf {eur(bsp6.b.proKopf)}.
+    Sechsmal {eur(bsp6.b.proKopf)} ergibt {eur(bsp6.b.summe)}.
+  </p>
+  <p>
+    {eur(bsp6.summe)} gegen {eur(bsp6.b.summe)} – ein Unterschied von {eur(Math.abs(diff6))} fuer dieselbe Rechnung, denselben
+    Trinkgeldsatz und dieselbe Personenzahl. Der einzige Unterschied ist, <em>wann</em> gerundet wurde: einmal am Ende, einmal
+    zwischendurch und am Ende noch einmal.
+  </p>
+
+  <h3>Es gibt keine feste Richtung</h3>
+  <p>
+    Naheliegend waere die Vermutung, einer der beiden Wege sei grundsaetzlich guenstiger. Das stimmt nicht. Bei sieben Personen
+    dreht sich das Vorzeichen um: Weg A ergibt {eur(bsp7.summe)}, Weg B {eur(bsp7.b.summe)} – jetzt verlangt Weg B {eur(Math.abs(diff7))}
+    <em>mehr</em>, nicht weniger. Bei drei Personen liegt Weg B ebenfalls hoeher, um {eur(Math.abs(diff3))}. Bei sechs Personen war es
+    umgekehrt. Gleiche Rechnung, gleicher Satz, drei verschiedene Gruppengroessen, zwei verschiedene Vorzeichen – wer vorher
+    festlegt "runde immer so, dann zahlst du weniger", irrt sich zwangslaeufig in manchen Faellen.
+  </p>
+
+  <h3>Warum bricht das Runden die Gleichheit?</h3>
+  <p>
+    Addition und Multiplikation sind austauschbar, Runden ist es nicht. Fuer echte Zahlen gilt <code>(B·(1+p))/n = (B/n)·(1+p)</code> immer,
+    wie oben gezeigt. Die Rundungsfunktion aber schiebt jeden Zwischenwert auf das naechste Vielfache von {eur(SCHRITT)} – und
+    dieses Verschieben passiert in Weg A einmal (am fertigen Pro-Kopf-Betrag), in Weg B zweimal (am Anteil ohne Trinkgeld und
+    danach nochmal am Anteil mit Trinkgeld). Zwei Rundungen auf verschiedene Zwischenergebnisse muessen sich nicht zur selben
+    Endsumme aufsummieren wie eine einzige Rundung auf das Endergebnis. Je grober die Rundungsstufe, desto staerker faellt das
+    ins Gewicht: Rundet man beim sechs-Personen-Beispiel oben nicht auf {eur(SCHRITT)}, sondern auf den vollen Euro, waechst der
+    Unterschied von {eur(Math.abs(diff6))} auf {eur(Math.abs(diff6VollerEuro))} – bei identischer Rechnung, identischem Trinkgeldsatz
+    und identischer Personenzahl, nur mit einer groesseren Rundungsstufe.
+  </p>
+
+  <h3>Wie oft faellt das ins Gewicht?</h3>
+  <p>
+    Um zu pruefen, ob die sechs und sieben Personen oben Zufallstreffer waren, rechnet dieser Artikel beim Bauen der Seite
+    {anzahlFaelle.toLocaleString('de-DE')} Kombinationen aus Rechnungsbetrag ({eur0(B_MIN)} bis {eur0(B_MAX)}, in Schritten von {eur(B_SCHRITT)})
+    und Personenzahl ({N_MIN} bis {N_MAX}) durch – ein Rahmen, der zu einer normalen Gruppenrechnung im Restaurant passt. Ergebnis:
+    in {proz(anteilUnterschiede, 1)} der Faelle unterscheiden sich Weg A und Weg B um mindestens einen Cent. Im Mittel betraegt der
+    Unterschied {eur(mittlereAbsDiff)}, der groesste in dieser Stichprobe gefundene Fall (Rechnung {eur(groessterFall!.B)}, {groessterFall!.n} Personen)
+    liegt bei {eur(Math.abs(groessterFall!.diff))}. Klein pro Fall, aber kein Rundungsrauschen, das sich im Schnitt aufhebt – die
+    beiden Wege sind schlicht nicht dasselbe Verfahren, sobald gerundet wird.
+  </p>
+
+  <h3>Was das praktisch bedeutet</h3>
+  <p>
+    Keiner der beiden Wege ist falsch, und keiner ist ein Rechenfehler im hier besprochenen Rechner – der kennt gar keine
+    Personenzahl, er berechnet nur Rechnungsbetrag mal Prozentsatz fuer eine einzelne Zahlung. Der Unterschied entsteht erst,
+    wenn eine Gruppe das Ergebnis danach unter sich aufteilt und dabei zweimal rundet statt einmal. Genau fuer diesen Fall –
+    "was gebe ich in der Gruppe" – haelt die Fragen-und-Antworten-Liste dieser Seite bereits einen Faustwert bereit: Ab sechs
+    Personen gelten 10 bis 15 Prozent als angemessen. Auch dieser Faustwert wird am Ende auf einen Bargeldbetrag pro Kopf
+    heruntergebrochen – und trifft damit auf genau dieselbe Weggabelung wie oben: zuerst gemeinsam runden oder zuerst einzeln
+    runden.
+  </p>
+  <p>
+    Praktisch heisst das: Eine Gruppe, die ohnehin am Tisch grob rundet, sollte sich vorher auf einen Weg einigen, statt
+    spaeter zu vergleichen, wer wie gerechnet hat – sonst passt die eingesammelte Summe nicht zur Rechnung, ohne dass
+    irgendjemand einen Fehler gemacht haette. Je groesser die Gruppe und je groeber die Rundungsstufe (voller Euro statt
+    50 Cent), desto eher faellt der Unterschied auf. Trinkgeld bleibt dabei fuer die Bedienung in jedem Fall steuerfrei,
+    solange es freiwillig gegeben wird (§ 3 Nr. 51 EStG) – unabhaengig davon, ob die Gruppe ein paar Cent mehr oder weniger
+    zusammengelegt hat, weil sie den einen oder den anderen Weg gewaehlt hat.
+  </p>
+</RechnerArtikel>

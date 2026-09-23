@@ -3,6 +3,7 @@ import Layout from '../../layouts/Layout.astro';
 import CalculatorShell from '../../components/CalculatorShell.astro';
 import CalculatorGuide from '../../components/CalculatorGuide.astro';
 import { CALCULATORS, CATEGORIES } from '../../data/calculators';
+import ArtikelRabatt from '../../components/artikel/rabatte-addieren-sich-nicht.astro';
 const calc = CALCULATORS.find(c => c.slug === 'rabatt-rechner')!;
 const cat = CATEGORIES[calc.category];
 const year = new Date().getFullYear();
@@ -28,7 +29,7 @@ const year = new Date().getFullYear();
       { q: "Wie berechne ich einen Rabatt schnell im Kopf?", a: "Teilen Sie den Originalpreis durch 10 und multiplizieren Sie mit der Rabatthälfte. Beispiel: 150€ mit 20% = 150÷10=15, 15×2=30€ Rabatt. Oder nutzen Sie Dezimalzahlen: 150 × 0,8 = 120€ Endpreis." },
       { q: "Was ist der Unterschied zwischen Rabatt und Skonto?", a: "Rabatt ist ein sofort gewährter Preisnachlass (z.B. Black Friday-Aktion). Skonto ist ein Zahlungszinsvorteil für schnelle Bezahlung (z.B. 2% Skonto bei sofortiger Bezahlung)." },
       { q: "Wie wirken sich mehrere Rabatte kombiniert?", a: "Achtung: Rabatte werden hintereinander berechnet, nicht addiert! 50% + 20% Rabatt sind nicht 70%, sondern: 100€ → 50€ (nach 50%) → 40€ (nach 20%). Das ist zusammen 60% Rabatt, nicht 70%." },
-      { q: "Warum ist 'Kaufen Sie 2, zahlen Sie 1' kein 50%-Rabatt?", a: "Es ist genau 50% Rabatt beim zweiten Artikel. Aber auf den Gesamtkauf ist es weniger: 2×100€=200€, Sie zahlen aber 150€, das ist ein Rabatt von nur 25% insgesamt." },
+      { q: "Warum ist 'Kaufen Sie 2, zahlen Sie 1' kein 50%-Rabatt?", a: "Beim Kauf von 2 Artikeln zu je 100€ zahlen Sie nur einen, also 100€ statt 200€ – ein Rabatt von 50% auf den Gesamtkauf. Verwechselt wird das oft mit 'Zweiter Artikel 50% reduziert': Dort zahlen Sie 100€ + 50€ = 150€ von 200€, also nur 25% Gesamtrabatt. Beide Angebote klingen ähnlich, sind aber rechnerisch sehr verschieden." },
       { q: "Wie erkenne ich, ob ein Rabatt wirklich gut ist?", a: "Vergleichen Sie den Endpreis mit Konkurrenzangeboten – nicht immer sind hohe Rabatt-Prozente echte Sparmöglichkeiten. Achten Sie auch auf ursprüngliche Preise: 50% Rabatt auf einen überteuerten Originalartikel ist oft kein Schnäppchen." },
       { q: "Gilt der Rabatt vor oder nach MwSt?", a: "In Deutschland wird der Rabatt normalerweise auf den Nettopreis gewährt, die MwSt wird dann auf den rabattierten Preis berechnet. Am Endpreis ändert die Reihenfolge nichts: 10 % Rabatt auf 100 € netto ergeben mit 19 % MwSt 107,10 € – genauso viel wie 10 % Rabatt auf 119 € brutto." }
     ]}
@@ -58,6 +59,7 @@ const year = new Date().getFullYear();
       </div>
       <div id="details" style="margin-top:0.75rem;font-size:0.88rem;color:#666;display:flex;gap:1.5rem;flex-wrap:wrap;"></div>
     </div>
+    <ArtikelRabatt slot="artikel" />
   </CalculatorShell>
 
 <script type="module">
@@ -107,7 +109,7 @@ berechne();
         <li><strong>Rabatt:</strong> Direkter Preisnachlass in % oder €. Wird sofort am Kasse abgezogen.</li>
         <li><strong>Skonto:</strong> Zahlungsvorteil (z.B. "2% Skonto bei Bezahlung innerhalb von 8 Tagen"). Nur wenn Sie schnell zahlen.</li>
         <li><strong>Bonusprogramm:</strong> Rückgabe von Punkten/Geld bei zukünftigen Käufen. Kein sofortiger Preisvorteil.</li>
-        <li><strong>Staffelrabatt:</strong> Je mehr Sie kaufen, desto höher der Rabatt. Besonders bei Großeinkäufen."</li>
+        <li><strong>Staffelrabatt:</strong> Je mehr Sie kaufen, desto höher der Rabatt. Besonders bei Großeinkäufen.</li>
       </ul>
 
       <h4>Wann ist ein Rabatt wirklich ein Schnäppchen?</h4>
