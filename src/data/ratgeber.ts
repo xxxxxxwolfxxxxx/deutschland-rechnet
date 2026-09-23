@@ -42,6 +42,15 @@ export interface Artikel {
 
 export const ARTIKEL: Artikel[] = [
   {
+    slug: 'trainingspuls-prozent-wovon',
+    titel: 'Prozent wovon? Zwei Rechenwege, zwei Pulswerte',
+    teaser: 'Dieselben 60 Prozent bedeuten 111 oder 137 Schläge je Minute – je nachdem, ob sich die Angabe auf den Maximalpuls oder auf die Herzfrequenzreserve bezieht. Der Abstand hat eine geschlossene Form: Ruhepuls mal (1 − Intensität), der Maximalpuls kürzt sich heraus. Dazu: warum die frühere Fassung dieses Rechners den Ruhepuls abfragte, ohne ihn zu benutzen, und in 30,3 % aller Eingaben eine Trainingszone nannte, die unter dem Ruhepuls begann.',
+    datum: '2026-09-23',
+    thema: 'Gesundheit',
+    rechner: ['optimalerpuls-rechner', 'kalorien-verbrennen'],
+    aufRechnerseite: true,
+  },
+  {
     slug: 'broca-ideal-liegt-unter-der-mitte',
     titel: 'Zwei Zahlen, die beide „normal" heißen',
     teaser: 'Der Rechner zeigt das Broca-Idealgewicht und den BMI-Normalbereich nebeneinander – sie decken sich nicht. Bei 160 cm und weiblich liegt das Ideal 22 % tief im Normalbereich, bei 190 cm und männlich bei 62 %. Über den gesamten Eingabebereich von 100 bis 220 cm erreicht das Frauen-Ideal die Mitte des Bereichs bei keiner einzigen Körpergröße: Broca addiert linear, der BMI wächst mit dem Quadrat.',
