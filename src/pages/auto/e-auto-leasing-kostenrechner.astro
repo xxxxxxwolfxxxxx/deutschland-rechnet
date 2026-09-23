@@ -3,6 +3,7 @@ import Layout from '../../layouts/Layout.astro';
 import CalculatorShell from '../../components/CalculatorShell.astro';
 import CalculatorGuide from '../../components/CalculatorGuide.astro';
 import { CALCULATORS, CATEGORIES } from '../../data/calculators';
+import ArtikelKilometerpreis from '../../components/artikel/kilometerpreis-sinkt-bei-mehrkilometern.astro';
 import {
   LADESTROM_HEIM_CENT_PRO_KWH,
   LADESTROM_HEIM_EURO_PRO_KWH,
@@ -133,6 +134,7 @@ const faqs = [
       <div id="details" style="margin-top:0.75rem;font-size:0.88rem;color:#555;display:flex;gap:0.35rem 1.5rem;flex-wrap:wrap;"></div>
       <p style="margin-top:0.5rem;font-size:0.82rem;color:#777;">Vorbelegt ist ein angenommenes Angebot – ersetzen Sie die Vertragswerte durch Ihre.</p>
     </div>
+    <ArtikelKilometerpreis slot="artikel" />
   </CalculatorShell>
 
   <CalculatorGuide

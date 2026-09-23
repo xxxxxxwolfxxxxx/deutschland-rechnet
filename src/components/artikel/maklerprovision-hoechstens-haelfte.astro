@@ -1,0 +1,259 @@
+---
+import RechnerArtikel from '../RechnerArtikel.astro';
+import {
+  berechneImmokaufNebenkosten,
+  MAKLER_PROVISION_PROZENT_JE_SEITE,
+} from '../../../public/scripts/immokauf-nebenkosten.js';
+
+// Alle Zahlen kommen aus demselben Modul, das der Immobilienkauf-Nebenkosten-
+// Rechner lädt. Kaufpreis und Bundesland sind die Werte, die die Rechnerseite
+// beim Laden bereits zeigt (Eingabefeld "Kaufpreis" = 400000, Auswahlfeld
+// "Bundesland" mit selected={l.kuerzel === 'nw'}).
+const KAUFPREIS = 400000;
+const BUNDESLAND = 'nw';
+
+const mit = berechneImmokaufNebenkosten({ kaufpreis: KAUFPREIS, bundesland: BUNDESLAND, mitMakler: true });
+const ohne = berechneImmokaufNebenkosten({ kaufpreis: KAUFPREIS, bundesland: BUNDESLAND, mitMakler: false });
+
+// Die hypothetische Lage vor der Reform: Statt seines eigenen Anteils trägt
+// der Käufer die gesamte Provision, die ein beidseitig tätiger Makler
+// (Doppeltätigkeit) verlangt – also den doppelten Satz je Seite.
+const gesamtprovisionAlt = KAUFPREIS * (2 * MAKLER_PROVISION_PROZENT_JE_SEITE) / 100;
+const gesamtAlt = ohne.gesamt + gesamtprovisionAlt;
+
+// Dieselbe Rundung wie im Modul (dort nicht exportiert, deshalb hier
+// nachgebaut): Math.round(gesamt / kaufpreis * 1000) / 10.
+const gesamtProzent = (gesamt: number, kaufpreis: number) => Math.round((gesamt / kaufpreis) * 1000) / 10;
+
+// Zusicherung 1: Der Schalter "Mit Makler" im Rechner wirkt genau in Höhe des
+// ausgewiesenen Käuferanteils – keine versteckte zweite Wirkung, kein totes
+// Eingabefeld.
+if (Math.abs((mit.gesamt - ohne.gesamt) - mit.maklerKaeufer) > 0.01) {
+  throw new Error('Makler-Artikel: Differenz mit/ohne Makler weicht vom ausgewiesenen Käuferanteil ab.');
+}
+// Zusicherung 2: Die im Text behauptete Verdopplung stimmt exakt.
+if (Math.abs(gesamtprovisionAlt - mit.maklerKaeufer * 2) > 0.01) {
+  throw new Error('Makler-Artikel: Die verdoppelte Provision passt nicht zum Käuferanteil.');
+}
+// Zusicherung 3: Die nachgebaute Prozent-Rundung trifft exakt die Felder, die
+// das Modul selbst ausweist – sonst widerspräche der Text den angezeigten
+// Werten.
+if (gesamtProzent(mit.gesamt, KAUFPREIS) !== mit.gesamtProzent || gesamtProzent(ohne.gesamt, KAUFPREIS) !== ohne.gesamtProzent) {
+  throw new Error('Makler-Artikel: Nachgebaute Rundung weicht von der Modul-Rundung ab.');
+}
+
+const zahl = (n: number, d = 0) =>
+  n.toLocaleString('de-DE', { minimumFractionDigits: d, maximumFractionDigits: d }).replace(/^-/, '−');
+const eur = (n: number) => zahl(n, 0) + ' €';
+const proz = (n: number, d = 2) => zahl(n, d) + ' %';
+
+const gesamtAltProzent = gesamtProzent(gesamtAlt, KAUFPREIS);
+
+// Dieselbe Rechnung bei drei Kaufpreisen, damit der Effekt nicht wie ein
+// Artefakt des einen Beispiels wirkt: Der Käuferanteil skaliert linear mit
+// dem Kaufpreis (fester Prozentsatz), Notar und Grundbuch dagegen degressiv –
+// deshalb ist der Prozentpunkt-Abstand zwischen heute und der historischen
+// Alleinbelastung nicht bei jedem Kaufpreis exakt gleich groß.
+const KAUFPREISE = [200000, 400000, 800000];
+const reihe = KAUFPREISE.map((kaufpreis) => {
+  const heute = berechneImmokaufNebenkosten({ kaufpreis, bundesland: BUNDESLAND, mitMakler: true });
+  const ohneMakler = berechneImmokaufNebenkosten({ kaufpreis, bundesland: BUNDESLAND, mitMakler: false });
+  const alt = kaufpreis * (2 * MAKLER_PROVISION_PROZENT_JE_SEITE) / 100;
+  const altGesamt = ohneMakler.gesamt + alt;
+  return {
+    kaufpreis,
+    kaeuferanteilHeute: heute.maklerKaeufer,
+    kaeuferanteilAlt: alt,
+    prozentHeute: heute.gesamtProzent,
+    prozentAlt: gesamtProzent(altGesamt, kaufpreis),
+  };
+});
+// Zusicherung 4: In jeder Zeile ist der historische Anteil exakt doppelt so
+// hoch wie der heutige – die Tabelle behauptet nichts, was die einzelne
+// Beispielrechnung oben nicht schon zeigt.
+for (const z of reihe) {
+  if (Math.abs(z.kaeuferanteilAlt - z.kaeuferanteilHeute * 2) > 0.01) {
+    throw new Error(`Makler-Artikel: Tabellenzeile ${z.kaufpreis} verdoppelt den Käuferanteil nicht korrekt.`);
+  }
+}
+
+const quellen = [
+  { titel: '§ 656c BGB – Lohnanspruch bei Tätigkeit für beide Parteien', url: 'https://www.gesetze-im-internet.de/bgb/__656c.html' },
+  { titel: '§ 656d BGB – Vereinbarungen über die Maklerkosten', url: 'https://www.gesetze-im-internet.de/bgb/__656d.html' },
+  { titel: 'Wikipedia: Courtage (Abschnitt zur Reform 2020 und ihrem Anwendungsbereich)', url: 'https://de.wikipedia.org/wiki/Courtage' },
+];
+---
+<RechnerArtikel
+  titel="Seit 2020 zahlt der Käufer höchstens die Hälfte der Maklerprovision"
+  lead={`Der Rechner oben weist für ${eur(KAUFPREIS)} Kaufpreis in Nordrhein-Westfalen mit Makler ${eur(mit.maklerKaeufer)} Käuferanteil aus – ${proz(MAKLER_PROVISION_PROZENT_JE_SEITE)} des Kaufpreises. Das ist kein beliebiger Posten: Das Gesetz verlangt seit 2020, dass ein Makler, der für Käufer und Verkäufer zugleich tätig ist, sich von beiden nur denselben Betrag versprechen lassen darf. Vorher gab es diese Grenze nicht – der Käufer konnte allein für die gesamte Provision aufkommen, wie sie hier ${eur(gesamtprovisionAlt)} betragen hätte.`}
+  datum="2026-09-24"
+  quellen={quellen}
+>
+  <h3>Was der Rechner oben als Maklerposten zeigt</h3>
+  <p>
+    Stellen Sie oben "Mit Makler" ein, taucht in der Aufstellung die Zeile
+    "Makler (Käuferanteil)" auf: {eur(mit.maklerKaeufer)}, das sind
+    {' '}{proz(MAKLER_PROVISION_PROZENT_JE_SEITE)} des Kaufpreises. Der Rechner
+    setzt damit exakt den marktüblichen Bruttosatz an, den <em>eine</em> Partei
+    einem beidseitig beauftragten Makler schuldet – nicht die Hälfte eines
+    vorher festgelegten Gesamtbetrags, sondern einen eigenständigen Anteil.
+    Dass dieser Posten wirklich nur die Maklerkosten trifft und sonst nichts
+    verschiebt, lässt sich nachrechnen: Die gesamten Nebenkosten sinken beim
+    Umschalten auf "Ohne Makler" von {eur(mit.gesamt)} auf {eur(ohne.gesamt)} –
+    eine Differenz von {eur(mit.gesamt - ohne.gesamt)}, exakt der ausgewiesene
+    Käuferanteil, keinen Cent mehr oder weniger.
+  </p>
+  <p>
+    Verkäufer und Käufer werden von ein und demselben Makler oft gemeinsam
+    betreut (Doppeltätigkeit); jede Seite bekommt dann eine eigene Rechnung.
+    Was Vergleichsportale als "Gesamtprovision" nennen, ist die Summe aus
+    beiden Rechnungen – im Rechner oben also {' '}
+    {proz(MAKLER_PROVISION_PROZENT_JE_SEITE)} + {proz(MAKLER_PROVISION_PROZENT_JE_SEITE)}
+    {' '}= {proz(2 * MAKLER_PROVISION_PROZENT_JE_SEITE)}. Der Rechner zeigt nur
+    die Käuferseite, weil nur die in die Nebenkosten des Käufers gehört.
+  </p>
+  <p>
+    In der Praxis unterscheidet man drei Modelle, wie ein Makler seine
+    Provision anbietet: die Innenprovision, bei der allein der Verkäufer
+    zahlt und der Betrag für den Käufer nicht sichtbar ist; die
+    Außenprovision, bei der allein der Käufer zahlt; und die Mischform, bei
+    der beide Seiten zahlen. Der Rechner oben bildet die Mischform ab, weil
+    sie bei Wohnungs- und Einfamilienhauskäufen inzwischen die Regel ist – aus
+    Gründen, die im nächsten Abschnitt stehen.
+  </p>
+
+  <h3>Gleiche Höhe für beide Seiten</h3>
+  <p>
+    Diese Aufteilung ist seit 2020 keine Marktusance mehr, sondern Gesetz. § 656c
+    Absatz 1 Satz 1 BGB bestimmt für den Kauf einer Wohnung oder eines
+    Einfamilienhauses: "Lässt sich der Makler von beiden Parteien des
+    Kaufvertrags über eine Wohnung oder ein Einfamilienhaus einen Maklerlohn
+    versprechen, so kann dies nur in der Weise erfolgen, dass sich die
+    Parteien in gleicher Höhe verpflichten." Verzichtet der Makler gegenüber
+    einer Seite auf sein Honorar, verliert er es nach Satz 2 auch gegenüber
+    der anderen – ein Ausweichen über eine "kostenlose" Verkäuferseite ist
+    damit versperrt.
+  </p>
+  <p>
+    Für den häufigeren Fall, dass nur der Verkäufer einen Maklervertrag
+    abgeschlossen hat und die Käuferseite über eine gesonderte Vereinbarung an
+    den Kosten beteiligt werden soll, gilt seit derselben Reform § 656d Absatz
+    1 Satz 1 BGB: Eine solche Vereinbarung ist nur wirksam, wenn der
+    Verkäufer selbst "mindestens in gleicher Höhe" verpflichtet bleibt – und
+    der Anspruch gegen den Käufer wird laut Satz 2 erst fällig, wenn der
+    Verkäufer seinen Anteil tatsächlich bezahlt hat. In beiden Vorschriften
+    steht dasselbe Prinzip: Gleichheit zwischen den Parteien, nicht Freiheit
+    für den Makler, sie unterschiedlich zu belasten.
+  </p>
+  <p>
+    Die Fälligkeitsregel aus § 656d Absatz 1 Satz 2 BGB hat dabei eine
+    praktische Konsequenz, die über die reine Betragsgleichheit hinausgeht:
+    Der Käufer schuldet seinen Anteil erst, wenn der Verkäufer seinen eigenen
+    Anteil bereits gezahlt hat und das nachweisen kann. Der Makler kann sich
+    also nicht zuerst beim Käufer schadlos halten und die Verkäuferseite
+    offenlassen – die Reihenfolge der Zahlungen ist gesetzlich festgelegt, wie
+    die Höhe selbst.
+  </p>
+
+  <h3>Was das vor 2020 bedeutete</h3>
+  <p>
+    Vor dieser Reform kannte das Gesetz keine solche Grenze. Laut der
+    einschlägigen Wikipedia-Darstellung zur Courtage war es in mehreren
+    Bundesländern – darunter Hamburg, Bremen, Berlin und Brandenburg – üblich,
+    dass die Maklergebühr allein vom Käufer getragen wurde, während der
+    Verkäufer, der den Makler beauftragt hatte, nichts zahlte. Auf den
+    Rechner oben übertragen: Hätte der Käufer statt seines eigenen Anteils die
+    komplette Provision übernommen, die ein beidseitig tätiger Makler
+    verlangt, stünden in der Aufstellung nicht {eur(mit.maklerKaeufer)},
+    sondern {eur(gesamtprovisionAlt)} – das Doppelte. Die gesamten Nebenkosten
+    lägen dann nicht bei {proz(mit.gesamtProzent, 1)} des Kaufpreises, sondern
+    bei {proz(gesamtAltProzent, 1)}.
+  </p>
+  <p class="ra-hinweis">
+    Diese {eur(gesamtAlt)} sind eine Modellrechnung mit denselben
+    Grunderwerbsteuer-, Notar- und Grundbuchkosten wie oben, nicht eine
+    Behauptung über einen tatsächlich üblichen Marktpreis vor 2020 – nur die
+    Verteilung der Maklerkosten zwischen Käufer und Verkäufer war damals
+    anders geregelt, die Höhe der Provision selbst war schon vorher
+    Verhandlungssache.
+  </p>
+  <p>
+    Der Effekt bleibt über verschiedene Kaufpreise hinweg ähnlich groß, weil
+    der Käuferanteil ein fester Prozentsatz des Kaufpreises ist. Nur die
+    Gesamt-Nebenkosten in Prozent verschieben sich leicht, weil Notar- und
+    Grundbuchgebühren degressiv gestaffelt sind:
+  </p>
+
+  <table>
+    <caption class="visually-hidden">
+      Käuferanteil an der Maklerprovision heute und in der historischen
+      Alleinbelastung, nach Kaufpreis (Nordrhein-Westfalen)
+    </caption>
+    <thead>
+      <tr>
+        <th scope="col" class="num">Kaufpreis</th>
+        <th scope="col" class="num">Käuferanteil heute</th>
+        <th scope="col" class="num">Käuferanteil vor 2020 möglich</th>
+        <th scope="col" class="num">Nebenkosten heute</th>
+        <th scope="col" class="num">Nebenkosten vor 2020 möglich</th>
+      </tr>
+    </thead>
+    <tbody>
+      {reihe.map((z) => (
+        <tr>
+          <th scope="row" class="num">{eur(z.kaufpreis)}</th>
+          <td class="num">{eur(z.kaeuferanteilHeute)}</td>
+          <td class="num">{eur(z.kaeuferanteilAlt)}</td>
+          <td class="num">{proz(z.prozentHeute, 1)}</td>
+          <td class="num">{proz(z.prozentAlt, 1)}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+  <p class="ra-hinweis">
+    "Vor 2020 möglich" beschreibt die gesetzliche Obergrenze, die es damals
+    nicht gab – nicht einen dokumentierten Durchschnittswert. Ob und wie stark
+    Käufer damals tatsächlich die volle Provision trugen, hing vom
+    Bundesland und vom einzelnen Maklervertrag ab.
+  </p>
+
+  <h3>Wo das Gesetz nicht greift</h3>
+  <p>
+    Beide Vorschriften sind eng gefasst: Sie gelten laut ihrem Wortlaut nur
+    für den "Kaufvertrag über eine Wohnung oder ein Einfamilienhaus". Nach der
+    Wikipedia-Darstellung bedeutet das im Umkehrschluss, dass Mehrfamilien-
+    häuser, unbebaute Grundstücke und Gewerbeobjekte davon ausgenommen sind –
+    dort kann die Provision weiterhin frei zwischen den Parteien verteilt
+    werden, einschließlich einer Alleinbelastung des Käufers.
+  </p>
+  <p>
+    Der Rechner oben unterscheidet diesen Fall nicht: Er setzt den
+    Käuferanteil unabhängig davon an, was gekauft wird. Bei einer
+    Eigentumswohnung oder einem Einfamilienhaus entspricht das der
+    gesetzlichen Lage. Bei einem Mehrfamilienhaus, einem unbebauten
+    Baugrundstück oder einer Gewerbeimmobilie ist die im Rechner unterstellte
+    hälftige Aufteilung dagegen keine gesetzliche Untergrenze mehr, sondern
+    nur noch eine übliche, aber nicht erzwungene Marktpraxis.
+  </p>
+
+  <h3>Was in der Aufstellung fehlt</h3>
+  <p>
+    Wer die Zeile "Makler (Käuferanteil)" liest, sieht nur eine Hälfte der
+    Rechnung. Innerhalb des Anwendungsbereichs von § 656c BGB gibt es eine
+    zweite, gleich hohe Verpflichtung auf der Verkäuferseite – bei
+    {eur(mit.maklerKaeufer)} Käuferanteil also weitere
+    {' '}{eur(mit.maklerKaeufer)}, die der Verkäufer demselben Makler schuldet.
+    Diese Zeile taucht in einem Nebenkosten-Rechner für Käufer folgerichtig
+    nicht auf, denn sie belastet nicht das Eigenkapital des Käufers. Für die
+    Einordnung der Gesamtkosten des Kaufs ist sie trotzdem kein
+    Nebenschauplatz: Sie erklärt, warum der Kaufpreis, den der Verkäufer
+    netto erzielt, ebenfalls um den eigenen Maklerkostenanteil kleiner ausfällt
+    als der vereinbarte Kaufpreis.
+  </p>
+  <p class="ra-hinweis">
+    Dieser Artikel ordnet ein, wie die Maklerkosten zwischen Käufer und
+    Verkäufer verteilt werden dürfen. Er ersetzt keine Rechtsberatung im
+    Einzelfall – etwa dazu, ob ein konkreter Maklervertrag wirksam ist oder
+    welches der drei Provisionsmodelle bei einem bestimmten Objekt vorliegt.
+  </p>
+</RechnerArtikel>

@@ -1,0 +1,339 @@
+---
+import RechnerArtikel from '../RechnerArtikel.astro';
+import { berechneLeasingkosten } from '../../../public/scripts/eauto-leasing.js';
+import {
+  corsaElektro,
+  ADAC_STROMPREIS,
+  ADAC_STAND,
+  ADAC_QUELLE_URL,
+  adacVerbrauchJe100km,
+} from '../../../public/scripts/adac-autokosten.js';
+import {
+  LADESTROM_HEIM_EURO_PRO_KWH,
+  STROMPREIS_QUELLE,
+  STROMPREIS_QUELLE_URL,
+} from '../../../public/scripts/strompreis.js';
+
+// Deutsche Zahlformate, Minus als U+2212 statt Bindestrich.
+const zahl = (n: number, d = 0) =>
+  n.toLocaleString('de-DE', { minimumFractionDigits: d, maximumFractionDigits: d }).replace(/^-/, '−');
+const eur = (n: number) => zahl(n, 0) + ' €';
+const eurGenau = (n: number) => zahl(n, 2) + ' €';
+const jeKmText = (n: number) => zahl(n, 3) + ' €';
+const pz = (n: number) => zahl(n, 0) + ' %';
+const km = (n: number) => zahl(n, 0) + ' km';
+
+// Derselbe Verbrauch wie auf der Rechnerseite: Opel Corsa Electric aus der
+// ADAC Autokostenübersicht, zurückgerechnet aus den ADAC-Betriebskosten.
+const VERBRAUCH = Math.round(adacVerbrauchJe100km(corsaElektro, ADAC_STROMPREIS) * 10) / 10;
+const STROMPREIS = LADESTROM_HEIM_EURO_PRO_KWH;
+
+// Dasselbe Angebot wie das vorbelegte Beispiel auf der Rechnerseite. Einzige
+// Variable: die erwartete Fahrleistung – der Vertrag selbst ändert sich nicht.
+const vertrag = {
+  listenpreis: 40000, rate: 299, laufzeitMonate: 36, sonderzahlung: 0, ueberfuehrung: 1000,
+  vertragsKmJahr: 10000, mehrKmSatz: 0.1,
+  verbrauchJe100km: VERBRAUCH, strompreis: STROMPREIS,
+};
+
+const FAHRLEISTUNGEN = [10000, 15000, 20000, 30000, 50000];
+const reihe = FAHRLEISTUNGEN.map((erwarteteKmJahr) => ({
+  km: erwarteteKmJahr,
+  ...berechneLeasingkosten({ ...vertrag, erwarteteKmJahr }),
+}));
+
+const amVertrag = reihe[0];
+const bei50k = reihe.find((z) => z.km === 50000)!;
+
+// Die theoretische Untergrenze, gegen die der Kilometerpreis läuft: Sind die
+// Fixkosten des Vertrags (Rate, Sonderzahlung, Überführung) erst auf sehr
+// viele Kilometer verteilt, bleibt nur noch der Mehrkilometersatz plus die
+// Stromkosten je Kilometer übrig.
+const STROMKOSTEN_JE_KM = (vertrag.verbrauchJe100km * vertrag.strompreis) / 100;
+const GRENZKOSTEN_JE_KM = vertrag.mehrKmSatz + STROMKOSTEN_JE_KM;
+const MEHRKM_ANTEIL_PROZENT = (vertrag.mehrKmSatz / GRENZKOSTEN_JE_KM) * 100;
+
+// Zusicherung 1: Der Kilometerpreis muss mit steigender Fahrleistung fallen –
+// bei jedem der geprüften Werte, nicht nur im Durchschnitt.
+for (let i = 1; i < reihe.length; i += 1) {
+  if (!(reihe[i].jeKm < reihe[i - 1].jeKm)) {
+    throw new Error(
+      `Leasing-Artikel: Kilometerpreis fällt nicht monoton (${reihe[i - 1].km} km → ${reihe[i].km} km).`
+    );
+  }
+}
+
+// Zusicherung 2: Bei sehr hoher Fahrleistung nähert sich der vom Rechner
+// ausgegebene Kilometerpreis der berechneten Grenzkosten-Formel an. Die
+// Abweichung muss mit steigenden Kilometern kleiner werden und am Ende unter
+// einem Cent liegen.
+const beiEinerMillion = berechneLeasingkosten({ ...vertrag, erwarteteKmJahr: 1_000_000 });
+const abweichungGross = Math.abs(bei50k.jeKm - GRENZKOSTEN_JE_KM);
+const abweichungKlein = Math.abs(beiEinerMillion.jeKm - GRENZKOSTEN_JE_KM);
+if (!(abweichungKlein < abweichungGross)) {
+  throw new Error('Leasing-Artikel: Die Annäherung an die Grenzkosten wird nicht enger.');
+}
+if (abweichungKlein > 0.01) {
+  throw new Error('Leasing-Artikel: Kilometerpreis nähert sich der Grenzkosten-Formel nicht auf einen Cent an.');
+}
+
+// Gegenprobe: Trotz sinkendem Kilometerpreis müssen die Gesamtkosten steigen –
+// sonst wäre die Pointe falsch verstanden.
+if (!(bei50k.gesamt > amVertrag.gesamt)) {
+  throw new Error('Leasing-Artikel: Gesamtkosten sinken trotz mehr Kilometern – das widerspricht der These.');
+}
+
+// Zerlegung des Kilometerpreises in einen Fixkosten- und einen
+// Grenzkosten-Anteil, ausschließlich aus bereits geprüften Werten gebildet.
+const zerlegung = reihe.map((z) => ({
+  km: z.km,
+  jeKm: z.jeKm,
+  fixAnteil: Math.round((z.jeKm - GRENZKOSTEN_JE_KM) * 1000) / 1000,
+}));
+if (zerlegung.some((z) => z.fixAnteil <= 0)) {
+  throw new Error('Leasing-Artikel: Fixkostenanteil je Kilometer wird negativ oder null – Zerlegung falsch.');
+}
+
+// Zweites Rechenbeispiel: zwei unterschiedliche Angebote für dasselbe Auto.
+// B hat die niedrigere Rate, aber ein engeres Kilometerbudget und einen
+// höheren Mehrkilometersatz – ein realistisches Muster bei Leasingangeboten.
+const gemeinsam = {
+  listenpreis: vertrag.listenpreis, laufzeitMonate: vertrag.laufzeitMonate,
+  sonderzahlung: 0, ueberfuehrung: vertrag.ueberfuehrung,
+  verbrauchJe100km: VERBRAUCH, strompreis: STROMPREIS,
+};
+const angebotA = { ...gemeinsam, rate: 299, vertragsKmJahr: 10000, mehrKmSatz: 0.10 };
+const angebotB = { ...gemeinsam, rate: 259, vertragsKmJahr: 8000, mehrKmSatz: 0.18 };
+const FAHRLEISTUNGEN_VERGLEICH = [8000, 12000, 20000];
+const vergleich = FAHRLEISTUNGEN_VERGLEICH.map((erwarteteKmJahr) => ({
+  km: erwarteteKmJahr,
+  a: berechneLeasingkosten({ ...angebotA, erwarteteKmJahr }),
+  b: berechneLeasingkosten({ ...angebotB, erwarteteKmJahr }),
+}));
+const vergleichNiedrig = vergleich[0];
+const vergleichHoch = vergleich[vergleich.length - 1];
+
+// Zusicherung 4: Die Rangfolge muss tatsächlich kippen – sonst taugt das
+// Beispiel nicht als Beleg dafür, dass die angenommene Fahrleistung über den
+// Vergleich entscheidet.
+if (!(vergleichNiedrig.b.gesamt < vergleichNiedrig.a.gesamt)) {
+  throw new Error('Leasing-Artikel: Angebot B ist bei niedriger Fahrleistung nicht günstiger.');
+}
+if (!(vergleichHoch.a.gesamt < vergleichHoch.b.gesamt)) {
+  throw new Error('Leasing-Artikel: Angebot A ist bei hoher Fahrleistung nicht günstiger – Rangfolge kippt nicht.');
+}
+if (!(vergleichNiedrig.b.jeKm < vergleichNiedrig.a.jeKm && vergleichHoch.a.jeKm < vergleichHoch.b.jeKm)) {
+  throw new Error('Leasing-Artikel: Der Kilometerpreis kippt nicht im selben Muster wie die Gesamtkosten.');
+}
+
+// Exakter Break-even zwischen den zwei Beispielangeboten: die erwartete
+// Fahrleistung, ab der Angebot A insgesamt nicht mehr teurer ist als B.
+// Gesucht in 100-km-Schritten, weil Leasingverträge Fahrleistungen ohnehin
+// nur in solchen Stufen anbieten.
+function diffAB(erwarteteKmJahr: number) {
+  const a = berechneLeasingkosten({ ...angebotA, erwarteteKmJahr });
+  const b = berechneLeasingkosten({ ...angebotB, erwarteteKmJahr });
+  return a.gesamt - b.gesamt;
+}
+const BREAKEVEN_SCHRITT = 100;
+let breakevenKm = 0;
+for (let x = angebotB.vertragsKmJahr; x <= 60000; x += BREAKEVEN_SCHRITT) {
+  if (diffAB(x) <= 0) {
+    breakevenKm = x;
+    break;
+  }
+}
+if (breakevenKm === 0) {
+  throw new Error('Leasing-Artikel: Kein Break-even zwischen Angebot A und B gefunden.');
+}
+if (!(diffAB(breakevenKm - BREAKEVEN_SCHRITT) > 0 && diffAB(breakevenKm) <= 0)) {
+  throw new Error('Leasing-Artikel: Break-even-Punkt liegt nicht zwischen den geprüften Nachbarwerten.');
+}
+
+const quellen = [
+  {
+    titel: `ADAC Autokostenübersicht ${ADAC_STAND}`,
+    url: ADAC_QUELLE_URL,
+  },
+  {
+    titel: STROMPREIS_QUELLE,
+    url: STROMPREIS_QUELLE_URL,
+  },
+];
+---
+<RechnerArtikel
+  titel="Wer mehr fährt, zahlt beim Leasing weniger je Kilometer"
+  datum="2026-09-24"
+  lead={`Dasselbe Leasingangebot, dieselbe Rate, dieselbe Sonderzahlung: Bei ${km(amVertrag.km)} im Jahr kostet jeder gefahrene Kilometer im Schnitt ${jeKmText(amVertrag.jeKm)}. Wer ${km(bei50k.km)} fährt – und damit ${eur(bei50k.mehrKmKosten)} Mehrkilometer-Aufschlag zahlt – kommt nur noch auf ${jeKmText(bei50k.jeKm)} je Kilometer. Die Gesamtkosten steigen um ${eur(bei50k.gesamt - amVertrag.gesamt)}, der Durchschnittspreis je Kilometer fällt trotzdem um mehr als die Hälfte.`}
+  quellen={quellen}
+>
+  <p>
+    Leasingfaktor und Gesamtkostenfaktor oben auf der Seite beschreiben den Vertrag – sie ändern sich nicht,
+    egal wie viel damit gefahren wird. Der Rechner liefert daneben eine dritte Zahl, die genau davon abhängt:
+    den Kilometerpreis. Wie stark er sich bewegt, obwohl am Vertrag selbst nichts geändert wird, zeigt sich
+    erst, wenn man nur die erwartete Fahrleistung variiert und alles andere unangetastet lässt.
+  </p>
+
+  <h3>Durchschnitt und Grenzkosten sind zwei verschiedene Zahlen</h3>
+  <p>
+    Der Rechner oben zeigt bei jedem Ergebnis eine Zeile „Je km“. Das ist der
+    Durchschnittspreis: alle Kosten der Laufzeit – Rate, Sonderzahlung,
+    Überführung, Mehrkilometer, Strom – geteilt durch alle gefahrenen
+    Kilometer. Trägt man beim vorbelegten Beispiel (Listenpreis {eur(vertrag.listenpreis)},
+    Rate {eur(vertrag.rate)}, {zahl(vertrag.laufzeitMonate)} Monate Laufzeit, {eur(vertrag.ueberfuehrung)}{' '}
+    Überführung) die vereinbarten {km(vertrag.vertragsKmJahr)} als erwartete Fahrleistung ein, zeigt die
+    Zeile {jeKmText(amVertrag.jeKm)}. Erhöht man nur die erwartete Fahrleistung – der Vertrag bleibt
+    sonst unverändert –, sinkt dieser Wert:
+  </p>
+  <table>
+    <caption class="visually-hidden">Kilometerpreis bei steigender Fahrleistung, gleicher Vertrag</caption>
+    <thead>
+      <tr><th scope="col">Erwartete Fahrleistung</th><th scope="col" class="num">Mehrkilometer-Aufschlag</th><th scope="col" class="num">Gesamtkosten</th><th scope="col" class="num">Preis je km</th></tr>
+    </thead>
+    <tbody>
+      {reihe.map((z) => (
+        <tr>
+          <th scope="row">{km(z.km)} / Jahr</th>
+          <td class="num">{z.mehrKmKosten > 0 ? eur(z.mehrKmKosten) : '–'}</td>
+          <td class="num">{eur(z.gesamt)}</td>
+          <td class="num">{jeKmText(z.jeKm)}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+  <p>
+    Zwischen der ersten und der letzten Zeile liegen {eur(bei50k.gesamt - amVertrag.gesamt)} höhere
+    Gesamtkosten – und ein um {jeKmText(amVertrag.jeKm - bei50k.jeKm)} niedrigerer Kilometerpreis. Beides
+    ist gleichzeitig richtig, weil es zwei unterschiedliche Fragen beantwortet: Was kostet der Vertrag
+    insgesamt, und was kostet im Schnitt ein einzelner Kilometer.
+  </p>
+
+  <h3>Warum der Durchschnitt fällt, obwohl nichts billiger wird</h3>
+  <p>
+    Nichts an dem Angebot wird günstiger. Rate, Sonderzahlung und Überführung sind Festbeträge, die mit
+    der Fahrleistung nicht wachsen – bei {zahl(vertrag.laufzeitMonate)} Monaten macht das {eur(amVertrag.vertragskosten)} Fixkosten,
+    Fahrleistung hin oder her. Jeder Kilometer über die vereinbarten {km(vertrag.vertragsKmJahr)} hinaus kostet
+    zusätzlich den Mehrkilometersatz aus dem Vertrag ({eurGenau(vertrag.mehrKmSatz)} je km) plus Strom. Der
+    Durchschnittspreis je Kilometer ist der Quotient aus beidem:
+  </p>
+  <p>
+    Fixkosten geteilt durch alle gefahrenen Kilometer, plus die Kosten der zusätzlichen Kilometer selbst.
+    Der erste Teil wird kleiner, je mehr Kilometer im Nenner stehen – der zweite bleibt konstant, weil
+    jeder Mehrkilometer gleich viel kostet. In Summe sinkt der Durchschnitt, auch wenn die absoluten Kosten
+    weiter steigen. Das ist derselbe Effekt wie bei jedem Fixkostenblock: Ein Jahresabo, das sich auf mehr
+    Nutzung verteilt, wird pro Nutzung billiger, ohne dass sich am Preis des Abos etwas ändert.
+  </p>
+  <p>
+    Rechnerisch lässt sich der Kilometerpreis deshalb in zwei Teile zerlegen: einen Grenzkosten-Anteil von
+    konstant {jeKmText(GRENZKOSTEN_JE_KM)} je Kilometer – das, was ein zusätzlicher Kilometer wirklich kostet
+    – und einen Fixkosten-Anteil, der mit der Fahrleistung schrumpft:
+  </p>
+  <table>
+    <caption class="visually-hidden">Zerlegung des Kilometerpreises in Fixkosten- und Grenzkosten-Anteil</caption>
+    <thead>
+      <tr><th scope="col">Erwartete Fahrleistung</th><th scope="col" class="num">Fixkosten-Anteil je km</th><th scope="col" class="num">Grenzkosten-Anteil je km</th><th scope="col" class="num">Preis je km gesamt</th></tr>
+    </thead>
+    <tbody>
+      {zerlegung.map((z) => (
+        <tr>
+          <th scope="row">{km(z.km)} / Jahr</th>
+          <td class="num">{jeKmText(z.fixAnteil)}</td>
+          <td class="num">{jeKmText(GRENZKOSTEN_JE_KM)}</td>
+          <td class="num">{jeKmText(z.jeKm)}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+  <p class="ra-hinweis">
+    Der Grenzkosten-Anteil ist bei jeder Fahrleistung derselbe Wert – nur der Fixkosten-Anteil bewegt sich.
+    Beide Spalten addiert ergeben (auf die dritte Nachkommastelle gerundet) wieder den Kilometerpreis aus der
+    ersten Tabelle.
+  </p>
+
+  <h3>Die Grenze, die der Preis nie unterschreitet</h3>
+  <p>
+    Der Kilometerpreis fällt nicht beliebig weiter. Je mehr Kilometer im Nenner stehen, desto kleiner wird
+    der Fixkostenanteil – bei extrem hoher Fahrleistung bleibt praktisch nur noch der Mehrkilometersatz
+    plus die Stromkosten je Kilometer übrig: {eurGenau(vertrag.mehrKmSatz)} + {jeKmText(STROMKOSTEN_JE_KM)}{' '}
+    = rund {jeKmText(GRENZKOSTEN_JE_KM)} je Kilometer. Bei {km(bei50k.km)} liegt der angezeigte Preis mit{' '}
+    {jeKmText(bei50k.jeKm)} schon nah an dieser Grenze, unterschreitet sie aber nicht. Der Rechner selbst
+    zeigt diese Grenze nirgends an – sie ergibt sich erst, wenn man mehrere Fahrleistungen nacheinander
+    einträgt und vergleicht.
+  </p>
+  <p>
+    Von dieser Grenze entfallen in diesem Beispiel {pz(MEHRKM_ANTEIL_PROZENT)} auf den vertraglichen
+    Mehrkilometersatz und der Rest auf die Stromkosten des zusätzlich gefahrenen Kilometers. Beide Anteile
+    stehen im selben Vertrag: Ein niedriger Mehrkilometersatz senkt die Grenze, ein hoher Verbrauch oder ein
+    teurerer Ladeweg hebt sie an – unabhängig davon, wie viel insgesamt gefahren wird.
+  </p>
+
+  <h3>Zwei Angebote, zwei Ranglisten</h3>
+  <p>
+    Der Effekt hat eine praktische Folge: Ein Vertrag mit niedrigerer Rate, aber engerem Kilometerbudget und
+    höherem Mehrkilometersatz, kann je nach angenommener Fahrleistung mal vorn liegen und mal hinten. Zwei
+    Beispielangebote für denselben Wagen (Listenpreis {eur(vertrag.listenpreis)}, {zahl(vertrag.laufzeitMonate)}{' '}
+    Monate, {eur(vertrag.ueberfuehrung)} Überführung): Angebot A mit {eurGenau(angebotA.rate)} Rate,{' '}
+    {km(angebotA.vertragsKmJahr)} im Vertrag und {eurGenau(angebotA.mehrKmSatz)} je Mehrkilometer; Angebot B mit
+    der niedrigeren Rate von {eurGenau(angebotB.rate)}, aber nur {km(angebotB.vertragsKmJahr)} im Vertrag und{' '}
+    {eurGenau(angebotB.mehrKmSatz)} je Mehrkilometer.
+  </p>
+  <table>
+    <caption class="visually-hidden">Vergleich zweier Leasingangebote bei unterschiedlicher erwarteter Fahrleistung</caption>
+    <thead>
+      <tr><th scope="col">Erwartete Fahrleistung</th><th scope="col" class="num">Angebot A gesamt</th><th scope="col" class="num">Angebot B gesamt</th><th scope="col">Günstiger</th></tr>
+    </thead>
+    <tbody>
+      {vergleich.map((z) => (
+        <tr>
+          <th scope="row">{km(z.km)} / Jahr</th>
+          <td class="num">{eur(z.a.gesamt)}</td>
+          <td class="num">{eur(z.b.gesamt)}</td>
+          <td>{z.a.gesamt < z.b.gesamt ? 'A' : 'B'}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+  <p>
+    Bei {km(vergleichNiedrig.km)} im Jahr – dem Kilometerbudget von Angebot B – liegt Angebot B vorn, sowohl
+    bei den Gesamtkosten als auch beim Kilometerpreis. Wer aber {km(vergleichHoch.km)} im
+    Jahr fährt, zahlt bei Angebot B {eur(vergleichHoch.b.gesamt - vergleichHoch.a.gesamt)} mehr als bei Angebot
+    A – der niedrigere Mehrkilometersatz von Angebot A gleicht die höhere Rate bei viel Fahrleistung mehr als
+    aus. Die Rangfolge hängt also nicht am Vertrag allein, sondern am Vertrag zusammen mit der eigenen,
+    tatsächlich erwarteten Fahrleistung.
+  </p>
+  <p>
+    Der Umschlagpunkt lässt sich für dieses Beispiel genau angeben: Bei {km(breakevenKm)} im Jahr kosten
+    beide Angebote über die gesamte Laufzeit exakt gleich viel. Wer weniger fährt, ist mit Angebot B besser
+    bedient, wer mehr fährt, mit Angebot A. Der Grund liegt wieder in der unterschiedlichen Aufteilung von
+    Fixkosten und Grenzkosten: Angebot B hat die niedrigeren Fixkosten, aber den höheren Grenzkostensatz
+    ({eurGenau(angebotB.mehrKmSatz)} statt {eurGenau(angebotA.mehrKmSatz)} je Mehrkilometer). Je mehr
+    Kilometer über die jeweils vereinbarte Grenze hinaus gefahren werden, desto stärker schlägt der höhere
+    Grenzkostensatz von B zu Buche – bis er den anfänglichen Fixkostenvorteil aufzehrt. Ein Vergleich, der nur
+    die Monatsrate oder nur den Kilometerpreis bei einer einzigen angenommenen Fahrleistung heranzieht, sieht
+    diesen Umschlagpunkt nicht.
+  </p>
+
+  <h3>Was das für den Vergleich zweier Angebote bedeutet</h3>
+  <p>
+    Der Kilometerpreis eignet sich zum Vergleich zweier Verträge deshalb nur, wenn beide mit derselben,
+    realistisch erwarteten Fahrleistung gerechnet werden – nicht mit der jeweils vertraglich vereinbarten, die
+    bei zwei Angeboten unterschiedlich hoch sein kann. Der Leasingfaktor und der Gesamtkostenfaktor oben auf
+    der Seite sind von der Fahrleistung ohnehin nicht betroffen: Beide hängen nur an Rate, Sonderzahlung,
+    Überführung und Listenpreis und bleiben deshalb bei jeder Zeile der ersten Tabelle gleich. Sie beschreiben
+    den Vertrag; der Kilometerpreis beschreibt die eigene Nutzung des Vertrags. Wer Angebote vergleicht, liest
+    deshalb beide nebeneinander – und trägt für den Kilometerpreis die eigene, nicht die vertraglich
+    vorgegebene Fahrleistung ein.
+  </p>
+  <p>
+    An der Rechnung selbst ändert sich nichts, wenn statt eines Elektroautos ein Verbrenner geleast wird –
+    Rate, Sonderzahlung und Überführung verdünnen sich bei jedem Fahrzeug gleichermaßen auf mehr Kilometer.
+    Nur der letzte Posten der Formel unterscheidet sich: Hier sind es die Stromkosten der erwarteten
+    Fahrleistung, bei einem Verbrenner wären es die Kraftstoffkosten. Der Effekt, dass der ausgewiesene
+    Kilometerpreis mit steigender Fahrleistung sinkt, ist damit keine Eigenheit des Elektroautos, sondern eine
+    Eigenschaft jedes Kilometerleasingvertrags mit festen Grundkosten und einer variablen Mehrkilometer-Klausel.
+  </p>
+</RechnerArtikel>
+
+<style>
+  .num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+</style>
