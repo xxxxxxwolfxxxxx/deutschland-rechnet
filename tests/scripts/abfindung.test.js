@@ -63,3 +63,26 @@ describe('steuerAufAbfindung – § 34 Abs. 1 EStG', () => {
     expect(r.ersparnis).toBeLessThanOrEqual(5);
   });
 });
+
+// Nachtrag 23.09.2026: Die Euro-Abrundung des Tarifs (§ 32a Abs. 1 Satz 6 EStG)
+// wird in der Fünftelregelung mit 5 multipliziert. Dadurch konnte die
+// ausgewiesene Ersparnis negativ werden – die Regel hätte dann Steuer gekostet.
+describe('steuerAufAbfindung – die Ermäßigung kann nie negativ sein', () => {
+  it('gibt in der kritischen Zone keine negative Ersparnis aus', () => {
+    for (let zve = 69700; zve <= 69900; zve++) {
+      const r = steuerAufAbfindung({ zvEOhne: zve, abfindung: 14000 });
+      expect(r.ersparnis).toBeGreaterThanOrEqual(0);
+      expect(r.mitFuenftelregelung).toBeLessThanOrEqual(r.ohneFuenftelregelung);
+    }
+  });
+
+  it('lässt die Ersparnis in der Progressionszone unberührt', () => {
+    const r = steuerAufAbfindung({ zvEOhne: 54000, abfindung: 14000 });
+    expect(r.ersparnis).toBeGreaterThan(200);
+  });
+
+  it('ist oberhalb der Progressionszone exakt null', () => {
+    const r = steuerAufAbfindung({ zvEOhne: 120000, abfindung: 40000 });
+    expect(r.ersparnis).toBe(0);
+  });
+});

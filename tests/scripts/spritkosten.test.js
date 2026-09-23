@@ -16,3 +16,25 @@ describe('berechneSpritkosten', () => {
     expect(r.kostenPro100km).toBe(12.00);
   });
 });
+
+// Nachtrag 23.09.2026: Der Kilometerpreis wurde auf zwei Nachkommastellen
+// gerundet, die Seite zeigt ihn aber mit dreien – die dritte Stelle war
+// deshalb immer 0, und die beiden Detailwerte widersprachen sich.
+describe('kostenProKm – ungerundet, die Anzeige rundet', () => {
+  it('liefert den exakten Wert statt zwei Nachkommastellen', () => {
+    const r = berechneSpritkosten({ streckeKm: 500, verbrauchL100: 7.5, preisEuroL: 1.75 });
+    expect(r.kostenProKm).toBeCloseTo(0.13125, 10);
+  });
+
+  it('passt zum Hundertkilometerpreis', () => {
+    const r = berechneSpritkosten({ streckeKm: 500, verbrauchL100: 7.5, preisEuroL: 1.75 });
+    // 0,131 × 100 = 13,10 – gegen 13,13 bleibt nur die Rundung der dritten Stelle,
+    // vorher klafften 13,00 gegen 13,13.
+    expect(Math.abs(r.kostenProKm * 100 - r.kostenPro100km)).toBeLessThan(0.05);
+  });
+
+  it('rundet einen glatten Wert nicht kaputt', () => {
+    const r = berechneSpritkosten({ streckeKm: 100, verbrauchL100: 5, preisEuroL: 1.75 });
+    expect(r.kostenProKm).toBeCloseTo(0.0875, 10);
+  });
+});

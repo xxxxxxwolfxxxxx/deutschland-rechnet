@@ -1,0 +1,490 @@
+---
+import RechnerArtikel from '../RechnerArtikel.astro';
+import { gebuehrTabelleB } from '../../../public/scripts/gnotkg.js';
+import { berechneGrundbuchkosten, EINTRAGUNGSARTEN } from '../../../public/scripts/grundbuch.js';
+
+// Jede Zahl in diesem Text wird zur Buildzeit aus denselben beiden Modulen
+// gerechnet, die der Rechner oben im Browser laedt: gnotkg.js (Tabelle B nach
+// § 34 Abs. 2 GNotKG) und grundbuch.js (Gebuehrensaetze aus dem
+// Kostenverzeichnis, Anlage 1 GNotKG). Nichts ist abgetippt.
+
+const eur = (n: number, d = 2) =>
+  n.toLocaleString('de-DE', { minimumFractionDigits: d, maximumFractionDigits: d }) + ' €';
+const eurGlatt = (n: number) => n.toLocaleString('de-DE', { maximumFractionDigits: 0 }) + ' €';
+const proz = (n: number, d = 2) =>
+  n.toLocaleString('de-DE', { minimumFractionDigits: d, maximumFractionDigits: d }) + ' %';
+const zahl = (n: number, d = 2) =>
+  n.toLocaleString('de-DE', { minimumFractionDigits: d, maximumFractionDigits: d });
+// Minuszeichen U+2212, nicht der Bindestrich.
+const vorzeichen = (n: number, d = 2) =>
+  (n < 0 ? '−' : '') + Math.abs(n).toLocaleString('de-DE', { minimumFractionDigits: d, maximumFractionDigits: d });
+
+const cent = (n: number) => Math.round(n * 100) / 100;
+const kosten = (wert: number, art: string) => berechneGrundbuchkosten({ geschaeftswert: wert, art }).gesamt;
+const anteil = (wert: number, art: string) => (kosten(wert, art) / wert) * 100;
+
+// --- Die Stufengrenzen der Tabelle B --------------------------------------
+// § 34 Abs. 2 GNotKG staffelt den Geschaeftswert. Unterhalb einer Grenze
+// zaehlt das Gesetz in kleinen Schritten, oberhalb in groesseren. Genau am
+// Uebergang springt die volle Gebuehr um einen ganzen Schritt.
+const HAUPTART = 'eigentuemer';
+const GRENZEN = [50000, 200000, 500000];
+
+// Groesster Wert, bei dem `messen` noch dasselbe Ergebnis liefert wie bei
+// `start` – also das Ende einer Stufe. Exponentiell suchen, dann halbieren.
+function gleichesErgebnisBis(start: number, messen: (wert: number) => number): number {
+  const ziel = messen(start);
+  let sicher = start;
+  let kandidat = start + 1;
+  while (messen(kandidat) === ziel) {
+    sicher = kandidat;
+    kandidat = start + (kandidat - start) * 2;
+  }
+  while (kandidat - sicher > 1) {
+    const mitte = Math.floor((sicher + kandidat) / 2);
+    if (messen(mitte) === ziel) sicher = mitte;
+    else kandidat = mitte;
+  }
+  return sicher;
+}
+const gleicheKostenBis = (start: number, art: string) =>
+  gleichesErgebnisBis(start, (wert) => kosten(wert, art));
+
+// Die Staffel aus § 34 Abs. 2 GNotKG wird hier nicht abgeschrieben, sondern
+// aus dem Verhalten von gebuehrTabelleB zurueckgewonnen: Jede Stelle, an der
+// die volle Gebuehr springt, markiert das Ende eines Blocks; gleich breite
+// Bloecke werden zu einer Stufe zusammengefasst.
+const PAUSCHALGRENZE = gleichesErgebnisBis(0, gebuehrTabelleB);
+function staffelBis(obergrenze: number) {
+  const liste: Array<{ schritt: number; bis: number }> = [];
+  let wert = PAUSCHALGRENZE + 1;
+  while (wert <= obergrenze) {
+    const ende = gleichesErgebnisBis(wert, gebuehrTabelleB);
+    const schritt = ende - wert + 1;
+    const letzte = liste[liste.length - 1];
+    if (letzte && letzte.schritt === schritt) letzte.bis = ende;
+    else liste.push({ schritt, bis: ende });
+    wert = ende + 1;
+  }
+  return liste;
+}
+const STAFFEL = staffelBis(600000);
+const schrittweiten = STAFFEL.map((s) => s.schritt);
+// "500, 1.000, ... und schliesslich 50.000"
+const schrittweitenText = schrittweiten
+  .slice(0, -1)
+  .map((s) => s.toLocaleString('de-DE'))
+  .join(', ') + ' und schließlich ' + schrittweiten[schrittweiten.length - 1].toLocaleString('de-DE');
+
+const stufen = GRENZEN.map((grenze) => {
+  const tabUnten = gebuehrTabelleB(grenze);
+  const tabOben = gebuehrTabelleB(grenze + 1);
+  const unten = kosten(grenze, HAUPTART);
+  const oben = kosten(grenze + 1, HAUPTART);
+  const freilaufEnde = gleicheKostenBis(grenze + 1, HAUPTART);
+  return {
+    grenze,
+    tabUnten,
+    tabOben,
+    tabSprung: cent(tabOben - tabUnten),
+    unten,
+    oben,
+    sprung: cent(oben - unten),
+    freilaufEnde,
+    freilauf: freilaufEnde - (grenze + 1),
+    block: freilaufEnde - grenze,
+    // Gewicht des Sprungs, gemessen am Geschaeftswert an dieser Grenze.
+    sprungAnteil: (cent(oben - unten) / grenze) * 100,
+  };
+});
+
+const stufe500 = stufen[stufen.length - 1];
+const stufe200 = stufen[1];
+
+// --- Der Hebel: aus einem Tabellenschritt werden mehrere Gebuehren ---------
+// Jede Eintragungsart multipliziert dieselbe volle Gebuehr mit ihren Saetzen
+// aus dem Kostenverzeichnis: Grundbuchgebuehr + Notargebuehr + 19 % USt auf
+// die Notargebuehr. Der Hebel ist hier nicht behauptet, sondern aus dem
+// gerechneten Sprung durch den Tabellenschritt geteilt.
+const ARTEN = ['eigentuemer', 'grundschuldBrief', 'grundschuldBuch', 'auflassungsvormerkung'] as const;
+const hebelZeilen = ARTEN.map((art) => {
+  const sprung = cent(kosten(stufe500.grenze + 1, art) - kosten(stufe500.grenze, art));
+  return {
+    art,
+    label: EINTRAGUNGSARTEN[art].label,
+    satzGrundbuch: EINTRAGUNGSARTEN[art].grundbuch.satz,
+    satzNotar: EINTRAGUNGSARTEN[art].notar.satz,
+    sprung,
+    hebel: sprung / stufe500.tabSprung,
+  };
+});
+const hebelEigentuemer = hebelZeilen[0];
+
+// --- Der Saegezahn in der Prozentanzeige -----------------------------------
+const anteilAmGrenzpunkt = anteil(stufe500.grenze, HAUPTART);
+const anteilNachGrenze = anteil(stufe500.grenze + 1, HAUPTART);
+const anteilAmStufenende = anteil(stufe500.freilaufEnde, HAUPTART);
+// Nicht auf Cent runden – das ist ein Prozentpunkt-Abstand, kein Geldbetrag.
+const anteilDifferenz = anteilAmStufenende - anteilAmGrenzpunkt;
+const mehrkostenAmStufenende = cent(kosten(stufe500.freilaufEnde, HAUPTART) - stufe500.unten);
+
+// Degression zwischen der niedrigsten und der hoechsten betrachteten Grenze.
+// Basis des Rueckgangs ist der Anteil beim kleineren Kaufpreis.
+const anteilUntereGrenze = anteil(GRENZEN[0], HAUPTART);
+const anteilRueckgang = (1 - anteil(GRENZEN[GRENZEN.length - 1], HAUPTART) / anteilUntereGrenze) * 100;
+const wertVielfaches = GRENZEN[GRENZEN.length - 1] / GRENZEN[0];
+
+// Umsatzsteuersatz nicht abtippen, sondern aus dem Modulergebnis zurueckrechnen.
+const VOREINSTELLUNG_WERT = 200000;
+const VOREINSTELLUNG_ART = 'grundschuldBuch';
+const voreinstellung = berechneGrundbuchkosten({ geschaeftswert: VOREINSTELLUNG_WERT, art: VOREINSTELLUNG_ART });
+const ustSatz = (voreinstellung.umsatzsteuer / voreinstellung.notar.betrag) * 100;
+
+// --- Die Voreinstellung des Rechners ---------------------------------------
+const voreinstellungSprung = cent(kosten(VOREINSTELLUNG_WERT + 1, VOREINSTELLUNG_ART) - voreinstellung.gesamt);
+const voreinstellungDanach = cent(voreinstellung.gesamt + voreinstellungSprung);
+
+// --- Die Loeschung: die Treppe endet ---------------------------------------
+// KV 14152 ist eine Festgebuehr, KV 25100 ist zwischen Mindest- und
+// Hoechstbetrag gedeckelt. Ausserhalb eines schmalen Bandes aendert der
+// eingegebene Wert am Ergebnis nichts mehr.
+const LOESCHUNG = 'loeschungVormerkung';
+const notarBetrag = (wert: number) =>
+  berechneGrundbuchkosten({ geschaeftswert: wert, art: LOESCHUNG }).notar.betrag;
+const MINDEST_25100 = EINTRAGUNGSARTEN[LOESCHUNG].notar.mindestbetrag;
+const HOECHST_25100 = EINTRAGUNGSARTEN[LOESCHUNG].notar.hoechstbetrag;
+
+function ersterWertMit(pruefung: (wert: number) => boolean): number {
+  let unten = 0;
+  let oben = 1;
+  while (!pruefung(oben)) oben *= 2;
+  while (oben - unten > 1) {
+    const mitte = Math.floor((unten + oben) / 2);
+    if (pruefung(mitte)) oben = mitte;
+    else unten = mitte;
+  }
+  return oben;
+}
+const loeschungWirktAb = ersterWertMit((w) => notarBetrag(w) > MINDEST_25100);
+const loeschungDeckelAb = ersterWertMit((w) => notarBetrag(w) >= HOECHST_25100);
+const loeschungUnten = kosten(0, LOESCHUNG);
+const loeschungOben = kosten(loeschungDeckelAb, LOESCHUNG);
+
+// --- Selbstpruefung --------------------------------------------------------
+// Scheitert eine dieser Zusicherungen, bricht der Build ab, statt dass ein
+// falscher Satz online geht.
+
+// 1. Der Tabellenschritt an der 500.000-Grenze ist der Schritt von 80 €, den
+//    § 34 Abs. 2 GNotKG fuer Geschaeftswerte ueber 500.000 € vorsieht.
+if (stufe500.tabSprung !== 80) {
+  throw new Error(`Tabellenschritt an der 500.000-Grenze ist ${stufe500.tabSprung}, erwartet 80 (§ 34 Abs. 2 GNotKG).`);
+}
+
+// 1b. Die aus dem Modulverhalten zurueckgewonnene Staffel muss Wort fuer Wort
+//     der Tabelle in § 34 Abs. 2 GNotKG entsprechen: Pauschale bis 500 €,
+//     danach Blockbreiten 500/1.000/3.000/5.000/15.000/30.000/50.000 € mit den
+//     Stufengrenzen 2.000/10.000/25.000/50.000/200.000/500.000 €.
+if (PAUSCHALGRENZE !== 500) {
+  throw new Error(`Pauschalgrenze ist ${PAUSCHALGRENZE} €, erwartet 500 € (§ 34 Abs. 2 GNotKG).`);
+}
+const SCHRITTE_ERWARTET = [500, 1000, 3000, 5000, 15000, 30000, 50000];
+const GRENZEN_ERWARTET = [2000, 10000, 25000, 50000, 200000, 500000];
+if (schrittweiten.join('|') !== SCHRITTE_ERWARTET.join('|')) {
+  throw new Error(`Blockbreiten der Staffel sind ${schrittweiten.join('/')}, erwartet ${SCHRITTE_ERWARTET.join('/')}.`);
+}
+if (STAFFEL.slice(0, -1).map((s) => s.bis).join('|') !== GRENZEN_ERWARTET.join('|')) {
+  throw new Error('Die Stufengrenzen der Staffel weichen von § 34 Abs. 2 GNotKG ab.');
+}
+// Jede im Text benutzte Grenze muss eine echte Stufengrenze des Gesetzes sein.
+for (const g of GRENZEN) {
+  if (!GRENZEN_ERWARTET.includes(g)) throw new Error(`${g} ist keine Stufengrenze nach § 34 Abs. 2 GNotKG.`);
+}
+
+// 1c. Der zurueckgerechnete Umsatzsteuersatz muss 19 % sein (KV 32014).
+if (Math.abs(ustSatz - 19) > 0.001) {
+  throw new Error(`Zurueckgerechneter Umsatzsteuersatz ist ${ustSatz} %, erwartet 19 %.`);
+}
+
+// 2. Der Hebel ist genau 1,0 (KV 14110) + 2,0 (KV 21100) x 1,19 USt.
+const hebelErwartet = hebelEigentuemer.satzGrundbuch + hebelEigentuemer.satzNotar * 1.19;
+if (Math.abs(hebelEigentuemer.hebel - hebelErwartet) > 0.0001) {
+  throw new Error(`Hebel ist ${hebelEigentuemer.hebel}, erwartet ${hebelErwartet} aus den KV-Saetzen.`);
+}
+
+// 3. Der Sprung, um den der ganze Text gebaut ist.
+if (Math.abs(stufe500.sprung - 270.4) > 0.01) {
+  throw new Error(`Sprung an der 500.000-Grenze ist ${stufe500.sprung} €, erwartet 270,40 €.`);
+}
+
+// 4. Hinter der Grenze aendert sich bis zum Stufenende kein Cent.
+if (kosten(stufe500.grenze + 1, HAUPTART) !== kosten(stufe500.freilaufEnde, HAUPTART)) {
+  throw new Error('Die Kosten sind innerhalb der Stufe nicht konstant.');
+}
+if (stufe500.freilauf !== 49999) {
+  throw new Error(`Freilauf hinter der 500.000-Grenze ist ${stufe500.freilauf} €, erwartet 49.999 €.`);
+}
+
+// 5. Der Kernwiderspruch: am Stufenende ist der Anteil am Wert kleiner als am
+//    Grenzpunkt darunter, obwohl absolut mehr gezahlt wird.
+if (!(anteilAmStufenende < anteilAmGrenzpunkt && mehrkostenAmStufenende > 0)) {
+  throw new Error('Der Saegezahn stimmt nicht: Anteil oder Absolutbetrag laufen anders als beschrieben.');
+}
+
+// 5b. Der erste Euro hinter der Grenze ist der unguenstigste Punkt der Stufe.
+for (const probe of [1, 2, 5, 17, 1234, 9999, 25000, 49998, stufe500.freilauf]) {
+  const wert = stufe500.grenze + 1 + probe;
+  if (wert <= stufe500.freilaufEnde && anteil(wert, HAUPTART) >= anteilNachGrenze) {
+    throw new Error(`Bei ${wert} € ist der Anteil nicht kleiner als direkt hinter der Stufengrenze.`);
+  }
+}
+
+// 6. Bei jeder Grenze ist der Sprung das Produkt aus Tabellenschritt und Hebel.
+for (const s of stufen) {
+  if (Math.abs(s.sprung - s.tabSprung * hebelErwartet) > 0.01) {
+    throw new Error(`Sprung an der Grenze ${s.grenze} passt nicht zum Tabellenschritt.`);
+  }
+  if (s.unten >= s.oben) throw new Error(`Kein Sprung an der Grenze ${s.grenze}.`);
+}
+
+// 6b. Degression: relativer Anteil und relatives Sprunggewicht fallen mit dem
+//     Wert, obwohl der Sprung absolut waechst.
+if (!(anteilAmGrenzpunkt < anteil(stufen[0].grenze, HAUPTART))) {
+  throw new Error('Der Anteil faellt zwischen den beiden Grenzen nicht.');
+}
+// Basis des Rueckgangs ist der Anteil beim NIEDRIGEN Wert, nicht beim hohen.
+if (Math.abs(anteilRueckgang - (1 - anteilAmGrenzpunkt / anteil(stufen[0].grenze, HAUPTART)) * 100) > 0.0001) {
+  throw new Error('Der Rueckgang ist auf die falsche Basis bezogen.');
+}
+if (!(anteilRueckgang > 40 && anteilRueckgang < 45)) {
+  throw new Error(`Rueckgang des Anteils ist ${anteilRueckgang} %, erwartet zwischen 40 und 45 %.`);
+}
+if (wertVielfaches !== 10) {
+  throw new Error(`Die beiden Grenzen stehen nicht im Verhaeltnis 1:10, sondern 1:${wertVielfaches}.`);
+}
+for (let i = 1; i < stufen.length; i++) {
+  if (!(stufen[i].sprung > stufen[i - 1].sprung)) throw new Error('Sprung waechst absolut nicht.');
+  if (!(stufen[i].sprungAnteil < stufen[i - 1].sprungAnteil)) throw new Error('Sprunggewicht faellt relativ nicht.');
+  if (!(stufen[i].block > stufen[i - 1].block)) throw new Error('Blockbreite waechst nicht.');
+}
+
+// 7. Oberhalb des Deckels aendert der eingegebene Wert nichts mehr.
+if (kosten(loeschungDeckelAb, LOESCHUNG) !== kosten(loeschungDeckelAb * 20, LOESCHUNG)) {
+  throw new Error('Die Loeschungskosten sind oberhalb des Hoechstbetrags nicht konstant.');
+}
+if (!(loeschungWirktAb > 0 && loeschungDeckelAb > loeschungWirktAb)) {
+  throw new Error('Das Wirkungsband der Loeschungsgebuehr ist nicht plausibel.');
+}
+---
+
+<RechnerArtikel
+  titel={`Ein Euro mehr Kaufpreis kostet ${eur(stufe500.sprung)} – die nächsten ${eurGlatt(stufe500.freilauf)} kosten nichts`}
+  lead={`Notar- und Grundbuchgebühren gelten als Prozentsatz vom Kaufpreis. Das sind sie nicht. § 34 GNotKG staffelt den Geschäftswert in Stufen, und innerhalb einer Stufe ändert sich die Gebühr überhaupt nicht. Der gesamte Anstieg steckt in einem einzigen Euro – und der Rechner oben zeigt ihn, wenn Sie ${eurGlatt(stufe500.grenze)} gegen ${eurGlatt(stufe500.grenze + 1)} stellen.`}
+  datum="2026-09-23"
+  quellen={[
+    { titel: '§ 34 GNotKG – Wertgebühren (Stufentabelle in Absatz 2)', url: 'https://www.gesetze-im-internet.de/gnotkg/__34.html' },
+    { titel: 'Anlage 1 GNotKG – Kostenverzeichnis (KV 14110, 14120, 14121, 14150, 14152, 21100, 21200, 21201, 25100, 32014)', url: 'https://www.gesetze-im-internet.de/gnotkg/anlage_1.html' },
+    { titel: 'Anlage 2 GNotKG – Tabelle B', url: 'https://www.gesetze-im-internet.de/gnotkg/anlage_2.html' },
+    { titel: '§ 125 GNotKG – Unwirksame Vereinbarungen über die Kosten', url: 'https://www.gesetze-im-internet.de/gnotkg/__125.html' },
+    { titel: '§ 47 GNotKG – Geschäftswert beim Kauf', url: 'https://www.gesetze-im-internet.de/gnotkg/__47.html' },
+  ]}
+>
+  <h3>Die Gebühr ist eine Treppe, keine Gerade</h3>
+  <p>
+    Der Rechner oben nennt unter dem Ergebnis einen Prozentsatz, und genau der führt in die
+    Irre. Er ist nur ein Ergebnis der Division, keine Regel. Die eigentliche Rechnung läuft
+    in zwei Schritten: Aus dem Geschäftswert ergibt sich nach § 34 Abs. 2 GNotKG eine volle
+    Gebühr, die sogenannte 1,0-Gebühr. Diese eine Zahl multipliziert das Kostenverzeichnis
+    dann je Vorgang mit einem festen Satz – {zahl(hebelEigentuemer.satzGrundbuch, 1)} für die
+    Eintragung des Eigentümers (KV 14110), {zahl(hebelEigentuemer.satzNotar, 1)} für die
+    Beurkundung des Kaufvertrags (KV 21100).
+  </p>
+  <p>
+    Der erste Schritt ist der entscheidende, und er ist keine Multiplikation, sondern eine
+    Treppe. Das Gesetz zählt nicht in Euro, sondern in Blöcken: Bis
+    {' '}{eurGlatt(PAUSCHALGRENZE)} Geschäftswert beträgt die volle Gebühr pauschal
+    {' '}{eur(gebuehrTabelleB(0))}, darüber erhöht sie sich „für jeden angefangenen Betrag“ von
+    weiteren {schrittweitenText} €. Das Wort
+    {' '}<em>angefangen</em> trägt die ganze Last. Wer einen Block auch nur um einen Euro
+    anbricht, zahlt ihn vollständig.
+  </p>
+
+  <h3>Was ein einziger Euro an der Stufengrenze kostet</h3>
+  <p>
+    Die Schrittweite wächst nicht gleichmäßig, sondern springt an festen Grenzen. Genau dort
+    ist ein Euro am teuersten. Stellen Sie oben „Eigentümer eintragen (Kauf)“ ein und geben
+    Sie nacheinander die beiden Werte einer Zeile ein:
+  </p>
+  <table>
+    <thead>
+      <tr><th>Grenze</th><th>Kosten bei diesem Wert</th><th>Kosten bei einem Euro mehr</th><th>Ein Euro kostet</th><th>gleicher Betrag dann bis</th></tr>
+    </thead>
+    <tbody>
+      {stufen.map((s) => (
+        <tr>
+          <td>{eurGlatt(s.grenze)}</td>
+          <td>{eur(s.unten)}</td>
+          <td>{eur(s.oben)}</td>
+          <td><strong>{eur(s.sprung)}</strong></td>
+          <td>{eurGlatt(s.freilaufEnde)}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+  <p>
+    An der {eurGlatt(stufe500.grenze)}-Grenze kostet der letzte Euro des Kaufpreises
+    {' '}{eur(stufe500.sprung)}. Das ist kein Rundungsfehler und kein Zuschlag, den irgendjemand
+    erhebt: Die volle Gebühr steigt an dieser Stelle von {eur(stufe500.tabUnten)} auf
+    {' '}{eur(stufe500.tabOben)}, also um {eur(stufe500.tabSprung)} – weil oberhalb von
+    {' '}{eurGlatt(stufe500.grenze)} das Gesetz in Blöcken von
+    {' '}{eurGlatt(stufe500.freilauf + 1)} zählt statt in Blöcken von
+    {' '}{eurGlatt(stufe200.freilauf + 1)}, und der erste dieser Blöcke mit dem einen Euro
+    angebrochen ist.
+  </p>
+
+  <h3>Die Gegenrechnung: {eurGlatt(stufe500.freilauf)} Kaufpreis ohne einen Cent Gebühr</h3>
+  <p>
+    Die Treppe hat eine zweite Seite, und die ist die interessantere. Wenn der ganze Anstieg
+    in einem Euro steckt, dann kostet der restliche Block nichts. Geben Sie oben
+    {' '}{eurGlatt(stufe500.grenze + 1)} ein und danach {eurGlatt(stufe500.freilaufEnde)}: Beide
+    Male steht dort {eur(stufe500.oben)}. Zwischen diesen beiden Kaufpreisen liegen
+    {' '}{eurGlatt(stufe500.freilauf)}, für die das GNotKG keinen einzigen Cent zusätzlich
+    vorsieht.
+  </p>
+  <p>
+    Dasselbe gilt für jede Stufe, nur mit kleineren Blöcken. Unterhalb von
+    {' '}{eurGlatt(stufe200.grenze)} zählt das Gesetz in Schritten von 15.000 €, der Sprung an
+    dieser Grenze beträgt {eur(stufe200.sprung)}. Die Voreinstellung des Rechners – eine
+    Grundschuld als Buchrecht über {eurGlatt(VOREINSTELLUNG_WERT)} – liegt zufällig genau auf
+    einer solchen Grenze: {eur(voreinstellung.gesamt)} bei {eurGlatt(VOREINSTELLUNG_WERT)},
+    {' '}{eur(voreinstellungDanach)} bei einem Euro mehr.
+  </p>
+  <p>
+    Die gebührenfreie Strecke wächst also mit dem Wert, und zwar sprunghaft: Über
+    {' '}{eurGlatt(stufen[0].grenze)} sind es {eurGlatt(stufen[0].freilauf)}, über
+    {' '}{eurGlatt(stufe200.grenze)} schon {eurGlatt(stufe200.freilauf)}, über
+    {' '}{eurGlatt(stufe500.grenze)} dann {eurGlatt(stufe500.freilauf)}. Oberhalb der letzten
+    Grenze läuft die Staffel unverändert weiter – Anlage 2 GNotKG bildet die Tabelle zwar nur
+    bis 3 Mio. € ab, aber § 34 Abs. 2 GNotKG kennt für die Blockbreite von
+    {' '}{eurGlatt(stufe500.block)} keine Obergrenze außer der nächsten Stufe.
+  </p>
+
+  <h3>Warum die Prozentanzeige sägt, statt zu fallen</h3>
+  <p>
+    Aus Treppe plus Division folgt ein Sägezahn. Am Grenzpunkt
+    {' '}{eurGlatt(stufe500.grenze)} liegen die Kosten bei {proz(anteilAmGrenzpunkt, 3)} des
+    Werts. Einen Euro darüber springen sie auf {proz(anteilNachGrenze, 3)} – das ist der
+    ungünstigste Punkt der gesamten Stufe. Von dort fällt der Anteil wieder, weil der Nenner
+    wächst und der Zähler stillsteht, bis er am Stufenende bei
+    {' '}{eurGlatt(stufe500.freilaufEnde)} nur noch {proz(anteilAmStufenende, 3)} beträgt.
+  </p>
+  <p>
+    Der Vergleich der beiden Stufenenden ist der eigentliche Punkt: Wer
+    {' '}{eurGlatt(stufe500.freilaufEnde)} zahlt, trägt {eur(mehrkostenAmStufenende)} mehr an
+    Gebühren als jemand mit {eurGlatt(stufe500.grenze)} – und liegt gemessen am Kaufpreis
+    trotzdem niedriger: {proz(anteilAmStufenende, 3)} statt {proz(anteilAmGrenzpunkt, 3)}, also
+    {' '}{vorzeichen(anteilDifferenz, 3)} Prozentpunkte. Absolut mehr, relativ weniger. Deshalb
+    ist jede Faustformel vom Typ „rund ein Prozent Notar und Grundbuch“ innerhalb einer Stufe
+    systematisch falsch, mal nach oben, mal nach unten.
+  </p>
+
+  <h3>Der Hebel: warum aus {eur(stufe500.tabSprung)} plötzlich {eur(stufe500.sprung)} werden</h3>
+  <p>
+    Der Tabellenschritt selbst ist klein. Teuer wird er erst dadurch, dass mehrere
+    Gebührensätze auf dieselbe volle Gebühr zugreifen und die Umsatzsteuer nach KV 32014 auf
+    den notariellen Teil noch einmal obendrauf kommt. Die Grundbuchgebühr ist eine
+    Gerichtsgebühr und bleibt umsatzsteuerfrei, die Notargebühr nicht. Für jede
+    Eintragungsart ergibt sich daraus ein fester Faktor, mit dem der Tabellenschritt
+    durchschlägt:
+  </p>
+  <table>
+    <thead>
+      <tr><th>Eintragungsart</th><th>Grundbuch</th><th>Notar</th><th>Faktor</th><th>Sprung an der Grenze</th></tr>
+    </thead>
+    <tbody>
+      {hebelZeilen.map((z) => (
+        <tr>
+          <td>{z.label}</td>
+          <td>{zahl(z.satzGrundbuch, 1)}</td>
+          <td>{zahl(z.satzNotar, 1)}</td>
+          <td>{zahl(z.hebel, 3)}</td>
+          <td>{eur(z.sprung)}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+  <p>
+    Beim Eigentümerwechsel ist der Faktor {zahl(hebelEigentuemer.hebel, 2)}: einmal die
+    Grundbuchgebühr, dazu die doppelte Notargebühr samt {proz(ustSatz, 0)} Umsatzsteuer. Aus
+    {' '}{eur(stufe500.tabSprung)} Tabellenschritt werden so {eur(stufe500.sprung)}. Der
+    Unterschied zwischen Brief- und Buchrecht bei der Grundschuld folgt derselben Logik: Das
+    Grundbuchamt setzt für die Briefgrundschuld
+    {' '}{zahl(EINTRAGUNGSARTEN.grundschuldBrief.grundbuch.satz, 1)} an (KV 14120) statt
+    {' '}{zahl(EINTRAGUNGSARTEN.grundschuldBuch.grundbuch.satz, 1)} für das Buchrecht (KV 14121)
+    – nicht nur beim Endbetrag, sondern auch bei jedem Stufensprung.
+  </p>
+
+  <h3>Wo die Treppe am schwersten wiegt</h3>
+  <p>
+    Absolut wird jeder Sprung nach oben hin größer – {eur(stufen[0].sprung)} an der
+    {' '}{eurGlatt(stufen[0].grenze)}-Grenze, {eur(stufe500.sprung)} an der
+    {' '}{eurGlatt(stufe500.grenze)}-Grenze. Gemessen am Geschäftswert kehrt sich das Bild
+    jedoch um. Der Sprung an der {eurGlatt(stufen[0].grenze)}-Grenze entspricht
+    {' '}{proz(stufen[0].sprungAnteil, 3)} des Werts, der an der
+    {' '}{eurGlatt(stufe200.grenze)}-Grenze nur noch {proz(stufe200.sprungAnteil, 3)} und der
+    an der {eurGlatt(stufe500.grenze)}-Grenze {proz(stufe500.sprungAnteil, 3)}.
+  </p>
+  <p>
+    Das passt zur Grundanlage des GNotKG: Die Gebühr ist degressiv, sie wächst langsamer als
+    der Wert. Bei {eurGlatt(stufen[0].grenze)} Kaufpreis kostet die Eigentumsumschreibung
+    samt Beurkundung {proz(anteilUntereGrenze, 2)} des Kaufpreises, bei
+    {' '}{eurGlatt(stufe500.grenze)} nur noch {proz(anteilAmGrenzpunkt, 2)} – beim
+    {zahl(wertVielfaches, 0)}-fachen Kaufpreis ein Rückgang um {proz(anteilRueckgang, 0)},
+    gemessen am niedrigeren Ausgangswert. Der Preis dieser Degression ist, dass die Blöcke unten enger
+    stehen: Oberhalb von {eurGlatt(stufen[0].grenze)} sind sie {eurGlatt(stufen[0].block)}
+    breit, oberhalb von {eurGlatt(stufe500.grenze)} dagegen {eurGlatt(stufe500.block)}. Im
+    unteren Bereich trifft man auf derselben Kaufpreisstrecke deshalb deutlich mehr
+    Stufengrenzen.
+  </p>
+
+  <h3>Wo die Treppe aufhört: die Löschung</h3>
+  <p>
+    Nicht jede Position im Kostenverzeichnis hängt am Geschäftswert. Wählen Sie oben
+    „Vormerkung löschen“ und verändern Sie den Betrag: Über weite Strecken passiert nichts.
+    Die Grundbuchgebühr ist dort nach KV 14152 eine Festgebühr von
+    {' '}{eur(EINTRAGUNGSARTEN[LOESCHUNG].grundbuch.festbetrag)}, und die notarielle
+    Beglaubigung nach KV 25100 ist zwischen einem Mindestbetrag von {eur(MINDEST_25100)} und
+    einem Höchstbetrag von {eur(HOECHST_25100)} eingeklemmt.
+  </p>
+  <p>
+    Konkret: Unterhalb von {eurGlatt(loeschungWirktAb)} bleibt das Ergebnis bei
+    {' '}{eur(loeschungUnten)}, ab {eurGlatt(loeschungDeckelAb)} bei {eur(loeschungOben)}. Nur
+    dazwischen bewegt sich überhaupt etwas. Das ist kein Fehler des Rechners, sondern die
+    Bauweise des Gesetzes – aber es erklärt, warum der Rechner bei dieser Auswahl auf die
+    Prozentangabe verzichtet: Ein Anteil am Geschäftswert sagt bei einer Festgebühr nichts
+    aus.
+  </p>
+
+  <h3>Was daraus nicht folgt</h3>
+  <p>
+    Die Stufen sind eine Eigenschaft der Gebührentabelle, kein Spielraum. Der Geschäftswert
+    ist beim Kauf nach § 47 GNotKG der Kaufpreis; er wird nicht ausgehandelt, sondern
+    festgestellt. Auch die Gebühr selbst ist der Verhandlung entzogen: Vereinbarungen über
+    eine andere als die gesetzliche Höhe sind nach § 125 GNotKG unwirksam. Ein Preisvergleich
+    zwischen Notariaten führt deshalb zu identischen Beträgen.
+  </p>
+  <p>
+    Der Rechner oben zeigt außerdem immer nur eine einzelne Eintragung mit der zugehörigen
+    notariellen Gebühr. Beim finanzierten Hauskauf fallen mehrere davon nebeneinander an –
+    Auflassungsvormerkung, Eigentumsumschreibung und Grundschuldbestellung –, dazu
+    Vollzugs- und Betreuungsgebühren (KV 22110, KV 22200) sowie Auslagen. Jede dieser
+    Positionen greift auf dieselbe Stufentreppe zu, und beim Kaufpreis auf dieselbe Stufe.
+    Die Sprünge addieren sich damit; die {eur(stufe500.sprung)} aus diesem Text sind die
+    Untergrenze dessen, was ein Euro an der Grenze im Gesamtpaket auslöst, nicht das ganze
+    Bild.
+  </p>
+  <p>
+    Und schließlich: Dass die Gebührentreppe an bestimmten Punkten springt, ist eine
+    Rechengröße, keine Empfehlung. Was ein Kaufpreis sein darf, richtet sich nach dem, was
+    tatsächlich vereinbart ist – nicht danach, wo in Anlage 2 GNotKG eine Stufe endet.
+  </p>
+</RechnerArtikel>
