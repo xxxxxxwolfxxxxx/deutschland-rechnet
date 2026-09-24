@@ -1,0 +1,308 @@
+---
+import RechnerArtikel from '../RechnerArtikel.astro';
+import { berechneFuehrerschein, pruefgebuehren, GEBUEHREN } from '../../../public/scripts/fuehrerschein.js';
+
+// Dieser Artikel rechnet ausschließlich mit dem Modul, das auch der Rechner
+// oben lädt (public/scripts/fuehrerschein.js). Die beiden Preisspannen unten
+// (Stundenpreis, Vorstellungsentgelt, Zahl der Übungsfahrten) stammen nicht
+// aus einer erfundenen Beispielliste, sondern aus dem ADAC-Artikel
+// "Führerschein Klasse B: Diese Kosten kommen auf Sie zu" (Stand 08.04.2025,
+// abgerufen am 24.09.2026) – Quelle unten.
+
+const zahl = (n: number, d = 1) =>
+  n.toLocaleString('de-DE', { minimumFractionDigits: d, maximumFractionDigits: d }).replace(/^-/, '−');
+const eur = (n: number, d = 2) => zahl(n, d) + ' €';
+const std = (n: number) => zahl(n, 1) + ' Std.';
+const proz = (n: number) => zahl(n, 0) + ' %';
+
+// --- Amtliche Gebühren: Gegenprobe gegen eine unabhängige Quelle -----------
+// TÜV Hessen veröffentlicht dieselben GebOSt-Beträge als Bruttopreise. Wenn
+// das Modul künftig andere Zahlen führt, muss dieser Vergleich auffallen,
+// statt dass der Artikel stillschweigend falsche Zahlen zeigt.
+const geb1 = pruefgebuehren({ versuchePraxis: 1 });
+const geb2 = pruefgebuehren({ versuchePraxis: 2 });
+const PRAXIS_BRUTTO_TUEV_HESSEN = 129.83;
+const THEORIE_BRUTTO_TUEV_HESSEN = 24.99;
+if (Math.abs(geb1.praxisJe - PRAXIS_BRUTTO_TUEV_HESSEN) > 0.01) {
+  throw new Error('Führerschein-Artikel: Praxisgebühr weicht von der TÜV-Hessen-Quelle ab.');
+}
+if (Math.abs(geb1.theorieJe - THEORIE_BRUTTO_TUEV_HESSEN) > 0.01) {
+  throw new Error('Führerschein-Artikel: Theoriegebühr weicht von der TÜV-Hessen-Quelle ab.');
+}
+const amtlicheMehrkostenWiederholung = geb2.praxis - geb1.praxis;
+if (Math.abs(amtlicheMehrkostenWiederholung - geb1.praxisJe) > 0.01) {
+  throw new Error('Führerschein-Artikel: Eine Wiederholung kostet nicht die volle Praxisgebühr erneut.');
+}
+
+// --- Reale Preisspannen (ADAC, 08.04.2025) ---------------------------------
+const STUNDENPREIS = { min: 55, mitte: 66, max: 77 }; // 55–77 €/Fahrstunde
+const VORSTELLUNG_PRAXIS = { min: 160, mitte: 224.5, max: 289 }; // €
+const UEBUNGSFAHRTEN = { min: 10, max: 25 }; // "Übungsfahrten" laut ADAC
+
+// --- Was eine Wiederholung der praktischen Prüfung zusätzlich kostet ------
+// Amtliche Gebühr (fix) + das Vorstellungsentgelt der Fahrschule, das beim
+// zweiten Anlauf laut Formel des Rechners erneut anfällt (vt·Theorie +
+// vp·Praxis in posten.vorstellungen).
+function mehrkostenWiederholung(vorstellungPraxis: number): number {
+  return Math.round((amtlicheMehrkostenWiederholung + vorstellungPraxis) * 100) / 100;
+}
+const wiederholungsTabelle = [
+  VORSTELLUNG_PRAXIS.min,
+  190,
+  VORSTELLUNG_PRAXIS.mitte,
+  260,
+  VORSTELLUNG_PRAXIS.max,
+].map((v) => {
+  const mehrkosten = mehrkostenWiederholung(v);
+  return {
+    vorstellung: v,
+    mehrkosten,
+    stundenBeiMin: mehrkosten / STUNDENPREIS.min,
+    stundenBeiMitte: mehrkosten / STUNDENPREIS.mitte,
+    stundenBeiMax: mehrkosten / STUNDENPREIS.max,
+  };
+});
+const mittlererFall = wiederholungsTabelle[2]; // Vorstellung = Mitte der ADAC-Spanne
+if (!(mittlererFall.stundenBeiMitte > 5)) {
+  throw new Error('Führerschein-Artikel: Die Kernaussage (mehr als 5 Stunden) stimmt bei den mittleren Preisen nicht mehr.');
+}
+
+// --- Ab wann sich die teurere, aber effizientere Fahrschule lohnt ----------
+// Zwei Fahrschulen mit denselben Fixkosten (Grundbetrag, Sonderfahrten,
+// Vorstellungsentgelte, Sonstiges) – nur Stundenpreis und nötige Stundenzahl
+// unterscheiden sich. Schule B ist teurer je Stunde, kommt aber mit weniger
+// Stunden aus. Gesucht: die kleinste ganze Zahl an Mehrstunden, ab der Schule
+// A (günstiger je Stunde) Schule B einholt – ermittelt, indem dasselbe Modul
+// wie oben Stunde für Stunde durchgerechnet wird (kein separates Formelwerk).
+const FIX_A = { grundbetrag: 460, preisSonderfahrt: 77, vorstellungTheorie: 98, vorstellungPraxis: 224, sonstiges: 150 };
+const FIX_B = { grundbetrag: 350, preisSonderfahrt: 60, vorstellungTheorie: 60, vorstellungPraxis: 160, sonstiges: 196 };
+
+function breakevenStunden(preisA: number, preisB: number, stundenB: number, fix: typeof FIX_A): number {
+  const zielGesamt = berechneFuehrerschein({ ...fix, preisUebungsstunde: preisB, uebungsstunden: stundenB }).gesamt;
+  let mehr = 0;
+  while (mehr < 60) {
+    const gesamtA = berechneFuehrerschein({ ...fix, preisUebungsstunde: preisA, uebungsstunden: stundenB + mehr }).gesamt;
+    if (gesamtA >= zielGesamt) return mehr;
+    mehr += 1;
+  }
+  throw new Error('Führerschein-Artikel: Kein Breakeven innerhalb von 60 Stunden gefunden.');
+}
+
+const PREIS_TEUER = STUNDENPREIS.max; // 77 €/h
+const STUNDEN_TEUER = 15; // effiziente Schule kommt mit 15 Übungsfahrten aus
+const breakevenReihe = [55, 60, 65, 70, 75].map((preisA) => ({
+  preisA,
+  mehrStunden: breakevenStunden(preisA, PREIS_TEUER, STUNDEN_TEUER, FIX_A),
+}));
+
+// Selbstprüfung 1: Bekanntes Beispiel muss exakt 6 zusätzliche Stunden ergeben.
+const beispiel55 = breakevenReihe.find((z) => z.preisA === 55)!;
+if (beispiel55.mehrStunden !== 6) {
+  throw new Error(`Führerschein-Artikel: Erwartet 6 Mehrstunden bei 55 €/h, erhalten ${beispiel55.mehrStunden}.`);
+}
+// Selbstprüfung 2: Das Ergebnis darf nicht von den übrigen Preislistenposten
+// abhängen – nur vom Stundenpreis und der Stundenzahl der Vergleichsschule.
+const beispiel65MitAnderenFixkosten = breakevenStunden(65, PREIS_TEUER, STUNDEN_TEUER, FIX_B);
+const beispiel65 = breakevenReihe.find((z) => z.preisA === 65)!;
+if (beispiel65MitAnderenFixkosten !== beispiel65.mehrStunden) {
+  throw new Error('Führerschein-Artikel: Der Breakeven hängt entgegen der These doch von den Fixkosten ab.');
+}
+
+// --- Reale Durchfallquoten (TÜV-Verband, Auswertung 2024) ------------------
+const DURCHFALL_PRAXIS_ERSTVERSUCH = 34; // % Klasse B/BF17, praktische Pruefung, ERSTVERSUCH (Gesamtquote ueber alle Versuche: 37 %)
+const ANTEIL_WIEDERHOLUNGSPRUEFUNGEN = 31; // % aller praktischen Prüfungen B/BF17
+const DURCHFALL_PRAXIS_WIEDERHOLUNG = 42; // % der Wiederholungen
+const DURCHFALL_THEORIE_GESAMT = 45; // % Klasse B
+const DURCHFALL_THEORIE_ERSTVERSUCH = 38; // %
+const DURCHFALL_THEORIE_WIEDERHOLUNG = 56; // %
+
+const quellen = [
+  {
+    titel: 'ADAC: Führerschein Klasse B – Diese Kosten kommen auf Sie zu (Stand 08.04.2025)',
+    url: 'https://www.adac.de/verkehr/rund-um-den-fuehrerschein/erwerb/fuehrerschein-kosten/',
+  },
+  {
+    titel: 'TÜV-Verband: Erstmals mehr als 2 Millionen Fahrprüfungen 2024 – viele scheitern, Betrug nimmt zu',
+    url: 'https://www.tuev-verband.de/pressemitteilungen/mehr-als-2-millionen-fahrpruefungen',
+  },
+  {
+    titel: 'TÜV Hessen: Gebühren, Entgelte und Auslagen für Fahrerlaubnisprüfungen (gültig seit 31.01.2024)',
+    url: 'https://www.tuev-hessen.de/324/gebuehren-entgelte-und-auslagen-fuer-fahrerlaubnispruefungen/',
+  },
+  {
+    titel: 'Anlage (zu § 1) der Gebührenordnung für Maßnahmen im Straßenverkehr (GebOSt), Gebührennummern 202.1, 401.1, 401.3, 402.3',
+    url: 'https://www.gesetze-im-internet.de/stgebo_2011/BJNR009800011.html',
+  },
+];
+---
+<RechnerArtikel
+  titel="Eine durchgefallene Prüfung kostet mehr als fünf zusätzliche Fahrstunden"
+  datum="2026-09-24"
+  lead={`${proz(DURCHFALL_PRAXIS_ERSTVERSUCH)} der praktischen Fahrprüfungen Klasse B scheitern beim ersten Versuch, meldete der TÜV-Verband für 2024. Wer durchfällt, zahlt die amtliche Prüfgebühr mit ${eur(amtlicheMehrkostenWiederholung)} erneut – und in aller Regel auch das Vorstellungsentgelt der Fahrschule. Bei den mittleren Preisen, die der ADAC nennt, sind das zusammen ${eur(mittlererFall.mehrkosten)} – umgerechnet ${zahl(mittlererFall.stundenBeiMitte)} zusätzliche Übungsstunden. Dieselbe Größenordnung entscheidet, wie unten vorgerechnet, auch darüber, ob sich eine teurere Fahrschule gelohnt hätte.`}
+  quellen={quellen}
+>
+  <h3>Was eine Wiederholung amtlich kostet</h3>
+  <p>
+    Die praktische Prüfung Klasse B kostet nach Gebührennummer 402.3 der
+    Anlage zur Gebührenordnung für Maßnahmen im Straßenverkehr (GebOSt)
+    {' '}{eur(GEBUEHREN.praxisB)} netto, mit der Umsatzsteuer, die die
+    Prüfstelle nach § 1 Abs. 3 GebOSt erheben darf, {eur(geb1.praxisJe)}. Diesen
+    Betrag führt auch TÜV Hessen so in seiner Gebührenübersicht – der Rechner
+    oben rechnet also mit einer Zahl, die sich unabhängig belegen lässt, nicht
+    mit einer Schätzung. Fällt die Prüfung durch, wird beim nächsten Anlauf
+    dieselbe Gebühr ein zweites Mal fällig: {eur(amtlicheMehrkostenWiederholung)}
+    {' '}mehr, exakt der einfache Satz – keine Ermäßigung, kein Aufschlag.
+  </p>
+  <p>
+    Das ist nur die amtliche Seite. Die Fahrschule stellt für jeden Termin, zu
+    dem sie den Prüfling anmeldet und begleitet, ihr eigenes
+    Vorstellungsentgelt in Rechnung – das ist genau die Formel, nach der auch
+    dieser Rechner arbeitet: <code>vp × Vorstellung Praxis</code>, wobei
+    {' '}<code>vp</code> die Zahl der Anläufe ist. Bei zwei Anläufen zählt das
+    Entgelt zweimal. Der ADAC beziffert dieses Entgelt für die praktische
+    Prüfung auf {eur(VORSTELLUNG_PRAXIS.min, 0)} bis {eur(VORSTELLUNG_PRAXIS.max, 0)}{' '}
+    – eine Spanne, die von der Fahrschule festgelegt wird und die deshalb weit
+    mehr über die Mehrkosten einer Wiederholung entscheidet als die feste
+    amtliche Gebühr.
+  </p>
+
+  <h3>Die Wiederholung in Fahrstunden gerechnet</h3>
+  <p>
+    Um die Mehrkosten einer nicht bestandenen Prüfung greifbar zu machen, lässt
+    sich derselbe Betrag durch den Preis einer Übungsstunde teilen – ebenfalls
+    laut ADAC zwischen {eur(STUNDENPREIS.min, 0)} und {eur(STUNDENPREIS.max, 0)}{' '}
+    je 45 Minuten. Die Tabelle zeigt, wie viele zusätzliche Übungsstunden man
+    für das Geld einer Wiederholung stattdessen hätte nehmen können:
+  </p>
+  <table>
+    <caption class="visually-hidden">
+      Mehrkosten einer wiederholten praktischen Prüfung, umgerechnet in Fahrstunden
+    </caption>
+    <thead>
+      <tr>
+        <th scope="col">Vorstellungsentgelt Praxis</th>
+        <th scope="col" class="num">Mehrkosten insgesamt</th>
+        <th scope="col" class="num">Stunden bei {eur(STUNDENPREIS.min, 0)}/h</th>
+        <th scope="col" class="num">Stunden bei {eur(STUNDENPREIS.mitte, 0)}/h</th>
+        <th scope="col" class="num">Stunden bei {eur(STUNDENPREIS.max, 0)}/h</th>
+      </tr>
+    </thead>
+    <tbody>
+      {wiederholungsTabelle.map((z) => (
+        <tr>
+          <th scope="row">{eur(z.vorstellung, 0)}</th>
+          <td class="num">{eur(z.mehrkosten)}</td>
+          <td class="num">{std(z.stundenBeiMin)}</td>
+          <td class="num">{std(z.stundenBeiMitte)}</td>
+          <td class="num">{std(z.stundenBeiMax)}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+  <p class="ra-hinweis">
+    Die amtliche Gebühr ({eur(amtlicheMehrkostenWiederholung)}) ist in jeder
+    Zeile gleich; nur das Vorstellungsentgelt der Fahrschule und der
+    Stundenpreis unterscheiden sich – beide legt die Fahrschule fest, nicht der
+    Gesetzgeber.
+  </p>
+  <p>
+    Selbst am günstigen Rand der Spanne – {eur(STUNDENPREIS.max, 0)} je Stunde,
+    {' '}{eur(VORSTELLUNG_PRAXIS.min, 0)} Vorstellungsentgelt – entspricht eine
+    Wiederholung noch {std(wiederholungsTabelle[0].stundenBeiMax)}. Am teuren
+    Rand sind es {std(wiederholungsTabelle[4].stundenBeiMin)}. Damit ist eine
+    durchgefallene Prüfung in jeder realistischen Konstellation teurer als ein
+    kompletter zusätzlicher Übungstag.
+  </p>
+
+  <h3>Warum das nicht selten vorkommt</h3>
+  <p>
+    Nach den Zahlen, die der TÜV-Verband für 2024 veröffentlicht hat, war
+    {' '}{proz(ANTEIL_WIEDERHOLUNGSPRUEFUNGEN)} jeder praktischen Prüfung in den
+    Klassen B und BF17 bereits ein wiederholter Anlauf – von diesen
+    Wiederholungen scheiterten wiederum {proz(DURCHFALL_PRAXIS_WIEDERHOLUNG)}.
+    Bei der Theorie liegt die Durchfallquote mit {proz(DURCHFALL_THEORIE_GESAMT)}{' '}
+    sogar noch höher: {proz(DURCHFALL_THEORIE_ERSTVERSUCH)} beim ersten Versuch,
+    {' '}{proz(DURCHFALL_THEORIE_WIEDERHOLUNG)} bei Wiederholungen. Eine
+    Wiederholung ist damit kein Randfall, den man beim Planen der Kosten
+    vernachlässigen könnte, sondern ein Ereignis, das statistisch einen
+    nennenswerten Teil aller Prüflinge trifft – wie viele davon zusätzliche
+    Übungsstunden nehmen, bevor sie erneut antreten, veröffentlicht die
+    Statistik allerdings nicht.
+  </p>
+
+  <h3>Wann sich die teurere, aber schnellere Fahrschule lohnt</h3>
+  <p>
+    Dieselbe Größenordnung – wenige Fahrstunden – entscheidet über eine ganz
+    andere Frage: Lohnt sich eine Fahrschule, die pro Stunde mehr verlangt,
+    wenn sie dafür mit weniger Übungsstunden auskommt? Das lässt sich mit dem
+    Rechner oben direkt durchspielen, indem man zweimal dieselbe Preisliste
+    einträgt und nur Stundenpreis und Stundenzahl ändert.
+  </p>
+  <p>
+    Als Vergleichsfall dient hier eine Fahrschule, die {eur(PREIS_TEUER, 0)} je
+    Stunde nimmt und mit {STUNDEN_TEUER} Übungsfahrten auskommt – beide Werte
+    liegen innerhalb der ADAC-Spannen ({eur(STUNDENPREIS.min, 0)}–{eur(STUNDENPREIS.max, 0)}{' '}
+    je Stunde, {UEBUNGSFAHRTEN.min}–{UEBUNGSFAHRTEN.max} Übungsfahrten). Die
+    Tabelle zeigt, ab wie vielen zusätzlichen Stunden eine günstigere Schule
+    diesen Gesamtpreis einholt:
+  </p>
+  <table>
+    <caption class="visually-hidden">
+      Zusätzliche Übungsstunden, ab denen eine günstigere Fahrschule teurer wird als eine Schule mit {eur(PREIS_TEUER, 0)}/h und {STUNDEN_TEUER} Stunden
+    </caption>
+    <thead>
+      <tr>
+        <th scope="col">Stundenpreis der günstigeren Schule</th>
+        <th scope="col" class="num">Breakeven ab</th>
+      </tr>
+    </thead>
+    <tbody>
+      {breakevenReihe.map((z) => (
+        <tr>
+          <th scope="row">{eur(z.preisA, 0)}/h</th>
+          <td class="num">+{z.mehrStunden} Std.</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+  <p class="ra-hinweis">
+    Alle übrigen Posten der Preisliste (Grundbetrag, Sonderfahrten,
+    Vorstellungsentgelte, Sonstiges) sind in beiden Fällen identisch gehalten
+    und im Build dieser Seite gegen eine zweite, komplett andere Preisliste
+    geprüft: Der Breakeven ändert sich nicht, wenn diese Posten sich ändern –
+    er hängt nur am Stundenpreis und an der Stundenzahl der Vergleichsschule.
+  </p>
+  <p>
+    Bei {eur(55, 0)} statt {eur(PREIS_TEUER, 0)} je Stunde – ein Unterschied von
+    {' '}{eur(PREIS_TEUER - 55, 0)} – zieht die günstigere Schule erst nach
+    {' '}{breakevenReihe[0].mehrStunden} zusätzlichen Stunden gleich, insgesamt
+    also nach {STUNDEN_TEUER + breakevenReihe[0].mehrStunden} statt
+    {' '}{STUNDEN_TEUER} Stunden. Je kleiner der Preisunterschied, desto weniger
+    zusätzliche Stunden reichen: Bei nur {eur(PREIS_TEUER - 75, 0)} Unterschied
+    genügt schon {breakevenReihe[4].mehrStunden === 1 ? 'eine einzige zusätzliche Stunde' : `${breakevenReihe[4].mehrStunden} zusätzliche Stunden`},
+    damit die vermeintlich günstigere Schule teurer war.
+  </p>
+  <p>
+    Der Vergleich zeigt vor allem eines: Wer zwei Fahrschulen anhand ihres
+    Preisaushangs vergleicht, vergleicht nicht automatisch das Richtige. Der
+    Grundbetrag und die einzelnen Entgelte stehen zwar nach § 32 FahrlG in
+    jedem Preisaushang – wie viele Übungsstunden man am Ende tatsächlich
+    braucht, steht dort nicht, und genau diese Zahl entscheidet laut der
+    Tabelle oben oft mehr als der Stundenpreis selbst.
+  </p>
+
+  <h3>Was diese Rechnung nicht behauptet</h3>
+  <p>
+    Nicht belegt ist, dass eine teurere Fahrschule tatsächlich mit weniger
+    Stunden auskommt – das hängt vom einzelnen Fahrlehrer und vom Lernstand
+    des Prüflings ab, nicht vorrangig vom Preis, und dazu gibt es keine
+    bundesweite Statistik. Die Tabellen oben beantworten nur die Rechenfrage:
+    <em> wenn</em> eine Schule teurer ist, aber weniger Stunden braucht, ab
+    wann kippt der Vorteil. Ebenso wenig lässt sich aus den Durchfallquoten
+    ableiten, wie viele zusätzliche Stunden eine bestimmte Fahrschule nach
+    einer nicht bestandenen Prüfung tatsächlich verlangt – das entscheidet die
+    Fahrschule im Einzelfall. Die Größenordnung, mit der beide Fragen
+    zusammenhängen, lässt sich dagegen genau angeben: wenige Übungsstunden,
+    nicht Dutzende.
+  </p>
+</RechnerArtikel>

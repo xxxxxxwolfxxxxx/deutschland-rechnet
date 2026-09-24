@@ -3,6 +3,7 @@ import Layout from '../../layouts/Layout.astro';
 import CalculatorShell from '../../components/CalculatorShell.astro';
 import CalculatorGuide from '../../components/CalculatorGuide.astro';
 import { CALCULATORS, CATEGORIES } from '../../data/calculators';
+import ArtikelFuehrerschein from '../../components/artikel/fuehrerschein-durchfall-in-fahrstunden.astro';
 import {
   berechneFuehrerschein,
   pruefgebuehren,
@@ -141,6 +142,7 @@ const faqs = [
       <div id="details" style="margin-top:0.75rem;font-size:0.88rem;color:#666;display:flex;gap:0.35rem 1.5rem;flex-wrap:wrap;"></div>
       <p style="margin-top:0.5rem;font-size:0.82rem;color:#777;">Vorbelegt ist eine angenommene Preisliste – ersetzen Sie die Werte durch die Ihrer Fahrschule.</p>
     </div>
+    <ArtikelFuehrerschein slot="artikel" />
   </CalculatorShell>
 
   <CalculatorGuide

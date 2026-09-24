@@ -1,0 +1,309 @@
+---
+import RechnerArtikel from '../RechnerArtikel.astro';
+
+// Der Risikoprofil-Rechner hat kein eigenes Modul unter public/scripts/ – die
+// gesamte Logik steht inline im <script type="module"> am Ende von
+// src/pages/geld/risikoprofil-rechner.astro. Die folgende Funktion bildet
+// genau diese Logik nach (gleiche Bedingungen, gleiche Schwellen, gleiche
+// Reihenfolge) und wird unten gegen mehrere Zusicherungen geprüft.
+
+const zahl = (n: number, d = 0) =>
+  n.toLocaleString('de-DE', { minimumFractionDigits: d, maximumFractionDigits: d }).replace(/^-/, '−');
+
+interface Ergebnis {
+  punkte: number;
+  altersbonus: number;
+  profil: string;
+  aktien: number;
+}
+
+/** Nachbau der Punktevergabe aus dem <script>-Block der Rechnerseite. */
+function berechne(alter: number, horizont: number, verlust: number, einkommen: number): Ergebnis {
+  let punkte = 0;
+  if (horizont >= 15) punkte += 3;
+  else if (horizont >= 5) punkte += 2;
+  else punkte += 1;
+  if (verlust >= 4) punkte += 3;
+  else if (verlust >= 2) punkte += 2;
+  else punkte += 1;
+  if (einkommen >= 3) punkte += 2;
+  else if (einkommen >= 2) punkte += 1;
+  const altersbonus = Math.max(0, 3 - Math.floor(alter / 20));
+  punkte += altersbonus;
+  let profil: string;
+  let aktien: number;
+  if (punkte <= 4) { profil = 'Konservativ'; aktien = 20; }
+  else if (punkte <= 6) { profil = 'Ausgewogen'; aktien = 50; }
+  else if (punkte <= 8) { profil = 'Wachstumsorientiert'; aktien = 80; }
+  else { profil = 'Aggressiv'; aktien = 100; }
+  return { punkte, altersbonus, profil, aktien };
+}
+
+/** Nur der Alters-Bonus, isoliert betrachtet. */
+const altersbonus = (alter: number) => Math.max(0, 3 - Math.floor(alter / 20));
+
+// --- Zusicherung 1: Die Kategoriegrenzen greifen wie im Skript -----------
+// Jeweils fixe Sachfragen-Summe (horizont/verlust/einkommen), der Rest kommt
+// gezielt über den Altersbonus (0 bis 3), damit alle sechs Punktzahlen von
+// 4 bis 9 tatsächlich erreicht und geprüft werden – nicht nur ein Ausschnitt.
+const grenzfaelle: Array<[number, number, number, number, number, string]> = [
+  [79, 25, 1, 1, 4, 'Konservativ'],
+  [59, 25, 1, 1, 5, 'Ausgewogen'],
+  [39, 25, 1, 1, 6, 'Ausgewogen'],
+  [18, 25, 1, 1, 7, 'Wachstumsorientiert'],
+  [79, 25, 5, 3, 8, 'Wachstumsorientiert'],
+  [59, 25, 5, 3, 9, 'Aggressiv'],
+];
+for (const [alter, horizont, verlust, einkommen, erwartetePunkte, erwartetesProfil] of grenzfaelle) {
+  const r = berechne(alter, horizont, verlust, einkommen);
+  if (r.punkte !== erwartetePunkte || r.profil !== erwartetesProfil) {
+    throw new Error(
+      `Risikoprofil-Artikel: Grenzfall (Alter ${alter}) → erwartet ${erwartetePunkte} Punkte / ${erwartetesProfil}, ` +
+      `Nachbau liefert ${r.punkte} Punkte / ${r.profil}.`,
+    );
+  }
+}
+
+// --- Zusicherung 2: Der 40. Geburtstag kippt die Kategorie ---------------
+const vor40 = berechne(39, 7, 2, 2);
+const nach40 = berechne(40, 7, 2, 2);
+if (!(vor40.profil === 'Wachstumsorientiert' && nach40.profil === 'Ausgewogen')) {
+  throw new Error(
+    `Risikoprofil-Artikel: Der 40.-Geburtstag-Fall kippt nicht wie erwartet ` +
+    `(39 Jahre: ${vor40.profil}, 40 Jahre: ${nach40.profil}).`,
+  );
+}
+if (!(vor40.punkte - nach40.punkte === 1 && vor40.altersbonus - nach40.altersbonus === 1)) {
+  throw new Error('Risikoprofil-Artikel: Der Punkteverlust beim 40. Geburtstag ist nicht genau 1.');
+}
+
+// --- Zusicherung 3: Derselbe Effekt beim 60. Geburtstag, andere Fragen ---
+const vor60 = berechne(59, 2, 1, 3);
+const nach60 = berechne(60, 2, 1, 3);
+if (!(vor60.profil === 'Ausgewogen' && nach60.profil === 'Konservativ')) {
+  throw new Error(
+    `Risikoprofil-Artikel: Der 60.-Geburtstag-Fall kippt nicht wie erwartet ` +
+    `(59 Jahre: ${vor60.profil}, 60 Jahre: ${nach60.profil}).`,
+  );
+}
+
+// --- Zusicherung 4: Zwischen 20 und 39 macht das Alter keinen Unterschied
+if (altersbonus(20) !== altersbonus(39)) {
+  throw new Error('Risikoprofil-Artikel: Alter 20 und 39 erhalten nicht mehr denselben Bonus.');
+}
+// ... aber unmittelbar an 20, 40 und 60 fällt er um genau einen Punkt.
+for (const kante of [20, 40, 60]) {
+  if (altersbonus(kante - 1) - altersbonus(kante) !== 1) {
+    throw new Error(`Risikoprofil-Artikel: An der Kante ${kante} fehlt der Ein-Punkt-Sprung.`);
+  }
+}
+// Bei 80 gibt es keinen Sprung mehr, weil der Bonus schon bei 0 liegt.
+if (altersbonus(79) !== altersbonus(80)) {
+  throw new Error('Risikoprofil-Artikel: Bei 80 sollte der Bonus schon auf 0 gedeckelt sein.');
+}
+
+// --- Zusicherung 5: Wie oft ändert ein Geburtstag überhaupt die Kategorie? --
+// Alle Dropdown-Werte der drei Sachfragen, exakt wie im <select> der Seite.
+const HORIZONTE = [2, 7, 15, 25];
+const VERLUSTE = [1, 2, 3, 4, 5];
+const EINKOMMEN = [1, 2, 3];
+
+function horizontPunkte(h: number) { return h >= 15 ? 3 : (h >= 5 ? 2 : 1); }
+function verlustPunkte(v: number) { return v >= 4 ? 3 : (v >= 2 ? 2 : 1); }
+function einkommenPunkte(e: number) { return e >= 3 ? 2 : (e >= 2 ? 1 : 0); }
+function kategorieVonPunkten(p: number) {
+  if (p <= 4) return 'Konservativ';
+  if (p <= 6) return 'Ausgewogen';
+  if (p <= 8) return 'Wachstumsorientiert';
+  return 'Aggressiv';
+}
+
+const basisSummen: number[] = [];
+for (const h of HORIZONTE) {
+  for (const v of VERLUSTE) {
+    for (const e of EINKOMMEN) {
+      basisSummen.push(horizontPunkte(h) + verlustPunkte(v) + einkommenPunkte(e));
+    }
+  }
+}
+if (basisSummen.length !== 60) {
+  throw new Error(`Risikoprofil-Artikel: Erwarte 60 Sachfragen-Kombinationen, gezählt: ${basisSummen.length}.`);
+}
+
+/** Von wie vielen der 60 Kombinationen ändert ein Bonus-Rückgang die Kategorie? */
+function zaehleFlips(bonusVor: number, bonusNach: number): number {
+  return basisSummen.filter((b) => kategorieVonPunkten(b + bonusVor) !== kategorieVonPunkten(b + bonusNach)).length;
+}
+const flips20 = zaehleFlips(3, 2);
+const flips40 = zaehleFlips(2, 1);
+const flips60 = zaehleFlips(1, 0);
+if (!(flips20 === 27 && flips40 === 29 && flips60 === 30)) {
+  throw new Error(
+    `Risikoprofil-Artikel: Flip-Zahlen weichen ab (20: ${flips20}, 40: ${flips40}, 60: ${flips60}), erwartet 27/29/30.`,
+  );
+}
+// Gegenprobe: Bei genau der Hälfte aller Kombinationen ändert sich am
+// 60. Geburtstag die Kategorie – das ist die zentrale Zahl des Abschnitts.
+if (!(flips60 === basisSummen.length / 2)) {
+  throw new Error('Risikoprofil-Artikel: Am 60. Geburtstag flippt nicht mehr genau die Hälfte der Kombinationen.');
+}
+---
+<RechnerArtikel
+  titel="Der 40. Geburtstag kann das Anlegerprofil kippen – ohne dass sich etwas an der Risikobereitschaft ändert"
+  lead={`Zwei Menschen füllen den Rechner oben mit identischen Antworten aus: mittelfristiger Anlagehorizont, kleine Verlusttoleranz, sicheres Einkommen. Der eine ist ${zahl(39)}, der andere ${zahl(40)}. Der Rechner stuft sie trotzdem unterschiedlich ein – Wachstumsorientiert mit ${zahl(vor40.aktien)} % Aktienquote gegen Ausgewogen mit ${zahl(nach40.aktien)} %. Der einzige Unterschied ist das Datum auf dem Ausweis.`}
+  datum="2026-09-24"
+>
+  <h3>Wie aus vier Antworten eine Kategorie wird</h3>
+  <p>
+    Der Rechner oben stellt vier Fragen und verrechnet sie zu einer einzigen
+    Punktzahl. Der Anlagehorizont bringt 1 bis 3 Punkte, die Verlusttoleranz
+    ebenfalls 1 bis 3, die Einkommenssicherheit 0 bis 2. Hinzu kommt ein
+    Alters-Bonus von 0 bis 3 Punkten, den niemand direkt sieht: Er steckt in
+    der Formel <code>Math.max(0, 3 − Math.floor(Alter / 20))</code>. Aus der
+    Summe – zwischen {zahl(2)} und {zahl(11)} Punkten möglich – macht der
+    Rechner vier Kategorien: bis {zahl(4)} Punkte Konservativ, bis
+    {' '}{zahl(6)} Ausgewogen, bis {zahl(8)} Wachstumsorientiert, darüber
+    Aggressiv. Das ist im Build dieser Seite nachgerechnet: Für alle
+    Übergänge zwischen {zahl(4)} und {zahl(9)} Punkten liefert der Nachbau der
+    Rechenlogik genau die Kategorie, die die Schwellenwerte im Skript
+    vorschreiben.
+  </p>
+  <p>
+    Ein Punktesystem mit festen Schwellen hat einen unvermeidlichen
+    Nebeneffekt: Direkt an einer Schwelle unterscheidet ein einziger Punkt
+    über eine ganze Kategorie, während er mitten in einer Kategorie gar
+    nichts bewirkt. Interessant wird das, sobald man sich ansieht, <em>woher</em>
+    {' '}dieser eine Punkt kommen kann – und der Alters-Bonus liefert dafür
+    einen Fall, den man nicht erwartet: Er hängt nicht davon ab, wie alt
+    jemand ungefähr ist, sondern ob ein bestimmter Kalendertag schon vergangen
+    ist.
+  </p>
+
+  <h3>Der Alters-Bonus springt, statt zu sinken</h3>
+  <p>
+    <code>Math.floor(Alter / 20)</code> ist über weite Strecken konstant und
+    macht dann einen Satz. Zwischen {zahl(20)} und {zahl(39)} Jahren liefert
+    die Formel denselben Bonus von {zahl(altersbonus(20))} Punkten – ein
+    20-Jähriger und ein 39-Jähriger werden vom Rechner in dieser Hinsicht
+    exakt gleich behandelt, das ist im Build geprüft. Erst zum
+    {' '}{zahl(40)}. Geburtstag fällt der Bonus um genau einen Punkt, auf
+    {' '}{zahl(altersbonus(40))}. Dieselbe Stufe wiederholt sich am
+    {' '}{zahl(60)}. Geburtstag, wo der Bonus von {zahl(altersbonus(59))} auf
+    {' '}{zahl(altersbonus(60))} fällt. Am {zahl(80)}. Geburtstag passiert
+    dagegen nichts mehr, weil der Bonus da bereits bei {zahl(altersbonus(79))}{' '}
+    angekommen ist – die Formel deckelt ihn mit <code>Math.max(0, …)</code>{' '}
+    nach unten.
+  </p>
+  <p>
+    Drei echte Kanten liegen also im nutzbaren Altersbereich des Rechners
+    ({zahl(18)} bis {zahl(80)} Jahre): {zahl(20)}, {zahl(40)} und
+    {' '}{zahl(60)}. An jeder dieser Kanten verliert die Punktzahl exakt einen
+    Punkt – nicht allmählich über mehrere Jahre verteilt, sondern an einem
+    einzigen Tag.
+  </p>
+
+  <h3>Das Beispiel: 39 gegen 40 Jahre</h3>
+  <p>
+    Für den Anlagehorizont "Mittelfristig (5–10 Jahre)", die Verlusttoleranz
+    "Kleiner Verlust (bis 10 %)" und die Einkommenssicherheit "Normal (fest
+    angestellt)" ergeben die drei Sachfragen zusammen {zahl(vor40.punkte - vor40.altersbonus)}{' '}
+    Punkte – unabhängig vom Alter. Mit {zahl(39)} Jahren kommt der
+    Alters-Bonus von {zahl(vor40.altersbonus)} Punkten hinzu:
+    {' '}{zahl(vor40.punkte)} Punkte, Kategorie {vor40.profil}, empfohlene
+    Aktienquote {zahl(vor40.aktien)} %. Mit {zahl(40)} Jahren – bei exakt
+    denselben drei Antworten – sinkt der Bonus auf
+    {' '}{zahl(nach40.altersbonus)}: {zahl(nach40.punkte)} Punkte, Kategorie
+    {' '}{nach40.profil}, empfohlene Aktienquote {zahl(nach40.aktien)} %.
+    Ein einziger Tag verschiebt die empfohlene Aktienquote laut Rechner um
+    {' '}{zahl(vor40.aktien - nach40.aktien)} Prozentpunkte, ohne dass sich an
+    Horizont, Verlusttoleranz oder Einkommen auch nur eine Antwort geändert
+    hätte.
+  </p>
+  <p>
+    Der Effekt ist kein Einzelfall dieser einen Fragenkombination. Mit dem
+    Anlagehorizont "Kurzfristig (1–3 Jahre)", der Verlusttoleranz "Kein
+    Verlust tolerieren" und der Einkommenssicherheit "Sehr sicher" kippt die
+    Kategorie in gleicher Weise am {zahl(60)}. Geburtstag: Mit {zahl(59)}{' '}
+    Jahren {zahl(vor60.punkte)} Punkte und Kategorie {vor60.profil}, mit
+    {' '}{zahl(60)} Jahren {zahl(nach60.punkte)} Punkte und Kategorie
+    {' '}{nach60.profil}. Zwei unterschiedliche Fragenkombinationen, zwei
+    unterschiedliche Alterskanten, derselbe Mechanismus.
+  </p>
+
+  <h3>Wie oft der Sprung überhaupt etwas ändert</h3>
+  <p>
+    Die drei Sachfragen des Rechners lassen sich unabhängig vom Alter in
+    {' '}{zahl(HORIZONTE.length)} × {zahl(VERLUSTE.length)} ×
+    {' '}{zahl(EINKOMMEN.length)} = {zahl(basisSummen.length)} mögliche
+    Kombinationen einsortieren – jede Dropdown-Option einmal eingesetzt. Für
+    jede dieser {zahl(basisSummen.length)} Kombinationen lässt sich prüfen, ob
+    ein Bonus-Verlust von einem Punkt die Kategorie tatsächlich verschiebt,
+    oder ob genug Abstand zur nächsten Schwelle besteht, damit nichts
+    passiert. Das Ergebnis: Am {zahl(20)}. Geburtstag betrifft es
+    {' '}{zahl(flips20)} von {zahl(basisSummen.length)} Kombinationen, am
+    {' '}{zahl(40)}. Geburtstag {zahl(flips40)} von {zahl(basisSummen.length)},
+    am {zahl(60)}. Geburtstag sogar {zahl(flips60)} von
+    {' '}{zahl(basisSummen.length)} – genau die Hälfte.
+  </p>
+  <table>
+    <caption class="visually-hidden">Anteil der Antwortkombinationen, bei denen ein Geburtstag die Kategorie verschiebt</caption>
+    <thead>
+      <tr><th scope="col">Geburtstag</th><th scope="col" class="num">Betroffene Kombinationen</th><th scope="col" class="num">Anteil</th></tr>
+    </thead>
+    <tbody>
+      <tr><th scope="row">20. Geburtstag</th><td class="num">{zahl(flips20)} von {zahl(basisSummen.length)}</td><td class="num">{zahl((flips20 / basisSummen.length) * 100)} %</td></tr>
+      <tr><th scope="row">40. Geburtstag</th><td class="num">{zahl(flips40)} von {zahl(basisSummen.length)}</td><td class="num">{zahl((flips40 / basisSummen.length) * 100)} %</td></tr>
+      <tr><th scope="row">60. Geburtstag</th><td class="num">{zahl(flips60)} von {zahl(basisSummen.length)}</td><td class="num">{zahl((flips60 / basisSummen.length) * 100)} %</td></tr>
+    </tbody>
+  </table>
+  <p class="ra-hinweis">
+    Gezählt sind alle Kombinationen der drei Sachfragen, nicht die
+    Häufigkeit realer Nutzereingaben – der Rechner protokolliert keine
+    Antworten, aus denen sich eine tatsächliche Verteilung ablesen ließe. Die
+    Tabelle zeigt also, wie <em>anfällig</em> das Punkteschema für die
+    Alterskante ist, nicht, wie oft es in der Praxis genau an dieser Stelle
+    liegt.
+  </p>
+  <p>
+    Der Grund, warum die Quote am {zahl(60)}. Geburtstag am höchsten ist,
+    liegt an der Form der Verteilung: Mit {zahl(16)} von
+    {' '}{zahl(basisSummen.length)} Kombinationen liegt die Sachfragen-Summe am
+    häufigsten bei genau {zahl(6)} Punkten – dem Wert direkt an der Schwelle
+    zwischen Ausgewogen und Wachstumsorientiert. Ein Bonus-Verlust von einem
+    Punkt trifft eine Summe von {zahl(6)} besonders leicht, weil sie schon vor
+    dem Verlust nah an einer Grenze liegt.
+  </p>
+
+  <h3>Was das für die Einordnung bedeutet</h3>
+  <p>
+    Das ist zunächst keine Rechenpanne: Jede Einteilung in Kategorien über
+    Schwellenwerte erzeugt zwangsläufig Kanten irgendwo. Bemerkenswert ist
+    nur, dass eine dieser Kanten am Alter hängt, obwohl Alter im echten Leben
+    stufenlos verläuft – die Risikofähigkeit eines 39-Jährigen unterscheidet
+    sich nicht messbar von der am folgenden Geburtstag. Der Rechner bildet
+    diese Kontinuität nicht ab, sondern rundet sie in Zwanzig-Jahres-Blöcken
+    auf drei mögliche Bonuswerte herunter.
+  </p>
+  <p class="ra-hinweis">
+    Das ist keine Anlageempfehlung und keine Aussage darüber, welches der
+    beiden Profile "richtiger" wäre. Gemeint ist nur die Rechenlogik: Wer nah
+    an einer der drei Alterskanten liegt oder dessen Punktesumme aus den
+    anderen drei Fragen nah an {zahl(4)}, {zahl(6)} oder {zahl(8)} liegt,
+    sollte das angezeigte Profil als grobe Orientierung lesen, nicht als
+    exaktes Messergebnis. Wie stark sich die Sachfragen selbst auswirken,
+    lässt sich oben direkt ausprobieren, indem man Horizont, Verlusttoleranz
+    oder Einkommenssicherheit einzeln ändert.
+  </p>
+  <p>
+    Bemerkenswert ist der Kontrast zu einer Faustformel, die weiter unten auf
+    dieser Seite in den häufigen Fragen steht: "100 minus Alter" als
+    Aktienanteil in Prozent. Diese Formel unterstellt einen stufenlosen
+    Zusammenhang – jedes zusätzliche Lebensjahr senkt die Empfehlung um genau
+    einen Prozentpunkt. Der Rechner selbst rechnet intern anders: Er kennt nur
+    drei Alters-Boni ({zahl(3)}, {zahl(2)} und {zahl(1)} Punkte, dazu
+    {' '}{zahl(0)} ab {zahl(60)}) und damit nur drei Altersstufen statt eines
+    stufenlosen Verlaufs. Ein Nutzer, der die Faustformel aus der eigenen
+    FAQ-Antwort im Kopf hat, würde also ein anderes Verhalten erwarten, als
+    das Punkteschema tatsächlich zeigt.
+  </p>
+</RechnerArtikel>
