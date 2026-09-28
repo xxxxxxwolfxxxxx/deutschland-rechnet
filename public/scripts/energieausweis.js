@@ -1,23 +1,61 @@
-// Energieausweis-Vorberechnung: Emissionsfaktoren je Kilowattstunde Endenergie.
+// Energieausweis-Vorberechnung: Verbrauchskennwert, Effizienzklasse,
+// Treibhausgasemissionen und Ausweisart aus den eigenen Abrechnungen.
 //
-// Rechtsgrundlage:
-//   Anlage 9 Nr. 3 GModG (zu § 85 Abs. 6) – Umrechnung in Treibhausgasemissionen
+// Die frühere Seite schätzte einen Endenergiebedarf aus Baujahr, Dämmstandard
+// und Heizungsart mit Faktoren ohne Quelle und kannte die Klasse H nicht. Der
+// Bedarf eines Gebäudes lässt sich ohne Gebäudeaufnahme nicht ehrlich rechnen;
+// der Verbrauch steht auf der Abrechnung. Dieses Modul rechnet deshalb, was
+// ein Energieverbrauchsausweis ausweist:
+//
+//   § 82 Abs. 2 GModG  – Endenergieverbrauch für Heizung und Warmwasser je m²
+//                      Gebäudenutzfläche; Pauschalen für die Fläche und für
+//                      dezentrales Warmwasser (siehe jahresenergie.js)
+//   § 82 Abs. 4 GModG  – Abrechnungen aus mindestens 36 Monaten
+//   § 86, Anlage 10    – Energieeffizienzklasse aus dem Endenergieverbrauch
+//   § 85 Abs. 6,
+//   Anlage 9 Nr. 2/3   – Treibhausgasemissionen = Verbrauch × Emissionsfaktor
+//   § 80 Abs. 3 S. 2/3 – wann ein Energiebedarfsausweis vorgeschrieben ist
+//
+// Bekanntmachung der Regeln für Energieverbrauchswerte im Wohngebäudebestand
+// vom 29.03.2021 (BAnz AT 16.04.2021 B1), Nr. 2: Werden die 36 Monate aus
+// Jahresabrechnungen zusammengesetzt, ist der Wert der Durchschnitt aus drei
+// Jahreswerten. Brennstoffmengen werden mit dem Heizwert Hi nach der
+// Heizkostenverordnung umgerechnet; brennwertbezogene Angaben sind nach
+// DIN V 18599-1: 2018-09 Tabelle B.1 auf Hi umzurechnen.
+//
+// NICHT nachgebildet – der Kennwert ist deshalb eine Vorberechnung, kein
+// Ausweiswert:
+//   - die Witterungs- und Klimabereinigung (§ 82 Abs. 3, Bekanntmachung Nr. 3.2)
+//   - die Umrechnung von Brennwert auf Heizwert bei Erdgas in kWh: Die
+//     DIN-Tabelle ist nicht frei zugänglich, ein Faktor wird hier nicht
+//     unterstellt; die Seite weist darauf hin. Belegt ist dagegen der zweite
+//     Weg der Bekanntmachung – die Gasmenge in m³ mit Hi nach § 9 Abs. 3
+//     HeizkostenV (Energieträger gasH und gasL).
+//   - Leerstandskorrektur (Bekanntmachung Nr. 6) und Primärenergie (§ 22)
 //
 // Das Gebäudeenergiegesetz (GEG) heißt seit dem Änderungsgesetz vom 23.07.2026
 // (BGBl. verkündet am 28.07.2026, in Kraft am 29.07.2026) Gebäudemodernisierungs-
-// gesetz (GModG). Anlage 9 ist unverändert die Fassung BGBl. I 2020, 1788-1789.
-// Quelle: https://www.gesetze-im-internet.de/geg/anlage_9.html, abgerufen am 12.08.2026
-//
+// gesetz (GModG); Paragrafen und Anlagen sind unverändert.
+// Quellen: https://www.gesetze-im-internet.de/geg/ (§§ 79, 80, 82, 85–88,
+// Anlagen 9 und 10) und https://www.gesetze-im-internet.de/heizkostenv/__9.html,
+// abgerufen am 15.09.2026; Anlage 9 zuerst abgerufen am 12.08.2026.
+
+import {
+  effizienzklasse,
+  nutzflaecheAusWohnflaeche,
+  HEIZWERT_ERDGAS_H_KWH_JE_M3,
+  HEIZWERT_ERDGAS_L_KWH_JE_M3,
+  HEIZWERT_HEIZOEL_EL_KWH_JE_LITER,
+  ZUSCHLAG_DEZENTRALES_WARMWASSER,
+} from './jahresenergie.js';
+
 // ABGRENZUNG zu `emissionsfaktor()` aus heizkosten.js: Die dortigen Werte nach
 // EBeV 2030 Anlage 2 Teil 4 (Erdgas 0,1814 kg/kWh, Heizöl 0,2664 kg/kWh) gelten
-// je ABGERECHNETER Kilowattstunde – bei Erdgas also je Brennwert-Kilowattstunde,
-// wie sie auf der Rechnung steht. Der Energieausweis bilanziert dagegen die
-// Endenergie und hat dafür in Anlage 9 eigene, höhere Faktoren. Die beiden
-// Zahlenreihen sind nicht austauschbar; hier gilt ausschließlich Anlage 9.
+// je ABGERECHNETER Kilowattstunde. Der Energieausweis hat in Anlage 9 eigene,
+// höhere Faktoren. Die beiden Zahlenreihen sind nicht austauschbar.
 
 // Anlage 9 Nr. 3 GModG, Emissionsfaktoren in g CO2-Äquivalent je kWh.
-// Enthalten sind die Zeilen, die dieser Rechner braucht; die laufende Nummer
-// der Tabelle steht jeweils im Kommentar.
+// Fundstelle BGBl. I 2020, 1788-1789. Die laufende Nummer steht im Kommentar.
 export const EMISSIONSFAKTOREN_G_JE_KWH = {
   heizoel: 310,                      // Nr. 1
   erdgas: 240,                       // Nr. 2
@@ -41,77 +79,116 @@ export const EMISSIONSFAKTOREN_G_JE_KWH = {
 // meistgenutzte Brennstoff (AGFW-Hauptbericht, abgerufen am 12.08.2026).
 export const FERNWAERME_RUECKFALL = 'fernwaermeKwkGasOel';
 
-// Zuordnung der Auswahl im Formular zu einer Zeile der Anlage 9.
-// Wärmepumpe und Nachtspeicher stehen beide auf netzbezogenem Strom: Die
-// Jahresarbeitszahl steckt bereits im Endenergiebedarf, sie darf den Faktor
-// nicht ein zweites Mal mindern.
-const HEIZUNGSART_FAKTOR = {
-  'gas-brennwert': 'erdgas',
-  'oel-niedertemp': 'heizoel',
-  'waermepumpe': 'stromNetzbezogen',
-  'nachtspeicher': 'stromNetzbezogen',
-  'fernwaerme': FERNWAERME_RUECKFALL,
-};
+// Heizwerte nach § 9 Abs. 3 HeizkostenV, definiert in jahresenergie.js. Die
+// Bekanntmachung (Nr. 2) verweist dorthin. Nicht zu verwechseln mit den
+// 10,046 kWh/l der EBeV in heizkosten.js.
+export { HEIZWERT_HEIZOEL_EL_KWH_JE_LITER, HEIZWERT_ERDGAS_H_KWH_JE_M3, HEIZWERT_ERDGAS_L_KWH_JE_M3 };
 
-/**
- * Emissionsfaktor einer Heizungsart in kg CO2-Äquivalent je kWh Endenergie.
- * Unbekannte Heizungsarten werfen: Ein stiller Rückfallwert wäre eine erfundene
- * Zahl, und das Auswahlfeld der Seite liefert nur die hier hinterlegten Werte.
- */
-export function co2FaktorJeKwhEndenergie(heizungsart) {
-  const schluessel = HEIZUNGSART_FAKTOR[heizungsart];
-  if (!schluessel) {
-    throw new Error(`Unbekannte Heizungsart: ${heizungsart}`);
+// Jahresabrechnungen, die nach Nr. 2 der Bekanntmachung gemittelt werden.
+export const ABRECHNUNGSJAHRE = 3;
+
+// Energieträger im Formular: Einheit der Abrechnung, Umrechnung auf kWh und
+// Zeile der Anlage 9. Wärmepumpe und Nachtspeicher sind beide Strom – die
+// Jahresarbeitszahl steckt bereits im gemessenen Verbrauch.
+export const VERBRAUCH_TRAEGER = Object.freeze({
+  gas: { label: 'Erdgas laut Rechnung', einheit: 'kWh', kwhJeEinheit: 1, faktor: 'erdgas', brennwertbezogen: true },
+  gasH: { label: 'Erdgas H', einheit: 'm³', kwhJeEinheit: HEIZWERT_ERDGAS_H_KWH_JE_M3, faktor: 'erdgas', brennwertbezogen: false },
+  gasL: { label: 'Erdgas L', einheit: 'm³', kwhJeEinheit: HEIZWERT_ERDGAS_L_KWH_JE_M3, faktor: 'erdgas', brennwertbezogen: false },
+  heizoel: { label: 'Heizöl EL', einheit: 'Liter', kwhJeEinheit: HEIZWERT_HEIZOEL_EL_KWH_JE_LITER, faktor: 'heizoel', brennwertbezogen: false },
+  fernwaerme: { label: 'Fernwärme', einheit: 'kWh', kwhJeEinheit: 1, faktor: FERNWAERME_RUECKFALL, brennwertbezogen: false },
+  strom: { label: 'Strom (Wärmepumpe, Nachtspeicher)', einheit: 'kWh', kwhJeEinheit: 1, faktor: 'stromNetzbezogen', brennwertbezogen: false },
+});
+
+function traegerOderFehler(traeger) {
+  const t = VERBRAUCH_TRAEGER[traeger];
+  if (!t) {
+    throw new Error(`Unbekannter Energieträger: ${traeger}`);
   }
-  return EMISSIONSFAKTOREN_G_JE_KWH[schluessel] / 1000;
+  return t;
 }
 
-// Primärenergiefaktoren (nicht erneuerbarer Anteil) nach Anlage 4 GModG
-// (Fundstelle BGBl. I 2020, 1775): Erdgas und Heizöl 1,1; netzbezogener Strom
-// 1,8. Für Fernwärme aus KWK schreibt Anlage 4 kein festes Vielfaches vor,
-// sondern verweist auf eine Berechnung nach DIN V 18599-9 – dafür fehlen
-// dieser Vorberechnung die nötigen Eingaben (Erzeugungsart, KWK-Anteil). Sie
-// rechnet Fernwärme deshalb mit demselben Näherungswert wie fossile
-// Energieträger, in Anlehnung an den dokumentierten Rückfall bei den
-// CO2-Faktoren oben (FERNWAERME_RUECKFALL: überwiegend KWK mit gasförmigen
-// und flüssigen Brennstoffen) – keine Angabe aus Anlage 4 selbst.
-export const PRIMAERENERGIEFAKTOREN = {
-  fossil: 1.1,
-  strom: 1.8,
-};
-
-const HEIZUNGSART_PRIMAERENERGIETYP = {
-  'gas-brennwert': 'fossil',
-  'oel-niedertemp': 'fossil',
-  'fernwaerme': 'fossil', // Näherung, siehe Kommentar oben
-  'waermepumpe': 'strom',
-  'nachtspeicher': 'strom',
-};
+const positiv = (wert) => Number.isFinite(Number(wert)) && Number(wert) > 0;
 
 /**
- * Primärenergiefaktor (nicht erneuerbarer Anteil) einer Heizungsart nach
- * Anlage 4 GModG.
+ * Emissionsfaktor eines Energieträgers in kg CO2-Äquivalent je kWh Endenergie.
+ * Unbekannte Energieträger werfen: Ein stiller Rückfallwert wäre eine
+ * erfundene Zahl.
  */
-export function primaerenergiefaktor(heizungsart) {
-  const typ = HEIZUNGSART_PRIMAERENERGIETYP[heizungsart];
-  if (!typ) {
-    throw new Error(`Unbekannte Heizungsart: ${heizungsart}`);
-  }
-  return PRIMAERENERGIEFAKTOREN[typ];
+export function co2FaktorJeKwhEndenergie(traeger) {
+  return EMISSIONSFAKTOREN_G_JE_KWH[traegerOderFehler(traeger).faktor] / 1000;
 }
 
-// Energieeffizienzklassen nach Anlage 10 zu § 86 GModG (Fundstelle
-// BGBl. I 2020, 1790): neun Klassen A+ bis H, nicht acht. Die frühere
-// Fassung dieser Seite prüfte nur bis 200 kWh/(m²·a) und vergab darüber
-// pauschal "G" - ohne eigene Prüfung, ob 250 überschritten ist. Damit
-// erschien Klasse H im Ergebnis nie, obwohl das Gesetz sie kennt.
-export const ANLAGE10_GRENZEN = [30, 50, 75, 100, 130, 160, 200, 250];
-const ANLAGE10_KLASSEN = ['A+', 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
+/**
+ * Verbrauchskennwert nach § 82 Abs. 2 GModG aus bis zu drei Jahresabrechnungen.
+ *
+ * @param {object} e
+ * @param {keyof VERBRAUCH_TRAEGER} e.traeger
+ * @param {Array<number|string>} e.jahresmengen Heizung und zentrales Warmwasser je Jahr, in der Einheit der Abrechnung
+ * @param {number} [e.wohnflaeche] für die Pauschale nach § 82 Abs. 2 Satz 4
+ * @param {number} [e.gebaeudenutzflaeche] falls bekannt; hat Vorrang
+ * @param {boolean} [e.mitBeheiztemKeller] nur bei höchstens zwei Wohneinheiten
+ * @param {boolean} [e.dezentralesWarmwasser] Verbrauch dafür nicht bekannt
+ * @returns {null | {jahre: number, vollstaendig: boolean, mittelKwh: number,
+ *   nutzflaeche: number, flaecheGeschaetzt: boolean, kwhJeQm: number,
+ *   klasse: string, co2KgJeQm: number, brennwertbezogen: boolean}}
+ */
+export function verbrauchskennwert({
+  traeger,
+  jahresmengen = [],
+  wohnflaeche = 0,
+  gebaeudenutzflaeche = 0,
+  mitBeheiztemKeller = false,
+  dezentralesWarmwasser = false,
+}) {
+  const t = traegerOderFehler(traeger);
+  const jahre = jahresmengen.filter(positiv).map(Number).slice(0, ABRECHNUNGSJAHRE);
+  const flaecheBekannt = positiv(gebaeudenutzflaeche);
+  const flaeche = flaecheBekannt
+    ? Number(gebaeudenutzflaeche)
+    : nutzflaecheAusWohnflaeche(wohnflaeche, mitBeheiztemKeller);
+  if (jahre.length === 0 || flaeche <= 0) return null;
 
-/** Energieeffizienzklasse eines Endenergiebedarfs in kWh/(m²·a). */
-export function effizienzklasse(kwhJeQm) {
-  for (let i = 0; i < ANLAGE10_GRENZEN.length; i += 1) {
-    if (kwhJeQm <= ANLAGE10_GRENZEN[i]) return ANLAGE10_KLASSEN[i];
+  const mittelKwh = (jahre.reduce((summe, n) => summe + n, 0) / jahre.length) * t.kwhJeEinheit;
+  const heizungJeQm = mittelKwh / flaeche;
+  // Der Warmwasserzuschlag zählt für Kennwert und Klasse. Beim CO2 bleibt er
+  // außen vor, weil der Energieträger des dezentralen Warmwassers nicht
+  // abgefragt wird.
+  const kwhJeQm = Math.round(heizungJeQm + (dezentralesWarmwasser ? ZUSCHLAG_DEZENTRALES_WARMWASSER : 0));
+
+  return {
+    jahre: jahre.length,
+    vollstaendig: jahre.length === ABRECHNUNGSJAHRE,
+    mittelKwh: Math.round(mittelKwh),
+    nutzflaeche: Math.round(flaeche * 10) / 10,
+    flaecheGeschaetzt: !flaecheBekannt,
+    kwhJeQm,
+    klasse: effizienzklasse(kwhJeQm),
+    co2KgJeQm: Math.round(heizungJeQm * co2FaktorJeKwhEndenergie(traeger) * 10) / 10,
+    brennwertbezogen: t.brennwertbezogen,
+  };
+}
+
+/**
+ * Welche Ausweisart § 80 Abs. 3 GModG bei Verkauf oder Vermietung verlangt.
+ *
+ * @param {object} e
+ * @param {number} e.wohnungen Wohnungen im Wohngebäude
+ * @param {boolean} e.bauantragVor1977 Bauantrag vor dem 1. November 1977
+ * @param {'ja'|'nein'|'unbekannt'} e.waermeschutz1977 Anforderungsniveau der
+ *   WSchVO vom 11.08.1977 bei Fertigstellung oder durch spätere Änderungen erreicht
+ * @returns {null | {art: 'bedarf'|'wahl', grund: string}}
+ */
+export function ausweisPflicht({ wohnungen, bauantragVor1977, waermeschutz1977 }) {
+  if (!Number.isInteger(wohnungen) || wohnungen < 1) return null;
+
+  if (wohnungen >= 5) {
+    return { art: 'wahl', grund: 'Das Gebäude hat fünf oder mehr Wohnungen; § 80 Abs. 3 Satz 2 GModG greift nicht.' };
   }
-  return ANLAGE10_KLASSEN.at(-1);
+  if (!bauantragVor1977) {
+    return { art: 'wahl', grund: 'Der Bauantrag wurde nicht vor dem 1. November 1977 gestellt; § 80 Abs. 3 Satz 2 GModG greift nicht.' };
+  }
+  if (waermeschutz1977 === 'ja') {
+    return { art: 'wahl', grund: 'Das Gebäude erreicht das Anforderungsniveau der Wärmeschutzverordnung von 1977; nach § 80 Abs. 3 Satz 3 GModG ist Satz 2 nicht anzuwenden.' };
+  }
+  return { art: 'bedarf', grund: 'Weniger als fünf Wohnungen und Bauantrag vor dem 1. November 1977: § 80 Abs. 3 Satz 2 GModG schreibt einen Energiebedarfsausweis vor, solange die Ausnahme nach Satz 3 nicht greift.' };
 }

@@ -103,8 +103,8 @@ if (saNull.r.differenz !== saAmPauschbetrag.r.differenz || saAmPauschbetrag.r.di
 // Bezug zur Vorbelegung dieses Rechners: oben steht das Feld "Werbungskosten"
 // standardmäßig auf 1.000 €. Vergleich mit 0 € bei denselben übrigen Werten.
 const seiteBrutto = 50_000;
-const seiteKlasse = 4;
-const seiteKinder = 1;
+const seiteKlasse = 1;
+const seiteKinder = 0;
 const seiteVorbelegung = 1000;
 const seiteMitVorbelegung = berechneSteuernachzahlung({ bruttoJahr: seiteBrutto, steuerklasse: seiteKlasse, kinder: seiteKinder, werbungskosten: seiteVorbelegung, sonderausgaben: 0 });
 const seiteOhneVorbelegung = berechneSteuernachzahlung({ bruttoJahr: seiteBrutto, steuerklasse: seiteKlasse, kinder: seiteKinder, werbungskosten: 0, sonderausgaben: 0 });

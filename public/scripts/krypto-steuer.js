@@ -17,7 +17,7 @@
 // Ehegatte für dessen eigenen Gesamtgewinn und verdoppelt sich nicht zu einer
 // gemeinsamen Grenze von 2.000 Euro.
 
-import { einkommensteuer } from './einkommensteuer.js';
+import { tariflicheEinkommensteuer } from './einkommensteuer.js';
 
 export const RECHTSSTAND = '2026-01-01';
 
@@ -46,10 +46,7 @@ export function steuerpflichtigerGewinn(gesamtgewinn) {
 }
 
 /** Tarifliche Einkommensteuer, bei Zusammenveranlagung im Splittingverfahren (§ 32a Abs. 5 EStG). */
-function tarif(zvE, zusammen) {
-  if (!zusammen) return einkommensteuer(zvE);
-  return 2 * einkommensteuer(zvE / 2);
-}
+const tarif = tariflicheEinkommensteuer;
 
 /**
  * Einkommensteuer, die der Krypto-Gewinn zusätzlich auslöst.

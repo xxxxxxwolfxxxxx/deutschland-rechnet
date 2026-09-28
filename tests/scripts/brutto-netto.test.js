@@ -172,3 +172,20 @@ describe('berechneNettoGehalt allgemein', () => {
     }
   });
 });
+
+describe('Kinderfreibeträge bei Soli und Kirchensteuer (§ 3 Abs. 2a SolzG, § 51a Abs. 2a EStG)', () => {
+  const hoch = { ...basisNW, bruttoMonat: 8000, kirchensteuer: true };
+
+  it('ändert ohne Kinderfreibeträge nichts', () => {
+    expect(berechneNettoGehalt({ ...hoch, kinderfreibetraege: 0 })).toEqual(berechneNettoGehalt(hoch));
+  });
+
+  it('senkt Soli und Kirchensteuer, nicht aber die Lohnsteuer', () => {
+    const ohne = berechneNettoGehalt(hoch);
+    const mit = berechneNettoGehalt({ ...hoch, kinderfreibetraege: 1 });
+    expect(mit.lohnsteuer).toBe(ohne.lohnsteuer);
+    expect(mit.soli).toBeLessThan(ohne.soli);
+    expect(mit.kirchensteuer).toBeLessThan(ohne.kirchensteuer);
+    expect(mit.netto).toBeGreaterThan(ohne.netto);
+  });
+});

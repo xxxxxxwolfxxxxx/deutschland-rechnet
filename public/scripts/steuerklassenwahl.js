@@ -26,10 +26,22 @@ import { einkommensteuer } from './einkommensteuer.js';
 import {
   jahreslohnsteuer,
   zuVersteuernderJahresbetrag,
+  bemessungsgrundlageZuschlagsteuern,
   solidaritaetszuschlag,
   solidaritaetszuschlagJahr,
   SOLI_FREIGRENZE_SPLITTING,
 } from './lohnsteuer.js';
+import { KINDERFREIBETRAG_JE_ELTERNTEIL, BEA_FREIBETRAG_JE_ELTERNTEIL } from './kindergeld.js';
+
+// Kinderfreibeträge beim Soli: In der Veranlagung mindern die Freibeträge nach
+// § 32 Abs. 6 EStG die Bemessungsgrundlage in allen Fällen (§ 3 Abs. 2 SolzG),
+// bei Zusammenveranlagung verdoppelt (§ 32 Abs. 6 Satz 2). Beim
+// Lohnsteuerabzug gilt § 3 Abs. 2a SolzG mit der Zahl der Kinderfreibeträge;
+// angenommen ist der Zähler 1 je gemeinsamem Kind in III und IV, in V wird
+// nicht gemindert. Beim Faktorverfahren wird der Faktor auf die geminderte
+// Lohnsteuer angewendet (§ 51a Abs. 2a Satz 3 EStG, für den Soli über
+// § 3 Abs. 2a SolzG entsprechend angesetzt).
+const FREIBETRAG_JE_KIND_ZUSAMMEN = 2 * (KINDERFREIBETRAG_JE_ELTERNTEIL + BEA_FREIBETRAG_JE_ELTERNTEIL);
 
 /** Die wählbaren Kombinationen nach § 38b Abs. 1 Satz 2 Nr. 4 und 5 EStG sowie § 39f EStG. */
 export const KOMBINATIONEN = [
@@ -50,15 +62,17 @@ export const KOMBINATIONEN = [
  * @param {number} eingabe.bruttoJahrA Jahresarbeitslohn Partner A, in Euro
  * @param {number} eingabe.bruttoJahrB Jahresarbeitslohn Partner B, in Euro
  * @param {number} [eingabe.kinder] Kinder unter 25 Jahren, für die Pflegeversicherung
+ * @param {number} [eingabe.kinderfreibetraege] gemeinsame Kinder mit Kinderfreibetrag, für den Soli
  * @param {number} [eingabe.zusatzbeitrag] Zusatzbeitragssatz der Krankenkasse
  */
-export function jahressteuerEhegatten({ bruttoJahrA, bruttoJahrB, kinder = 0, zusatzbeitrag }) {
+export function jahressteuerEhegatten({ bruttoJahrA, bruttoJahrB, kinder = 0, kinderfreibetraege = 0, zusatzbeitrag }) {
   const zvJB =
     zuVersteuernderJahresbetrag({ jahresarbeitslohn: lohn(bruttoJahrA), steuerklasse: 4, kinder, zusatzbeitrag }) +
     zuVersteuernderJahresbetrag({ jahresarbeitslohn: lohn(bruttoJahrB), steuerklasse: 4, kinder, zusatzbeitrag });
 
   const steuer = 2 * einkommensteuer(zvJB / 2);
-  const soli = solidaritaetszuschlag(steuer, SOLI_FREIGRENZE_SPLITTING);
+  const zvJBMitFreibetraegen = Math.max(0, zvJB - anzahl(kinderfreibetraege) * FREIBETRAG_JE_KIND_ZUSAMMEN);
+  const soli = solidaritaetszuschlag(2 * einkommensteuer(zvJBMitFreibetraegen / 2), SOLI_FREIGRENZE_SPLITTING);
 
   return {
     zuVersteuernderJahresbetrag: runde(zvJB),
@@ -97,13 +111,13 @@ export function faktor({ bruttoJahrA, bruttoJahrB, kinder = 0, zusatzbeitrag }) 
  * Abweichung von der Jahressteuer. Ein positiver Wert bedeutet Erstattung, ein
  * negativer Nachzahlung.
  */
-export function vergleicheKombinationen({ bruttoJahrA, bruttoJahrB, kinder = 0, zusatzbeitrag }) {
-  const jahressteuer = jahressteuerEhegatten({ bruttoJahrA, bruttoJahrB, kinder, zusatzbeitrag });
+export function vergleicheKombinationen({ bruttoJahrA, bruttoJahrB, kinder = 0, kinderfreibetraege = 0, zusatzbeitrag }) {
+  const jahressteuer = jahressteuerEhegatten({ bruttoJahrA, bruttoJahrB, kinder, kinderfreibetraege, zusatzbeitrag });
   const f = faktor({ bruttoJahrA, bruttoJahrB, kinder, zusatzbeitrag });
 
   const kombinationen = KOMBINATIONEN.map(kombi => {
-    const a = abzug(bruttoJahrA, kombi.klasseA, kombi.faktorverfahren ? f.wert : 1, kinder, zusatzbeitrag);
-    const b = abzug(bruttoJahrB, kombi.klasseB, kombi.faktorverfahren ? f.wert : 1, kinder, zusatzbeitrag);
+    const a = abzug(bruttoJahrA, kombi.klasseA, kombi.faktorverfahren ? f.wert : 1, kinder, kinderfreibetraege, zusatzbeitrag);
+    const b = abzug(bruttoJahrB, kombi.klasseB, kombi.faktorverfahren ? f.wert : 1, kinder, kinderfreibetraege, zusatzbeitrag);
     const abzugJahr = runde(a.gesamt + b.gesamt);
 
     return {
@@ -121,12 +135,17 @@ export function vergleicheKombinationen({ bruttoJahrA, bruttoJahrB, kinder = 0, 
   return { jahressteuer, faktor: f, kombinationen };
 }
 
-function abzug(bruttoJahr, steuerklasse, faktorWert, kinder, zusatzbeitrag) {
+function abzug(bruttoJahr, steuerklasse, faktorWert, kinder, kinderfreibetraege, zusatzbeitrag) {
   const lst = jahreslohnsteuer({ jahresarbeitslohn: lohn(bruttoJahr), steuerklasse, kinder, zusatzbeitrag });
   // § 39f Abs. 3 EStG: Der Faktor wird auf die Lohnsteuer der Klasse IV
-  // angewendet; der Solidaritätszuschlag folgt der so ermittelten Lohnsteuer.
+  // angewendet; der Solidaritätszuschlag folgt der Bemessungsgrundlage mit
+  // Kinderfreibeträgen, auf die ebenfalls der Faktor wirkt.
   const lohnsteuer = faktorWert === 1 ? lst : Math.floor(lst * faktorWert);
-  const soli = solidaritaetszuschlagJahr(lohnsteuer, steuerklasse);
+  const zaehler = steuerklasse === 3 || steuerklasse === 4 ? anzahl(kinderfreibetraege) : 0;
+  const bemessung = bemessungsgrundlageZuschlagsteuern({
+    jahresarbeitslohn: lohn(bruttoJahr), steuerklasse, kinder, kinderfreibetraege: zaehler, zusatzbeitrag,
+  });
+  const soli = solidaritaetszuschlagJahr(faktorWert === 1 ? bemessung : Math.floor(bemessung * faktorWert), steuerklasse);
 
   return {
     lohnsteuerJahr: lohnsteuer,
@@ -134,6 +153,13 @@ function abzug(bruttoJahr, steuerklasse, faktorWert, kinder, zusatzbeitrag) {
     soliJahr: soli,
     gesamt: runde(lohnsteuer + soli),
   };
+}
+
+function anzahl(wert) {
+  if (!Number.isInteger(wert) || wert < 0) {
+    throw new Error(`Ungültige Zahl der Kinder mit Kinderfreibetrag: ${wert}`);
+  }
+  return wert;
 }
 
 function lohn(betrag) {

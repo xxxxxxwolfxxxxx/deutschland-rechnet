@@ -4,9 +4,12 @@ import {
   effizienzklasse,
   nutzflaecheAusWohnflaeche,
   EFFIZIENZKLASSEN,
+  HEIZENERGIETRAEGER,
+  HEIZWERT_HEIZOEL_EL_KWH_JE_LITER,
+  HEIZWERT_ERDGAS_H_KWH_JE_M3,
+  HEIZWERT_ERDGAS_L_KWH_JE_M3,
   ZUSCHLAG_DEZENTRALES_WARMWASSER,
 } from '../../public/scripts/jahresenergie.js';
-import { kwhJeLiterHeizoel } from '../../public/scripts/heizkosten.js';
 
 describe('Anlage 10 GModG – Effizienzklassen', () => {
   it('führt neun Klassen bis H', () => {
@@ -19,6 +22,18 @@ describe('Anlage 10 GModG – Effizienzklassen', () => {
     expect(effizienzklasse(100)).toBe('C');
     expect(effizienzklasse(250)).toBe('G');
     expect(effizienzklasse(251)).toBe('H');
+  });
+});
+
+describe('§ 9 Abs. 3 HeizkostenV – Heizwerte Hi', () => {
+  it('kennt Heizöl EL, Erdgas H und Erdgas L', () => {
+    expect(HEIZWERT_HEIZOEL_EL_KWH_JE_LITER).toBe(10);
+    expect(HEIZWERT_ERDGAS_H_KWH_JE_M3).toBe(10);
+    expect(HEIZWERT_ERDGAS_L_KWH_JE_M3).toBe(9);
+  });
+
+  it('rechnet Heizöl für den Kennwert mit dem Heizwert der HeizkostenV um', () => {
+    expect(HEIZENERGIETRAEGER.heizoel.kwhJeEinheit()).toBe(HEIZWERT_HEIZOEL_EL_KWH_JE_LITER);
   });
 });
 
@@ -37,6 +52,13 @@ describe('§ 82 Abs. 2 GModG – Nutzfläche und Warmwasserzuschlag', () => {
     expect(zentral.kennwert.klasse).toBe('C');
     expect(dezentral.kennwert.klasse).toBe('D');
   });
+
+  it('kennzeichnet den Gas-Kennwert als brennwertbezogen, Heizöl nicht', () => {
+    const gas = berechneJahresenergie({ strom: {}, heizung: { traeger: 'gas', menge: 12000 }, wohnflaeche: 100 });
+    const oel = berechneJahresenergie({ strom: {}, heizung: { traeger: 'heizoel', menge: 1200 }, wohnflaeche: 100 });
+    expect(gas.kennwert.brennwertbezogen).toBe(true);
+    expect(oel.kennwert.brennwertbezogen).toBe(false);
+  });
 });
 
 describe('berechneJahresenergie – Kosten aus der Abrechnung', () => {
@@ -54,12 +76,12 @@ describe('berechneJahresenergie – Kosten aus der Abrechnung', () => {
     expect(r.monat).toBe(311.67);
   });
 
-  it('rechnet Heizöl aus Litern in Kilowattstunden um', () => {
+  it('rechnet Heizöl aus Litern mit 10 kWh je Liter in Kilowattstunden um', () => {
     const r = berechneJahresenergie({ strom: {}, heizung: { traeger: 'heizoel', menge: 2000, preisCentJeEinheit: 105 }, wohnflaeche: 150 });
-    expect(r.heizung.kwh).toBe(Math.round(2000 * kwhJeLiterHeizoel()));
-    expect(r.heizung.kwh).toBe(20092); // 2.000 l × 10,046 kWh/l
+    expect(r.heizung.kwh).toBe(20000); // 2.000 l × 10 kWh/l
     expect(r.heizung.kosten).toBe(2100);
     expect(r.heizung.einheit).toBe('Liter');
+    expect(r.kennwert.kwhJeQm).toBe(111); // 20.000 ÷ 180
   });
 
   it('lässt Wasser und Kennwert ohne Angaben weg', () => {

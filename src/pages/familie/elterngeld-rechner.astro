@@ -76,7 +76,7 @@ const fruehgeburtZeilen = BASISMONATE_FRUEHGEBURT.map(s =>
   <CalculatorShell
     calculator={calc}
     intro="Mit dem Elterngeld-Rechner berechnen Sie Basiselterngeld und Elterngeld Plus nach dem BEEG. Der Rechner ermittelt das maßgebliche Erwerbseinkommen nach den §§ 2c bis 2f BEEG aus Ihrem Bruttoentgelt und wendet die gestaffelte Ersatzrate des § 2 Abs. 2 BEEG an."
-    sourceNote={`§§ 2, 2a BEEG – Ersatzrate ${prozent(SATZ_MIN)} bis ${prozent(SATZ_MAX)}`}
+    sourceNote={`§§ 2, 2a BEEG – Ersatzrate ${prozent(SATZ_MIN)} bis ${prozent(SATZ_MAX)}; Abzüge für Steuern nach § 2e BEEG, Soli und Kirchensteuer mit Kinderfreibeträgen nach § 2e Abs. 4 und 5`}
     explanation={`Basiselterngeld: gestaffelte Ersatzrate von ${prozent(SATZ_MIN)} bis ${prozent(SATZ_MAX)} des Erwerbseinkommens, begrenzt auf ${euro(MINDESTBETRAG)} bis ${euro(HOECHSTBETRAG)} im Monat (§ 2 BEEG). Elterngeld Plus beträgt höchstens die Hälfte, wird aber doppelt so lange gezahlt (§ 4a Abs. 2 BEEG).`}
     faqs={[
       { q: "Wie hoch ist die Ersatzrate wirklich?", a: `Sie ist nicht fest. Nach § 2 Abs. 2 BEEG beträgt sie im Regelfall ${prozent(SATZ_REGEL)}, steigt aber bei einem Erwerbseinkommen unter ${euro(GERINGVERDIENER_GRENZE)} um ${punkte(SATZ_SCHRITT)} je volle ${euro(EINKOMMEN_SCHRITT)} Unterschreitung auf bis zu ${prozent(SATZ_MAX)}. Oberhalb von ${euro(ABSENKUNGS_GRENZE)} sinkt sie nach derselben Staffel auf ${prozent(SATZ_MIN)}. Diesen Boden erreicht sie bereits bei ${euro(bodenAb)} Einkommen – für die meisten Beschäftigten gelten also ${prozent(SATZ_MIN)}, nicht ${prozent(SATZ_REGEL)}.` },
@@ -133,6 +133,18 @@ const fruehgeburtZeilen = BASISMONATE_FRUEHGEBURT.map(s =>
             kirchensteuerpflichtig
           </label>
         </div>
+        <div class="calc-group">
+          <label for="kfb">Zahl der Kinderfreibeträge vor der Geburt (Lohnsteuerabzugsmerkmal)</label>
+          <select id="kfb">
+            <option value="0" selected>0</option>
+            <option value="0.5">0,5</option>
+            <option value="1">1</option>
+            <option value="1.5">1,5</option>
+            <option value="2">2</option>
+            <option value="3">3</option>
+            <option value="4">4</option>
+          </select>
+        </div>
       </div>
       <div class="calc-result">
         <div class="label">Basiselterngeld monatlich</div>
@@ -164,11 +176,13 @@ function berechne() {
   const kinderZahl = parseInt(document.getElementById('kinderzahl').value, 10);
   const geschwisterbonus = document.getElementById('geschwister').checked;
   const kirchensteuer = document.getElementById('kirche').checked;
+  const kinderfreibetraege = parseFloat(document.getElementById('kfb').value) || 0;
 
   const r = berechneElterngeld({
     einnahmenMonat: brutto,
     steuerklasse,
     kirchensteuer,
+    kinderfreibetraege,
     einnahmenBezugMonat: teilzeitRoh > 0 ? teilzeitRoh : undefined,
     geschwisterbonus,
     kinderZahl,
@@ -200,7 +214,7 @@ function berechne() {
   document.getElementById('hinweis').textContent = hinweise.join(' ');
 }
 
-['brutto', 'teilzeit', 'steuerklasse', 'kinderzahl', 'geschwister', 'kirche'].forEach(id => {
+['brutto', 'teilzeit', 'steuerklasse', 'kinderzahl', 'geschwister', 'kirche', 'kfb'].forEach(id => {
   const el = document.getElementById(id);
   el.addEventListener('input', berechne);
   el.addEventListener('change', berechne);

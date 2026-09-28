@@ -355,3 +355,26 @@ describe('berechneElterngeld', () => {
     expect(() => berechneElterngeld({ einnahmenMonat: 2500, steuerklasse: 9 })).toThrow();
   });
 });
+
+describe('Kinderfreibeträge bei Soli und Kirchensteuer (§ 2e Abs. 4 und 5 BEEG)', () => {
+  const hoch = { einnahmenMonat: 7000, steuerklasse: 1, kirchensteuer: true };
+
+  it('ändert ohne Angabe nichts', () => {
+    expect(elterngeldNetto({ ...hoch, kinderfreibetraege: 0 })).toBe(elterngeldNetto(hoch));
+  });
+
+  it('erhöht das Einkommen aus Erwerbstätigkeit, weil Soli und Kirchensteuer sinken', () => {
+    expect(elterngeldNetto({ ...hoch, kinderfreibetraege: 1 })).toBeGreaterThan(elterngeldNetto(hoch));
+  });
+
+  it('wirkt ohne Kirchensteuer nur über den Soli – unterhalb der Soli-Freigrenze gar nicht', () => {
+    const niedrig = { einnahmenMonat: 2500, steuerklasse: 1 };
+    expect(elterngeldNetto({ ...niedrig, kinderfreibetraege: 1 })).toBe(elterngeldNetto(niedrig));
+  });
+
+  it('reicht die Zahl an berechneElterngeld durch', () => {
+    const ohne = berechneElterngeld({ ...hoch, einnahmenMonat: 3000 });
+    const mit = berechneElterngeld({ ...hoch, einnahmenMonat: 3000, kinderfreibetraege: 1 });
+    expect(mit.einkommen).toBeGreaterThan(ohne.einkommen);
+  });
+});

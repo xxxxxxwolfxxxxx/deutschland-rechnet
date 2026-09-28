@@ -1,8 +1,30 @@
 import { describe, it, expect } from 'vitest';
-import { einkommensteuer, GRUNDFREIBETRAG, TARIF_STAND } from '../../public/scripts/einkommensteuer.js';
+import { einkommensteuer, tariflicheEinkommensteuer, GRUNDFREIBETRAG, TARIF_STAND } from '../../public/scripts/einkommensteuer.js';
 
 // Referenz: § 32a Abs. 1 EStG in der ab Veranlagungszeitraum 2026 geltenden Fassung
 // (gesetze-im-internet.de/estg/__32a.html).
+
+describe('tariflicheEinkommensteuer – Grund- und Splittingtarif', () => {
+  it('rechnet ohne Splitting den Grundtarif', () => {
+    expect(tariflicheEinkommensteuer(30000, false)).toBe(einkommensteuer(30000));
+    expect(tariflicheEinkommensteuer(30000)).toBe(4217);
+  });
+
+  it('rechnet mit Splitting das Zweifache der Steuer auf die Hälfte (§ 32a Abs. 5 EStG)', () => {
+    expect(tariflicheEinkommensteuer(80000, true)).toBe(2 * einkommensteuer(40000));
+    expect(tariflicheEinkommensteuer(60000, true)).toBe(2 * 4217);
+  });
+
+  it('halbiert ein ungerades Einkommen vor dem Abrunden', () => {
+    expect(tariflicheEinkommensteuer(80001, true)).toBe(2 * einkommensteuer(40000));
+  });
+
+  it('bleibt bis zum doppelten Grundfreibetrag steuerfrei', () => {
+    expect(tariflicheEinkommensteuer(2 * GRUNDFREIBETRAG, true)).toBe(0);
+    // 200 € darüber: 2 × Steuer auf 12.448 € = 2 × 14 €.
+    expect(tariflicheEinkommensteuer(2 * GRUNDFREIBETRAG + 200, true)).toBe(28);
+  });
+});
 
 describe('Grundfreibetrag', () => {
   it('beträgt 12.348 € (VZ 2026)', () => {

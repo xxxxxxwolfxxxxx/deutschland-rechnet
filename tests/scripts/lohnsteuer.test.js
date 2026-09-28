@@ -11,8 +11,60 @@ import {
   zuVersteuernderJahresbetrag,
   jahreslohnsteuer,
   solidaritaetszuschlagJahr,
+  bemessungsgrundlageZuschlagsteuern,
 } from '../../public/scripts/lohnsteuer.js';
 import { einkommensteuer } from '../../public/scripts/einkommensteuer.js';
+
+describe('Bemessungsgrundlage für Soli und Kirchensteuer (§ 3 Abs. 2a SolzG, § 51a Abs. 2a EStG)', () => {
+  const FREIBETRAG_JE_KIND = 3414 + 1464; // § 32 Abs. 6 Satz 1 EStG
+  const lohn = 60000;
+
+  it('entspricht ohne Kinderfreibeträge der Lohnsteuer', () => {
+    for (const steuerklasse of STEUERKLASSEN) {
+      expect(bemessungsgrundlageZuschlagsteuern({ jahresarbeitslohn: lohn, steuerklasse })).toBe(
+        jahreslohnsteuer({ jahresarbeitslohn: lohn, steuerklasse }),
+      );
+    }
+  });
+
+  it('mindert in Klasse I je Zähler 1 um den doppelten Freibetrag', () => {
+    const zvJB = zuVersteuernderJahresbetrag({ jahresarbeitslohn: lohn, steuerklasse: 1, kinder: 1 });
+    expect(bemessungsgrundlageZuschlagsteuern({ jahresarbeitslohn: lohn, steuerklasse: 1, kinder: 1, kinderfreibetraege: 1 }))
+      .toBe(einkommensteuer(zvJB - 2 * FREIBETRAG_JE_KIND));
+    expect(bemessungsgrundlageZuschlagsteuern({ jahresarbeitslohn: lohn, steuerklasse: 1, kinder: 1, kinderfreibetraege: 0.5 }))
+      .toBe(einkommensteuer(zvJB - FREIBETRAG_JE_KIND));
+  });
+
+  it('rechnet in Klasse III mit Splitting auf den geminderten Betrag', () => {
+    const zvJB = zuVersteuernderJahresbetrag({ jahresarbeitslohn: lohn, steuerklasse: 3, kinder: 2 });
+    expect(bemessungsgrundlageZuschlagsteuern({ jahresarbeitslohn: lohn, steuerklasse: 3, kinder: 2, kinderfreibetraege: 2 }))
+      .toBe(2 * einkommensteuer((zvJB - 2 * 2 * FREIBETRAG_JE_KIND) / 2));
+  });
+
+  it('mindert in Klasse IV je Zähler nur um den einfachen Freibetrag', () => {
+    const zvJB = zuVersteuernderJahresbetrag({ jahresarbeitslohn: lohn, steuerklasse: 4, kinder: 1 });
+    expect(bemessungsgrundlageZuschlagsteuern({ jahresarbeitslohn: lohn, steuerklasse: 4, kinder: 1, kinderfreibetraege: 1 }))
+      .toBe(einkommensteuer(zvJB - FREIBETRAG_JE_KIND));
+  });
+
+  it('mindert in den Klassen V und VI nicht', () => {
+    for (const steuerklasse of [5, 6]) {
+      expect(bemessungsgrundlageZuschlagsteuern({ jahresarbeitslohn: lohn, steuerklasse, kinderfreibetraege: 2 }))
+        .toBe(jahreslohnsteuer({ jahresarbeitslohn: lohn, steuerklasse }));
+    }
+  });
+
+  it('senkt den Solidaritätszuschlag bei höherem Lohn', () => {
+    const ohne = jahreslohnsteuer({ jahresarbeitslohn: 120000, steuerklasse: 1, kinder: 1 });
+    const mit = bemessungsgrundlageZuschlagsteuern({ jahresarbeitslohn: 120000, steuerklasse: 1, kinder: 1, kinderfreibetraege: 1 });
+    expect(solidaritaetszuschlagJahr(mit, 1)).toBeLessThan(solidaritaetszuschlagJahr(ohne, 1));
+  });
+
+  it('weist Zähler zurück, die kein Vielfaches von 0,5 sind', () => {
+    expect(() => bemessungsgrundlageZuschlagsteuern({ jahresarbeitslohn: lohn, steuerklasse: 1, kinderfreibetraege: -1 })).toThrow();
+    expect(() => bemessungsgrundlageZuschlagsteuern({ jahresarbeitslohn: lohn, steuerklasse: 1, kinderfreibetraege: 0.3 })).toThrow();
+  });
+});
 
 // Rechtsgrundlage durchgehend § 39b Abs. 2 EStG. Bis zum 11.08.2026 rechnete
 // brutto-netto.js den Grundfreibetrag zusätzlich vom Bruttolohn ab, obwohl der

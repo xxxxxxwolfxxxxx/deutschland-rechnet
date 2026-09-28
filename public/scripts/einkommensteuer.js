@@ -54,3 +54,19 @@ export function einkommensteuer(zvE) {
   // § 32a Abs. 1 Satz 6 EStG: auf den nächsten vollen Euro-Betrag abrunden.
   return Math.max(0, Math.floor(steuer));
 }
+
+/**
+ * Tarifliche Einkommensteuer im Grund- oder Splittingtarif.
+ *
+ * § 32a Abs. 5 EStG: bei Zusammenveranlagung das Zweifache des Steuerbetrags,
+ * der sich für die Hälfte des gemeinsam zu versteuernden Einkommens nach
+ * Absatz 1 ergibt. Absatz 6 wendet das Verfahren auf bestimmte Verwitwete und
+ * Geschiedene an.
+ *
+ * @param {number} zvE zu versteuerndes Einkommen in Euro
+ * @param {boolean} [splitting] Splittingverfahren anwenden
+ * @returns {number} Einkommensteuer in vollen Euro
+ */
+export function tariflicheEinkommensteuer(zvE, splitting = false) {
+  return splitting ? 2 * einkommensteuer(zvE / 2) : einkommensteuer(zvE);
+}

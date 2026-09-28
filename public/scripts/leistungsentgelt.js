@@ -9,7 +9,12 @@
 // das Kurzarbeitergeld. Beide Rechner leiten es aus dieser einen Stelle ab.
 //
 // Abzüge nach § 153 Abs. 1 Satz 2 sind die Sozialversicherungspauschale von
-// 20 Prozent, die Lohnsteuer und der Solidaritätszuschlag. Die Pauschale ist
+// 20 Prozent, die Lohnsteuer und der Solidaritätszuschlag. „Freibeträge und
+// Pauschalen, die nicht jeder Arbeitnehmerin oder jedem Arbeitnehmer
+// zustehen“, bleiben nach § 153 Abs. 1 SGB III außer Betracht – deshalb
+// rechnet der Soli hier bewusst ohne Kinderfreibeträge, anders als beim
+// Lohnsteuerabzug (§ 3 Abs. 2a SolzG) und beim Elterngeld (§ 2e Abs. 4 BEEG).
+// Wortlaut geprüft am 16.09.2026. Die Pauschale ist
 // pauschal und kennt deshalb keine Beitragsbemessungsgrenze; die
 // Vorsorgepauschale innerhalb der Lohnsteuer dagegen schon.
 

@@ -130,3 +130,41 @@ describe('vergleicheKombinationen', () => {
 function kombiNach(eingabe) {
   return Object.fromEntries(vergleicheKombinationen(eingabe).kombinationen.map(k => [k.id, k]));
 }
+
+describe('Kinderfreibeträge beim Solidaritätszuschlag (§ 3 Abs. 2 und 2a SolzG)', () => {
+  const hoch = { bruttoJahrA: 150000, bruttoJahrB: 90000, kinder: 2 };
+  const kombi = (ergebnis, id) => ergebnis.kombinationen.find(k => k.id === id);
+
+  it('ändert ohne Angabe nichts', () => {
+    expect(vergleicheKombinationen({ ...hoch, kinderfreibetraege: 0 })).toEqual(vergleicheKombinationen(hoch));
+  });
+
+  it('senkt den Soli der Jahressteuer, nicht die Einkommensteuer', () => {
+    const ohne = jahressteuerEhegatten(hoch);
+    const mit = jahressteuerEhegatten({ ...hoch, kinderfreibetraege: 2 });
+    expect(mit.einkommensteuer).toBe(ohne.einkommensteuer);
+    expect(mit.soli).toBeLessThan(ohne.soli);
+  });
+
+  it('senkt den einbehaltenen Soli in Klasse IV, nicht in Klasse V', () => {
+    const ohne = vergleicheKombinationen(hoch);
+    const mit = vergleicheKombinationen({ ...hoch, kinderfreibetraege: 2 });
+    expect(kombi(mit, 'IV/IV').partnerA.soliJahr).toBeLessThan(kombi(ohne, 'IV/IV').partnerA.soliJahr);
+    expect(kombi(mit, 'III/V').partnerB.soliJahr).toBe(kombi(ohne, 'III/V').partnerB.soliJahr);
+  });
+
+  it('lässt die Lohnsteuer aller Kombinationen unverändert', () => {
+    const ohne = vergleicheKombinationen(hoch);
+    const mit = vergleicheKombinationen({ ...hoch, kinderfreibetraege: 2 });
+    for (const k of ohne.kombinationen) {
+      expect(kombi(mit, k.id).partnerA.lohnsteuerJahr).toBe(k.partnerA.lohnsteuerJahr);
+      expect(kombi(mit, k.id).partnerB.lohnsteuerJahr).toBe(k.partnerB.lohnsteuerJahr);
+    }
+  });
+
+  it('wendet den Faktor auf die geminderte Bemessungsgrundlage an (§ 51a Abs. 2a Satz 3 EStG)', () => {
+    const mit = vergleicheKombinationen({ ...hoch, kinderfreibetraege: 2 });
+    const faktorKombi = kombi(mit, 'IV/IV-Faktor');
+    expect(faktorKombi.partnerA.soliJahr).toBeLessThanOrEqual(kombi(mit, 'IV/IV').partnerA.soliJahr);
+  });
+});
