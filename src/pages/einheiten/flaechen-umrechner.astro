@@ -3,6 +3,7 @@ import Layout from '../../layouts/Layout.astro';
 import CalculatorShell from '../../components/CalculatorShell.astro';
 import CalculatorGuide from '../../components/CalculatorGuide.astro';
 import { CALCULATORS, CATEGORIES } from '../../data/calculators';
+import ArtikelFlaechenfehler from '../../components/artikel/flaechenfehler-quadriert-sich.astro';
 const calc = CALCULATORS.find(c => c.slug === 'flaechen-umrechner')!;
 const cat = CATEGORIES[calc.category];
 const year = new Date().getFullYear();
@@ -57,6 +58,7 @@ const year = new Date().getFullYear();
       </div>
       <div id="ergebnis-liste" class="ergebnis-liste"></div>
     </div>
+    <ArtikelFlaechenfehler slot="artikel" />
   </CalculatorShell>
 
   <CalculatorGuide

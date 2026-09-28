@@ -3,6 +3,7 @@ import Layout from '../../layouts/Layout.astro';
 import CalculatorShell from '../../components/CalculatorShell.astro';
 import CalculatorGuide from '../../components/CalculatorGuide.astro';
 import { CALCULATORS, CATEGORIES } from '../../data/calculators';
+import ArtikelAlg60Prozent from '../../components/artikel/arbeitslosengeld-60-prozent-regel-bricht.astro';
 import {
   LEISTUNGSSATZ,
   LEISTUNGSSATZ_ERHOEHT,
@@ -98,6 +99,7 @@ const kurzeAnwartschaftText = ANSPRUCHSDAUER_KURZE_ANWARTSCHAFT
       </div>
       <div id="details" style="margin-top:0.75rem;font-size:0.88rem;color:#666;display:flex;gap:1.5rem;flex-wrap:wrap;"></div>
     </div>
+    <ArtikelAlg60Prozent slot="artikel" />
   </CalculatorShell>
 
   <CalculatorGuide
