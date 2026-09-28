@@ -1,0 +1,284 @@
+---
+import RechnerArtikel from '../RechnerArtikel.astro';
+import {
+  berechnePfaendungsfreigrenze,
+  freigrenze,
+  GRUNDFREIBETRAG_MONAT,
+  HOECHSTBETRAG_MONAT,
+  MAX_UNTERHALTSPFLICHTIGE,
+} from '../../../public/scripts/pfaendungsfreigrenze.js';
+
+// Deutsche Zahlenformatierung, echtes Minuszeichen (U+2212) statt Bindestrich.
+// In diesem Artikel sind alle Beträge ≥ 0, der Helfer steht trotzdem hier, weil
+// er zur Konvention der Artikelserie gehört.
+const minus = (s: string) => s.replace(/^-/, '−');
+const eur = (n: number, d = 2) =>
+  minus(n.toLocaleString('de-DE', { minimumFractionDigits: d, maximumFractionDigits: d })) + ' €';
+const euroKurz = (n: number) => minus(n.toLocaleString('de-DE')) + ' €';
+
+function pfaendbar(nettoMonat: number, unterhaltspflichtige = 0): number {
+  return berechnePfaendungsfreigrenze({ nettoMonat, unterhaltspflichtige }).pfaendbar;
+}
+
+// --- These 1: Innerhalb einer Zehner-Dekade bleibt der pfändbare Betrag exakt
+// gleich, weil § 850c Abs. 5 ZPO das Nettoeinkommen vor der Berechnung auf ein
+// Vielfaches von zehn Euro abrundet. Geprüft an der Dekade 2.000–2.010 €.
+const DEKADE_START = 2000;
+const dekadeWerte = Array.from({ length: 11 }, (_, i) => DEKADE_START + i).map((netto) => ({
+  netto,
+  betrag: pfaendbar(netto),
+}));
+const dekadeErsteZehn = dekadeWerte.slice(0, 10);
+const dekadeSprungWert = dekadeWerte[10];
+const gleicheWerteAnzahl = dekadeErsteZehn.filter((z) => z.betrag === dekadeErsteZehn[0].betrag).length;
+const sprungHoehe = dekadeSprungWert.betrag - dekadeErsteZehn[0].betrag;
+
+// --- Kreuzprobe gegen die amtliche Monatstabelle: Die Pfändungsfreigrenzen-
+// bekanntmachung 2026 (Anhang, Zeile "1 590,00 bis 1 599,99 €") weist für
+// Alleinstehende ohne Unterhaltspflichten 1,82 € pfändbar aus. Das ist zugleich
+// die erste Zehnerstufe oberhalb der Freigrenze, bei der überhaupt etwas
+// pfändbar wird.
+const ERSTE_STUFE_UEBER_FREIGRENZE = Math.ceil(GRUNDFREIBETRAG_MONAT / 10) * 10;
+const AMTLICHER_TABELLENWERT_1590 = 1.82;
+
+// --- These 2: Unterhaltspflichten erhöhen die Freigrenze UND senken zugleich
+// den pfändbaren Anteil vom Mehrbetrag (§ 850c Abs. 3 ZPO: für die erste
+// Person zwei zusätzliche Zehntel, für die zweite bis fünfte je ein weiteres).
+// Geprüft bei gleichbleibendem Nettoeinkommen von 4.000 €.
+const VERGLEICHS_NETTO = 4000;
+const bemessung = Math.floor(Math.min(VERGLEICHS_NETTO, HOECHSTBETRAG_MONAT) / 10) * 10;
+const personenTabelle = [0, 1, 2, 3, 4, 5].map((p) => {
+  const frei = freigrenze(p);
+  const mehrbetrag = Math.max(0, bemessung - frei);
+  const betrag = pfaendbar(VERGLEICHS_NETTO, p);
+  const anteilProzent = mehrbetrag > 0 ? (betrag / mehrbetrag) * 100 : 0;
+  return { personen: p, freigrenze: frei, pfaendbar: betrag, anteilProzent };
+});
+
+// --- These 3: Mehr als fünf unterhaltsberechtigte Personen erhöhen weder die
+// Freigrenze noch senken sie den pfändbaren Betrag weiter (§ 850c Abs. 2 und 3
+// ZPO sprechen nur von "der zweiten bis fünften Person"; der Anhang der
+// Bekanntmachung führt "5 und mehr" als eine einzige Spalte).
+const kappungsVergleich = [5, 6, 8].map((p) => ({
+  personen: p,
+  freigrenze: freigrenze(p),
+  pfaendbar: pfaendbar(VERGLEICHS_NETTO, p),
+}));
+
+// --- Selbstprüfung 1: Zehner-Dekade liefert zehn identische Werte, danach ein
+// echter Sprung nach oben. Ohne diesen Effekt trägt die zentrale These des
+// Artikels nicht.
+if (gleicheWerteAnzahl !== 10) {
+  throw new Error(
+    `Pfändungsfreigrenze-Artikel: Erwartet 10 identische pfändbare Beträge zwischen ` +
+    `${DEKADE_START} € und ${DEKADE_START + 9} €, tatsächlich ${gleicheWerteAnzahl}.`
+  );
+}
+if (dekadeSprungWert.betrag <= dekadeErsteZehn[0].betrag) {
+  throw new Error(
+    `Pfändungsfreigrenze-Artikel: Bei ${dekadeSprungWert.netto} € müsste der pfändbare Betrag ` +
+    `höher liegen als bei ${DEKADE_START} € (${dekadeErsteZehn[0].betrag} €), tatsächlich ` +
+    `${dekadeSprungWert.betrag} €.`
+  );
+}
+
+// --- Selbstprüfung 2: Das Modul muss die amtliche Monatstabelle der
+// Pfändungsfreigrenzenbekanntmachung 2026 exakt reproduzieren, nicht nur
+// plausible Werte liefern.
+if (pfaendbar(ERSTE_STUFE_UEBER_FREIGRENZE) !== AMTLICHER_TABELLENWERT_1590) {
+  throw new Error(
+    `Pfändungsfreigrenze-Artikel: Bei ${ERSTE_STUFE_UEBER_FREIGRENZE} € müsste laut amtlicher ` +
+    `Tabelle ${AMTLICHER_TABELLENWERT_1590} € pfändbar sein, das Modul liefert ` +
+    `${pfaendbar(ERSTE_STUFE_UEBER_FREIGRENZE)} €.`
+  );
+}
+
+// --- Selbstprüfung 3: Mit jeder weiteren unterhaltsberechtigten Person muss
+// der pfändbare Betrag bei gleichem Netto strikt sinken – sonst wäre die
+// zweite These falsch oder das Modul inkonsistent.
+for (let i = 1; i < personenTabelle.length; i++) {
+  if (personenTabelle[i].pfaendbar >= personenTabelle[i - 1].pfaendbar) {
+    throw new Error(
+      `Pfändungsfreigrenze-Artikel: Bei ${personenTabelle[i].personen} Unterhaltspflichtigen ` +
+      `(${personenTabelle[i].pfaendbar} €) müsste weniger pfändbar sein als bei ` +
+      `${personenTabelle[i - 1].personen} (${personenTabelle[i - 1].pfaendbar} €).`
+    );
+  }
+}
+if (Math.round(personenTabelle[0].anteilProzent) !== 70 || Math.round(personenTabelle[5].anteilProzent) !== 10) {
+  throw new Error(
+    `Pfändungsfreigrenze-Artikel: Ohne Unterhaltspflichten müssten 70 % des Mehrbetrags ` +
+    `pfändbar sein (§ 850c Abs. 3 Satz 1 ZPO: drei Zehntel unpfändbar), bei fünf Personen ` +
+    `10 % (neun Zehntel unpfändbar). Berechnet: ${personenTabelle[0].anteilProzent.toFixed(1)} % ` +
+    `bzw. ${personenTabelle[5].anteilProzent.toFixed(1)} %.`
+  );
+}
+
+// --- Selbstprüfung 4: Sechs oder acht unterhaltsberechtigte Personen dürfen
+// gegenüber fünf keinerlei zusätzliche Wirkung mehr haben.
+const [fuenf, sechs, acht] = kappungsVergleich;
+if (
+  fuenf.freigrenze !== sechs.freigrenze || fuenf.freigrenze !== acht.freigrenze ||
+  fuenf.pfaendbar !== sechs.pfaendbar || fuenf.pfaendbar !== acht.pfaendbar
+) {
+  throw new Error(
+    `Pfändungsfreigrenze-Artikel: ${MAX_UNTERHALTSPFLICHTIGE} Personen müssten dieselbe ` +
+    `Freigrenze und denselben pfändbaren Betrag ergeben wie 6 oder 8 Personen, tatsächlich ` +
+    `${JSON.stringify(kappungsVergleich)}.`
+  );
+}
+
+const quellen = [
+  { titel: '§ 850c ZPO – Pfändungsgrenzen für Arbeitseinkommen', url: 'https://www.gesetze-im-internet.de/zpo/__850c.html' },
+  {
+    titel: 'Pfändungsfreigrenzenbekanntmachung 2026 (BGBl. 2026 I Nr. 80 vom 26.03.2026)',
+    url: 'https://www.recht.bund.de/bgbl/1/2026/80/VO.html',
+  },
+];
+---
+<RechnerArtikel
+  titel="Warum zehn Euro mehr Netto oft null Euro mehr Pfändung bedeuten"
+  lead={`Bei 2.000 Euro netto sind ${eur(dekadeErsteZehn[0].betrag)} pfändbar – und bei 2.009 Euro genau derselbe Betrag. Erst bei 2.010 Euro springt er auf ${eur(dekadeSprungWert.betrag)}. Grund ist § 850c Abs. 5 ZPO: Vor der Berechnung wird das Nettoeinkommen auf volle zehn Euro abgerundet. Unterhaltspflichten wirken doppelt – sie heben die Freigrenze an und senken zugleich den pfändbaren Anteil vom Mehrbetrag –, aber nur bis zur fünften Person: Bei ${euroKurz(VERGLEICHS_NETTO)} netto ist bei sechs oder acht Unterhaltsberechtigten genau so viel pfändbar wie bei fünf.`}
+  datum="2026-09-28"
+  quellen={quellen}
+>
+  <h3>Ein Euro mehr Gehalt, null Euro mehr Pfändung</h3>
+  <p>
+    Der Rechner oben gibt für ein bestimmtes Nettoeinkommen einen pfändbaren
+    Betrag aus. Was er nicht zeigt: Dieser Betrag ändert sich nicht mit jedem
+    zusätzlichen Euro. Das Gesetz rundet das Nettoeinkommen vor der Berechnung
+    auf ein Vielfaches von zehn Euro <strong>ab</strong> (§ 850c Abs. 5 Satz 1
+    ZPO) – und solange zwei Gehälter auf dieselbe Zehnerstufe abgerundet
+    werden, liefert die Rechnung exakt denselben pfändbaren Betrag.
+  </p>
+  <table>
+    <caption class="visually-hidden">Pfändbarer Betrag zwischen 2.000 und 2.010 Euro netto, ohne Unterhaltspflichten</caption>
+    <thead>
+      <tr><th scope="col" class="num">Nettolohn</th><th scope="col" class="num">Pfändbarer Betrag</th></tr>
+    </thead>
+    <tbody>
+      {dekadeWerte.map((z) => (
+        <tr>
+          <th scope="row" class="num">{euroKurz(z.netto)}</th>
+          <td class="num">{eur(z.betrag)}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+  <p>
+    Zehn der elf Werte in dieser Tabelle sind identisch: {eur(dekadeErsteZehn[0].betrag)}.
+    Wer statt {euroKurz(DEKADE_START)} genau {euroKurz(DEKADE_START + 9)} netto
+    verdient – neun Euro mehr im Monat –, hat bei einer Lohnpfändung keinen
+    Cent weniger zur Verfügung als der Kollege mit dem niedrigeren Gehalt.
+    Erst der Sprung auf die nächste Zehnerstufe, {euroKurz(dekadeSprungWert.netto)},
+    erhöht den pfändbaren Betrag – und zwar um {eur(sprungHoehe)}, nicht um einen
+    beliebigen Wert: Von den zehn Euro Stufenbreite bleiben ohne
+    Unterhaltspflichten drei Zehntel unpfändbar, sieben Zehntel also
+    {' '}{eur(sprungHoehe)} sind es am Ende.
+  </p>
+
+  <h3>Die Regel dahinter: Abrundung auf volle zehn Euro</h3>
+  <p>
+    § 850c Abs. 5 Satz 1 ZPO schreibt vor, dass das Arbeitseinkommen „auf eine
+    Zahl abzurunden“ ist, „die bei einer Auszahlung für Monate bei einer
+    Teilung durch 10 eine natürliche Zahl ergibt“. Nicht auf-, sondern
+    abgerundet – der Gesetzgeber nimmt bewusst in Kauf, dass ein Gläubiger bei
+    krummen Beträgen etwas weniger bekommt, damit niemand ein Einkommen bis auf
+    den Cent nachrechnen muss. Satz 2 und 3 desselben Absatzes ordnen an, dass
+    genau diese vorgerechneten Beträge als Tabelle in der jährlichen
+    Pfändungsfreigrenzenbekanntmachung erscheinen und im Pfändungsbeschluss
+    schlicht darauf verwiesen werden darf.
+  </p>
+  <p class="ra-hinweis">
+    Kreuzprobe gegen diese amtliche Tabelle: Die Pfändungsfreigrenzenbekanntmachung
+    2026 (Anhang, Zeile „{euroKurz(ERSTE_STUFE_UEBER_FREIGRENZE)},00 bis {euroKurz(ERSTE_STUFE_UEBER_FREIGRENZE + 9)},99“)
+    weist für Alleinstehende ohne Unterhaltspflichten {eur(AMTLICHER_TABELLENWERT_1590)}
+    {' '}pfändbar aus. Das Modul dieser Seite errechnet für denselben Betrag
+    {' '}{eur(pfaendbar(ERSTE_STUFE_UEBER_FREIGRENZE))} – und das ist zugleich die
+    unterste Zehnerstufe, ab der überhaupt etwas pfändbar wird: Bis
+    {' '}{euroKurz(ERSTE_STUFE_UEBER_FREIGRENZE - 10)} bleibt es bei {eur(GRUNDFREIBETRAG_MONAT)}
+    {' '}unpfändbarer Freigrenze, keinen Cent weniger.
+  </p>
+
+  <h3>Unterhaltspflichten heben die Freigrenze an – und senken den pfändbaren Anteil</h3>
+  <p>
+    Wer Ehepartner, Kindern oder anderen gesetzlich Unterhaltsberechtigten
+    Unterhalt gewährt, profitiert nach § 850c Abs. 2 und 3 ZPO auf zwei
+    verschiedene Arten gleichzeitig. Erstens steigt die absolute Freigrenze:
+    für die erste Person um {eur(freigrenze(1) - freigrenze(0))}, für die
+    zweite bis fünfte um je {eur(freigrenze(2) - freigrenze(1))}. Zweitens sinkt
+    unabhängig davon der Anteil, der vom Mehrbetrag <em>oberhalb</em> dieser
+    Freigrenze überhaupt gepfändet werden darf: Ohne Unterhaltspflichten bleiben
+    drei Zehntel des Mehrbetrags unpfändbar (70&nbsp;% pfändbar), für die erste
+    unterhaltsberechtigte Person kommen zwei weitere Zehntel hinzu, für die
+    zweite bis fünfte je ein weiteres. Bei fünf Personen sind neun Zehntel
+    unpfändbar – nur noch 10&nbsp;% des Mehrbetrags bleiben pfändbar.
+  </p>
+  <table>
+    <caption class="visually-hidden">Pfändbarer Betrag bei {euroKurz(VERGLEICHS_NETTO)} Euro netto, nach Zahl der Unterhaltspflichtigen</caption>
+    <thead>
+      <tr><th scope="col" class="num">Unterhaltspflichtige</th><th scope="col" class="num">Freigrenze</th><th scope="col" class="num">Pfändbarer Betrag</th><th scope="col" class="num">Anteil vom Mehrbetrag</th></tr>
+    </thead>
+    <tbody>
+      {personenTabelle.map((z) => (
+        <tr>
+          <th scope="row" class="num">{z.personen === 0 ? 'Keine' : z.personen}</th>
+          <td class="num">{eur(z.freigrenze)}</td>
+          <td class="num">{eur(z.pfaendbar)}</td>
+          <td class="num">{z.anteilProzent.toFixed(0)}&nbsp;%</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+  <p>
+    Bei einem gleichbleibenden Nettoeinkommen von {euroKurz(VERGLEICHS_NETTO)}
+    sinkt der pfändbare Betrag dadurch von {eur(personenTabelle[0].pfaendbar)}
+    ohne Unterhaltspflichten auf nur noch {eur(personenTabelle[5].pfaendbar)} bei
+    fünf Unterhaltsberechtigten – eine Reduktion um mehr als 97&nbsp;Prozent,
+    obwohl das Einkommen exakt gleich geblieben ist.
+  </p>
+
+  <h3>Ab der fünften Person ist Schluss</h3>
+  <p>
+    Sowohl die Erhöhung der Freigrenze (§ 850c Abs. 2 ZPO) als auch die
+    zusätzlichen Zehntel (§ 850c Abs. 3 Satz 2 ZPO) gelten ausdrücklich nur
+    „für die zweite bis fünfte Person“. Für eine sechste, siebte oder achte
+    unterhaltsberechtigte Person sieht das Gesetz keine weitere Erhöhung vor –
+    das bestätigt auch der Anhang der Pfändungsfreigrenzenbekanntmachung 2026,
+    dessen Tabelle nur sechs Spalten für Unterhaltspflicht kennt: 0, 1, 2, 3, 4
+    und „5 und mehr“.
+  </p>
+  <table>
+    <caption class="visually-hidden">Freigrenze und pfändbarer Betrag bei {euroKurz(VERGLEICHS_NETTO)} Euro netto, fünf bis acht Unterhaltspflichtige im Vergleich</caption>
+    <thead>
+      <tr><th scope="col" class="num">Unterhaltspflichtige</th><th scope="col" class="num">Freigrenze</th><th scope="col" class="num">Pfändbarer Betrag</th></tr>
+    </thead>
+    <tbody>
+      {kappungsVergleich.map((z) => (
+        <tr>
+          <th scope="row" class="num">{z.personen}</th>
+          <td class="num">{eur(z.freigrenze)}</td>
+          <td class="num">{eur(z.pfaendbar)}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+  <p>
+    Eine kinderreiche Familie mit sechs oder acht Unterhaltsberechtigten steht
+    bei der Pfändung also nicht besser da als eine mit fünf – jede Person ab
+    der sechsten zählt für diese Rechnung schlicht nicht mehr mit.
+  </p>
+
+  <h3>Was diese Rechnung nicht zeigt</h3>
+  <p>
+    Zwei Einschränkungen sind wichtig. Erstens gilt die Zehner-Abrundung nur
+    für den Teil des Einkommens zwischen der Freigrenze und dem Höchstbetrag
+    von {eur(HOECHSTBETRAG_MONAT)} monatlich (§ 850c Abs. 3 Satz 3 ZPO); was
+    darüber liegt, ist ohnehin in voller Höhe pfändbar und nimmt an der
+    Zehntel-Rechnung gar nicht mehr teil. Zweitens bilden alle Zahlen dieses
+    Artikels ausschließlich die <strong>Monatstabelle</strong> ab. Für Wochen-
+    und Tageslohn gelten in derselben Bekanntmachung eigene Tabellen mit
+    anderen Rundungsstufen (2,5 beziehungsweise 0,5 statt 10), die denselben
+    Stufeneffekt erzeugen, nur in kleineren Schritten.
+  </p>
+</RechnerArtikel>

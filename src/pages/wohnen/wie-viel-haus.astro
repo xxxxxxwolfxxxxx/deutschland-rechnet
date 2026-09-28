@@ -3,6 +3,7 @@ import Layout from '../../layouts/Layout.astro';
 import CalculatorShell from '../../components/CalculatorShell.astro';
 import CalculatorGuide from '../../components/CalculatorGuide.astro';
 import { CALCULATORS, CATEGORIES } from '../../data/calculators';
+import ArtikelRatenquote from '../../components/artikel/gleiche-ratenquote-doppelter-kaufpreis.astro';
 import { berechneWieVielHaus } from '../../../public/scripts/wie-viel-haus.js';
 import { BUNDESLAENDER } from '../../../public/scripts/grunderwerbsteuer.js';
 import { MAKLER_PROVISION_PROZENT_JE_SEITE } from '../../../public/scripts/immokauf-nebenkosten.js';
@@ -116,6 +117,7 @@ const faqs = [
       </div>
       <div id="details" style="margin-top:0.75rem;font-size:0.9rem;color:#555;display:flex;flex-direction:column;gap:0.3rem;"></div>
     </div>
+    <ArtikelRatenquote slot="artikel" />
   </CalculatorShell>
 
   <CalculatorGuide

@@ -3,6 +3,7 @@ import Layout from '../../layouts/Layout.astro';
 import CalculatorShell from '../../components/CalculatorShell.astro';
 import CalculatorGuide from '../../components/CalculatorGuide.astro';
 import { CALCULATORS, CATEGORIES } from '../../data/calculators';
+import ArtikelNotgroschen from '../../components/artikel/notgroschen-ausgaben-oder-einkommen.astro';
 const calc = CALCULATORS.find(c => c.slug === 'notgroschen-rechner')!;
 const cat = CATEGORIES[calc.category];
 const year = new Date().getFullYear();
@@ -22,13 +23,13 @@ const year = new Date().getFullYear();
   <CalculatorShell
     calculator={calc}
     intro="Mit dem Notgroschen-Rechner berechnen Sie die empfohlene Höhe Ihrer Notfallreserve. Basierend auf Ihren monatlichen Ausgaben und Ihrer Lebenssituation erfahren Sie, wie viel Geld Sie als Sicherheitspuffer bereithalten sollten."
-    sourceNote="3-6 Monatsausgaben."
-    explanation="Die Faustformel empfiehlt 3-6 Netto-Monatsausgaben als Reserve auf einem Tagesgeldkonto. Selbstständige sollten 6-12 Monate vorhalten, da kein Arbeitslosengeld-Anspruch besteht. Der Notgroschen ist durch die Einlagensicherung bis 100.000 Euro geschützt."
+    sourceNote="je nach Beschäftigungsform 4 bis 9 Monatsausgaben, begrenzt auf 3 bis 12."
+    explanation="Die Faustformel empfiehlt 3-6 Netto-Monatsausgaben als Reserve auf einem Tagesgeldkonto. Selbstständige sollten 6-12 Monate vorhalten, da ein Arbeitslosengeldanspruch nur über die freiwillige Weiterversicherung nach § 28a SGB III entsteht. Der Notgroschen ist durch die Einlagensicherung bis 100.000 Euro geschützt."
     faqs={[
-      { q: "Wie viel sollte mein Notgroschen sein?", a: "Faustregel: 3-6 Monatsausgaben. Wer sicherer arbeiten kann (Beamte), 3 Monate. Unsichere Beschäftigung oder Kinder: 6+ Monate. Selbstständige: 6-12 Monate." },
+      { q: "Wie viel sollte mein Notgroschen sein?", a: "Die verbreitete Faustregel nennt drei bis sechs Monatsausgaben. Dieser Rechner staffelt genauer: 4 Monate bei unbefristeter Anstellung, 5 für Arbeiter, 6 bei Befristung und 9 für Selbstständige, je Kind einen halben Monat mehr und einen Monat weniger bei zweitem Einkommen. Das Ergebnis wird auf 3 bis 12 Monatsausgaben begrenzt. Für Beamte gibt es keine eigene Auswahl." },
       { q: "Wo lagere ich meinen Notgroschen?", a: "Tagesgeldkonto ist ideal: liquide (jederzeit abrufbar), sicher (Einlagensicherung) und zinsträchtig. Sparbuch ist zu langsam. Depot/Aktien sind zu volatil für Notfallfonds." },
-      { q: "Zählt Kreditrahmen als Notgroschen?", a: "Nein! Ein verfügbarer Kreditrahmen ist keine echte Rücklagen. Was, wenn die Bank es sperrt? Echter Notgroschen = echtes Geld auf dem Konto." },
-      { q: "Muss ich jeden Monat Geld sparen, um den Notgroschen aufzubauen?", a: "Ja, wenn du einen aufbauen musst. Sparziel: monatlich 5-10% des Einkommens für den Aufbau. Mit 2.000€/Monat und 5% Sparquote = 6.000€ in 1 Jahr aufgebaut." },
+      { q: "Zählt Kreditrahmen als Notgroschen?", a: "Nein! Ein verfügbarer Kreditrahmen ist keine echte Rücklage. Was, wenn die Bank es sperrt? Echter Notgroschen = echtes Geld auf dem Konto." },
+      { q: "Muss ich jeden Monat Geld sparen, um den Notgroschen aufzubauen?", a: "Ja, wenn du einen aufbauen musst. Sparziel: monatlich 5-10% des Einkommens für den Aufbau. Mit 2.000 € Ausgaben im Monat und 100 € Sparrate dauert ein Notgroschen von 6.000 € genau 60 Monate, also fünf Jahre; bei 200 € Sparrate sind es 30 Monate." },
       { q: "Was mache ich mit dem Geld über Notgroschen?", a: "Investieren! ETF-Sparpläne, Immobilien, Schuldentilgung. Das Geld arbeitet für dich, statt zu schlafen. Notgroschen = Versicherung. Der Rest = Vermögensaufbau." }
     ]}
   >
@@ -65,22 +66,25 @@ const year = new Date().getFullYear();
       </div>
       <div id="details" style="margin-top:0.75rem;font-size:0.88rem;color:#666;display:flex;gap:1.5rem;flex-wrap:wrap;"></div>
     </div>
+    <ArtikelNotgroschen slot="artikel" />
   </CalculatorShell>
 
   <CalculatorGuide
     title="So funktioniert der Notgroschen"
     content={`<p><strong>Was ist ein Notgroschen?</strong> Ein Notgroschen ist eine finanzielle Reserve, die ausschließlich für unerwartete Ausgaben und Notfälle bereitgehalten wird. Anders als Sparguthaben oder Investitionen dient der Notgroschen nicht dem Vermögensaufbau, sondern der Absicherung gegen unvorhergesehene Ereignisse. Typische Situationen, in denen ein Notgroschen zum Einsatz kommt, sind etwa eine dringende Auto-Reparatur, der plötzliche Verlust des Arbeitsplatzes, eine kaputte Waschmaschine, unerwartete Arztrechnungen oder eine notwendige Wohnungsreparatur. Ohne diese Rücklage geraten viele Menschen in teure Dispositionskredite oder müssen Konsumkredite aufnehmen.</p>
 
-<p><strong>Wie viel sollte man als Notgroschen sparen?</strong> Die gängige Faustregel lautet: Drei bis sechs Monatsausgaben sollten als Notgroschen beiseitegelegt werden. Die genaue Höhe hängt von der individuellen Lebenssituation ab:</p>
+<p><strong>Wie viel sollte man als Notgroschen sparen?</strong> Die gängige Faustregel nennt drei bis sechs Monatsausgaben. Dieser Rechner staffelt nach Beschäftigungsform und liegt dabei teils darüber; das sind die Werte, mit denen er rechnet:</p>
 <ul>
-  <li><strong>Beamte und unbefristet Angestellte:</strong> 3 Monate Ausgaben reichen in der Regel aus, da das Einkommen sehr sicher ist.</li>
-  <li><strong>Befristet Angestellte und Arbeiter:</strong> 4 bis 5 Monate sind empfehlenswert, da das Risiko eines Jobverlustes höher ist.</li>
-  <li><strong>Selbstständige und Freiberufler:</strong> 6 bis 12 Monate sollten eingeplant werden, da Einnahmen schwanken und kein Anspruch auf Arbeitslosengeld besteht.</li>
-  <li><strong>Familien mit Kindern:</strong> Pro Kind sollte etwa ein halber Monat zusätzlich eingeplant werden, da unerwartete Ausgaben häufiger auftreten.</li>
-  <li><strong>Zweites Einkommen im Haushalt:</strong> Reduziert das Risiko und damit den benötigten Notgroschen um etwa einen Monat.</li>
+  <li><strong>Unbefristet Angestellte:</strong> 4 Monatsausgaben.</li>
+  <li><strong>Arbeiter:</strong> 5 Monatsausgaben.</li>
+  <li><strong>Befristet Angestellte:</strong> 6 Monatsausgaben, weil das Beschäftigungsende absehbar ist.</li>
+  <li><strong>Selbstständige und Freiberufler:</strong> 9 Monatsausgaben, weil Einnahmen schwanken und Arbeitslosengeld nur bei freiwilliger Weiterversicherung nach § 28a SGB III in Betracht kommt.</li>
+  <li><strong>Kinder:</strong> je Kind ein halber Monat zusätzlich.</li>
+  <li><strong>Zweites Einkommen im Haushalt:</strong> ein Monat weniger.</li>
 </ul>
+<p>Das Ergebnis wird auf mindestens 3 und höchstens 12 Monatsausgaben begrenzt. Die Staffelung ist eine Konvention dieses Rechners, keine Rechtsgrundlage.</p>
 
-<p><strong>Konkrete Beispiele:</strong> Ein Single mit 1.800 Euro monatlichen Ausgaben sollte zwischen 5.400 und 10.800 Euro zurücklegen, wobei ein Mittelwert von rund 7.000 Euro eine solide Basis bildet. Eine Familie mit zwei Kindern und 3.000 Euro Monatsausgaben benötigt dagegen eher 12.000 bis 15.000 Euro als Notfallreserve. Grundsätzlich gilt: Lieber etwas mehr als zu wenig, denn ein gut gefüllter Notgroschen gibt Sicherheit und verhindert stressige finanzielle Engpässe.</p>
+<p><strong>Konkrete Beispiele:</strong> Ein unbefristet angestellter Single mit 1.800 Euro monatlichen Ausgaben kommt über die 4 Monate dieses Rechners auf 7.200 Euro; die Faustregel von drei bis sechs Monaten spannt denselben Fall zwischen 5.400 und 10.800 Euro auf. Eine unbefristet angestellte Familie mit zwei Kindern und 3.000 Euro Monatsausgaben landet bei 5 Monaten, also 15.000 Euro – mit zweitem Einkommen bei 4 Monaten und 12.000 Euro. Grundsätzlich gilt: Lieber etwas mehr als zu wenig, denn ein gut gefüllter Notgroschen gibt Sicherheit und verhindert stressige finanzielle Engpässe.</p>
 
 <p><strong>Wo den Notgroschen anlegen?</strong> Der ideale Ort für den Notgroschen ist ein Tagesgeldkonto. Es bietet drei entscheidende Vorteile: Das Geld ist jederzeit verfügbar (hohe Liquidität), es ist durch die gesetzliche Einlagensicherung bis 100.000 Euro pro Bank geschützt, und es bringt zumindest eine kleine Verzinsung. Sparbücher sind wegen der langen Kündigungsfristen weniger geeignet. Aktien, ETFs oder andere Wertpapiere sind für den Notgroschen ungeeignet, da sie im Wert schwanken und im Notfall möglicherweise mit Verlust verkauft werden müssten. Auch ein Kreditrahmen auf dem Girokonto ersetzt keinen Notgroschen, denn die Bank kann diesen jederzeit kürzen oder streichen.</p>
 
@@ -104,14 +108,17 @@ function berechne() {
     case 'arbeiter': monate = 5; break;
     default: monate = 4;
   }
-  if (kinder > 0) monate += kinder * 0.5;
+  monate += kinder * 0.5;
   if (zweites) monate -= 1;
-  monate = Math.max(3, Math.min(12, Math.round(monate)));
+  // Nicht auf ganze Monate runden: Ein halber Monat je Kind verschwand sonst
+  // bei jedem zweiten Kind in der Rundung – ein und zwei Kinder ergaben beide
+  // denselben Betrag.
+  monate = Math.max(3, Math.min(12, monate));
   const notgroschen = ausgaben * monate;
   const fmt = (n) => n.toLocaleString('de-DE', {minimumFractionDigits:0, maximumFractionDigits:0}) + ' €';
   document.getElementById('ergebnis').textContent = fmt(notgroschen);
   document.getElementById('details').innerHTML =
-    `<span>Empfohlene Monate: <strong>${monate}</strong></span>` +
+    `<span>Empfohlene Monate: <strong>${monate.toLocaleString('de-DE', {maximumFractionDigits:1})}</strong></span>` +
     `<span>Monatliche Ausgaben: <strong>${fmt(ausgaben)}</strong></span>` +
     `<span>Notgroschen: <strong>${fmt(notgroschen)}</strong></span>` +
     `<span>Tipp: Auf Tagesgeldkonto parken</span>`;

@@ -1,7 +1,7 @@
 ---
 import Layout from '../../layouts/Layout.astro';
 import CalculatorShell from '../../components/CalculatorShell.astro';
-import CalculatorGuide from '../../components/CalculatorGuide.astro';
+import ArtikelCo2 from '../../components/artikel/co2-kosten-stufen-mieter-vermieter.astro';
 import { CALCULATORS, CATEGORIES } from '../../data/calculators';
 import { BRENNSTOFFE } from '../../../public/scripts/heizkosten.js';
 const calc = CALCULATORS.find(c => c.slug === 'co2-einsparung-renovierung')!;
@@ -16,7 +16,7 @@ const GASPREIS_CENT = BRENNSTOFFE.gas.arbeitspreisCent;
 ---
 <Layout
   title={`CO₂-Einsparung durch Renovierung ${year}`}
-  description="Energie- und CO₂-Einsparung durch Sanierungsmaßnahmen berechnen – Fördermittel berücksichtigen."
+  description="Energie- und CO₂-Einsparung einer Sanierung berechnen – mit eigener Einsparungsannahme, Förderquote und der Aufteilung der CO₂-Kosten zwischen Mieter und Vermieter."
   canonicalPath="/energie/co2-einsparung-renovierung/"
   categoryColor={cat.color}
   categoryLight={cat.colorLight}
@@ -28,16 +28,15 @@ const GASPREIS_CENT = BRENNSTOFFE.gas.arbeitspreisCent;
   </div>
    <CalculatorShell
      calculator={calc}
-     intro="Berechnen Sie Energie- und CO₂-Einsparungen durch Sanierungsmaßnahmen an Ihrem Gebäude. So erfahren Sie, welche Renovierung sich finanziell und ökologisch am meisten lohnt."
-     sourceNote="Dämmung, neue Heizung, Fenster. Energiepreis und CO₂-Faktor beziehen sich auf die eingesparte Heizenergie, voreingestellt Erdgas mit 0,181 kg CO₂ je kWh nach EBeV 2030 Anlage 2 Teil 4."
-     explanation="Dämmung bringt bis 50% Einsparung, ein Heizungstausch bis 40%. Die KfW fördert Einzelmaßnahmen mit 15-25% und Komplettsanierungen mit bis zu 40% nach GEG-Standards."
-      faqs={[
-        { q: "Welche Sanierungsmaßnahme spart am meisten CO₂?", a: "Der Heizungstausch und die Außenwanddämmung sind besonders effektiv. Bei älteren Häusern (vor 1979) können diese Maßnahmen bis zu 100 kg CO₂ pro m² und Jahr einsparen." },
-        { q: "Was ist der Unterschied zwischen Einzelmaßnahmen und Komplettsanierungen?", a: "Einzelmaßnahmen wie Fensteraustausch sind günstiger, Komplettsanierungen erreichen aber KfW-Standards und ermöglichen höhere Förderquoten (bis 40%)." },
-        { q: "Wie berechnet sich die Amortisationszeit?", a: "Die Amortisationszeit ist das Verhältnis der Nettoinvestition zur jährlichen Energiekosteneinsparung. Typische Werte liegen bei 8-15 Jahren." },
-        { q: "Welche staatlichen Förderprogramme gibt es?", a: "KfW-Kredit 262 und BEG-Zuschüsse fördern Sanierungen mit 15-25% (Einzelmaßnahmen) bis 40% (KfW-Effizienzhaus 85). Zusätzlich können BAFA-Anträge für Heizungstausch gestellt werden." },
-        { q: "Wie sicher sind die CO₂-Einsparungsangaben?", a: "Die Werte basieren auf KfW-Richtwerten und DIN-Standards. Tatsächliche Einsparungen hängen von Gebäudezustand, Nutzerverhalten und Witterung ab (±15%)." },
-        { q: "Wann lohnt sich eine Sanierung wirtschaftlich?", a: "Generell bei Amortisationszeiten unter 20 Jahren. Zusätzlich steigen Wohnkomfort, Marktwert und Energieunabhängigkeit – oft schneller amortisiert als nur durch Energieersparnis." }
+     intro="Der Rechner setzt eine Einsparung je Quadratmeter an und rechnet daraus Energie, CO₂, Kosten und Amortisation. Einsparung und Kosten sind vorbelegte Richtwerte, die Sie durch die Zahlen Ihres Angebots oder Ihrer Energieberatung ersetzen sollten – von ihnen hängt das Ergebnis vollständig ab."
+     sourceNote="CO₂-Faktor für Erdgas 0,181 kg je abgerechneter kWh nach EBeV 2030 Anlage 2 Teil 4; Energiepreis aus den Brennstoffdaten des Heizkostenmoduls. Die vorbelegten Einsparungen und Kosten je Quadratmeter sind Richtwerte ohne amtliche Quelle und überschreibbar."
+     explanation="Die CO₂-Menge folgt unmittelbar aus der eingesparten Heizenergie: Jede nicht verbrannte Kilowattstunde Erdgas spart 0,181 kg CO₂. Wie viel Energie eine Maßnahme einspart, ist dagegen keine Konstante, sondern hängt vom Zustand des Gebäudes ab – deshalb ist dieser Wert hier eine Eingabe. Bei vermieteten Wohnungen teilt das Kohlendioxidkostenaufteilungsgesetz die CO₂-Kosten nach einem Stufenmodell zwischen Mieter und Vermieter auf; der Artikel auf dieser Seite rechnet durch, wie wenig davon beim Sanierenden ankommt."
+ faqs={[
+        { q: "Wie viel CO₂ spart eine eingesparte Kilowattstunde?", a: "Bei Erdgas 0,181 kg je abgerechneter Kilowattstunde – das ist der Standardwert der EBeV 2030 (Anlage 2 Teil 4) und bezieht sich auf den Brennwert, also auf die Zahl der Gasrechnung. Achtung: Der Energieausweis rechnet mit einem anderen Faktor (0,24 kg je kWh, Anlage 9 GModG) und bezieht ihn auf die Gebäudenutzfläche statt auf die Wohnfläche." },
+        { q: "Woher kommen die vorbelegten Einsparungen je Quadratmeter?", a: "Sie sind Richtwerte dieser Seite ohne amtliche Quelle und dienen nur als Startpunkt. Was eine Maßnahme im konkreten Gebäude bringt, ergibt sich aus dessen Zustand, der Ausführung und dem Nutzerverhalten – belastbare Zahlen liefert eine Energieberatung oder der Vergleich der Verbrauchsabrechnungen vor und nach der Maßnahme." },
+        { q: "Wer profitiert von der Einsparung, wenn die Wohnung vermietet ist?", a: "Die Energiekosten trägt der Mieter, deshalb kommt der größte Teil der Ersparnis bei ihm an. Vom CO₂-Anteil im Preis trägt der Vermieter je nach Gebäudezustand 0 bis 95 Prozent (Stufenmodell der Anlage zum CO2KostAufG). Selbst im schlechtesten Zustand sind das nur rund 10 Prozent der gesamten Ersparnis je Kilowattstunde." },
+        { q: "Welche Förderung soll ich eintragen?", a: "Den Satz aus Ihrem Zuwendungsbescheid oder Ihrer Antragsplanung. Der Rechner nennt bewusst keine Quote: Die Programme der Bundesförderung für effiziente Gebäude ändern sich regelmäßig, und die Höhe hängt von Maßnahme, Boni und Antragszeitpunkt ab." },
+        { q: "Wie ist die Amortisationszeit gerechnet?", a: "Nettoinvestition geteilt durch die jährliche Energiekosteneinsparung, ohne Zinsen, Energiepreissteigerung, Instandhaltung und ohne die Mieterhöhung, die § 559 BGB nach einer Modernisierung erlaubt. Sie ist eine nominale Vergleichsgröße, keine Wirtschaftlichkeitsrechnung." }
       ]}
    >
     <div class="calc-form">
@@ -70,6 +69,16 @@ const GASPREIS_CENT = BRENNSTOFFE.gas.arbeitspreisCent;
           <input type="number" id="foerderung" min="0" max="50" value="20" step="5" />
         </div>
         <div class="calc-group">
+          <label for="einsparung">Erwartete Einsparung (kWh je m² und Jahr)</label>
+          <input type="number" id="einsparung" min="0" max="400" step="5" />
+          <small style="color:#666;">Vorbelegt mit einem Richtwert zur Maßnahme – belastbar wird die Zahl erst durch eine Berechnung für Ihr Gebäude.</small>
+        </div>
+        <div class="calc-group">
+          <label for="kosten">Kosten der Maßnahme (€ je m² Wohnfläche)</label>
+          <input type="number" id="kosten" min="0" max="5000" step="10" />
+          <small style="color:#666;">Vorbelegt mit einem Richtwert – maßgeblich ist Ihr Angebot.</small>
+        </div>
+        <div class="calc-group">
           <label for="energiepreis">Energiepreis (ct/kWh)</label>
           <input type="number" id="energiepreis" min="5" max="50" value={GASPREIS_CENT} step="0.5" />
           <small>Preis der eingesparten Heizenergie – voreingestellt Erdgas</small>
@@ -97,23 +106,9 @@ const GASPREIS_CENT = BRENNSTOFFE.gas.arbeitspreisCent;
        </div>
       <div id="details" style="margin-top:0.75rem;font-size:0.88rem;color:#666;display:flex;gap:1.5rem;flex-wrap:wrap;"></div>
     </div>
+    <ArtikelCo2 slot="artikel" />
   </CalculatorShell>
 
-  <CalculatorGuide
-    title="CO₂-Einsparung durch Sanierungsmaßnahmen verstehen"
-    content="<p>Gebäudesanierungen sind eine der wirksamsten Maßnahmen zur Reduktion von CO₂-Emissionen im privaten Bereich. Der Wärmeverbrauch für Heizung und Warmwasser macht etwa 80% des Energieverbrauchs in Wohngebäuden aus, daher können optimierte Gebäudehüllen und moderne Heizsysteme erhebliche Einsparungen erzielen.</p>
-
-<p><strong>Wichtigste Sanierungsmaßnahmen:</strong> Außenwanddämmung reduziert Wärmeverluste durch die Außenmauern um 40-60%. Dachboden-/Deckendämmung ist kostengünstig und sehr wirksam (30-50% Einsparung). Der Fensteraustausch auf 3-fach verglaste Fenster mindert Wärmeverluste durch Glas um 60-70%. Ein Heizungstausch auf Wärmepumpe oder moderne Gasbrennwerttechnik reduziert den Energieverbrauch um 30-50%.</p>
-
-<p><strong>Fördermittel optimal nutzen:</strong> Die KfW-Bank und BAFA bieten großzügige Zuschüsse und zinsverbilligte Kredite. Für KfW-Effizienzhaus 85 (Komplettsanierung mit 15% Einsparung) sind bis zu 40% Förderung möglich. Einzelmaßnahmen werden mit 15-25% gefördert. Die Kombinierbarkeit verschiedener Maßnahmen erhöht oft die Förderquote erheblich.</p>
-
-<p><strong>Wirtschaftlichkeit berechnen:</strong> Amortisationszeiten unter 15 Jahren sind üblich. Zusätzlich zu direkten Energieeinsparungen profitieren Sie von gestiegenem Wohnkomfort (höhere Temperaturen, kein Zugluft), höherem Immobilienwert und größerer Unabhängigkeit von Energiepreisen. Mieter sparen durch niedrigere Nebenkosten, Eigenheimbesitzer durch höheren Verkaufswert.</p>
-
-<p><strong>Planung und Umsetzung:</strong> Ein unabhängiger Energieberater erstellt einen Sanierungsfahrplan (gefördert durch BAFA). Dies hilft, Prioritäten zu setzen und Synergien zwischen Maßnahmen zu nutzen. Handwerkliche Qualität ist entscheidend – schlechte Ausführung (z.B. Wärmebrücken) mindert Einsparungen um 20-30%.</p>
-
-<p><strong>CO₂-Einsparungen korrekt bewerten:</strong> 1 kWh Heizenergie spart etwa 0,4 kg CO₂ (Strommix), bei Gasheizung etwa 0,2 kg CO₂ pro kWh. Die Amortisation der Herstellung von Dämmstoffen beträgt typisch 2-5 Jahre – danach ist die gesamte Lebenszyklusbetrachtung positiv.</p>"
-    relatedSlugs={['heizkosten-rechner', 'waermepumpe-rechner', 'photovoltaik-rechner']}
-  />
 </Layout>
 
 <script type="module">
@@ -127,68 +122,69 @@ const { emissionsfaktor } = await import(window.__base + 'scripts/heizkosten.js'
 // überzeichnet hat.
 const CO2_FAKTOR_KG_JE_KWH = emissionsfaktor('gas');
 
+// Richtwerte je Maßnahme und Baualter: Einsparung in kWh je m² und Jahr,
+// Kosten in € je m² Wohnfläche. Sie stammen aus keiner amtlichen Quelle und
+// sind bewusst als überschreibbare Vorbelegung der Eingabefelder angelegt –
+// was eine Maßnahme im einzelnen Gebäude bringt, entscheidet dessen Zustand.
+const RICHTWERTE = {
+  'wände-extern': { alt: 80, neu: 40, kosten: 180 },
+  dach: { alt: 60, neu: 30, kosten: 100 },
+  fenster: { alt: 50, neu: 25, kosten: 400 },
+  heizung: { alt: 100, neu: 50, kosten: 800 },
+  kellerdecke: { alt: 20, neu: 10, kosten: 40 },
+  komplett: { alt: 150, neu: 75, kosten: 1000 },
+};
+
+function richtwert() {
+  const m = RICHTWERTE[document.getElementById('maßnahme').value] ?? { alt: 50, neu: 25, kosten: 200 };
+  const alt = document.getElementById('baujahr').value === 'vor1979';
+  return { einsparung: alt ? m.alt : m.neu, kosten: m.kosten };
+}
+
+/** Vorbelegung setzen, wenn Maßnahme oder Baujahr wechseln. */
+function vorbelegen() {
+  const r = richtwert();
+  document.getElementById('einsparung').value = r.einsparung;
+  document.getElementById('kosten').value = r.kosten;
+  berechne();
+}
+
 function berechne() {
-  const flaeche = parseFloat(document.getElementById('wohnflaeche').value) || 120;
-  const maßnahme = document.getElementById('maßnahme').value;
-  const baujahr = document.getElementById('baujahr').value;
-  const foerderung = parseFloat(document.getElementById('foerderung').value) || 20;
+  const flaeche = parseFloat(document.getElementById('wohnflaeche').value) || 0;
+  const foerderung = parseFloat(document.getElementById('foerderung').value) || 0;
   const energiepreisCt = parseFloat(document.getElementById('energiepreis').value) || 0;
   const energiepreis = energiepreisCt / 100; // €/kWh
-  
-  // Energieeinsparung pro m² und Jahr in kWh
-  let einsparungProQm;
-  let investitionProQm;
-  
-  switch (maßnahme) {
-    case 'wände-extern':
-      einsparungProQm = baujahr === 'vor1979' ? 80 : 40;
-      investitionProQm = 180;
-      break;
-    case 'dach':
-      einsparungProQm = baujahr === 'vor1979' ? 60 : 30;
-      investitionProQm = 100;
-      break;
-    case 'fenster':
-      einsparungProQm = baujahr === 'vor1979' ? 50 : 25;
-      investitionProQm = 400;
-      break;
-    case 'heizung':
-      einsparungProQm = baujahr === 'vor1979' ? 100 : 50;
-      investitionProQm = 800;
-      break;
-    case 'kellerdecke':
-      einsparungProQm = baujahr === 'vor1979' ? 20 : 10;
-      investitionProQm = 40;
-      break;
-    case 'komplett':
-      einsparungProQm = baujahr === 'vor1979' ? 150 : 75;
-      investitionProQm = 1000;
-      break;
-    default:
-      einsparungProQm = 50;
-      investitionProQm = 200;
-  }
-  
+  const einsparungProQm = parseFloat(document.getElementById('einsparung').value) || 0;
+  const investitionProQm = parseFloat(document.getElementById('kosten').value) || 0;
+
   const jahresEinsparungKwh = flaeche * einsparungProQm;
   const investitionGesamt = flaeche * investitionProQm;
   const foerderungsBetrag = investitionGesamt * (foerderung / 100);
   const nettoInvestition = investitionGesamt - foerderungsBetrag;
-  
   const jahresCo2Einsparung = jahresEinsparungKwh * CO2_FAKTOR_KG_JE_KWH;
-  
   const jahresEinsparungEuro = jahresEinsparungKwh * energiepreis;
-  const amortisationsjahre = jahresEinsparungEuro > 0 ? nettoInvestition / jahresEinsparungEuro : 0;
-  
-  document.getElementById('ergebnis').textContent = jahresCo2Einsparung.toLocaleString('de-DE', {minimumFractionDigits:0, maximumFractionDigits:0}) + ' kg';
-  document.getElementById('details').innerHTML =
-    `<span>Jährliche Energieeinsparung: <strong>${jahresEinsparungKwh.toLocaleString('de-DE', {minimumFractionDigits:0})} kWh</strong></span>` +
-    `<span>Jährliche Energiekosteneinsparung: <strong>${jahresEinsparungEuro.toLocaleString('de-DE', {minimumFractionDigits:0})} €</strong></span>` +
-    `<span>Investition: <strong>${investitionGesamt.toLocaleString('de-DE', {minimumFractionDigits:0})} €</strong></span>` +
-    `<span>Förderung (${foerderung}%): <strong>${foerderungsBetrag.toLocaleString('de-DE', {minimumFractionDigits:0})} €</strong></span>` +
-    `<span>Nettoinvestition: <strong>${nettoInvestition.toLocaleString('de-DE', {minimumFractionDigits:0})} €</strong></span>` +
-    `<span>Amortisationszeit: <strong>${amortisationsjahre.toFixed(1)} Jahre</strong></span>`;
+  const amortisationsjahre = jahresEinsparungEuro > 0 ? nettoInvestition / jahresEinsparungEuro : null;
+  const ganz = (n) => n.toLocaleString('de-DE', { maximumFractionDigits: 0 });
+
+  document.getElementById('ergebnis').textContent = ganz(jahresCo2Einsparung) + ' kg';
+  const teile = [
+    `<span>Jährliche Energieeinsparung: <strong>${ganz(jahresEinsparungKwh)} kWh</strong></span>`,
+    `<span>Jährliche Energiekosteneinsparung: <strong>${ganz(jahresEinsparungEuro)} €</strong></span>`,
+    `<span>Investition: <strong>${ganz(investitionGesamt)} €</strong></span>`,
+    `<span>Förderung (${ganz(foerderung)} %): <strong>${ganz(foerderungsBetrag)} €</strong></span>`,
+    `<span>Nettoinvestition: <strong>${ganz(nettoInvestition)} €</strong></span>`,
+    `<span>Amortisationszeit: <strong>${amortisationsjahre === null ? '—' : amortisationsjahre.toLocaleString('de-DE', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + ' Jahre'}</strong></span>`,
+  ];
+  if (flaeche > 0) {
+    teile.push(`<span style="flex-basis:100%;">Wie viel davon beim Vermieter ankommt, entscheidet bei vermieteten Wohnungen das Stufenmodell des CO2KostAufG – der Artikel unten rechnet es durch.</span>`);
+  }
+  document.getElementById('details').innerHTML = teile.join('');
 }
-['wohnflaeche'].forEach(id => document.getElementById(id).addEventListener('input', berechne));
-['maßnahme','baujahr','foerderung','energiepreis'].forEach(id => document.getElementById(id).addEventListener('change', berechne));
-berechne();
+['wohnflaeche','foerderung','energiepreis','einsparung','kosten'].forEach((id) => {
+  const el = document.getElementById(id);
+  el.addEventListener('input', berechne);
+  el.addEventListener('change', berechne);
+});
+['maßnahme','baujahr'].forEach((id) => document.getElementById(id).addEventListener('change', vorbelegen));
+vorbelegen();
 </script>

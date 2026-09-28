@@ -1,0 +1,290 @@
+---
+import RechnerArtikel from '../RechnerArtikel.astro';
+
+// Diese Rechnerseite laedt kein eigenes Modul aus public/scripts/ – ihre Logik
+// steht inline im <script> von src/pages/einheiten/gewicht-umrechner.astro,
+// Zeilen 106-129. Hier Zeile fuer Zeile nachgebildet, damit jede Zahl dieses
+// Artikels aus derselben Rechnung stammt wie die Anzeige oben:
+//   inKg = wert * EINHEITEN[von].faktor
+//   ergebnis = inKg / EINHEITEN[ziel].faktor
+//   angezeigt = ergebnis.toLocaleString('de-DE', { maximumFractionDigits: 6 })
+// Die Faktoren selbst sind mit amtlichen Normwerten gegengeprueft (Quellen
+// unten): lb exakt nach dem "International Yard and Pound Agreement" von
+// 1959 (NIST Handbook 44), ct exakt nach dem CGPM-Beschluss von 1907 bzw.
+// NIST Circular 43 (1913).
+const EINHEITEN = {
+  kg: { faktor: 1, label: 'Kilogramm (kg)' },
+  g: { faktor: 0.001, label: 'Gramm (g)' },
+  mg: { faktor: 0.000001, label: 'Milligramm (mg)' },
+  t: { faktor: 1000, label: 'Tonne (t)' },
+  lb: { faktor: 0.45359237, label: 'Pfund (lb)' },
+  oz: { faktor: 0.0283495231, label: 'Unze (oz)' },
+  st: { faktor: 6.35029318, label: 'Stone (st)' },
+  ct: { faktor: 0.0002, label: 'Karat (ct)' },
+} as const;
+
+type EinheitKey = keyof typeof EINHEITEN;
+
+// --- Nachbildung der Rechner-Arithmetik (Zeilen 122+125) --------------------
+function ergebnis(wert: number, von: EinheitKey, ziel: EinheitKey): number {
+  const inKg = wert * EINHEITEN[von].faktor;
+  return inKg / EINHEITEN[ziel].faktor;
+}
+
+// --- Nachbildung der Anzeige (Zeile 126) -------------------------------------
+function angezeigt(x: number): string {
+  return x.toLocaleString('de-DE', { maximumFractionDigits: 6 });
+}
+
+// --- Hilfsfunktionen fuer den Fliesstext ------------------------------------
+const zahl = (n: number, d = 0) =>
+  n.toLocaleString('de-DE', { minimumFractionDigits: d, maximumFractionDigits: d });
+
+function hochzahl(exp: number): string {
+  const ziffern = '⁰¹²³⁴⁵⁶⁷⁸⁹';
+  const s = Math.abs(exp).toString().split('').map((d) => ziffern[Number(d)]).join('');
+  return exp < 0 ? '⁻' + s : s;
+}
+
+// Wissenschaftliche Schreibweise nur fuer den erklaerenden Text – der
+// Rechner oben zeigt diese Form nirgends an, genau das ist der Punkt.
+function wissenschaftlich(n: number): string {
+  let exp = Math.floor(Math.log10(n));
+  let mantisse = n / Math.pow(10, exp);
+  let gerundet = Math.round(mantisse * 100) / 100;
+  if (gerundet >= 10) { gerundet /= 10; exp += 1; }
+  return `${zahl(gerundet, 2)} × 10${hochzahl(exp)}`;
+}
+
+// --- 1. Die drei Faelle, in denen die Anzeige "0" zeigt ---------------------
+const mgZuT = ergebnis(1, 'mg', 't');
+const mgZuSt = ergebnis(1, 'mg', 'st');
+const ctZuT = ergebnis(1, 'ct', 't');
+
+const mgZuTAngezeigt = angezeigt(mgZuT);
+const mgZuStAngezeigt = angezeigt(mgZuSt);
+const ctZuTAngezeigt = angezeigt(ctZuT);
+
+// Wie viele der sieben Ergebniszeilen (8 Einheiten minus die gewaehlte
+// "Von"-Einheit) tatsaechlich "0" zeigen – gezaehlt, nicht geschaetzt.
+const ALLE: EinheitKey[] = Object.keys(EINHEITEN) as EinheitKey[];
+const ZIELE_MG = ALLE.filter((k) => k !== 'mg');
+const ZIELE_CT = ALLE.filter((k) => k !== 'ct');
+const anzahlZeilen = ZIELE_MG.length;
+const nullenBeiMg = ZIELE_MG.filter((k) => angezeigt(ergebnis(1, 'mg', k)) === '0').length;
+const nullenBeiCt = ZIELE_CT.filter((k) => angezeigt(ergebnis(1, 'ct', k)) === '0').length;
+
+const ZAHLWORT = ['null', 'eine', 'zwei', 'drei', 'vier', 'fünf', 'sechs', 'sieben', 'acht'];
+const wort = (n: number) => ZAHLWORT[n] ?? String(n);
+
+if (anzahlZeilen !== 7 || nullenBeiMg !== 2 || nullenBeiCt !== 1) {
+  throw new Error(
+    `Gewicht-Artikel: Zeilenzaehlung stimmt nicht mehr (Zeilen=${anzahlZeilen}, Nullen bei mg=${nullenBeiMg}, Nullen bei ct=${nullenBeiCt}).`,
+  );
+}
+
+if (mgZuTAngezeigt !== '0') {
+  throw new Error(`Gewicht-Artikel: 1 mg -> t zeigt nicht mehr "0" (${mgZuTAngezeigt}). These pruefen.`);
+}
+if (mgZuStAngezeigt !== '0') {
+  throw new Error(`Gewicht-Artikel: 1 mg -> st zeigt nicht mehr "0" (${mgZuStAngezeigt}). These pruefen.`);
+}
+if (ctZuTAngezeigt !== '0') {
+  throw new Error(`Gewicht-Artikel: 1 ct -> t zeigt nicht mehr "0" (${ctZuTAngezeigt}). These pruefen.`);
+}
+
+// --- 2. Kontrolle: Zur Vergleichseinheit Gramm passiert das nicht -----------
+// 1 g -> t liegt exakt auf der sechsten Nachkommastelle und wird noch als
+// "0,000001" angezeigt, nicht als "0". Das grenzt den Effekt auf die beiden
+// kleinsten Einheiten des Rechners ein.
+const gZuT = ergebnis(1, 'g', 't');
+const gZuTAngezeigt = angezeigt(gZuT);
+if (gZuTAngezeigt === '0') {
+  throw new Error('Gewicht-Artikel: 1 g -> t wird unerwartet zu "0" gerundet – Abgrenzung stimmt nicht mehr.');
+}
+
+// --- 3. Die Schwellenwerte, ab denen die Null verschwindet ------------------
+// Rein rechnerisch: wert * faktor[von] / faktor[ziel] >= 0,5 * 10^-6
+const schwelleMgT = (0.5e-6 * EINHEITEN.t.faktor) / EINHEITEN.mg.faktor;
+const schwelleMgSt = (0.5e-6 * EINHEITEN.st.faktor) / EINHEITEN.mg.faktor;
+const schwelleCtT = (0.5e-6 * EINHEITEN.t.faktor) / EINHEITEN.ct.faktor;
+
+// Gegenprobe mit sicherem Abstand zur Schwelle (keine Rundungs-Kante):
+const probeMgTUnter = angezeigt(ergebnis(499, 'mg', 't'));
+const probeMgTUeber = angezeigt(ergebnis(501, 'mg', 't'));
+const probeMgStUnter = angezeigt(ergebnis(3, 'mg', 'st'));
+const probeMgStUeber = angezeigt(ergebnis(4, 'mg', 'st'));
+const probeCtTUnter = angezeigt(ergebnis(2, 'ct', 't'));
+const probeCtTUeber = angezeigt(ergebnis(3, 'ct', 't'));
+
+if (!(probeMgTUnter === '0' && probeMgTUeber !== '0')) {
+  throw new Error('Gewicht-Artikel: Schwelle mg->t (499/501 mg) stimmt nicht mehr mit der Anzeige ueberein.');
+}
+if (!(probeMgStUnter === '0' && probeMgStUeber !== '0')) {
+  throw new Error('Gewicht-Artikel: Schwelle mg->st (3/4 mg) stimmt nicht mehr mit der Anzeige ueberein.');
+}
+if (!(probeCtTUnter === '0' && probeCtTUeber !== '0')) {
+  throw new Error('Gewicht-Artikel: Schwelle ct->t (2/3 ct) stimmt nicht mehr mit der Anzeige ueberein.');
+}
+// Der im Text genannte Schwellenwert "500" muss selbst mit der Anzeige
+// uebereinstimmen (Rundungsrauschen bei schwelleMgT durch zahl(...,0) abgefangen).
+if (zahl(schwelleMgT, 0) !== '500' || angezeigt(ergebnis(500, 'mg', 't')) === '0') {
+  throw new Error('Gewicht-Artikel: Genannte Schwelle "500 Milligramm" stimmt nicht mehr mit der Anzeige ueberein.');
+}
+
+// --- 4. Gegenprobe der amtlichen Normwerte (Auftrag: Faktoren nachrechnen) --
+// 1 lb muss exakt 0,45359237 kg sein (NIST Handbook 44 / Abkommen von 1959),
+// 1 ct muss exakt 0,0002 kg = 200 mg sein (NIST Circular 43 / CGPM 1907).
+if (Math.abs(EINHEITEN.lb.faktor - 0.45359237) > 1e-12) {
+  throw new Error('Gewicht-Artikel: Pfund-Faktor im Rechner weicht vom amtlichen Normwert 0,45359237 kg ab.');
+}
+if (Math.abs(EINHEITEN.ct.faktor * 1_000_000 - 200) > 1e-9) {
+  throw new Error('Gewicht-Artikel: Karat-Faktor im Rechner entspricht nicht 200 mg.');
+}
+
+const quellen = [
+  { titel: 'NIST Handbook 44 (2023), Appendix C – General Tables of Units of Measurement: "1 avoirdupois pound (lb) = 0,453 592 37 kg" und "1 carat (c) = 200 milligrams (exactly)"', url: 'https://www.nist.gov/system/files/documents/2023/01/30/appc-23-HB44.pdf' },
+  { titel: 'NIST Circular 43 (1913): The Metric Carat – internationale Anerkennung von 200 Milligramm als Karat-Gewicht für Edelsteine zum 1. Juli 1913', url: 'https://nvlpubs.nist.gov/nistpubs/Legacy/circ/nbscircular43.pdf' },
+  { titel: 'PTB: Das Kilogramm – Neudefinition über die Planck-Konstante zum 20. Mai 2019', url: 'https://www.ptb.de/cms/presseaktuelles/forschung-zum-neuen-si/countdown-zum-neuen-si/das-kilogramm.html' },
+  { titel: 'MDN Web Docs: Intl.NumberFormat() constructor – Standardwert 0 für minimumFractionDigits bei einfacher Zahlenformatierung, Rundungsmodus "halfExpand"', url: 'https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Intl/NumberFormat/NumberFormat' },
+];
+---
+<RechnerArtikel
+  titel="Ein Milligramm ist nie null Tonnen – der Umrechner zeigt es trotzdem so"
+  lead={`Wer oben ${zahl(1)} Milligramm einträgt und in der Ergebnisliste zur Zeile „Tonne (t)" schaut, sieht dort „0". Wer stattdessen ${zahl(1)} Karat einträgt, sieht in derselben Zeile ebenfalls „0". Beide Ergebnisse sind falsch – nicht weil die Umrechnungsfaktoren stimmen (sie stimmen, siehe unten), sondern weil die Anzeige unterhalb eines halben Millionstels der Zieleinheit rundet, ohne das kenntlich zu machen.`}
+  datum="2026-09-24"
+  quellen={quellen}
+>
+  <h3>Ein Klick, eine Null</h3>
+  <p>
+    Stellen Sie „Von Einheit" oben auf Milligramm und lassen Sie den Wert bei
+    {' '}{zahl(1)} stehen. In der Ergebnisliste erscheinen sieben Zeilen. Sechs
+    davon zeigen sinnvolle Zahlen – Gramm, Kilogramm und so weiter. Die Zeile
+    „Tonne (t)" zeigt {mgZuTAngezeigt}. Auch die Zeile „Stone (st)" zeigt
+    {' '}{mgZuStAngezeigt}. Stellen Sie stattdessen auf Karat, bleibt der Wert
+    bei {zahl(1)} – auch hier zeigt „Tonne (t)" {ctZuTAngezeigt}. Kein Fehler
+    in der Bedienung, kein Tippfehler: Genau das gibt der Rechner in diesen
+    drei Kombinationen aus, für jeden Wert nahe {zahl(1)}.
+  </p>
+
+  <h3>Was tatsächlich hinter der Null steht</h3>
+  <p>
+    {zahl(1)} Milligramm sind {wissenschaftlich(mgZuT)} Tonnen – eine
+    milliardstel Tonne, nicht null Tonnen. In Stone ausgedrückt sind es
+    {' '}{wissenschaftlich(mgZuSt)}. Und {zahl(1)} Karat, das
+    Diamantgewicht von {zahl(0.2, 1)} Gramm, sind {wissenschaftlich(ctZuT)}
+    {' '}Tonnen. Alle drei Werte sind winzig, aber keiner von ihnen ist null.
+    Der Rechner rechnet intern auch korrekt mit diesen Werten – er rundet sie
+    nur weg, bevor er sie auf den Bildschirm schreibt.
+  </p>
+
+  <h3>Warum die Anzeige genau hier rundet</h3>
+  <p>
+    Die Zeile stammt aus einer einzigen Formatierungsanweisung:
+    {' '}<code>ergebnis.toLocaleString('de-DE', {'{'} maximumFractionDigits: 6 {'}'})</code>.
+    Ein Maximum an Nachkommastellen ist damit gesetzt, ein Minimum nicht – und
+    für einfache Zahlenformatierung ist das Minimum nach der zugrunde
+    liegenden ECMAScript-Internationalisierungsnorm dann {zahl(0)}. Damit darf
+    die Ausgabe auf ganze Zahlen zusammenschrumpfen, sobald nach der sechsten
+    Nachkommastelle nichts Nennenswertes mehr übrig ist. Jede Zahl kleiner als
+    die Hälfte der sechsten Nachkommastelle – das ist{' '}
+    {wissenschaftlich(0.5e-6)} – wird beim Runden zu {zahl(0)}, und weil kein
+    Minimum an Nachkommastellen erzwungen ist, bleibt von der Zahl nichts
+    außer der {zahl(0)} übrig. Für {zahl(1)} Milligramm in Tonnen
+    ({wissenschaftlich(mgZuT)}) und für {zahl(1)} Karat in Tonnen
+    ({wissenschaftlich(ctZuT)}) liegt das Ergebnis weit unterhalb dieser
+    Grenze.
+  </p>
+
+  <h3>Die Schwelle, an der die Null verschwindet</h3>
+  <p>
+    Die Grenze lässt sich aus denselben Umrechnungsfaktoren ausrechnen, die
+    der Rechner verwendet: Ab {zahl(schwelleMgT, 0)} Milligramm zeigt die
+    Tonnen-Zeile eine Zahl ungleich {zahl(0)} – bei
+    {' '}{zahl(499)} Milligramm steht dort noch {probeMgTUnter}, bei
+    {' '}{zahl(501)} Milligramm bereits {probeMgTUeber}. Für die Stone-Zeile
+    liegt die Schwelle bei etwa {zahl(schwelleMgSt, 2)} Milligramm
+    ({zahl(3)} Milligramm: {probeMgStUnter}; {zahl(4)} Milligramm:
+    {' '}{probeMgStUeber}). Und für Karat in Tonnen liegt sie bei genau
+    {' '}{zahl(schwelleCtT, 1)} Karat ({zahl(2)} Karat: {probeCtTUnter};
+    {' '}{zahl(3)} Karat: {probeCtTUeber}).
+  </p>
+  <p class="ra-hinweis">
+    Zum Vergleich: {zahl(1)} Gramm in Tonnen ergibt {gZuTAngezeigt} – exakt
+    auf der sechsten Nachkommastelle und damit gerade noch sichtbar. Der
+    Effekt betrifft im gesamten Rechner nur zwei der acht Einheiten als
+    Startpunkt (Milligramm, Karat) und im Wesentlichen ein Ziel (Tonne, bei
+    Milligramm zusätzlich Stone) – die beiden mit Abstand kleinsten und die
+    beiden mit Abstand größten Einheiten des Rechners treffen aufeinander.
+  </p>
+
+  <table>
+    <caption class="visually-hidden">
+      Eingegebener Wert, angezeigtes Ergebnis und tatsächlicher Wert für die drei Kombinationen, in denen der Umrechner „0" anzeigt
+    </caption>
+    <thead>
+      <tr>
+        <th scope="col">Eingabe</th>
+        <th scope="col">Zielzeile</th>
+        <th scope="col" class="num">Anzeige</th>
+        <th scope="col" class="num">Tatsächlicher Wert</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <th scope="row">{zahl(1)} Milligramm</th>
+        <td>Tonne (t)</td>
+        <td class="num">{mgZuTAngezeigt}</td>
+        <td class="num">{wissenschaftlich(mgZuT)} t</td>
+      </tr>
+      <tr>
+        <th scope="row">{zahl(1)} Milligramm</th>
+        <td>Stone (st)</td>
+        <td class="num">{mgZuStAngezeigt}</td>
+        <td class="num">{wissenschaftlich(mgZuSt)} st</td>
+      </tr>
+      <tr>
+        <th scope="row">{zahl(1)} Karat</th>
+        <td>Tonne (t)</td>
+        <td class="num">{ctZuTAngezeigt}</td>
+        <td class="num">{wissenschaftlich(ctZuT)} t</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h3>Die Umrechnungsfaktoren selbst sind korrekt</h3>
+  <p>
+    Das Ganze ist kein Rechenfehler in den acht hinterlegten Faktoren. Ein
+    Pfund entspricht im Rechner exakt {zahl(EINHEITEN.lb.faktor, 8)} Kilogramm
+    – das ist der Wert aus dem internationalen Yard-und-Pfund-Abkommen von
+    1959, wie ihn auch NIST Handbook 44 führt, und damit korrekt das
+    angloamerikanische Pfund (lb), nicht das deutsche Pfund zu 500 Gramm. Ein
+    Karat entspricht im Rechner exakt {zahl(EINHEITEN.ct.faktor * 1000, 1)}
+    {' '}Gramm, also {zahl(EINHEITEN.ct.faktor * 1_000_000, 0)} Milligramm –
+    der seit 1907 international vereinbarte, seit 1913 auch in den USA
+    amtliche Wert für das Gewicht von Edelsteinen. Mit der Goldreinheit, die
+    ebenfalls „Karat" heißt und keine Gewichtseinheit ist, verwechselt der
+    Rechner das an keiner Stelle; er bietet diese Bedeutung gar nicht als
+    Option an. Das Kilogramm selbst ist seit dem 20. Mai 2019 über die
+    Planck-Konstante definiert, nicht mehr über ein Metallstück in Sèvres –
+    für die Umrechnungsfaktoren auf dieser Seite ändert das nichts, weil sie
+    alle relativ zum Kilogramm angegeben sind.
+  </p>
+
+  <h3>Eine Null, die zwei verschiedene Dinge bedeuten kann</h3>
+  <p>
+    Für die allermeisten Eingaben auf dieser Seite ist die Rundung auf sechs
+    Nachkommastellen unauffällig: Wer Kilogramm, Pfund oder Unzen umrechnet,
+    bewegt sich in Größenordnungen, die sich davon nicht berühren lassen. Nur
+    an den beiden Rändern der Einheitenskala – der kleinsten Eingabeeinheit
+    gegen die größte Zieleinheit – wird aus einer sehr kleinen, aber echten
+    Zahl eine Ziffernfolge, die von einer echten Null nicht mehr zu
+    unterscheiden ist. Der Unterschied zwischen „das Ergebnis ist null" und
+    „das Ergebnis ist auf sechs Nachkommastellen nicht mehr darstellbar"
+    verschwindet dabei vollständig aus der Anzeige. Wer mit Kleinstmengen
+    arbeitet – Wirkstoffangaben in Milligramm, Edelsteingewichte in Karat –
+    und sie versehentlich gegen Tonnen statt gegen Gramm oder Kilogramm
+    abliest, sieht dort schlicht nichts, wo tatsächlich eine sehr kleine Zahl
+    steht.
+  </p>
+</RechnerArtikel>

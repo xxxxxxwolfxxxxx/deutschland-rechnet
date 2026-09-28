@@ -2,6 +2,7 @@
 import Layout from '../../layouts/Layout.astro';
 import CalculatorShell from '../../components/CalculatorShell.astro';
 import CalculatorGuide from '../../components/CalculatorGuide.astro';
+import ArtikelSchnellladen from '../../components/artikel/schnellladen-gegen-benzin-schwelle.astro';
 import { CALCULATORS, CATEGORIES } from '../../data/calculators';
 import {
   LADESTROM_HEIM_CENT_PRO_KWH,
@@ -10,6 +11,7 @@ import {
   LADESTROM_DC_CENT_PRO_KWH,
   LADESTROM_ADHOC_AUTOBAHN_CENT_PRO_KWH,
   LADESTROM_QUELLE,
+  LADESTROM_ADHOC_QUELLE,
 } from '../../../public/scripts/strompreis.js';
 import { corsaBenzin, corsaElektro, BENZINPREIS, ADAC_STROMPREIS, ADAC_STAND, adacVerbrauchJe100km } from '../../../public/scripts/adac-autokosten.js';
 import { vergleicheAntriebe } from '../../../public/scripts/antriebsvergleich.js';
@@ -57,7 +59,7 @@ const guideHtml = `
 <p>Kosten je 100 km sind Verbrauch je 100 km mal Preis je Liter oder Kilowattstunde. Den Verbrauch kennen Sie am genauesten aus Tankbelegen oder Ladeabrechnungen: getankte Liter oder geladene kWh geteilt durch die gefahrenen Kilometer, mal 100. Beim Elektroauto zählt die Menge, die an der Wallbox oder Säule abgerechnet wird – sie liegt wegen der Ladeverluste über dem Wert im Bordcomputer.</p>
 
 <h3>Beispiel: derselbe Corsa als Benziner und als Elektroauto</h3>
-<p>Aus den Betriebskosten der ADAC Autokostenübersicht ${ADAC_STAND} ergeben sich ${VERBRAUCH_BENZIN.toLocaleString('de-DE')} l Benzin und ${VERBRAUCH_STROM.toLocaleString('de-DE')} kWh Strom je 100 km. Bei ${BENZINPREIS.toLocaleString('de-DE')} € je Liter kostet der Benziner ${eur(VERBRAUCH_BENZIN * BENZINPREIS)} je 100 km. Was das Elektroauto kostet, hängt am Ladeort (Preise nach ${LADESTROM_QUELLE}, Heimstrom nach BDEW):</p>
+<p>Aus den Betriebskosten der ADAC Autokostenübersicht ${ADAC_STAND} ergeben sich ${VERBRAUCH_BENZIN.toLocaleString('de-DE')} l Benzin und ${VERBRAUCH_STROM.toLocaleString('de-DE')} kWh Strom je 100 km. Bei ${BENZINPREIS.toLocaleString('de-DE')} € je Liter kostet der Benziner ${eur(VERBRAUCH_BENZIN * BENZINPREIS)} je 100 km. Was das Elektroauto kostet, hängt am Ladeort (AC- und DC-Preise nach ${LADESTROM_QUELLE}, Ad-hoc-Preis nach ${LADESTROM_ADHOC_QUELLE}, Heimstrom nach BDEW):</p>
 <table>
 <thead><tr><th>Ladeort</th><th>Preis je kWh</th><th>Strom je 100 km</th><th>Ersparnis gegenüber Benzin bei ${KM.toLocaleString('de-DE')} km/Jahr</th></tr></thead>
 <tbody>${zeilen}</tbody>
@@ -70,7 +72,7 @@ const guideHtml = `
 
 const faqs = [
   { q: 'Wie ermittle ich meinen Verbrauch?', a: 'Aus Tank- oder Ladebelegen: Liter oder kWh seit dem letzten vollen Tanken oder Laden, geteilt durch die gefahrenen Kilometer, mal 100. Beim Elektroauto die abgerechneten kWh nehmen, nicht den Bordcomputerwert.' },
-  { q: 'Was kostet Laden an öffentlichen Säulen?', a: `Öffentliches Normalladen (AC) kostet im Schnitt ${ct(LADESTROM_AC_CENT_PRO_KWH)} ct/kWh, Schnellladen (DC) ${ct(LADESTROM_DC_CENT_PRO_KWH)} ct/kWh, ohne Vertrag an der Autobahn bis zu ${ct(LADESTROM_ADHOC_AUTOBAHN_CENT_PRO_KWH)} ct/kWh (${LADESTROM_QUELLE}). Zu Hause gilt der Haushaltstarif, im Durchschnitt ${ct(LADESTROM_HEIM_CENT_PRO_KWH)} ct/kWh.` },
+  { q: 'Was kostet Laden an öffentlichen Säulen?', a: `Öffentliches Normalladen (AC) kostet im Schnitt ${ct(LADESTROM_AC_CENT_PRO_KWH)} ct/kWh, Schnellladen (DC) ${ct(LADESTROM_DC_CENT_PRO_KWH)} ct/kWh – beides nach ${LADESTROM_QUELLE}. Ohne Vertrag an der Autobahn nennt der ADAC als Beispiel ${ct(LADESTROM_ADHOC_AUTOBAHN_CENT_PRO_KWH)} ct/kWh, einzelne Anbieter verlangen mehr (${LADESTROM_ADHOC_QUELLE}). Zu Hause gilt der Haushaltstarif, im Durchschnitt ${ct(LADESTROM_HEIM_CENT_PRO_KWH)} ct/kWh.` },
   { q: 'Warum bleibt ein Feld leer?', a: 'Ein Antrieb ohne Verbrauch oder Preis wird nicht gewertet – sonst erschiene er mit 0 € als der günstigste. Für Diesel ist nichts vorbelegt; tragen Sie Verbrauch und Preis Ihres Fahrzeugs ein.' },
   { q: 'Ist das E-Auto damit insgesamt günstiger?', a: 'Das zeigt dieser Rechner nicht. Er vergleicht nur die Energiekosten. Für Kaufpreis, Wertverlust, Versicherung und Werkstatt gibt es den Elektroauto-TCO-Rechner.' },
 ];
@@ -90,7 +92,7 @@ const faqs = [
   <CalculatorShell
     calculator={calc}
     intro="Tragen Sie für bis zu drei Antriebe Verbrauch und Preis ein. Der Rechner zeigt die Energiekosten je 100 km, im Monat und im Jahr – und was der teurere Antrieb mehr kostet."
-    sourceNote={`Kosten = km ÷ 100 × Verbrauch × Preis. Vorbelegung: Verbrauch aus der ADAC Autokostenübersicht ${ADAC_STAND} (${corsaBenzin.name}, ${corsaElektro.name}), Benzinpreis ${BENZINPREIS.toLocaleString('de-DE')} €/l wie vom ADAC angesetzt, Strom ${ct(LADESTROM_HEIM_CENT_PRO_KWH)} ct/kWh aus der BDEW-Strompreisanalyse; Ladepreise nach ${LADESTROM_QUELLE}.`}
+    sourceNote={`Kosten = km ÷ 100 × Verbrauch × Preis. Vorbelegung: Verbrauch aus der ADAC Autokostenübersicht ${ADAC_STAND} (${corsaBenzin.name}, ${corsaElektro.name}), Benzinpreis ${BENZINPREIS.toLocaleString('de-DE')} €/l wie vom ADAC angesetzt, Strom ${ct(LADESTROM_HEIM_CENT_PRO_KWH)} ct/kWh aus der BDEW-Strompreisanalyse; Ladepreise nach ${LADESTROM_QUELLE} und ${LADESTROM_ADHOC_QUELLE}.`}
     explanation="Ein Antrieb ohne Verbrauch oder Preis wird nicht gewertet. Die Mehrkosten beziehen sich auf den günstigsten gewerteten Antrieb."
     faqs={faqs}
   >
@@ -117,13 +119,14 @@ const faqs = [
       </div>
       <div class="sv-tabelle"><table id="ergebnis"></table></div>
     </div>
+    <ArtikelSchnellladen slot="artikel" />
   </CalculatorShell>
-
   <CalculatorGuide
     title="Benzin, Diesel und Strom: Was die Energie je Kilometer kostet"
     content={guideHtml}
     relatedSlugs={['spritkosten-rechner', 'elektroauto-tco-rechner', 'fahrtkosten-rechner', 'kfz-steuer-rechner']}
   />
+
 </Layout>
 
 <script type="module">

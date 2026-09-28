@@ -1,0 +1,465 @@
+---
+import RechnerArtikel from '../RechnerArtikel.astro';
+
+// Der MwSt-Rechner hat kein eigenes Modul unter public/scripts/. Seine Logik
+// steht inline im <script> von src/pages/einheiten/mwst-rechner.astro:
+//   netto → brutto:  brutto = betrag * (1 + satz/100)
+//   brutto → netto:  netto  = betrag / (1 + satz/100)
+//   mwstBetrag = brutto − netto
+// Dieser Artikel rechnet deshalb hier im Frontmatter mit genau denselben drei
+// Zeilen. Die Steuersätze stammen aus § 12 UStG (19 % Regelsatz nach Abs. 1,
+// 7 % ermäßigt nach Abs. 2), die Betragsgrenze der Kleinbetragsrechnung aus
+// § 33 UStDV. Keine Zahl im Fließtext ist abgetippt.
+
+/** Typografisches Minus statt Bindestrich. */
+const minus = (text: string) => text.replace(/^-/, '−');
+const zahl = (n: number, d = 2) =>
+  minus(n.toLocaleString('de-DE', { minimumFractionDigits: d, maximumFractionDigits: d }));
+const eur = (n: number) => zahl(n, 2) + ' €';
+const proz = (n: number, d = 2) => zahl(n, d) + ' %';
+/** Prozentangabe ohne überflüssige Nachkommastellen (19 %, aber 15,97 %). */
+const prozKurz = (n: number) =>
+  minus(n.toLocaleString('de-DE', { maximumFractionDigits: 2 })) + ' %';
+/** Kaufmännisch auf Cent runden – wie jede Rechnungssoftware und die Anzeige. */
+const cent = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100;
+
+// --- Die drei Formeln des Rechners ----------------------------------------
+const zuBrutto = (netto: number, satz: number) => netto * (1 + satz / 100);
+const zuNetto = (brutto: number, satz: number) => brutto / (1 + satz / 100);
+const steuerAus = (brutto: number, satz: number) => brutto - zuNetto(brutto, satz);
+
+const REGELSATZ = 19;
+const ERMAESSIGT = 7;
+const SAETZE = [REGELSATZ, ERMAESSIGT];
+
+// --- 1. Aufschlag und Abzug sind nicht symmetrisch -------------------------
+// Der Anteil der Steuer am Bruttopreis: satz / (100 + satz).
+const anteilAmBrutto = (satz: number) => (satz / (100 + satz)) * 100;
+const ANTEIL_19 = anteilAmBrutto(REGELSATZ);
+const ANTEIL_7 = anteilAmBrutto(ERMAESSIGT);
+
+const uebersicht = SAETZE.map((satz) => ({
+  satz,
+  faktor: 1 + satz / 100,
+  kehrwert: 1 / (1 + satz / 100),
+  anteil: anteilAmBrutto(satz),
+  nettoAusHundert: zuNetto(100, satz),
+  steuerAusHundert: steuerAus(100, satz),
+}));
+
+// Der Anteil muss dieselbe Zahl sein wie die Steuer aus 100 € Brutto.
+for (const z of uebersicht) {
+  if (Math.abs(z.anteil - z.steuerAusHundert) > 1e-9) {
+    throw new Error(`MwSt-Artikel: Anteil und Steuer aus 100 € weichen bei ${z.satz} % ab.`);
+  }
+}
+if (Math.abs(ANTEIL_19 - 15.966386554621847) > 1e-9) {
+  throw new Error('MwSt-Artikel: Der Anteil bei 19 % ist nicht mehr 15,97 %.');
+}
+
+// Der klassische Fehler: 19 % vom Brutto abziehen statt durch 1,19 zu teilen.
+const NETTO_PROBE = 100;
+const BRUTTO_PROBE = zuBrutto(NETTO_PROBE, REGELSATZ);
+const falschHerausgerechnet = BRUTTO_PROBE * (1 - REGELSATZ / 100);
+const richtigHerausgerechnet = zuNetto(BRUTTO_PROBE, REGELSATZ);
+const fehlbetrag = richtigHerausgerechnet - falschHerausgerechnet;
+// Zu viel ausgewiesene Steuer, wenn man den falschen Nettowert nimmt:
+const steuerFalsch = BRUTTO_PROBE - falschHerausgerechnet;
+const steuerRichtig = BRUTTO_PROBE - richtigHerausgerechnet;
+// (1 + p)(1 − p) = 1 − p²: Der Fehlbetrag ist das Quadrat des Satzes, gemessen
+// am Nettobetrag – nicht am Bruttobetrag.
+const quadratRegel = (REGELSATZ * REGELSATZ) / 100;
+if (Math.abs(fehlbetrag - quadratRegel) > 1e-9) {
+  throw new Error('MwSt-Artikel: Der Fehlbetrag ist nicht das Quadrat des Satzes.');
+}
+const fehlerAmNetto = (fehlbetrag / NETTO_PROBE) * 100;
+const fehlerAmBrutto = (fehlbetrag / BRUTTO_PROBE) * 100;
+
+// --- 2. Zwei Sätze auf einer Restaurantrechnung ----------------------------
+// § 12 Abs. 2 Nr. 15 UStG: ermäßigter Satz für Restaurant- und
+// Verpflegungsdienstleistungen, ausgenommen die Abgabe von Getränken.
+// Preise sind Bruttopreise, wie sie auf einer Speisekarte stehen.
+const SPEISEN = [
+  { anzahl: 3, preis: 18.9, name: 'Hauptgericht' },
+  { anzahl: 2, preis: 14.5, name: 'kleines Gericht' },
+];
+const GETRAENKE = [
+  { anzahl: 4, preis: 4.7, name: 'Bier 0,5 l' },
+  { anzahl: 3, preis: 3.9, name: 'Saftschorle' },
+];
+const summeBrutto = (posten: typeof SPEISEN) =>
+  cent(posten.reduce((s, p) => s + p.anzahl * p.preis, 0));
+const speisenBrutto = summeBrutto(SPEISEN);
+const getraenkeBrutto = summeBrutto(GETRAENKE);
+const tischBrutto = cent(speisenBrutto + getraenkeBrutto);
+const speisenSteuer = cent(steuerAus(speisenBrutto, ERMAESSIGT));
+const getraenkeSteuer = cent(steuerAus(getraenkeBrutto, REGELSATZ));
+const tischSteuer = cent(speisenSteuer + getraenkeSteuer);
+const tischAnteil = (tischSteuer / tischBrutto) * 100;
+// Der Mischsatz muss zwischen den beiden Einzelanteilen liegen.
+if (tischAnteil <= ANTEIL_7 || tischAnteil >= ANTEIL_19) {
+  throw new Error('MwSt-Artikel: Der Mischanteil liegt nicht zwischen 6,54 % und 15,97 %.');
+}
+// Gegenrechnung: derselbe Kassenbon, die Speisen zum Regelsatz gerechnet.
+const speisenNetto7 = cent(zuNetto(speisenBrutto, ERMAESSIGT));
+const speisenNetto19 = cent(zuNetto(speisenBrutto, REGELSATZ));
+const speisenNettoDiff = cent(speisenNetto7 - speisenNetto19);
+const tischSteuerAllesRegel = cent(steuerAus(tischBrutto, REGELSATZ));
+
+// --- 3. Wann die Steuer überhaupt centgenau aufgeht ------------------------
+// Steuer in Cent = satz × c / 100 bei einem Nettobetrag von c Cent.
+// Vollständige Prüfung über alle Cent-Beträge bis zur Obergrenze.
+const PRUEFGRENZE_CENT = 100000; // 1.000,00 €
+type Trefferbild = { satz: number; exakt: number; halbeCent: number; halbeNichtAufFuenfzig: number };
+const rundungsbild: Trefferbild[] = SAETZE.map((satz) => {
+  let exakt = 0;
+  let halbeCent = 0;
+  let halbeNichtAufFuenfzig = 0;
+  for (let c = 1; c <= PRUEFGRENZE_CENT; c++) {
+    const steuerInCent = (satz * c) / 100;
+    if (Number.isInteger(steuerInCent)) exakt++;
+    const rest = Math.abs(steuerInCent - Math.trunc(steuerInCent));
+    if (Math.abs(rest - 0.5) < 1e-9) {
+      halbeCent++;
+      if (c % 100 !== 50) halbeNichtAufFuenfzig++;
+    }
+  }
+  return { satz, exakt, halbeCent, halbeNichtAufFuenfzig };
+});
+for (const b of rundungsbild) {
+  if (b.exakt !== PRUEFGRENZE_CENT / 100) {
+    throw new Error(`MwSt-Artikel: Bei ${b.satz} % geht die Steuer nicht nur bei vollen Euro auf.`);
+  }
+  if (b.halbeNichtAufFuenfzig !== 0) {
+    throw new Error(`MwSt-Artikel: Bei ${b.satz} % entsteht der halbe Cent auch abseits der 50-Cent-Beträge.`);
+  }
+}
+const anteilExakt = (rundungsbild[0].exakt / PRUEFGRENZE_CENT) * 100;
+const anteilGerundet = 100 - anteilExakt;
+
+// --- 4. Rundung je Position gegen Rundung je Steuersatz --------------------
+// Sieben Nettopositionen, die alle auf 50 Cent enden – genau die Beträge, bei
+// denen die Steuer auf einen halben Cent fällt und kaufmännisch aufgerundet
+// wird. Der Effekt addiert sich, weil er immer dieselbe Richtung hat.
+const POSITIONEN = [12.5, 37.5, 62.5, 87.5, 112.5, 7.5, 17.5];
+const positionsSteuern = POSITIONEN.map((netto) => ({
+  netto,
+  roh: (netto * REGELSATZ) / 100,
+  gerundet: cent((netto * REGELSATZ) / 100),
+}));
+const steuerJePosition = cent(positionsSteuern.reduce((s, p) => s + p.gerundet, 0));
+const nettoSumme = cent(POSITIONEN.reduce((s, n) => s + n, 0));
+const steuerJeSteuersatz = cent((nettoSumme * REGELSATZ) / 100);
+const rundungsDifferenz = cent(steuerJePosition - steuerJeSteuersatz);
+const theoretischeDrift = POSITIONEN.length * 0.005;
+if (rundungsDifferenz <= 0) {
+  throw new Error('MwSt-Artikel: Die positionsweise Rundung liegt nicht über der Summenrundung.');
+}
+if (Math.abs(rundungsDifferenz - cent(theoretischeDrift - 0.005)) > 0.011) {
+  throw new Error('MwSt-Artikel: Die Rundungsdifferenz passt nicht zur Zahl der Positionen.');
+}
+const bruttoJePosition = cent(nettoSumme + steuerJePosition);
+const bruttoJeSteuersatz = cent(nettoSumme + steuerJeSteuersatz);
+
+// --- 5. Kleinbetragsrechnung ----------------------------------------------
+// § 33 UStDV: bis 250 € Gesamtbetrag genügen Entgelt und Steuer in einer Summe
+// plus Steuersatz. § 35 Abs. 1 UStDV: der Empfänger teilt selbst auf.
+const KLEINBETRAG = 250;
+const kleinbetrag = SAETZE.map((satz) => ({
+  satz,
+  netto: cent(zuNetto(KLEINBETRAG, satz)),
+  steuer: cent(steuerAus(KLEINBETRAG, satz)),
+}));
+for (const k of kleinbetrag) {
+  if (Math.abs(k.netto + k.steuer - KLEINBETRAG) > 0.005) {
+    throw new Error(`MwSt-Artikel: Aufteilung der Kleinbetragsrechnung geht bei ${k.satz} % nicht auf.`);
+  }
+}
+
+// § 19 Abs. 1 Satz 1 UStG, Fassung ab 2025.
+const KLEINUNTERNEHMER_VORJAHR = 25000;
+const KLEINUNTERNEHMER_LAUFEND = 100000;
+
+const quellen = [
+  { titel: '§ 12 UStG – Steuersätze (Abs. 1, Abs. 2 Nr. 11 und Nr. 15)', url: 'https://www.gesetze-im-internet.de/ustg_1980/__12.html' },
+  { titel: '§ 14 Abs. 4 Satz 1 Nr. 7 und 8 UStG – Pflichtangaben einer Rechnung', url: 'https://www.gesetze-im-internet.de/ustg_1980/__14.html' },
+  { titel: '§ 19 Abs. 1 UStG – Besteuerung der Kleinunternehmer', url: 'https://www.gesetze-im-internet.de/ustg_1980/__19.html' },
+  { titel: '§ 33 UStDV – Rechnungen über Kleinbeträge', url: 'https://www.gesetze-im-internet.de/ustdv_1980/__33.html' },
+  { titel: '§ 35 UStDV – Vorsteuerabzug bei Rechnungen über Kleinbeträge', url: 'https://www.gesetze-im-internet.de/ustdv_1980/__35.html' },
+  { titel: 'BMF-Schreiben vom 22.12.2025 – Ermäßigter Steuersatz auf Restaurant- und Verpflegungsdienstleistungen zum 1.1.2026', url: 'https://www.bundesfinanzministerium.de/Content/DE/Downloads/BMF_Schreiben/Steuerarten/Umsatzsteuer/Umsatzsteuer-Anwendungserlass/2025-12-22-verpflegungsdienstleistungen.html' },
+];
+---
+
+<RechnerArtikel
+  titel={`Im Bruttopreis stecken nicht ${prozKurz(REGELSATZ)} Mehrwertsteuer, sondern ${proz(ANTEIL_19)}`}
+  lead={`Der Aufschlag und der Abzug sind nicht dieselbe Rechnung. Wer aus ${eur(BRUTTO_PROBE)} die Steuer herausnimmt, indem er ${prozKurz(REGELSATZ)} abzieht, landet bei ${eur(falschHerausgerechnet)} statt bei ${eur(richtigHerausgerechnet)} – und weist ${eur(steuerFalsch - steuerRichtig)} zu viel Steuer aus. Deshalb teilt der Rechner oben durch ${zahl(1 + REGELSATZ / 100)}, statt mit ${zahl(1 - REGELSATZ / 100)} zu multiplizieren.`}
+  datum="2026-09-23"
+  quellen={quellen}
+>
+  <h3>Hin und zurück landet unter dem Ausgangswert</h3>
+
+  <p>
+    {eur(NETTO_PROBE)} netto ergeben bei {prozKurz(REGELSATZ)} Umsatzsteuer
+    {' '}{eur(BRUTTO_PROBE)} brutto. Nimmt man von diesen {eur(BRUTTO_PROBE)} wieder
+    {' '}{prozKurz(REGELSATZ)} weg, kommen nicht {eur(NETTO_PROBE)} heraus, sondern
+    {' '}{eur(falschHerausgerechnet)}. Es fehlen {eur(fehlbetrag)} – das sind
+    {' '}{proz(fehlerAmNetto)} des Nettobetrags oder {proz(fehlerAmBrutto)} des Bruttobetrags.
+  </p>
+
+  <p>
+    Der Grund ist die unterschiedliche Basis. Der Aufschlag bezieht sich auf den Nettopreis,
+    der Abzug auf den größeren Bruttopreis. Aus <em>(1 + p) × (1 − p) = 1 − p²</em> folgt, dass
+    die Lücke exakt das Quadrat des Steuersatzes ist: {prozKurz(REGELSATZ)} im Quadrat sind
+    {' '}{prozKurz(quadratRegel)} – und bei einem Nettopreis von {eur(NETTO_PROBE)} eben
+    {' '}{eur(fehlbetrag)}. Wer so rechnet, weist auf der Rechnung {eur(steuerFalsch)} Steuer
+    aus statt {eur(steuerRichtig)}.
+  </p>
+
+  <h3>Der Steuersatz ist ein Aufschlag, der Steueranteil ist etwas anderes</h3>
+
+  <p>
+    Die Umsatzsteuer wird nach § 12 Abs. 1 UStG auf die Bemessungsgrundlage erhoben, also auf
+    das Netto-Entgelt. Im fertigen Bruttopreis ist sie deshalb kein Neunzehntel, sondern ein
+    Neunzehntel-von-Hundertneunzehn. Der Rechner oben macht daraus im Modus „Brutto → Netto"
+    eine Division durch {zahl(1 + REGELSATZ / 100)}. Wer lieber multipliziert, nimmt den
+    Kehrwert.
+  </p>
+
+  <table>
+    <caption class="visually-hidden">Aufschlagsfaktor, Kehrwert und Steueranteil am Bruttopreis je Steuersatz</caption>
+    <thead>
+      <tr>
+        <th scope="col">Steuersatz</th>
+        <th scope="col" class="num">Netto × Faktor</th>
+        <th scope="col" class="num">Brutto × Kehrwert</th>
+        <th scope="col" class="num">Anteil am Brutto</th>
+        <th scope="col" class="num">Netto aus 100 € brutto</th>
+      </tr>
+    </thead>
+    <tbody>
+      {uebersicht.map((z) => (
+        <tr>
+          <th scope="row">{prozKurz(z.satz)}</th>
+          <td class="num">{zahl(z.faktor)}</td>
+          <td class="num">{zahl(z.kehrwert, 6)}</td>
+          <td class="num">{proz(z.anteil)}</td>
+          <td class="num">{eur(z.nettoAusHundert)}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+
+  <p>
+    Beim ermäßigten Satz nach § 12 Abs. 2 UStG ist der Abstand kleiner, aber vorhanden:
+    {' '}{prozKurz(ERMAESSIGT)} Aufschlag entsprechen {proz(ANTEIL_7)} Anteil am Endpreis.
+    Aus {eur(100)} brutto werden damit {eur(uebersicht[1].nettoAusHundert)} netto – und nicht
+    {' '}{eur(100 * (1 - ERMAESSIGT / 100))}.
+  </p>
+
+  <h3>Seit 2026 stehen zwei Sätze auf derselben Restaurantrechnung</h3>
+
+  <p>
+    § 12 Abs. 2 Nr. 15 UStG ermäßigt „die Restaurant- und Verpflegungsdienstleistungen, mit
+    Ausnahme der Abgabe von Getränken". Das Bundesfinanzministerium hat die Anwendung dieser
+    Regelung zum 1. Januar 2026 in einem Schreiben vom 22. Dezember 2025 erläutert. Auf einem
+    Kassenbon stehen seitdem regelmäßig beide Sätze nebeneinander: {prozKurz(ERMAESSIGT)} auf
+    das Essen, {prozKurz(REGELSATZ)} auf das Getränk.
+  </p>
+
+  <table>
+    <caption class="visually-hidden">Beispielrechnung eines Tisches mit Speisen zu 7 Prozent und Getränken zu 19 Prozent</caption>
+    <thead>
+      <tr>
+        <th scope="col">Position</th>
+        <th scope="col" class="num">Brutto</th>
+        <th scope="col" class="num">Satz</th>
+        <th scope="col" class="num">Netto</th>
+        <th scope="col" class="num">Steuer</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <th scope="row">Speisen</th>
+        <td class="num">{eur(speisenBrutto)}</td>
+        <td class="num">{prozKurz(ERMAESSIGT)}</td>
+        <td class="num">{eur(cent(zuNetto(speisenBrutto, ERMAESSIGT)))}</td>
+        <td class="num">{eur(speisenSteuer)}</td>
+      </tr>
+      <tr>
+        <th scope="row">Getränke</th>
+        <td class="num">{eur(getraenkeBrutto)}</td>
+        <td class="num">{prozKurz(REGELSATZ)}</td>
+        <td class="num">{eur(cent(zuNetto(getraenkeBrutto, REGELSATZ)))}</td>
+        <td class="num">{eur(getraenkeSteuer)}</td>
+      </tr>
+      <tr>
+        <th scope="row">Summe</th>
+        <td class="num">{eur(tischBrutto)}</td>
+        <td class="num">{proz(tischAnteil)}</td>
+        <td class="num">{eur(cent(tischBrutto - tischSteuer))}</td>
+        <td class="num">{eur(tischSteuer)}</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <p>
+    Der Steueranteil dieser Rechnung liegt bei {proz(tischAnteil)} – zwischen den
+    {' '}{proz(ANTEIL_7)} einer reinen Speisenrechnung und den {proz(ANTEIL_19)} einer reinen
+    Getränkerechnung. Ein einzelner „Mehrwertsteuersatz" für den Gesamtbon existiert nicht; er
+    hängt davon ab, wie viel getrunken wurde.
+  </p>
+
+  <p>
+    Bemerkenswert ist, was der ermäßigte Satz bei gleichem Kassenbetrag verschiebt. Wären die
+    Speisen mit {prozKurz(REGELSATZ)} zu versteuern, entfielen von denselben
+    {' '}{eur(tischBrutto)} insgesamt {eur(tischSteuerAllesRegel)} auf die Steuer statt
+    {' '}{eur(tischSteuer)}. Der Nettoerlös aus den Speisen wäre {eur(speisenNetto19)} statt
+    {' '}{eur(speisenNetto7)}. Ein niedrigerer Satz senkt den Preis also nicht von selbst – er
+    ändert zunächst nur, wie sich derselbe Bruttobetrag aufteilt.
+  </p>
+
+  <h3>Warum die Steuer fast nie glatt aufgeht</h3>
+
+  <p>
+    Ein Nettobetrag ist auf den Cent genau. Der Steuerbetrag ist es meistens nicht. Rechnet man
+    für jeden Cent-Betrag zwischen {eur(0.01)} und {eur(PRUEFGRENZE_CENT / 100)} die Steuer zum
+    Regelsatz aus, geht sie in genau {zahl(rundungsbild[0].exakt, 0)} von
+    {' '}{zahl(PRUEFGRENZE_CENT, 0)} Fällen ohne Rest auf – das sind {proz(anteilExakt, 0)}.
+    Es sind genau die vollen Euro-Beträge. In den übrigen {proz(anteilGerundet, 0)} der Fälle
+    muss gerundet werden, und dasselbe Bild ergibt sich beim ermäßigten Satz:
+    {' '}{zahl(rundungsbild[1].exakt, 0)} glatte Fälle.
+  </p>
+
+  <p>
+    Das ist Zahlentheorie, nicht Zufall. Die Steuer in Cent ist <em>Satz × Cent ÷ 100</em>.
+    Weder {prozKurz(REGELSATZ)} noch {prozKurz(ERMAESSIGT)} haben einen gemeinsamen Teiler mit
+    100, deshalb bleibt der Bruch nur dann ganzzahlig, wenn der Cent-Betrag selbst durch 100
+    teilbar ist. Ebenso eindeutig ist der Grenzfall: Ein halber Cent entsteht bei beiden
+    Sätzen ausschließlich bei Beträgen, die auf {eur(0.5)} enden – geprüft über alle
+    {' '}{zahl(PRUEFGRENZE_CENT, 0)} Cent-Beträge, jeweils {zahl(rundungsbild[0].halbeCent, 0)}
+    {' '}Treffer, kein einziger daneben.
+  </p>
+
+  <h3>Wo der halbe Cent hinfällt, entscheidet über die Rechnungssumme</h3>
+
+  <p>
+    Kaufmännisch wird der halbe Cent aufgerundet, immer nach oben. Bei einer einzelnen Position
+    ist das unsichtbar. Bei mehreren Positionen, die alle auf {eur(0.5)} enden, summiert sich
+    die Aufrundung, weil sie nie in die Gegenrichtung ausschlägt.
+  </p>
+
+  <table>
+    <caption class="visually-hidden">Sieben Nettopositionen, deren Steuerbetrag jeweils auf einen halben Cent fällt</caption>
+    <thead>
+      <tr>
+        <th scope="col">Netto</th>
+        <th scope="col" class="num">Steuer rechnerisch</th>
+        <th scope="col" class="num">Steuer gerundet</th>
+      </tr>
+    </thead>
+    <tbody>
+      {positionsSteuern.map((p) => (
+        <tr>
+          <th scope="row">{eur(p.netto)}</th>
+          <td class="num">{zahl(p.roh, 3)} €</td>
+          <td class="num">{eur(p.gerundet)}</td>
+        </tr>
+      ))}
+      <tr>
+        <th scope="row">Summe</th>
+        <td class="num">{zahl((nettoSumme * REGELSATZ) / 100, 3)} €</td>
+        <td class="num">{eur(steuerJePosition)}</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <p>
+    Positionsweise gerundet ergibt die Steuer {eur(steuerJePosition)}. Auf die Summe der
+    Entgelte von {eur(nettoSumme)} gerechnet und erst dann gerundet sind es
+    {' '}{eur(steuerJeSteuersatz)}. Die Differenz beträgt {eur(rundungsDifferenz)} – bei
+    {' '}{zahl(POSITIONEN.length, 0)} Positionen mit je einem halben Cent Aufrundung die
+    erwartete Größenordnung. Der Rechnungsbetrag lautet je nach Rechenweg
+    {' '}{eur(bruttoJePosition)} oder {eur(bruttoJeSteuersatz)}.
+  </p>
+
+  <p>
+    § 14 Abs. 4 Satz 1 UStG verlangt in Nummer 7 „das nach Steuersätzen und einzelnen
+    Steuerbefreiungen aufgeschlüsselte Entgelt" und in Nummer 8 „den anzuwendenden Steuersatz
+    sowie den auf das Entgelt entfallenden Steuerbetrag". Die Pflichtangabe ist also ein
+    Steuerbetrag je Steuersatz, bezogen auf das aufgeschlüsselte Entgelt. Wie eine Software
+    intern zwischenrundet, steht dort nicht – dass beide Wege zu unterschiedlichen Cent-Beträgen
+    führen, lässt sich aber, wie oben, exakt nachrechnen.
+  </p>
+
+  <p class="ra-hinweis">
+    Die Positionen im Beispiel sind bewusst so gewählt, dass jede einzelne auf einen halben Cent
+    fällt. Bei beliebigen Beträgen heben sich Auf- und Abrundungen teilweise auf; die Abweichung
+    bleibt dann kleiner, verschwindet aber nicht zwingend.
+  </p>
+
+  <h3>Bei Kleinbetragsrechnungen ist das Herausrechnen der vorgesehene Weg</h3>
+
+  <p>
+    § 33 UStDV lässt für Rechnungen bis {eur(KLEINBETRAG)} Gesamtbetrag eine verkürzte Form zu:
+    Es genügen „das Entgelt und den darauf entfallenden Steuerbetrag […] in einer Summe sowie
+    der anzuwendende Steuersatz". Nach § 35 Abs. 1 UStDV kann der Empfänger den Vorsteuerabzug
+    geltend machen, „wenn er den Rechnungsbetrag in Entgelt und Steuerbetrag aufteilt". Diese
+    Aufteilung ist exakt der Modus „Brutto → Netto" des Rechners.
+  </p>
+
+  <table>
+    <caption class="visually-hidden">Aufteilung einer Kleinbetragsrechnung über 250 Euro nach Steuersatz</caption>
+    <thead>
+      <tr>
+        <th scope="col">Steuersatz</th>
+        <th scope="col" class="num">Rechnungsbetrag</th>
+        <th scope="col" class="num">Entgelt</th>
+        <th scope="col" class="num">Steuerbetrag</th>
+      </tr>
+    </thead>
+    <tbody>
+      {kleinbetrag.map((k) => (
+        <tr>
+          <th scope="row">{prozKurz(k.satz)}</th>
+          <td class="num">{eur(KLEINBETRAG)}</td>
+          <td class="num">{eur(k.netto)}</td>
+          <td class="num">{eur(k.steuer)}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+
+  <p>
+    Die Grenze von {eur(KLEINBETRAG)} bezieht sich auf den Gesamtbetrag, also auf den
+    Bruttobetrag. Wer den falschen Rechenweg nimmt und {prozKurz(REGELSATZ)} abzieht, käme bei
+    {' '}{eur(KLEINBETRAG)} auf ein Entgelt von {eur(cent(KLEINBETRAG * (1 - REGELSATZ / 100)))}
+    {' '}statt {eur(kleinbetrag[0].netto)} – und auf eine Vorsteuer, die um
+    {' '}{eur(cent(KLEINBETRAG - KLEINBETRAG * (1 - REGELSATZ / 100)) - kleinbetrag[0].steuer)}
+    {' '}zu hoch liegt.
+  </p>
+
+  <h3>Was zwei Auswahlfelder nicht abbilden</h3>
+
+  <p>
+    Der Rechner kennt {prozKurz(REGELSATZ)} und {prozKurz(ERMAESSIGT)}. Das UStG kennt mehr
+    Fälle. § 12 Abs. 3 UStG sieht für bestimmte Photovoltaikanlagen einen Steuersatz von null
+    Prozent vor – das ist nicht dasselbe wie eine Steuerbefreiung nach § 4 UStG, auch wenn in
+    beiden Fällen null Euro Steuer anfallen: Beim Nullsatz bleibt der Vorsteuerabzug erhalten,
+    bei den Befreiungen des § 4 in der Regel nicht.
+  </p>
+
+  <p>
+    Ebenfalls außerhalb des Rechners liegt § 19 Abs. 1 Satz 1 UStG: Umsätze eines im Inland
+    ansässigen Unternehmers sind steuerfrei, wenn sein Gesamtumsatz im Vorjahr
+    {' '}{eur(KLEINUNTERNEHMER_VORJAHR)} nicht überschritten hat und im laufenden Jahr
+    {' '}{eur(KLEINUNTERNEHMER_LAUFEND)} nicht überschreitet. Auf solchen Rechnungen steht kein
+    Steuerbetrag, den man herausrechnen könnte – der Bruttobetrag <em>ist</em> das Entgelt.
+  </p>
+
+  <p>
+    Für alles andere gilt die Regel dieses Artikels: Der Steuersatz ist ein Aufschlag auf das
+    Entgelt, der Steueranteil am Endpreis ist eine andere Zahl. {proz(ANTEIL_19)} statt
+    {' '}{prozKurz(REGELSATZ)}, {proz(ANTEIL_7)} statt {prozKurz(ERMAESSIGT)}. Wer den
+    Unterschied ignoriert, verrechnet sich bei jedem Bruttobetrag um {proz(fehlerAmBrutto)}.
+  </p>
+</RechnerArtikel>

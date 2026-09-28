@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { berechneMietrechner } from '../../public/scripts/mietrechner.js';
-import { berechneNebenkosten, BETRIEBSKOSTENSPIEGEL } from '../../public/scripts/nebenkosten.js';
+import { berechneNebenkosten } from '../../public/scripts/nebenkosten.js';
 
 const basis = { kaltmiete: 800, flaeche: 70, betriebskosten: 150, heizkosten: 90 };
 
@@ -33,12 +33,24 @@ describe('berechneMietrechner – Warmmiete aus dem Vertrag', () => {
 });
 
 describe('berechneMietrechner – Einordnung gegen den Betriebskostenspiegel', () => {
-  it('ordnet die Vorauszahlung je Quadratmeter ein', () => {
-    // 3,43 €/m² liegt über dem Durchschnitt, aber unter dem Wert bei voller Ausstattung.
-    const r = berechneMietrechner(basis);
-    expect(r.vorauszahlungProQm).toBeGreaterThan(BETRIEBSKOSTENSPIEGEL.durchschnittGesamt * 1.1);
-    expect(r.vorauszahlungProQm).toBeLessThanOrEqual(BETRIEBSKOSTENSPIEGEL.alleArtenGesamt);
-    expect(r.einordnung.stufe).toBe('erhoeht');
+  it('ordnet die Vorauszahlung gegen den Spiegelwert derselben Ausstattung ein', () => {
+    // 240 € auf 70 m² liegen deutlich über dem Wert ohne Ausstattung ...
+    expect(berechneMietrechner(basis).einordnung.stufe).toBe('hoch');
+    // ... aber im Bereich des Werts mit Aufzug, Garten und Hauswart.
+    const voll = berechneMietrechner({ ...basis, aufzug: true, garten: true, hauswart: true });
+    expect(voll.einordnung.stufe).toBe('passend');
+  });
+
+  it('widerspricht der Nachzahlungszeile nicht', () => {
+    // Früher: „über dem Durchschnitt“ und zugleich 294 € Nachzahlung im Jahr.
+    const r = berechneMietrechner({ ...basis, betriebskosten: 210, heizkosten: 0, aufzug: true, garten: true, hauswart: true });
+    expect(r.spiegel.differenzMonat).toBeGreaterThan(0);
+    expect(r.einordnung.stufe).not.toBe('hoch');
+  });
+
+  it('meldet eine deutlich zu niedrige Vorauszahlung', () => {
+    const r = berechneMietrechner({ ...basis, betriebskosten: 80, heizkosten: 50 });
+    expect(r.einordnung.stufe).toBe('niedrig');
   });
 
   it('vergleicht mit dem Spiegelwert für dieselbe Ausstattung', () => {

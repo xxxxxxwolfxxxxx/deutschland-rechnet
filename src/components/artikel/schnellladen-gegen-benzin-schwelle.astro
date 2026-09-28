@@ -1,0 +1,615 @@
+---
+import RechnerArtikel from '../RechnerArtikel.astro';
+import { artikelPfadVonSlug } from '../../data/ratgeber';
+import { vergleicheAntriebe } from '../../../public/scripts/antriebsvergleich.js';
+import {
+  corsaBenzin,
+  corsaElektro,
+  BENZINPREIS,
+  ADAC_STROMPREIS,
+  ADAC_STAND,
+  ADAC_QUELLE_URL,
+  adacVerbrauchJe100km,
+} from '../../../public/scripts/adac-autokosten.js';
+import {
+  STROMPREIS_QUELLE,
+  STROMPREIS_QUELLE_URL,
+  STROMPREIS_AMTLICH,
+  LADESTROM_HEIM_CENT_PRO_KWH,
+  LADESTROM_AC_CENT_PRO_KWH,
+  LADESTROM_DC_CENT_PRO_KWH,
+  LADESTROM_ADHOC_AUTOBAHN_CENT_PRO_KWH,
+  LADESTROM_QUELLE,
+  LADESTROM_QUELLE_URL,
+  LADESTROM_DATENSTAND,
+} from '../../../public/scripts/strompreis.js';
+
+const base = import.meta.env.BASE_URL;
+
+// --- Formate ----------------------------------------------------------------
+const eur = (n: number) =>
+  n.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
+const eur0 = (n: number) => Math.round(n).toLocaleString('de-DE') + ' €';
+const eurVz = (n: number) => (n > 0 ? '+' : n < 0 ? '−' : '') + eur0(Math.abs(n));
+const zahl = (n: number, d = 1) =>
+  n.toLocaleString('de-DE', { minimumFractionDigits: d, maximumFractionDigits: d });
+const ct = (n: number, d = 0) => zahl(n, d) + ' ct';
+const proz = (n: number, d = 1) => zahl(n, d) + ' %';
+const ganz = (n: number) => n.toLocaleString('de-DE');
+/** Literpreise wie an der Zapfsäule mit drei Nachkommastellen. */
+const liter = (n: number) => zahl(n, 3) + ' €/l';
+
+// --- Das Beispiel: dieselben Werte, mit denen der Rechner vorbelegt ist -----
+// Der Rechner rundet den zurückgerechneten ADAC-Verbrauch auf eine Stelle; der
+// Artikel übernimmt genau diese Rundung, damit seine Zahlen mit den Feldern
+// oben übereinstimmen. Die Fahrleistung ist die Vorbelegung des Rechners.
+const r1 = (n: number) => Math.round(n * 10) / 10;
+const VB_ROH = adacVerbrauchJe100km(corsaBenzin, BENZINPREIS);
+const VS_ROH = adacVerbrauchJe100km(corsaElektro, ADAC_STROMPREIS);
+const VB = r1(VB_ROH);
+const VS = r1(VS_ROH);
+const KM = 12000;
+
+/** Vergleich über das Modul des Rechners; Preise in Cent je kWh bzw. Euro je Liter. */
+function vergleich(centProKwh: number, vb = VB, vs = VS, benzinpreis = BENZINPREIS, km = KM) {
+  const v = vergleicheAntriebe({
+    kmProJahr: km,
+    antriebe: [
+      { name: 'Benzin', verbrauch: vb, preis: benzinpreis },
+      { name: 'Strom', verbrauch: vs, preis: centProKwh / 100 },
+    ],
+  });
+  const benzin = v.antriebe.find((a) => a.name === 'Benzin');
+  const strom = v.antriebe.find((a) => a.name === 'Strom');
+  if (!benzin || !strom) throw new Error('Schnellladen-Artikel: Antrieb nicht gewertet.');
+  return { benzin, strom, guenstigster: v.guenstigster, vorteilJahr: benzin.jahr - strom.jahr };
+}
+
+/**
+ * Kleinster Strompreis (auf 0,01 ct genau), bei dem das Modul den Benziner als
+ * günstigsten ausweist. Bei Gleichstand wertet vergleicheAntriebe den zuerst
+ * genannten Antrieb, also Benzin – die Schwelle ist damit der erste Preis, an
+ * dem Strom nicht mehr billiger ist.
+ */
+function schwelleCent(vb = VB, vs = VS, benzinpreis = BENZINPREIS): number {
+  for (let h = 1; h <= 30000; h += 1) {
+    if (vergleich(h / 100, vb, vs, benzinpreis).guenstigster === 'Benzin') return h / 100;
+  }
+  throw new Error('Schnellladen-Artikel: keine Schwelle gefunden.');
+}
+
+const benzin100 = vergleich(LADESTROM_HEIM_CENT_PRO_KWH).benzin.je100km;
+const kwhJeLiter = VS / VB;
+const schwelle = schwelleCent();
+const schwelleAnalytisch = (VB * BENZINPREIS) / VS * 100;
+if (Math.abs(schwelle - schwelleAnalytisch) > 0.05) {
+  throw new Error(`Schnellladen-Artikel: Feinsuche (${schwelle}) weicht von der Formel ab (${schwelleAnalytisch}).`);
+}
+const schwelleRoh = schwelleCent(VB_ROH, VS_ROH);
+
+/**
+ * Benzinpreis, bei dem der Ladeort mit dem Benziner gleichzieht: darüber ist
+ * Strom günstiger, darunter Benzin. Formel, auf 0,1 ct gerundet und am Modul
+ * nach beiden Seiten geprüft.
+ */
+function kippBenzinpreis(centProKwh: number): number {
+  const p = Math.round((centProKwh / 100) * VS / VB * 1000) / 1000;
+  if (vergleich(centProKwh, VB, VS, p + 0.002).guenstigster !== 'Strom'
+    || vergleich(centProKwh, VB, VS, p - 0.002).guenstigster !== 'Benzin') {
+    throw new Error(`Schnellladen-Artikel: Gleichstand beim Benzinpreis ${p} stimmt nicht.`);
+  }
+  return p;
+}
+
+// --- 1. Die Ladeorte gegen die Schwelle -------------------------------------
+const ladeorte = [
+  { name: 'Zu Hause, Neukundentarif', quelle: 'BDEW', cent: LADESTROM_HEIM_CENT_PRO_KWH },
+  { name: 'Zu Hause, Bestandsvertrag', quelle: 'Destatis', cent: STROMPREIS_AMTLICH.centProKwh },
+  { name: 'Öffentlich, Normalladen (AC)', quelle: 'LichtBlick', cent: LADESTROM_AC_CENT_PRO_KWH },
+  { name: 'Öffentlich, Schnellladen (DC)', quelle: 'LichtBlick', cent: LADESTROM_DC_CENT_PRO_KWH },
+  { name: 'Autobahn ohne Vertrag', quelle: 'ADAC-Beispiel', cent: LADESTROM_ADHOC_AUTOBAHN_CENT_PRO_KWH },
+].map((l) => {
+  const v = vergleich(l.cent);
+  return {
+    ...l,
+    je100: v.strom.je100km,
+    vorteilJahr: v.vorteilJahr,
+    // Um wie viel Prozent darf der Verbrauch steigen, bis der Ladeort kippt?
+    mehrverbrauch: (schwelle / l.cent - 1) * 100,
+    // Welcher Anteil der bezahlten Energie darf verloren gehen?
+    verlustanteil: (1 - l.cent / schwelle) * 100,
+    kippBenzin: kippBenzinpreis(l.cent),
+    literAequivalent: v.strom.je100km / BENZINPREIS,
+  };
+});
+const heim = ladeorte[0];
+const bestand = ladeorte[1];
+const ac = ladeorte[2];
+const dc = ladeorte[3];
+const adhoc = ladeorte[4];
+
+if (!(dc.vorteilJahr > 0 && adhoc.vorteilJahr < 0)) {
+  throw new Error('Schnellladen-Artikel: DC muss knapp günstiger, Ad-hoc teurer als Benzin sein.');
+}
+if (Math.round(dc.mehrverbrauch) !== 4 || Math.round(dc.verlustanteil) !== 4) {
+  throw new Error(`Schnellladen-Artikel: Titel nennt vier Prozent, gerechnet ${dc.mehrverbrauch} / ${dc.verlustanteil}.`);
+}
+if (!(heim.mehrverbrauch > ac.mehrverbrauch && ac.mehrverbrauch > dc.mehrverbrauch)) {
+  throw new Error('Schnellladen-Artikel: Reihenfolge der Ladeorte stimmt nicht.');
+}
+const dcAbstandBenzin = (BENZINPREIS - dc.kippBenzin) * 100; // Cent je Liter
+const verschiebungJe10ct = 10 / kwhJeLiter; // Cent je kWh je 10 Cent Benzinpreis
+const heimVsAdhocJe100 = adhoc.je100 - heim.je100;
+
+// --- 2. Mischen: Heimladen plus Autobahn ohne Vertrag -----------------------
+const mischpreis = (anteil: number, teuer: number) =>
+  LADESTROM_HEIM_CENT_PRO_KWH * (1 - anteil) + teuer * anteil;
+let kippAnteilPromille = -1;
+for (let a = 0; a <= 1000; a += 1) {
+  if (vergleich(mischpreis(a / 1000, LADESTROM_ADHOC_AUTOBAHN_CENT_PRO_KWH)).guenstigster === 'Benzin') {
+    kippAnteilPromille = a;
+    break;
+  }
+}
+if (kippAnteilPromille < 0) throw new Error('Schnellladen-Artikel: Mischung kippt nie.');
+const kippAnteil = kippAnteilPromille / 10;
+// Gegenprobe: Laden AC oder DC zu 100 Prozent kippt nicht.
+if (vergleich(LADESTROM_DC_CENT_PRO_KWH).guenstigster !== 'Strom') {
+  throw new Error('Schnellladen-Artikel: DC zu 100 Prozent müsste noch günstiger sein.');
+}
+const unterSchwelleHeim = schwelle - LADESTROM_HEIM_CENT_PRO_KWH;
+const ueberSchwelleAdhoc = LADESTROM_ADHOC_AUTOBAHN_CENT_PRO_KWH - schwelle;
+const heimKwhJeAdhocKwh = ueberSchwelleAdhoc / unterSchwelleHeim;
+
+// --- 3. Die Autobahn-Anbieter -----------------------------------------------
+// ADAC, „Laden ohne Vertrag: So teuer ist das Ad-hoc-Laden", 23.07.2025.
+// Preise aus der Testphase vor Ort im Mai 2025 und Desk Research im Juli 2025,
+// jeweils Euro je kWh am Schnelllader. Tesla und Shell Recharge sind mit
+// dynamischen Preisen gelistet und fehlen deshalb.
+const ADAC_AUTOBAHN_STAND = '23.07.2025';
+const ADAC_AUTOBAHN_URL = 'https://www.adac.de/rund-ums-fahrzeug/elektromobilitaet/laden/ad-hoc-laden-an-autobahnen/';
+const AUTOBAHN = [
+  { anbieter: 'EnBW', adhoc: 87, vertrag: 59 },
+  { anbieter: 'EWE Go', adhoc: 84, vertrag: 52 },
+  { anbieter: 'MER', adhoc: 79, vertrag: 57 },
+  { anbieter: 'E.ON', adhoc: 79, vertrag: 61 },
+  { anbieter: 'Aral Pulse', adhoc: 79, vertrag: 69 },
+  { anbieter: 'Circle K', adhoc: 79, vertrag: 79 },
+  { anbieter: 'Ionity', adhoc: 75, vertrag: 70 },
+  { anbieter: 'Allego', adhoc: 73, vertrag: 73 },
+  { anbieter: 'Fastned', adhoc: 73, vertrag: 73 },
+  { anbieter: 'Citywatt', adhoc: 64, vertrag: 59 },
+  { anbieter: 'EAM', adhoc: 64, vertrag: 64 },
+].map((z) => ({
+  ...z,
+  adhocJe100: vergleich(z.adhoc).strom.je100km,
+  vertragJe100: vergleich(z.vertrag).strom.je100km,
+  vertragGuenstiger: vergleich(z.vertrag).guenstigster === 'Strom',
+  adhocGuenstiger: vergleich(z.adhoc).guenstigster === 'Strom',
+}));
+const adhocUnter = AUTOBAHN.filter((z) => z.adhocGuenstiger).length;
+const vertragUnter = AUTOBAHN.filter((z) => z.vertragGuenstiger).length;
+const billigsterAdhoc = Math.min(...AUTOBAHN.map((z) => z.adhoc));
+const teuersterAdhoc = Math.max(...AUTOBAHN.map((z) => z.adhoc));
+if (adhocUnter !== 0) throw new Error('Schnellladen-Artikel: Text sagt, kein Ad-hoc-Preis liege unter der Schwelle.');
+if (billigsterAdhoc <= schwelleRoh) throw new Error('Schnellladen-Artikel: billigster Ad-hoc-Preis muss auch über der ungerundeten Schwelle liegen.');
+if (vertragUnter !== 5) throw new Error(`Schnellladen-Artikel: Text nennt fünf Vertragspreise unter der Schwelle, gerechnet ${vertragUnter}.`);
+const vertragUeber = AUTOBAHN.length - vertragUnter;
+const vertragUeberDc = AUTOBAHN.filter((z) => z.vertrag > LADESTROM_DC_CENT_PRO_KWH).length;
+if (vertragUeberDc * 2 <= AUTOBAHN.length) throw new Error('Schnellladen-Artikel: Text sagt, die meisten Vertragspreise lägen über dem DC-Durchschnitt.');
+const knappsterVertrag = AUTOBAHN.filter((z) => z.vertragGuenstiger).reduce((a, b) => (b.vertrag > a.vertrag ? b : a));
+if (knappsterVertrag.anbieter !== 'E.ON') throw new Error('Schnellladen-Artikel: Text nennt E.ON als knappsten Vertragspreis.');
+
+// --- 4. Ladeverluste --------------------------------------------------------
+// ADAC-Messungen: Anteil der aus dem Netz bezogenen Energie, die nicht zum
+// Fahren zur Verfügung steht. AC: „Ladeverluste beim Elektroauto", 06.08.2026,
+// fünf Fahrzeuge. DC: Pressemitteilung „E-Auto am Schnelllader", vier Fahrzeuge.
+const VERLUST = {
+  steckdose: { min: 12.7, max: 24.2 },
+  wallbox11: { min: 5.1, max: 7.0 },
+  dcWarm: { min: 1, max: 4 },
+  dcKalt: { min: 6, max: 10 },
+};
+const jeNutzbarerKwh = (cent: number, verlustProzent: number) => cent / (1 - verlustProzent / 100);
+const dcKaltMin = jeNutzbarerKwh(LADESTROM_DC_CENT_PRO_KWH, VERLUST.dcKalt.min);
+const dcWarmMax = jeNutzbarerKwh(LADESTROM_DC_CENT_PRO_KWH, VERLUST.dcWarm.max);
+const heimSteckdoseMax = jeNutzbarerKwh(LADESTROM_HEIM_CENT_PRO_KWH, VERLUST.steckdose.max);
+const heimWallboxMax = jeNutzbarerKwh(LADESTROM_HEIM_CENT_PRO_KWH, VERLUST.wallbox11.max);
+if (!(dc.verlustanteil < VERLUST.dcWarm.max && dc.verlustanteil > VERLUST.dcWarm.min)) {
+  throw new Error('Schnellladen-Artikel: Der DC-Spielraum soll innerhalb der warmen Verlustspanne liegen.');
+}
+if (!(dcKaltMin > schwelle && dcWarmMax > schwelle)) {
+  throw new Error('Schnellladen-Artikel: DC mit Verlusten müsste über der Schwelle liegen.');
+}
+if (!(heimSteckdoseMax < schwelle && heimSteckdoseMax < LADESTROM_AC_CENT_PRO_KWH)) {
+  throw new Error('Schnellladen-Artikel: Heimladen an der Steckdose soll unter Schwelle und AC-Preis bleiben.');
+}
+if (!(ac.verlustanteil > VERLUST.wallbox11.max && ac.verlustanteil < VERLUST.steckdose.max)) {
+  throw new Error('Schnellladen-Artikel: AC-Spielraum liegt nicht zwischen Wallbox- und Steckdosenverlust.');
+}
+
+// --- 5. Normwert gegen Messwert ---------------------------------------------
+// ADAC-Testverbrauch einschließlich Ladeverlusten (Ladung an 22-kW-Wallbox):
+// Opel Corsa-e Elegance, Test 12/21, 18,8 kWh gegenüber 15,6 kWh nach WLTP.
+// Quelle: ADAC, „Stromverbrauch Elektroautos im ADAC Test", Stand 20.07.2026.
+// ADAC Ecotest des Corsa 1.2 DI Turbo Elegance (74 kW, Schaltgetriebe),
+// Test 03/2020: 5,4 l je 100 km. Quelle: ADAC Autokatalog.
+const TEST_STROM = 18.8;
+const TEST_STROM_WLTP = 15.6;
+const TEST_BENZIN = 5.4;
+const TEST_STROM_URL = 'https://www.adac.de/rund-ums-fahrzeug/elektromobilitaet/elektroauto/stromverbrauch-elektroautos-adac-test/';
+const TEST_BENZIN_URL = 'https://www.adac.de/rund-ums-fahrzeug/autokatalog/marken-modelle/direktlink/aus/autotest/301655/';
+const testMehrStrom = (TEST_STROM / TEST_STROM_WLTP - 1) * 100;
+const testMehrBenzin = (TEST_BENZIN / VB - 1) * 100;
+const schwelleTest = schwelleCent(TEST_BENZIN, TEST_STROM);
+const test = ladeorte.map((l) => {
+  const v = vergleich(l.cent, TEST_BENZIN, TEST_STROM);
+  return { name: l.name, cent: l.cent, je100: v.strom.je100km, vorteilJahr: v.vorteilJahr };
+});
+const testBenzin100 = vergleich(LADESTROM_HEIM_CENT_PRO_KWH, TEST_BENZIN, TEST_STROM).benzin.je100km;
+const testAc = test[2];
+const testDc = test[3];
+if (!(testDc.vorteilJahr < 0 && testAc.vorteilJahr > 0)) {
+  throw new Error('Schnellladen-Artikel: Mit Messwerten soll DC teurer, AC noch günstiger sein.');
+}
+if (!(testMehrStrom > testMehrBenzin)) {
+  throw new Error('Schnellladen-Artikel: Der Stromverbrauch soll stärker vom Normwert abweichen.');
+}
+const acLuftTest = schwelleTest - LADESTROM_AC_CENT_PRO_KWH;
+
+const quellen = [
+  { titel: `ADAC Autokostenübersicht ${ADAC_STAND} (PDF, Verbrauch nach WLTP, Kraftstoff- und Strompreis)`, url: ADAC_QUELLE_URL },
+  { titel: `${STROMPREIS_QUELLE} (Haushaltsstrompreis)`, url: STROMPREIS_QUELLE_URL },
+  { titel: `${STROMPREIS_AMTLICH.quelle} (Bestandskunden)`, url: STROMPREIS_AMTLICH.quelleUrl },
+  { titel: `${LADESTROM_QUELLE} (öffentliche Ladepreise AC und DC)`, url: LADESTROM_QUELLE_URL },
+  { titel: 'ADAC: Ladetarife für Elektroautos 2026 (Ad-hoc-Beispiel 84 statt 52 Cent)', url: 'https://www.adac.de/rund-ums-fahrzeug/elektromobilitaet/laden/elektroauto-ladesaeulen-strompreise/' },
+  { titel: `ADAC: Laden ohne Vertrag – Ad-hoc-Preise an Autobahnen (${ADAC_AUTOBAHN_STAND})`, url: ADAC_AUTOBAHN_URL },
+  { titel: 'ADAC: Ladeverluste beim Elektroauto (Steckdose, Wallbox)', url: 'https://www.adac.de/rund-ums-fahrzeug/elektromobilitaet/laden/ladeverluste-elektroauto-studie/' },
+  { titel: 'ADAC Presse: E-Auto am Schnelllader – Energieverluste zwischen Säule und Akku', url: 'https://presse.adac.de/meldungen/adac-ev/technik/e-auto-am-schnelllader-so-viel-energie-geht-zwischen-ladesaeule-und-akku-verloren.html' },
+  { titel: 'electrive: Wie die WLTP-Reichweite von Elektroautos ermittelt wird', url: 'https://www.electrive.net/2022/04/02/wie-die-wltp-reichweite-von-elektroautos-ermittelt-wird/' },
+  { titel: 'ADAC: Stromverbrauch von Elektroautos im ADAC Test (Messwert gegen WLTP)', url: TEST_STROM_URL },
+  { titel: 'ADAC Autokatalog: Opel Corsa 1.2 DI Turbo Elegance, Ecotest', url: TEST_BENZIN_URL },
+];
+---
+<RechnerArtikel
+  titel="Am Schnelllader trennen Strom und Benzin vier Prozent"
+  datum="2026-09-17"
+  lead={`Der Benziner-Corsa verbraucht nach Norm ${zahl(VB)} Liter, der elektrische ${zahl(VS)} Kilowattstunden. Daraus folgt eine einzige Schwelle: Bis ${ct(schwelle, 2)} je Kilowattstunde fährt der Stromer billiger. Haushaltsstrom liegt weit darunter. Am Schnelllader mit ${ct(LADESTROM_DC_CENT_PRO_KWH)} darf der Verbrauch nur noch ${proz(dc.mehrverbrauch)} höher ausfallen als angegeben – weniger, als bei kaltem Akku an der Säule verloren geht. Und keiner der ${ganz(AUTOBAHN.length)} Ad-hoc-Preise, die der ADAC an Autobahnen erhoben hat, liegt unter der Schwelle.`}
+  quellen={quellen}
+>
+  <p>
+    Ob ein Elektroauto über die Anschaffung hinaus günstiger ist, klärt eine
+    Gesamtkostenrechnung mit Kaufpreis, Wertverlust und Steuer – das leistet der
+    Artikel <a href={`${base}${artikelPfadVonSlug('elektroauto-gegen-verbrenner')}`}>Elektroauto
+    gegen Verbrenner</a>. Hier geht es nur um das, was der Rechner oben auf
+    dieser Seite vergleicht: die Energie je 100 Kilometer. Diese Rechnung ist
+    einfacher, aber sie hat einen Kipppunkt, der enger liegt, als die üblichen
+    Tabellen mit ganzen Cent-Beträgen vermuten lassen.
+  </p>
+
+  <h3>Eine Zahl reicht: die Schwelle je Kilowattstunde</h3>
+  <p>
+    Der Rechner ist mit dem Opel Corsa vorbelegt, den es als Benziner und als
+    Elektroauto gibt. Aus den Betriebskosten der ADAC Autokostenübersicht
+    {' '}{ADAC_STAND} ergeben sich {zahl(VB)} Liter Benzin und {zahl(VS)}
+    Kilowattstunden Strom je 100 Kilometer. Der ADAC rechnet dabei mit
+    Verbrauchswerten nach WLTP. Bei {eur(BENZINPREIS)} je Liter kostet der
+    Benziner {eur(benzin100)} je 100 Kilometer.
+  </p>
+  <p>
+    Das Elektroauto ersetzt damit jeden Liter Benzin durch
+    {' '}{zahl(kwhJeLiter, 2)} Kilowattstunden. Eine Kilowattstunde darf also
+    höchstens den Benzinpreis geteilt durch {zahl(kwhJeLiter, 2)} kosten, damit
+    der Stromer vorne bleibt. Auf den Hundertstel-Cent genau gesucht, weist der
+    Rechner ab <strong>{ct(schwelle, 2)} je Kilowattstunde</strong> den
+    Benziner als günstigeren Antrieb aus. Alles Weitere in diesem Artikel ist
+    der Abstand eines Ladepreises zu dieser Schwelle.
+  </p>
+
+  <table>
+    <caption class="visually-hidden">
+      Energiekosten je 100 km und Abstand zur Schwelle nach Ladeort
+    </caption>
+    <thead>
+      <tr>
+        <th scope="col">Ladeort</th>
+        <th scope="col" class="num">Preis je kWh</th>
+        <th scope="col" class="num">Strom je 100 km</th>
+        <th scope="col" class="num">gegenüber Benzin bei {ganz(KM)} km/Jahr</th>
+        <th scope="col" class="num">Verbrauch darf steigen um</th>
+        <th scope="col" class="num">Gleichstand bei Benzinpreis</th>
+      </tr>
+    </thead>
+    <tbody>
+      {ladeorte.map((l) => (
+        <tr>
+          <th scope="row">{l.name}, {l.quelle}</th>
+          <td class="num">{ct(l.cent, l.cent % 1 === 0 ? 0 : 2)}</td>
+          <td class="num">{eur(l.je100)}</td>
+          <td class="num">{eurVz(l.vorteilJahr)}</td>
+          <td class="num">{l.mehrverbrauch > 0 ? proz(l.mehrverbrauch) : 'bereits teurer'}</td>
+          <td class="num">{liter(l.kippBenzin)}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+  <p class="ra-hinweis">
+    Plus bedeutet: Das Elektroauto spart gegenüber dem Benziner mit
+    {' '}{eur(benzin100)} je 100 km. Die vorletzte Spalte zeigt, um wie viel
+    Prozent der Stromverbrauch höher sein darf, bevor der Ladeort die Schwelle
+    erreicht; die letzte, bei welchem Benzinpreis Strom und Benzin gleich viel kosten – darüber ist Strom günstiger.
+    Haushaltsstrom nach {STROMPREIS_QUELLE} und {STROMPREIS_AMTLICH.quelle}
+    ({STROMPREIS_AMTLICH.zeitraum}), öffentliche Preise nach {LADESTROM_QUELLE}
+    (Stand {LADESTROM_DATENSTAND}), der Ad-hoc-Preis ist das Beispiel, das der
+    ADAC für eine Autobahn-Ladesäule nennt.
+  </p>
+  <p>
+    Die Tabelle trennt die Ladeorte deutlicher, als es die Euro-Beträge tun.
+    Mit Haushaltsstrom darf das Elektroauto {proz(heim.mehrverbrauch, 0)} mehr
+    verbrauchen als angegeben und bleibt trotzdem billiger; selbst mit dem
+    höheren Durchschnittspreis bestehender Verträge sind es noch
+    {' '}{proz(bestand.mehrverbrauch, 0)}. Beim öffentlichen Normalladen
+    schrumpft der Puffer auf {proz(ac.mehrverbrauch, 0)}. Am Schnelllader mit
+    {' '}{ct(LADESTROM_DC_CENT_PRO_KWH)} bleiben {proz(dc.mehrverbrauch)}: Der
+    Stromer ist dort im Jahr um {eur0(dc.vorteilJahr)} günstiger, aber nur,
+    solange der Verbrauch genau dem Normwert entspricht.
+  </p>
+
+  <h3>Der Benzinpreis verschiebt die Schwelle mit</h3>
+  <p>
+    Die Schwelle ist kein fester Wert, sondern ein Bruchteil des Benzinpreises.
+    Jede zehn Cent, die der Liter teurer oder billiger wird, verschieben sie im
+    Beispiel um {ct(verschiebungJe10ct, 1)} je Kilowattstunde. Die letzte
+    Spalte der Tabelle zeigt, was daraus folgt: Der Schnelllader verliert
+    seinen Vorsprung, sobald der Liter Benzin unter {liter(dc.kippBenzin)}
+    fällt – {ct(dcAbstandBenzin, 1)} unter dem Preis, den der ADAC ansetzt.
+    Normalladen hält bis {liter(ac.kippBenzin)}, Haushaltsstrom bis
+    {' '}{liter(heim.kippBenzin)}. Das Ad-hoc-Laden an der Autobahn würde erst
+    ab {liter(adhoc.kippBenzin)} günstiger als Tanken.
+  </p>
+  <p>
+    Für einen Diesel gilt dieselbe Rechnung mit seinem eigenen Verbrauch und
+    Preis. Einen Diesel-Corsa, der sich als drittes Modell gleicher Bauart
+    vergleichen ließe, führt die ADAC-Übersicht nicht; der Rechner lässt die
+    Zeile deshalb leer. Die Umrechnung bleibt dieselbe: Liter je 100 km mal
+    Dieselpreis, geteilt durch die Kilowattstunden je 100 km, ergibt den
+    Strompreis, ab dem das Elektroauto teurer fährt.
+  </p>
+  <p>
+    Umgekehrt lässt sich fragen, wie sparsam ein Verbrenner sein müsste, um
+    mitzuhalten. Gegen Haushaltsstrom müsste er mit
+    {' '}{zahl(heim.literAequivalent, 2)} Litern auskommen, gegen den
+    Schnelllader mit {zahl(dc.literAequivalent, 2)} Litern. Gegen das
+    Ad-hoc-Laden an der Autobahn gewinnt jeder Benziner, der weniger als
+    {' '}{zahl(adhoc.literAequivalent, 2)} Liter braucht – bei
+    {' '}{eur(BENZINPREIS)} je Liter.
+  </p>
+
+  <h3>Wie viel Autobahn die Heimladung verkraftet</h3>
+  <p>
+    Kaum jemand lädt nur an einem Ort. Wer zu Hause lädt und auf Reisen ohne
+    Vertrag an der Autobahn, zahlt einen Mischpreis. Weil die Durchschnittspreise fürs Normal- und fürs
+    Schnellladen in diesem Beispiel beide unter der Schwelle liegen, kann eine Mischung aus Heimstrom und diesen beiden nie teurer
+    werden als der Benziner – selbst wer ausschließlich an der Säule lädt, fährt
+    noch günstiger, wenn auch knapp.
+  </p>
+  <p>
+    Anders beim Ad-hoc-Preis von {ct(LADESTROM_ADHOC_AUTOBAHN_CENT_PRO_KWH)}.
+    Jede dort geladene Kilowattstunde liegt {ct(ueberSchwelleAdhoc, 2)} über
+    der Schwelle, jede zu Hause geladene {ct(unterSchwelleHeim, 2)} darunter.
+    Eine Kilowattstunde von der Autobahn braucht also
+    {' '}{zahl(heimKwhJeAdhocKwh, 2)} Kilowattstunden aus der Steckdose, um
+    ausgeglichen zu werden. In Anteilen: Ab {proz(kippAnteil)} Ad-hoc-Strom an
+    der gesamten Lademenge fährt der Stromer teurer als der Benziner. Je 100
+    Kilometer liegen zwischen beiden Ladeorten {eur(heimVsAdhocJe100)}.
+  </p>
+
+  <h3>An der Autobahn liegt kein Ad-hoc-Preis unter der Schwelle</h3>
+  <p>
+    Die {ct(LADESTROM_ADHOC_AUTOBAHN_CENT_PRO_KWH)} sind kein Ausreißer. Der ADAC
+    hat an Autobahn-Schnellladern die Preise von {ganz(AUTOBAHN.length)}
+    Anbietern mit festen Tarifen erhoben, jeweils ohne und mit Ladevertrag.
+    Gegen den Benziner aus dem Beispiel gerechnet:
+  </p>
+
+  <table>
+    <caption class="visually-hidden">
+      Ad-hoc- und Vertragspreise an Autobahn-Schnellladern, Kosten je 100 km im Beispiel
+    </caption>
+    <thead>
+      <tr>
+        <th scope="col">Anbieter</th>
+        <th scope="col" class="num">ohne Vertrag</th>
+        <th scope="col" class="num">je 100 km</th>
+        <th scope="col" class="num">mit Vertrag</th>
+        <th scope="col" class="num">je 100 km</th>
+      </tr>
+    </thead>
+    <tbody>
+      {AUTOBAHN.map((z) => (
+        <tr>
+          <th scope="row">{z.anbieter}</th>
+          <td class="num">{ct(z.adhoc)}</td>
+          <td class="num">{eur(z.adhocJe100)}{z.adhocGuenstiger ? '' : ' ▲'}</td>
+          <td class="num">{ct(z.vertrag)}</td>
+          <td class="num">{eur(z.vertragJe100)}{z.vertragGuenstiger ? '' : ' ▲'}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+  <p class="ra-hinweis">
+    ▲ = teurer als der Benziner mit {eur(benzin100)} je 100 km. ADAC,
+    Veröffentlichung vom {ADAC_AUTOBAHN_STAND}; Preise aus Stichproben vor Ort
+    im Mai 2025 und einer Recherche im Juli 2025. Tesla und Shell Recharge sind
+    dort mit dynamischen Preisen aufgeführt und fehlen hier. Grundgebühren der
+    Ladeverträge sind nicht enthalten.
+  </p>
+  <p>
+    Ohne Vertrag ist der Benziner bei allen {ganz(AUTOBAHN.length)} Anbietern
+    günstiger. Selbst die niedrigsten Ad-hoc-Preise von {ct(billigsterAdhoc)}
+    liegen über der Schwelle, der höchste mit {ct(teuersterAdhoc)} deutlich
+    darüber. Das eigentlich Überraschende steht in der rechten Hälfte: Auch
+    mit Ladevertrag bleiben nur {ganz(vertragUnter)} der
+    {' '}{ganz(AUTOBAHN.length)} Anbieter unter der Schwelle, am knappsten
+    {' '}{knappsterVertrag.anbieter} mit {ct(knappsterVertrag.vertrag)}. Bei den
+    übrigen {ganz(vertragUeber)} ist der Strom an der Autobahn auch mit Vertrag
+    teurer als Benzin. Der Durchschnitt von {ct(LADESTROM_DC_CENT_PRO_KWH)} für
+    Schnellladen, mit dem die erste Tabelle rechnet, stammt aus einer anderen
+    Erhebung; an der Autobahn liegen {ganz(vertragUeberDc)} der
+    {' '}{ganz(AUTOBAHN.length)} Vertragspreise darüber.
+  </p>
+
+  <h3>Ladeverluste: wo die vier Prozent bleiben</h3>
+  <p>
+    Ob der Verbrauch wirklich dem eingetragenen Wert entspricht, hängt zuerst
+    daran, woher der Wert stammt. Der Normverbrauch nach WLTP wird aus der
+    Energie berechnet, die beim Nachladen aus dem Netz fließt; Ladeverluste
+    sind darin enthalten. Der Bordcomputer dagegen zeigt den Verbrauch ohne
+    Ladeverluste. Der Rechner verlangt deshalb die abgerechnete Menge. Wer den
+    Bordcomputerwert einträgt, rechnet das Elektroauto um die Ladeverluste zu
+    billig.
+  </p>
+  <p>
+    Wie groß diese Verluste sind, hat der ADAC gemessen – als Anteil der
+    bezahlten Energie, der nicht zum Fahren zur Verfügung steht:
+  </p>
+  <ul>
+    <li>
+      an der Haushaltssteckdose zwischen {proz(VERLUST.steckdose.min)} und
+      {' '}{proz(VERLUST.steckdose.max)},
+    </li>
+    <li>
+      an der 11-kW-Wallbox zwischen {proz(VERLUST.wallbox11.min)} und
+      {' '}{proz(VERLUST.wallbox11.max)},
+    </li>
+    <li>
+      am Schnelllader mit warmem Akku {zahl(VERLUST.dcWarm.min, 0)} bis
+      {' '}{proz(VERLUST.dcWarm.max, 0)}, mit kaltem Akku
+      {' '}{zahl(VERLUST.dcKalt.min, 0)} bis {proz(VERLUST.dcKalt.max, 0)} – vor
+      allem, weil der Akku vor dem Schnellladen geheizt wird. Diese Energie
+      kommt aus der Säule und wird bezahlt.
+    </li>
+  </ul>
+  <p>
+    Rechnet man die Tabelle von oben in dieselbe Größe um, darf beim
+    Heimstrom {proz(heim.verlustanteil, 0)} der bezahlten Energie verloren
+    gehen, beim Normalladen {proz(ac.verlustanteil)}, beim Schnellladen
+    {' '}{proz(dc.verlustanteil)}. Die ersten beiden Puffer sind größer als
+    jeder gemessene Wallbox-Verlust. Der Puffer am Schnelllader liegt dagegen
+    innerhalb der Spanne, die der ADAC schon bei warmem Akku gemessen hat. Schon
+    mit dem niedrigsten Wert bei kaltem Akku, {proz(VERLUST.dcKalt.min, 0)}, kostet eine
+    nutzbare Kilowattstunde am Schnelllader {ct(dcKaltMin, 2)} und damit mehr
+    als die Schwelle von {ct(schwelle, 2)}.
+  </p>
+  <p>
+    Das heißt nicht, dass man die gemessenen Verluste einfach auf den
+    Normwert aufschlagen darf – der enthält bereits die Verluste einer
+    Wechselstromladung. Es heißt: Der Vorsprung des Schnellladers ist kleiner
+    als die Unsicherheit darüber, wie viel Energie beim Laden verloren geht.
+    Zu Hause ist es umgekehrt. Selbst mit dem schlechtesten Steckdosenwert von
+    {' '}{proz(VERLUST.steckdose.max)} kostet die nutzbare Kilowattstunde
+    {' '}{ct(heimSteckdoseMax, 2)} – weniger als die Schwelle und weniger als
+    die {ct(LADESTROM_AC_CENT_PRO_KWH)}, die an der öffentlichen Normalladesäule
+    schon vor jedem Verlust fällig werden. An der Wallbox wären
+    es höchstens {ct(heimWallboxMax, 2)}. Die Steckdose kostet Geld, am
+    Ergebnis des Vergleichs ändert sie nichts.
+  </p>
+
+  <h3>Mit Messwerten statt Normwerten kippt der Schnelllader</h3>
+  <p>
+    Normwerte sind Laborwerte. Der ADAC misst den Verbrauch zusätzlich auf
+    einer eigenen Prüfrunde, beim Elektroauto einschließlich der Ladeverluste an
+    einer 22-kW-Wallbox. Für den Corsa gibt es beide Messungen, allerdings aus
+    früheren Baujahren derselben Modellgeneration: Der Corsa-e kam im Test auf
+    {' '}{zahl(TEST_STROM)} Kilowattstunden statt {zahl(TEST_STROM_WLTP)} nach
+    WLTP, {proz(testMehrStrom)} mehr. Der Benziner mit 74 kW und
+    Schaltgetriebe verbrauchte im ADAC Ecotest {zahl(TEST_BENZIN)} Liter,
+    {' '}{proz(testMehrBenzin)} mehr als der Normwert, mit dem der Rechner
+    vorbelegt ist.
+  </p>
+  <p>
+    Der Stromverbrauch weicht also stärker ab als der Benzinverbrauch – und
+    genau das verschiebt die Schwelle. Mit den Messwerten kostet der Benziner
+    {' '}{eur(testBenzin100)} je 100 Kilometer, und das Elektroauto ist nur noch
+    bis <strong>{ct(schwelleTest, 2)}</strong> je Kilowattstunde günstiger:
+  </p>
+
+  <table>
+    <caption class="visually-hidden">
+      Energiekosten je 100 km mit ADAC-Messverbrauch statt Normverbrauch
+    </caption>
+    <thead>
+      <tr>
+        <th scope="col">Ladeort</th>
+        <th scope="col" class="num">Strom je 100 km</th>
+        <th scope="col" class="num">gegenüber Benzin bei {ganz(KM)} km/Jahr</th>
+      </tr>
+    </thead>
+    <tbody>
+      {test.map((t) => (
+        <tr>
+          <th scope="row">{t.name}</th>
+          <td class="num">{eur(t.je100)}</td>
+          <td class="num">{eurVz(t.vorteilJahr)}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+  <p class="ra-hinweis">
+    Verbrauch {zahl(TEST_STROM)} kWh und {zahl(TEST_BENZIN)} l je 100 km aus ADAC-Tests
+    (Corsa-e Elegance, Tabelleneintrag 12/21; Corsa 1.2 DI Turbo Elegance, Test 03/2020),
+    Preise wie in der ersten Tabelle. Beide Tests stammen aus der Zeit vor der
+    Anpassung der ADAC-Prüfmethode Anfang 2026.
+  </p>
+  <p>
+    Der Schnelllader mit {ct(LADESTROM_DC_CENT_PRO_KWH)} fährt jetzt
+    {' '}{eur0(Math.abs(testDc.vorteilJahr))} im Jahr teurer als der Benziner,
+    das Normalladen bleibt mit {ct(acLuftTest, 2)} Abstand zur Schwelle gerade
+    noch günstiger. Haushaltsstrom verliert zwar an Vorsprung, gewinnt aber
+    weiterhin deutlich. Die Antwort auf die Frage „Schnellladen oder Tanken?"
+    hängt in diesem Beispiel also nicht am Ladepreis, sondern daran, welcher
+    Verbrauch in die Rechnung geht. Deshalb fragt der Rechner nach dem
+    eigenen Verbrauch aus Belegen und nicht nach dem Prospektwert.
+  </p>
+
+  <h3>Was diese Rechnung nicht enthält</h3>
+  <ul>
+    <li>
+      <strong>Grundgebühren.</strong> Kostet ein Ladevertrag eine monatliche
+      Gebühr, verteilt sie sich auf die geladene Menge. Wer selten unterwegs
+      lädt, zahlt dann effektiv mehr als den Preis je Kilowattstunde, der in
+      den Tabellen steht.
+    </li>
+    <li>
+      <strong>Die Zusammensetzung des Heimstroms.</strong> Warum der
+      Haushaltspreis bei {ct(LADESTROM_HEIM_CENT_PRO_KWH)} liegt und welcher
+      Teil davon sich durch einen Tarifwechsel bewegen lässt, erklärt der
+      Artikel <a href={`${base}${artikelPfadVonSlug('strompreis-zusammensetzung')}`}>Woraus
+      der Strompreis besteht</a>.
+    </li>
+    <li>
+      <strong>Alles außer Energie.</strong> Kaufpreis, Wertverlust, Steuer und
+      Werkstatt entscheiden über die Gesamtkosten stärker als die Energie. Der
+      <a href={`${base}auto/elektroauto-tco-rechner/`}>Elektroauto-TCO-Rechner</a>
+      {' '}rechnet sie zusammen, der
+      {' '}<a href={`${base}auto/spritkosten-rechner/`}>Spritkosten-Rechner</a>
+      {' '}die Kosten einer einzelnen Fahrt.
+    </li>
+    <li>
+      <strong>Marktpreise mit Datum.</strong> Die öffentlichen Ladepreise
+      stammen aus Erhebungen des Jahres 2025, der Benzinpreis ist der
+      Dreimonatsdurchschnitt, den der ADAC im Frühjahr 2026 angesetzt hat. Die
+      Schwelle rechnet der Rechner mit jedem eingetragenen Preis neu; die
+      Tabellen hier gelten für die genannten Werte.
+    </li>
+  </ul>
+  <p class="ra-hinweis">
+    Modellannahmen: Verbrauch aus den ADAC-Betriebskosten zurückgerechnet
+    (Pflegepauschale abgezogen) und wie im Rechner auf eine Nachkommastelle
+    gerundet. Ungerundet ({zahl(VB_ROH, 3)} l und {zahl(VS_ROH, 3)} kWh) läge
+    die Schwelle bei {ct(schwelleRoh, 2)}; am Befund ändert das nichts, der
+    Puffer am Schnelllader wüchse lediglich auf
+    {' '}{proz((schwelleRoh / LADESTROM_DC_CENT_PRO_KWH - 1) * 100)}.
+    Fahrleistung {ganz(KM)} km im Jahr wie in der Vorbelegung des Rechners.
+  </p>
+</RechnerArtikel>

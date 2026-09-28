@@ -1,0 +1,402 @@
+---
+import RechnerArtikel from '../RechnerArtikel.astro';
+import { artikelPfadVonSlug } from '../../data/ratgeber';
+import { berechneMietrechner } from '../../../public/scripts/mietrechner.js';
+import {
+  pruefeVorauszahlung,
+  abrechnungsfristEnde,
+  BETRIEBSKOSTENSPIEGEL,
+  BETRIEBSKOSTEN_ARTEN,
+} from '../../../public/scripts/nebenkosten.js';
+
+// Alle Zahlen zur Buildzeit aus denselben Modulen, die der Rechner oben laedt.
+// Nur die Kautionsgrenze steht nicht im Modul, weil der Rechner sie nicht
+// braucht; sie ist mit Fundstelle benannt.
+const KAUTION_MONATSMIETEN = 3; // § 551 Abs. 1 BGB: "höchstens das Dreifache"
+
+const base = import.meta.env.BASE_URL;
+const eur = (n: number) =>
+  n.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
+const eurGlatt = (n: number) => n.toLocaleString('de-DE', { maximumFractionDigits: 0 }) + ' €';
+const qm = (n: number) =>
+  n.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €/m²';
+const proz = (n: number) => n.toLocaleString('de-DE', { maximumFractionDigits: 0 }) + ' %';
+const zahl1 = (n: number) => n.toLocaleString('de-DE', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+const datum = (iso: string) => iso.split('-').reverse().join('.');
+const aufCent = (n: number) => Math.round(n * 100) / 100;
+
+// --- Zwei Inserate für dieselbe Wohnungsgröße -----------------------------
+// Die Beträge sind Setzung dieses Artikels. Modellannahme: In beiden Häusern
+// fallen Betriebs- und Heizkosten in Höhe des Betriebskostenspiegels an.
+const FLAECHE = 70;
+const A = { name: 'Wohnung A', kaltmiete: 820, betriebskosten: 80, heizkosten: 50 };
+const B = { name: 'Wohnung B', kaltmiete: 790, betriebskosten: 120, heizkosten: 80 };
+const rA = berechneMietrechner({ ...A, flaeche: FLAECHE });
+const rB = berechneMietrechner({ ...B, flaeche: FLAECHE });
+if (!rA.spiegel || !rB.spiegel || !rA.einordnung || !rB.einordnung) {
+  throw new Error('Warmmiete-Artikel: Modul liefert keine Einordnung.');
+}
+const erwartet = rA.spiegel.erwartetMonat;
+if (rB.spiegel.erwartetMonat !== erwartet) throw new Error('Warmmiete-Artikel: Erwartungswerte weichen ab.');
+const echtA = aufCent(rA.warmmiete + rA.spiegel.differenzMonat);
+const echtB = aufCent(rB.warmmiete + rB.spiegel.differenzMonat);
+const inseratVorteilA = aufCent(rB.warmmiete - rA.warmmiete);
+const echtNachteilA = aufCent(echtA - echtB);
+if (!(inseratVorteilA > 0)) throw new Error('Warmmiete-Artikel: A wirkt im Inserat nicht günstiger.');
+if (!(echtNachteilA > 0)) throw new Error('Warmmiete-Artikel: A ist tatsächlich nicht teurer.');
+if (rA.einordnung.stufe !== 'niedrig') throw new Error('Warmmiete-Artikel: A liegt nicht deutlich unter dem Durchschnitt.');
+if (!(rA.spiegel.differenzMonat > 0 && rB.spiegel.differenzMonat < 0)) {
+  throw new Error('Warmmiete-Artikel: Nachzahlung/Guthaben passen nicht zum Text.');
+}
+// Ab welchen tatsächlichen Nebenkosten wäre A wirklich günstiger?
+// Gleichstand, wenn Kaltmiete A + Kosten A = tatsächliche Monatskosten B.
+const kippKostenA = aufCent(echtB - A.kaltmiete);
+const kippProQm = kippKostenA / FLAECHE;
+const kippUnterSchnitt = (1 - kippKostenA / erwartet) * 100;
+if (!(kippKostenA < erwartet && kippKostenA > rA.vorauszahlung)) {
+  throw new Error('Warmmiete-Artikel: Kipppunkt liegt nicht zwischen Vorauszahlung und Erwartung.');
+}
+
+// --- Wann die Differenz auffällt ------------------------------------------
+// Mietbeginn und Abrechnungszeitraum (Kalenderjahr) sind Setzung.
+const MIETBEGINN = '2025-02-01';
+const ZEITRAUM_ENDE = '2025-12-31';
+const MONATE_ERSTER_ZEITRAUM = 11; // Februar bis Dezember
+const MONATE_ZWEITER_ZEITRAUM = 12;
+const spaetesterZugang = abrechnungsfristEnde(ZEITRAUM_ENDE);
+const spaetesterZugang2 = abrechnungsfristEnde(`${Number(ZEITRAUM_ENDE.slice(0, 4)) + 1}-12-31`);
+const monateBisAbrechnung = MONATE_ERSTER_ZEITRAUM + MONATE_ZWEITER_ZEITRAUM;
+if (spaetesterZugang !== '2026-12-31') throw new Error('Warmmiete-Artikel: Abrechnungsfrist unerwartet.');
+
+const nachzahlung1 = aufCent(rA.spiegel.differenzMonat * MONATE_ERSTER_ZEITRAUM);
+const nachzahlung2 = aufCent(rA.spiegel.differenzMonat * MONATE_ZWEITER_ZEITRAUM);
+const aufgelaufen = aufCent(nachzahlung1 + nachzahlung2);
+const monatMitAbrechnung = aufCent(rA.warmmiete + nachzahlung1);
+const angepasst = aufCent(rA.warmmiete + nachzahlung1 / MONATE_ERSTER_ZEITRAUM);
+const sprungProzent = (angepasst / rA.warmmiete - 1) * 100;
+
+// Dieselbe Wohnung mit Heizkosten am oberen Ende des Spiegels
+const heizung = BETRIEBSKOSTEN_ARTEN.find((a) => a.key === 'heizung')!;
+const spitze = pruefeVorauszahlung({ vorauszahlungMonat: rA.vorauszahlung, flaeche: FLAECHE, heizungSpitze: true });
+const aufgelaufenSpitze = aufCent(spitze.differenzMonat * monateBisAbrechnung);
+const kautionMax = A.kaltmiete * KAUTION_MONATSMIETEN;
+if (!(aufgelaufen < kautionMax)) throw new Error('Warmmiete-Artikel: Durchschnittsfall übersteigt die Kaution.');
+if (!(aufgelaufenSpitze > kautionMax)) throw new Error('Warmmiete-Artikel: Spitzenfall übersteigt die Kaution nicht.');
+const spitzeInKaltmieten = aufgelaufenSpitze / A.kaltmiete;
+
+// --- Dieselbe Vorauszahlung, drei Ergebnisse ------------------------------
+const STUFEN: Record<string, string> = {
+  niedrig: 'deutlich unter dem Durchschnitt',
+  passend: 'im Bereich des Durchschnitts',
+  hoch: 'deutlich über dem Durchschnitt',
+};
+const STUFEN_QM = [1.5, 2.0, 2.5, 2.8, 3.0, BETRIEBSKOSTENSPIEGEL.alleArtenGesamt];
+const VOLL = { aufzug: true, garten: true, hauswart: true };
+const stufenReihe = STUFEN_QM.map((q) => {
+  const vz = aufCent(q * FLAECHE);
+  const ohne = berechneMietrechner({ kaltmiete: A.kaltmiete, flaeche: FLAECHE, betriebskosten: vz, heizkosten: 0 });
+  const mit = berechneMietrechner({ kaltmiete: A.kaltmiete, flaeche: FLAECHE, betriebskosten: vz, heizkosten: 0, ...VOLL });
+  const mitSpitze = pruefeVorauszahlung({ vorauszahlungMonat: vz, flaeche: FLAECHE, ...VOLL, heizungSpitze: true });
+  if (!ohne.spiegel || !mit.spiegel) throw new Error('Warmmiete-Artikel: Stufenreihe ohne Werte.');
+  return {
+    q, vz,
+    ohne: ohne.spiegel.differenzMonat * 12,
+    mit: mit.spiegel.differenzMonat * 12,
+    spitze: mitSpitze.differenzMonat * 12,
+  };
+});
+// Zeile, in der dieselbe Vorauszahlung ohne Ausstattung ein Guthaben, mit
+// Ausstattung eine Nachzahlung ergibt.
+const kippZeilen = stufenReihe.filter((z) => z.ohne < 0 && z.mit > 0);
+if (kippZeilen.length === 0) throw new Error('Warmmiete-Artikel: Keine Zeile, in der die Ausstattung das Ergebnis dreht.');
+const beispielKipp = kippZeilen[kippZeilen.length - 1];
+if (!(beispielKipp.spitze > beispielKipp.mit)) throw new Error('Warmmiete-Artikel: teure Heizung erhöht die Nachzahlung nicht.');
+const obersteZeile = stufenReihe[stufenReihe.length - 1];
+if (!(obersteZeile.spitze > 0 && obersteZeile.ohne < 0)) {
+  throw new Error('Warmmiete-Artikel: Oberste Zeile widerlegt die Spitzen-Aussage nicht mehr.');
+}
+const vollErwartet = pruefeVorauszahlung({ vorauszahlungMonat: 0, flaeche: FLAECHE, ...VOLL });
+const vollSpitzeErwartet = pruefeVorauszahlung({ vorauszahlungMonat: 0, flaeche: FLAECHE, ...VOLL, heizungSpitze: true });
+if (!(vollSpitzeErwartet.euroProQmMonat > BETRIEBSKOSTENSPIEGEL.alleArtenGesamt)) {
+  throw new Error('Warmmiete-Artikel: Spitzenfall liegt nicht über dem Spiegel-Höchstwert.');
+}
+const differenzText = (jahr: number) =>
+  Math.abs(jahr) < 0.005 ? '±0,00 €' : jahr > 0 ? `${eur(jahr)} nach` : `${eur(-jahr)} zurück`;
+
+const quellen = [
+  { titel: '§ 556 BGB – Vereinbarungen über Betriebskosten', url: 'https://www.gesetze-im-internet.de/bgb/__556.html' },
+  { titel: '§ 560 BGB – Veränderungen von Betriebskosten', url: 'https://www.gesetze-im-internet.de/bgb/__560.html' },
+  { titel: '§ 551 BGB – Begrenzung und Anlage von Mietsicherheiten', url: 'https://www.gesetze-im-internet.de/bgb/__551.html' },
+  { titel: '§ 2 BetrKV – Aufstellung der Betriebskosten', url: 'https://www.gesetze-im-internet.de/betrkv/__2.html' },
+  { titel: 'BGH, Urteil vom 11.02.2004 – VIII ZR 195/03 (zu niedrige Vorauszahlungen)', url: 'https://lexetius.com/2004,447' },
+  { titel: `Deutscher Mieterbund: Betriebskostenspiegel, Abrechnungsjahr ${BETRIEBSKOSTENSPIEGEL.abrechnungsjahr} (veröffentlicht am ${datum(BETRIEBSKOSTENSPIEGEL.veroeffentlicht)})`, url: 'https://www.mieterbund.de/service/betriebskostenspiegel/' },
+];
+---
+<RechnerArtikel
+  titel="Die günstigere Warmmiete ist oft die teurere Wohnung"
+  datum="2026-09-17"
+  lead={`Zwei Wohnungen mit ${FLAECHE} m²: Die eine kostet laut Inserat ${eurGlatt(rA.warmmiete)} warm, die andere ${eurGlatt(rB.warmmiete)}. Fallen in beiden Häusern durchschnittliche Nebenkosten an, zahlt man für die erste ${eur(echtNachteilA)} im Monat mehr – nur merkt man das erst, wenn die Abrechnung kommt. Das kann bis zu ${monateBisAbrechnung} Monate dauern. Bis dahin sind ${eurGlatt(aufgelaufen)} aufgelaufen, bei teurer Heizung ${eurGlatt(aufgelaufenSpitze)} – mehr, als die Kaution höchstens betragen darf.`}
+  quellen={quellen}
+>
+  <h3>Nur die Kaltmiete ist ein Preis</h3>
+  <p>
+    Eine Warmmiete setzt sich aus zwei Arten von Beträgen zusammen, die im
+    Inserat gleich aussehen. Die Kaltmiete ist der vereinbarte Preis für die
+    Wohnung. Die Vorauszahlungen für Betriebskosten und für Heizung und
+    Warmwasser sind dagegen Abschläge auf Kosten, die erst hinterher feststehen:
+    Über sie ist nach § 556 Abs. 3 Satz 1 BGB jährlich abzurechnen, und was
+    fehlt, zahlt der Mieter nach.
+  </p>
+  <p>
+    Das Gesetz verlangt nur, dass Vorauszahlungen „in angemessener Höhe“
+    vereinbart werden (§ 556 Abs. 2 Satz 2 BGB). Eine Untergrenze folgt daraus
+    nicht. Der Bundesgerichtshof hat 2004 entschieden, dass ein Vermieter nicht
+    grundsätzlich verpflichtet ist, Vorauszahlungen kostendeckend zu kalkulieren
+    (Urteil vom 11. Februar 2004, VIII ZR 195/03). Eine Pflichtverletzung liegt
+    danach erst bei besonderen Umständen vor – etwa wenn der Vermieter die
+    Angemessenheit ausdrücklich zugesichert oder die Vorauszahlung bewusst zu
+    niedrig angesetzt hat, um über die tatsächliche Belastung zu täuschen.
+  </p>
+  <p>
+    Für den Vergleich zweier Inserate heißt das: Eine niedrige Vorauszahlung
+    macht eine Wohnung nicht billiger, sie verschiebt nur einen Teil der Miete
+    in die Abrechnung. Wer Warmmieten nebeneinanderlegt, vergleicht einen Preis
+    plus eine Schätzung des Vermieters.
+  </p>
+
+  <h3>Zwei Inserate, ein Vergleich, der kippt</h3>
+  <p>
+    Die beiden Wohnungen unten sind gleich groß. Wohnung A setzt die
+    Vorauszahlungen knapp an, Wohnung B großzügiger. Als Maßstab für die
+    tatsächlichen Kosten dient der Betriebskostenspiegel des Deutschen
+    Mieterbundes für das Abrechnungsjahr {BETRIEBSKOSTENSPIEGEL.abrechnungsjahr},
+    zusammengesetzt aus seinen Einzelwerten für ein Haus ohne Aufzug, Garten und
+    Hauswart: {eur(erwartet)} im Monat für {FLAECHE} m². Das ist eine
+    Modellannahme – dieselbe, mit der der Rechner oben die Vorauszahlung
+    einordnet.
+  </p>
+
+  <table>
+    <caption class="visually-hidden">Zwei Wohnungen: Warmmiete laut Inserat und bei durchschnittlichen Nebenkosten</caption>
+    <thead>
+      <tr>
+        <th scope="col"></th>
+        <th scope="col" class="num">{A.name}</th>
+        <th scope="col" class="num">{B.name}</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr><th scope="row">Kaltmiete</th><td class="num">{eur(A.kaltmiete)}</td><td class="num">{eur(B.kaltmiete)}</td></tr>
+      <tr><th scope="row">Vorauszahlung Betriebskosten</th><td class="num">{eur(A.betriebskosten)}</td><td class="num">{eur(B.betriebskosten)}</td></tr>
+      <tr><th scope="row">Vorauszahlung Heizung/Warmwasser</th><td class="num">{eur(A.heizkosten)}</td><td class="num">{eur(B.heizkosten)}</td></tr>
+      <tr><th scope="row">Warmmiete laut Inserat</th><td class="num"><strong>{eur(rA.warmmiete)}</strong></td><td class="num"><strong>{eur(rB.warmmiete)}</strong></td></tr>
+      <tr><th scope="row">Vorauszahlungen je m²</th><td class="num">{qm(rA.vorauszahlungProQm)}</td><td class="num">{qm(rB.vorauszahlungProQm)}</td></tr>
+      <tr><th scope="row">Einstufung im Rechner</th><td class="num">{STUFEN[rA.einordnung.stufe]}</td><td class="num">{STUFEN[rB.einordnung.stufe]}</td></tr>
+      <tr><th scope="row">Kosten nach Spiegel je Monat</th><td class="num">{eur(erwartet)}</td><td class="num">{eur(erwartet)}</td></tr>
+      <tr><th scope="row">Abrechnung im Jahr</th><td class="num">{differenzText(rA.spiegel.differenzJahr)}</td><td class="num">{differenzText(rB.spiegel.differenzJahr)}</td></tr>
+      <tr><th scope="row">tatsächlich je Monat</th><td class="num"><strong>{eur(echtA)}</strong></td><td class="num"><strong>{eur(echtB)}</strong></td></tr>
+    </tbody>
+  </table>
+  <p class="ra-hinweis">
+    „Tatsächlich je Monat“ ist die Kaltmiete plus die Kosten nach Spiegel, also
+    die Warmmiete zuzüglich der Nachzahlung beziehungsweise abzüglich des
+    Guthabens, auf den Monat umgelegt.
+  </p>
+  <p>
+    Im Inserat liegt Wohnung A um {eur(inseratVorteilA)} vorn. Tatsächlich ist
+    sie um {eur(echtNachteilA)} im Monat teurer, weil ihre Kaltmiete höher ist –
+    und nur die bleibt, wenn die Abrechnung die Vorauszahlungen durch echte
+    Kosten ersetzt. Die Reihenfolge der Warmmieten hat sich umgedreht.
+  </p>
+  <p>
+    Umgekehrt gefragt: Wie niedrig müssten die tatsächlichen Nebenkosten in
+    Haus A sein, damit die Wohnung wirklich die günstigere ist? Bei
+    {' '}{eur(kippKostenA)} im Monat oder {qm(kippProQm)} wären beide gleich
+    teuer. Haus A müsste also rund {proz(kippUnterSchnitt)} unter dem
+    Durchschnitt liegen, nur um gleichzuziehen – und selbst dann bliebe eine Nachzahlung, denn die Vorauszahlung von
+    {' '}{eur(rA.vorauszahlung)} liegt noch darunter. Das ist möglich, etwa in
+    einem gut gedämmten Haus mit niedriger Grundsteuer. Es ist aber genau die
+    Information, die im Inserat fehlt.
+  </p>
+
+  <h3>Wann die Differenz auffällt</h3>
+  <p>
+    Die knappe Vorauszahlung wäre halb so schlimm, wenn der Fehlbetrag Monat für
+    Monat sichtbar würde. Das tut er nicht. § 556 Abs. 3 Satz 2 BGB gibt dem
+    Vermieter für die Abrechnung Zeit bis zum Ablauf des zwölften Monats nach
+    Ende des Abrechnungszeitraums, und zu Teilabrechnungen ist er nach Satz 4
+    nicht verpflichtet. Anpassen kann er die Vorauszahlung nach § 560 Abs. 4 BGB
+    erst „nach einer Abrechnung“. Bis zur ersten Abrechnung bleibt es also beim
+    Betrag aus dem Vertrag.
+  </p>
+  <p>
+    Angenommen, Wohnung A wird zum {datum(MIETBEGINN)} bezogen und das Haus rechnet
+    nach Kalenderjahren ab. Der erste Abrechnungszeitraum umfasst dann
+    {' '}{MONATE_ERSTER_ZEITRAUM} Monate und endet am {datum(ZEITRAUM_ENDE)}.
+  </p>
+
+  <table>
+    <caption class="visually-hidden">Zeitlicher Ablauf bei Wohnung A, wenn der Vermieter die Abrechnungsfrist ausschöpft</caption>
+    <thead>
+      <tr>
+        <th scope="col">Zeitpunkt</th>
+        <th scope="col">Was geschieht</th>
+        <th scope="col" class="num">Betrag</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <th scope="row">{datum(MIETBEGINN)}</th>
+        <td>Einzug, Warmmiete laut Vertrag</td>
+        <td class="num">{eur(rA.warmmiete)}</td>
+      </tr>
+      <tr>
+        <th scope="row">{datum(ZEITRAUM_ENDE)}</th>
+        <td>Ende des ersten Abrechnungszeitraums, {MONATE_ERSTER_ZEITRAUM} Monate zu wenig gezahlt</td>
+        <td class="num">{eur(nachzahlung1)}</td>
+      </tr>
+      <tr>
+        <th scope="row">bis {datum(spaetesterZugang)}</th>
+        <td>späteste Abrechnung für den ersten Zeitraum; inzwischen sind auch die {MONATE_ZWEITER_ZEITRAUM} Monate des Folgejahres zu knapp bezahlt</td>
+        <td class="num">{eur(aufgelaufen)} aufgelaufen</td>
+      </tr>
+      <tr>
+        <th scope="row">danach</th>
+        <td>Anpassung der Vorauszahlung, neue Warmmiete</td>
+        <td class="num">{eur(angepasst)}</td>
+      </tr>
+      <tr>
+        <th scope="row">bis {datum(spaetesterZugang2)}</th>
+        <td>späteste Abrechnung für das zweite Jahr</td>
+        <td class="num">{eur(nachzahlung2)}</td>
+      </tr>
+    </tbody>
+  </table>
+  <p class="ra-hinweis">
+    Die neue Warmmiete unterstellt, dass die Vorauszahlung um ein Elftel der
+    ersten Nachzahlung angehoben wird und die Kosten gleich bleiben. „Angemessen“
+    im Sinne des § 560 Abs. 4 BGB ist gesetzlich nicht beziffert.
+  </p>
+  <p>
+    Schöpft der Vermieter die Frist aus, liegen zwischen Einzug und erster
+    Abrechnung {monateBisAbrechnung} Monate mit zu niedriger Vorauszahlung. Wird die erste Nachzahlung zusammen mit einer Monatsmiete fällig, sind in
+    diesem Monat {eur(monatMitAbrechnung)} zu zahlen. Danach steigt die Warmmiete um
+    {' '}{proz(sprungProzent)} auf {eur(angepasst)} – und ein Jahr später kommt
+    die zweite Nachzahlung von {eur(nachzahlung2)}, weil die Anpassung das
+    bereits abgelaufene Jahr nicht mehr erreicht. Zusammen sind das
+    {' '}{eur(aufgelaufen)}.
+  </p>
+  <p>
+    Das ist der Durchschnittsfall. Der Betriebskostenspiegel nennt für Heizung
+    und Warmwasser neben dem Mittelwert von {qm(heizung.euroProQmMonat)} einen
+    Wert von bis zu {qm(heizung.spitze!)} im Monat. Liegt Haus A dort, fehlen
+    {' '}{eur(spitze.differenzMonat)} im Monat, und nach {monateBisAbrechnung}
+    {' '}Monaten sind {eur(aufgelaufenSpitze)} offen. Das sind
+    {' '}{zahl1(spitzeInKaltmieten)} Kaltmieten. Zum Vergleich: Die Mietkaution
+    darf nach § 551 Abs. 1 BGB höchstens das Dreifache der Monatsmiete ohne
+    Betriebskosten betragen, hier also {eur(kautionMax)}. Die aufgelaufene
+    Nachforderung liegt über dem Betrag, den das Gesetz als äußerste Sicherheit
+    für den Vermieter vorsieht.
+  </p>
+
+  <h3>Dieselbe Vorauszahlung, drei Ergebnisse</h3>
+  <p>
+    Ob eine Vorauszahlung reicht, lässt sich nicht am Quadratmeterwert allein
+    ablesen. Der Rechner oben vergleicht sie deshalb mit dem Durchschnitt für die
+    eingetragene Fläche und die angekreuzte Ausstattung. Wie stark die Ausstattung
+    das Ergebnis dreht, zeigt die Tabelle: was verschiedene Vorauszahlungen bei
+    {' '}{FLAECHE} m² im Jahr in der Abrechnung auslösen – für ein Haus ohne
+    besondere Ausstattung ({qm(erwartet / FLAECHE)}), für eines mit Aufzug,
+    Garten und Hauswart ({qm(vollErwartet.euroProQmMonat)} nach den Einzelwerten
+    des Spiegels) und für dasselbe Haus mit Heizkosten am oberen Ende
+    ({qm(vollSpitzeErwartet.euroProQmMonat)}).
+  </p>
+
+  <table>
+    <caption class="visually-hidden">Nachzahlung oder Guthaben im Jahr nach Höhe der Vorauszahlung und Ausstattung, {FLAECHE} m²</caption>
+    <thead>
+      <tr>
+        <th scope="col" class="num">Vorauszahlung je m²</th>
+        <th scope="col" class="num">je Monat</th>
+        <th scope="col" class="num">ohne Ausstattung</th>
+        <th scope="col" class="num">Aufzug, Garten, Hauswart</th>
+        <th scope="col" class="num">dazu teure Heizung</th>
+      </tr>
+    </thead>
+    <tbody>
+      {stufenReihe.map((z) => (
+        <tr>
+          <th scope="row" class="num">{qm(z.q)}</th>
+          <td class="num">{eur(z.vz)}</td>
+          <td class="num">{differenzText(z.ohne)}</td>
+          <td class="num">{differenzText(z.mit)}</td>
+          <td class="num">{differenzText(z.spitze)}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+  <p class="ra-hinweis">
+    „nach“ heißt Nachzahlung im Jahr, „zurück“ Guthaben. Die letzte Zeile ist
+    der Wert, den der Mieterbund nennt, wenn sämtliche Kostenarten anfallen.
+  </p>
+  <p>
+    Bei {qm(beispielKipp.q)} bleibt in einem Haus ohne besondere Ausstattung ein
+    Guthaben von {eur(-beispielKipp.ohne)} im Jahr. Mit Aufzug, Garten und
+    Hauswart folgt aus derselben Vorauszahlung eine Nachzahlung von
+    {' '}{eur(beispielKipp.mit)}, mit teurer Heizung von {eur(beispielKipp.spitze)}.
+    Und selbst bei {qm(obersteZeile.q)}, dem Spiegelwert für ein Haus mit sämtlichen Kostenarten, bleiben im
+    ungünstigsten Fall {eur(obersteZeile.spitze)} nachzuzahlen, weil
+    {' '}{qm(vollSpitzeErwartet.euroProQmMonat)} darüber liegen. Eine hohe
+    Vorauszahlung ist also keine Garantie für ein Guthaben. Wahrscheinlich ist
+    es nur in einem Haus, das auch durchschnittlich ausgestattet ist und
+    durchschnittlich heizt.
+  </p>
+
+  <h3>Was sich vor der Unterschrift prüfen lässt</h3>
+  <p>
+    Aus der Rechnung folgt eine einfache Regel für den Vergleich von
+    Inseraten: Nicht die Warmmieten nebeneinanderlegen, sondern die
+    Kaltmieten – und für beide Wohnungen dieselbe realistische Schätzung der
+    Nebenkosten addieren. Genau das macht die Zeile „Durchschnitt für diese
+    Fläche und Ausstattung“ im Rechner oben, wenn man Aufzug, Garten und
+    Hauswart richtig ankreuzt. Liegt die Vorauszahlung deutlich darunter, ist
+    die Differenz keine Ersparnis, sondern eine Nachzahlung auf Raten, die in
+    einer Summe kommt.
+  </p>
+  <p>
+    Besser als jeder Durchschnitt ist die letzte Betriebskostenabrechnung für
+    die Wohnung. Wer sie vor Vertragsschluss sehen kann, kennt die
+    tatsächlichen Kosten des Hauses. Wie sich die Summe zusammensetzt und
+    welche Posten gar nicht hineingehören, steht im Beitrag
+    {' '}<a href={`${base}${artikelPfadVonSlug('nebenkosten-was-umlagefaehig-ist')}`}>Was der Vermieter umlegen darf – und was nicht</a>;
+    einzelne Positionen lassen sich mit dem
+    {' '}<a href={`${base}wohnen/nebenkosten-rechner/`}>Nebenkosten-Rechner</a>
+    {' '}aufschlüsseln, die Heizung gesondert mit dem
+    {' '}<a href={`${base}energie/heizkosten-rechner/`}>Heizkosten-Rechner</a>.
+  </p>
+  <p>
+    Ist der Vertrag unterschrieben und die Vorauszahlung erkennbar zu knapp,
+    hilft Eigeninitiative: Den Fehlbetrag monatlich zurücklegen, statt auf die
+    Abrechnung zu warten. Nach der ersten Abrechnung kann nach § 560 Abs. 4 BGB
+    nicht nur der Vermieter erhöhen – auch der Mieter kann die Vorauszahlung
+    per Erklärung in Textform auf eine angemessene Höhe bringen, bei einem
+    Guthaben nach unten. Und kommt die Abrechnung nach Ablauf der Frist aus
+    § 556 Abs. 3 Satz 2 BGB, ist eine Nachforderung ausgeschlossen, es sei denn,
+    der Vermieter hat die Verspätung nicht zu vertreten.
+  </p>
+  <p>
+    Bleibt die Kaltmiete. Sie ist der einzige Teil der Warmmiete, der wirklich
+    feststeht – und in Gebieten mit Mietpreisbremse auch der Teil, der sich
+    rechtlich prüfen lässt. Ob sie die zulässige Grenze überschreitet, zeigt der
+    {' '}<a href={`${base}wohnen/mietpreisbremse-rechner/`}>Mietpreisbremse-Rechner</a>.
+  </p>
+
+  <p class="ra-hinweis">
+    Die Kosten „nach Spiegel“ sind Durchschnittswerte des Deutschen
+    Mieterbundes für das Abrechnungsjahr {BETRIEBSKOSTENSPIEGEL.abrechnungsjahr},
+    keine Rechtsgrößen; regionale Unterschiede sind erheblich. Die Inserate A
+    und B, der Mietbeginn und die Anpassung der Vorauszahlung sind
+    Rechenbeispiele. Der Artikel gibt die Rechtslage wieder und ersetzt keine
+    Rechtsberatung.
+  </p>
+</RechnerArtikel>

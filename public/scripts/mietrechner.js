@@ -15,9 +15,33 @@
 // BGB), jährliche Abrechnung (§ 556 Abs. 3 BGB), Anpassung nach Abrechnung
 // (§ 560 Abs. 4 BGB).
 
-import { einordnung, pruefeVorauszahlung } from './nebenkosten.js';
+import { pruefeVorauszahlung } from './nebenkosten.js';
 
 const aufCent = (betrag) => Math.round(betrag * 100) / 100;
+
+/** Abweichung, ab der die Vorauszahlung nicht mehr als passend gilt. */
+export const TOLERANZ_VORAUSZAHLUNG = 0.1;
+
+const eur = (betrag) =>
+  betrag.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+/**
+ * Einordnung der Vorauszahlung gegen den Spiegelwert für DIESELBE Fläche und
+ * Ausstattung. Bis September 2026 verglich das Modul hier mit dem
+ * Bundesdurchschnitt ohne Ausstattung, während die Zeile darunter die
+ * Ausstattung berücksichtigte – mit Aufzug, Garten und Hauswart meldete der
+ * Rechner dann „über dem Durchschnitt“ und zugleich eine Nachzahlung.
+ */
+function einordnungVorauszahlung(vorauszahlung, erwartet) {
+  const text = `dem Durchschnitt von ${eur(erwartet)} € für diese Fläche und Ausstattung`;
+  if (vorauszahlung < erwartet * (1 - TOLERANZ_VORAUSZAHLUNG)) {
+    return { stufe: 'niedrig', text: `Deutlich unter ${text} – liegen die Kosten im Haus auch nur beim Durchschnitt, droht eine Nachzahlung.` };
+  }
+  if (vorauszahlung > erwartet * (1 + TOLERANZ_VORAUSZAHLUNG)) {
+    return { stufe: 'hoch', text: `Deutlich über ${text} – entweder sind die Kosten im Haus höher, oder es bleibt ein Guthaben.` };
+  }
+  return { stufe: 'passend', text: `Im Bereich von ${text}.` };
+}
 
 function zahl(wert) {
   const n = Number(wert);
@@ -57,8 +81,8 @@ export function berechneMietrechner({
   };
   if (qm === 0) return ergebnis;
 
-  ergebnis.einordnung = einordnung(ergebnis.vorauszahlungProQm);
   const p = pruefeVorauszahlung({ vorauszahlungMonat: aufCent(vorauszahlung), flaeche: qm, aufzug, garten, hauswart });
+  ergebnis.einordnung = einordnungVorauszahlung(vorauszahlung, p.erwartetMonat);
   ergebnis.spiegel = {
     erwartetMonat: p.erwartetMonat,
     differenzMonat: p.differenzMonat,

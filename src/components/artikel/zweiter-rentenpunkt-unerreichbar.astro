@@ -1,0 +1,410 @@
+---
+import RechnerArtikel from '../RechnerArtikel.astro';
+import { berechneRentenpunkte } from '../../../public/scripts/rentenpunkte.js';
+import {
+  AKTUELLER_RENTENWERT,
+  BBG_RENTE_JAHR,
+  DURCHSCHNITTSENTGELT_VORLAEUFIG,
+  MAX_ENTGELTPUNKTE_JAHR,
+  entgeltpunkteAusJahresentgelt,
+} from '../../../public/scripts/rentenwerte.js';
+import { BEITRAGSSAETZE } from '../../../public/scripts/sozialversicherung.js';
+
+// Alle Zahlen zum Jahr 2026 stammen aus denselben Modulen, die der Rechner
+// oben laedt. Die historische Reihe steht in keinem Modul und ist deshalb
+// hier offengelegt – Quelle jeweils der Gesetzestext, nicht eine Sekundaer-
+// darstellung.
+
+const zahl = (n: number, d = 2) =>
+  n.toLocaleString('de-DE', { minimumFractionDigits: d, maximumFractionDigits: d }).replace(/^-/, '−');
+const eur0 = (n: number) => zahl(n, 0) + ' €';
+const eur2 = (n: number) => zahl(n, 2) + ' €';
+const pkt = (n: number) => zahl(n, 4);
+const proz = (n: number, d = 1) => zahl(n, d) + ' %';
+
+// --- Die Obergrenze des Jahres 2026 ---------------------------------------
+const MAX_PUNKTE = MAX_ENTGELTPUNKTE_JAHR;
+const entgeltFuerZweiPunkte = 2 * DURCHSCHNITTSENTGELT_VORLAEUFIG;
+const luecke = entgeltFuerZweiPunkte - BBG_RENTE_JAHR;
+const fehlendePunkte = Math.round((2 - MAX_PUNKTE) * 1e4) / 1e4;
+const fehlendeRente = Math.round(fehlendePunkte * AKTUELLER_RENTENWERT * 100) / 100;
+
+const anDerGrenze = berechneRentenpunkte({ bruttoJahr: BBG_RENTE_JAHR });
+const weitDarueber = berechneRentenpunkte({ bruttoJahr: 150000 });
+const gehaltssprung = 150000 - BBG_RENTE_JAHR;
+
+// Zusicherung 1: Die Obergrenze ist die Division aus § 70 Abs. 1 SGB VI und
+// liegt unter zwei. Faellt das, traegt die gesamte These nicht.
+if (MAX_PUNKTE >= 2) {
+  throw new Error(`Rentenpunkte-Artikel: Obergrenze ${MAX_PUNKTE} liegt nicht unter 2 Punkten.`);
+}
+if (Math.abs(MAX_PUNKTE - BBG_RENTE_JAHR / DURCHSCHNITTSENTGELT_VORLAEUFIG) > 0.0001) {
+  throw new Error('Rentenpunkte-Artikel: Obergrenze ist nicht BBG geteilt durch Durchschnittsentgelt.');
+}
+
+// Zusicherung 2: Das Entgelt fuer zwei volle Punkte ergibt trotzdem nur die
+// Obergrenze – genau das ist die Aussage des Artikels.
+if (entgeltpunkteAusJahresentgelt(entgeltFuerZweiPunkte) !== MAX_PUNKTE) {
+  throw new Error('Rentenpunkte-Artikel: Entgelt fuer zwei Punkte ergibt nicht die gekappte Obergrenze.');
+}
+
+// Zusicherung 3: Oberhalb der Grenze aendert sich nichts mehr – weder Punkte
+// noch Rente. Das ist die zweite Haelfte der These.
+if (weitDarueber.entgeltpunkte !== anDerGrenze.entgeltpunkte
+  || weitDarueber.monatsrente !== anDerGrenze.monatsrente) {
+  throw new Error('Rentenpunkte-Artikel: Entgelt oberhalb der Grenze veraendert das Ergebnis.');
+}
+
+// --- Was ein Entgeltpunkt kostet ------------------------------------------
+// Beitragssatz der allgemeinen Rentenversicherung 2026: 18,6 % (Bekanntmachung
+// der Beitragssaetze 2026 – RVBeitrSBek 2026). Getragen wird er nach § 168
+// Abs. 1 Nr. 1 SGB VI je zur Haelfte von Beschaeftigtem und Arbeitgeber.
+const BEITRAGSSATZ = BEITRAGSSAETZE.rentenversicherung;
+const preisJePunkt = Math.round(DURCHSCHNITTSENTGELT_VORLAEUFIG * BEITRAGSSATZ * 100) / 100;
+const anteilBeschaeftigter = Math.round((preisJePunkt / 2) * 100) / 100;
+const jahreBisRueckfluss = preisJePunkt / AKTUELLER_RENTENWERT / 12;
+const jahreBisRueckflussAN = anteilBeschaeftigter / AKTUELLER_RENTENWERT / 12;
+
+// --- Die historische Reihe ------------------------------------------------
+// Durchschnittsentgelte: Anlage 1 SGB VI. Die Werte fuer 2025 und 2026 sind
+// dort als vorlaeufig gekennzeichnet, alle frueheren sind endgueltig.
+// Beitragsbemessungsgrenzen der allgemeinen Rentenversicherung: Anlage 2
+// SGB VI. Bis 2024 galt im Beitrittsgebiet nach Anlage 2a SGB VI eine eigene,
+// niedrigere Grenze; seit 2025 gilt bundesweit dieselbe.
+const DURCHSCHNITTSENTGELT: Record<number, number> = {
+  2015: 35363, 2016: 36187, 2017: 37077, 2018: 38212, 2019: 39301, 2020: 39167,
+  2021: 40463, 2022: 42053, 2023: 44732, 2024: 47085, 2025: 50493, 2026: 51944,
+};
+const BEMESSUNGSGRENZE: Record<number, number> = {
+  2015: 72600, 2016: 74400, 2017: 76200, 2018: 78000, 2019: 80400, 2020: 82800,
+  2021: 85200, 2022: 84600, 2023: 87600, 2024: 90600, 2025: 96600, 2026: 101400,
+};
+const VORLAEUFIG = [2025, 2026];
+
+const reihe = Object.keys(DURCHSCHNITTSENTGELT)
+  .map(Number)
+  .sort((a, b) => a - b)
+  .map((jahr) => {
+    const grenze = BEMESSUNGSGRENZE[jahr];
+    const durchschnitt = DURCHSCHNITTSENTGELT[jahr];
+    return {
+      jahr,
+      grenze,
+      durchschnitt,
+      hoechstpunkte: Math.round((grenze / durchschnitt) * 1e4) / 1e4,
+      vorlaeufig: VORLAEUFIG.includes(jahr),
+    };
+  });
+
+// Zusicherung 4: Die von Hand eingetragene Reihe muss in ihrer letzten Zeile
+// mit den Modulwerten uebereinstimmen, mit denen der Rechner arbeitet.
+const letzte = reihe[reihe.length - 1];
+if (letzte.grenze !== BBG_RENTE_JAHR
+  || letzte.durchschnitt !== DURCHSCHNITTSENTGELT_VORLAEUFIG
+  || letzte.hoechstpunkte !== MAX_PUNKTE) {
+  throw new Error('Rentenpunkte-Artikel: Tabelle und Modul weichen im letzten Jahr voneinander ab.');
+}
+
+const ueberZwei = reihe.filter((r) => r.hoechstpunkte >= 2);
+const unterZwei = reihe.filter((r) => r.hoechstpunkte < 2);
+const letztesJahrUeberZwei = ueberZwei[ueberZwei.length - 1];
+const erstesJahrUnterZwei = unterZwei[0];
+
+// Zusicherung 5: Der Wechsel darf nur einmal stattfinden – sonst ist "seit
+// 2023" im Titel falsch.
+if (ueberZwei.some((r) => r.jahr > erstesJahrUnterZwei.jahr)) {
+  throw new Error('Rentenpunkte-Artikel: Nach dem Unterschreiten liegt wieder ein Jahr ueber 2 Punkten.');
+}
+if (erstesJahrUnterZwei.jahr !== letztesJahrUeberZwei.jahr + 1) {
+  throw new Error('Rentenpunkte-Artikel: Der Wechsel unter 2 Punkte ist keine geschlossene Grenze.');
+}
+
+// --- Ursache des Wechsels -------------------------------------------------
+// Gemessen wird jeweils am Vorjahreswert, nicht am kleineren der beiden.
+function wachstum(werte: Record<number, number>, jahr: number) {
+  return (werte[jahr] / werte[jahr - 1] - 1) * 100;
+}
+const wechseljahr = erstesJahrUnterZwei.jahr;
+const grenzeWachstumWechsel = wachstum(BEMESSUNGSGRENZE, wechseljahr);
+const entgeltWachstumWechsel = wachstum(DURCHSCHNITTSENTGELT, wechseljahr);
+const grenzeWachstum2026 = wachstum(BEMESSUNGSGRENZE, 2026);
+const entgeltWachstum2026 = wachstum(DURCHSCHNITTSENTGELT, 2026);
+
+// Zusicherung 6: Die Ursache muss wirklich das schnellere Durchschnittsentgelt
+// sein und nicht etwas anderes. Das Verhaeltnis der Wachstumsfaktoren muss die
+// Veraenderung der Obergrenze exakt erklaeren.
+const erklaert = (1 + grenzeWachstumWechsel / 100) / (1 + entgeltWachstumWechsel / 100);
+const tatsaechlich = erstesJahrUnterZwei.hoechstpunkte / letztesJahrUeberZwei.hoechstpunkte;
+if (Math.abs(erklaert - tatsaechlich) > 0.0005) {
+  throw new Error('Rentenpunkte-Artikel: Wachstumsvergleich erklaert den Ruecklauf der Obergrenze nicht.');
+}
+if (!(entgeltWachstumWechsel > grenzeWachstumWechsel)) {
+  throw new Error('Rentenpunkte-Artikel: Das Durchschnittsentgelt stieg im Wechseljahr nicht schneller.');
+}
+
+// --- Vorlaeufig gegen endgueltig ------------------------------------------
+// § 3 SVBezGrV 2024 setzte fuer 2024 ein vorlaeufiges Durchschnittsentgelt von
+// 45.358 €; § 3 SVBezGrV 2026 hat fuer dasselbe Jahr endgueltig 47.085 €
+// bestimmt. Der endgueltige Wert steht inzwischen in Anlage 1 SGB VI.
+const VORLAEUFIG_2024 = 45358;
+const endgueltig2024 = DURCHSCHNITTSENTGELT[2024];
+const korrekturEntgelt = (endgueltig2024 / VORLAEUFIG_2024 - 1) * 100;
+const korrekturPunkte = (VORLAEUFIG_2024 / endgueltig2024 - 1) * 100;
+const punkteVorlaeufig = Math.round((VORLAEUFIG_2024 / VORLAEUFIG_2024) * 1e4) / 1e4;
+const punkteEndgueltig = Math.round((VORLAEUFIG_2024 / endgueltig2024) * 1e4) / 1e4;
+const renteDifferenz2024 = Math.round((punkteVorlaeufig - punkteEndgueltig) * AKTUELLER_RENTENWERT * 100) / 100;
+
+// Die Fortschreibung des § 69 Abs. 2 Satz 1 Nr. 2 SGB VI setzt auf dem
+// endgueltigen Durchschnittsentgelt von 2022 auf. Angesetzt wurde dieser
+// Faktor, eingetreten ist jener – daran laesst sich der Fehlgriff zeigen.
+const faktorAngesetzt = VORLAEUFIG_2024 / DURCHSCHNITTSENTGELT[2022];
+const faktorEingetreten = endgueltig2024 / DURCHSCHNITTSENTGELT[2022];
+
+// Zusicherung 7: Der endgueltige Wert lag hoeher als der vorlaeufige, die
+// Punkte fielen also. Die umgekehrte Richtung wuerde den Abschnitt umdrehen.
+if (!(endgueltig2024 > VORLAEUFIG_2024) || !(punkteEndgueltig < punkteVorlaeufig)) {
+  throw new Error('Rentenpunkte-Artikel: Die Korrektur fuer 2024 zeigt nicht in die beschriebene Richtung.');
+}
+if (!(faktorEingetreten > faktorAngesetzt)) {
+  throw new Error('Rentenpunkte-Artikel: Die Fortschreibung 2024 lag nicht unter der tatsaechlichen Entwicklung.');
+}
+
+// --- Knappschaft ----------------------------------------------------------
+// § 4 Abs. 1 Nr. 2 SVBezGrV 2026: eigene Beitragsbemessungsgrenze der
+// knappschaftlichen Rentenversicherung, 124.800 € im Jahr.
+const BBG_KNAPPSCHAFT = 124800;
+const maxPunkteKnappschaft = Math.round((BBG_KNAPPSCHAFT / DURCHSCHNITTSENTGELT_VORLAEUFIG) * 1e4) / 1e4;
+---
+<RechnerArtikel
+  titel={`Zwei Rentenpunkte in einem Jahr sind seit ${erstesJahrUnterZwei.jahr} unerreichbar`}
+  lead={`Ein Entgeltpunkt kostet ${eur0(DURCHSCHNITTSENTGELT_VORLAEUFIG)} Bruttoentgelt. Zwei Punkte kosteten danach ${eur0(entgeltFuerZweiPunkte)} – Beiträge werden aber nur bis ${eur0(BBG_RENTE_JAHR)} erhoben. Die Obergrenze liegt deshalb bei ${pkt(MAX_PUNKTE)} Punkten im Jahr, und die fehlenden ${pkt(fehlendePunkte)} Punkte sind mit keinem Gehalt zu bekommen. Bis ${letztesJahrUeberZwei.jahr} war das anders.`}
+  datum="2026-09-23"
+  quellen={[
+    { titel: '§ 70 SGB VI – Entgeltpunkte für Beitragszeiten', url: 'https://www.gesetze-im-internet.de/sgb_6/__70.html' },
+    { titel: '§ 157 SGB VI – Beitragspflichtige Einnahmen bis zur Beitragsbemessungsgrenze', url: 'https://www.gesetze-im-internet.de/sgb_6/__157.html' },
+    { titel: '§ 159 SGB VI – Veränderung der Beitragsbemessungsgrenzen', url: 'https://www.gesetze-im-internet.de/sgb_6/__159.html' },
+    { titel: '§ 69 SGB VI – Bestimmung des vorläufigen Durchschnittsentgelts', url: 'https://www.gesetze-im-internet.de/sgb_6/__69.html' },
+    { titel: 'Anlage 1 SGB VI – Durchschnittsentgelte', url: 'https://www.gesetze-im-internet.de/sgb_6/anlage_1.html' },
+    { titel: 'Anlage 2 SGB VI – Beitragsbemessungsgrenzen', url: 'https://www.gesetze-im-internet.de/sgb_6/anlage_2.html' },
+    { titel: '§ 3, § 4 SVBezGrV 2026 – Durchschnittsentgelt und Beitragsbemessungsgrenzen 2026', url: 'https://www.gesetze-im-internet.de/svbezgrv_2026/' },
+    { titel: '§ 3 SVBezGrV 2024 – vorläufiges Durchschnittsentgelt 2024', url: 'https://www.gesetze-im-internet.de/svbezgrv_2024/__3.html' },
+    { titel: '§ 1 RWBestV 2026 – aktueller Rentenwert ab 1. Juli 2026', url: 'https://www.gesetze-im-internet.de/rwbestv_2026/__1.html' },
+    { titel: 'RVBeitrSBek 2026 – Beitragssätze in der Rentenversicherung 2026', url: 'https://www.gesetze-im-internet.de/rvbeitrsbek_2026/BJNR1230A0025.html' },
+  ]}
+>
+  <h3>Die Obergrenze ist eine Division, keine politische Zahl</h3>
+
+  <p>
+    § 70 Abs. 1 Satz 1 SGB VI ist eine einzige Rechenanweisung: Entgeltpunkte entstehen,
+    indem die Beitragsbemessungsgrundlage durch das Durchschnittsentgelt desselben
+    Kalenderjahres geteilt wird. Für {letzte.jahr} beträgt dieses Durchschnittsentgelt
+    {' '}{eur0(DURCHSCHNITTSENTGELT_VORLAEUFIG)}. Wer genau so viel verdient, bekommt genau
+    einen Punkt.
+  </p>
+
+  <p>
+    Entscheidend ist das erste Wort im Zähler. Geteilt wird nicht das Bruttoentgelt,
+    sondern die <strong>Beitragsbemessungsgrundlage</strong> – also das Entgelt nur
+    insoweit, als daraus überhaupt Beiträge erhoben werden. Und das ist nach
+    § 157 SGB VI nur bis zur Beitragsbemessungsgrenze der Fall, {letzte.jahr} bis
+    {' '}{eur0(BBG_RENTE_JAHR)} im Jahr. Damit steht die Obergrenze fest, ohne dass sie
+    irgendwo im Gesetz als Zahl stünde:
+  </p>
+
+  <p>
+    {eur0(BBG_RENTE_JAHR)} geteilt durch {eur0(DURCHSCHNITTSENTGELT_VORLAEUFIG)} ergibt
+    {' '}<strong>{pkt(MAX_PUNKTE)} Entgeltpunkte</strong> – auf vier Dezimalstellen, wie
+    § 121 Abs. 1 SGB VI es vorschreibt. Für zwei volle Punkte wären
+    {' '}{eur0(entgeltFuerZweiPunkte)} nötig. Die Differenz von {eur0(luecke)} liegt
+    jenseits der Grenze und ist beitragsfrei. Die fehlenden {pkt(fehlendePunkte)} Punkte
+    entsprechen beim aktuellen Rentenwert von {eur2(AKTUELLER_RENTENWERT)} einer
+    Monatsrente von {eur2(fehlendeRente)} – rechnerisch klein, aber eben nicht käuflich.
+  </p>
+
+  <p>
+    Der Rechner oben zeigt das direkt. Ein Jahresbrutto von {eur0(BBG_RENTE_JAHR)} ergibt
+    {' '}{pkt(anDerGrenze.entgeltpunkte)} Punkte und daraus {eur2(anDerGrenze.monatsrente)}
+    {' '}Monatsrente. Ein Jahresbrutto von {eur0(150000)} ergibt exakt dieselben
+    {' '}{pkt(weitDarueber.entgeltpunkte)} Punkte und exakt dieselben
+    {' '}{eur2(weitDarueber.monatsrente)}. Die {eur0(gehaltssprung)} dazwischen sind
+    rentenrechtlich nicht vorhanden – sie erzeugen weder einen Beitrag noch einen Anspruch.
+  </p>
+
+  <h3>Bis {letztesJahrUeberZwei.jahr} war der zweite Punkt noch zu erreichen</h3>
+
+  <p>
+    Weil beide Zahlen jedes Jahr neu festgesetzt werden, ist die Obergrenze keine Konstante.
+    Die Beitragsbemessungsgrenzen stehen in Anlage 2 SGB VI, die Durchschnittsentgelte in
+    Anlage 1. Beide Reihen nebeneinandergelegt ergeben den Höchstwert an Entgeltpunkten,
+    den ein Kalenderjahr überhaupt hergeben kann:
+  </p>
+
+  <table>
+    <caption class="visually-hidden">
+      Beitragsbemessungsgrenze, Durchschnittsentgelt und daraus folgende Höchstzahl an
+      Entgeltpunkten je Kalenderjahr
+    </caption>
+    <thead>
+      <tr>
+        <th scope="col">Jahr</th>
+        <th scope="col">Bemessungsgrenze</th>
+        <th scope="col">Durchschnittsentgelt</th>
+        <th scope="col">Höchstpunkte</th>
+      </tr>
+    </thead>
+    <tbody>
+      {reihe.map((r) => (
+        <tr>
+          <th scope="row">{r.jahr}{r.vorlaeufig ? ' *' : ''}</th>
+          <td class="num">{eur0(r.grenze)}</td>
+          <td class="num">{eur0(r.durchschnitt)}</td>
+          <td class="num">{pkt(r.hoechstpunkte)}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+
+  <p class="ra-hinweis">
+    * Für {VORLAEUFIG.map((j) => String(j)).join(' und ')} weist Anlage 1 SGB VI bislang nur
+    ein vorläufiges Durchschnittsentgelt aus. Die Höchstpunkte dieser beiden Zeilen können
+    sich deshalb noch verschieben. Alle früheren Werte sind endgültig.
+  </p>
+
+  <p>
+    Von {reihe[0].jahr} bis {letztesJahrUeberZwei.jahr} lag der Höchstwert in jedem einzelnen
+    Jahr über zwei Punkten; in {letztesJahrUeberZwei.jahr} waren es
+    {' '}{pkt(letztesJahrUeberZwei.hoechstpunkte)}. Ein Spitzenverdiener konnte also zwei volle
+    Jahresdurchschnitte in einem Kalenderjahr verbeitragen. Seit {erstesJahrUnterZwei.jahr}
+    {' '}geht das nicht mehr: Der Wert fiel auf {pkt(erstesJahrUnterZwei.hoechstpunkte)} und ist
+    seither unter zwei geblieben.
+  </p>
+
+  <p>
+    Die Ursache lässt sich benennen, und zwar genau. In {erstesJahrUnterZwei.jahr} stieg die
+    Beitragsbemessungsgrenze gegenüber dem Vorjahr um {proz(grenzeWachstumWechsel)}, das
+    Durchschnittsentgelt im selben Zeitraum um {proz(entgeltWachstumWechsel)} – beides gemessen
+    am jeweiligen Vorjahreswert. Der Nenner wuchs also schneller als der Zähler, und ein Bruch,
+    dessen Nenner schneller wächst, wird kleiner. Mehr steckt nicht dahinter.
+  </p>
+
+  <p>
+    Dass der Nenner schneller wachsen kann, liegt an zwei unterschiedlichen Fortschreibungen.
+    § 159 Satz 1 SGB VI koppelt die Beitragsbemessungsgrenze an das Verhältnis der Bruttolöhne
+    des vergangenen zum vorvergangenen Kalenderjahr – also an eine einfache, zwei Jahre alte
+    Lohnveränderung. § 69 Abs. 2 Satz 1 Nr. 2 SGB VI schreibt das Durchschnittsentgelt dagegen
+    mit dem <strong>Doppelten</strong> dieser Veränderung fort, weil es zwei Jahre in die Zukunft
+    reichen muss. In einer Phase kräftig steigender Löhne zieht der Nenner der Rentenformel
+    deshalb schneller an als die Grenze darüber.
+  </p>
+
+  <p>
+    Umgekehrt geht es genauso. {letzte.jahr} stieg die Bemessungsgrenze um
+    {' '}{proz(grenzeWachstum2026)}, das Durchschnittsentgelt nur um {proz(entgeltWachstum2026)} –
+    und der Höchstwert kletterte von {pkt(reihe[reihe.length - 2].hoechstpunkte)} wieder auf
+    {' '}{pkt(letzte.hoechstpunkte)}. Zwei Punkte sind damit trotzdem nicht erreicht.
+  </p>
+
+  <h3>Was ein Entgeltpunkt kostet – und was er oberhalb der Grenze kostet</h3>
+
+  <p>
+    Weil ein Punkt exakt einem Jahresverdienst in Höhe des Durchschnittsentgelts entspricht,
+    lässt sich sein Preis beziffern. Der Beitragssatz der allgemeinen Rentenversicherung beträgt
+    {' '}{proz(BEITRAGSSATZ * 100)} und wird nach § 168 Abs. 1 Nr. 1 SGB VI je zur Hälfte von
+    Beschäftigtem und Arbeitgeber getragen. Auf {eur0(DURCHSCHNITTSENTGELT_VORLAEUFIG)}
+    {' '}Bruttoentgelt sind das {eur2(preisJePunkt)} Beitrag im Jahr, davon
+    {' '}{eur2(anteilBeschaeftigter)} aus dem eigenen Lohn.
+  </p>
+
+  <p>
+    Gegengerechnet steht ein Punkt für {eur2(AKTUELLER_RENTENWERT)} Rente im Monat. Der gesamte
+    Jahresbeitrag ist damit nach {zahl(jahreBisRueckfluss, 1)} Jahren Rentenbezug rechnerisch
+    zurückgeflossen, der eigene Anteil allein nach {zahl(jahreBisRueckflussAN, 1)} Jahren.
+  </p>
+
+  <p class="ra-hinweis">
+    Beide Zahlen sind Werte desselben Jahres: heutiger Beitrag gegen heutigen Rentenwert. Sie
+    beschreiben ein Verhältnis in heutiger Kaufkraft, keine Prognose – Durchschnittsentgelt und
+    Rentenwert steigen beide weiter. Zinsen, Steuern und die Kranken- und Pflegeversicherungs­beiträge
+    aus der Rente sind nicht berücksichtigt, ebenso wenig Hinterbliebenen- und
+    Erwerbsminderungsansprüche, die aus denselben Beiträgen mitfinanziert werden.
+  </p>
+
+  <p>
+    Oberhalb der Beitragsbemessungsgrenze kippt diese Rechnung vollständig. Dort kostet ein
+    zusätzlicher Punkt nicht mehr {eur2(preisJePunkt)}, sondern ist um keinen Preis zu haben.
+    Das ist keine Härte, sondern die Kehrseite derselben Norm: Wo kein Beitrag erhoben wird,
+    entsteht auch kein Anspruch. Die {eur0(gehaltssprung)} Gehaltsunterschied zwischen den beiden
+    Beispielen oben lösen weder einen Rentenversicherungsbeitrag noch einen Entgeltpunkt aus.
+  </p>
+
+  <h3>Die {pkt(MAX_PUNKTE)} sind selbst noch vorläufig</h3>
+
+  <p>
+    Der Rechner arbeitet mit dem vorläufigen Durchschnittsentgelt, und das ist rechtlich korrekt:
+    § 70 Abs. 1 Satz 2 SGB VI ordnet für das Jahr des Rentenbeginns und das Jahr davor genau
+    diesen vorläufigen Wert an. Für alle anderen Jahre gilt der endgültige Wert der Anlage 1 –
+    und der wird erst zwei Jahre später festgesetzt.
+  </p>
+
+  <p>
+    Wie groß der Unterschied ausfallen kann, zeigt das Jahr 2024. § 3 SVBezGrV 2024 hatte das
+    Durchschnittsentgelt vorläufig auf {eur0(VORLAEUFIG_2024)} bestimmt. Endgültig festgesetzt
+    wurde es zwei Jahre später auf {eur0(endgueltig2024)} – {proz(korrekturEntgelt)} mehr,
+    gemessen am vorläufigen Ausgangswert. Weil das Durchschnittsentgelt im Nenner steht, fielen
+    die Entgeltpunkte für 2024 entsprechend um {proz(Math.abs(korrekturPunkte))} niedriger aus
+    als zunächst gerechnet.
+  </p>
+
+  <p>
+    Konkret: Wer 2024 genau {eur0(VORLAEUFIG_2024)} verdiente, stand nach dem vorläufigen Wert
+    bei {pkt(punkteVorlaeufig)} Punkten und steht endgültig bei {pkt(punkteEndgueltig)}. Das sind
+    {' '}{eur2(renteDifferenz2024)} Monatsrente weniger, dauerhaft, aus einem einzigen Beitragsjahr.
+  </p>
+
+  <p>
+    Der Grund ist wieder die Zweijahreslücke. Die Fortschreibung nach § 69 Abs. 2 Satz 1 Nr. 2
+    SGB VI setzte auf dem Durchschnittsentgelt {' '}{eur0(DURCHSCHNITTSENTGELT[2022])} des Jahres 2022
+    auf und rechnete mit dem Faktor {zahl(faktorAngesetzt, 4)}. Eingetreten ist bis 2024 der Faktor
+    {' '}{zahl(faktorEingetreten, 4)}. Die Löhne stiegen also stärker als die Prognose, und die
+    vorläufige Zahl lag zu niedrig. Für {letzte.jahr} steht dieselbe Korrektur noch aus: Wer heute
+    arbeitet und erst in Jahrzehnten in Rente geht, bekommt seine {letzte.jahr}er Punkte später
+    mit dem endgültigen Wert neu berechnet.
+  </p>
+
+  <h3>Was die Grenze nicht deckelt</h3>
+
+  <p>
+    Die {pkt(MAX_PUNKTE)} Punkte sind die Obergrenze für Entgeltpunkte aus Arbeitsentgelt in der
+    <strong> allgemeinen</strong> Rentenversicherung. Drei Dinge liegen außerhalb dieser Rechnung.
+  </p>
+
+  <p>
+    <strong>Kindererziehungszeiten.</strong> Sie bringen nach § 70 Abs. 2 Satz 1 SGB VI
+    0,0833 Entgeltpunkte je Kalendermonat und kommen grundsätzlich zu den Punkten aus Beiträgen
+    hinzu. Unbegrenzt ist das aber nicht: § 70 Abs. 2 Satz 2 SGB VI lässt die Erhöhung nur zu,
+    soweit die Summe die Höchstwerte der Anlage 2b SGB VI nicht übersteigt. Wer ohnehin an der
+    Beitragsbemessungsgrenze verdient, addiert also nicht einfach einen weiteren Punkt dazu.
+  </p>
+
+  <p>
+    <strong>Die knappschaftliche Rentenversicherung.</strong> Für sie gilt nach § 4 Abs. 1 Nr. 2
+    SVBezGrV 2026 eine eigene, höhere Beitragsbemessungsgrenze von {eur0(BBG_KNAPPSCHAFT)} im
+    Jahr. Dieselbe Division ergibt dort {pkt(maxPunkteKnappschaft)} Punkte. Der Rechner oben
+    bildet die allgemeine Rentenversicherung ab.
+  </p>
+
+  <p>
+    <strong>Der Weg von den Punkten zur Rente.</strong> Die ausgewiesene Monatsrente unterstellt
+    den Rentenartfaktor 1,0 der Altersrenten (§ 67 Nr. 1 SGB VI) und einen Zugangsfaktor von 1,0,
+    also Rentenbeginn genau mit der Regelaltersgrenze. Wer früher beginnt, hat nach
+    § 77 Abs. 2 SGB VI dieselben Punkte, aber eine niedrigere Rente. Abgezogen sind außerdem weder
+    Steuern noch Beiträge zur Kranken- und Pflegeversicherung der Rentner.
+  </p>
+
+  <p>
+    Was bleibt, ist ein ungewöhnlich harter Befund für ein System, das sonst von Näherungen lebt:
+    Die Zahl der Entgeltpunkte eines Beitragsjahres hat eine exakte, berechenbare Decke, sie liegt
+    seit {erstesJahrUnterZwei.jahr} unter zwei, und sie bewegt sich nicht nach dem Einkommen,
+    sondern nach dem Abstand zwischen zwei Rechengrößen, die niemand einzeln gestaltet.
+  </p>
+</RechnerArtikel>

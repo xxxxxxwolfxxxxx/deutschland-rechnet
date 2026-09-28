@@ -1,0 +1,336 @@
+---
+import RechnerArtikel from '../RechnerArtikel.astro';
+import { artikelPfadVonSlug } from '../../data/ratgeber';
+import { berechneHauskauf } from '../../../public/scripts/hauskauf.js';
+import { BUNDESLAENDER } from '../../../public/scripts/grunderwerbsteuer.js';
+import { MAKLER_PROVISION_PROZENT_JE_SEITE } from '../../../public/scripts/immokauf-nebenkosten.js';
+
+// Alle Zahlen dieses Artikels entstehen zur Buildzeit aus berechneHauskauf() –
+// demselben, einzigen Modul, das auch der Rechner oben auf dieser Seite lädt.
+// Nur die Bundesland-Namen kommen zusätzlich aus grunderwerbsteuer.js, das
+// hauskauf.js selbst importiert.
+
+const base = import.meta.env.BASE_URL;
+
+// Modellfall: exakt die Voreinstellung des Rechners oben auf dieser Seite.
+const KAUFPREIS = 400_000;
+const EIGENKAPITAL = 80_000;
+const ZINS = 3.5;
+const TILGUNG = 2;
+const LAUFZEIT = 10;
+
+const eur = (n: number) =>
+  n.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).replace(/^-/, '−') + ' €';
+const eur0 = (n: number) =>
+  Math.round(n).toLocaleString('de-DE', { maximumFractionDigits: 0 }).replace(/^-/, '−') + ' €';
+const proz1 = (n: number) => n.toLocaleString('de-DE', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + ' %';
+
+/**
+ * Rechnet einen Fall über das echte Modul und legt daneben, was übrig bliebe,
+ * wenn die Nebenkosten zuerst aus demselben Eigenkapital bezahlt werden
+ * müssten – bevor irgendetwas davon den Kaufpreis mindert.
+ */
+function fall(kuerzel: string, makler: boolean) {
+  const r = berechneHauskauf({
+    kaufpreis: KAUFPREIS,
+    bundesland: kuerzel,
+    eigenkapital: EIGENKAPITAL,
+    zins: ZINS,
+    tilgung: TILGUNG,
+    laufzeit: LAUFZEIT,
+    makler,
+  });
+  const ekEffektiv = Math.max(0, EIGENKAPITAL - r.nebenkosten);
+  const darlehenRealistisch = KAUFPREIS - ekEffektiv;
+  const rateRealistisch = Math.round(((darlehenRealistisch * (ZINS + TILGUNG)) / 100 / 12) * 100) / 100;
+  return {
+    kuerzel: kuerzel.toUpperCase(),
+    name: BUNDESLAENDER[kuerzel].name,
+    ...r,
+    ekEffektiv,
+    darlehenRealistisch,
+    rateRealistisch,
+    diffRate: rateRealistisch - r.monatlicheRate,
+    anteilEK: (r.nebenkosten / EIGENKAPITAL) * 100,
+  };
+}
+
+// Alle 16 Länder mit Makler – der Haken ist auf der Seite oben voreingestellt.
+const alleLaender = Object.keys(BUNDESLAENDER)
+  .map((k) => fall(k, true))
+  .sort((a, b) => a.nebenkosten - b.nebenkosten);
+
+const guenstigstesLand = alleLaender[0];
+const teuersteNebenkosten = alleLaender[alleLaender.length - 1].nebenkosten;
+const teuersteLaender = alleLaender.filter((l) => l.nebenkosten === teuersteNebenkosten);
+const nw = alleLaender.find((l) => l.kuerzel === 'NW')!; // Voreinstellung des Rechners
+const by = alleLaender.find((l) => l.kuerzel === 'BY')!;
+const byOhneMakler = fall('by', false);
+const nwOhneMakler = fall('nw', false);
+
+const spanneBundeslaender = teuersteNebenkosten - guenstigstesLand.nebenkosten;
+const spanneMakler = nw.nebenkosten - nwOhneMakler.nebenkosten;
+const grestPunkteSpanne = teuersteLaender[0].gewSatz - guenstigstesLand.gewSatz;
+
+// --- Selbstprüfung 1: Rate und Darlehen hängen tatsächlich an keiner Stelle
+// von Bundesland oder Makler ab – geprüft über alle 32 Kombinationen, nicht
+// nur die im Artikel gezeigten. ---------------------------------------------
+const rateWerte = new Set<number>();
+const darlehenWerte = new Set<number>();
+const ANZAHL_LAENDER = Object.keys(BUNDESLAENDER).length;
+const ANZAHL_KOMBINATIONEN = ANZAHL_LAENDER * 2; // 16 Bundesländer × Makler an/aus
+for (const kuerzel of Object.keys(BUNDESLAENDER)) {
+  for (const makler of [true, false]) {
+    const r = berechneHauskauf({
+      kaufpreis: KAUFPREIS,
+      bundesland: kuerzel,
+      eigenkapital: EIGENKAPITAL,
+      zins: ZINS,
+      tilgung: TILGUNG,
+      laufzeit: LAUFZEIT,
+      makler,
+    });
+    rateWerte.add(r.monatlicheRate);
+    darlehenWerte.add(r.darlehen);
+  }
+}
+if (rateWerte.size !== 1 || darlehenWerte.size !== 1) {
+  throw new Error(
+    'Artikel "Eigenkapital zahlt Nebenkosten zuerst": Rate oder Darlehen hängen jetzt doch von ' +
+      'Bundesland/Makler ab – der Rechner wurde vermutlich geändert, der Artikel muss überarbeitet werden.',
+  );
+}
+const rateGezeigt = [...rateWerte][0];
+const darlehenGezeigt = [...darlehenWerte][0];
+
+// --- Selbstprüfung 2: das realistische Darlehen ist exakt gesamtkosten
+// minus eigenkapital – zwei unabhängig berechnete Wege müssen zusammenfallen. ---
+if (Math.abs(nw.darlehenRealistisch - (nw.gesamtkosten - EIGENKAPITAL)) > 0.01) {
+  throw new Error(
+    'Artikel "Eigenkapital zahlt Nebenkosten zuerst": realistisches Darlehen weicht von ' +
+      'gesamtkosten − eigenkapital ab.',
+  );
+}
+
+// --- Selbstprüfung 3: in der Rechner-Voreinstellung verzehren die
+// Nebenkosten mehr als die Hälfte des eingegebenen Eigenkapitals. ------------
+if (!(nw.anteilEK > 50)) {
+  throw new Error('Artikel "Eigenkapital zahlt Nebenkosten zuerst": Kernbehauptung (>50 %) stimmt nicht mehr.');
+}
+
+// --- Selbstprüfung 4: die beiden Stellschrauben sind exakt, weil sie direkt
+// aus Kaufpreis mal Prozentsatz folgen – 3 Punkte Grunderwerbsteuer-Spanne und
+// 3,57 % Makleranteil auf 400.000 €. Rundungsdrift würde diese Prüfung reißen. ---
+if (Math.abs(spanneBundeslaender - 12_000) > 0.01) {
+  throw new Error('Artikel "Eigenkapital zahlt Nebenkosten zuerst": Bundesland-Spanne ist nicht mehr 12.000 €.');
+}
+if (Math.abs(spanneMakler - 14_280) > 0.01) {
+  throw new Error('Artikel "Eigenkapital zahlt Nebenkosten zuerst": Makler-Spanne ist nicht mehr 14.280 €.');
+}
+
+const quellen = [
+  { titel: '§ 448 BGB – Kosten der Übergabe und ähnliche Kosten', url: 'https://www.gesetze-im-internet.de/bgb/__448.html' },
+  { titel: '§ 11 GrEStG – Steuersatz', url: 'https://www.gesetze-im-internet.de/grestg/__11.html' },
+  { titel: '§ 34 GNotKG – Gebühr nach dem Geschäftswert (Tabelle B)', url: 'https://www.gesetze-im-internet.de/gnotkg/__34.html' },
+  { titel: '§ 656c BGB – Teilung der Maklerkosten bei Kaufverträgen über Wohnungen und Einfamilienhäuser', url: 'https://www.gesetze-im-internet.de/bgb/__656c.html' },
+];
+---
+<RechnerArtikel
+  titel="Das Eigenkapital bezahlt zuerst die Nebenkosten – die Monatsrate weiß davon nichts"
+  lead={`Wer im Rechner oben das Bundesland wechselt oder den Makler-Haken abwählt, sieht die Nebenkosten um bis zu ${eur0(spanneBundeslaender + spanneMakler)} springen – Darlehen und Monatsrate bewegen sich dabei keinen Cent. Beide werden allein aus Kaufpreis und Eigenkapital berechnet, obwohl die Erklärung unter dem Rechner selbst festhält, dass die Nebenkosten aus genau diesem Eigenkapital bezahlt werden müssen. Rechnet man das nach, fehlen in der Voreinstellung der Seite – ${nw.name}, mit Makler – gut ${eur0(nw.diffRate)} Monatsrate.`}
+  datum="2026-09-24"
+  quellen={quellen}
+>
+  <h3>Zwei Felder, die nie miteinander rechnen</h3>
+  <p>
+    Der Rechner oben zeigt zwei Ergebniszeilen, die beide von den Nebenkosten handeln, ohne sich
+    gegenseitig zu kennen. Die eine listet Grunderwerbsteuer, Notar &amp; Grundbuch und Makleranteil
+    einzeln auf und addiert sie zu den Nebenkosten. Die andere zeigt die monatliche Rate. Wer beide
+    für verbunden hält, irrt: Die Rate entsteht ausschließlich aus <code>Darlehen = Kaufpreis −
+    Eigenkapital</code> und dem Zins- plus Tilgungssatz. Bundesland, Notar und Makler-Haken fließen
+    nur in die erste Zeile ein, nie in die zweite.
+  </p>
+  <p>
+    Das lässt sich in der Seite direkt nachstellen: {ANZAHL_LAENDER} Bundesländer und Makler-Haken
+    zusammen ergeben {ANZAHL_KOMBINATIONEN} Kombinationen. Rechnet man alle {ANZAHL_KOMBINATIONEN} mit
+    derselben Funktion durch, die auch der Rechner lädt,
+    kommt <strong>ein einziger Rate-Wert</strong> heraus ({eur(rateGezeigt)}) und
+    <strong>ein einziger Darlehens-Wert</strong> ({eur0(darlehenGezeigt)}) – unabhängig davon, ob die
+    Nebenkosten bei {eur0(guenstigstesLand.nebenkosten)} oder bei {eur0(teuersteNebenkosten)} liegen.
+    Zwei Stellschrauben dahinter sind sogar exakt bezifferbar, weil sie direkt aus einem Prozentsatz
+    auf {eur0(KAUFPREIS)} folgen: Der Makler-Haken macht {eur0(spanneMakler)} aus
+    ({proz1(MAKLER_PROVISION_PROZENT_JE_SEITE)} der Kaufsumme), die Wahl des Bundeslandes weitere
+    {' '}{eur0(spanneBundeslaender)} ({grestPunkteSpanne.toLocaleString('de-DE', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} Prozentpunkte Unterschied zwischen
+    {' '}{proz1(guenstigstesLand.gewSatz)} in {guenstigstesLand.name} und
+    {' '}{proz1(teuersteLaender[0].gewSatz)} in {teuersteLaender.map((l) => l.name).join(', ')}). Zusammen
+    {' '}{eur0(spanneBundeslaender + spanneMakler)} – und keiner der beiden Beträge erreicht die Rate.
+  </p>
+
+  <h3>Was die Seite selbst über die Nebenkosten sagt</h3>
+  <p>
+    Das ist kein Geheimnis dieser Seite. Der Text unter dem Rechner erklärt ausdrücklich, dass
+    Kaufnebenkosten „meist aus Eigenkapital bezahlt werden“, „da Banken sie nicht kreditieren“. Wenn
+    das stimmt – und es ist gängige Finanzierungspraxis –, dann steht das eingetragene Eigenkapital
+    nicht in voller Höhe für die Reduzierung des Kaufpreises zur Verfügung. Ein Teil davon ist schon
+    verplant, bevor der erste Euro Darlehen berechnet wird. Genau diesen Teil zieht die Formel im
+    Rechner nicht ab: Sie behandelt jeden eingegebenen Euro Eigenkapital so, als stünde er zusätzlich
+    zu den Nebenkosten zur Verfügung.
+  </p>
+
+  <h3>Was übrig bleibt, wenn die Nebenkosten zuerst bezahlt sind</h3>
+  <p>
+    Die folgende Tabelle rechnet für jedes Bundesland (mit Makler, wie in der Voreinstellung) durch,
+    wie viel von {eur0(EIGENKAPITAL)} Eigenkapital die Nebenkosten aufzehren, bevor ein Cent den
+    Kaufpreis mindert – und welche Monatsrate sich ergäbe, wenn das restliche Eigenkapital allein den
+    Kaufpreis reduziert. Das ist keine neue Rechenlogik, sondern dieselbe Formel des Rechners
+    (<code>Rate = Darlehen × (Zins + Tilgung) / 12</code>), nur mit dem realistischeren Darlehen
+    {' '}<code>Kaufpreis − (Eigenkapital − Nebenkosten)</code> statt <code>Kaufpreis − Eigenkapital</code>.
+  </p>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th scope="col">Bundesland</th>
+          <th scope="col" class="num">Nebenkosten</th>
+          <th scope="col" class="num">davon Eigenkapital</th>
+          <th scope="col" class="num">Rate real</th>
+          <th scope="col" class="num">fehlt ggü. Anzeige</th>
+        </tr>
+      </thead>
+      <tbody>
+        {alleLaender.map((l) => (
+          <tr>
+            <th scope="row">{l.name}</th>
+            <td class="num">{eur0(l.nebenkosten)}</td>
+            <td class="num">{proz1(l.anteilEK)}</td>
+            <td class="num strong">{eur(l.rateRealistisch)}</td>
+            <td class="num">+{eur0(l.diffRate)}</td>
+          </tr>
+        ))}
+      </tbody>
+      <tfoot>
+        <tr>
+          <th scope="row">Anzeige des Rechners (alle Länder)</th>
+          <td class="num">—</td>
+          <td class="num">—</td>
+          <td class="num strong">{eur(rateGezeigt)}</td>
+          <td class="num">±0 €</td>
+        </tr>
+      </tfoot>
+    </table>
+  </div>
+  <p>
+    In {guenstigstesLand.name} verzehren die Nebenkosten „nur“ {proz1(guenstigstesLand.anteilEK)} des
+    Eigenkapitals, in {teuersteLaender.map((l) => l.name).join(', ')} sind es
+    {' '}{proz1(teuersteNebenkosten / EIGENKAPITAL * 100)} – mehr als die Hälfte. In der
+    Voreinstellung der Seite ({nw.name}, mit Makler) bleiben von {eur0(EIGENKAPITAL)} Eigenkapital nur
+    {' '}{eur0(nw.ekEffektiv)} für den Kaufpreis übrig; das reale Darlehen wäre
+    {' '}{eur0(nw.darlehenRealistisch)} statt der angezeigten {eur0(darlehenGezeigt)}, die reale Rate
+    {' '}{eur(nw.rateRealistisch)} statt {eur(rateGezeigt)} – ein Fehlbetrag von {eur0(nw.diffRate)}
+    im Monat, {proz1((nw.diffRate / rateGezeigt) * 100)} mehr, als die Seite ausweist.
+  </p>
+  <p>
+    Der Makler-Haken wirkt genauso unabhängig vom Bundesland: Ohne Makler sinkt der Fehlbetrag in
+    {' '}{nw.name} von {eur0(nw.diffRate)} auf {eur0(nwOhneMakler.diffRate)}, in {by.name} von
+    {' '}{eur0(by.diffRate)} auf {eur0(byOhneMakler.diffRate)}. Selbst im günstigsten Fall dieser
+    Seite – {by.name}, ohne Makler – bleibt ein Fehlbetrag von {eur0(byOhneMakler.diffRate)}: Notar
+    und Grundbuch (rund {eur0(nw.notarUndGrundbuch)}) fallen so oder so an und sind in keinem
+    Bundesland und mit keinem Makler-Haken wegzubekommen.
+  </p>
+
+  <h3>Wie sich das im Rechner oben nachstellen lässt</h3>
+  <p>
+    Ein eigenes Feld für diese Korrektur hat der Rechner nicht, er braucht auch keins: Wer im Feld
+    „Eigenkapital“ probeweise nicht {eur0(EIGENKAPITAL)} einträgt, sondern den Betrag abzüglich der
+    Nebenkosten, die derselbe Rechner direkt daneben ausweist, sieht die realistischere Rate sofort –
+    weil ab diesem Feld ganz normal weitergerechnet wird. Nur die Reihenfolge muss man selbst
+    herstellen: erst die angezeigten Nebenkosten von der eigenen Ersparnis abziehen, dann erst den
+    Rest eintragen. In {nw.name} mit Makler wäre das {eur0(nw.ekEffektiv)} statt {eur0(EIGENKAPITAL)}
+    – und schon zeigt die immer gleiche Formel des Rechners die {eur(nw.rateRealistisch)} aus der
+    Tabelle oben, ganz ohne eigene Rechnung außerhalb der Seite.
+  </p>
+
+  <h3>Warum das mehr ist als eine Fußnote</h3>
+  <p>
+    Die FAQ dieser Seite rät zu 20 bis 30 % Eigenkapital und dazu, die Kreditrate nicht über 40 bis
+    45 % des Nettoeinkommens steigen zu lassen. Beide Faustregeln beziehen sich auf die tatsächliche
+    Belastung – nicht auf eine Rate, die um {proz1((nw.diffRate / rateGezeigt) * 100)} zu niedrig
+    ausgewiesen wird, weil sie so tut, als kämen die Nebenkosten von irgendwo anders her. Wer mit
+    {' '}{eur0(EIGENKAPITAL)} Eigenkapital plant und die angezeigte Rate von {eur(rateGezeigt)} in ein
+    Haushaltsbudget einträgt, budgetiert in {nw.name} mit Makler tatsächlich für
+    {' '}{eur(nw.rateRealistisch)} – und läuft dabei in vielen Fällen unbemerkt näher an die
+    40-bis-45-Prozent-Grenze heran, als die eigene Tabelle suggeriert.
+  </p>
+
+  <h3>Was diese Rechnung nicht abbildet</h3>
+  <ul>
+    <li>
+      <strong>Manche Banken finanzieren einen Teil der Nebenkosten mit</strong> – zu schlechteren
+      Konditionen und nur bei entsprechender Bonität. Diese Rechnung unterstellt den in der
+      Finanzierungsberatung üblichen Normalfall: volle Eigenkapital-Finanzierung der Nebenkosten.
+    </li>
+    <li>
+      <strong>Ein bewegliches Inventar</strong> (Einbauküche, Markise) kann die Grunderwerbsteuer
+      senken und ist hier nicht eingerechnet – dazu mehr in der{' '}
+      <a href={`${base}${artikelPfadVonSlug('grunderwerbsteuer-bundeslaender')}`}>
+        Grunderwerbsteuer der sechzehn Länder
+      </a>.
+    </li>
+    <li>
+      <strong>Wie sich die Tilgung über die Laufzeit verschiebt</strong> und wann die Rate zur Hälfte
+      aus Tilgung statt Zins besteht, behandelt der Artikel{' '}
+      <a href={`${base}${artikelPfadVonSlug('anfangstilgung-laufzeit-restschuld')}`}>
+        Anfangstilgung, Laufzeit und Restschuld
+      </a>{' '}
+      – diese Seite hier vergleicht nur, wie viel Darlehen am ersten Tag wirklich nötig ist.
+    </li>
+    <li>
+      <strong>Renovierungs- und Instandhaltungspuffer</strong> sind laut Intro dieser Seite bewusst
+      nicht enthalten und bleiben auch hier außen vor.
+    </li>
+  </ul>
+</RechnerArtikel>
+
+<style>
+.table-wrap {
+  overflow-x: auto;
+  margin: 1.5rem 0 1.25rem;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+  background: white;
+}
+thead th {
+  background: var(--dark);
+  color: white;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-weight: 600;
+  padding: 0.7rem 0.75rem;
+  text-align: left;
+  white-space: nowrap;
+}
+tbody th {
+  text-align: left;
+  font-weight: 600;
+  padding: 0.6rem 0.75rem;
+  white-space: nowrap;
+}
+tbody td { padding: 0.6rem 0.75rem; }
+tbody tr:nth-child(even) { background: var(--surface); }
+tbody tr:hover { background: var(--cat-light, #f3f4f6); }
+.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.strong { font-weight: 700; }
+tfoot th, tfoot td {
+  padding: 0.65rem 0.75rem;
+  border-top: 2px solid var(--dark);
+  font-weight: 700;
+  font-size: 0.87rem;
+}
+tfoot th { text-align: left; }
+</style>

@@ -1,0 +1,486 @@
+---
+import RechnerArtikel from '../RechnerArtikel.astro';
+
+// Diese Rechnerseite laedt kein eigenes Modul aus public/scripts/ – ihre Logik
+// steht inline im <script type="module"> der Seite
+// src/pages/gesundheit/makronaehrstoff-rechner.astro, Zeilen 115-141.
+// Sie ist hier Zeile fuer Zeile nachgebildet, damit alle Zahlen des Artikels
+// aus derselben Rechnung stammen wie die Anzeige oben:
+//   BMR nach Mifflin-St Jeor: 10*kg + 6,25*cm - 5*Jahre + 5 (m) bzw. - 161 (w)
+//   Gesamt = BMR * Aktivitaetsfaktor, dann -500 (abnehmen) / +300 (zunehmen),
+//            Untergrenze 800 kcal
+//   Protein = kg * 2,0 (abnehmen) / 1,2 (erhalten) / 1,8 (zunehmen)
+//   Fett    = kg * 0,9
+//   Kohlenhydrate = (Gesamt - Protein*4 - Fett*9) / 4, nicht unter 0
+// Brennwerte 4/9/4 kcal je Gramm: DGE, Referenzwerte Energie.
+
+const BRENNWERT = { protein: 4, fett: 9, kohlenhydrate: 4 };
+const FETT_JE_KG = 0.9;
+const PROTEIN_JE_KG = { abnehmen: 2.0, erhalten: 1.2, zunehmen: 1.8 } as const;
+const ZIEL_KCAL = { abnehmen: -500, erhalten: 0, zunehmen: 300 } as const;
+const KCAL_MIN = 800;
+
+type Ziel = keyof typeof PROTEIN_JE_KG;
+type Eingabe = {
+  gewicht: number; groesse: number; alter: number;
+  geschlecht: 'm' | 'w'; aktivitaet: number; ziel: Ziel;
+};
+
+function makros(e: Eingabe) {
+  const bmr = e.geschlecht === 'm'
+    ? 10 * e.gewicht + 6.25 * e.groesse - 5 * e.alter + 5
+    : 10 * e.gewicht + 6.25 * e.groesse - 5 * e.alter - 161;
+  const gesamt = Math.max(KCAL_MIN, bmr * e.aktivitaet + ZIEL_KCAL[e.ziel]);
+  const protein = e.gewicht * PROTEIN_JE_KG[e.ziel];
+  const fett = e.gewicht * FETT_JE_KG;
+  const proteinKcal = protein * BRENNWERT.protein;
+  const fettKcal = fett * BRENNWERT.fett;
+  const kohlenhydratKcal = Math.max(0, gesamt - proteinKcal - fettKcal);
+  const kohlenhydrate = kohlenhydratKcal / BRENNWERT.kohlenhydrate;
+  return { bmr, gesamt, protein, fett, kohlenhydrate, proteinKcal, fettKcal, kohlenhydratKcal };
+}
+
+// --- Formatierung -----------------------------------------------------------
+const zahl = (n: number, d = 0) =>
+  n.toLocaleString('de-DE', { minimumFractionDigits: d, maximumFractionDigits: d }).replace('-', '−');
+const g = (n: number, d = 0) => zahl(n, d) + ' g';
+const kcal = (n: number, d = 0) => zahl(n, d) + ' kcal';
+const proz = (n: number, d = 1) => zahl(n, d) + ' %';
+const pal = (n: number) => zahl(n, 2);
+const vz = (n: number, d = 1) => (n > 0 ? '+' : '') + zahl(n, d);
+
+// --- Die Beispielperson: die Vorbelegung des Formulars ----------------------
+// 75 kg, 175 cm, 30 Jahre, maennlich, leicht aktiv (1,375), Ziel Erhalten.
+const PERSON: Eingabe = {
+  gewicht: 75, groesse: 175, alter: 30, geschlecht: 'm', aktivitaet: 1.375, ziel: 'erhalten',
+};
+const rechne = (aenderung: Partial<Eingabe> = {}) => makros({ ...PERSON, ...aenderung });
+const basis = rechne();
+
+// --- 1. Was ein Prozentpunkt in Gramm wiegt ---------------------------------
+const punktKcal = basis.gesamt / 100;
+const punktProtein = punktKcal / BRENNWERT.protein;
+const punktFett = punktKcal / BRENNWERT.fett;
+const verhaeltnis = punktFett / punktProtein;
+if (Math.abs(verhaeltnis - 4 / 9) > 1e-9) {
+  throw new Error(`Makro-Artikel: Gramm je Prozentpunkt Fett zu Protein ist nicht 4/9 (${verhaeltnis}).`);
+}
+const NIVEAUS = [1500, 2000, Math.round(basis.gesamt), 2500, 3000];
+const punkttabelle = NIVEAUS.map((e) => ({
+  energie: e,
+  kcal: e / 100,
+  proteinKh: e / 100 / BRENNWERT.protein,
+  fett: e / 100 / BRENNWERT.fett,
+  istBeispiel: e === Math.round(basis.gesamt),
+}));
+
+// --- 2. Der Wechselkurs Fett gegen Kohlenhydrate ----------------------------
+const kurs = BRENNWERT.fett / BRENNWERT.kohlenhydrate; // 2,25 g KH je g Fett
+const VERSCHIEBUNG_PP = 10;
+const mehrFett = (VERSCHIEBUNG_PP * punktKcal) / BRENNWERT.fett;
+const wenigerKh = (VERSCHIEBUNG_PP * punktKcal) / BRENNWERT.kohlenhydrate;
+const grammBilanz = mehrFett - wenigerKh;
+if (!(grammBilanz < -30 && Math.abs(wenigerKh / mehrFett - kurs) < 1e-9)) {
+  throw new Error(`Makro-Artikel: Gramm-Bilanz der Verschiebung passt nicht zum Text (${grammBilanz}).`);
+}
+// Gegenprobe: die Energie bleibt bei der Verschiebung unveraendert.
+const energieNachTausch = mehrFett * BRENNWERT.fett - wenigerKh * BRENNWERT.kohlenhydrate;
+if (Math.abs(energieNachTausch) > 1e-9) {
+  throw new Error('Makro-Artikel: Der Tausch ist nicht energieneutral.');
+}
+
+// --- 3. Dieselbe Grammzahl Protein, sehr verschiedene Prozente --------------
+// Nur der Aktivitaetsfaktor wird verstellt; Protein haengt im Rechner allein am
+// Gewicht und bleibt deshalb konstant.
+const STUFEN = [
+  { faktor: 1.2, name: 'Sitzend (Bürojob)' },
+  { faktor: 1.375, name: 'Leicht aktiv (1–3× Sport)' },
+  { faktor: 1.55, name: 'Mäßig aktiv (3–5× Sport)' },
+  { faktor: 1.725, name: 'Sehr aktiv (6–7× Sport)' },
+  { faktor: 1.9, name: 'Extrem aktiv (Profisport)' },
+].map((s) => {
+  const r = rechne({ aktivitaet: s.faktor });
+  return { ...s, gesamt: r.gesamt, protein: r.protein, anteil: (r.proteinKcal / r.gesamt) * 100 };
+});
+const proteinGramm = STUFEN[0].protein;
+if (!STUFEN.every((s) => s.protein === proteinGramm)) {
+  throw new Error('Makro-Artikel: Die Proteinmenge haengt wider Erwarten am Aktivitaetsfaktor.');
+}
+const anteilHoch = STUFEN[0].anteil;
+const anteilNiedrig = STUFEN[STUFEN.length - 1].anteil;
+const anteilSpanne = anteilHoch - anteilNiedrig;
+if (!(anteilSpanne > 6)) {
+  throw new Error(`Makro-Artikel: Die Spanne des Proteinanteils ist kleiner als behauptet (${anteilSpanne}).`);
+}
+
+// --- 4. Wo 0,9 g Fett je kg den 30-%-Richtwert trifft -----------------------
+// 0,9 g/kg * 9 kcal/g = 8,1 kcal je kg. Das sind genau dann 30 % der Energie,
+// wenn die Energie 8,1 / 0,30 = 27 kcal je kg Koerpergewicht betraegt.
+const DGE_FETT_ANTEIL = 0.30;
+const fettKcalJeKg = FETT_JE_KG * BRENNWERT.fett;
+const trefferKcalJeKg = fettKcalJeKg / DGE_FETT_ANTEIL;
+const trefferEnergie = trefferKcalJeKg * PERSON.gewicht;
+const fettAnteilBasis = (basis.fettKcal / basis.gesamt) * 100;
+const kontrolle = rechne({ aktivitaet: trefferEnergie / basis.bmr });
+if (Math.abs(kontrolle.fettKcal / kontrolle.gesamt - DGE_FETT_ANTEIL) > 1e-9) {
+  throw new Error('Makro-Artikel: Die 27-kcal-je-kg-Schwelle trifft die 30 % nicht.');
+}
+if (!(fettAnteilBasis < DGE_FETT_ANTEIL * 100)) {
+  throw new Error(`Makro-Artikel: Der Fettanteil der Beispielperson liegt nicht unter 30 % (${fettAnteilBasis}).`);
+}
+
+// --- 5. Das Ziel verschiebt die Prozente ------------------------------------
+const ZIELE: Array<{ ziel: Ziel; name: string }> = [
+  { ziel: 'abnehmen', name: 'Abnehmen (−500 kcal)' },
+  { ziel: 'erhalten', name: 'Erhalten' },
+  { ziel: 'zunehmen', name: 'Zunehmen (+300 kcal)' },
+];
+const zieltabelle = ZIELE.map(({ ziel, name }) => {
+  const r = rechne({ ziel });
+  return {
+    name, gesamt: r.gesamt,
+    protein: r.protein, fett: r.fett, kohlenhydrate: r.kohlenhydrate,
+    pAnteil: (r.proteinKcal / r.gesamt) * 100,
+    fAnteil: (r.fettKcal / r.gesamt) * 100,
+    kAnteil: (r.kohlenhydratKcal / r.gesamt) * 100,
+  };
+});
+const abnehmen = zieltabelle[0];
+const erhalten = zieltabelle[1];
+const drittelAbstand = Math.max(
+  Math.abs(abnehmen.pAnteil - 100 / 3),
+  Math.abs(abnehmen.fAnteil - 100 / 3),
+  Math.abs(abnehmen.kAnteil - 100 / 3),
+);
+if (!(drittelAbstand < 2)) {
+  throw new Error(`Makro-Artikel: Beim Abnehmen liegt die Verteilung nicht nahe bei Dritteln (${drittelAbstand}).`);
+}
+if (!(abnehmen.pAnteil > 2 * erhalten.pAnteil)) {
+  throw new Error('Makro-Artikel: Der Proteinanteil verdoppelt sich beim Zielwechsel nicht mehr.');
+}
+const khVerlust = erhalten.kohlenhydrate - abnehmen.kohlenhydrate;
+const kcalVerlust = erhalten.gesamt - abnehmen.gesamt;
+
+// --- 6. Warum mehr Gewicht nicht mehr Kohlenhydrate heisst ------------------
+// Fixkosten je kg = Protein je kg * 4 + 0,9 * 9. Das Kalorienbudget waechst im
+// Rechner mit 10 kcal je kg (Mifflin) mal Aktivitaetsfaktor.
+const BUDGET_JE_KG = 10;
+const fixkosten = ZIELE.map(({ ziel, name }) => {
+  const fix = PROTEIN_JE_KG[ziel] * BRENNWERT.protein + FETT_JE_KG * BRENNWERT.fett;
+  return { name, ziel, fix, kippPal: fix / BUDGET_JE_KG };
+});
+const kippErhalten = fixkosten.find((f) => f.ziel === 'erhalten')!;
+const kippAbnehmen = fixkosten.find((f) => f.ziel === 'abnehmen')!;
+if (!(kippErhalten.kippPal > 1.2 && kippErhalten.kippPal < 1.375)) {
+  throw new Error(`Makro-Artikel: Die Kippschwelle fuer Erhalten liegt nicht zwischen den beiden untersten Stufen (${kippErhalten.kippPal}).`);
+}
+// Gegenprobe am Rechner selbst: zwei Gewichte, sonst alles gleich.
+const LEICHT = 60;
+const SCHWER = 100;
+const vergleich = (ziel: Ziel, aktivitaet: number) => {
+  const a = rechne({ gewicht: LEICHT, ziel, aktivitaet });
+  const b = rechne({ gewicht: SCHWER, ziel, aktivitaet });
+  return {
+    leicht: a.kohlenhydrate, schwer: b.kohlenhydrate,
+    jeKg: (b.kohlenhydrate - a.kohlenhydrate) / (SCHWER - LEICHT),
+  };
+};
+const sitzendErhalten = vergleich('erhalten', 1.2);
+const sitzendAbnehmen = vergleich('abnehmen', 1.2);
+const aktivAbnehmen = vergleich('abnehmen', 1.9);
+// Die gemessene Steigung muss der geschlossenen Form entsprechen.
+const erwarteteSteigung = (ziel: Ziel, aktivitaet: number) =>
+  (BUDGET_JE_KG * aktivitaet - fixkosten.find((f) => f.ziel === ziel)!.fix) / BRENNWERT.kohlenhydrate;
+for (const [probe, ziel, akt] of [
+  [sitzendErhalten, 'erhalten', 1.2], [sitzendAbnehmen, 'abnehmen', 1.2], [aktivAbnehmen, 'abnehmen', 1.9],
+] as Array<[{ jeKg: number }, Ziel, number]>) {
+  if (Math.abs(probe.jeKg - erwarteteSteigung(ziel, akt)) > 1e-9) {
+    throw new Error(`Makro-Artikel: Gemessene und berechnete Steigung je kg weichen ab (${ziel}, ${akt}).`);
+  }
+}
+if (!(sitzendErhalten.jeKg < 0 && sitzendAbnehmen.jeKg < sitzendErhalten.jeKg && aktivAbnehmen.jeKg > 0)) {
+  throw new Error('Makro-Artikel: Die Vorzeichen der Steigungen passen nicht mehr zum Text.');
+}
+
+// --- 7. Wenn die beiden festen Posten das Budget aufbrauchen ----------------
+const GRENZFALL: Eingabe = {
+  gewicht: 100, groesse: 170, alter: 50, geschlecht: 'w', aktivitaet: 1.2, ziel: 'abnehmen',
+};
+const grenzfall = makros(GRENZFALL);
+const grenzfallFix = grenzfall.proteinKcal + grenzfall.fettKcal;
+const grenzfallLuecke = grenzfallFix - grenzfall.gesamt;
+if (!(grenzfall.kohlenhydrate === 0 && grenzfallLuecke > 100)) {
+  throw new Error(`Makro-Artikel: Der Grenzfall erzeugt keine Luecke mehr (${grenzfallLuecke}).`);
+}
+
+const quellen = [
+  { titel: 'DGE: Referenzwerte für die Nährstoffzufuhr – Protein (0,8 g/kg Körpergewicht und Tag für 19 bis unter 65 Jahre, 1,0 g/kg ab 65 Jahren, bezogen auf Normalgewicht)', url: 'https://www.dge.de/wissenschaft/referenzwerte/protein/' },
+  { titel: 'DGE: Referenzwerte für die Nährstoffzufuhr – Fett, essenzielle Fettsäuren (Richtwert 30 % der Energiezufuhr für Erwachsene bis unter 65 Jahre)', url: 'https://www.dge.de/wissenschaft/referenzwerte/fett-essenzielle-fettsaeuren/' },
+  { titel: 'DGE: Referenzwerte für die Nährstoffzufuhr – Energie (Energiegehalt der energieliefernden Nährstoffe: 4 kcal je g Protein und Kohlenhydrate, 9 kcal je g Fett)', url: 'https://www.dge.de/wissenschaft/referenzwerte/energie/' },
+  { titel: 'Mifflin, St Jeor u. a.: A new predictive equation for resting energy expenditure in healthy individuals. Am J Clin Nutr 51 (1990), S. 241–247', url: 'https://doi.org/10.1093/ajcn/51.2.241' },
+];
+---
+<RechnerArtikel
+  titel={`Ein Prozentpunkt Fett wiegt nur ${proz(verhaeltnis * 100, 0)} eines Prozentpunkts Kohlenhydrate`}
+  datum="2026-09-23"
+  lead={`Makroverteilungen werden in Prozent der Kalorien besprochen, eingekauft und gegessen wird aber in Gramm. Weil ein Gramm Fett ${zahl(BRENNWERT.fett)} kcal liefert und ein Gramm Protein oder Kohlenhydrate je ${zahl(BRENNWERT.protein)} kcal, steht hinter demselben Prozentpunkt eine sehr verschiedene Menge: bei der Voreinstellung dieses Rechners ${g(punktProtein, 1)} Kohlenhydrate, aber nur ${g(punktFett, 1)} Fett. Und der Referenzwert, an dem sich die Proteinmenge hier orientiert, ist gar kein Prozentsatz.`}
+  quellen={quellen}
+>
+  <h3>Was ein Prozentpunkt auf die Waage bringt</h3>
+  <p>
+    Die Vorbelegung des Formulars oben – {zahl(PERSON.gewicht)} kg,
+    {' '}{zahl(PERSON.groesse)} cm, {zahl(PERSON.alter)} Jahre, männlich, leicht
+    aktiv, Ziel Erhalten – ergibt {kcal(basis.gesamt)} am Tag. Ein Prozent davon
+    sind {kcal(punktKcal, 1)}. Diese eine Zahl bedeutet für jeden Makronährstoff
+    etwas anderes: geteilt durch {zahl(BRENNWERT.protein)} kcal je Gramm sind es
+    {' '}{g(punktProtein, 1)} Protein oder Kohlenhydrate, geteilt durch
+    {' '}{zahl(BRENNWERT.fett)} kcal je Gramm nur {g(punktFett, 1)} Fett. Das
+    Verhältnis ist nicht vom Rechner gesetzt, sondern folgt direkt aus den
+    Brennwerten: {zahl(BRENNWERT.protein)} zu {zahl(BRENNWERT.fett)}, also
+    {' '}{proz(verhaeltnis * 100)}.
+  </p>
+
+  <table>
+    <caption class="visually-hidden">
+      Ein Prozentpunkt der Tageskalorien, umgerechnet in Gramm Protein oder Kohlenhydrate und in Gramm Fett, bei fünf Kalorienniveaus
+    </caption>
+    <thead>
+      <tr>
+        <th scope="col">Tagesenergie</th>
+        <th scope="col" class="num">1 Prozentpunkt</th>
+        <th scope="col" class="num">als Protein oder Kohlenhydrate</th>
+        <th scope="col" class="num">als Fett</th>
+      </tr>
+    </thead>
+    <tbody>
+      {punkttabelle.map((z) => (
+        <tr>
+          <th scope="row">{kcal(z.energie)}{z.istBeispiel ? ' (Beispiel oben)' : ''}</th>
+          <td class="num">{kcal(z.kcal, 1)}</td>
+          <td class="num">{g(z.proteinKh, 1)}</td>
+          <td class="num">{g(z.fett, 1)}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+  <p class="ra-hinweis">
+    Brennwerte nach den Referenzwerten der DGE: {zahl(BRENNWERT.protein)} kcal je
+    Gramm Protein und Kohlenhydrate, {zahl(BRENNWERT.fett)} kcal je Gramm Fett.
+  </p>
+
+  <h3>Der Wechselkurs zwischen Fett und Kohlenhydraten</h3>
+  <p>
+    Daraus folgt ein fester Kurs: Ein Gramm Fett entspricht energetisch
+    {' '}{zahl(kurs, 2)} g Kohlenhydraten. Wer in der Beispielrechnung
+    {' '}{zahl(VERSCHIEBUNG_PP)} Prozentpunkte der Energie von den Kohlenhydraten
+    zum Fett verschiebt, legt {g(mehrFett, 1)} Fett dazu und nimmt
+    {' '}{g(wenigerKh, 1)} Kohlenhydrate weg. Die Kalorien bleiben exakt gleich,
+    das Gewicht des Essens aber nicht: In Summe verschwinden
+    {' '}{g(Math.abs(grammBilanz), 1)} vom Teller.
+  </p>
+  <p>
+    Das erklärt einen Teil der Verwirrung um Makroverteilungen. Zwei Angaben, die
+    sich in Prozent nur um wenige Punkte unterscheiden, können sich in Gramm
+    deutlich unterscheiden – und umgekehrt sieht eine kleine Gramm-Korrektur beim
+    Fett in der Prozentdarstellung groß aus, weil jedes Gramm dort
+    {' '}{zahl(BRENNWERT.fett)} statt {zahl(BRENNWERT.protein)} kcal mitbringt. Die
+    Zeile „Fett“ in der Nährwerttabelle auf der Packung reagiert deshalb
+    empfindlicher auf kleine Mengen als jede andere.
+  </p>
+
+  <h3>Der Referenzwert für Protein ist kein Prozentsatz</h3>
+  <p>
+    Die DGE gibt den Referenzwert für Protein nicht als Anteil an der Energie an,
+    sondern in Gramm je Kilogramm Körpergewicht und Tag: 0,8 g/kg für Erwachsene
+    von 19 bis unter 65 Jahren, 1,0 g/kg ab 65 Jahren – und ausdrücklich bezogen
+    auf das Normalgewicht, nicht auf das tatsächliche. Der Rechner oben arbeitet
+    nach demselben Prinzip, nur mit anderen Werten
+    ({zahl(PROTEIN_JE_KG.erhalten, 1)} bis {zahl(PROTEIN_JE_KG.abnehmen, 1)} g/kg
+    je nach Ziel) und mit dem eingegebenen Gewicht.
+  </p>
+  <p>
+    Der Grund für die Einheit ist arithmetisch: Ein Wert je Kilogramm lässt sich
+    nicht in einen festen Prozentsatz übersetzen, weil der Nenner – die
+    Tagesenergie – unabhängig vom Gewicht schwankt. Im Rechner sieht man das
+    sofort, wenn man nur den Aktivitätsfaktor verstellt. Die Proteinmenge bleibt
+    bei {g(proteinGramm)}, der Anteil an der Energie fällt von
+    {' '}{proz(anteilHoch)} auf {proz(anteilNiedrig)}:
+  </p>
+
+  <table>
+    <caption class="visually-hidden">
+      Proteinanteil an der Tagesenergie bei gleichbleibender Proteinmenge und steigendem Aktivitätsfaktor
+    </caption>
+    <thead>
+      <tr>
+        <th scope="col">Aktivitätslevel</th>
+        <th scope="col" class="num">Faktor</th>
+        <th scope="col" class="num">Tagesenergie</th>
+        <th scope="col" class="num">Protein</th>
+        <th scope="col" class="num">Anteil an der Energie</th>
+      </tr>
+    </thead>
+    <tbody>
+      {STUFEN.map((s) => (
+        <tr>
+          <th scope="row">{s.name}</th>
+          <td class="num">{pal(s.faktor)}</td>
+          <td class="num">{kcal(s.gesamt)}</td>
+          <td class="num">{g(s.protein)}</td>
+          <td class="num">{proz(s.anteil)}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+  <p class="ra-hinweis">
+    Beispielperson wie oben, Ziel Erhalten. Verändert wird ausschließlich der
+    Aktivitätsfaktor; Protein hängt im Rechner allein am Gewicht.
+  </p>
+  <p>
+    {proz(anteilSpanne)} Spanne, ohne dass sich ein einziges Gramm ändert. Wer
+    dieselbe Vorgabe als „{proz(anteilHoch, 0)} Protein“ notiert, hat damit nicht
+    den Referenzwert übersetzt, sondern eine Momentaufnahme eines bestimmten
+    Kalorienniveaus festgehalten.
+  </p>
+
+  <h3>Beim Fett trifft die Gramm-Regel den Richtwert nur an einem Punkt</h3>
+  <p>
+    Umgekehrt gilt dasselbe. Der Richtwert der DGE für die Gesamtfettzufuhr ist
+    ein Prozentsatz: {proz(DGE_FETT_ANTEIL * 100, 0)} der Energiezufuhr für
+    Erwachsene bis unter 65 Jahre. Der Rechner oben setzt dagegen feste
+    {' '}{zahl(FETT_JE_KG, 1)} g je Kilogramm an, also
+    {' '}{kcal(fettKcalJeKg, 1)} je Kilogramm Körpergewicht. Beides deckt sich
+    genau dann, wenn die Tagesenergie {kcal(trefferKcalJeKg, 0)} je Kilogramm
+    Körpergewicht beträgt – für die Beispielperson also bei
+    {' '}{kcal(trefferEnergie)}. Sie liegt mit {kcal(basis.gesamt)} darüber, und
+    entsprechend kommt ihr Fettanteil auf {proz(fettAnteilBasis)} statt auf
+    {' '}{proz(DGE_FETT_ANTEIL * 100, 0)}. Unterhalb dieser Schwelle wäre es
+    umgekehrt: Dieselbe Gramm-Regel ergäbe dann mehr als
+    {' '}{proz(DGE_FETT_ANTEIL * 100, 0)}.
+  </p>
+  <p>
+    Ein Hinweis zum Nachrechnen: {zahl(FETT_JE_KG, 1)} g je Kilogramm ergeben
+    für die Beispielperson genau {g(basis.fett, 1)}. Das Ergebnisfeld des
+    Rechners rundet auf ganze Gramm und zeigt deshalb
+    {' '}{g(Math.round(basis.fett))} an. Dieser Artikel rechnet durchgehend mit
+    dem ungerundeten Wert, damit sich die Prozentangaben zu
+    {' '}{proz(100, 0)} addieren – wer die angezeigten Gramm zurück in die
+    Kalorien umrechnet, landet deshalb ein paar Kalorien daneben.
+  </p>
+
+  <h3>Das Ziel verschiebt die Prozente, ohne dass jemand Prozente wählt</h3>
+  <p>
+    Im Rechner gibt es kein Feld für eine Makroverteilung. Trotzdem entsteht bei
+    jedem Zielwechsel eine andere – und zwar aus zwei Richtungen gleichzeitig:
+    Die Proteinvorgabe springt von {zahl(PROTEIN_JE_KG.erhalten, 1)} auf
+    {' '}{zahl(PROTEIN_JE_KG.abnehmen, 1)} g/kg, und das Kalorienbudget sinkt um
+    {' '}{kcal(Math.abs(ZIEL_KCAL.abnehmen))}. Zähler hoch, Nenner runter.
+  </p>
+
+  <table>
+    <caption class="visually-hidden">
+      Makroverteilung der Beispielperson je Ziel, in Gramm und als Anteil an der Tagesenergie
+    </caption>
+    <thead>
+      <tr>
+        <th scope="col">Ziel</th>
+        <th scope="col" class="num">Tagesenergie</th>
+        <th scope="col" class="num">Protein</th>
+        <th scope="col" class="num">Fett</th>
+        <th scope="col" class="num">Kohlenhydrate</th>
+      </tr>
+    </thead>
+    <tbody>
+      {zieltabelle.map((z) => (
+        <tr>
+          <th scope="row">{z.name}</th>
+          <td class="num">{kcal(z.gesamt)}</td>
+          <td class="num">{g(z.protein)} · {proz(z.pAnteil)}</td>
+          <td class="num">{g(z.fett, 1)} · {proz(z.fAnteil)}</td>
+          <td class="num">{g(z.kohlenhydrate)} · {proz(z.kAnteil)}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+  <p class="ra-hinweis">
+    Beispielperson wie oben. Die Prozentwerte sind Ergebnis, keine Eingabe.
+  </p>
+  <p>
+    Der Proteinanteil steigt von {proz(erhalten.pAnteil)} auf
+    {' '}{proz(abnehmen.pAnteil)} – er mehr als verdoppelt sich. Und beim Ziel
+    Abnehmen landet die Verteilung bei {proz(abnehmen.pAnteil, 0)} zu
+    {' '}{proz(abnehmen.fAnteil, 0)} zu {proz(abnehmen.kAnteil, 0)} – nahe an
+    einer Drittelung, die niemand ausgewählt hat. Sie ist ein Nebenprodukt daraus,
+    dass zwei Posten am Gewicht hängen und der dritte den Rest bekommt. In Gramm
+    gelesen: {kcal(kcalVerlust)} weniger am Tag kürzen die Kohlenhydrate um
+    {' '}{g(khVerlust)}, weil das zusätzliche Protein einen Teil des verbliebenen
+    Budgets belegt.
+  </p>
+
+  <h3>Warum mehr Körpergewicht nicht mehr Kohlenhydrate bedeutet</h3>
+  <p>
+    Protein und Fett sind in diesem Rechner beide an das Gewicht gekoppelt.
+    Zusammen kosten sie je Kilogramm Körpergewicht einen festen Betrag:
+    {' '}{kcal(kippErhalten.fix, 1)} beim Ziel Erhalten,
+    {' '}{kcal(kippAbnehmen.fix, 1)} beim Abnehmen. Das Kalorienbudget wächst
+    zugleich mit {kcal(BUDGET_JE_KG)} je Kilogramm – dem Gewichtsglied der
+    Mifflin-St-Jeor-Formel – multipliziert mit dem Aktivitätsfaktor. Ob ein Kilo
+    mehr Körpergewicht am Ende mehr oder weniger Kohlenhydrate ergibt, entscheidet
+    also ein Vergleich zweier Beträge, und die Kippschwelle ist der
+    Aktivitätsfaktor {pal(kippErhalten.kippPal)} beim Erhalten beziehungsweise
+    {' '}{pal(kippAbnehmen.kippPal)} beim Abnehmen.
+  </p>
+  <p>
+    Die unterste Stufe des Auswahlfelds liegt mit {pal(1.2)} unter beiden
+    Schwellen. Zwei sitzende Beispielpersonen, gleich groß und gleich alt, nur
+    {' '}{zahl(LEICHT)} und {zahl(SCHWER)} kg schwer, unterscheiden sich beim Ziel
+    Erhalten deshalb so: {g(sitzendErhalten.leicht)} Kohlenhydrate für die
+    leichtere, {g(sitzendErhalten.schwer)} für die schwerere – {g(Math.abs(sitzendErhalten.jeKg * (SCHWER - LEICHT)))}
+    {' '}weniger bei {zahl(SCHWER - LEICHT)} kg mehr Gewicht. Beim Ziel Abnehmen
+    wird der Effekt deutlicher: {g(sitzendAbnehmen.leicht)} gegen
+    {' '}{g(sitzendAbnehmen.schwer)}, also {vz(sitzendAbnehmen.jeKg, 2)} g je
+    Kilogramm. Erst oberhalb der Schwelle dreht das Vorzeichen: derselbe
+    Vergleich bei Faktor {pal(1.9)} ergibt {vz(aktivAbnehmen.jeKg, 2)} g je
+    Kilogramm.
+  </p>
+
+  <h3>Wenn die beiden festen Posten das Budget aufbrauchen</h3>
+  <p>
+    Weil die Kohlenhydrate der Restposten sind, kann der Rest rechnerisch auch
+    negativ werden – dann nämlich, wenn Protein und Fett zusammen mehr Kalorien
+    beanspruchen, als das Tagesziel hergibt. Ein Beispiel innerhalb der
+    Eingabegrenzen des Formulars: {zahl(GRENZFALL.gewicht)} kg,
+    {' '}{zahl(GRENZFALL.groesse)} cm, {zahl(GRENZFALL.alter)} Jahre, weiblich,
+    sitzend, Ziel Abnehmen. Das Tagesziel beträgt {kcal(grenzfall.gesamt)},
+    während {g(grenzfall.protein)} Protein und {g(grenzfall.fett)} Fett allein
+    schon {kcal(grenzfallFix)} ausmachen – {kcal(grenzfallLuecke)} mehr als das
+    Ziel. Eine Kohlenhydratmenge unter null gibt es nicht; der Rechner setzt sie
+    auf {g(0)}. Die drei Makronährstoffe summieren sich in diesem Fall zu einem
+    höheren Wert als die ausgewiesene Tagesenergie.
+  </p>
+  <p>
+    Das ist kein Sonderfall des Formulars, sondern die Eigenschaft jedes Schemas,
+    das zwei Posten fest je Kilogramm ansetzt und den dritten aus dem Rest bildet:
+    Sobald die Fixkosten je Kilogramm über dem Budget je Kilogramm liegen –
+    oberhalb von {pal(kippAbnehmen.kippPal)} beim Abnehmen kehrt sich das um –,
+    schrumpft der Rest mit jedem zusätzlichen Kilogramm, bis nichts mehr übrig
+    ist. Wer die Ausgabe des Rechners liest, sollte deshalb die Summe der drei
+    Kalorienangaben mit der Tagesenergie vergleichen, bevor er die Gramm-Werte
+    weiterverwendet.
+  </p>
+
+  <h3>Was die Prozentzahlen nicht leisten</h3>
+  <p>
+    Die Umrechnung von Prozent in Gramm ist Arithmetik und deshalb eindeutig.
+    Alles, was darüber hinausgeht – welche Verteilung für eine bestimmte Person
+    sinnvoll ist, ob der Rechner die passenden Gramm-je-Kilogramm-Werte ansetzt,
+    wie sich Krankheiten, Schwangerschaft, Alter oder Training auswirken – ist es
+    nicht. Der Rechner oben bildet eine Formel ab, keinen Ernährungsplan: Die
+    Mifflin-St-Jeor-Gleichung schätzt einen Ruheumsatz aus vier Angaben, der
+    Aktivitätsfaktor ist eine Einstufung durch den Nutzer selbst, und die
+    Proteinvorgabe stammt aus der Sportwissenschaft, nicht aus dem
+    D-A-CH-Referenzwert. Was dieser Artikel zeigt, ist nur der Wechselkurs
+    zwischen zwei Darstellungen derselben Zahl – und dass er für Fett ein anderer
+    ist als für Protein und Kohlenhydrate.
+  </p>
+</RechnerArtikel>

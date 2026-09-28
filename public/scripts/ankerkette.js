@@ -2,7 +2,7 @@
 //
 // Ein Anker hält nicht durch sein Gewicht, sondern durch den flachen Zugwinkel.
 // Je mehr Kette am Grund liegt, desto flacher zieht sie — deshalb rechnet man
-// mit einem Vielfachen der Wassertiefe statt mit einem festen Wert.
+// mit einem Vielfachen der Rechentiefe – dem Abstand von der Ankerrolle bis zum Grund, nicht der blossen Wassertiefe statt mit einem festen Wert.
 //
 // Maßgeblich ist nicht die Tiefe unter dem Kiel, sondern der Abstand von der
 // Ankerrolle bis zum Grund. Dazu kommt in Tidengewässern der Tidenhub: gerechnet

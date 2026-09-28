@@ -1,0 +1,250 @@
+---
+import RechnerArtikel from '../RechnerArtikel.astro';
+import { berechneKryptoSteuer, FREIGRENZE } from '../../../public/scripts/krypto-steuer.js';
+import {
+  GRUNDFREIBETRAG,
+  ZONE_3_OBERGRENZE,
+  ZONE_4_OBERGRENZE,
+} from '../../../public/scripts/einkommensteuer.js';
+
+// Alle Zahlen dieses Artikels kommen aus denselben Modulen, die auch der
+// Rechner oben auf der Seite lädt. Die These: Wer Kryptowerte einen Tag vor
+// Ablauf der Jahresfrist des § 23 Abs. 1 Satz 1 Nr. 2 EStG verkauft statt einen
+// Tag danach, zahlt nicht irgendeinen Aufschlag, sondern genau die "mehrsteuer",
+// die der Rechner für den vollen Gewinn ausweist – denn ein Tag später fällt
+// der Verkauf ganz aus dem Anwendungsbereich der Vorschrift heraus und ist mit
+// 0 € Steuer zu Ende. Der Rechner selbst kennt kein Datum; er nimmt an, dass
+// der Verkauf innerhalb der Frist liegt. Genau dieser eine Fall – "innerhalb"
+// gegen "0 €, weil außerhalb" – ist hier durchgerechnet.
+
+const eur = (n: number) => Math.round(n).toLocaleString('de-DE') + ' €';
+const eurGlatt = (n: number) => n.toLocaleString('de-DE', { maximumFractionDigits: 0 }) + ' €';
+const proz = (n: number, d = 1) =>
+  n.toLocaleString('de-DE', { minimumFractionDigits: d, maximumFractionDigits: d }) + ' %';
+
+// --- Fall A: Der Kalender-Kliff neben dem Betrags-Kliff --------------------
+// Voreinstellung der Rechnerseite: zvE 40.000 €.
+const ZVE_BEISPIEL = 40000;
+const knappDrunter = berechneKryptoSteuer({ zvEOhne: ZVE_BEISPIEL, gewinn: FREIGRENZE - 1 });
+const genauDrauf = berechneKryptoSteuer({ zvEOhne: ZVE_BEISPIEL, gewinn: FREIGRENZE });
+const beispielAcht = berechneKryptoSteuer({ zvEOhne: ZVE_BEISPIEL, gewinn: 8000 });
+
+if (knappDrunter.mehrsteuer !== 0) {
+  throw new Error('Artikel Krypto/Frist: 999 € müssten unabhängig vom Datum steuerfrei sein.');
+}
+if (genauDrauf.mehrsteuer <= 0) {
+  throw new Error('Artikel Krypto/Frist: 1.000 € müssten einen Tag zu früh etwas kosten.');
+}
+
+// --- Tabelle 1: gleicher Sockel, steigender Gewinn --------------------------
+const GEWINNE_REIHE = [FREIGRENZE - 1, FREIGRENZE, 1500, 5000, 10000, 25000];
+const tabelleGewinn = GEWINNE_REIHE.map((g) => ({
+  g,
+  r: berechneKryptoSteuer({ zvEOhne: ZVE_BEISPIEL, gewinn: g }),
+}));
+
+// --- Tabelle 2: gleicher Gewinn, steigender Sockel --------------------------
+// Zonengrenzen kommen aus dem Tarifmodul, nicht abgetippt.
+const GEWINN_FEST = 10000;
+const ZVE_REIHE = [0, 20000, ZVE_BEISPIEL, 60000, ZONE_3_OBERGRENZE, 100000, 150000, ZONE_4_OBERGRENZE, 350000];
+const tabelleEinkommen = ZVE_REIHE.map((zve) => ({
+  zve,
+  r: berechneKryptoSteuer({ zvEOhne: zve, gewinn: GEWINN_FEST }),
+}));
+
+// Am unteren Ende bleibt der Tag kostenlos, solange Sockel + Gewinn den
+// Grundfreibetrag nicht übersteigen.
+if (ZVE_REIHE[0] + GEWINN_FEST >= GRUNDFREIBETRAG) {
+  throw new Error('Artikel Krypto/Frist: Nullzeile der Tabelle liegt nicht mehr unter dem Grundfreibetrag.');
+}
+if (tabelleEinkommen[0].r.mehrsteuer !== 0) {
+  throw new Error('Artikel Krypto/Frist: Bei zvE 0 müsste der Tag noch nichts kosten.');
+}
+// Tarif ist progressiv: höherer Sockel darf die Mehrsteuer bei gleichem Gewinn
+// nie senken.
+for (let i = 1; i < tabelleEinkommen.length; i++) {
+  if (tabelleEinkommen[i].r.mehrsteuer < tabelleEinkommen[i - 1].r.mehrsteuer) {
+    throw new Error('Artikel Krypto/Frist: Mehrsteuer sinkt trotz höherem Sockel – Tabelle widerspricht der Progression.');
+  }
+}
+// Oberhalb der letzten Tarifzone ist der Satz konstant 45 %.
+const spitzenzeile = tabelleEinkommen[tabelleEinkommen.length - 1];
+if (spitzenzeile.r.belastungProzent !== 45) {
+  throw new Error('Artikel Krypto/Frist: Belastung oberhalb der letzten Zone müsste exakt 45 % sein.');
+}
+
+// --- Tabelle 3: hoher Sockel, steigender Gewinn -----------------------------
+// zvE 300.000 liegt bereits jenseits der letzten Zonengrenze – jeder
+// zusätzliche Euro Gewinn trifft auf denselben Grenzsteuersatz.
+const ZVE_SPITZE = 300000;
+if (ZVE_SPITZE <= ZONE_4_OBERGRENZE) {
+  throw new Error('Artikel Krypto/Frist: Beispiel-Sockel liegt nicht mehr oberhalb der letzten Tarifzone.');
+}
+const GEWINNE_SPITZE = [FREIGRENZE - 1, FREIGRENZE, 5000, 20000, 50000, 100000];
+const tabelleSpitze = GEWINNE_SPITZE.map((g) => ({
+  g,
+  r: berechneKryptoSteuer({ zvEOhne: ZVE_SPITZE, gewinn: g }),
+}));
+for (const zeile of tabelleSpitze) {
+  const erwartet = zeile.g < FREIGRENZE ? 0 : Math.round(zeile.g * 0.45);
+  if (Math.abs(zeile.r.mehrsteuer - erwartet) > 1) {
+    throw new Error(`Artikel Krypto/Frist: Spitzentabelle bei ${zeile.g} € weicht von 45 % linear ab.`);
+  }
+}
+
+// Spannweite für den Lead: identischer Gewinn, identischer Tag – nur der
+// Sockel unterscheidet sich.
+const spanneMin = tabelleEinkommen[0].r.mehrsteuer;
+const spanneMax = spitzenzeile.r.mehrsteuer;
+---
+<RechnerArtikel
+  titel={`Derselbe Gewinn, derselbe Tag: ${eur(spanneMin)} bis ${eur(spanneMax)} Unterschied`}
+  datum="2026-09-28"
+  lead={`Der Rechner oben kennt kein Kaufdatum – er unterstellt, dass der Verkauf innerhalb der Jahresfrist des § 23 EStG liegt. Genau ein Tag später liegt er das nicht mehr, und die Steuer fällt komplett weg. Die "zusätzliche Einkommensteuer", die der Rechner ausweist, ist deshalb der exakte Preis dieses einen Tages. Bei ${eurGlatt(GEWINN_FEST)} Gewinn reicht dieser Preis von ${eur(spanneMin)} bis ${eur(spanneMax)} – je nachdem, was sonst noch im selben Jahr verdient wurde.`}
+  quellen={[
+    { titel: '§ 23 Abs. 1 Satz 1 Nr. 2 EStG – Jahresfrist bei privaten Veräußerungsgeschäften', url: 'https://www.gesetze-im-internet.de/estg/__23.html' },
+    { titel: '§ 23 Abs. 3 Satz 5 EStG – Freigrenze von 1.000 €', url: 'https://www.gesetze-im-internet.de/estg/__23.html' },
+    { titel: '§ 32a EStG – Einkommensteuertarif', url: 'https://www.gesetze-im-internet.de/estg/__32a.html' },
+  ]}
+>
+  <h3>Zwei Antworten auf dieselbe Frage</h3>
+  <p>
+    Der Rechner stellt eine einzige Frage: Wie viel Einkommensteuer löst dieser
+    Gewinn zusätzlich aus? Er beantwortet sie unter der Annahme, dass zwischen
+    Kauf und Verkauf <strong>nicht mehr als ein Jahr</strong> liegt – so verlangt
+    es § 23 Abs. 1 Satz 1 Nr. 2 EStG. Liegt der Verkauf einen Tag außerhalb
+    dieses Fensters, ist die Vorschrift nicht mehr einschlägig. Es gibt dann
+    keinen Rabatt und keine Stundung, sondern schlicht keine Steuer – die
+    Antwort wäre 0 €, unabhängig vom Gewinn.
+  </p>
+  <p>
+    Bei {eurGlatt(ZVE_BEISPIEL)} zu versteuerndem Einkommen und {eurGlatt(8000)}
+    {' '}Gewinn zeigt der Rechner {eur(beispielAcht.mehrsteuer)} zusätzliche
+    Einkommensteuer. Das ist keine abstrakte Kennzahl, sondern der Betrag, den
+    ein einziger Tag Wartezeit spart – vorausgesetzt, der Verkauf wird um genau
+    diesen Tag verschoben und sonst nichts an der Rechnung ändert sich.
+  </p>
+
+  <h3>Unterhalb der Freigrenze ist der Tag ohnehin kostenlos</h3>
+  <p>
+    Der Kalender-Kliff und der Betrags-Kliff der Freigrenze überlagern sich.
+    Bei {eurGlatt(FREIGRENZE - 1)} Gewinn kostet ein zu früher Verkauf
+    {' '}{eur(knappDrunter.mehrsteuer)} – die Freigrenze nach § 23 Abs. 3 Satz 5
+    EStG greift ohnehin, mit oder ohne Jahresfrist. Bei genau
+    {' '}{eurGlatt(FREIGRENZE)} Gewinn kostet derselbe eine Tag bereits
+    {' '}{eur(genauDrauf.mehrsteuer)}. Der Tag beginnt also erst zu zählen, wenn
+    auch der Betrags-Kliff überschritten ist.
+  </p>
+  <table>
+    <caption class="visually-hidden">Preis eines Tages nach Gewinnhöhe, zu versteuerndes Einkommen {eurGlatt(ZVE_BEISPIEL)}</caption>
+    <thead>
+      <tr><th scope="col">Gewinn</th><th scope="col" class="num">Preis des einen Tages</th><th scope="col" class="num">Anteil am Gewinn</th></tr>
+    </thead>
+    <tbody>
+      {tabelleGewinn.map(({ g, r }) => (
+        <tr>
+          <th scope="row">{eurGlatt(g)}</th>
+          <td class="num">{eur(r.mehrsteuer)}</td>
+          <td class="num">{r.mehrsteuer > 0 ? proz(r.belastungProzent) : '–'}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+  <p>
+    Ab {eurGlatt(FREIGRENZE)} steigt der Anteil mit dem Gewinn weiter an: Bei
+    {' '}{eurGlatt(GEWINNE_REIHE[GEWINNE_REIHE.length - 1])} liegt er bei
+    {' '}{proz(tabelleGewinn[tabelleGewinn.length - 1].r.belastungProzent)}, obwohl
+    das zu versteuernde Einkommen unverändert bei {eurGlatt(ZVE_BEISPIEL)} bleibt.
+    Der Grund ist die Steuerprogression: Ein größerer Gewinn schiebt sich
+    weiter in die höheren Tarifzonen des § 32a EStG hinein, und die Rechnung
+    bildet den <em>gesamten</em> Sprung von Sockel zu Sockel plus Gewinn ab –
+    nicht nur den letzten Euro.
+  </p>
+
+  <h3>Der eigentliche Hebel ist das übrige Einkommen, nicht der Gewinn</h3>
+  <p>
+    Private Veräußerungsgewinne unterliegen nicht der Abgeltungsteuer, sondern
+    dem persönlichen Tarif. Das bedeutet: Derselbe Gewinn kostet bei
+    verschiedenem übrigen Einkommen verschieden viel – auch wenn Betrag und
+    Zeitpunkt exakt gleich sind. Die folgende Tabelle hält den Gewinn bei
+    {' '}{eurGlatt(GEWINN_FEST)} fest und verschiebt nur das zu versteuernde
+    Einkommen ohne diesen Gewinn.
+  </p>
+  <table>
+    <caption class="visually-hidden">Preis eines Tages bei {eurGlatt(GEWINN_FEST)} € Gewinn, nach zu versteuerndem Einkommen ohne diesen Gewinn</caption>
+    <thead>
+      <tr><th scope="col">zu versteuerndes Einkommen ohne Gewinn</th><th scope="col" class="num">Preis des einen Tages</th><th scope="col" class="num">Grenzsteuersatz auf den Gewinn</th></tr>
+    </thead>
+    <tbody>
+      {tabelleEinkommen.map(({ zve, r }) => (
+        <tr>
+          <th scope="row">{eurGlatt(zve)}</th>
+          <td class="num">{eur(r.mehrsteuer)}</td>
+          <td class="num">{r.mehrsteuer > 0 ? proz(r.belastungProzent) : '0,0 %'}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+  <p>
+    Bei {eurGlatt(0)} übrigem Einkommen kostet derselbe Tag {eur(tabelleEinkommen[0].r.mehrsteuer)}
+    {' '}– zusammen mit dem Gewinn bleibt die Summe unter dem Grundfreibetrag von
+    {' '}{eurGlatt(GRUNDFREIBETRAG)} nach § 32a Abs. 1 Satz 2 Nr. 1 EStG, und es
+    fällt gar keine Einkommensteuer an. Am oberen Ende, ab
+    {' '}{eurGlatt(ZONE_4_OBERGRENZE)} zu versteuerndem Einkommen, kostet derselbe
+    Tag {eur(spitzenzeile.r.mehrsteuer)} – der Spitzensteuersatz von
+    {' '}{proz(45, 0)} greift auf den vollen Gewinn. Zwischen diesen beiden
+    Polen liegt eine Spanne von {eur(spanneMax - spanneMin)}, obwohl sich am
+    Gewinn selbst nichts ändert.
+  </p>
+
+  <h3>Oberhalb der Progressionszonen wird aus der Kurve eine Gerade</h3>
+  <p>
+    Für ein zu versteuerndes Einkommen von {eurGlatt(ZVE_SPITZE)} – oberhalb der
+    letzten Tarifzone bei {eurGlatt(ZONE_4_OBERGRENZE)} – trifft jeder
+    zusätzliche Euro Gewinn auf denselben Grenzsteuersatz von {proz(45, 0)}.
+    Die Rechnung wird dadurch besonders einfach: unterhalb der Freigrenze
+    exakt 0 €, ab der Freigrenze exakt {proz(45, 0)} des gesamten Gewinns –
+    ohne die Übergänge, die in der vorigen Tabelle den Anteil noch langsam
+    ansteigen ließen.
+  </p>
+  <table>
+    <caption class="visually-hidden">Preis eines Tages bei {eurGlatt(ZVE_SPITZE)} € zu versteuerndem Einkommen, nach Gewinnhöhe</caption>
+    <thead>
+      <tr><th scope="col">Gewinn</th><th scope="col" class="num">Preis des einen Tages</th></tr>
+    </thead>
+    <tbody>
+      {tabelleSpitze.map(({ g, r }) => (
+        <tr>
+          <th scope="row">{eurGlatt(g)}</th>
+          <td class="num">{eur(r.mehrsteuer)}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+  <p>
+    Wer bereits aus anderen Quellen so viel verdient, dass er in der obersten
+    Tarifzone liegt, kann den Preis eines zu frühen Verkaufs im Kopf
+    ausrechnen: Freigrenze unterschritten heißt 0 €, Freigrenze erreicht heißt
+    {' '}{proz(45, 0)} des Gewinns. Wer dagegen im progressiven Mittelbau des
+    Tarifs liegt, muss den Gewinn kennen, um den Preis zu kennen – die Spanne
+    zwischen den beiden Extremen in diesem Artikel zeigt, wie groß der
+    Unterschied ausfallen kann.
+  </p>
+
+  <h3>Was der Rechner nicht prüft</h3>
+  <p>
+    Der Rechner hat kein Datumsfeld. Er verlangt einen fertigen Gesamtgewinn
+    und setzt voraus, dass dieser Gewinn ausschließlich aus Verkäufen innerhalb
+    der Jahresfrist stammt. Ob ein einzelner Verkauf innerhalb oder außerhalb
+    dieser Frist liegt – und, bei mehreren Käufen derselben Kryptowährung zu
+    verschiedenen Zeitpunkten, welcher Bestand als zuerst verkauft gilt –, muss
+    wer den Rechner benutzt selbst klären. Für Gewinne, die teils innerhalb und
+    teils außerhalb der Frist liegen, ist nur der fristgebundene Teil in dieses
+    Feld einzutragen.
+  </p>
+  <p>
+    Nicht enthalten sind außerdem Solidaritätszuschlag und Kirchensteuer; beide
+    kommen zu jedem hier gezeigten Betrag anteilig hinzu. Dieser Artikel ordnet
+    Rechenwege ein und ersetzt keine steuerliche Beratung im Einzelfall.
+  </p>
+</RechnerArtikel>

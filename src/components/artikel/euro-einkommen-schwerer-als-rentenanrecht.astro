@@ -1,0 +1,296 @@
+---
+import RechnerArtikel from '../RechnerArtikel.astro';
+import {
+  berechneScheidungskosten,
+  verfahrenswert,
+  MONATE_NETTOEINKOMMEN,
+  VERSORGUNGSAUSGLEICH_JE_ANRECHT,
+  EHESACHE_MINDESTWERT,
+  VERSORGUNGSAUSGLEICH_MINDESTWERT,
+} from '../../../public/scripts/scheidungskosten.js';
+import { gebuehrFamGKG, gebuehrRVG } from '../../../public/scripts/gebuehrentabellen.js';
+
+// Alle Zahlen dieses Artikels kommen aus demselben Modul, das der Rechner
+// oben laedt (public/scripts/scheidungskosten.js), das seinerseits die
+// Gebuehrentabellen aus gebuehrentabellen.js nutzt. Nichts davon wird hier neu
+// erfunden - nur neu kombiniert und gegengerechnet.
+
+const zahl = (n: number, d = 2) =>
+  n.toLocaleString('de-DE', { minimumFractionDigits: d, maximumFractionDigits: d }).replace(/^-/, '−');
+const eur = (n: number, d = 2) => zahl(n, d) + ' €';
+const eur0 = (n: number) => zahl(n, 0) + ' €';
+const proz = (n: number, d = 1) => zahl(n * 100, d) + ' %';
+const faktorText = (n: number) => zahl(n, 1);
+
+// --- Ausgangspunkt: 4.000 € Netto beider Ehegatten, zwei Anrechte im
+// Versorgungsausgleich - der Standardwert, den das Formular oben zeigt. ---
+const NETTO_BASIS = 4000;
+const ANRECHTE_BASIS = 2;
+
+const basis = berechneScheidungskosten({ nettoMonat: NETTO_BASIS, anrechte: ANRECHTE_BASIS, anwaelte: 1 });
+const mitAnrecht = berechneScheidungskosten({ nettoMonat: NETTO_BASIS, anrechte: ANRECHTE_BASIS + 1, anwaelte: 1 });
+
+// Ein zusaetzliches Anrecht hebt den Verfahrenswert um genau
+// VERSORGUNGSAUSGLEICH_JE_ANRECHT * MONATE_NETTOEINKOMMEN * Netto - das ist
+// ein linearer Einmalzuschlag, unabhaengig von der Zahl bereits vorhandener
+// Anrechte. Gegenprobe gegen das, was das Modul tatsaechlich ausrechnet:
+const deltaWertAnrecht = mitAnrecht.verfahrenswert.gesamt - basis.verfahrenswert.gesamt;
+const erwarteterDeltaAnrecht = VERSORGUNGSAUSGLEICH_JE_ANRECHT * MONATE_NETTOEINKOMMEN * NETTO_BASIS;
+if (Math.abs(deltaWertAnrecht - erwarteterDeltaAnrecht) > 0.01) {
+  throw new Error('Scheidungskosten-Artikel: Verfahrenswert-Zuschlag eines Anrechts weicht von der Formel ab.');
+}
+
+// Denselben Euro-Betrag stattdessen als Einkommenszuwachs verteilt, bei
+// gleicher Anrechtszahl. Erwartungswert: Ein Euro mehr Einkommen zaehlt
+// MONATE_NETTOEINKOMMEN-fach in die Ehesache UND nochmals anteilig in jedes
+// bestehende Anrecht - der Faktor ist MONATE_NETTOEINKOMMEN * (1 + Anteil * n).
+const mitEinkommen = berechneScheidungskosten({
+  nettoMonat: NETTO_BASIS + deltaWertAnrecht,
+  anrechte: ANRECHTE_BASIS,
+  anwaelte: 1,
+});
+const deltaWertEinkommen = mitEinkommen.verfahrenswert.gesamt - basis.verfahrenswert.gesamt;
+const erwarteterDeltaEinkommen =
+  MONATE_NETTOEINKOMMEN * (1 + VERSORGUNGSAUSGLEICH_JE_ANRECHT * ANRECHTE_BASIS) * deltaWertAnrecht;
+if (Math.abs(deltaWertEinkommen - erwarteterDeltaEinkommen) > 0.01) {
+  throw new Error('Scheidungskosten-Artikel: Einkommens-Formel passt nicht zum Rechenmodul.');
+}
+const faktorBasis = deltaWertEinkommen / deltaWertAnrecht;
+
+// Allgemeine Form: Faktor(n) = MONATE_NETTOEINKOMMEN * (1 + Anteil * n) - eine
+// Konstante, die nicht vom Nettoeinkommen abhaengt. Gegenprobe mit fuenf ganz
+// verschiedenen Einkommen/Anrechte-Kombinationen, unabhaengig vom Basisfall
+// oben berechnet.
+function faktor(anrechte: number): number {
+  return MONATE_NETTOEINKOMMEN * (1 + VERSORGUNGSAUSGLEICH_JE_ANRECHT * anrechte);
+}
+const FAKTOR_PROBEN: Array<[number, number]> = [
+  [2000, 5],
+  [4000, 1],
+  [4000, 2],
+  [6000, 3],
+  [10000, 0],
+];
+for (const [netto, anrechte] of FAKTOR_PROBEN) {
+  const b = verfahrenswert({ nettoMonat: netto, anrechte });
+  const mA = verfahrenswert({ nettoMonat: netto, anrechte: anrechte + 1 });
+  const dA = mA.gesamt - b.gesamt;
+  const mE = verfahrenswert({ nettoMonat: netto + dA, anrechte });
+  const dE = mE.gesamt - b.gesamt;
+  if (Math.abs(dE / dA - faktor(anrechte)) > 0.0001) {
+    throw new Error(`Scheidungskosten-Artikel: Faktor-Formel stimmt nicht bei ${netto} €, ${anrechte} Anrechten.`);
+  }
+}
+const FAKTOR_TABELLE = [1, 2, 3, 4, 5].map((n) => ({ n, faktor: faktor(n) }));
+
+// Zweites konkretes Zahlenbeispiel auf hoeherem Anrechte-Niveau (5 -> 6), mit
+// denselben Formeln gegengeprueft wie oben (2 -> 3 bei NETTO_BASIS).
+const a5 = berechneScheidungskosten({ nettoMonat: NETTO_BASIS, anrechte: 5, anwaelte: 1 });
+const a6 = berechneScheidungskosten({ nettoMonat: NETTO_BASIS, anrechte: 6, anwaelte: 1 });
+const deltaWertA5A6 = a6.verfahrenswert.gesamt - a5.verfahrenswert.gesamt;
+if (Math.abs(deltaWertA5A6 - erwarteterDeltaAnrecht) > 0.01) {
+  throw new Error('Scheidungskosten-Artikel: Der Anrecht-Zuschlag ist bei 5 Anrechten nicht derselbe wie bei 2.');
+}
+const einkommenAeqA5 = berechneScheidungskosten({
+  nettoMonat: NETTO_BASIS + deltaWertA5A6,
+  anrechte: 5,
+  anwaelte: 1,
+});
+const deltaWertEinkommenA5 = einkommenAeqA5.verfahrenswert.gesamt - a5.verfahrenswert.gesamt;
+if (Math.abs(deltaWertEinkommenA5 / deltaWertA5A6 - faktor(5)) > 0.0001) {
+  throw new Error('Scheidungskosten-Artikel: Faktor bei 5 Anrechten passt nicht zum Einkommensbeispiel.');
+}
+
+// --- Praxisbeispiel: Wie stark schlaegt ein Schaetzfehler beim Nettoeinkommen
+// durch, verglichen mit dem Vergessen eines Anrechts? Realistischer Fehler:
+// eine schwankende Sonderzahlung wird nicht in den Monatsdurchschnitt
+// eingerechnet, das Netto also um 500 Euro unterschaetzt.
+const NETTO_FEHLER = 500;
+const unterschaetzt = berechneScheidungskosten({
+  nettoMonat: NETTO_BASIS - NETTO_FEHLER,
+  anrechte: ANRECHTE_BASIS,
+  anwaelte: 1,
+});
+const deltaKostenNettoFehler = basis.gesamt - unterschaetzt.gesamt;
+if (deltaKostenNettoFehler <= 0) {
+  throw new Error('Scheidungskosten-Artikel: Der Netto-Schaetzfehler senkt die Kosten nicht wie erwartet.');
+}
+
+// --- Zweiter Teil: Treibt der hoehere Verfahrenswert auch tatsaechlich die
+// Rechnung? Nicht garantiert - Gerichts- und Anwaltsgebuehren sind in Stufen
+// gestaffelt (siehe gebuehrentabellen.js), nicht stufenlos proportional. ---
+const EINKOMMEN_REIHE = [2000, 3000, 4000, 5000, 6000, 7000, 8000, 9000, 10000];
+const stufenReihe = EINKOMMEN_REIHE.map((n) => {
+  const a = berechneScheidungskosten({ nettoMonat: n, anrechte: 2, anwaelte: 1 });
+  const b = berechneScheidungskosten({ nettoMonat: n, anrechte: 3, anwaelte: 1 });
+  return {
+    n,
+    deltaWert: b.verfahrenswert.gesamt - a.verfahrenswert.gesamt,
+    deltaKosten: b.gesamt - a.gesamt,
+  };
+});
+if (!stufenReihe.some((z) => z.deltaKosten === 0) || !stufenReihe.some((z) => z.deltaKosten > 0)) {
+  throw new Error('Scheidungskosten-Artikel: Gebuehrenstufen-These laesst sich mit dieser Einkommensreihe nicht zeigen.');
+}
+
+// Randbefund: Gerichts- und Anwaltsgebuehr springen in diesem Rechner immer
+// gemeinsam, nie nur einer von beiden - beide Tabellen teilen dieselben
+// Stufengrenzen (siehe gebuehrentabellen.js), nur die Betraege unterscheiden
+// sich. Vollstaendige Pruefung ueber den kompletten Bereich der ersten vier
+// Gebuehrenstufen.
+const PRUEFBEREICH_GEBUEHRENSTUFEN = 60000;
+let vorherGericht = gebuehrFamGKG(1);
+let vorherAnwalt = gebuehrRVG(1);
+let asynchron = 0;
+for (let w = 2; w <= PRUEFBEREICH_GEBUEHRENSTUFEN; w += 1) {
+  const g = gebuehrFamGKG(w);
+  const a = gebuehrRVG(w);
+  if ((g !== vorherGericht) !== (a !== vorherAnwalt)) asynchron += 1;
+  vorherGericht = g;
+  vorherAnwalt = a;
+}
+if (asynchron > 0) {
+  throw new Error('Scheidungskosten-Artikel: Gerichts- und Anwaltsgebuehr springen nicht mehr synchron.');
+}
+
+const quellen = [
+  { titel: '§ 43 FamGKG – Verfahrenswert der Ehesache', url: 'https://www.gesetze-im-internet.de/famgkg/__43.html' },
+  { titel: '§ 44 FamGKG – Verfahrenswert bei Folgesachen im Verbund', url: 'https://www.gesetze-im-internet.de/famgkg/__44.html' },
+  { titel: '§ 50 FamGKG – Verfahrenswert des Versorgungsausgleichs', url: 'https://www.gesetze-im-internet.de/famgkg/__50.html' },
+  { titel: '§ 28 FamGKG – Gerichtsgebühr, Gebührentabelle', url: 'https://www.gesetze-im-internet.de/famgkg/__28.html' },
+  { titel: '§ 13 RVG – Anwaltsgebühr, Gebührentabelle', url: 'https://www.gesetze-im-internet.de/rvg/__13.html' },
+];
+---
+<RechnerArtikel
+  titel="Ein Euro mehr Gehalt wiegt beim Verfahrenswert schwerer als ein ganzes Rentenanrecht"
+  datum="2026-09-24"
+  lead={`Ein Ehepaar mit ${eur0(NETTO_BASIS)} Netto im Monat und zwei Anrechten im Versorgungsausgleich hat einen Verfahrenswert von ${eur0(basis.verfahrenswert.gesamt)}. Ein drittes Anrecht hebt ihn um ${eur0(deltaWertAnrecht)} auf ${eur0(mitAnrecht.verfahrenswert.gesamt)} – kostet in diesem Fall aber keinen Cent zusätzlich. Verteilt man denselben Betrag stattdessen als Gehaltserhöhung, steigt der Verfahrenswert um ${eur0(deltaWertEinkommen)}, mehr als das Dreifache, und diesmal kostet es tatsächlich ${eur(mitEinkommen.gesamt - basis.gesamt)} mehr. Derselbe Euro zählt beim Verfahrenswert je nachdem, wo er herkommt, unterschiedlich viel.`}
+  quellen={quellen}
+>
+  <h3>Ein Anrecht ist nicht dasselbe wie ein Euro</h3>
+  <p>
+    Jede Altersvorsorge, die während der Ehe gewachsen ist, zählt beim Versorgungsausgleich als eigenes Anrecht –
+    die gesetzliche Rente eines Ehegatten ist eines, eine Betriebsrente ein weiteres, eine private Riester- oder
+    Rürup-Vorsorge ein drittes. Wer neben der gesetzlichen Rente noch betrieblich und privat vorsorgt, bringt es
+    schnell auf drei, vier oder mehr Anrechte. Die naheliegende Annahme wäre: Jedes weitere Anrecht verteuert die
+    Scheidung ungefähr so stark wie ein entsprechendes Stück mehr Einkommen. Das stimmt nicht – und der Unterschied
+    lässt sich aus derselben Formel ablesen, mit der auch der Rechner oben arbeitet.
+  </p>
+
+  <h3>Zwei Wege zum selben Euro-Betrag</h3>
+  <p>
+    Der Verfahrenswert einer Scheidung im Verbund setzt sich aus mehreren Teilen zusammen, die addiert werden
+    (§ 44 Abs. 1 FamGKG): der Ehesache selbst – dreimal das monatliche Nettoeinkommen beider Ehegatten, mindestens
+    {' '}{eur0(EHESACHE_MINDESTWERT)} (§ 43 Abs. 2 FamGKG) – und, wenn im Versorgungsausgleich Anrechte auszugleichen sind,
+    {' '}{proz(VERSORGUNGSAUSGLEICH_JE_ANRECHT)} dieses Dreimonatsbetrags je Anrecht, zusammen mindestens
+    {' '}{eur0(VERSORGUNGSAUSGLEICH_MINDESTWERT)} (§ 50 Abs. 1 FamGKG). Zwei Stellschrauben also,
+    die beide am selben Grundwert hängen: dem dreifachen Nettoeinkommen.
+  </p>
+  <p>
+    Bei {eur0(NETTO_BASIS)} Netto und zwei bestehenden Anrechten beträgt der Verfahrenswert {eur0(basis.verfahrenswert.gesamt)}
+    ({eur0(basis.verfahrenswert.ehesache)} Ehesache plus {eur0(basis.verfahrenswert.versorgungsausgleich)} Versorgungsausgleich).
+    Ein drittes Anrecht – etwa weil neben der gesetzlichen Rente auch eine Betriebsrente auszugleichen ist – hebt den
+    Versorgungsausgleichs-Anteil um {eur0(deltaWertAnrecht)} auf {eur0(mitAnrecht.verfahrenswert.versorgungsausgleich)},
+    den Gesamtwert auf {eur0(mitAnrecht.verfahrenswert.gesamt)}.
+  </p>
+  <p>
+    Wie stark wirkt derselbe Betrag, wenn er stattdessen als Einkommenszuwachs ankommt? {eur0(NETTO_BASIS)} plus
+    {' '}{eur0(deltaWertAnrecht)} sind {eur0(NETTO_BASIS + deltaWertAnrecht)} Netto, bei unverändert zwei Anrechten. Der
+    Verfahrenswert steigt dabei nicht um {eur0(deltaWertAnrecht)}, sondern um {eur0(deltaWertEinkommen)} – auf
+    {' '}{eur0(mitEinkommen.verfahrenswert.gesamt)}. Derselbe Euro-Betrag, {faktorText(faktorBasis)}-mal so starke Wirkung.
+  </p>
+
+  <h3>Warum Einkommen doppelt zählt</h3>
+  <p>
+    Der Grund liegt in der Formel selbst. Ein zusätzliches Anrecht hebt nur den Versorgungsausgleichs-Anteil an –
+    einmalig, um {proz(VERSORGUNGSAUSGLEICH_JE_ANRECHT)} des (unveränderten) Dreimonatseinkommens. Eine
+    Einkommenserhöhung dagegen wirkt zweifach: Sie hebt die Ehesache direkt an (Faktor {MONATE_NETTOEINKOMMEN}, weil
+    drei Monate zählen), und sie hebt gleichzeitig die Bemessungsgrundlage für <em>jedes bereits bestehende</em> Anrecht
+    im Versorgungsausgleich mit an – bei zwei Anrechten macht das zusätzlich {proz(VERSORGUNGSAUSGLEICH_JE_ANRECHT * ANRECHTE_BASIS)}
+    des Zuwachses aus. Ein Anrecht ist ein Einmalzuschlag auf eine feste Basis; ein höheres Einkommen vergrößert die
+    Basis selbst, und alles, was an ihr hängt, wächst mit.
+  </p>
+  <p>
+    Das lässt sich in eine feste Formel fassen: Eine Einkommenserhöhung wirkt auf den Verfahrenswert
+    {' '}{MONATE_NETTOEINKOMMEN} × (1 + {proz(VERSORGUNGSAUSGLEICH_JE_ANRECHT)} × Anzahl der Anrechte) mal so stark wie
+    derselbe Euro-Betrag als zusätzliches Anrecht. Bei {ANRECHTE_BASIS} Anrechten ergibt das {MONATE_NETTOEINKOMMEN} ×
+    {' '}(1 + {proz(VERSORGUNGSAUSGLEICH_JE_ANRECHT * ANRECHTE_BASIS)}) = {faktorText(faktorBasis)}. Der Faktor hängt
+    dabei nicht von der Höhe des Einkommens ab, sondern nur von der Zahl
+    der schon bestehenden Anrechte – mehr Anrechte bedeuten einen noch größeren Hebel:
+  </p>
+  <table>
+    <caption class="visually-hidden">Faktor, um den eine Einkommenserhöhung stärker wirkt als derselbe Betrag als zusätzliches Anrecht</caption>
+    <thead>
+      <tr><th scope="col">Bestehende Anrechte</th><th scope="col">Faktor Einkommen ggü. Anrecht</th></tr>
+    </thead>
+    <tbody>
+      {FAKTOR_TABELLE.map(({ n, faktor: f }) => (
+        <tr><td>{n}</td><td class="num">{faktorText(f)}</td></tr>
+      ))}
+    </tbody>
+  </table>
+  <p>
+    Mit fünf bestehenden Anrechten – etwa bei zwei Ehegatten mit je gesetzlicher Rente, Betriebsrente und privater
+    Riester- oder Rürup-Vorsorge – wirkt eine Einkommenserhöhung schon {faktorText(faktor(5))}-mal so stark auf den
+    Verfahrenswert wie derselbe Betrag als zusätzliches Anrecht. Konkret bei {eur0(NETTO_BASIS)} Netto: Der Sprung von
+    fünf auf sechs Anrechte hebt den Verfahrenswert um dieselben {eur0(deltaWertA5A6)} wie beim Sprung von zwei auf
+    drei Anrechte weiter oben – der Zuschlag pro Anrecht hängt nur vom Einkommen ab, nicht davon, wie viele Anrechte
+    schon da sind. Verteilt man stattdessen {eur0(deltaWertA5A6)} als Einkommenszuwachs auf ein Ehepaar mit fünf
+    Anrechten, steigt der Verfahrenswert um {eur0(deltaWertEinkommenA5)} – exakt das {faktorText(faktor(5))}-Fache.
+  </p>
+
+  <h3>Ob es auch mehr kostet, ist eine andere Frage</h3>
+  <p>
+    Ein höherer Verfahrenswert bedeutet nicht automatisch höhere Gebühren. Gerichts- und Anwaltsgebühren richten sich
+    nach Wertstufen, die in festen Schritten steigen (§ 28 FamGKG, § 13 RVG) – innerhalb einer Stufe ändert sich an der
+    Gebühr nichts, egal um wie viel der Wert innerhalb dieser Stufe wächst. Im Beispiel oben liegt das dritte Anrecht
+    trotz {eur0(deltaWertAnrecht)} mehr Verfahrenswert noch in derselben Gebührenstufe: Die Gesamtkosten bleiben bei
+    {' '}{eur(basis.gesamt)}, unverändert. Die Einkommenserhöhung dagegen überspringt eine Stufe – die Kosten steigen um
+    {' '}{eur(mitEinkommen.gesamt - basis.gesamt)} auf {eur(mitEinkommen.gesamt)}.
+  </p>
+  <p>
+    Das ist kein Sonderfall dieses einen Beispiels. Für den immer gleichen Schritt von zwei auf drei Anrechte, bei
+    unterschiedlichem Nettoeinkommen, kostet der dritte Anrecht mal gar nichts, mal einen dreistelligen Betrag – je
+    nachdem, ob der zusätzliche Verfahrenswert eine Gebührenstufe überschreitet:
+  </p>
+  <table>
+    <caption class="visually-hidden">Zusätzliche Kosten eines dritten Versorgungsausgleichs-Anrechts nach Nettoeinkommen</caption>
+    <thead>
+      <tr><th scope="col">Netto beider / Monat</th><th scope="col">Mehr Verfahrenswert</th><th scope="col">Mehr Kosten durchs 3. Anrecht</th></tr>
+    </thead>
+    <tbody>
+      {stufenReihe.map(({ n, deltaWert, deltaKosten }) => (
+        <tr><td>{eur0(n)}</td><td class="num">{eur0(deltaWert)}</td><td class="num">{deltaKosten === 0 ? '0 €' : eur(deltaKosten)}</td></tr>
+      ))}
+    </tbody>
+  </table>
+  <p class="ra-hinweis">
+    Ein methodischer Nebenbefund: Gerichts- und Anwaltsgebühr springen in diesem Rechner immer im selben Moment, nie
+    einzeln – beide Tabellen (§ 28 FamGKG, § 13 RVG) sind an denselben Wertgrenzen gestaffelt, nur die Beträge je
+    Stufe unterscheiden sich. Über den gesamten geprüften Bereich bis {eur0(PRUEFBEREICH_GEBUEHRENSTUFEN)}
+    {' '}Verfahrenswert gibt es keine Ausnahme davon.
+  </p>
+
+  <h3>Wo eine ungenaue Schätzung stärker durchschlägt</h3>
+  <p>
+    Für die Praxis folgt daraus, welcher Eingabefehler stärker ins Gewicht fällt: das Vergessen eines Anrechts oder
+    eine ungenaue Einkommensangabe. Wird beim Nettoeinkommen zum Beispiel eine schwankende Sonderzahlung nicht in den
+    Monatsdurchschnitt eingerechnet und das Netto dadurch um {eur0(NETTO_FEHLER)} zu niedrig angesetzt – von
+    {' '}{eur0(NETTO_BASIS)} auf {eur0(NETTO_BASIS - NETTO_FEHLER)} –, sinkt der ausgewiesene Verfahrenswert um
+    {' '}{eur0(basis.verfahrenswert.gesamt - unterschaetzt.verfahrenswert.gesamt)} und die Kostenschätzung um
+    {' '}{eur(deltaKostenNettoFehler)}, weil dabei ebenfalls eine Gebührenstufe unterschritten wird. Ein
+    komplett vergessenes drittes Anrecht kostet im selben Ausgangsfall dagegen {eur(mitAnrecht.gesamt - basis.gesamt)}
+    Differenz. Der Einkommensfehler wiegt hier schwerer als das fehlende Anrecht – obwohl beide nur eine einzelne
+    Angabe im Formular betreffen.
+  </p>
+
+  <h3>Was diese Rechnung nicht zeigt</h3>
+  <p>
+    Der Vergleich rechnet ausschließlich mit dem, was das Gesetz an Zahlen vorgibt: dem Nettoeinkommen und der Zahl der
+    Anrechte. Ob und wie stark das Gericht darüber hinaus Vermögen oder unterhaltsberechtigte Kinder berücksichtigt,
+    liegt in seinem Ermessen (§ 43 Abs. 1 FamGKG) und lässt sich nicht in eine Formel gießen – dieser Rechner
+    unterstellt dazu nichts, und auch dieser Artikel nicht. Nicht enthalten sind außerdem eine Einigungsgebühr, streitig
+    geführte Folgesachen wie Unterhalt oder Zugewinn, sowie gerichtliche Auslagen. Wer diese Rechnung auf die eigene
+    Scheidung überträgt, bekommt damit eine Untergrenze, keinen Festpreis.
+  </p>
+</RechnerArtikel>

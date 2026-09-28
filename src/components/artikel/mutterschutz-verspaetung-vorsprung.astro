@@ -1,0 +1,249 @@
+---
+import RechnerArtikel from '../RechnerArtikel.astro';
+import {
+  berechneMutterschutz,
+  SCHUTZFRIST_VOR_TAGE,
+  SCHUTZFRIST_NACH_TAGE,
+  SCHUTZFRIST_NACH_VERLAENGERT_TAGE,
+} from '../../../public/scripts/mutterschutz.js';
+
+// Alle Zahlen dieser Seite kommen aus demselben Modul, das der Rechner laedt
+// (public/scripts/mutterschutz.js). Termin und Deltas sind frei gewaehlt,
+// die Ergebnisse werden unten gegen das Gesetz gepruefte.
+
+const de = (n: number) => n.toLocaleString('de-DE');
+const datum = (s: string) => s.split('-').reverse().join('.');
+const wochen = (tage: number) => tage / 7;
+
+const TERMIN = '2026-11-20';
+
+/** Datum `delta` Tage vor (negativ) oder nach (positiv) dem Termin. */
+function verschobenesDatum(delta: number): string {
+  const d = new Date(`${TERMIN}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + delta);
+  return d.toISOString().split('T')[0];
+}
+
+const DELTAS = [-21, -14, -7, 0, 7, 14, 21];
+const szenarien = DELTAS.map((delta) => {
+  const entbindung = delta === 0 ? undefined : verschobenesDatum(delta);
+  const r = berechneMutterschutz({ geburtstermin: TERMIN, entbindung });
+  return { delta, entbindung: r.entbindung, ende: r.ende, tageGesamt: r.tageGesamt };
+});
+
+const basis = SCHUTZFRIST_VOR_TAGE + SCHUTZFRIST_NACH_TAGE;
+
+// Selbstpruefung 1: Jede fruehere oder termingerechte Geburt (delta <= 0)
+// aendert die Gesamtdauer gegenueber der Geburt am Termin nicht – die vor der
+// Geburt "verlorenen" Tage werden nach § 3 Abs. 2 Satz 3 MuSchG hinten
+// angehaengt.
+for (const s of szenarien) {
+  if (s.delta <= 0 && s.tageGesamt !== basis) {
+    throw new Error(
+      `Mutterschutz-Artikel: Geburt ${s.delta} Tage vor dem Termin ergibt ${s.tageGesamt} Tage statt ${basis}.`
+    );
+  }
+}
+
+// Selbstpruefung 2: Jede spaetere Geburt (delta > 0) verlaengert die
+// Gesamtdauer um genau die Anzahl Verspaetungstage – ohne Kompensation nach
+// vorn, denn die Schutzfrist davor bleibt am festen Termin verankert.
+for (const s of szenarien) {
+  if (s.delta > 0 && s.tageGesamt !== basis + s.delta) {
+    throw new Error(
+      `Mutterschutz-Artikel: Geburt ${s.delta} Tage nach dem Termin ergibt ${s.tageGesamt} Tage statt ${basis + s.delta}.`
+    );
+  }
+}
+
+// Selbstpruefung 3: Bei Fruehgeburt, Mehrlingsgeburt oder festgestellter
+// Behinderung gilt dieselbe Regel unveraendert, nur mit 12 statt 8 Wochen
+// Basis danach (§ 3 Abs. 2 Satz 2 MuSchG) – die beiden Regeln greifen
+// unabhaengig voneinander ineinander.
+const basisVerlaengert = SCHUTZFRIST_VOR_TAGE + SCHUTZFRIST_NACH_VERLAENGERT_TAGE;
+const DELTA_VERLAENGERT = 14;
+const fruehVerlaengert = berechneMutterschutz({
+  geburtstermin: TERMIN,
+  entbindung: verschobenesDatum(-DELTA_VERLAENGERT),
+  verlaengert: true,
+});
+const spaetVerlaengert = berechneMutterschutz({
+  geburtstermin: TERMIN,
+  entbindung: verschobenesDatum(DELTA_VERLAENGERT),
+  verlaengert: true,
+});
+if (fruehVerlaengert.tageGesamt !== basisVerlaengert) {
+  throw new Error(
+    `Mutterschutz-Artikel: Verlaengerte Frist bei frueherer Geburt ergibt ${fruehVerlaengert.tageGesamt} statt ${basisVerlaengert}.`
+  );
+}
+if (spaetVerlaengert.tageGesamt !== basisVerlaengert + DELTA_VERLAENGERT) {
+  throw new Error(
+    `Mutterschutz-Artikel: Verlaengerte Frist bei spaeterer Geburt ergibt ${spaetVerlaengert.tageGesamt} statt ${basisVerlaengert + DELTA_VERLAENGERT}.`
+  );
+}
+
+const frueh21 = szenarien.find((s) => s.delta === -21)!;
+const spaet21 = szenarien.find((s) => s.delta === 21)!;
+const spaet7 = szenarien.find((s) => s.delta === 7)!;
+const anzahlBeispieleFrueh = szenarien.filter((s) => s.delta < 0).length;
+
+// Zeigt, dass das Wachstum bei Verspaetung nicht bei drei Wochen aufhoert,
+// sondern linear weitergeht – anders als bei der fruehen Geburt, die nie
+// unter den Boden von `basis` Tagen faellt.
+const SPAET35_DELTA = 35;
+const spaet35 = berechneMutterschutz({ geburtstermin: TERMIN, entbindung: verschobenesDatum(SPAET35_DELTA) });
+if (spaet35.tageGesamt !== basis + SPAET35_DELTA) {
+  throw new Error(
+    `Mutterschutz-Artikel: Geburt ${SPAET35_DELTA} Tage nach dem Termin ergibt ${spaet35.tageGesamt} Tage statt ${basis + SPAET35_DELTA}.`
+  );
+}
+
+const quellen = [
+  {
+    titel: '§ 3 MuSchG – Schutzfristen vor und nach der Entbindung',
+    url: 'https://www.gesetze-im-internet.de/muschg_2018/__3.html',
+  },
+];
+---
+<RechnerArtikel
+  titel="Beim Mutterschutz zählt die Verspätung, nicht der Vorsprung"
+  lead={`Kommt das Kind bis zu ${de(Math.abs(frueh21.delta) / 7)} Wochen vor dem Termin, endet der Mutterschutz trotzdem am selben Tag wie bei einer Geburt genau am Termin: ${de(basis)} Tage insgesamt, keiner weniger. Kommt es ${de(spaet21.delta / 7)} Wochen später, verlängert sich der Mutterschutz exakt um diese ${de(spaet21.delta / 7)} Wochen – auf ${de(spaet21.tageGesamt)} Tage. Das Gesetz gleicht eine frühere Geburt vollständig aus, eine spätere nicht.`}
+  datum="2026-09-23"
+  quellen={quellen}
+>
+  <h3>Zwei Fristen, zwei verschiedene Ankerpunkte</h3>
+  <p>
+    Der Rechner oben setzt den Beginn der Schutzfrist immer {de(wochen(SCHUTZFRIST_VOR_TAGE))} Wochen vor
+    den <strong>voraussichtlichen</strong> Entbindungstag (§ 3 Abs. 1 Satz 1 MuSchG) – im Beispiel dieser Seite
+    der {datum(TERMIN)}, also der {datum(verschobenesDatum(-SCHUTZFRIST_VOR_TAGE))}. Das ergibt Sinn: Ob und wann
+    eine Schwangere in den letzten Wochen vor der Geburt nur noch mit ausdrücklicher Zustimmung beschäftigt werden
+    darf, muss vorher feststehen, und die tatsächliche Geburt kennt zu diesem Zeitpunkt niemand. Deshalb bleibt
+    der ärztlich geschätzte Termin der einzig mögliche Bezugspunkt für den Anfang.
+  </p>
+  <p>
+    Das Ende dagegen hängt von der <strong>tatsächlichen</strong> Geburt ab: {de(wochen(SCHUTZFRIST_NACH_TAGE))}{' '}
+    Wochen danach (§ 3 Abs. 2 Satz 1 MuSchG), plus die Tage, die von der Frist davor noch übrig waren, weil das
+    Kind früher kam (§ 3 Abs. 2 Satz 3 MuSchG). Sobald die Geburt stattgefunden hat, gibt es keinen Grund mehr, mit
+    einer Schätzung zu rechnen – das Ende darf und muss sich nach dem wirklichen Datum richten. Der Beginn hängt
+    also an einer Prognose, das Ende an einem Faktum. Aus genau dieser Asymmetrie der beiden Ankerpunkte folgt,
+    dass eine frühere und eine spätere Geburt am Ende nicht gleich behandelt werden, obwohl beide nur Abweichungen
+    vom selben Termin sind.
+  </p>
+
+  <h3>Früher entbunden: kein Tag geht verloren</h3>
+  <p>
+    Kommt das Kind vor dem Termin, verkürzt sich die Zeit, die vor der Geburt tatsächlich als Schutzfrist genutzt
+    wurde – schließlich kann niemand vor einer Entbindung geschützt werden, die schon stattgefunden hat. Das
+    Gesetz gleicht das aber nicht durch ein kürzeres Ende aus, sondern durch ein längeres: Die fehlenden Tage
+    wandern hinter die Geburt (§ 3 Abs. 2 Satz 3 MuSchG). Kommt das Kind beispielsweise {de(Math.abs(frueh21.delta))}{' '}
+    Tage vor dem Termin, waren von den {de(wochen(SCHUTZFRIST_VOR_TAGE))} Wochen davor nur {de(Math.abs(frueh21.delta) / 7)}{' '}
+    Wochen tatsächlich als Schutzfrist nutzbar; die restlichen {de(Math.abs(frueh21.delta))} Tage werden der Frist danach
+    zugeschlagen, aus {de(wochen(SCHUTZFRIST_NACH_TAGE))} Wochen werden also {de(wochen(SCHUTZFRIST_NACH_TAGE) + Math.abs(frueh21.delta) / 7)}{' '}
+    Wochen.
+  </p>
+  <p>
+    Im Rechner bedeutet das: In allen {de(anzahlBeispieleFrueh)} Beispielen der Tabelle – ob das Kind ein paar Tage
+    oder bis zu {de(Math.abs(frueh21.delta) / 7)} Wochen zu früh kommt – bleibt das Ende gleich, im Beispiel dieser
+    Seite der {datum(frueh21.ende)}: derselbe Tag wie bei einer Geburt genau am Termin. Das gilt nicht nur für diese
+    Beispiele, sondern für jede beliebige frühere Geburt: Die Gesamtdauer hat einen Boden bei {de(basis)} Tagen,
+    den keine noch so frühe Geburt unterschreitet.
+  </p>
+  <table>
+    <caption class="visually-hidden">Ende und Gesamtdauer des Mutterschutzes bei früherer Geburt, Termin {datum(TERMIN)}</caption>
+    <thead>
+      <tr><th scope="col">Geburt gegenüber Termin</th><th scope="col">Tatsächliche Geburt</th><th scope="col">Ende</th><th scope="col" class="num">Tage insgesamt</th></tr>
+    </thead>
+    <tbody>
+      {szenarien.filter((s) => s.delta <= 0).map((s) => (
+        <tr>
+          <td>{s.delta === 0 ? 'genau am Termin' : `${de(Math.abs(s.delta))} Tage früher`}</td>
+          <td>{datum(s.entbindung)}</td>
+          <td>{datum(s.ende)}</td>
+          <td class="num">{de(s.tageGesamt)}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+
+  <h3>Später entbunden: jeder Tag zählt dazu</h3>
+  <p>
+    Kommt das Kind nach dem Termin, gibt es keine analoge Korrektur nach vorn. Die {de(wochen(SCHUTZFRIST_NACH_TAGE))}{' '}
+    Wochen danach zählen schlicht ab dem tatsächlichen Geburtstag – der später liegt als geplant –, während der
+    Beginn der Frist davor unverändert am ursprünglichen Termin hängt. {de(spaet7.delta)} Tage Verspätung
+    verlängern den Mutterschutz deshalb insgesamt um {de(spaet7.delta)} Tage, auf {de(spaet7.tageGesamt)} Tage statt{' '}
+    {de(basis)}; {de(spaet21.delta / 7)} Wochen Verspätung um {de(spaet21.delta / 7)} Wochen, auf{' '}
+    {de(spaet21.tageGesamt)} Tage. Anders als bei der früheren Geburt gibt es hier
+    keinen Mechanismus, der etwas „zurückholt“ – die zusätzliche Zeit vor der Geburt, in der die {de(wochen(SCHUTZFRIST_VOR_TAGE))}{' '}
+    Wochen des Beschäftigungsverbots längst abgelaufen waren, wird an keiner Stelle wieder abgezogen.
+  </p>
+  <p>
+    Diese Verlängerung ist keine Ausnahme, sondern die Regel für jede Verspätung: Je später die Geburt gegenüber
+    dem ärztlich geschätzten Termin liegt, desto länger der gesamte Mutterschutz – ohne Obergrenze, denn das
+    Gesetz nennt für die Verspätung keinen Höchstwert, anders als für die Verkürzung, die durch die tatsächlich
+    verbleibenden Tage vor der Geburt begrenzt ist. Bei {de(SPAET35_DELTA)} Tagen Verspätung etwa wächst die
+    Gesamtdauer auf {de(spaet35.tageGesamt)} Tage; anders als der Boden bei {de(basis)} Tagen ist hier keine
+    Grenze eingebaut, an der das Wachstum endet.
+  </p>
+  <table>
+    <caption class="visually-hidden">Ende und Gesamtdauer des Mutterschutzes bei späterer Geburt, Termin {datum(TERMIN)}</caption>
+    <thead>
+      <tr><th scope="col">Geburt gegenüber Termin</th><th scope="col">Tatsächliche Geburt</th><th scope="col">Ende</th><th scope="col" class="num">Tage insgesamt</th></tr>
+    </thead>
+    <tbody>
+      {szenarien.filter((s) => s.delta > 0).map((s) => (
+        <tr>
+          <td>{de(s.delta)} Tage später</td>
+          <td>{datum(s.entbindung)}</td>
+          <td>{datum(s.ende)}</td>
+          <td class="num">{de(s.tageGesamt)}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+
+  <h3>Warum das keine Symmetrie ist</h3>
+  <p>
+    § 3 Abs. 2 Satz 3 MuSchG spricht ausdrücklich nur von der „vorzeitigen Entbindung“: Nur wenn das Kind früher
+    kommt, verlängert sich die Frist danach um die verkürzte Zeit davor. Für eine spätere Entbindung gibt es keine
+    entsprechende Vorschrift, die das Ende wieder nach vorn zöge – es gibt schlicht nichts zu verkürzen, weil die
+    Frist davor beim Termin startet und bis zur tatsächlichen Geburt weiterläuft. Eine frühere Geburt hat damit
+    einen Boden: {de(basis)} Tage werden nie unterschritten. Eine spätere Geburt hat keine Decke: Jeder zusätzliche
+    Tag bis zur Entbindung verlängert den gesamten Schutz um genau diesen Tag.
+  </p>
+  <p>
+    Das lässt sich auch so lesen: Der Gesetzgeber hat für die Schwangere ein Mindestmaß an Schutz festgelegt –
+    {de(basis)} Tage bei einer gewöhnlichen Geburt –, aber keine Obergrenze, ab der der Schutz gekappt würde, nur
+    weil die Geburt sich verzögert. Wer also errechnet, wie lange der Mutterschutz insgesamt dauern wird, kann sich
+    auf den unteren Wert verlassen, nicht aber auf den oberen: Der eine steht mit dem Termin schon fest, der andere
+    erst mit der Geburt selbst.
+  </p>
+
+  <h3>Die verlängerte Frist ist eine eigene Regel</h3>
+  <p>
+    Bei Früh- und Mehrlingsgeburten sowie bei einer innerhalb von acht Wochen ärztlich festgestellten Behinderung
+    des Kindes gelten statt {de(wochen(SCHUTZFRIST_NACH_TAGE))} Wochen {de(wochen(SCHUTZFRIST_NACH_VERLAENGERT_TAGE))}{' '}
+    Wochen nach der Geburt (§ 3 Abs. 2 Satz 2 MuSchG) – im Rechner die Auswahl „Besondere Umstände“. Dieses Kästchen
+    beschreibt einen medizinischen Befund, keine Kalenderabweichung: Eine Geburt einige Tage vor dem ärztlich
+    geschätzten Termin macht ein Kind für sich genommen noch nicht zur Frühgeburt im Sinne dieser Vorschrift, und
+    umgekehrt kann ein Kind, das erst nach dem Termin zur Welt kommt, trotzdem als Mehrling oder mit einer
+    Behinderung geboren werden. Die beiden Angaben im Rechner – das tatsächliche Geburtsdatum und die Auswahl
+    „Besondere Umstände“ – beantworten deshalb unterschiedliche Fragen und sollten nicht danach ausgefüllt werden,
+    ob der Geburtstermin über- oder unterschritten wurde.
+  </p>
+  <p>
+    Rechnerisch ist die verlängerte Frist von der Verkürzungs-Kompensation aus dem vorigen Abschnitt unabhängig,
+    beide Regeln greifen aber sauber ineinander: Kommt das Kind bei aktivierter Auswahl {de(DELTA_VERLAENGERT)}{' '}
+    Tage vor dem Termin, bleibt die Gesamtdauer bei {de(basisVerlaengert)} Tagen ({de(wochen(SCHUTZFRIST_VOR_TAGE))}{' '}
+    plus {de(wochen(SCHUTZFRIST_NACH_VERLAENGERT_TAGE))} Wochen); kommt es {de(DELTA_VERLAENGERT)} Tage später,
+    wächst sie auf {de(spaetVerlaengert.tageGesamt)} Tage. Dieselbe Regel – Vorsprung wird ausgeglichen, Verspätung wird
+    addiert – gilt hier also mit einer anderen Basis unverändert weiter, weil beide Rechenschritte im Modul
+    nacheinander und nicht gegeneinander wirken.
+  </p>
+  <p>
+    Für die Planung heißt das: Der früheste realistische Zeitpunkt, zu dem der Mutterschutz endet, lässt sich
+    schon mit dem Termin und der Frage nach den besonderen Umständen bestimmen – er steht praktisch fest, sobald
+    diese beiden Angaben feststehen. Der späteste Zeitpunkt dagegen ist erst mit der tatsächlichen Geburt bekannt,
+    denn jeder Tag Verspätung schiebt ihn um genau einen Tag weiter nach hinten.
+  </p>
+</RechnerArtikel>

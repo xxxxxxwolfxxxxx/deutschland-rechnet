@@ -3,6 +3,7 @@ import Layout from '../../layouts/Layout.astro';
 import CalculatorShell from '../../components/CalculatorShell.astro';
 import CalculatorGuide from '../../components/CalculatorGuide.astro';
 import { CALCULATORS, CATEGORIES } from '../../data/calculators';
+import ArtikelBedarfVerbrauch from '../../components/artikel/energieausweis-rechnet-nur-den-bedarf.astro';
 import {
   EFFIZIENZKLASSEN,
   NUTZFLAECHE_FAKTOR,
@@ -190,6 +191,7 @@ const jahrFelder = Array.from({ length: ABRECHNUNGSJAHRE }, (_, i) => ({ id: 'ja
       </div>
       <div id="pflicht-grund" style="margin-top:0.5rem;font-size:0.9rem;color:#555;"></div>
     </div>
+    <ArtikelBedarfVerbrauch slot="artikel" />
   </CalculatorShell>
 
   <CalculatorGuide

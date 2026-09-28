@@ -1,0 +1,315 @@
+---
+import RechnerArtikel from '../RechnerArtikel.astro';
+import { berechneArbeitslosengeld } from '../../../public/scripts/arbeitslosengeld.js';
+import { berechneNettoGehalt } from '../../../public/scripts/brutto-netto.js';
+import { BBG_RV_AV_MONAT, BBG_KV_PV_MONAT } from '../../../public/scripts/sozialversicherung.js';
+
+// Alle Zahlen dieses Artikels laufen durch dieselben Module, die auch der
+// Arbeitslosengeld-Rechner auf dieser Seite lädt: arbeitslosengeld.js für das
+// Arbeitslosengeld selbst, brutto-netto.js für den Vergleichswert "echtes
+// Netto" (den der ALG-Rechner nicht ausgibt, den ein Leser aber braucht, um
+// die 60-Prozent-Aussage der Seite zu prüfen). Die Beitragsbemessungsgrenzen
+// kommen aus sozialversicherung.js, das seinerseits die Sozialversicherungs-
+// rechengrößen-Verordnung 2026 als Quelle nennt.
+//
+// Modellannahme für den Vergleichswert "echtes Netto": Steuerklasse I,
+// kinderlos, Bundesland Nordrhein-Westfalen, keine Kirchensteuer. Andere
+// Steuerklassen oder Kirchensteuer verschieben die genauen Prozentzahlen
+// etwas, ändern aber nichts an den beiden strukturellen Knicks, die dieser
+// Artikel zeigt – die entstehen allein auf der Arbeitslosengeld-Seite der
+// Rechnung, nicht auf der Netto-Seite.
+const STEUERKLASSE = 1;
+const BUNDESLAND = 'NW';
+const VERSICHERUNGSMONATE = 24;
+const ALTER = 40;
+
+const minus = (s: string) => s.replace(/^-/, '−');
+const eurZahl = (n: number, d = 0) =>
+  n.toLocaleString('de-DE', { minimumFractionDigits: d, maximumFractionDigits: d });
+const eur = (n: number, d = 2) => minus(eurZahl(n, d)) + ' €';
+const proz = (n: number, d = 1) => minus(n.toLocaleString('de-DE', { minimumFractionDigits: d, maximumFractionDigits: d })) + ' %';
+
+function algMonat(bruttoMonat: number): number {
+  return berechneArbeitslosengeld({
+    bruttoMonat,
+    steuerklasse: STEUERKLASSE,
+    versicherungsmonate: VERSICHERUNGSMONATE,
+    alter: ALTER,
+  }).arbeitslosengeldMonat;
+}
+
+function echtesNetto(bruttoMonat: number): number {
+  return berechneNettoGehalt({
+    bruttoMonat,
+    steuerklasse: STEUERKLASSE,
+    bundesland: BUNDESLAND,
+    kirchensteuer: false,
+    kinder: 0,
+  }).netto;
+}
+
+function quoteVonNetto(bruttoMonat: number): number {
+  return (algMonat(bruttoMonat) / echtesNetto(bruttoMonat)) * 100;
+}
+
+// --- Tabelle 1: von niedrigem Einkommen bis zur ersten Beitragsbemessungsgrenze ---
+const stufenAufstieg = [2000, 3000, 4000, 5000, BBG_KV_PV_MONAT];
+const tabelleAufstieg = stufenAufstieg.map((b) => ({
+  brutto: b,
+  alg: algMonat(b),
+  netto: echtesNetto(b),
+  quote: quoteVonNetto(b),
+}));
+
+// --- Tabelle 2: von der ersten bis zur zweiten Beitragsbemessungsgrenze ---
+const stufenAbstieg = [BBG_KV_PV_MONAT, 6000, 7000, 8000, BBG_RV_AV_MONAT];
+const tabelleAbstieg = stufenAbstieg.map((b) => ({
+  brutto: b,
+  quote: quoteVonNetto(b),
+}));
+
+// --- Tabelle 3: oberhalb der Beitragsbemessungsgrenze der Arbeitslosenversicherung ---
+const stufenGedeckelt = [BBG_RV_AV_MONAT, 9000, 10000, 12000, 15000];
+const tabelleGedeckelt = stufenGedeckelt.map((b) => ({
+  brutto: b,
+  alg: algMonat(b),
+  netto: echtesNetto(b),
+  quote: quoteVonNetto(b),
+}));
+
+const algAmDeckel = algMonat(BBG_RV_AV_MONAT);
+const quoteAmDeckel = quoteVonNetto(BBG_RV_AV_MONAT);
+const quoteBei15000 = quoteVonNetto(15000);
+const nettoBei15000 = echtesNetto(15000);
+const nettoAmDeckel = echtesNetto(BBG_RV_AV_MONAT);
+
+const peakBrutto = BBG_KV_PV_MONAT;
+const peakQuote = quoteVonNetto(peakBrutto);
+
+// --- Selbstprüfung 1: Der Deckel friert das Arbeitslosengeld tatsächlich ein.
+// Wer 15.000 statt 8.450 Euro brutto verdient, muss denselben Betrag erhalten,
+// weil § 151 Abs. 1 SGB III das Bemessungsentgelt bei der Beitragsbemessungs-
+// grenze kappt und alles Weitere darauf aufbaut.
+const algBei15000 = algMonat(15000);
+if (Math.abs(algBei15000 - algAmDeckel) > 0.005) {
+  throw new Error(
+    `Arbeitslosengeld-Artikel: Der Deckel wirkt nicht wie erwartet – bei 15.000 € ` +
+    `Brutto ergibt sich ${algBei15000} €, bei ${BBG_RV_AV_MONAT} € Brutto ${algAmDeckel} €.`
+  );
+}
+
+// --- Selbstprüfung 2: Der Anteil am echten Netto fällt durchgehend zwischen
+// der ersten und der zweiten Beitragsbemessungsgrenze – kein Wiederanstieg
+// dazwischen, sonst wäre die Erzählung vom "zweiten Knick" falsch.
+for (let b = BBG_KV_PV_MONAT + 50; b <= BBG_RV_AV_MONAT; b += 50) {
+  const vorherigeQuote = quoteVonNetto(b - 50);
+  const aktuelleQuote = quoteVonNetto(b);
+  if (aktuelleQuote > vorherigeQuote + 0.01) {
+    throw new Error(
+      `Arbeitslosengeld-Artikel: Die Quote steigt zwischen ${b - 50} € und ${b} € ` +
+      `wieder an (${vorherigeQuote.toFixed(2)} % auf ${aktuelleQuote.toFixed(2)} %) – ` +
+      `die These vom durchgehenden Abstieg stimmt so nicht.`
+    );
+  }
+}
+
+// --- Selbstprüfung 3: Bei niedrigem Einkommen liegt die Quote tatsächlich nah
+// an 60 Prozent (der Faustregel), sonst wäre der Ausgangspunkt der These falsch.
+const quoteBei3000 = quoteVonNetto(3000);
+if (quoteBei3000 < 59 || quoteBei3000 > 62) {
+  throw new Error(
+    `Arbeitslosengeld-Artikel: Bei 3.000 € Brutto liegt die Quote bei ` +
+    `${quoteBei3000.toFixed(2)} % – das ist nicht mehr "nah an 60 Prozent".`
+  );
+}
+
+const quellen = [
+  { titel: '§ 149 SGB III – Höhe des Arbeitslosengeldes', url: 'https://www.gesetze-im-internet.de/sgb_3/__149.html' },
+  { titel: '§ 151 SGB III – Bemessungsentgelt', url: 'https://www.gesetze-im-internet.de/sgb_3/__151.html' },
+  { titel: '§ 153 SGB III – Leistungsentgelt', url: 'https://www.gesetze-im-internet.de/sgb_3/__153.html' },
+  { titel: '§ 154 SGB III – Tage des Anspruchszeitraums', url: 'https://www.gesetze-im-internet.de/sgb_3/__154.html' },
+  {
+    titel: 'Sozialversicherungsrechengrößen-Verordnung 2026 (SVBezGrV 2026) – Beitragsbemessungsgrenzen',
+    url: 'https://www.gesetze-im-internet.de/svbezgrv_2026/',
+  },
+];
+---
+<RechnerArtikel
+  titel="Warum die 60-Prozent-Regel nur bis 5.812,50 Euro brutto stimmt"
+  lead={`Bei einem Bruttogehalt von 3.000 Euro liegt das Arbeitslosengeld bei ${proz(quoteBei3000)} des tatsächlichen Nettogehalts – nah an der bekannten Faustregel. Ab ${eur(BBG_KV_PV_MONAT, 2)} brutto beginnt dieser Anteil zu sinken, und ab ${eur(BBG_RV_AV_MONAT, 0)} brutto steht das Arbeitslosengeld ganz still: Bei 15.000 Euro brutto beträgt es exakt denselben Betrag wie bei ${eur(BBG_RV_AV_MONAT, 0)} – ${eur(algAmDeckel)} im Monat, nur noch ${proz(quoteBei15000)} des echten Nettos.`}
+  datum="2026-09-28"
+  quellen={quellen}
+>
+  <h3>Was der Rechner oben wirklich vergleicht</h3>
+  <p>
+    Der Arbeitslosengeld-Rechner oben zeigt, wie sich Ihr Bruttogehalt über das
+    <strong>Bemessungsentgelt</strong> (§ 151 SGB III) und das
+    <strong>Leistungsentgelt</strong> (§ 153 SGB III) in einen Auszahlbetrag
+    übersetzt. Der zweite Schritt ist entscheidend für diesen Artikel: Vom
+    Bemessungsentgelt zieht das Gesetz eine feste Sozialversicherungspauschale
+    von 20 Prozent, die tabellarische Lohnsteuer und den Solidaritätszuschlag
+    ab – unabhängig davon, wie hoch Ihre wirklichen Abzüge sind. Das Ergebnis
+    heißt <em>pauschaliertes</em> Nettoentgelt, und davon sind 60 oder 67
+    Prozent das Arbeitslosengeld.
+  </p>
+  <p>
+    Wie nah dieses pauschalierte Nettoentgelt am tatsächlichen Nettogehalt
+    liegt, zeigt der Rechner oben nicht – er kennt Ihr wirkliches Netto gar
+    nicht. Für diesen Artikel wird es deshalb zusätzlich berechnet, mit
+    demselben Lohnsteuer- und Sozialversicherungsmodul, das auch der
+    Brutto-Netto-Rechner dieser Seite verwendet: Steuerklasse I, kinderlos,
+    Nordrhein-Westfalen, ohne Kirchensteuer. Andere Steuerklassen verschieben
+    die genauen Prozentwerte etwas – die beiden Knicke, um die es hier geht,
+    bleiben davon unberührt, weil sie auf der Arbeitslosengeld-Seite der
+    Rechnung entstehen, nicht auf der Netto-Seite.
+  </p>
+
+  <h3>Bis {eur(BBG_KV_PV_MONAT, 2)} brutto: die Faustregel trifft fast genau</h3>
+  <p>
+    Bei kleinen und mittleren Einkommen liegt das Arbeitslosengeld erstaunlich
+    nah an 60 Prozent des echten Nettos – nicht, weil das Gesetz das so
+    vorschreibt, sondern weil die feste 20-Prozent-Pauschale in diesem Bereich
+    zufällig ungefähr dem entspricht, was ein lediger, kinderloser Angestellte
+    tatsächlich an Sozialabgaben zahlt.
+  </p>
+  <table>
+    <caption class="visually-hidden">Arbeitslosengeld als Anteil am echten Nettogehalt, niedrige und mittlere Einkommen</caption>
+    <thead>
+      <tr><th scope="col" class="num">Brutto/Monat</th><th scope="col" class="num">Arbeitslosengeld</th><th scope="col" class="num">echtes Netto</th><th scope="col" class="num">Anteil</th></tr>
+    </thead>
+    <tbody>
+      {tabelleAufstieg.map((z) => (
+        <tr>
+          <th scope="row" class="num">{eur(z.brutto, z.brutto % 1 === 0 ? 0 : 2)}</th>
+          <td class="num">{eur(z.alg)}</td>
+          <td class="num">{eur(z.netto)}</td>
+          <td class="num">{proz(z.quote)}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+  <p class="ra-hinweis">
+    Der letzte Wert der Tabelle, {eur(BBG_KV_PV_MONAT, 2)}, ist keine runde
+    Zahl – es ist die Beitragsbemessungsgrenze der Kranken- und
+    Pflegeversicherung für 2026, und genau dort liegt der höchste gemessene
+    Anteil dieses Artikels: {proz(peakQuote)}.
+  </p>
+  <p>
+    Bis hierhin steigt der Anteil sogar leicht an, von {proz(tabelleAufstieg[0].quote)}
+    bei {eur(tabelleAufstieg[0].brutto, 0)} auf {proz(peakQuote)} an der
+    Kranken- und Pflegeversicherungsgrenze. Das ist der Punkt, an dem sich die
+    Rechnung dreht.
+  </p>
+
+  <h3>Der erste Knick: eine Beitragsbemessungsgrenze, die das Arbeitslosengeld gar nicht kennt</h3>
+  <p>
+    Oberhalb von {eur(BBG_KV_PV_MONAT, 2)} brutto steigen die echten
+    Kranken- und Pflegeversicherungsbeiträge nicht mehr – diese
+    Beitragsbemessungsgrenze deckelt sie. Ihr tatsächliches Nettogehalt wächst
+    von da an also schneller als vorher, weil ein wachsender Teil jedes
+    zusätzlichen Euro nur noch der Lohnsteuer unterliegt, nicht mehr zusätzlich
+    der Sozialversicherung. Die 20-Prozent-Pauschale des § 153 SGB III kennt
+    diese Grenze nicht: Sie zieht weiter pauschal 20 Prozent vom
+    Bemessungsentgelt ab, obwohl die realen Abzüge prozentual sinken. Das
+    pauschalierte Nettoentgelt fällt deshalb ab hier gegenüber dem echten Netto
+    zurück – und mit ihm der Anteil, den das Arbeitslosengeld davon ausmacht.
+  </p>
+  <table>
+    <caption class="visually-hidden">Anteil des Arbeitslosengelds am echten Netto, von der ersten bis zur zweiten Beitragsbemessungsgrenze</caption>
+    <thead>
+      <tr><th scope="col" class="num">Brutto/Monat</th><th scope="col" class="num">Anteil am echten Netto</th></tr>
+    </thead>
+    <tbody>
+      {tabelleAbstieg.map((z) => (
+        <tr>
+          <th scope="row" class="num">{eur(z.brutto, 2)}</th>
+          <td class="num">{proz(z.quote)}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+  <p>
+    Die Selbstprüfung im Quellcode dieses Artikels rechnet diesen Abschnitt in
+    50-Euro-Schritten durch: Zwischen {eur(BBG_KV_PV_MONAT, 2)} und
+    {' '}{eur(BBG_RV_AV_MONAT, 0)} brutto sinkt der Anteil durchgehend, ohne
+    zwischenzeitlichen Wiederanstieg. Von {proz(peakQuote)} am Höchststand
+    fällt er auf {proz(tabelleAbstieg[tabelleAbstieg.length - 1].quote)} an der
+    nächsten Grenze.
+  </p>
+
+  <h3>Der zweite Knick: Ab {eur(BBG_RV_AV_MONAT, 0)} brutto steht das Arbeitslosengeld still</h3>
+  <p>
+    {eur(BBG_RV_AV_MONAT, 0)} im Monat ist die Beitragsbemessungsgrenze der
+    Renten- und Arbeitslosenversicherung 2026. Anders als bei der ersten Grenze
+    endet hier nicht nur ein Beitrag – hier endet die Bemessungsgrundlage für
+    das Arbeitslosengeld selbst. § 151 Abs. 1 SGB III legt nur beitragspflichtiges
+    Entgelt zugrunde, und oberhalb dieser Grenze ist gar kein Entgelt mehr
+    beitragspflichtig. Das Bemessungsentgelt bleibt deshalb ab hier konstant,
+    und alles, was danach kommt – Leistungsentgelt, Leistungssatz,
+    Arbeitslosengeld – rechnet ab diesem Punkt jedes Mal mit derselben Zahl.
+  </p>
+  <table>
+    <caption class="visually-hidden">Arbeitslosengeld oberhalb der Beitragsbemessungsgrenze der Arbeitslosenversicherung</caption>
+    <thead>
+      <tr><th scope="col" class="num">Brutto/Monat</th><th scope="col" class="num">Arbeitslosengeld</th><th scope="col" class="num">echtes Netto</th><th scope="col" class="num">Anteil</th></tr>
+    </thead>
+    <tbody>
+      {tabelleGedeckelt.map((z) => (
+        <tr>
+          <th scope="row" class="num">{eur(z.brutto, 0)}</th>
+          <td class="num">{eur(z.alg)}</td>
+          <td class="num">{eur(z.netto)}</td>
+          <td class="num">{proz(z.quote)}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+  <p>
+    Wer {eur(BBG_RV_AV_MONAT, 0)} brutto verdient und wer 15.000 Euro brutto
+    verdient, erhält nach dieser Rechnung exakt denselben Betrag:
+    {' '}{eur(algAmDeckel)} im Monat. Das echte Nettogehalt liegt bei
+    15.000 Euro brutto dagegen bei {eur(nettoBei15000)} statt
+    {' '}{eur(nettoAmDeckel)} an der Grenze – das Arbeitslosengeld deckt also
+    nur noch {proz(quoteBei15000)} des tatsächlichen Nettos ab, gegenüber
+    {' '}{proz(quoteAmDeckel)} unmittelbar an der Beitragsbemessungsgrenze.
+    Jeder Euro Gehalt oberhalb von {eur(BBG_RV_AV_MONAT, 0)} erhöht im
+    Ernstfall die Absicherung um genau null Cent.
+  </p>
+
+  <h3>Zwei Grenzen, ein Effekt – aber unterschiedliche Ursachen</h3>
+  <p>
+    Wichtig ist der Unterschied zwischen den beiden Knicken. Die
+    Kranken- und Pflegeversicherungsgrenze bei {eur(BBG_KV_PV_MONAT, 2)} wirkt
+    nur indirekt: Sie verändert das echte Nettogehalt, mit dem hier verglichen
+    wird, während die 20-Prozent-Pauschale des Arbeitslosengelds unverändert
+    bleibt. Die Renten- und Arbeitslosenversicherungsgrenze bei
+    {' '}{eur(BBG_RV_AV_MONAT, 0)} wirkt dagegen direkt auf das
+    Arbeitslosengeld selbst, weil sie das Bemessungsentgelt kappt. Der erste
+    Effekt ist ein allmähliches Abbröckeln, der zweite ein harter Deckel. Beide
+    zusammen führen dazu, dass die 60-Prozent-Faustregel für die meisten
+    Angestellten mit Durchschnittsgehalt eine brauchbare Näherung ist – und für
+    gut verdienende Angestellte eine, die immer weiter danebenliegt.
+  </p>
+  <p class="ra-hinweis">
+    Mit Kind gilt statt 60 Prozent der erhöhte Leistungssatz von 67 Prozent
+    (§ 149 Nr. 1 SGB III). Die beiden Knicke verschieben sich dadurch nicht:
+    Sie hängen am Bemessungsentgelt, nicht am Leistungssatz, und liegen deshalb
+    bei denselben Bruttobeträgen.
+  </p>
+
+  <h3>Was diese Rechnung nicht zeigt</h3>
+  <p>
+    Der Vergleichswert „echtes Netto" ist selbst eine Modellrechnung – mit
+    einer angenommenen Steuerklasse, einem angenommenen Bundesland und ohne
+    Kirchensteuer. Wer kirchensteuerpflichtig ist oder in einem Bundesland mit
+    abweichender Pflegeversicherungs-Tragung wohnt (das betrifft nur Sachsen),
+    bekommt ein etwas anderes echtes Netto und damit eine etwas andere Quote –
+    die beiden hier gezeigten Knicke bei {eur(BBG_KV_PV_MONAT, 2)} und
+    {' '}{eur(BBG_RV_AV_MONAT, 0)} brutto verschieben sich dadurch nicht, weil
+    sie unabhängig von der Steuerklasse an denselben Bruttobeträgen liegen.
+    Nicht eingerechnet sind außerdem die fiktive Bemessung nach § 152 SGB III,
+    Abfindungen, die das Bemessungsentgelt nach § 151 Abs. 2 SGB III nicht
+    erhöhen, sowie Sperrzeiten und das Ruhen des Anspruchs. Maßgeblich bleibt
+    in jedem Fall der Bescheid der Agentur für Arbeit.
+  </p>
+</RechnerArtikel>

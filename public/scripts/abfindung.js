@@ -73,6 +73,18 @@ export function steuerAufAbfindung({ zvEOhne, abfindung, zusammen = false }) {
   const basis = zahl(zvEOhne);
   const a = zahl(abfindung);
   const ohneRegel = tarif(basis + a, zusammen) - tarif(basis, zusammen);
-  const mitRegel = 5 * (tarif(basis + a / 5, zusammen) - tarif(basis, zusammen));
-  return { ohneFuenftelregelung: ohneRegel, mitFuenftelregelung: mitRegel, ersparnis: ohneRegel - mitRegel };
+  const roh = 5 * (tarif(basis + a / 5, zusammen) - tarif(basis, zusammen));
+  // § 32a Abs. 1 Satz 6 EStG rundet das zu versteuernde Einkommen auf volle
+  // Euro ab. In der Fuenftelregelung wird dieser Rundungsrest mit 5
+  // multipliziert und kann den ermaessigten Betrag knapp ueber den regulaeren
+  // heben – in der Zone um 69.800 € um bis zu 4 €. § 34 Abs. 1 EStG ist eine
+  // Ermaessigung; mehr als der regulaere Betrag kann dabei nicht herauskommen.
+  const mitRegel = Math.min(roh, ohneRegel);
+  return {
+    ohneFuenftelregelung: ohneRegel,
+    mitFuenftelregelung: mitRegel,
+    ersparnis: ohneRegel - mitRegel,
+    /** true, wenn nur die Euro-Abrundung einen scheinbaren Nachteil erzeugt hat. */
+    rundungsartefakt: roh > ohneRegel,
+  };
 }

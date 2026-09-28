@@ -1,0 +1,235 @@
+---
+import RechnerArtikel from '../RechnerArtikel.astro';
+
+// Diese Seite hat kein importierbares Rechenmodul - der Volumen-Umrechner
+// rechnet clientseitig inline (siehe <script> in
+// src/pages/einheiten/volumen-umrechner.astro). Deshalb werden dieselben
+// Faktoren hier als kleine lokale Konstanten dupliziert, exakt wie dort,
+// nicht gerundet. Keine Zahl im Fliesstext, die nicht aus einer Variable
+// stammt.
+const LITER_PRO_EINHEIT = {
+  l: 1, ml: 0.001, cl: 0.01, m3: 1000,
+  gal_us: 3.785411784, gal_uk: 4.54609,
+  floz_us: 0.0295735296, cup: 0.2365882365,
+  tbsp: 0.01478676478, tsp: 0.004928921594,
+};
+// Internationale ("statute") Meile - seit dem 1.7.1959 durch das
+// Yard-and-Pound-Abkommen in UK und USA exakt identisch definiert.
+const MEILE_KM = 1.609344;
+
+const zahl = (n: number, d = 2) =>
+  n.toLocaleString('de-DE', { minimumFractionDigits: d, maximumFractionDigits: d }).replace(/^-/, '−');
+const proz = (n: number, d = 1) => zahl(n, d) + ' %';
+
+// --- These: US-mpg und UK-mpg sind bei identischem realem Verbrauch --------
+// verschiedene Zahlen, weil die Gallone unterschiedlich gross ist, nicht
+// weil ein Auto unterschiedlich sparsam faehrt. Die Meile kuerzt sich aus
+// dem Vergleich heraus, weil sie in UK und USA gleich ist - der gesamte
+// Unterschied zwischen "40 mpg (UK)" und "40 mpg (US)" kommt allein aus der
+// Gallone.
+const galUS = LITER_PRO_EINHEIT.gal_us;
+const galUK = LITER_PRO_EINHEIT.gal_uk;
+const verhaeltnisGallonen = galUK / galUS;
+
+function l100AusMpg(mpg: number, literProGallone: number): number {
+  const kmProGallone = mpg * MEILE_KM;
+  return (literProGallone / kmProGallone) * 100;
+}
+
+const mpgBeispiele = [30, 40, 50].map((mpgUk) => {
+  const mpgUsAequivalent = mpgUk / verhaeltnisGallonen;
+  // Korrekt gerechnet: UK-mpg-Angabe mit der UK-Gallone.
+  const l100Uk = l100AusMpg(mpgUk, galUK);
+  // Dieselbe reale Fahrt, aber ueber die US-mpg-Aequivalenzzahl und die
+  // US-Gallone gerechnet - muss auf denselben l/100km-Wert fuehren.
+  const l100UsAequivalent = l100AusMpg(mpgUsAequivalent, galUS);
+  // Der haeufige Fehler: die UK-mpg-Zahl wird unveraendert als US-mpg
+  // gelesen (mit der US-Gallone gerechnet).
+  const l100Naiv = l100AusMpg(mpgUk, galUS);
+  return { mpgUk, mpgUsAequivalent, l100Uk, l100UsAequivalent, l100Naiv };
+});
+
+// Selbstcheck 1: Fuer jedes Beispiel muessen die "korrekt gerechnete" und die
+// "ueber die Aequivalenzzahl gerechnete" l/100km-Angabe praktisch identisch
+// sein (Gleitkomma-Toleranz). Genau das ist die Kernbehauptung: derselbe
+// reale Verbrauch, zwei unterschiedliche mpg-Zahlen.
+for (const b of mpgBeispiele) {
+  if (Math.abs(b.l100Uk - b.l100UsAequivalent) > 1e-9) {
+    throw new Error(
+      `mpg-Artikel: l/100km-Aequivalenz bei ${b.mpgUk} mpg (UK) stimmt nicht mehr - Umrechnung pruefen`
+    );
+  }
+}
+
+// Selbstcheck 2 (unabhaengige Herleitung, andere Rechenrichtung): Aus einem
+// frei gewaehlten realen Verbrauch in l/100km ergeben sich mpg-UK und mpg-US
+// ueber dieselbe Meile - die sich dabei herauskuerzt. Das Verhaeltnis der
+// beiden mpg-Werte muss deshalb fuer JEDEN Verbrauchswert exakt dem
+// Gallonenverhaeltnis entsprechen.
+function mpgAusL100(l100: number, literProGallone: number): number {
+  const kmProLiter = 100 / l100;
+  const kmProGallone = kmProLiter * literProGallone;
+  return kmProGallone / MEILE_KM;
+}
+for (const l100Test of [5, 7.5, 12]) {
+  const verhaeltnisTest = mpgAusL100(l100Test, galUK) / mpgAusL100(l100Test, galUS);
+  if (Math.abs(verhaeltnisTest - verhaeltnisGallonen) > 1e-9) {
+    throw new Error(
+      `mpg-Artikel: mpg-Verhaeltnis bei ${l100Test} l/100km weicht vom Gallonenverhaeltnis ab`
+    );
+  }
+}
+
+// Selbstcheck 3: Wer eine UK-mpg-Zahl faelschlich als US-mpg liest,
+// unterschaetzt den realen Verbrauch um denselben Prozentsatz - unabhaengig
+// vom konkreten mpg-Wert, weil es sich um ein reines Verhaeltnis handelt.
+const abweichungenProzent = mpgBeispiele.map(
+  (b) => ((b.l100Naiv - b.l100Uk) / b.l100Uk) * 100
+);
+const ersteAbweichung = abweichungenProzent[0];
+for (const a of abweichungenProzent) {
+  if (Math.abs(a - ersteAbweichung) > 1e-9) {
+    throw new Error('mpg-Artikel: Abweichung durch Verwechslung ist nicht wert-unabhaengig konstant');
+  }
+}
+if (!(ersteAbweichung < -15 && ersteAbweichung > -18)) {
+  throw new Error('mpg-Artikel: Abweichung durch Verwechslung liegt nicht mehr im erwarteten Bereich um −16,7 %');
+}
+
+const quellen = [
+  {
+    titel: 'NIST Special Publication 811 – Guide for the Use of the SI, Anhang B (US-Gallone = 231 in³ = 3,785411784 l)',
+    url: 'https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication811e2008.pdf',
+  },
+  {
+    titel: 'National Bureau of Standards, Federal Register vom 1.7.1959 – „Refinement of Values for the Yard and the Pound“ (internationale Meile)',
+    url: 'https://www.ngs.noaa.gov/PUBS_LIB/FedRegister/FRdoc59-5442.pdf',
+  },
+  {
+    titel: 'Weights and Measures Act 1985, Schedule 1 Part VI (UK-Gallone = 4,54609 dm³)',
+    url: 'https://www.legislation.gov.uk/ukpga/1985/72/schedules',
+  },
+];
+---
+<RechnerArtikel
+  titel="40 mpg (UK) und 40 mpg (US) sind nicht dasselbe Auto – der Unterschied steckt allein in der Gallone"
+  lead={`Britische und amerikanische Verbrauchsangaben in "miles per gallon" sehen aus wie dieselbe Einheit, sind es aber nicht: Die Meile ist in UK und USA seit 1959 exakt gleich lang, die Gallone nicht. Ein Auto mit ${zahl(40, 0)} mpg nach britischer Definition fährt real so sparsam wie eines mit nur ${zahl(mpgBeispiele[1].mpgUsAequivalent, 1)} mpg nach amerikanischer Definition – wer die Zahl unverändert übernimmt, verschätzt sich um ${proz(Math.abs(ersteAbweichung))}.`}
+  datum="2026-09-28"
+  quellen={quellen}
+>
+  <h3>Die Meile ist gleich, die Gallone nicht</h3>
+
+  <p>
+    Seit dem internationalen Yard-and-Pound-Abkommen vom 1. Juli 1959 ist die
+    Meile in Großbritannien und den USA exakt identisch definiert: 1 Yard
+    = 0,9144 m, daraus folgt 1 Meile = 1.760 Yards =
+    {' '}{zahl(MEILE_KM, 6)} km – auf beiden Seiten des Atlantiks dieselbe
+    Zahl. Bei der Gallone ist das anders. Die US-Gallone (liquid gallon) ist
+    nach NIST SP 811 als 231 Kubikzoll definiert, das entspricht exakt
+    {' '}{zahl(galUS, 9)} Litern. Die britische Gallone (imperial gallon) legt
+    der Weights and Measures Act 1985 mit exakt {zahl(galUK, 5)} Litern fest.
+    Die britische Gallone ist damit um den Faktor {zahl(verhaeltnisGallonen, 5)}
+    größer als die amerikanische – rund {proz(Math.abs((verhaeltnisGallonen - 1) * 100))}
+    mehr Volumen für dieselbe Bezeichnung "Gallone".
+  </p>
+
+  <p>
+    Daraus folgt zwingend: Weil "miles per gallon" die (identische) Meile
+    durch die (unterschiedliche) Gallone teilt, kann der ganze Unterschied
+    zwischen einer britischen und einer amerikanischen mpg-Zahl nur aus der
+    Gallone stammen. Der Zähler der Rechnung ist überall derselbe, nur der
+    Nenner unterscheidet sich.
+  </p>
+
+  <h3>Dieselbe Fahrt, zwei mpg-Zahlen</h3>
+
+  <p>
+    Die folgende Tabelle nimmt drei runde britische mpg-Angaben und rechnet
+    sie zunächst korrekt in Liter je 100 km um (Spalte "l/100 km, real"). Dann
+    wird gezeigt, welche amerikanische mpg-Zahl exakt denselben realen
+    Verbrauch beschreiben würde. Beide Wege – britische mpg mit britischer
+    Gallone, amerikanische mpg mit amerikanischer Gallone – führen auf
+    dieselbe l/100-km-Zahl; ein Selbsttest im Kopf dieser Seite prüft das bei
+    jedem Build nach.
+  </p>
+
+  <table>
+    <caption class="visually-hidden">
+      Britische mpg-Angaben, ihr amerikanisches Äquivalent bei gleichem
+      realem Verbrauch, und der Fehler bei Verwechslung
+    </caption>
+    <thead>
+      <tr>
+        <th scope="col">mpg (UK-Angabe)</th>
+        <th scope="col" class="num">entsprechende mpg (US)</th>
+        <th scope="col" class="num">l/100 km, real</th>
+        <th scope="col" class="num">l/100 km, wenn als US-mpg gelesen</th>
+      </tr>
+    </thead>
+    <tbody>
+      {mpgBeispiele.map((b) => (
+        <tr>
+          <th scope="row">{zahl(b.mpgUk, 0)} mpg</th>
+          <td class="num">{zahl(b.mpgUsAequivalent, 2)} mpg</td>
+          <td class="num">{zahl(b.l100Uk, 2)}</td>
+          <td class="num">{zahl(b.l100Naiv, 2)}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+
+  <p>
+    An der mittleren Zeile: "{zahl(40, 0)} mpg" in britischer Zählung
+    entspricht {zahl(mpgBeispiele[1].l100Uk, 2)} l/100 km. Wer diese
+    {zahl(40, 0)} unverändert als amerikanische mpg-Zahl liest, käme auf
+    {' '}{zahl(mpgBeispiele[1].l100Naiv, 2)} l/100 km – einen um
+    {' '}{proz(Math.abs(ersteAbweichung))} zu niedrigen, also zu optimistischen
+    Verbrauch. Das eigentliche amerikanische Äquivalent zu "{zahl(40, 0)} mpg
+    (UK)" liegt bei nur {zahl(mpgBeispiele[1].mpgUsAequivalent, 1)} mpg (US) –
+    eine auf den ersten Blick deutlich schlechtere Zahl, obwohl es exakt
+    dasselbe Auto mit demselben Verbrauch ist.
+  </p>
+
+  <h3>Der Fehler ist immer derselbe Prozentsatz</h3>
+
+  <p>
+    Der zweite Selbsttest im Kopf dieser Seite prüft die Rechnung noch aus
+    einer anderen Richtung nach: Ausgehend von einem frei gewählten realen
+    Verbrauch in l/100 km lassen sich sowohl eine britische als auch eine
+    amerikanische mpg-Zahl berechnen, ohne die obige Tabelle zu benutzen.
+    Ihr Verhältnis muss dabei für jeden beliebigen Verbrauchswert exakt dem
+    Gallonenverhältnis von {zahl(verhaeltnisGallonen, 5)} entsprechen – weil
+    sich die Meile aus dem Verhältnis herauskürzt. Der Build bricht ab, sobald
+    das nicht mehr stimmt.
+  </p>
+
+  <p>
+    Daraus folgt eine unbequeme Konsequenz für den Vergleich: Wer eine
+    britische mpg-Zahl fälschlich als amerikanische liest (oder umgekehrt),
+    unterschätzt den realen Verbrauch nicht um einen festen Betrag, sondern
+    immer um denselben Prozentsatz von {proz(Math.abs(ersteAbweichung))} –
+    ob bei {zahl(mpgBeispiele[0].mpgUk, 0)}, {zahl(mpgBeispiele[1].mpgUk, 0)}
+    {' '}oder {zahl(mpgBeispiele[2].mpgUk, 0)} mpg. Der dritte Selbsttest
+    vergleicht die Abweichung an allen drei Beispielwerten und lässt den
+    Build scheitern, sobald sie auseinanderlaufen. Genau dieses konstante
+    Verhältnis – nicht ein variabler Rundungsfehler – ist die Ursache, wenn
+    britische und amerikanische Verbrauchsangaben in Auto-Foren oder
+    Testberichten ohne Umrechnung nebeneinandergestellt werden.
+  </p>
+
+  <h3>Warum das über die Gallone hinaus wichtig ist</h3>
+
+  <p>
+    Die Verwechslung tritt in der Praxis vor allem dort auf, wo britische
+    Fahrzeugtests (offizielle EU/WLTP-Angaben werden in UK traditionell auch
+    in mpg umgerechnet) neben amerikanischen EPA-Angaben stehen – beide unter
+    derselben Abkürzung "mpg", ohne Hinweis auf die zugrunde liegende
+    Gallone. Der Umrechnungsfaktor {zahl(verhaeltnisGallonen, 5)} aus diesem
+    Artikel ist dabei unabhängig vom Fahrzyklus (EPA, WLTP oder ein anderer
+    Teststandard): Er hängt ausschließlich von der Definition der beiden
+    Gallonen ab, nicht davon, wie der Verbrauch gemessen wurde. Der
+    Volumen-Umrechner oben auf dieser Seite rechnet US- und UK-Gallone direkt
+    in Liter um; für den mpg-Vergleich kommt als zweiter Schritt lediglich die
+    – in UK und USA identische – Meile hinzu.
+  </p>
+</RechnerArtikel>

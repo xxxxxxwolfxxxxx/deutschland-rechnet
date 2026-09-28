@@ -1,0 +1,281 @@
+---
+import RechnerArtikel from '../RechnerArtikel.astro';
+import { artikelPfadVonSlug } from '../../data/ratgeber';
+import { vergleicheKaufenMieten, KAPITALRENDITE_STANDARD_PROZENT } from '../../../public/scripts/kaufen-vs-mieten.js';
+
+// Alle Zahlen dieses Artikels kommen aus vergleicheKaufenMieten() – demselben
+// Modul, das der Rechner oben lädt. Nichts wird hier zweitgepflegt.
+
+const zahl = (n: number, d = 2) =>
+  n.toLocaleString('de-DE', { minimumFractionDigits: d, maximumFractionDigits: d }).replace(/^-/, '−');
+const eur = (n: number) => zahl(n, 0) + ' €';
+const proz = (n: number, d = 2) => zahl(n, d) + ' %';
+
+// --- Die Standardwerte der Seite, unverändert aus kaufen-vs-mieten.astro ---
+const STANDARD = {
+  kaufpreis: 350000,
+  miete: 1200,
+  eigenkapital: 70000,
+  zins: 3.5,
+  laufzeit: 20,
+  mietsteigerung: 2,
+  wertsteigerung: 2,
+  bundesland: 'NW',
+  mitMakler: true,
+};
+
+const basis = vergleicheKaufenMieten(STANDARD);
+if (!basis.kaufenGuenstiger) {
+  throw new Error('Kaufen-vs-Mieten-Artikel: Bei den Standardwerten der Seite müsste Kaufen günstiger sein.');
+}
+
+// --- Selbstprüfung 1: kostenMieten hängt nicht von der Wertsteigerung ab ---
+// Die Formel verwendet die Wertsteigerung ausschließlich für den
+// Immobilienwert am Ende (Kaufen-Seite). Ändert sich dadurch auch kostenMieten,
+// stimmt entweder diese Lektüre des Moduls nicht mehr, oder die Formel wurde
+// geändert – beides muss den Build stoppen, weil der Text unten genau darauf
+// aufbaut.
+const wsA = vergleicheKaufenMieten({ ...STANDARD, wertsteigerung: -3 });
+const wsB = vergleicheKaufenMieten({ ...STANDARD, wertsteigerung: 6 });
+if (Math.abs(wsA.kostenMieten - wsB.kostenMieten) > 0.01) {
+  throw new Error('Kaufen-vs-Mieten-Artikel: kostenMieten reagiert entgegen der Annahme auf die Wertsteigerung.');
+}
+
+// --- Selbstprüfung 2: kostenKaufen hängt nicht von der Kapitalrendite ab ---
+// Spiegelbildlich: Die Kapitalrendite fließt nur in den Kapitalertrag der
+// Mieten-Seite ein.
+const krA = vergleicheKaufenMieten({ ...STANDARD, kapitalrendite: 0 });
+const krB = vergleicheKaufenMieten({ ...STANDARD, kapitalrendite: 8 });
+if (Math.abs(krA.kostenKaufen - krB.kostenKaufen) > 0.01) {
+  throw new Error('Kaufen-vs-Mieten-Artikel: kostenKaufen reagiert entgegen der Annahme auf die Kapitalrendite.');
+}
+
+// Vorteil des Kaufens ohne jede Opportunitätskosten (kapitalrendite = 0)
+// gegen den Vorteil mit der im Modul verdrahteten Standardrendite.
+const ohneOpportunitaet = krA.kostenMieten - basis.kostenKaufen;
+const mitOpportunitaet = basis.differenz;
+
+// --- Selbstprüfung 3: Die Differenz der beiden Vorteile ist genau der
+// ausgewiesene Kapitalertrag – sonst wäre "Opportunitätskosten halbieren den
+// Vorteil" nur eine Behauptung statt eine geprüfte Identität.
+if (Math.abs((ohneOpportunitaet - mitOpportunitaet) - basis.kapitalertrag) > 0.01) {
+  throw new Error('Kaufen-vs-Mieten-Artikel: Kapitalertrag erklärt die Differenz der beiden Szenarien nicht.');
+}
+
+const anteilVerbleibend = (mitOpportunitaet / ohneOpportunitaet) * 100;
+
+// --- Kippwerte per Bisektion, exakt wie der Rechner sie berechnen würde ---
+function kippWertsteigerung(kapitalrendite: number): number {
+  let lo = -10, hi = 15;
+  for (let i = 0; i < 60; i++) {
+    const mitte = (lo + hi) / 2;
+    const r = vergleicheKaufenMieten({ ...STANDARD, wertsteigerung: mitte, kapitalrendite });
+    if (r.kaufenGuenstiger) hi = mitte; else lo = mitte;
+  }
+  return (lo + hi) / 2;
+}
+function kippKapitalrendite(wertsteigerung: number): number {
+  let lo = -5, hi = 25;
+  for (let i = 0; i < 60; i++) {
+    const mitte = (lo + hi) / 2;
+    const r = vergleicheKaufenMieten({ ...STANDARD, wertsteigerung, kapitalrendite: mitte });
+    if (r.kaufenGuenstiger) lo = mitte; else hi = mitte;
+  }
+  return (lo + hi) / 2;
+}
+
+const kippWsStandard = kippWertsteigerung(KAPITALRENDITE_STANDARD_PROZENT);
+const kippWsNiedrig = kippWertsteigerung(2);
+const kippWsHoch = kippWertsteigerung(6);
+
+const kippKrStandard = kippKapitalrendite(STANDARD.wertsteigerung);
+const kippKrNiedrig = kippKapitalrendite(0);
+const kippKrHoch = kippKapitalrendite(3);
+
+// --- Selbstprüfung 4: Direkt unter- und oberhalb des Kippwerts muss das
+// Vorzeichen tatsächlich wechseln – die Bisektion könnte sonst einen falschen
+// Wert konvergiert haben (z. B. wenn die Funktion nicht monoton wäre).
+const knappDrunter = vergleicheKaufenMieten({ ...STANDARD, wertsteigerung: kippWsStandard - 0.05 });
+const knappDrueber = vergleicheKaufenMieten({ ...STANDARD, wertsteigerung: kippWsStandard + 0.05 });
+if (knappDrunter.kaufenGuenstiger || !knappDrueber.kaufenGuenstiger) {
+  throw new Error('Kaufen-vs-Mieten-Artikel: Kein sauberer Vorzeichenwechsel am berechneten Kippwert.');
+}
+
+// --- Tabellenreihen (gerundete Stützwerte, kaufenGuenstiger jeweils live
+// berechnet – keine der beiden Spalten ist eine Konstante) ---
+const wsReihe = [-2, -1, 0, 1, 2, 3, 4, 5].map((w) => {
+  const r = vergleicheKaufenMieten({ ...STANDARD, wertsteigerung: w });
+  return { w, kostenKaufen: r.kostenKaufen, guenstiger: r.kaufenGuenstiger };
+});
+
+const krReihe = [0, 2, 4, 6, 8, 10].map((k) => {
+  const r = vergleicheKaufenMieten({ ...STANDARD, kapitalrendite: k });
+  return { k, kostenMieten: r.kostenMieten, guenstiger: r.kaufenGuenstiger };
+});
+
+const quellen = [
+  { titel: '§ 573c BGB – Fristen der Kündigung von Wohnraum', url: 'https://www.gesetze-im-internet.de/bgb/__573c.html' },
+  { titel: '§ 558 BGB – Kappungsgrenze bei Mieterhöhungen', url: 'https://www.gesetze-im-internet.de/bgb/__558.html' },
+];
+---
+<RechnerArtikel
+  titel="Ob Kaufen sich lohnt, hängt an einer Zahl, die im Formular gar nicht steht"
+  datum="2026-09-28"
+  lead={`Bei den Standardwerten der Seite oben – ${eur(STANDARD.kaufpreis)} Kaufpreis, ${eur(STANDARD.eigenkapital)} Eigenkapital, ${proz(STANDARD.zins, 1)} Zins, 20 Jahre – ist Kaufen um ${eur(mitOpportunitaet)} günstiger. Rechnet man die entgangene Rendite des eingesetzten Eigenkapitals gar nicht erst mit, wären es ${eur(ohneOpportunitaet)}: fast doppelt so viel. Der Rechner berücksichtigt diese Opportunitätskosten – aber mit einer festen Annahme von ${proz(KAPITALRENDITE_STANDARD_PROZENT, 1)} Rendite, die sich im Formular nirgends einstellen lässt. Schon ab ${proz(kippKrStandard)} Alternativrendite kippt das Ergebnis zugunsten der Miete.`}
+  quellen={quellen}
+>
+  <h3>Was der Rechner mit den Standardwerten zeigt</h3>
+  <p>
+    Wer die Seite oben zum ersten Mal öffnet, sieht die Kombination aus
+    {eur(STANDARD.kaufpreis)} Kaufpreis, {eur(STANDARD.miete)} Kaltmiete,
+    {' '}{eur(STANDARD.eigenkapital)} Eigenkapital und {proz(STANDARD.zins, 1)}
+    {' '}Zins über {STANDARD.laufzeit} Jahre. Der Rechner meldet: Kaufen kostet
+    über den Zeitraum {eur(basis.kostenKaufen)}, Mieten {eur(basis.kostenMieten)}
+    – ein Vorsprung des Kaufs von {eur(basis.differenz)}. In den
+    {eur(basis.kostenKaufen)} stecken {eur(basis.nebenkosten)} Kaufnebenkosten,
+    {' '}{eur(basis.instandhaltungGesamt)} Instandhaltungsrücklage und eine
+    Restschuld von {eur(basis.restschuld)} nach 20 Jahren, weil das Darlehen bei
+    2 % Anfangstilgung in dieser Zeit nicht vollständig getilgt ist. Dem steht
+    ein rechnerischer Immobilienwert von {eur(basis.immobilienwert)} gegenüber.
+  </p>
+  <p>
+    Auf der Mietseite stehen {eur(basis.gesamtmiete)} gezahlte Miete über
+    20&nbsp;Jahre, abzüglich {eur(basis.kapitalertrag)} Kapitalertrag. Dieser
+    Ertrag ist der eigentliche Hebel dieses Artikels: Er unterstellt, dass das
+    Eigenkapital plus Nebenkosten – bei Kauf gebunden, bei Miete frei verfügbar
+    – am Kapitalmarkt angelegt wird und dort Rendite abwirft. Genau das nennt
+    man <strong>Opportunitätskosten des Eigenkapitals</strong>: Was das
+    gebundene Geld beim Kauf nicht verdienen kann, ist ein realer Kostenfaktor
+    des Kaufens, auch wenn kein Cent davon fließt.
+  </p>
+
+  <h3>Die Stellschraube, die im Formular fehlt</h3>
+  <p>
+    Viele einfache Kaufen-vs-Mieten-Rechner lassen die Opportunitätskosten
+    komplett aus – sie vergleichen nur Monatsrate gegen Miete. Dieser Rechner
+    tut das nicht: Im Modul <code>kaufen-vs-mieten.js</code> wird das nicht
+    investierte Kapital mit {proz(KAPITALRENDITE_STANDARD_PROZENT, 1)} Rendite
+    pro Jahr verzinst (Konstante <code>KAPITALRENDITE_STANDARD_PROZENT</code>).
+    Wie stark das wirkt, zeigt der Vergleich mit einer Rechnung ganz ohne
+    Opportunitätskosten: Ohne sie läge der Vorteil des Kaufens bei
+    {' '}{eur(ohneOpportunitaet)}. Mit der hinterlegten Alternativrendite sind
+    es nur noch {eur(mitOpportunitaet)} – {proz(anteilVerbleibend, 0)} des
+    ursprünglichen Vorsprungs. Die Differenz von exakt
+    {' '}{eur(basis.kapitalertrag)} ist genau der ausgewiesene Kapitalertrag;
+    der Build dieser Seite prüft diese Identität und würde ohne sie fehlschlagen.
+  </p>
+  <p class="ra-hinweis">
+    Der Haken: Diese {proz(KAPITALRENDITE_STANDARD_PROZENT, 1)} sind ein
+    Programmierstandard, keine Eingabe. Das Formular auf dieser Seite fragt
+    Kaufpreis, Miete, Eigenkapital, Zins, Laufzeit, Mietsteigerung,
+    Wertsteigerung, Bundesland und Makler ab – aber keine Alternativrendite.
+    Wer eine andere Annahme für realistisch hält, kann sie im Rechner oben
+    nicht eintragen; die folgenden Tabellen zeigen deshalb rechnerisch, was
+    sich änderte, wenn man es könnte.
+  </p>
+
+  <h3>Wo die Wertsteigerung kippt</h3>
+  <p>
+    Die Wertsteigerung wirkt ausschließlich auf der Kaufseite: Sie bestimmt den
+    Immobilienwert am Ende und damit, wie viel von den gezahlten Raten am Ende
+    als Vermögen zurückkommt. Auf die Kosten des Mietens hat sie keinen
+    Einfluss – <code>kostenMieten</code> bleibt bei jeder Wertsteigerung exakt
+    bei {eur(basis.kostenMieten)}, das ist im Build dieser Seite geprüft.
+    Deshalb genügt eine einzige Spalte, um zu zeigen, wo der Kauf kippt:
+  </p>
+  <table>
+    <caption class="visually-hidden">Kosten des Kaufens nach jährlicher Wertsteigerung, bei {proz(KAPITALRENDITE_STANDARD_PROZENT, 1)} Alternativrendite</caption>
+    <thead>
+      <tr>
+        <th scope="col" class="num">Wertsteigerung p.&nbsp;a.</th>
+        <th scope="col" class="num">Kosten Kaufen</th>
+        <th scope="col">Günstiger als Mieten?</th>
+      </tr>
+    </thead>
+    <tbody>
+      {wsReihe.map((z) => (
+        <tr>
+          <th scope="row" class="num">{proz(z.w, 1)}</th>
+          <td class="num">{eur(z.kostenKaufen)}</td>
+          <td>{z.guenstiger ? 'ja' : 'nein'}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+  <p>
+    Bei der hinterlegten Alternativrendite von {proz(KAPITALRENDITE_STANDARD_PROZENT, 1)}
+    kippt das Ergebnis bereits bei {proz(kippWsStandard)} Wertsteigerung pro
+    Jahr – deutlich unter den 2 %, die in den Voreinstellungen der Seite
+    stehen. Nimmt man eine niedrigere Alternativrendite von {proz(2, 1)} an,
+    genügt sogar eine leicht <em>fallende</em> Wertsteigerung von
+    {' '}{proz(kippWsNiedrig)}, damit Kaufen noch gewinnt. Bei {proz(6, 1)}
+    Alternativrendite dagegen braucht es schon {proz(kippWsHoch)}
+    Wertsteigerung, bevor der Kauf die Nase vorn hat.
+  </p>
+
+  <h3>Wo die Alternativrendite kippt</h3>
+  <p>
+    Spiegelbildlich hängt <code>kostenKaufen</code> nicht von der
+    Alternativrendite ab – sie bleibt bei jeder Kapitalrendite bei
+    {' '}{eur(basis.kostenKaufen)}. Variiert wird deshalb nur die Mietseite:
+  </p>
+  <table>
+    <caption class="visually-hidden">Kosten des Mietens nach angenommener Kapitalrendite, bei {proz(STANDARD.wertsteigerung, 1)} Wertsteigerung</caption>
+    <thead>
+      <tr>
+        <th scope="col" class="num">Alternativrendite p.&nbsp;a.</th>
+        <th scope="col" class="num">Kosten Mieten</th>
+        <th scope="col">Kaufen günstiger?</th>
+      </tr>
+    </thead>
+    <tbody>
+      {krReihe.map((z) => (
+        <tr>
+          <th scope="row" class="num">{proz(z.k, 1)}</th>
+          <td class="num">{eur(z.kostenMieten)}</td>
+          <td>{z.guenstiger ? 'ja' : 'nein'}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+  <p>
+    Bei den übrigen Standardwerten (2&nbsp;% Wertsteigerung) kippt das Ergebnis
+    bei {proz(kippKrStandard)} Alternativrendite. Wer die Wertsteigerung
+    vorsichtiger mit {proz(0, 1)} ansetzt, braucht dafür schon
+    {' '}{proz(kippKrNiedrig)} Alternativrendite – ein Wert, der mit einer
+    breit gestreuten Aktienanlage über lange Zeiträume nicht unrealistisch ist.
+    Bei {proz(3, 1)} Wertsteigerung dagegen müsste die Alternative
+    {' '}{proz(kippKrHoch)} bringen, damit sich die Miete überhaupt lohnt. Beide
+    Stellschrauben wirken also gegeneinander: Wer der Immobilie wenig
+    Wertsteigerung zutraut, braucht zugleich eine hohe Alternativrendite, damit
+    das Mieten tatsächlich günstiger wird – niedrige Werte bei beiden reichen
+    dafür nicht.
+  </p>
+
+  <h3>Was diese Rechnung voraussetzt – und was nicht im Formular steht</h3>
+  <p>
+    Neben der Alternativrendite legt das Modul zwei weitere Annahmen fest, die
+    im Formular ebenfalls nicht auftauchen: eine Anfangstilgung von 2&nbsp;%
+    und eine Instandhaltungsrücklage von 1&nbsp;% des Kaufpreises pro Jahr. Wer
+    mit einer höheren Tilgung plant oder in einer sanierungsbedürftigen
+    Bestandsimmobilie kauft, rechnet der Rechner oben also mit anderen Zahlen,
+    als tatsächlich zutreffen könnten – ohne dass sich das an der Oberfläche
+    ablesen ließe. Zur Tilgung und ihrer Wirkung auf die Restschuld siehe auch
+    {' '}<a href={`${import.meta.env.BASE_URL}${artikelPfadVonSlug('anfangstilgung-laufzeit-restschuld')}`}>die Rechnung zur Anfangstilgung</a>.
+  </p>
+  <p>
+    Nicht abgebildet sind außerdem Steuerwirkungen (etwa die Spekulationsfrist
+    nach § 23 EStG oder die steuerliche Behandlung von Mieteinnahmen bei
+    Eigennutzung, die hier keine Rolle spielt), eine mögliche
+    Anschlussfinanzierung zu einem anderen Zinssatz nach Ablauf der
+    Zinsbindung sowie Umzugskosten. Auch die Flexibilität der Miete fließt
+    nicht in Euro ein: Mieter können mit einer Frist von drei Monaten nach
+    § 573c BGB kündigen, während ein Immobilienverkauf Monate dauert und
+    erneut Nebenkosten auslöst; gegen unkontrollierte Mietsprünge schützt im
+    Bestand die Kappungsgrenze des § 558 BGB. Wer diese Stellschrauben selbst
+    durchspielen will, muss den Kaufpreis, das Eigenkapital oder die
+    Wertsteigerung im Formular oben so anpassen, dass sie die gewünschte
+    Alternativrendite indirekt nachbilden – eine direkte Eingabe dafür bietet
+    der Rechner nicht.
+  </p>
+</RechnerArtikel>

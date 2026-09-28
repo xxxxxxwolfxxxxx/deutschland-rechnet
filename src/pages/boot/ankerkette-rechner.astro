@@ -3,6 +3,7 @@ import Layout from '../../layouts/Layout.astro';
 import CalculatorShell from '../../components/CalculatorShell.astro';
 import CalculatorGuide from '../../components/CalculatorGuide.astro';
 import { CALCULATORS, CATEGORIES } from '../../data/calculators';
+import ArtikelAnkerkette from '../../components/artikel/ankerkette-zuschlag-statt-wassertiefe.astro';
 const calc = CALCULATORS.find(c => c.slug === 'ankerkette-rechner')!;
 const cat = CATEGORIES[calc.category];
 ---
@@ -26,7 +27,7 @@ const cat = CATEGORIES[calc.category];
     faqs={[
       {
         q: "Warum zählt die Bughöhe mit?",
-        a: "Weil die Kette nicht an der Wasseroberfläche beginnt, sondern an der Ankerrolle am Bug. Bei einem Boot mit einem Meter Freibord ist die tatsächlich zu überbrückende Höhe einen Meter größer als die Wassertiefe – bei fünf Metern Tiefe immerhin 20 Prozent."
+        a: "Weil die Kette nicht an der Wasseroberfläche beginnt, sondern an der Ankerrolle am Bug. Gemeint ist deren Höhe über Wasser, nicht der Freibord – die Rolle sitzt über Deck und damit höher. Liegt sie einen Meter über Wasser, ist die zu überbrückende Höhe einen Meter größer als die Wassertiefe; bei fünf Metern Tiefe sind das 20 Prozent."
       },
       {
         q: "Wie berücksichtige ich die Tide?",
@@ -38,7 +39,7 @@ const cat = CATEGORIES[calc.category];
       },
       {
         q: "Was ist der Schwojkreis?",
-        a: "Der Kreis, in dem das Boot um seinen Anker treibt, wenn Wind oder Strom drehen. Sein Radius entspricht mindestens dem gesteckten Vorlauf plus der Bootslänge. Beim Ankerplatz muss dieser gesamte Kreis frei von anderen Booten, Untiefen und Ufer sein."
+        a: "Der Kreis, in dem das Boot um seinen Anker treibt, wenn Wind oder Strom drehen. Sein Radius bleibt etwas unter dem gesteckten Vorlauf plus Bootslänge, weil die Kette vom Grund zur Bugrolle ansteigt und waagerecht deshalb weniger weit reicht. Vorlauf plus Bootslänge ist damit eine Obergrenze – als Planungsmaß auf der sicheren Seite. Beim Ankerplatz muss dieser Kreis frei von anderen Booten, Untiefen und Ufer sein."
       },
       {
         q: "Reicht mehr Kette immer?",
@@ -57,7 +58,7 @@ const cat = CATEGORIES[calc.category];
           <input type="number" id="bughoehe" min="0" max="10" value="1" step="0.1" />
         </div>
         <div class="calc-group">
-          <label for="tidenhub">Erwarteter Tidenhub (m)</label>
+          <label for="tidenhub">Erwarteter Anstieg bis Hochwasser (m)</label>
           <input type="number" id="tidenhub" min="0" max="15" value="0" step="0.1" />
         </div>
         <div class="calc-group">
@@ -83,6 +84,7 @@ const cat = CATEGORIES[calc.category];
       <p id="details" style="margin-top:0.5rem;font-size:0.9rem;font-weight:600;"></p>
       <p id="hinweis" style="margin-top:0.35rem;font-size:0.85rem;color:#666;line-height:1.5;"></p>
     </div>
+    <ArtikelAnkerkette slot="artikel" />
   </CalculatorShell>
 
   <CalculatorGuide
@@ -92,9 +94,9 @@ const cat = CATEGORIES[calc.category];
 
     <p><strong>Die Kettenlinie arbeitet für Sie:</strong> Kette hängt unter ihrem Eigengewicht in einer Kurve durch. Bei Zug muss dieser Durchhang erst gestreckt werden, was Energie schluckt und Böen abfedert. Eine Leine hat diesen Effekt kaum – sie steht fast gerade und überträgt jeden Ruck direkt auf den Anker.</p>
 
-    <p><strong>Gerechnet wird ab der Ankerrolle:</strong> Nicht die Wassertiefe zählt, sondern der Abstand vom Bug bis zum Grund. Bei einem Meter Freibord und fünf Metern Wasser sind das sechs Meter – und mit Faktor fünf eben 30 statt 25 Meter Kette.</p>
+    <p><strong>Gerechnet wird ab der Ankerrolle:</strong> Nicht die Wassertiefe zählt, sondern der Abstand von der Bugrolle bis zum Grund. Einzutragen ist deren Höhe über Wasser – nicht der Freibord, denn die Rolle sitzt über Deck. Bei einem Meter Rollenhöhe und fünf Metern Wasser sind das sechs Meter, mit Faktor fünf also 30 statt 25 Meter Kette.</p>
 
-    <p><strong>Tide immer für Hochwasser rechnen:</strong> Wer bei Niedrigwasser ankert und den Hub vergisst, liegt sechs Stunden später mit deutlich zu kurzem Vorlauf da – meist genau dann, wenn niemand wach ist. Der Wasserstand ist überhaupt eine Größe, die sich auf Binnengewässern schneller ändert als gedacht: Nach starkem Regen verschieben sich Tiefen und auch Brückendurchfahrten spürbar. Wer eine ganze Route gegen aktuelle Pegel prüfen will, findet das auf <a href='https://sportbootnavi.de' target='_blank' rel='noopener'>sportbootnavi.de</a>.</p>
+    <p><strong>Tide immer für Hochwasser rechnen:</strong> Wer bei Niedrigwasser ankert und den Hub vergisst, liegt sechs Stunden später mit deutlich zu kurzem Vorlauf da – meist genau dann, wenn niemand wach ist. Einzutragen ist der erwartete Anstieg bis zum nächsten Hochwasser, nicht zwingend der volle Tidenhub: Nur wer genau bei Niedrigwasser ankert, sind beide gleich.<a href='https://sportbootnavi.de' target='_blank' rel='noopener nofollow'>Törnplanung gegen aktuelle Pegel</a></p>
 
     <p><strong>Der Schwojkreis gehört zur Planung:</strong> Dreht der Wind, wandert das Boot um seinen Anker. Der Radius ist der gesteckte Vorlauf plus Bootslänge – bei 30 Metern Kette und acht Metern Boot fast 40 Meter. Dieser ganze Kreis muss frei sein, auch von Booten, die kürzeren Vorlauf gesteckt haben und deshalb anders schwojen.</p>
 

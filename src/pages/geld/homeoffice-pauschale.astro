@@ -6,6 +6,7 @@ import { CALCULATORS, CATEGORIES } from '../../data/calculators';
 import { TAGESPAUSCHALE, TAGESPAUSCHALE_HOECHSTBETRAG, steuervorteil } from '../../../public/scripts/homeoffice.js';
 import { ARBEITNEHMER_PAUSCHBETRAG } from '../../../public/scripts/lohnsteuer.js';
 import { ENTFERNUNGSPAUSCHALE_JE_KM } from '../../../public/scripts/fahrtkosten.js';
+import ArtikelHomeofficeDeckel from '../../components/artikel/homeoffice-pauschale-gedeckelt-pendlerpauschale-nicht.astro';
 
 const calc = CALCULATORS.find(c => c.slug === 'homeoffice-pauschale')!;
 const cat = CATEGORIES[calc.category];
@@ -120,6 +121,7 @@ const faqs = [
       </div>
       <div id="details" style="margin-top:0.75rem;font-size:0.9rem;color:#555;display:flex;flex-direction:column;gap:0.3rem;"></div>
     </div>
+    <ArtikelHomeofficeDeckel slot="artikel" />
   </CalculatorShell>
 
   <CalculatorGuide

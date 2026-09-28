@@ -1,0 +1,363 @@
+---
+import RechnerArtikel from '../RechnerArtikel.astro';
+import { berechneEntschaedigung } from '../../../public/scripts/unterversicherung.js';
+
+// Alle Leistungen zur Buildzeit aus demselben Modul, das auch der Rechner laedt.
+const eur = (n: number) => n.toLocaleString('de-DE', { maximumFractionDigits: 0 }) + ' €';
+const proz = (n: number, d = 1) =>
+  n.toLocaleString('de-DE', { minimumFractionDigits: d, maximumFractionDigits: d }) + ' %';
+const zahl = (n: number, d = 1) =>
+  n.toLocaleString('de-DE', { minimumFractionDigits: d, maximumFractionDigits: d });
+
+// --- Das durchgehende Beispiel ---------------------------------------------
+// Setzung dieses Artikels: ein Haus, das heute 500.000 € kostet, versichert mit
+// 400.000 €. Jede Leistung unten entsteht daraus durch berechneEntschaedigung().
+const WERT = 500000;
+const SUMME = 400000;
+const QUOTE = (SUMME / WERT) * 100;
+const leistung = (schaden: number, p: Record<string, unknown> = {}) =>
+  berechneEntschaedigung({ schaden, versicherungssumme: SUMME, versicherungswert: WERT, ...p });
+
+// --- 1. Erwartung gegen § 75 VVG über die Schadenhöhe ----------------------
+// "Erwartung": der Schaden wird bis zur Versicherungssumme voll ersetzt.
+const erwartung = (schaden: number) => Math.min(schaden, SUMME);
+const SCHAEDEN = [10000, 40000, 100000, 200000, 300000, SUMME, 450000, WERT];
+const schadenreihe = SCHAEDEN.map((schaden) => {
+  const r = leistung(schaden);
+  const erw = erwartung(schaden);
+  return { schaden, erwartung: erw, leistung: r.leistung, luecke: erw - r.leistung };
+});
+// Behauptung: Die Luecke ist bei Schaden = Versicherungssumme am groessten und
+// beim Totalschaden null. Fein gesucht, nicht aus der Tabelle abgelesen.
+let maxLuecke = -1;
+let maxLueckeBei = 0;
+for (let s = 0; s <= WERT; s += 500) {
+  const l = erwartung(s) - leistung(s).leistung;
+  if (l > maxLuecke + 0.005) { maxLuecke = l; maxLueckeBei = s; }
+}
+const beiSumme = schadenreihe.find((z) => z.schaden === SUMME)!;
+const beiTotal = schadenreihe.find((z) => z.schaden === WERT)!;
+if (maxLueckeBei !== SUMME || Math.abs(maxLuecke - beiSumme.luecke) > 0.005) {
+  throw new Error(`Unterversicherung-Artikel: größte Lücke nicht bei der Summe (${maxLueckeBei}).`);
+}
+if (Math.abs(beiTotal.luecke) > 0.005 || beiTotal.leistung !== SUMME) {
+  throw new Error('Unterversicherung-Artikel: Totalschaden wird nicht voll mit der Summe ersetzt.');
+}
+const klein = schadenreihe.find((z) => z.schaden === 40000)!;
+
+// --- 2. Wie eine richtige Summe veraltet -----------------------------------
+// Baupreisindex für Wohngebäude (Neubau, konventionelle Bauart, inkl. USt.),
+// 2021 = 100, Berichtsmonat Mai (Quartal II). Statistisches Bundesamt,
+// Tabelle "Preisindizes für Bauwerke", Stand 10. Juli 2026.
+const INDEX_STAND = '10. Juli 2026';
+const INDEX_HEUTE = { jahr: 2026, wert: 140.3 };
+const INDEX_MAI = [
+  { jahr: 2021, wert: 98.7 },
+  { jahr: 2022, wert: 115.9 },
+  { jahr: 2023, wert: 126.0 },
+  { jahr: 2024, wert: 129.4 },
+  { jahr: 2025, wert: 133.6 },
+];
+const SCHADEN_FLUT = 40000;
+// Modellannahme: Die Summe war im Mai des Jahres genau richtig (= Wert damals)
+// und blieb danach als fester Eurobetrag stehen; der Wert steigt mit dem Index.
+const driftreihe = INDEX_MAI.map(({ jahr, wert }) => {
+  const summeDamals = Math.round(WERT * (wert / INDEX_HEUTE.wert));
+  const r = berechneEntschaedigung({
+    schaden: SCHADEN_FLUT, versicherungssumme: summeDamals, versicherungswert: WERT,
+  });
+  return { jahr, index: wert, summeDamals, quote: r.quoteProzent, leistung: r.leistung, kuerzung: r.kuerzung };
+});
+const aelteste = driftreihe[0];
+const juengste = driftreihe[driftreihe.length - 1];
+const sprung2022 = (INDEX_MAI[1].wert / INDEX_MAI[0].wert - 1) * 100;
+const anstiegGesamt = (INDEX_HEUTE.wert / aelteste.index - 1) * 100;
+// Fehlender Anteil aus der ANGEZEIGTEN Quote (eine Nachkommastelle), damit
+// Quote und Rest im Text zusammen 100 ergeben.
+const angezeigt = (n: number) =>
+  Number(n.toLocaleString('en-US', { minimumFractionDigits: 1, maximumFractionDigits: 1, useGrouping: false }));
+const fehltAelteste = 100 - angezeigt(aelteste.quote);
+const fehltJuengste = 100 - angezeigt(juengste.quote);
+if (!(aelteste.quote > 70 && aelteste.quote < 71)) {
+  throw new Error(`Unterversicherung-Artikel: Quote 2021 nicht mehr „gut 70 %" (${aelteste.quote}).`);
+}
+if (!(fehltJuengste < 5 && fehltJuengste > 4)) {
+  throw new Error(`Unterversicherung-Artikel: Lücke nach einem Jahr nicht mehr „knapp 5 %" (${fehltJuengste}).`);
+}
+if (!(sprung2022 > 17 && sprung2022 < 18)) {
+  throw new Error(`Unterversicherung-Artikel: Sprung 2022 nicht mehr „über 17 %" (${sprung2022}).`);
+}
+
+// --- 3. Wert 1914: Verzicht und wie er verloren geht -----------------------
+const UMBAUTEN = [5, 10, 20, 30];
+const umbaureihe = UMBAUTEN.map((plus) => {
+  const wertNeu = WERT * (1 + plus / 100);
+  const ohne = berechneEntschaedigung({ schaden: SCHADEN_FLUT, versicherungssumme: WERT, versicherungswert: wertNeu });
+  const mit = berechneEntschaedigung({
+    schaden: SCHADEN_FLUT, versicherungssumme: WERT, versicherungswert: wertNeu, unterversicherungsverzicht: true,
+  });
+  return { plus, quote: ohne.quoteProzent, leistung: ohne.leistung, mitVerzicht: mit.leistung };
+});
+const umbau20 = umbaureihe.find((z) => z.plus === 20)!;
+if (umbau20.mitVerzicht !== SCHADEN_FLUT) {
+  throw new Error('Unterversicherung-Artikel: Verzicht ersetzt den Schaden nicht voll.');
+}
+
+// --- 4. Selbstbehalt gegen Kürzung -----------------------------------------
+const SELBSTBEHALT = 1000;
+const erstKuerzen = leistung(SCHADEN_FLUT, { selbstbehalt: SELBSTBEHALT }).leistung;
+// Umgekehrte Reihenfolge: erst der Selbstbehalt, dann die Kürzung.
+const erstAbziehen = leistung(SCHADEN_FLUT - SELBSTBEHALT).leistung;
+const reihenfolgeDiff = erstAbziehen - erstKuerzen;
+if (Math.abs(reihenfolgeDiff - SELBSTBEHALT * (1 - QUOTE / 100)) > 0.01) {
+  throw new Error('Unterversicherung-Artikel: Reihenfolgeeffekt stimmt nicht.');
+}
+// Ab welchem Schaden kostet die Kürzung mehr als der Selbstbehalt? Euro-genau gesucht.
+function schwelle(summe: number): number {
+  for (let s = 1; s <= WERT; s += 1) {
+    const r = berechneEntschaedigung({ schaden: s, versicherungssumme: summe, versicherungswert: WERT });
+    if (r.kuerzung > SELBSTBEHALT) return s;
+  }
+  throw new Error('Unterversicherung-Artikel: keine Schwelle gefunden.');
+}
+const schwelleBeispiel = schwelle(SUMME);
+const schwelleAlt = schwelle(aelteste.summeDamals);
+// Im Text: "oberhalb von X €" – X ist die letzte Schadenhöhe, bei der die Kürzung
+// den Selbstbehalt noch nicht übersteigt.
+const bisBeispiel = schwelleBeispiel - 1;
+if (bisBeispiel !== 5000) {
+  throw new Error(`Unterversicherung-Artikel: Schwelle nicht mehr 5.000 € (${bisBeispiel}).`);
+}
+const kuerzungFlut = leistung(SCHADEN_FLUT).kuerzung;
+const kuerzungGegenSb = kuerzungFlut / SELBSTBEHALT;
+
+const quellen = [
+  { titel: '§ 75 VVG – Unterversicherung', url: 'https://www.gesetze-im-internet.de/vvg_2008/__75.html' },
+  { titel: '§ 76 VVG – Taxe', url: 'https://www.gesetze-im-internet.de/vvg_2008/__76.html' },
+  { titel: '§ 88 VVG – Versicherungswert', url: 'https://www.gesetze-im-internet.de/vvg_2008/__88.html' },
+  { titel: `Statistisches Bundesamt – Preisindizes für Bauwerke, Wohngebäude (Stand ${INDEX_STAND})`, url: 'https://www.destatis.de/DE/Themen/Wirtschaft/Konjunkturindikatoren/Preise/bpr110.html' },
+  { titel: 'GDV – Musterbedingungen VGB 2022, Wert 1914 „Gleitender Neuwert Plus“ (Stand Juni 2026)', url: 'https://www.gdv.de/resource/blob/37086/bf9434034ef850389686370327e1125a/allgemeine-wohngebaeude-versicherungsbedingungen-vgb-2022-wert-1914-gleitender-neuwert-plus--data.pdf' },
+];
+---
+<RechnerArtikel
+  titel="Die größte Lücke klafft vor dem Totalschaden"
+  datum="2026-09-17"
+  lead={`Wer ${proz(QUOTE, 0)} seines Hauswerts versichert hat, bekommt den Totalschaden bis zur Versicherungssumme ersetzt – aber einen Schaden in Höhe dieser Summe nur zu ${proz(QUOTE, 0)}. Die Differenz zur Erwartung ist genau dort am größten: ${eur(beiSumme.luecke)} bei einem Haus für ${eur(WERT)}. Und eine Summe, die im Mai ${aelteste.jahr} gestimmt hat, deckt nach dem Baupreisindex heute nur noch ${proz(aelteste.quote)} des Werts.`}
+  quellen={quellen}
+>
+  <h3>Was man erwartet und was § 75 VVG sagt</h3>
+  <p>
+    Eine Versicherungssumme liest sich wie ein Limit: Bis zu diesem Betrag wird
+    gezahlt, darüber nicht. Für einen Schaden unterhalb der Summe hieße das: voller
+    Ersatz. So rechnet § 75 VVG aber nicht. Ist die Summe erheblich niedriger als
+    der Versicherungswert zur Zeit des Schadens, leistet der Versicherer nur im
+    Verhältnis der Summe zu diesem Wert – bei jedem Schaden, auch beim kleinen.
+  </p>
+  <p>
+    Das Beispiel dieses Artikels: Ein Haus kostet heute {eur(WERT)} in der
+    Wiederherstellung, versichert sind {eur(SUMME)}. Die Quote beträgt
+    {' '}{proz(QUOTE, 0)}. Selbstbehalt bleibt vorerst außen vor. Die Tabelle stellt
+    die naheliegende Erwartung – voller Ersatz bis zur Summe – der Leistung nach
+    § 75 VVG gegenüber.
+  </p>
+
+  <table>
+    <caption class="visually-hidden">
+      Erwartete und tatsächliche Leistung bei {proz(QUOTE, 0)} Versicherungsquote nach Schadenhöhe
+    </caption>
+    <thead>
+      <tr>
+        <th scope="col" class="num">Schaden</th>
+        <th scope="col" class="num">erwartet</th>
+        <th scope="col" class="num">Leistung nach § 75 VVG</th>
+        <th scope="col" class="num">Lücke</th>
+      </tr>
+    </thead>
+    <tbody>
+      {schadenreihe.map((z) => (
+        <tr>
+          <th scope="row" class="num">{eur(z.schaden)}</th>
+          <td class="num">{eur(z.erwartung)}</td>
+          <td class="num">{eur(z.leistung)}</td>
+          <td class="num">{eur(z.luecke)}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+
+  <p>
+    Die Lücke wächst mit dem Schaden, bis dieser die Versicherungssumme erreicht.
+    Bei {eur(SUMME)} Schaden erwartet man {eur(beiSumme.erwartung)} und bekommt
+    {' '}{eur(beiSumme.leistung)} – {eur(beiSumme.luecke)} weniger. Danach schrumpft
+    die Lücke wieder, weil die Erwartung an der Summe hängen bleibt, die gekürzte
+    Leistung aber weiter steigt. Beim Totalschaden in Höhe von {eur(WERT)} treffen sich
+    beide Linien: Die Kürzung auf {proz(QUOTE, 0)} ergibt genau die Summe von
+    {' '}{eur(beiTotal.leistung)}, die man ohnehin nur erwartet hatte.
+  </p>
+  <p>
+    Das ist der eigentliche Befund: Die Unterversicherung trifft nicht den
+    Totalschaden – den begrenzt schon die Summe –, sondern den großen Teilschaden.
+    Ein überfluteter Keller oder ein durchnässtes Erdgeschoss ist ein solcher
+    Teilschaden. Bei {eur(klein.schaden)} fehlen im Beispiel
+    {' '}{eur(klein.luecke)}, obwohl die Summe den Schaden {zahl(SUMME / klein.schaden, 0)}-fach übersteigt.
+  </p>
+
+  <h3>Wie eine richtige Summe von selbst zu niedrig wird</h3>
+  <p>
+    Eine Unterversicherung entsteht nicht nur durch eine zu knapp gewählte Summe.
+    Sie kann auch aus einer Summe werden, die beim Abschluss stimmte. Maßgeblich ist nach § 75 VVG der Wert zur Zeit
+    des Schadens, nicht beim Vertragsschluss – und Bauen ist in den vergangenen
+    Jahren erheblich teurer geworden. Der Baupreisindex des Statistischen
+    Bundesamts für neu gebaute Wohngebäude stieg von {zahl(aelteste.index)} im
+    Mai {aelteste.jahr} auf {zahl(INDEX_HEUTE.wert)} im Mai {INDEX_HEUTE.jahr}, ein
+    Plus von {proz(anstiegGesamt)}. Allein von Mai {INDEX_MAI[0].jahr} auf Mai
+    {' '}{INDEX_MAI[1].jahr} betrug der Sprung {proz(sprung2022)}.
+  </p>
+  <p>
+    Die folgende Rechnung unterstellt eine Summe, die im Mai des jeweiligen Jahres
+    genau dem damaligen Wert entsprach und seitdem als fester Eurobetrag
+    unverändert geblieben ist. Den heutigen Wert von {eur(WERT)} schreibt sie mit
+    dem Index zurück; der Schaden beträgt {eur(SCHADEN_FLUT)}.
+  </p>
+
+  <table>
+    <caption class="visually-hidden">
+      Versicherungsquote und Leistung bei {eur(SCHADEN_FLUT)} Schaden, wenn die Summe im Mai des Jahres richtig war
+    </caption>
+    <thead>
+      <tr>
+        <th scope="col" class="num">richtig im Mai</th>
+        <th scope="col" class="num">Baupreisindex</th>
+        <th scope="col" class="num">Summe</th>
+        <th scope="col" class="num">Quote heute</th>
+        <th scope="col" class="num">Leistung</th>
+        <th scope="col" class="num">Kürzung</th>
+      </tr>
+    </thead>
+    <tbody>
+      {driftreihe.map((z) => (
+        <tr>
+          <th scope="row" class="num">{z.jahr}</th>
+          <td class="num">{zahl(z.index)}</td>
+          <td class="num">{eur(z.summeDamals)}</td>
+          <td class="num">{proz(z.quote)}</td>
+          <td class="num">{eur(z.leistung)}</td>
+          <td class="num">{eur(z.kuerzung)}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+
+  <p>
+    Wer im Mai {aelteste.jahr} richtig versichert war, ist es heute zu
+    {' '}{proz(aelteste.quote)}: Von {eur(SCHADEN_FLUT)} Schaden kommen
+    {' '}{eur(aelteste.leistung)} an. Selbst eine Summe, die vor einem Jahr noch
+    stimmte, liegt schon {proz(fehltJuengste)} unter dem Wert. Ob eine so kleine
+    Abweichung „erheblich" im Sinne des Gesetzes ist, sagt § 75 VVG nicht; eine
+    feste Grenze steht dort nicht. Die {proz(fehltAelteste)} aus dem Jahr
+    {' '}{aelteste.jahr} dürften kaum noch als unerheblich durchgehen.
+  </p>
+  <p class="ra-hinweis">
+    Modellannahme: Die Wiederherstellungskosten des Hauses entwickeln sich wie
+    der bundesweite Baupreisindex für den Neubau konventionell gebauter
+    Wohngebäude. Regionale Unterschiede, Lohnkosten und Besonderheiten des
+    einzelnen Gebäudes bildet der Index nicht ab.
+  </p>
+
+  <h3>Wert 1914: das Mittel gegen den Preisauftrieb – mit einer Falle</h3>
+  <p>
+    Für Wohngebäude gibt es eine Vertragsform, die genau dieses Veralten
+    verhindern soll. In den Musterbedingungen des Gesamtverbands der Deutschen
+    Versicherungswirtschaft (VGB 2022, „Gleitender Neuwert Plus“) wird die Summe
+    in Preisen des Jahres 1914 ausgedrückt und jedes Jahr mit einem
+    Anpassungsfaktor hochgerechnet. Dieser folgt nach Abschnitt A 16.2 zu
+    80 Prozent dem Baupreisindex für Wohngebäude aus dem Mai des Vorjahres und zu
+    20 Prozent dem Tariflohnindex für das Baugewerbe. Summe und Beitrag steigen
+    also mit den Baukosten. Ist die Summe nach den Antragsangaben vom Versicherer
+    berechnet, gilt zudem ein Unterversicherungsverzicht (A 14.2.1).
+  </p>
+  <p>
+    Der Verzicht hat allerdings Grenzen. Nach A 14.2.2 entfällt er, wenn nach
+    Vertragsschluss wertsteigernde bauliche Maßnahmen die Summe verändern und
+    das dem Versicherer nicht unverzüglich angezeigt wurde – ausgenommen
+    Maßnahmen im laufenden Versicherungsjahr des Schadens. Nach A 14.2.3 entfällt
+    er auch, wenn die Antragsfragen nicht zutreffend beantwortet wurden. Dann
+    wird wieder nach dem Verhältnis gekürzt, und zwar jeder Schaden, nicht nur der
+    am umgebauten Teil. Musterbedingungen sind unverbindlich; einzelne Verträge
+    weichen ab.
+  </p>
+  <p>
+    Was ein nicht gemeldeter Ausbau kostet, zeigt die Rechnung mit einer Summe,
+    die vor dem Umbau genau dem Wert von {eur(WERT)} entsprach, und einem Schaden
+    von {eur(SCHADEN_FLUT)}, etwa im Keller, der mit dem Umbau nichts zu tun hat:
+  </p>
+
+  <table>
+    <caption class="visually-hidden">
+      Leistung bei {eur(SCHADEN_FLUT)} Schaden nach einem nicht gemeldeten wertsteigernden Umbau
+    </caption>
+    <thead>
+      <tr>
+        <th scope="col" class="num">Wertsteigerung durch Umbau</th>
+        <th scope="col" class="num">Quote</th>
+        <th scope="col" class="num">Leistung ohne Verzicht</th>
+        <th scope="col" class="num">mit Verzicht</th>
+      </tr>
+    </thead>
+    <tbody>
+      {umbaureihe.map((z) => (
+        <tr>
+          <th scope="row" class="num">{proz(z.plus, 0)}</th>
+          <td class="num">{proz(z.quote)}</td>
+          <td class="num">{eur(z.leistung)}</td>
+          <td class="num">{eur(z.mitVerzicht)}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+
+  <p>
+    Ein Umbau, der das Haus um {proz(umbau20.plus, 0)} wertvoller macht, senkt
+    die Quote nicht um {zahl(umbau20.plus, 0)} Prozentpunkte, sondern auf
+    {' '}{proz(umbau20.quote)} – die Summe wird durch den neuen, höheren Wert
+    geteilt. Aus {eur(SCHADEN_FLUT)} werden {eur(umbau20.leistung)}.
+  </p>
+
+  <h3>Selbstbehalt und Kürzung: welcher Abzug wirklich zählt</h3>
+  <p>
+    Der Selbstbehalt steht als fester Betrag in der Police und fällt deshalb
+    auf. Die Kürzung ist meist der größere Abzug. Im Beispiel mit
+    {' '}{proz(QUOTE, 0)} Quote und {eur(SELBSTBEHALT)} Selbstbehalt übersteigt die
+    Kürzung den Selbstbehalt bei jedem Schaden oberhalb von {eur(bisBeispiel)}. Bei
+    {' '}{eur(SCHADEN_FLUT)} Schaden kostet die Kürzung {eur(kuerzungFlut)}, das
+    {' '}{zahl(kuerzungGegenSb, 0)}-Fache des Selbstbehalts. Ist die Summe seit Mai
+    {' '}{aelteste.jahr} nicht angepasst, übersteigt die Kürzung den Selbstbehalt
+    schon ab {eur(schwelleAlt)} Schaden.
+  </p>
+  <p>
+    Weniger wichtig, als es scheint, ist die Reihenfolge. Ob erst gekürzt und
+    dann der Selbstbehalt abgezogen wird oder umgekehrt, regeln die Bedingungen.
+    Der Rechner oben auf dieser Seite kürzt zuerst: Von {eur(SCHADEN_FLUT)}
+    bleiben {eur(erstKuerzen)}. In umgekehrter Reihenfolge wären es
+    {' '}{eur(erstAbziehen)}, also {eur(reihenfolgeDiff)} mehr – der Unterschied
+    beträgt immer den Selbstbehalt mal dem nicht versicherten Anteil und bleibt
+    damit klein.
+  </p>
+
+  <h3>Was diese Rechnung nicht abbildet</h3>
+  <p>
+    Welcher Wert maßgeblich ist, bestimmt der Vertrag. Ohne besondere Vereinbarung
+    ist es nach § 88 VVG der Neuwert abzüglich des Minderwerts zwischen alt und
+    neu, also eine Art Zeitwert. Ist ein Wert fest vereinbart (Taxe nach § 76 VVG),
+    wird im Verhältnis der Summe zu dieser Taxe gekürzt. Der Index in diesem
+    Artikel beschreibt Baupreise für Wohngebäude; für Hausrat taugt er nicht.
+  </p>
+  <p>
+    Nicht berücksichtigt sind prozentuale oder gedeckelte Selbstbehalte, eigene
+    Entschädigungsgrenzen für Elementarschäden, Kosten und Mietausfall, die nach
+    den Musterbedingungen ebenfalls gekürzt werden, sowie die Frage, ab wann ein
+    Gericht eine Unterversicherung als erheblich ansieht. Wie hoch die Summe im
+    eigenen Vertrag sein müsste, lässt sich nur mit einer Bewertung des Gebäudes
+    beantworten – die Rechnung zeigt, was eine Abweichung kostet.
+  </p>
+</RechnerArtikel>

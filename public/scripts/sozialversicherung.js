@@ -59,7 +59,7 @@ export const PFLEGE_ARBEITGEBERANTEIL = 0.018;
  * Arbeitgeberanteil zur Pflegeversicherung in Sachsen.
  *
  * § 58 Abs. 3 SGB XI: Wo kein gesetzlicher Feiertag gestrichen wurde – das ist
- * nur Sachsen –, trägt der Beschäftigte einen Prozentpunkt allein. Der
+ * nur Sachsen –, trägt der Beschäftigte einen halben Prozentpunkt zusätzlich allein. Der
  * Arbeitgeber trägt dann 1,3 statt 1,8 Prozent.
  */
 export const PFLEGE_ARBEITGEBERANTEIL_SACHSEN = 0.013;

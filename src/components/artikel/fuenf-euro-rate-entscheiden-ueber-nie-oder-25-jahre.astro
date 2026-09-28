@@ -1,0 +1,222 @@
+---
+import RechnerArtikel from '../RechnerArtikel.astro';
+import { berechneLawine, berechneSchneeball, MAX_MONATE } from '../../../public/scripts/schuldentilgung.js';
+
+// Alle Zahlen kommen aus demselben Modul, mit dem der Rechner oben rechnet.
+// Keine Zahl im Fliesstext, die nicht aus einer Variablen stammt.
+//
+// Bewusst EINE einzelne Schuld statt der zwei/drei Schulden, die der
+// Rechner oben vergleicht: Ob eine Schuld jemals abbezahlt wird, hängt
+// allein davon ab, ob die ihr zugeteilte Rate ihre EIGENEN monatlichen
+// Zinsen übersteigt – unabhängig davon, ob man das Schneeball- oder
+// Lawinenprinzip nennt, und unabhängig von anderen Schulden. Ein
+// Einzelbeispiel zeigt diesen Kipppunkt eindeutig, ohne dass gleichzeitig
+// die Wechselwirkung mit einer zweiten, unbedienten Schuld hineinspielt
+// (die für sich genommen ein eigenes, größeres Thema wäre: eine zunächst
+// gut bedienbare Schuld kann durch Vernachlässigung so weit anwachsen,
+// dass sie später selbst mit derselben Rate nicht mehr zu schaffen ist –
+// das wird am Ende kurz und mit eigenem Beleg angerissen, aber nicht als
+// Hauptthese ausgebreitet).
+
+const zahl = (n: number, d = 2) =>
+  n.toLocaleString('de-DE', { minimumFractionDigits: d, maximumFractionDigits: d }).replace(/^-/, '−');
+const eur = (n: number, d = 2) => zahl(n, d) + ' €';
+const eur0 = (n: number) => zahl(n, 0) + ' €';
+const proz = (n: number, d = 2) => zahl(n, d) + ' %';
+const dauer = (monate: number) => {
+  if (monate >= MAX_MONATE) return `${Math.floor(MAX_MONATE / 12)} Jahre (Simulationsgrenze erreicht, nicht abbezahlt)`;
+  const j = Math.floor(monate / 12);
+  const m = monate % 12;
+  return m === 0 ? `${j} Jahre` : `${j} Jahre, ${m} ${m === 1 ? 'Monat' : 'Monate'}`;
+};
+
+const BETRAG = 6000;
+const ZINS = 14; // oberes Ende der 2026er Dispozins-Spanne (smava)
+
+// Der Kipppunkt: was diese eine Schuld pro Monat allein an Zinsen kostet.
+const zinsProMonat = Math.round(BETRAG * (ZINS / 100 / 12) * 100) / 100;
+
+const RATE_GRENZE = zinsProMonat; // exakt die Zinsen, keinen Cent mehr
+const RATE_KNAPP = zinsProMonat + 1; // ein einziger Euro mehr
+const RATE_HOCH = zinsProMonat + 5; // fünf Euro mehr
+
+const schuld = () => [{ rest: BETRAG, zins: ZINS, original: BETRAG }];
+
+const rGrenze = berechneLawine(schuld(), RATE_GRENZE);
+const rKnapp = berechneLawine(schuld(), RATE_KNAPP);
+const rHoch = berechneLawine(schuld(), RATE_HOCH);
+
+// --- Selbsttest 1: Schon 5 € über der Zinsgrenze wird die Schuld innerhalb
+// der Simulationsgrenze fertig abbezahlt.
+if (rHoch.monate >= MAX_MONATE) {
+  throw new Error('Fuenf-Euro-Rate: Bei RATE_HOCH sollte die Schuld fertig getilgt werden, wird sie aber nicht');
+}
+
+// --- Selbsttest 2: Ein einziger Euro über der Zinsgrenze reicht ebenfalls
+// zur vollständigen Tilgung – nur sehr viel langsamer als bei RATE_HOCH.
+if (rKnapp.monate >= MAX_MONATE) {
+  throw new Error('Fuenf-Euro-Rate: Bei RATE_KNAPP sollte die Schuld fertig getilgt werden, wird sie aber nicht');
+}
+if (!(rKnapp.monate > rHoch.monate)) {
+  throw new Error('Fuenf-Euro-Rate: RATE_KNAPP sollte deutlich länger brauchen als RATE_HOCH');
+}
+
+// --- Selbsttest 3: Exakt an der Zinsgrenze erreicht die Simulation
+// MAX_MONATE, und der Restbetrag der Schuld ist danach unverändert – keinen
+// Cent niedriger als zu Beginn.
+if (rGrenze.monate !== MAX_MONATE) {
+  throw new Error('Fuenf-Euro-Rate: An der Zinsgrenze sollte die Simulationsgrenze erreicht werden');
+}
+if (Math.abs(rGrenze.schuldenEnde[0].rest - BETRAG) > 0.005) {
+  throw new Error(
+    `Fuenf-Euro-Rate: Restbetrag an der Zinsgrenze sollte nach ${MAX_MONATE} Monaten exakt ${BETRAG} sein, ist aber ${rGrenze.schuldenEnde[0].rest}`
+  );
+}
+
+// --- Selbsttest 4: Weil an der Zinsgrenze jeden Monat exakt die Zinsen
+// gezahlt werden und sonst nichts, sind die ausgewiesenen Gesamtzinsen nach
+// MAX_MONATE Monaten exakt RATE_GRENZE * MAX_MONATE – kein Rundungswert,
+// sondern ein Fixpunkt der Simulation.
+if (Math.abs(rGrenze.gesamtZinsen - RATE_GRENZE * MAX_MONATE) > 0.01) {
+  throw new Error('Fuenf-Euro-Rate: Gesamtzinsen an der Zinsgrenze weichen von RATE_GRENZE * MAX_MONATE ab');
+}
+
+// --- Nebenbefund, separat verifiziert: Wird dieselbe Schuld nicht isoliert
+// betrachtet, sondern zunächst zugunsten einer anderen, kleineren Schuld
+// vernachlässigt (Schneeball-Reihenfolge), kann sie in der Zwischenzeit über
+// den Punkt hinauswachsen, an dem selbst die volle Rate von {RATE_HOCH} €
+// noch reicht. Konkret geprüft an einem zweiten Fall: {BETRAG} € zu {ZINS} %
+// neben einer 4.000-€-Schuld zu 8,13 % (Bundesbank-Neugeschäftszins), Rate
+// insgesamt {RATE_HOCH} €, Schneeball-Reihenfolge (kleinere Schuld zuerst).
+const NEBENBEFUND_RATENKREDIT = 4000;
+const NEBENBEFUND_RATENKREDIT_ZINS = 8.13;
+const nebenbefund = berechneSchneeball(
+  [
+    { rest: NEBENBEFUND_RATENKREDIT, zins: NEBENBEFUND_RATENKREDIT_ZINS, original: NEBENBEFUND_RATENKREDIT },
+    { rest: BETRAG, zins: ZINS, original: BETRAG },
+  ],
+  RATE_HOCH
+);
+const nebenbefundTeuerRest = nebenbefund.schuldenEnde.find((s) => s.original === BETRAG)!.rest;
+// Die 6.000-€-Schuld muss in diesem Fall NICHT fertig getilgt sein, obwohl
+// dieselbe Rate sie isoliert (siehe rHoch oben) locker bewältigt hätte.
+if (!(nebenbefund.monate >= MAX_MONATE && nebenbefundTeuerRest > BETRAG)) {
+  throw new Error(
+    `Fuenf-Euro-Rate: Nebenbefund erwartet, dass die 6.000-€-Schuld im Zwei-Schulden-Fall NICHT fertig wird und über ${BETRAG} € anwächst, tatsächlich: monate=${nebenbefund.monate}, rest=${nebenbefundTeuerRest}`
+  );
+}
+
+const quellen = [
+  {
+    titel: 'Dispozinsen 2026: aktueller Vergleich über 1.000 Banken (smava)',
+    url: 'https://www.smava.de/presse/dispozinsen/',
+  },
+  {
+    titel: 'Ratenkredit-Zins-Monitor 2026 (Bundesbank MFI-Zinsstatistik, Neugeschäft, Stand März 2026)',
+    url: 'https://kredit-kompass.com/kredit-report/ratenkredit-zins-monitor-2026',
+  },
+];
+---
+<RechnerArtikel
+  titel={`${eur(RATE_HOCH - RATE_GRENZE, 0)} mehr Rate machen aus „nie" ${dauer(rHoch.monate)}`}
+  lead={`Eine Schuld von ${eur0(BETRAG)} zu ${proz(ZINS, 0)} kostet pro Monat exakt ${eur(zinsProMonat)} an Zinsen. Wer genau diese ${eur(RATE_GRENZE, 0)} als Rate ansetzt, zahlt ${MAX_MONATE} Monate lang nur die Zinsen und ist am Ende noch immer ${eur0(BETRAG)} im Minus. Schon ${eur(RATE_KNAPP - RATE_GRENZE, 0)} mehr genügen zur vollständigen Tilgung – dauern aber ${dauer(rKnapp.monate)}. Erst ${eur(RATE_HOCH - RATE_GRENZE, 0)} über der Zinsgrenze sinkt die Laufzeit auf ${dauer(rHoch.monate)}.`}
+  datum="2026-09-28"
+  quellen={quellen}
+>
+  <h3>Eine Rate muss zuerst die eigenen Zinsen schlagen</h3>
+
+  <p>
+    Der Rechner oben verteilt eine gemeinsame Monatsrate nach Priorität auf
+    mehrere Schulden – aber jede einzelne Schuld folgt dabei einer einfachen
+    Regel: Ihr Restbetrag sinkt nur, wenn die ihr zugeteilte Zahlung größer
+    ist als die Zinsen, die sie in demselben Monat selbst erzeugt. Reicht die
+    Zahlung nicht einmal aus, um die eigenen Zinsen zu decken, bleibt der
+    Restbetrag gleich hoch oder wächst sogar – unabhängig davon, wie lange
+    man wartet und unabhängig davon, ob man das Schneeball- oder
+    Lawinenprinzip anwendet.
+  </p>
+
+  <p>
+    Am einfachsten zeigt sich das an einer einzelnen Schuld, die die gesamte
+    Rate für sich bekommt. {eur0(BETRAG)} zu {proz(ZINS, 0)} Zinsen – am
+    oberen Ende der 2026 üblichen Dispozinsen laut Bankenvergleich – kosten
+    pro Monat exakt {eur0(BETRAG)} × {proz(ZINS, 0)} ÷ 12 = {eur(zinsProMonat)}.
+    Das ist der Kipppunkt: Jeder Rate-Euro darüber tilgt tatsächlich Schulden,
+    jeder Euro darunter reicht nicht einmal für die Zinsen.
+  </p>
+
+  <table>
+    <caption class="visually-hidden">
+      Tilgungsdauer und Gesamtzinsen für {eur0(BETRAG)} zu {proz(ZINS, 0)} bei drei
+      Monatsraten nahe der Zinsgrenze von {eur(zinsProMonat)}
+    </caption>
+    <thead>
+      <tr>
+        <th scope="col">Monatsrate</th>
+        <th scope="col">Abstand zur Zinsgrenze</th>
+        <th scope="col">Tilgungsdauer</th>
+        <th scope="col" class="num">Gesamtzinsen</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <th scope="row">{eur(RATE_GRENZE, 0)}</th>
+        <td>±{eur(0, 0)}</td>
+        <td>{dauer(rGrenze.monate)}</td>
+        <td class="num">{eur(rGrenze.gesamtZinsen)}</td>
+      </tr>
+      <tr>
+        <th scope="row">{eur(RATE_KNAPP, 0)}</th>
+        <td>+{eur(RATE_KNAPP - RATE_GRENZE, 0)}</td>
+        <td>{dauer(rKnapp.monate)}</td>
+        <td class="num">{eur(rKnapp.gesamtZinsen)}</td>
+      </tr>
+      <tr>
+        <th scope="row">{eur(RATE_HOCH, 0)}</th>
+        <td>+{eur(RATE_HOCH - RATE_GRENZE, 0)}</td>
+        <td>{dauer(rHoch.monate)}</td>
+        <td class="num">{eur(rHoch.gesamtZinsen)}</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <p>
+    Die mittlere Zeile ist der auffälligste Befund: Ein einziger Euro mehr
+    Rate im Monat – {eur(RATE_KNAPP, 0)} statt {eur(RATE_GRENZE, 0)} – ändert
+    das Ergebnis nicht graduell, sondern kategorial: von „niemals" zu „nach{' '}
+    {dauer(rKnapp.monate)}". Die Tilgung dauert dabei immer noch extrem lange,
+    weil in den ersten Jahren fast die gesamte Rate weiterhin in die Zinsen
+    fließt und nur der letzte Euro tatsächlich den Restbetrag senkt. Erst bei{' '}
+    {eur(RATE_HOCH, 0)} – {eur(RATE_HOCH - RATE_GRENZE, 0)} über der
+    Zinsgrenze – sinkt die Laufzeit auf {dauer(rHoch.monate)}, weniger als ein
+    Drittel der Zeit bei {eur(RATE_KNAPP, 0)}.
+  </p>
+
+  <h3>Warum die {eur(RATE_GRENZE, 0)}-Zeile keine Rundung ist</h3>
+
+  <p>
+    An der Zinsgrenze zahlt die Simulation {MAX_MONATE} Monate lang ({Math.floor(MAX_MONATE / 12)}{' '}
+    Jahre – das ist die <code>MAX_MONATE</code>-Obergrenze des Rechenmoduls
+    für Fälle, in denen die Rate rechnerisch nie zur vollständigen Tilgung
+    reicht) exakt {eur(zinsProMonat)} – und der Restbetrag bleibt bei genau{' '}
+    {eur0(BETRAG)}, keinen Cent niedriger. In der Summe ergibt das{' '}
+    {eur(RATE_GRENZE, 0)} × {MAX_MONATE} = {eur(RATE_GRENZE * MAX_MONATE)}{' '}
+    Zinsen, ausgezahlt an die Bank, ohne dass auch nur ein Euro Schulden
+    abgebaut wurde. Ein Selbsttest im Kopf dieser Seite prüft das bei jedem
+    Build gegen das echte Rechenmodul nach.
+  </p>
+
+  <p class="ra-hinweis">
+    Nebenbefund, mit demselben Rechenmodul verifiziert: Steht dieselbe{' '}
+    {eur0(BETRAG)}-Schuld nicht allein, sondern konkurriert nach der
+    Schneeball-Methode mit einer kleineren, günstigeren Schuld (hier:{' '}
+    {eur0(NEBENBEFUND_RATENKREDIT)} zu {proz(NEBENBEFUND_RATENKREDIT_ZINS)}) um
+    dieselbe {eur(RATE_HOCH, 0)}-Rate, bekommt sie so lange gar nichts, bis
+    die kleinere Schuld abbezahlt ist – und wächst in dieser Zeit über den
+    Punkt hinaus, an dem selbst die volle Rate von {eur(RATE_HOCH, 0)} sie
+    noch bezahlbar hält. Dieselbe Rate, die {eur0(BETRAG)} isoliert in{' '}
+    {dauer(rHoch.monate)} getilgt hätte (siehe Tabelle oben), reicht dann
+    nicht mehr aus, sobald der Rechner auch danach die Zinsgrenze von{' '}
+    {eur(zinsProMonat)} für diese Schuld unterschreitet.
+  </p>
+</RechnerArtikel>

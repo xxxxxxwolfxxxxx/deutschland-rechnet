@@ -1,0 +1,501 @@
+---
+import RechnerArtikel from '../RechnerArtikel.astro';
+import { artikelPfadVonSlug } from '../../data/ratgeber';
+import {
+  berechneStromspeicher,
+  vergleicheSpeichergroessen,
+  DIREKTVERBRAUCH_ANTEIL,
+  SPEICHER_NUTZTAGE,
+  SPEICHER_WIRKUNGSGRAD,
+} from '../../../public/scripts/stromspeicher.js';
+import { verguetungProKwh, SPEZIFISCHER_ERTRAG } from '../../../public/scripts/photovoltaik.js';
+import {
+  STROMPREIS_CENT_PRO_KWH,
+  STROMPREIS_QUELLE,
+  STROMPREIS_QUELLE_URL,
+} from '../../../public/scripts/strompreis.js';
+
+// Alle Zahlen zur Buildzeit aus stromspeicher.js – demselben Modul, das der
+// Rechner oben auf der Seite laedt. Keine Zahl steht hart im Fliesstext.
+const base = import.meta.env.BASE_URL;
+const eur = (n: number, d = 0) =>
+  n.toLocaleString('de-DE', { minimumFractionDigits: d, maximumFractionDigits: d }) + ' €';
+const zahl = (n: number, d = 0) =>
+  n.toLocaleString('de-DE', { minimumFractionDigits: d, maximumFractionDigits: d });
+const kwh = (n: number, d = 0) => zahl(n, d) + ' kWh';
+const ct = (n: number) => zahl(n, 2) + ' ct';
+const prozent = (anteil: number) => zahl(anteil * 100, 0) + ' %';
+
+// --- Das durchgehende Beispiel ---------------------------------------------
+// Dieselben Werte wie die Voreinstellung des Rechners. Der Speicherpreis von
+// 600 € je kWh ist dort ausdruecklich eine Annahme (kein Marktpreis) und wird
+// hier nur als solche verwendet; er steht in der Seite als Eingabewert und ist
+// nicht exportiert – bei Aenderung dort hier nachziehen.
+const PV_KWP = 10;
+const VERBRAUCH = 5000;
+const NUTZUNGSDAUER = 15;
+const VOREINSTELLUNG_PREIS = 600;
+const BASIS = { pvLeistung: PV_KWP, stromverbrauch: VERBRAUCH, strompreis: STROMPREIS_CENT_PRO_KWH };
+
+const verguetungCent = verguetungProKwh(PV_KWP) * 100;
+// Fuer jede entladene kWh muss der Speicher 1/Wirkungsgrad kWh laden, die
+// sonst eingespeist worden waeren. Die Spanne je entladener kWh ist deshalb
+// Strompreis minus Verguetung geteilt durch den Wirkungsgrad.
+const ladungJeEntladung = 1 / SPEICHER_WIRKUNGSGRAD;
+const verguetungJeEntladungCent = verguetungCent * ladungJeEntladung;
+const spanneCent = STROMPREIS_CENT_PRO_KWH - verguetungJeEntladungCent;
+
+// --- 1. Was eine voll genutzte Kilowattstunde Kapazitaet im Jahr bringt -----
+const vergleich = vergleicheSpeichergroessen({ ...BASIS, preisJeKwh: VOREINSTELLUNG_PREIS, nutzungsdauer: NUTZUNGSDAUER });
+const grenzertrag = vergleich.zeilen[0].grenzertragJeKwh;
+const entladungJeKwhKapazitaet = SPEICHER_WIRKUNGSGRAD * SPEICHER_NUTZTAGE;
+const formelWert = (entladungJeKwhKapazitaet * spanneCent) / 100;
+if (Math.abs(formelWert - grenzertrag) > 0.01) {
+  throw new Error(`Speicher-Artikel: Grenzertrag ${grenzertrag} weicht von Wirkungsgrad × Ladetage × Spanne (${formelWert}) ab.`);
+}
+// Ohne Ladeverlust in der Verguetung (Spanne = Strompreis − Verguetung)
+const ohneVerlustWert = (entladungJeKwhKapazitaet * (STROMPREIS_CENT_PRO_KWH - verguetungCent)) / 100;
+const verlustKostet = ohneVerlustWert - grenzertrag;
+if (!(verlustKostet > 0)) throw new Error('Speicher-Artikel: Ladeverlust muesste den Grenzertrag senken.');
+const hoechstpreis = grenzertrag * NUTZUNGSDAUER;
+// Mit dem vollen Strompreis statt der Spanne gerechnet – der verbreitete Fehler.
+const hoechstpreisNaiv = (entladungJeKwhKapazitaet * STROMPREIS_CENT_PRO_KWH / 100) * NUTZUNGSDAUER;
+
+// Der Grenzertrag haengt nicht vom Haushalt ab, solange der Speicher nicht gesaettigt ist.
+const haushalte = [
+  { pv: 7, verbrauch: 3000, speicher: 4 },
+  { pv: PV_KWP, verbrauch: VERBRAUCH, speicher: 8 },
+  { pv: 12, verbrauch: 9000, speicher: 12 },
+].map((h) => {
+  const r = berechneStromspeicher({ speicher: h.speicher, pvLeistung: h.pv, stromverbrauch: h.verbrauch, speicherkosten: 0 });
+  return { ...h, jeKwh: r.ersparnis / h.speicher, ersparnis: r.ersparnis };
+});
+for (const h of haushalte) {
+  // Die 12-kWp-Anlage hat einen niedrigeren Mischsatz; deshalb nur „fast gleich".
+  if (Math.abs(h.jeKwh - grenzertrag) / grenzertrag > 0.03) {
+    throw new Error('Speicher-Artikel: Ungesaettigte Speicher verdienen je kWh nicht mehr annaehernd gleich viel.');
+  }
+}
+
+// --- 2. Wo die Vollzyklen enden: die Saettigungsgroesse --------------------
+const saettigung = (verbrauch: number) => (verbrauch * (1 - DIREKTVERBRAUCH_ANTEIL)) / 365 / SPEICHER_WIRKUNGSGRAD;
+const kStern = saettigung(VERBRAUCH);
+const verbrauchsreihe = [2500, 3500, 5000, 7000, 9000].map((v) => ({
+  verbrauch: v,
+  groesse: saettigung(v),
+  maxVerschoben: berechneStromspeicher({ speicher: 100, pvLeistung: 20, stromverbrauch: v, speicherkosten: 0 }).speicherKwh,
+}));
+// Pruefen, dass die Formel die Knickstelle des Moduls trifft.
+const knapp = berechneStromspeicher({ ...BASIS, speicher: kStern * 0.99, speicherkosten: 0 });
+const drueber = berechneStromspeicher({ ...BASIS, speicher: kStern * 1.2, speicherkosten: 0 });
+const genau = berechneStromspeicher({ ...BASIS, speicher: kStern, speicherkosten: 0 });
+if (!(knapp.speicherKwh < genau.speicherKwh) || drueber.speicherKwh !== genau.speicherKwh) {
+  throw new Error('Speicher-Artikel: Saettigungsgroesse stimmt nicht mit dem Modul ueberein.');
+}
+
+// Ab welcher Anlagengroesse bremst der Ueberschuss nicht mehr? Fein in 0,1-kWp-Schritten.
+let pvSchwelle = 0;
+for (let z = 1; z <= 200; z++) {
+  const r = berechneStromspeicher({ ...BASIS, pvLeistung: z / 10, speicher: kStern, speicherkosten: 0 });
+  if (r.speicherKwh >= genau.speicherKwh) { pvSchwelle = z / 10; break; }
+}
+if (!(pvSchwelle > 0 && pvSchwelle < PV_KWP)) throw new Error('Speicher-Artikel: PV-Schwelle nicht gefunden.');
+
+// --- 3. Vollzyklen und Hoechstpreis je Groesse -----------------------------
+const GROESSEN = [4, 8, 10, 12, 15, 20];
+const groessen = GROESSEN.map((k, i) => {
+  const r = berechneStromspeicher({ ...BASIS, speicher: k, speicherkosten: VOREINSTELLUNG_PREIS });
+  const vorher = i === 0 ? null : berechneStromspeicher({ ...BASIS, speicher: GROESSEN[i - 1], speicherkosten: 0 });
+  return {
+    k,
+    verschoben: r.speicherKwh,
+    zyklen: r.speicherKwh / (k * SPEICHER_WIRKUNGSGRAD),
+    ersparnis: r.ersparnis,
+    durchschnittHoechstpreis: (r.ersparnis * NUTZUNGSDAUER) / k,
+    grenze: vorher === null ? r.ersparnis / k : (r.ersparnis - vorher.ersparnis) / (k - GROESSEN[i - 1]),
+    amortisation: r.amortisation,
+    investition: r.investition,
+    autarkie: r.autarkiegrad,
+  };
+});
+const g10 = groessen.find((g) => g.k === 10)!;
+const g15 = groessen.find((g) => g.k === 15)!;
+const g20 = groessen.find((g) => g.k === 20)!;
+
+// --- 4. Die Amortisation des ganzen Speichers verdeckt tote Kapazitaet -----
+const mehrKosten15 = g15.investition - g10.investition;
+const mehrErsparnis15 = g15.ersparnis - g10.ersparnis;
+const mehrAmort15 = mehrKosten15 / mehrErsparnis15;
+if (!(g15.amortisation !== null && g15.amortisation < NUTZUNGSDAUER)) {
+  throw new Error('Speicher-Artikel: Der 15-kWh-Speicher muesste sich im Ganzen innerhalb der Nutzungsdauer bezahlen.');
+}
+if (!(mehrAmort15 > 5 * NUTZUNGSDAUER)) {
+  throw new Error('Speicher-Artikel: Die Zusatzkapazitaet ueber 10 kWh muesste praktisch nichts verdienen.');
+}
+if (!(g20.amortisation !== null && g20.amortisation > NUTZUNGSDAUER)) {
+  throw new Error('Speicher-Artikel: Der 20-kWh-Speicher muesste sich im Ganzen nicht mehr bezahlen.');
+}
+if (vergleich.empfehlung !== 10) throw new Error('Speicher-Artikel: Rechner empfiehlt im Beispiel nicht mehr 10 kWh.');
+if (!(g15.zyklen < g10.zyklen * 0.75)) throw new Error('Speicher-Artikel: 15 kWh muessten deutlich weniger Vollzyklen haben.');
+
+// --- 5. Was die Grenze drueckt ---------------------------------------------
+// Unterhalb der Saettigung ist das Modul linear in den Ladetagen (Pruefung oben
+// ueber formelWert). Deshalb laesst sich der Grenzertrag je Ladetag skalieren.
+const jeLadetag = grenzertrag / SPEICHER_NUTZTAGE;
+const rbf = (zins: number, jahre: number) => (zins === 0 ? jahre : (1 - Math.pow(1 + zins, -jahre)) / zins);
+const LADETAGE = [SPEICHER_NUTZTAGE, 200, 150];
+const ZINSEN = [0, 0.03, 0.05];
+const matrix = LADETAGE.map((t) => ({ t, werte: ZINSEN.map((z) => jeLadetag * t * rbf(z, NUTZUNGSDAUER)) }));
+const eckwert = matrix[matrix.length - 1].werte[1];
+if (!(eckwert < VOREINSTELLUNG_PREIS)) throw new Error('Speicher-Artikel: Eckwert muesste unter der Voreinstellung liegen.');
+
+// Wie viele Ladetage braucht die Voreinstellung? Auf den Tag genau.
+const ladetageNoetig = (zins: number) => Math.ceil(VOREINSTELLUNG_PREIS / (jeLadetag * rbf(zins, NUTZUNGSDAUER)));
+const noetigOhneZins = ladetageNoetig(0);
+const noetigDreiProzent = ladetageNoetig(0.03);
+if (!(noetigOhneZins < noetigDreiProzent && noetigDreiProzent < SPEICHER_NUTZTAGE)) {
+  throw new Error('Speicher-Artikel: Reihenfolge der noetigen Ladetage stimmt nicht.');
+}
+
+// Strompreis ueber das Modul variiert.
+const STROMPREISE = [30, STROMPREIS_CENT_PRO_KWH, 45];
+const preisreihe = STROMPREISE.map((p) => {
+  const z = vergleicheSpeichergroessen({ ...BASIS, strompreis: p, preisJeKwh: VOREINSTELLUNG_PREIS, nutzungsdauer: NUTZUNGSDAUER }).zeilen[0];
+  return { p, grenzertrag: z.grenzertragJeKwh, hoechst: z.grenzertragJeKwh * NUTZUNGSDAUER };
+});
+if (!(preisreihe[0].hoechst < hoechstpreis && hoechstpreis < preisreihe[2].hoechst)) {
+  throw new Error('Speicher-Artikel: Hoechstpreis muesste mit dem Strompreis steigen.');
+}
+
+const quellen = [
+  { titel: 'Bundesnetzagentur – Fördersätze für Solaranlagen (Inbetriebnahme 1. August bis 31. Dezember 2026), abgerufen am 17.09.2026', url: 'https://www.bundesnetzagentur.de/DE/Fachthemen/ElektrizitaetundGas/ErneuerbareEnergien/EEG_Foerderung/start.html' },
+  { titel: '§ 48 EEG 2023 – Solaranlagen (anzulegende Werte)', url: 'https://www.gesetze-im-internet.de/eeg_2014/__48.html' },
+  { titel: '§ 49 EEG 2023 – Absenkung der anzulegenden Werte für Solaranlagen', url: 'https://www.gesetze-im-internet.de/eeg_2014/__49.html' },
+  { titel: '§ 53 EEG 2023 – Verringerung der Einspeisevergütung', url: 'https://www.gesetze-im-internet.de/eeg_2014/__53.html' },
+  { titel: STROMPREIS_QUELLE, url: STROMPREIS_QUELLE_URL },
+];
+---
+<RechnerArtikel
+  titel="Ein Speicher verdient an Zyklen, nicht an Kapazität"
+  datum="2026-09-17"
+  lead={`Eine Kilowattstunde Speicherkapazität, die jeden Ladetag voll durchläuft, bringt in dieser Rechnung ${eur(grenzertrag, 2)} im Jahr – in jedem Haushalt gleich viel. Der Haushalt entscheidet nur, wie viele Kilowattstunden so arbeiten. Im Beispiel sind es rund ${zahl(kStern, 1)}. Ein ${g15.k}-kWh-Speicher ist bei ${eur(VOREINSTELLUNG_PREIS)} je kWh trotzdem nach ${zahl(g15.amortisation ?? 0, 1)} Jahren bezahlt – obwohl die Kapazität über ${g10.k} kWh ${eur(mehrKosten15)} kostet und im Jahr ${eur(mehrErsparnis15, 2)} einbringt.`}
+  quellen={quellen}
+>
+  <h3>Der Ertrag einer Kilowattstunde Kapazität</h3>
+  <p>
+    Ein Batteriespeicher erzeugt keinen Strom. Er nimmt mittags Überschuss auf, der
+    sonst für die Einspeisevergütung ins Netz ginge, und gibt ihn abends ab, wenn
+    der Haushalt sonst Netzstrom kaufen würde. Jede abgegebene Kilowattstunde
+    spart {ct(STROMPREIS_CENT_PRO_KWH)} Netzstrom. Dafür musste der Speicher aber
+    {' '}{zahl(ladungJeEntladung, 3)} kWh aufnehmen, weil beim Laden und Entladen
+    Energie verloren geht – und für jede davon entgeht die Vergütung von
+    {' '}{ct(verguetungCent)}, zusammen {ct(verguetungJeEntladungCent)}. Übrig bleibt je
+    abgegebener Kilowattstunde eine Spanne von {ct(spanneCent)}.
+  </p>
+  <p>
+    Wie viele Kilowattstunden eine Kilowattstunde Kapazität im Jahr verschiebt,
+    hängt an zwei Planungsgrößen des Rechners. Er unterstellt, dass die Anlage den
+    Speicher an {SPEICHER_NUTZTAGE} Tagen im Jahr füllt, und dass davon
+    {' '}{prozent(SPEICHER_WIRKUNGSGRAD)} wieder herauskommen. Solange der Haushalt
+    abends alles abnimmt, was im Speicher steckt, ergibt sich daraus eine einfache
+    Rechnung:
+  </p>
+  <p class="formel">
+    {prozent(SPEICHER_WIRKUNGSGRAD)} × {SPEICHER_NUTZTAGE} Ladetage × {ct(spanneCent)}
+    {' '}= {eur(grenzertrag, 2)} je kWh Kapazität im Jahr
+  </p>
+  <p>
+    In dieser Formel kommen weder der Jahresverbrauch noch die Anlagengröße vor.
+    Ein Haushalt mit {kwh(haushalte[0].verbrauch)} und einem kleinen Speicher verdient an jeder
+    Kilowattstunde Kapazität dasselbe wie einer mit {kwh(haushalte[2].verbrauch)} und großem Speicher –
+    vorausgesetzt, beide Speicher werden an jedem Ladetag geleert. Über
+    {' '}{NUTZUNGSDAUER} Jahre darf eine solche Kilowattstunde deshalb höchstens
+    {' '}{eur(hoechstpreis)} kosten, ohne Zinsen gerechnet. Wer mit dem vollen
+    Strompreis statt mit der Spanne rechnet, kommt auf {eur(hoechstpreisNaiv)} und
+    hält Angebote für tragfähig, die es nicht sind. Wer die Vergütung abzieht,
+    aber den Ladeverlust vergisst, setzt die Kilowattstunde Kapazität immer noch
+    um {eur(verlustKostet, 2)} im Jahr zu hoch an.
+  </p>
+
+  <table>
+    <caption class="visually-hidden">Jahresersparnis je kWh Kapazität in drei Haushalten mit nicht gesättigtem Speicher</caption>
+    <thead>
+      <tr>
+        <th scope="col">Haushalt</th>
+        <th scope="col" class="num">Speicher</th>
+        <th scope="col" class="num">Ersparnis/Jahr</th>
+        <th scope="col" class="num">je kWh Kapazität</th>
+      </tr>
+    </thead>
+    <tbody>
+      {haushalte.map((h) => (
+        <tr>
+          <th scope="row">{kwh(h.verbrauch)}, {h.pv} kWp</th>
+          <td class="num">{h.speicher} kWh</td>
+          <td class="num">{eur(h.ersparnis, 2)}</td>
+          <td class="num">{eur(h.jeKwh, 2)}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+  <p class="ra-hinweis">
+    Die Anlage mit {haushalte[2].pv} kWp liegt knapp darüber: Oberhalb von 10 kWp
+    sinkt die Vergütung für den Leistungsanteil darüber, die Spanne wird etwas
+    größer.
+  </p>
+
+  <h3>Wo die Vollzyklen enden</h3>
+  <p>
+    Die Formel gilt nur, solange der Speicher täglich leer wird. Leeren kann ihn nur
+    der Verbrauch, der nicht schon zeitgleich aus der Anlage gedeckt wird – der
+    Rechner setzt dafür {prozent(1 - DIREKTVERBRAUCH_ANTEIL)} des Jahresverbrauchs an,
+    gleichmäßig auf 365 Tage verteilt. Daraus folgt eine Größe, oberhalb derer
+    zusätzliche Kapazität an keinem Tag mehr gebraucht wird:
+  </p>
+  <p class="formel">
+    Jahresverbrauch × {prozent(1 - DIREKTVERBRAUCH_ANTEIL)} ÷ 365 ÷ {prozent(SPEICHER_WIRKUNGSGRAD)}
+  </p>
+  <table>
+    <caption class="visually-hidden">Sättigungsgröße des Speichers nach Jahresverbrauch</caption>
+    <thead>
+      <tr>
+        <th scope="col">Jahresverbrauch</th>
+        <th scope="col" class="num">Speicher voll genutzt bis</th>
+        <th scope="col" class="num">höchstens verschoben/Jahr</th>
+      </tr>
+    </thead>
+    <tbody>
+      {verbrauchsreihe.map((v) => (
+        <tr>
+          <th scope="row">{kwh(v.verbrauch)}</th>
+          <td class="num">{kwh(v.groesse, 1)}</td>
+          <td class="num">{kwh(v.maxVerschoben)}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+  <p>
+    Im Beispielhaushalt mit {kwh(VERBRAUCH)} liegt die Grenze bei
+    {' '}{kwh(kStern, 1)}. Die Anlagengröße spielt dafür im Rechner keine Rolle, sobald
+    sie genug Überschuss liefert – für diesen Haushalt ab {zahl(pvSchwelle, 1)} kWp.
+    Das ist eine Eigenschaft des Modells, keine Beobachtung: Es rechnet mit
+    {' '}{SPEICHER_NUTZTAGE} Ladetagen unabhängig davon, ob {zahl(pvSchwelle, 1)} oder
+    {' '}{PV_KWP} kWp auf dem Dach liegen. In Wirklichkeit füllt eine kleine Anlage
+    einen großen Speicher im Winterhalbjahr seltener. Für kleine Anlagen ist die
+    Rechnung deshalb zu optimistisch.
+  </p>
+
+  <h3>Was jede Größe tatsächlich leistet</h3>
+  <p>
+    Oberhalb der Grenze verschiebt der Speicher nicht mehr, er wird nur seltener
+    leer. Die Zahl der Vollzyklen – verschobene Energie geteilt durch die Kapazität,
+    zurückgerechnet auf die geladene Menge – zeigt das am deutlichsten:
+  </p>
+  <table>
+    <caption class="visually-hidden">Vollzyklen, Ersparnis und Höchstpreis nach Speichergröße</caption>
+    <thead>
+      <tr>
+        <th scope="col">Kapazität</th>
+        <th scope="col" class="num">verschoben/Jahr</th>
+        <th scope="col" class="num">Vollzyklen</th>
+        <th scope="col" class="num">Ersparnis/Jahr</th>
+        <th scope="col" class="num">Höchstpreis Ø</th>
+        <th scope="col" class="num">Grenzertrag/Jahr</th>
+      </tr>
+    </thead>
+    <tbody>
+      {groessen.map((g) => (
+        <tr>
+          <th scope="row">{g.k} kWh</th>
+          <td class="num">{kwh(g.verschoben)}</td>
+          <td class="num">{zahl(g.zyklen)}</td>
+          <td class="num">{eur(g.ersparnis, 2)}</td>
+          <td class="num">{eur(g.durchschnittHoechstpreis)}</td>
+          <td class="num">{eur(g.grenze, 2)}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+  <p class="ra-hinweis">
+    {kwh(VERBRAUCH)} Verbrauch, {PV_KWP} kWp, {kwh(PV_KWP * SPEZIFISCHER_ERTRAG)}
+    {' '}Ertrag. „Höchstpreis Ø" ist die Ersparnis über {NUTZUNGSDAUER} Jahre geteilt
+    durch die gesamte Kapazität. „Grenzertrag" ist die zusätzliche Ersparnis gegenüber
+    der Zeile darüber je zusätzlicher kWh; in der ersten Zeile gegenüber keinem
+    Speicher. Die Stufen weichen von denen des Rechners ab, die Werte stammen aus
+    derselben Funktion.
+  </p>
+  <p>
+    Der {g10.k}-kWh-Speicher kommt auf {zahl(g10.zyklen)} Vollzyklen, der
+    {' '}{g15.k}-kWh-Speicher auf {zahl(g15.zyklen)}, der {g20.k}-kWh-Speicher auf
+    {' '}{zahl(g20.zyklen)}. Die Ersparnis bleibt ab {kwh(kStern, 1)} gleich – zwischen
+    {' '}{g10.k} und {g15.k} kWh wächst sie nur noch um {eur(mehrErsparnis15, 2)}, weil
+    der Speicher erst bei {zahl(kStern, 1)} kWh die Grenze erreicht. Der
+    durchschnittliche Höchstpreis sinkt dagegen nur allmählich. Genau darin liegt
+    die Falle.
+  </p>
+
+  <h3>Die Amortisation verdeckt tote Kapazität</h3>
+  <p>
+    Die naheliegende Kennzahl ist die Amortisationszeit: Gesamtpreis geteilt
+    durch Jahresersparnis. Mit der Voreinstellung des Rechners oben – angenommenen
+    {' '}{eur(VOREINSTELLUNG_PREIS)} je kWh, keinem Marktpreis – ergibt das:
+  </p>
+  <ul>
+    <li>{g10.k} kWh für {eur(g10.investition)}: bezahlt nach {zahl(g10.amortisation ?? 0, 1)} Jahren</li>
+    <li>{g15.k} kWh für {eur(g15.investition)}: bezahlt nach {zahl(g15.amortisation ?? 0, 1)} Jahren</li>
+    <li>{g20.k} kWh für {eur(g20.investition)}: bezahlt nach {zahl(g20.amortisation ?? 0, 1)} Jahren</li>
+  </ul>
+  <p>
+    Der {g15.k}-kWh-Speicher sieht danach vernünftig aus: bezahlt nach weniger als
+    {' '}{NUTZUNGSDAUER} Jahren. Tatsächlich kosten die {g15.k - g10.k} kWh über
+    {' '}{g10.k} kWh hinaus {eur(mehrKosten15)} und bringen {eur(mehrErsparnis15, 2)}
+    {' '}im Jahr. Für sich gerechnet wären sie nach {zahl(mehrAmort15)} Jahren bezahlt.
+    Die Amortisationszeit des ganzen Geräts mischt diese Kapazität unter die
+    {' '}{g10.k} kWh, die voll arbeiten, und macht sie unsichtbar. Erst beim
+    {' '}{g20.k}-kWh-Speicher reicht die Mischung nicht mehr, um unter
+    {' '}{NUTZUNGSDAUER} Jahren zu bleiben.
+  </p>
+  <p>
+    Der Rechner oben vergleicht deshalb Stufen, nicht Geräte: Er fragt für jede
+    zusätzliche Kilowattstunde, ob sie ihren Preis hereinholt. Im Beispiel empfiehlt
+    er {vergleich.empfehlung} kWh. Wer ein Angebot mit größerem Speicher vorliegen
+    hat, sollte den Aufpreis gegenüber der kleineren Variante durch den
+    Grenzertrag teilen, nicht den Gesamtpreis durch die Gesamtersparnis.
+  </p>
+
+  <h3>Was die Grenze nach unten drückt</h3>
+  <p>
+    Die {eur(hoechstpreis)} je kWh sind eine Obergrenze. Der Rechner lässt drei Dinge
+    weg, die sie senken: Zinsen auf das eingesetzte Geld, die Alterung der Zellen
+    und Tage, an denen der Speicher nicht voll wird, obwohl die Planungsgröße es
+    unterstellt. Zinsen und fehlende Ladetage lassen sich beziffern. Unterhalb der
+    Sättigung wächst der Ertrag im Modell genau proportional mit den Ladetagen – jeder
+    Ladetag ist {eur(jeLadetag, 3)} je kWh Kapazität wert.
+  </p>
+  <table>
+    <caption class="visually-hidden">Höchstpreis je kWh nach Ladetagen und Kalkulationszins</caption>
+    <thead>
+      <tr>
+        <th scope="col">Ladetage/Jahr</th>
+        {ZINSEN.map((z) => <th scope="col" class="num">{z === 0 ? 'ohne Zins' : `${zahl(z * 100)} % Zins`}</th>)}
+      </tr>
+    </thead>
+    <tbody>
+      {matrix.map((m) => (
+        <tr>
+          <th scope="row">{m.t}</th>
+          {m.werte.map((w) => <td class="num">{eur(w)}</td>)}
+        </tr>
+      ))}
+    </tbody>
+  </table>
+  <p class="ra-hinweis">
+    Höchstpreis je kWh Kapazität über {NUTZUNGSDAUER} Jahre, bei
+    {' '}{ct(STROMPREIS_CENT_PRO_KWH)} Strompreis und {ct(verguetungCent)} Vergütung.
+    Der Zins ist ein Kalkulationszins für das eingesetzte Geld, etwa entgangene
+    Sparzinsen oder Kreditkosten, keine Marktangabe. Die Alterung der Zellen ist
+    auch hier nicht enthalten.
+  </p>
+  <p>
+    Mit {matrix[matrix.length - 1].t} Ladetagen und {zahl(ZINSEN[1] * 100)} % Zins
+    liegt die Grenze bei {eur(eckwert)} – unter der Voreinstellung von
+    {' '}{eur(VOREINSTELLUNG_PREIS)}. Anders herum: Ohne Zins trägt sich ein Speicher
+    zu diesem Preis, solange er an mindestens {noetigOhneZins} Tagen im Jahr voll
+    wird. Mit {zahl(ZINSEN[1] * 100)} % Zins braucht er {noetigDreiProzent} Tage. Wie
+    viele es im eigenen Haus sind, lässt sich nach dem ersten Jahr abschätzen, wenn
+    das Speichersystem den Energiedurchsatz ausweist: Geteilt durch die nutzbare
+    Kapazität ergibt er ungefähr die Zahl der Vollzyklen.
+  </p>
+  <p>
+    Der dritte Hebel ist der Strompreis selbst. Weil der Speicher an der Spanne
+    verdient, schlägt jede Änderung des Bezugspreises voll auf den Grenzertrag durch:
+  </p>
+  <table>
+    <caption class="visually-hidden">Grenzertrag und Höchstpreis nach Strompreis</caption>
+    <thead>
+      <tr>
+        <th scope="col">Strompreis</th>
+        <th scope="col" class="num">Grenzertrag/Jahr</th>
+        <th scope="col" class="num">Höchstpreis {NUTZUNGSDAUER} Jahre</th>
+      </tr>
+    </thead>
+    <tbody>
+      {preisreihe.map((p) => (
+        <tr>
+          <th scope="row">{ct(p.p)}</th>
+          <td class="num">{eur(p.grenzertrag, 2)}</td>
+          <td class="num">{eur(p.hoechst)}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+  <p>
+    Wer einen günstigen Stromtarif hat, braucht einen entsprechend günstigeren
+    Speicher. Der Durchschnittswert von {ct(STROMPREIS_CENT_PRO_KWH)} stammt aus der
+    {' '}{STROMPREIS_QUELLE} und ist ein Neukundenpreis; den eigenen Arbeitspreis
+    zeigt die Stromrechnung.
+  </p>
+
+  <h3>Die Vergütung ist die zweite Hälfte der Spanne</h3>
+  <p>
+    Die {ct(verguetungCent)} sind der Satz, den die Bundesnetzagentur für
+    Anlagen bis 10 kWp mit Teileinspeisung und Inbetriebnahme vom 1. August bis
+    31. Dezember 2026 veröffentlicht. Er steht so nicht im Gesetz: § 48 Abs. 2 EEG
+    nennt einen höheren anzulegenden Wert, § 49 Abs. 1 senkt die Werte alle sechs
+    Monate um 1 Prozent, und § 53 Abs. 1 Nr. 2 zieht für die Einspeisevergütung
+    0,4 Cent ab. Das Ergebnis rechnet die Bundesnetzagentur aus und veröffentlicht
+    es je Zeitraum der Inbetriebnahme.
+  </p>
+  <p>
+    Für die Speicherrechnung heißt das: Wer einen Speicher an einer älteren Anlage
+    nachrüstet, muss mit deren Vergütungssatz rechnen, nicht mit dem aktuellen. Je
+    höher der alte Satz, desto kleiner die Spanne und desto weniger darf der
+    Speicher kosten. Für spätere Inbetriebnahmen weist die Bundesnetzagentur
+    darauf hin, dass ihre Fördersätze auf dem EEG 2023 beruhen, das bis zum
+    31. Dezember 2026 anwendbar ist, und dass eine Nachfolgeregelung im Parlament
+    beraten wird. Der
+    Satz von {ct(verguetungCent)} ist deshalb für spätere Inbetriebnahmen nicht
+    gesichert.
+  </p>
+
+  <h3>Was daraus für die Größe folgt</h3>
+  <p>
+    Die wirtschaftliche Größe eines Speichers ergibt sich aus dem Abendverbrauch,
+    nicht aus der Anlagenleistung: im Rechner der Jahresverbrauch abzüglich des
+    direkt gedeckten Teils, geteilt durch 365 und durch den Wirkungsgrad. Ob sich
+    ein Speicher dieser Größe überhaupt lohnt, entscheidet dagegen allein das
+    Verhältnis von Preis je kWh zu dem, was eine voll genutzte kWh verdient.
+    Beide Fragen sind getrennt zu beantworten, und keine davon beantwortet die
+    Amortisationszeit des ganzen Geräts.
+  </p>
+  <p>
+    Wer Waschmaschine, Spülmaschine oder das Laden des Autos in die Mittagsstunden
+    legt, senkt den Abendverbrauch und damit die sinnvolle Größe. Wie stark der
+    Eigenverbrauch die Anlage selbst trägt, rechnet der Artikel
+    {' '}<a href={`${base}${artikelPfadVonSlug('photovoltaik-eigenverbrauch')}`}>Der Eigenverbrauch entscheidet, nicht die Anlagengröße</a>
+    {' '}durch. Ersparnis und Amortisation für eine einzelne Größe zeigt der
+    {' '}<a href={`${base}energie/stromspeicher-rechner/`}>Stromspeicher-Rechner</a>,
+    die Anlage selbst der
+    {' '}<a href={`${base}energie/photovoltaik-rechner/`}>Photovoltaik-Rechner</a>.
+  </p>
+  <p class="ra-hinweis">
+    Alle Beträge nominal und in heutigen Preisen, ohne Strompreisänderung,
+    Alterung und Installationskosten neben dem Speicherpreis. Direktverbrauch
+    ({prozent(DIREKTVERBRAUCH_ANTEIL)}), Ladetage ({SPEICHER_NUTZTAGE}) und
+    Wirkungsgrad ({prozent(SPEICHER_WIRKUNGSGRAD)}) sind Planungsgrößen des
+    Rechners, keine Messwerte. Der Preis von {eur(VOREINSTELLUNG_PREIS)} je kWh ist
+    eine Annahme zur Veranschaulichung; Marktpreise nennt dieser Artikel mangels
+    belastbarer, datierter Erhebung nicht.
+  </p>
+</RechnerArtikel>
+
+<style>
+.formel {
+  font-variant-numeric: tabular-nums;
+  background: var(--bg);
+  border-left: 3px solid var(--dark);
+  padding: 0.7rem 1rem;
+  margin: 1.25rem 0;
+  font-weight: 600;
+}
+</style>

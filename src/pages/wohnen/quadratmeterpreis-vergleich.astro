@@ -3,6 +3,7 @@ import Layout from '../../layouts/Layout.astro';
 import CalculatorShell from '../../components/CalculatorShell.astro';
 import CalculatorGuide from '../../components/CalculatorGuide.astro';
 import { CALCULATORS, CATEGORIES } from '../../data/calculators';
+import ArtikelQmPreis from '../../components/artikel/quadratmeterpreis-flaeche-im-nenner.astro';
 import { berechneQmPreis, ANRECHNUNG } from '../../../public/scripts/qm-preis.js';
 const calc = CALCULATORS.find(c => c.slug === 'quadratmeterpreis-vergleich')!;
 const cat = CATEGORIES[calc.category];
@@ -106,6 +107,7 @@ const faqs = [
       </div>
       <div id="details" style="margin-top:0.75rem;font-size:0.88rem;color:#666;display:flex;gap:1.5rem;flex-wrap:wrap;"></div>
     </div>
+    <ArtikelQmPreis slot="artikel" />
   </CalculatorShell>
 
   <CalculatorGuide title="Wohnfläche und Quadratmeterpreis" content={guideHtml} relatedSlugs={['hauskauf-rechner', 'immobilienkauf-nebenkosten', 'mietrendite-rechner']} />

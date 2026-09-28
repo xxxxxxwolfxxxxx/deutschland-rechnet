@@ -1,7 +1,7 @@
 ---
 import Layout from '../../layouts/Layout.astro';
 import CalculatorShell from '../../components/CalculatorShell.astro';
-import CalculatorGuide from '../../components/CalculatorGuide.astro';
+import ArtikelFire from '../../components/artikel/sparquote-schlaegt-rendite.astro';
 import { CALCULATORS, CATEGORIES } from '../../data/calculators';
 const calc = CALCULATORS.find(c => c.slug === 'fire-rechner')!;
 const cat = CATEGORIES[calc.category];
@@ -22,15 +22,15 @@ const year = new Date().getFullYear();
   <CalculatorShell
     calculator={calc}
     intro="Mit dem FIRE-Rechner berechnen Sie, wann Sie durch Ihre Sparquote finanziell unabhängig werden. Finden Sie heraus, wie viel Vermögen Sie benötigen und wie lange es dauert, bis Ihre Kapitalerträge die Lebenshaltungskosten decken."
-    sourceNote="Financial Independence, Retire Early."
-    explanation="Grundlage ist die 4%-Regel (Trinity Study): Sie benötigen das 25-fache Ihrer jährlichen Ausgaben als Vermögen, um davon leben zu können. Bei 30.000 Euro Jahresausgaben ergibt das ein Zielkapital von 750.000 Euro."
+    sourceNote="Zielkapital nach der 4-%-Regel, also das 25-Fache der Jahresausgaben (Bengen 1994; Trinity-Studie 1998, beide auf 30 Jahre und US-Daten gerechnet). Angespart wird mit der realen Rendite, also Rendite abzüglich Inflation. Steuern auf die Entnahme sind nicht enthalten."
+    explanation="Grundlage ist die 4-%-Regel: Das Zielkapital ist das 25-Fache der Jahresausgaben, bei 30.000 € also 750.000 €. Die Sparquote ergibt sich aus Einkommen und Ausgaben und ist die entscheidende Größe – sie erhöht die Sparrate und senkt zugleich das Ziel. Das Einkommen selbst kürzt sich aus der Rechnung heraus: Bei gleicher Quote dauert es bei 24.000 € genauso lange wie bei 400.000 €."
     faqs={[
-      { q: "Was ist die 4%-Regel?", a: "Die 4%-Regel besagt, dass Sie pro Jahr 4% Ihres Vermögens entnehmen können, ohne es aufzubrauchen. Beispiel: Bei 1 Million€ Vermögen können Sie 40.000€/Jahr ausgeben. Die Regel basiert auf historischen Renditen und Inflationsraten." },
-      { q: "Warum 25x die Ausgaben?", a: "Wenn Sie 4% entnehmen können, bedeutet das: Sie brauchen das 25-fache Ihrer jährlichen Ausgaben (1 ÷ 0,04 = 25). Beispiel: 30.000€ Ausgaben × 25 = 750.000€ nötiges Vermögen." },
-      { q: "Ist FIRE realistisch in Deutschland?", a: "Ja, aber schwieriger als in den USA. Deutschland hat höhere Steuern, aber auch Rente als Sicherheitsnetz. FIRE funktioniert besser mit hoher Sparquote (40%+) und langfristigem Anlagehorizont (20-30+ Jahre). Starten Sie früh!" },
-      { q: "Was unterscheidet FIRE von normaler Altersvorsorge?", a: "FIRE zielt auf frühzeitige finanzielle Unabhängigkeit ab (statt 67 Jahren vielleicht mit 40-50 Jahren). Sie verlassen sich auf Vermögensrendite statt Rente. Allerdings: In Deutschland beginnt die früheste Altersrente nach § 36 SGB VI erst mit 63 – und dann mit einem dauerhaften Abschlag von 0,3 Prozent je Monat, den Sie bis zur Regelaltersgrenze vorziehen. Bis dahin muss das Vermögen allein tragen." },
-      { q: "Sollte ich Immobilien in FIRE einrechnen?", a: "Bedingt. Eine bezahlte Immobilie reduziert Ihre Ausgaben (kein Mietzins). Aber sie ist illiquide. FIRE-Rechner basieren meist auf liquide Vermögen (Aktien, ETFs). Eine mietfreie Immobilie + 25x restliche Ausgaben ist realistischer." },
-      { q: "Wie wichtig ist Risikominderung (Diversifikation)?", a: "Sehr wichtig. FIRE-Portfolios sollten breit diversifiziert sein (ETFs, Anleihen, Immobilien). Ein volatiles Portfolio kann scheitern, wenn ein Crash kurz nach dem Ruhestand kommt. Ziel: 60-70% Aktien, 30-40% Anleihen ab Alter 50+." }
+      { q: "Was besagt die 4-%-Regel?", a: "Sie geht auf William Bengen (1994) und die Trinity-Studie (1998) zurück: Wer im ersten Jahr 4 % seines Depots entnimmt und den Betrag danach jährlich an die Inflation anpasst, hätte es in den untersuchten historischen 30-Jahres-Zeiträumen nicht aufgebraucht. Daraus folgt das Zielkapital vom 25-Fachen der Jahresausgaben." },
+      { q: "Gilt die Regel auch für einen sehr frühen Ausstieg?", a: "Sie ist auf 30 Jahre gerechnet. Wer mit 45 aufhört, plant für 40 bis 50 Jahre – dafür sagt die Studie nichts aus. Entscheidend ist, ob die reale Rendite dauerhaft über der Entnahmerate liegt; der Artikel auf dieser Seite rechnet vor, wie lange das Kapital bei verschiedenen realen Renditen reicht." },
+      { q: "Sind Steuern eingerechnet?", a: "Nein. Die Regel stammt aus den USA und nennt eine Entnahme vor Steuern. In Deutschland fällt auf den Gewinnanteil einer Entnahme Abgeltungsteuer an, bei Aktienfonds nach der Teilfreistellung von 30 % (§ 20 Abs. 1 InvStG). Je nach Gewinnanteil im Depot steigt das nötige Kapital dadurch vom 25-Fachen auf das 26- bis 30-Fache der Ausgaben." },
+      { q: "Warum wird die Sparquote nicht eingegeben?", a: "Weil sie aus Einkommen und Ausgaben folgt: Was nicht ausgegeben wird, wird gespart. Drei frei wählbare Felder könnten sich widersprechen. Der Rechner zeigt die Quote deshalb als Ergebnis an." },
+      { q: "Zählt eine eigene Immobilie mit?", a: "Nur indirekt. Eine abbezahlte Wohnung senkt die Ausgaben und damit das Zielkapital – als entnehmbares Vermögen taugt sie dagegen nicht, solange man darin wohnt. Tragen Sie in diesem Fall die Ausgaben ohne Miete ein." },
+      { q: "Was ist mit der gesetzlichen Rente?", a: "Der Rechner lässt sie weg und rechnet so, als müsste das Depot die Ausgaben dauerhaft allein tragen. Das ist die vorsichtigere Annahme: Eine spätere Rente senkt den Kapitalbedarf für die Zeit ab Rentenbeginn. Die früheste Altersrente für langjährig Versicherte ist nach § 36 SGB VI mit 63 möglich, dann mit Abschlägen." }
     ]}
   >
     <div class="calc-form">
@@ -55,10 +55,6 @@ const year = new Date().getFullYear();
           <label for="inflation">Inflation (% p.a.)</label>
           <input type="number" id="inflation" min="0" max="10" value="2" step="0.5" />
         </div>
-        <div class="calc-group">
-          <label for="sparquote">Sparquote (%)</label>
-          <input type="number" id="sparquote" min="0" max="90" value="40" step="5" />
-        </div>
       </div>
 
       <div class="calc-result">
@@ -67,53 +63,57 @@ const year = new Date().getFullYear();
       </div>
       <div id="details" style="margin-top:0.75rem;font-size:0.88rem;color:#666;display:flex;gap:1.5rem;flex-wrap:wrap;"></div>
     </div>
+    <ArtikelFire slot="artikel" />
   </CalculatorShell>
 
-  <CalculatorGuide
-    title="So funktioniert FIRE (Financial Independence, Retire Early)"
-    content={`<p><strong>FIRE bedeutet</strong>, dass Sie durch Sparen und Vermögensaufbau finanziell so unabhängig sind, dass Sie nicht mehr arbeiten müssen. Statt mit 67 in Rente gehen Sie mit 40 oder 50 – wenn Ihr Vermögen Ihre Lebenshaltungskosten deckt.</p>
-
-<p><strong>Die 4%-Regel (Kern von FIRE):</strong> Wenn Sie 4% Ihres Vermögens pro Jahr entnehmen können, ohne es aufzubrauchen (basierend auf historischen Renditen), benötigen Sie das <strong>25-fache Ihrer jährlichen Ausgaben</strong> als Vermögen. Beispiel: Bei 30.000€ Jahresausgaben brauchen Sie 750.000€ Vermögen, um 4% = 30.000€/Jahr zu entnehmen.</p>
-
-<p><strong>Die Formel zum Erreichen:</strong> Je höher Ihre <strong>Sparquote</strong>, desto schneller erreichen Sie FIRE. Ein Arbeitnehmer mit 50% Sparquote kann FIRE in 15-20 Jahren erreichen. Einer mit 30% Sparquote braucht 25-30 Jahre. Die reale Rendite (Rendite minus Inflation) ist entscheidend – mit 5% realer Rendite schaffen Sie FIRE schneller.</p>
-
-<p><strong>Wichtig für Deutschland:</strong> FIRE setzt Steuerbewusstsein voraus. Nutzen Sie den Sparerpauschbetrag (1.000€ steuerfrei), ETFs statt Einzelaktien (weniger Steuern bei Thesaurierung), und evtl. Rürup/Riester-Verträge für Steuervorteil. Auch: Sie können vor 62-63 Jahren keine gesetzliche Rente ohne Abschläge abrufen – kalkulieren Sie das ein.</p>
-
-<p><strong>Risiken von FIRE:</strong> Ein Marktcrash kurz nach Ihrem Renteneintritt kann problematisch sein (Sequence-of-Returns Risk). Lösungen: Flexibile Sparquote, Diversifikation (Immobilien, Anleihen, internationale ETFs), und ein Puffer von 2-3 Jahren Ausgaben in Cash.</p>`}
-    relatedSlugs={['etf-sparplan-rechner', 'sparen-rechner', 'gehaltserhoehung-rechner']}
-  />
 </Layout>
 
 <script type="module">
-function berechne() {
-  const einkommen = parseFloat(document.getElementById('einkommen').value)||50000;
-  const ausgaben = parseFloat(document.getElementById('ausgaben').value)||30000;
-  const vermoegen = parseFloat(document.getElementById('vermoegen').value)||20000;
-  const rendite = parseFloat(document.getElementById('rendite').value)||7;
-  const inflation = parseFloat(document.getElementById('inflation').value)||2;
-  const sparquote = parseFloat(document.getElementById('sparquote').value)||40;
+// Die Sparquote stand hier bis September 2026 als eigenes Eingabefeld neben
+// Einkommen und Ausgaben – drei Zahlen, von denen nur zwei frei sind. Wer
+// 30.000 € Ausgaben und 90 % Sparquote eintrug, gab damit mehr aus und sparte
+// mehr, als er verdiente. Sie wird jetzt aus den beiden anderen gerechnet.
+const proz = (n) =>
+  n.toLocaleString('de-DE', { minimumFractionDigits: 1, maximumFractionDigits: 1 }).replace(/^-/, '−') + ' %';
+const eur = (n) => n.toLocaleString('de-DE', { maximumFractionDigits: 0 }).replace(/^-/, '−') + ' €';
 
-  const sparen = einkommen * (sparquote / 100);
+function berechne() {
+  const einkommen = parseFloat(document.getElementById('einkommen').value) || 0;
+  const ausgaben = parseFloat(document.getElementById('ausgaben').value) || 0;
+  const vermoegen = parseFloat(document.getElementById('vermoegen').value) || 0;
+  const rendite = parseFloat(document.getElementById('rendite').value) || 0;
+  const inflation = parseFloat(document.getElementById('inflation').value) || 0;
+
+  const sparen = einkommen - ausgaben;
+  const sparquote = einkommen > 0 ? (sparen / einkommen) * 100 : 0;
   const fireZiel = ausgaben / 0.04;
-  const realeRendite = ((1 + rendite/100) / (1 + inflation/100)) - 1;
+  const realeRendite = (1 + rendite / 100) / (1 + inflation / 100) - 1;
 
   let kapital = vermoegen;
   let jahre = 0;
-  while (kapital < fireZiel && jahre < 100) {
+  while (kapital < fireZiel && jahre < 100 && sparen > 0) {
     kapital = (kapital + sparen) * (1 + realeRendite);
-    jahre++;
+    jahre += 1;
   }
+  const erreichbar = sparen > 0 && jahre < 100;
 
-  const fireEinkommen = fireZiel * 0.04;
-  document.getElementById('fire-jahre').textContent = jahre >= 100 ? 'Nicht erreichbar' : jahre + ' Jahre';
-  document.getElementById('fire-jahre').style.color = jahre >= 100 ? '#c8102e' : '#1e7e34';
-  document.getElementById('details').innerHTML =
-    `<span>FIRE-Ziel: <strong>${fireZiel.toLocaleString('de-DE', {maximumFractionDigits:0})} €</strong></span>` +
-    `<span>Jährliches Sparen: <strong>${sparen.toLocaleString('de-DE', {maximumFractionDigits:0})} €</strong></span>` +
-    `<span>Reale Rendite: <strong>${(realeRendite * 100).toFixed(1)}%</strong></span>` +
-    `<span>Passives Einkommen: <strong>${fireEinkommen.toLocaleString('de-DE', {maximumFractionDigits:0})} €/Jahr</strong></span>`;
+  const ziel = document.getElementById('fire-jahre');
+  ziel.textContent = erreichbar ? `${jahre} Jahre` : 'Nicht erreichbar';
+  ziel.style.color = erreichbar ? '#1e7e34' : '#c8102e';
+
+  const teile = [
+    `<span>Sparquote: <strong>${proz(sparquote)}</strong></span>`,
+    `<span>Jährliches Sparen: <strong>${eur(sparen)}</strong></span>`,
+    `<span>Zielkapital: <strong>${eur(fireZiel)}</strong></span>`,
+    `<span>Reale Rendite: <strong>${proz(realeRendite * 100)}</strong></span>`,
+  ];
+  if (sparen <= 0) {
+    teile.push('<span style="flex-basis:100%;">Ohne Überschuss zwischen Einkommen und Ausgaben wächst kein Kapital: Die Ausgaben müssen unter dem Einkommen liegen.</span>');
+  }
+  teile.push('<span style="flex-basis:100%;">Gerechnet ist vor Steuern. Auf die Entnahme aus einem Depot fällt Abgeltungsteuer auf den Gewinnanteil an – das Zielkapital liegt dadurch höher, als die Regel vom 25-Fachen vermuten lässt. Der Artikel unten rechnet beides durch.</span>');
+  document.getElementById('details').innerHTML = teile.join('');
 }
-['einkommen','ausgaben','vermoegen','rendite','inflation','sparquote'].forEach(id =>
+['einkommen', 'ausgaben', 'vermoegen', 'rendite', 'inflation'].forEach((id) =>
   document.getElementById(id).addEventListener('input', berechne));
 berechne();
 </script>

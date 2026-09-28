@@ -1,0 +1,454 @@
+---
+import RechnerArtikel from '../RechnerArtikel.astro';
+import { artikelPfadVonSlug } from '../../data/ratgeber';
+import { sparverlaufMitSteuer } from '../../../public/scripts/sparen.js';
+import {
+  berechneAbgeltungsteuer,
+  belastungssatz,
+  SPARERPAUSCHBETRAG_EINZEL,
+  SPARERPAUSCHBETRAG_ZUSAMMEN,
+} from '../../../public/scripts/abgeltungsteuer.js';
+
+// Alle Zahlen zur Buildzeit. Die Steuer kommt aus abgeltungsteuer.js, der
+// Sparplan aus sparen.js – denselben Modulen, die der Rechner laedt. Die
+// Festgeldvarianten rechnet dieser Artikel selbst mit jaehrlicher Verzinsung,
+// weil das Modul nur den Tagesgeld-Sparplan abbildet.
+const minus = (s: string) => s.replace('-', '−');
+const eur = (n: number, d = 0) =>
+  minus(n.toLocaleString('de-DE', { minimumFractionDigits: d, maximumFractionDigits: d })) + ' €';
+const proz = (n: number, d = 2) =>
+  minus(n.toLocaleString('de-DE', { minimumFractionDigits: d, maximumFractionDigits: d })) + ' %';
+
+const PB = SPARERPAUSCHBETRAG_EINZEL;
+const satz = belastungssatz(); // Prozent, ohne Kirchensteuer
+const steuer = (ertrag: number, pauschbetrag = PB) =>
+  berechneAbgeltungsteuer({ ertrag, pauschbetrag }).gesamt;
+
+// --- 1. Die Schwelle -------------------------------------------------------
+const SCHWELLEN_ZINSEN = [1.5, 2, 2.5, 3, 3.5];
+const schwellen = SCHWELLEN_ZINSEN.map((z) => ({
+  zins: z,
+  einzel: SPARERPAUSCHBETRAG_EINZEL / (z / 100),
+  paar: SPARERPAUSCHBETRAG_ZUSAMMEN / (z / 100),
+}));
+const schwelleDrei = schwellen.find((s) => s.zins === 3)!;
+
+// Sparplan aus dem Modul: ab welchem Jahr faellt erstmals Steuer an?
+const SPAR = { startkapital: 10000, sparrate: 200, zinsProzent: 2.5 };
+let erstesSteuerjahr = 0;
+for (let j = 1; j <= 60; j += 1) {
+  if (sparverlaufMitSteuer({ ...SPAR, jahre: j }).steuern > 0) { erstesSteuerjahr = j; break; }
+}
+if (erstesSteuerjahr <= 10) {
+  throw new Error('Sparen-Artikel: Sparplan zahlt schon in den ersten zehn Jahren Steuer.');
+}
+const LANG = 30;
+const langMit = sparverlaufMitSteuer({ ...SPAR, jahre: LANG });
+const langOhne = sparverlaufMitSteuer({ ...SPAR, jahre: LANG, pauschbetrag: 0 });
+const pbWertLang = Math.round(langMit.endkapital) - Math.round(langOhne.endkapital);
+
+// --- 2. Drei Festgelder mit demselben Zinssatz ------------------------------
+const ZINS = 0.03;
+const LAUFZEIT = 5;
+
+/** Jaehrliche Gutschrift; die Zinsen nach Steuer werden zum selben Satz wieder angelegt. */
+function jaehrlich(k0: number, r = ZINS, n = LAUFZEIT, pb = PB) {
+  let k = k0;
+  let summe = 0;
+  for (let j = 0; j < n; j += 1) {
+    const z = k * r;
+    const s = steuer(z, pb);
+    summe += s;
+    k += z - s;
+  }
+  return { end: k, steuer: summe };
+}
+/** Zinsen mit Zinseszins angesammelt, alles fliesst im letzten Jahr zu. */
+function angesammelt(k0: number, r = ZINS, n = LAUFZEIT, pb = PB) {
+  const z = k0 * (Math.pow(1 + r, n) - 1);
+  const s = steuer(z, pb);
+  return { end: k0 + z - s, steuer: s, zinsen: z };
+}
+/** Zinsen ohne Zinseszins, am Laufzeitende in einer Summe. */
+function amEndeEinfach(k0: number, r = ZINS, n = LAUFZEIT, pb = PB) {
+  const z = k0 * r * n;
+  const s = steuer(z, pb);
+  return { end: k0 + z - s, steuer: s, zinsen: z };
+}
+
+const BETRAEGE = [10000, 20000, 30000, 50000, 100000, 250000];
+const festgeld = BETRAEGE.map((k) => {
+  const a = jaehrlich(k);
+  const b = angesammelt(k);
+  const c = amEndeEinfach(k);
+  // Differenzen aus den gerundeten Anzeigewerten
+  return {
+    k,
+    a: Math.round(a.end),
+    b: Math.round(b.end),
+    c: Math.round(c.end),
+    stA: Math.round(a.steuer),
+    stB: Math.round(b.steuer),
+    diffB: Math.round(b.end) - Math.round(a.end),
+    diffC: Math.round(c.end) - Math.round(a.end),
+  };
+});
+const zeile = (k: number) => festgeld.find((z) => z.k === k)!;
+const z30 = zeile(30000);
+const z10 = zeile(10000);
+const z250 = zeile(250000);
+if (!(z30.diffB < 0 && z30.diffC < z30.diffB)) {
+  throw new Error('Sparen-Artikel: Reihenfolge der Festgeldvarianten stimmt nicht.');
+}
+if (z10.stA !== 0 || z10.stB <= 0) {
+  throw new Error('Sparen-Artikel: 10.000-€-Beispiel passt nicht zum Text.');
+}
+
+// Obergrenze des Verlusts: n−1 verschenkte Pauschbetraege. Tatsaechlicher
+// Hoechstwert fein gesucht.
+const obergrenze = (LAUFZEIT - 1) * PB * satz / 100;
+let maxVerlust = 0;
+let maxBei = 0;
+for (let k = 1000; k <= 250000; k += 100) {
+  const v = jaehrlich(k).end - angesammelt(k).end;
+  if (v > maxVerlust) { maxVerlust = v; maxBei = k; }
+}
+if (!(maxVerlust < obergrenze && maxVerlust > 0.95 * obergrenze)) {
+  throw new Error('Sparen-Artikel: Hoechstverlust liegt nicht knapp unter der Obergrenze.');
+}
+if (!(-z250.diffB < -zeile(50000).diffB)) {
+  throw new Error('Sparen-Artikel: Abstand bei 250.000 € muesste kleiner sein als bei 50.000 €.');
+}
+// Einwand: jaehrliche Zinsen werden nicht wieder angelegt, sondern liegen unverzinst.
+function jaehrlichOhneWiederanlage(k0: number, r = ZINS, n = LAUFZEIT) {
+  let summe = k0;
+  for (let j = 0; j < n; j += 1) summe += k0 * r - steuer(k0 * r);
+  return summe;
+}
+if (!(jaehrlichOhneWiederanlage(schwelleDrei.einzel) > angesammelt(schwelleDrei.einzel).end
+  && jaehrlichOhneWiederanlage(30000) > angesammelt(30000).end)) {
+  throw new Error('Sparen-Artikel: Ohne Wiederanlage laege die jaehrliche Variante nicht mehr vorn.');
+}
+
+// Ab welchem Betrag gewinnt das Ansammeln (Steuerstundung schlaegt Pauschbetrag)?
+let lo = 250000;
+let hi = 100000000;
+if (!(angesammelt(lo).end < jaehrlich(lo).end && angesammelt(hi).end > jaehrlich(hi).end)) {
+  throw new Error('Sparen-Artikel: Suchintervall fuer den Kipppunkt passt nicht.');
+}
+for (let i = 0; i < 80; i += 1) {
+  const m = (lo + hi) / 2;
+  if (angesammelt(m).end > jaehrlich(m).end) hi = m; else lo = m;
+}
+const kipp = Math.round(hi / 1000) * 1000;
+
+// Ohne freien Pauschbetrag dreht sich das Ergebnis schon bei kleinen Betraegen.
+const OHNE_K = 50000;
+const ohneA = Math.round(jaehrlich(OHNE_K, ZINS, LAUFZEIT, 0).end);
+const ohneB = Math.round(angesammelt(OHNE_K, ZINS, LAUFZEIT, 0).end);
+if (!(ohneB > ohneA)) throw new Error('Sparen-Artikel: Ansammeln ohne Pauschbetrag muesste vorne liegen.');
+
+// Welchen Zinssatz braucht das Angebot ohne Zinseszins, um gleichzuziehen?
+function noetigerSatz(k: number): number {
+  const ziel = jaehrlich(k).end;
+  let u = ZINS;
+  let o = 0.2;
+  for (let i = 0; i < 80; i += 1) {
+    const m = (u + o) / 2;
+    if (amEndeEinfach(k, m).end < ziel) u = m; else o = m;
+  }
+  return o * 100;
+}
+const satzC30 = noetigerSatz(30000);
+const satzC250 = noetigerSatz(250000);
+
+// Laufzeiten bei 30.000 €
+const LAUFZEITEN = [1, 2, 3, 5, 10];
+const laufzeitreihe = LAUFZEITEN.map((n) => ({
+  n,
+  diffB: Math.round(angesammelt(30000, ZINS, n).end) - Math.round(jaehrlich(30000, ZINS, n).end),
+  diffC: Math.round(amEndeEinfach(30000, ZINS, n).end) - Math.round(jaehrlich(30000, ZINS, n).end),
+}));
+if (laufzeitreihe[0].diffB !== 0 || laufzeitreihe[0].diffC !== 0) {
+  throw new Error('Sparen-Artikel: Bei einem Jahr Laufzeit muessten alle Varianten gleich sein.');
+}
+
+// --- 3. Real nach Steuer ---------------------------------------------------
+const INFLATION = 2; // Inflationsziel der EZB, keine Prognose
+/** Nominalzins, bei dem die Zinsen nach Steuer gerade die Inflation ausgleichen. */
+function realNull(k: number): number {
+  let u = 0;
+  let o = 0.2;
+  for (let i = 0; i < 80; i += 1) {
+    const m = (u + o) / 2;
+    const netto = k * m - steuer(k * m);
+    if (netto < k * INFLATION / 100) u = m; else o = m;
+  }
+  return o * 100;
+}
+const REAL_BETRAEGE = [20000, 50000, 100000, 250000, 1000000];
+const realreihe = REAL_BETRAEGE.map((k) => ({ k, satz: realNull(k) }));
+const grenzwert = INFLATION / (1 - satz / 100);
+for (let i = 1; i < realreihe.length; i += 1) {
+  if (!(realreihe[i].satz >= realreihe[i - 1].satz && realreihe[i].satz < grenzwert)) {
+    throw new Error('Sparen-Artikel: Real-null-Zinssatz steigt nicht monoton gegen den Grenzwert.');
+  }
+}
+const realSchwelle = PB / (INFLATION / 100);
+if (Math.abs(realreihe[0].satz - INFLATION) > 0.001 || realSchwelle <= REAL_BETRAEGE[0]) {
+  throw new Error('Sparen-Artikel: Kleinster Betrag muesste steuerfrei bleiben.');
+}
+const realMillion = realreihe[realreihe.length - 1];
+
+const quellen = [
+  { titel: '§ 20 EStG – Kapitalvermögen, Sparer-Pauschbetrag in Absatz 9', url: 'https://www.gesetze-im-internet.de/estg/__20.html' },
+  { titel: '§ 11 EStG – Vereinnahmung und Verausgabung (Zuflussprinzip)', url: 'https://www.gesetze-im-internet.de/estg/__11.html' },
+  { titel: '§ 32d EStG – Gesonderter Steuertarif für Einkünfte aus Kapitalvermögen', url: 'https://www.gesetze-im-internet.de/estg/__32d.html' },
+  { titel: '§ 44a EStG – Abstandnahme vom Steuerabzug (Freistellungsauftrag)', url: 'https://www.gesetze-im-internet.de/estg/__44a.html' },
+  { titel: 'Stiftung Warentest: Diese Banken tricksen bei den Zinsen (18. August 2020)', url: 'https://www.test.de/Zinsertraege-Diese-Banken-tricksen-bei-den-Zinsen-5641287-0/' },
+  { titel: 'Europäische Zentralbank – Geldpolitische Strategie', url: 'https://www.ecb.europa.eu/mopo/strategy/html/index.de.html' },
+];
+---
+<RechnerArtikel
+  titel="Wer Zinsen erst am Ende bekommt, zahlt mehr Steuer"
+  datum="2026-09-17"
+  lead={`Zwei Festgelder, beide ${proz(ZINS * 100, 0)}, beide ${LAUFZEIT} Jahre, beide ${eur(30000)}: Das eine schreibt die Zinsen jedes Jahr gut, das andere zahlt sie am Ende mit Zinseszins aus. Nach Steuer liegt das zweite ${eur(-z30.diffB)} zurück – obwohl es auf dem Papier genau dasselbe verdient. Zahlt die Bank am Ende ohne Zinseszins, sind es ${eur(-z30.diffC)}. Der Grund ist ein Freibetrag, der nur im Kalenderjahr gilt.`}
+  quellen={quellen}
+>
+  <h3>Ein Freibetrag, der verfällt</h3>
+  <p>
+    Nach § 20 Abs. 9 Satz 1 EStG bleiben jedes Jahr {eur(SPARERPAUSCHBETRAG_EINZEL)}
+    Kapitalertrag steuerfrei, bei zusammen veranlagten Ehegatten nach Satz 2
+    {' '}{eur(SPARERPAUSCHBETRAG_ZUSAMMEN)}. Zwei weitere Sätze entscheiden, was aus
+    diesem Betrag wird. Satz 4 begrenzt ihn auf die tatsächlichen Kapitalerträge: Wer
+    in einem Jahr nur {eur(300)} Zinsen bekommt, nutzt {eur(300)} und nicht mehr. Und
+    § 11 Abs. 1 Satz 1 EStG ordnet Einnahmen dem Kalenderjahr zu, in dem sie
+    zufließen. Einen Vortrag des ungenutzten Rests ins nächste Jahr sieht das Gesetz
+    nicht vor.
+  </p>
+  <p>
+    Der Pauschbetrag ist damit kein Guthaben, das man ansparen kann, sondern ein
+    Jahreskontingent. Solange die Zinsen eines Jahres darunter bleiben, fällt keine
+    Steuer an; die Bank behält mit einem Freistellungsauftrag nach § 44a EStG gar
+    nicht erst etwas ein. Wie viel Guthaben dafür reicht, ist schlicht der
+    Pauschbetrag geteilt durch den Zinssatz – bei jährlicher Gutschrift:
+  </p>
+
+  <table>
+    <caption class="visually-hidden">
+      Guthaben, bei dem die Jahreszinsen den Sparer-Pauschbetrag erreichen, nach Zinssatz
+    </caption>
+    <thead>
+      <tr>
+        <th scope="col" class="num">Zinssatz</th>
+        <th scope="col" class="num">einzeln ({eur(SPARERPAUSCHBETRAG_EINZEL)})</th>
+        <th scope="col" class="num">zusammen ({eur(SPARERPAUSCHBETRAG_ZUSAMMEN)})</th>
+      </tr>
+    </thead>
+    <tbody>
+      {schwellen.map((s) => (
+        <tr>
+          <th scope="row" class="num">{proz(s.zins, 1)}</th>
+          <td class="num">{eur(s.einzel)}</td>
+          <td class="num">{eur(s.paar)}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+
+  <p>
+    Ein Sparplan mit {eur(SPAR.startkapital)} Startkapital, {eur(SPAR.sparrate)} im
+    Monat und {proz(SPAR.zinsProzent, 1)} Zins erreicht diese Grenze erst im
+    {' '}{erstesSteuerjahr}. Jahr. Über {LANG} Jahre ist der Pauschbetrag dort
+    {' '}{eur(pbWertLang)} Endguthaben wert: {eur(langMit.endkapital)} mit ihm,
+    {' '}{eur(langOhne.endkapital)}, wenn er schon anderswo verbraucht ist. Das zeigt,
+    was auf dem Spiel steht, wenn man ihn in einzelnen Jahren nicht nutzt.
+  </p>
+
+  <h3>Dasselbe Festgeld, drei Ergebnisse</h3>
+  <p>
+    Bei mehrjährigem Festgeld entscheidet die Bank, wann die Zinsen fließen, und sie
+    handhabt das unterschiedlich. Stiftung Warentest hat schon im August 2020 Anbieter
+    benannt, die Zinsen erst zum Laufzeitende zahlen, teils ohne Zinseszins. Drei
+    Varianten, alle zu {proz(ZINS * 100, 0)} über {LAUFZEIT} Jahre, ohne
+    Kirchensteuer, Pauschbetrag {eur(PB)} und sonst keine Kapitalerträge:
+  </p>
+  <ul>
+    <li><strong>jährlich:</strong> Zinsen werden jedes Jahr gutgeschrieben, versteuert und zum selben Satz wieder angelegt.</li>
+    <li><strong>angesammelt:</strong> Zinsen wachsen mit Zinseszins, fließen aber erst im letzten Jahr zu.</li>
+    <li><strong>am Ende, einfach:</strong> die Bank zahlt am Laufzeitende {LAUFZEIT} Jahreszinsen auf den Anlagebetrag, ohne Zinseszins.</li>
+  </ul>
+
+  <table>
+    <caption class="visually-hidden">
+      Endguthaben nach Steuer für drei Arten der Zinszahlung, nach Anlagebetrag
+    </caption>
+    <thead>
+      <tr>
+        <th scope="col" class="num">Anlage</th>
+        <th scope="col" class="num">jährlich</th>
+        <th scope="col" class="num">angesammelt</th>
+        <th scope="col" class="num">Abstand</th>
+        <th scope="col" class="num">am Ende, einfach</th>
+        <th scope="col" class="num">Abstand</th>
+      </tr>
+    </thead>
+    <tbody>
+      {festgeld.map((z) => (
+        <tr>
+          <th scope="row" class="num">{eur(z.k)}</th>
+          <td class="num">{eur(z.a)}</td>
+          <td class="num">{eur(z.b)}</td>
+          <td class="num">{eur(z.diffB)}</td>
+          <td class="num">{eur(z.c)}</td>
+          <td class="num">{eur(z.diffC)}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+
+  <p>
+    Vor Steuer sind die ersten beiden Spalten gleich – beide rechnen mit Zinseszins.
+    Der Abstand entsteht allein durch den Zeitpunkt. Schon bei {eur(z10.k)} fällt er
+    auf: Jährlich gutgeschrieben bleibt jeder Zinsbetrag unter dem Pauschbetrag,
+    angesammelt sind am Ende {eur(z10.stB)} Steuer fällig.
+  </p>
+  <p>
+    Am größten wird der Nachteil dort, wo die Jahreszinsen den Pauschbetrag gerade
+    ausschöpfen – bei {proz(ZINS * 100, 0)} also um {eur(schwelleDrei.einzel)}. Der
+    höchste Wert in der Feinsuche liegt bei {eur(maxBei)} Anlage mit
+    {' '}{eur(maxVerlust)}. Das ist knapp unter der Grenze, die sich ohne jede
+    Tabelle ergibt: {LAUFZEIT - 1} verschenkte Pauschbeträge mal
+    {' '}{proz(satz, 3)} Steuer, zusammen {eur(obergrenze)}. Ganz erreicht wird sie
+    nicht, weil die angesammelte Variante ihre Steuer später zahlt und bis dahin
+    mitverzinst – davon gleich mehr.
+  </p>
+
+  <h3>Der Zinsaufschlag, den das schlechtere Angebot bräuchte</h3>
+  <p>
+    Die Variante ohne Zinseszins verliert doppelt, und das lässt sich in einen
+    Zinssatz übersetzen. Damit sie bei {eur(30000)} nach Steuer mit dem jährlich
+    zahlenden Angebot zu {proz(ZINS * 100, 0)} gleichzieht, müsste sie
+    {' '}{proz(satzC30)} bieten. Bei {eur(250000)} wären es {proz(satzC250)}. Wer
+    zwei Festgelder vergleicht, sollte deshalb nicht nur den Zinssatz, sondern die
+    Zahlungsweise nebeneinanderlegen – ein höherer Satz mit Zahlung am Ende ist nicht
+    automatisch das bessere Angebot.
+  </p>
+
+  <h3>Je länger die Laufzeit, desto größer der Abstand</h3>
+  <p>
+    Bei einem Jahr Laufzeit gibt es keinen Unterschied, alle Zinsen fließen ohnehin in
+    einem Jahr. Danach wächst der Abstand mit jedem weiteren Jahr, das auf einen
+    einzigen Zufluss zusammengezogen wird. Die Tabelle zeigt ihn für
+    {' '}{eur(30000)} Anlage gegenüber jährlicher Gutschrift:
+  </p>
+
+  <table>
+    <caption class="visually-hidden">
+      Abstand der Endguthaben nach Steuer zur jährlichen Gutschrift, bei 30.000 € und 3 %, nach Laufzeit
+    </caption>
+    <thead>
+      <tr>
+        <th scope="col" class="num">Laufzeit</th>
+        <th scope="col" class="num">angesammelt</th>
+        <th scope="col" class="num">am Ende, einfach</th>
+      </tr>
+    </thead>
+    <tbody>
+      {laufzeitreihe.map((z) => (
+        <tr>
+          <th scope="row" class="num">{z.n} {z.n === 1 ? 'Jahr' : 'Jahre'}</th>
+          <td class="num">{eur(z.diffB)}</td>
+          <td class="num">{eur(z.diffC)}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+
+  <p>
+    Maßgeblich ist dabei das Kalenderjahr, nicht die Vertragsdauer. Ob die Zinsen
+    jährlich gutgeschrieben oder erst zum Laufzeitende gezahlt werden, steht in den
+    Bedingungen des Angebots; dort sollte man vor der Anlage nachsehen.
+  </p>
+
+  <h3>Wann Ansammeln sich doch lohnt</h3>
+  <p>
+    Ganz ohne Gegenargument ist die angesammelte Variante nicht. Wer die Steuer erst
+    am Ende zahlt, lässt sie bis dahin mitverzinsen – eine Steuerstundung. Bei
+    großen Beträgen wiegt das schwerer als die verlorenen Pauschbeträge: Die Zeile
+    für {eur(z250.k)} zeigt den Abstand schon kleiner als bei {eur(50000)}, und ab
+    rund {eur(kipp)} Anlage liegt das Ansammeln bei {proz(ZINS * 100, 0)} und
+    {' '}{LAUFZEIT} Jahren vorn.
+  </p>
+  <p>
+    Deutlich früher kippt es, wenn der Pauschbetrag gar nicht mehr frei ist – etwa
+    weil Dividenden oder ein zweites Konto ihn schon aufbrauchen. Dann bringen
+    {' '}{eur(OHNE_K)} jährlich gutgeschrieben {eur(ohneA)}, angesammelt
+    {' '}{eur(ohneB)}. Ohne Freibetrag gibt es nichts mehr zu verschenken, und übrig
+    bleibt nur der Stundungsvorteil. Die Frage „jährlich oder am Ende?" lässt sich
+    also nicht für ein Konto allein beantworten, sondern nur mit Blick auf alle
+    Kapitalerträge des Jahres.
+  </p>
+
+  <h3>Wie viel Zins die Inflation ausgleicht</h3>
+  <p>
+    Dieselbe Schwelle bestimmt, wie hoch der Zins sein muss, damit ein Guthaben nach
+    Steuer seine Kaufkraft hält. Als Maßstab dient hier das Inflationsziel der
+    Europäischen Zentralbank von {proz(INFLATION, 0)} – ein Ziel, keine Prognose.
+    Solange die Zinsen unter dem Pauschbetrag bleiben, reichen
+    {' '}{proz(INFLATION, 0)} Zins. Darüber muss der Satz steigen, und wie weit, hängt
+    vom Betrag ab:
+  </p>
+
+  <table>
+    <caption class="visually-hidden">
+      Nominalzins, bei dem die Zinsen nach Steuer 2 % Inflation ausgleichen, nach Guthaben
+    </caption>
+    <thead>
+      <tr>
+        <th scope="col" class="num">Guthaben</th>
+        <th scope="col" class="num">nötiger Zins</th>
+      </tr>
+    </thead>
+    <tbody>
+      {realreihe.map((z) => (
+        <tr>
+          <th scope="row" class="num">{eur(z.k)}</th>
+          <td class="num">{proz(z.satz)}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+
+  <p>
+    Bis {eur(realSchwelle)} Guthaben genügen {proz(INFLATION, 0)}, weil die Zinsen
+    steuerfrei bleiben. Bei {eur(realMillion.k)} braucht es {proz(realMillion.satz)},
+    und mit wachsendem Guthaben nähert sich der Wert
+    {' '}{proz(grenzwert)} – dem Satz, bei dem nach Abzug von {proz(satz, 3)} Steuer
+    genau {proz(INFLATION, 0)} übrig bleiben. Wer den Pauschbetrag schon für andere
+    Erträge verbraucht hat, braucht diesen Satz bereits vom ersten Euro an. Warum die
+    offizielle Rate für den eigenen Haushalt ohnehin nur ein Anhaltspunkt ist, zeigt
+    {' '}<a href={`${import.meta.env.BASE_URL}${artikelPfadVonSlug('inflation-was-die-rate-verschweigt')}`}>die Rechnung zum Warenkorb</a>.
+  </p>
+
+  <h3>Was diese Rechnung nicht abbildet</h3>
+  <p>
+    Die Festgeldvergleiche unterstellen, dass jährlich gutgeschriebene Zinsen zum
+    selben Satz wieder angelegt werden können; in der Praxis landen sie oft auf einem
+    niedriger verzinsten Konto. Das verkleinert den Vorsprung der jährlichen
+    Variante, hebt ihn bei Beträgen um die Schwelle aber nicht auf: Selbst wenn die
+    Zinsen unverzinst liegen bleiben, liegt sie bei {eur(30000)} noch vor der
+    angesammelten. Gerechnet ist
+    ohne Kirchensteuer und ohne andere Kapitalerträge. Mit Kirchensteuer steigt der
+    Steuersatz, und damit wiegt jeder verschenkte Pauschbetrag etwas mehr; wie sich
+    die Sätze zusammensetzen, steht in
+    {' '}<a href={`${import.meta.env.BASE_URL}${artikelPfadVonSlug('abgeltungsteuer-nie-25-prozent')}`}>der Rechnung zur Abgeltungsteuer</a>.
+  </p>
+  <p>
+    Nicht berücksichtigt ist außerdem die Günstigerprüfung nach § 32d Abs. 6 EStG.
+    Wer ein niedriges Einkommen hat, kann Zinsen, die in einem Jahr gebündelt
+    zufließen, unter Umständen zum persönlichen Steuersatz versteuern lassen – dann
+    fällt der Nachteil kleiner aus. Die Zinssätze sind Setzungen dieses Artikels und
+    keine Marktbeobachtung.
+  </p>
+</RechnerArtikel>

@@ -1,7 +1,7 @@
 ---
 import Layout from '../../layouts/Layout.astro';
 import CalculatorShell from '../../components/CalculatorShell.astro';
-import CalculatorGuide from '../../components/CalculatorGuide.astro';
+import ArtikelProzent from '../../components/artikel/prozent-hin-und-zurueck.astro';
 import { CALCULATORS, CATEGORIES } from '../../data/calculators';
 const calc = CALCULATORS.find(c => c.slug === 'prozent-rechner')!;
 const cat = CATEGORIES[calc.category];
@@ -22,7 +22,7 @@ const year = new Date().getFullYear();
   <CalculatorShell
     calculator={calc}
     intro="Mit dem Prozent-Rechner berechnen Sie Prozentwerte, Grundwerte und prozentuale Veränderungen in drei verschiedenen Modi. Ob Rabattberechnung, Zinsen, Gehaltsanpassungen oder statistische Auswertungen, Prozentrechnung begegnet Ihnen täglich. Wählen Sie den passenden Modus und erhalten Sie sofort das Ergebnis mit nachvollziehbarer Rechenformel."
-    sourceNote="Prozentrechnung."
+    sourceNote="Prozentwert = Grundwert × Prozentsatz ÷ 100; Veränderung = (neu − alt) ÷ alt × 100."
     explanation="Die Prozentrechnung basiert auf dem Dreisatz und der Grundformel Prozentwert = Grundwert mal Prozentsatz geteilt durch 100. Mathematisch ist Prozent eine Verhältniszahl, die Anteile auf die Basis 100 normiert und dadurch unterschiedliche Größen vergleichbar macht. Ein häufiger Fehler ist die Verwechslung von Prozent und Prozentpunkten: Steigt ein Wert von 5% auf 7%, sind das 2 Prozentpunkte, aber 40% relative Zunahme."
     faqs={[
       { q: "Was ist ein Prozent und wie benutze ich es?", a: "Ein Prozent (%) ist ein Hundertstel (1/100). 50% bedeutet die Hälfte, 25% ein Viertel. Prozentwerte helfen, Anteile und Veränderungen vergleichbar zu machen. 'Von 100 Äpfeln sind 25% rot' bedeutet: 25 Äpfel sind rot." },
@@ -75,35 +75,50 @@ const year = new Date().getFullYear();
       </div>
       <div id="details" style="margin-top:0.75rem;font-size:0.88rem;color:#666;"></div>
     </div>
+    <ArtikelProzent slot="artikel" />
   </CalculatorShell>
 
 <script type="module">
+const fmt = (n, stellen = 2) => n.toLocaleString('de-DE', { maximumFractionDigits: stellen });
 function berechne() {
   const mode = document.querySelector('.mode-tab.active').dataset.mode;
-  let ergebnis, details;
+  const ergebnisEl = document.getElementById('ergebnis');
+  const detailsEl = document.getElementById('details');
+  ergebnisEl.style.color = '';
   if (mode === '1') {
     const p = parseFloat(document.getElementById('prozentsatz1').value) || 0;
     const g = parseFloat(document.getElementById('grundwert1').value) || 0;
     const w = g * p / 100;
     document.getElementById('ergebnis-label').textContent = 'Prozentwert';
-    document.getElementById('ergebnis').textContent = w.toLocaleString('de-DE', {maximumFractionDigits:4});
-    document.getElementById('details').textContent = `${p}% von ${g.toLocaleString('de-DE')} = ${w.toLocaleString('de-DE', {maximumFractionDigits:4})}`;
+    ergebnisEl.textContent = fmt(w, 4);
+    detailsEl.textContent = `${fmt(p, 4)} % von ${fmt(g, 4)} = ${fmt(w, 4)}`;
   } else if (mode === '2') {
     const w = parseFloat(document.getElementById('wert2').value) || 0;
     const g = parseFloat(document.getElementById('grundwert2').value) || 0;
-    const p = g !== 0 ? (w / g * 100) : 0;
     document.getElementById('ergebnis-label').textContent = 'Prozentsatz';
-    document.getElementById('ergebnis').textContent = p.toLocaleString('de-DE', {maximumFractionDigits:2}) + ' %';
-    document.getElementById('details').textContent = `${w.toLocaleString('de-DE')} ist ${p.toLocaleString('de-DE', {maximumFractionDigits:2})}% von ${g.toLocaleString('de-DE')}`;
+    if (g === 0) {
+      ergebnisEl.textContent = '—';
+      detailsEl.textContent = 'Der Grundwert darf nicht 0 sein: Ein Anteil von nichts ist nicht definiert.';
+      return;
+    }
+    const p = w / g * 100;
+    ergebnisEl.textContent = fmt(p) + ' %';
+    detailsEl.textContent = `${fmt(w, 4)} ist ${fmt(p)} % von ${fmt(g, 4)}`;
   } else {
     const alt = parseFloat(document.getElementById('alt3').value) || 0;
     const neu = parseFloat(document.getElementById('neu3').value) || 0;
-    const p = alt !== 0 ? ((neu - alt) / alt * 100) : 0;
-    const richtung = p >= 0 ? 'Zunahme' : 'Abnahme';
     document.getElementById('ergebnis-label').textContent = 'Prozentuale Veränderung';
-    document.getElementById('ergebnis').textContent = (p >= 0 ? '+' : '') + p.toLocaleString('de-DE', {maximumFractionDigits:2}) + ' %';
-    document.getElementById('ergebnis').style.color = p >= 0 ? '#1e7e34' : '#b71c1c';
-    document.getElementById('details').textContent = `${richtung} von ${alt.toLocaleString('de-DE')} auf ${neu.toLocaleString('de-DE')} = ${p >= 0 ? '+' : ''}${p.toLocaleString('de-DE', {maximumFractionDigits:2})}%`;
+    if (alt <= 0) {
+      ergebnisEl.textContent = '—';
+      detailsEl.textContent = 'Eine prozentuale Veränderung lässt sich nur von einem positiven Ausgangswert aus berechnen.';
+      return;
+    }
+    const p = (neu - alt) / alt * 100;
+    const vorzeichen = p > 0 ? '+' : '';
+    const richtung = p > 0 ? 'Zunahme' : p < 0 ? 'Abnahme' : 'Keine Veränderung';
+    ergebnisEl.textContent = vorzeichen + fmt(p) + ' %';
+    if (p !== 0) ergebnisEl.style.color = p > 0 ? '#1e7e34' : '#b71c1c';
+    detailsEl.textContent = `${richtung} von ${fmt(alt, 4)} auf ${fmt(neu, 4)} = ${vorzeichen}${fmt(p)} %`;
   }
 }
 document.querySelectorAll('.mode-tab').forEach(tab => {
@@ -129,40 +144,4 @@ berechne();
 .mode-tab:hover:not(.active) { border-color:var(--accent); }
 </style>
 
-  <CalculatorGuide
-    title="Prozent-Rechner – Schnelle Prozentrechnungen"
-    content={`
-      <p><strong>Prozent</strong> bedeutet wörtlich "pro Hundert" (%) und ist einer der wichtigsten mathematischen Begriffe im Alltag. Mit Prozenten können Sie Anteile, Rabatte, Zinsen, Steigerungen und vieles mehr berechnen und miteinander vergleichen.</p>
-
-      <p>Der Prozent-Rechner ist mit drei verschiedenen Modi ausgestattet, um die häufigsten Szenarien zu lösen: <strong>X% von Y berechnen, den Prozentsatz bestimmen oder prozentuale Veränderungen messen.</strong></p>
-
-      <h4>Modus 1: X% von Y</h4>
-      <p>Das ist die klassische Prozentrechnung. Sie haben eine Menge und möchten einen bestimmten Prozentsatz davon wissen.</p>
-      <p><strong>Beispiele:</strong> 19% Rabatt auf 99€ (Einkauf), 5% Zinsen auf 10.000€ (Sparquote), 42% Wahlbeteiligung bei 100.000 Wahlberechtigten (Statistik).</p>
-
-      <h4>Modus 2: X ist wie viel % von Y?</h4>
-      <p>Umgekehrte Prozentrechnung: Sie kennen eine Teilmenge und die Gesamtmenge, möchten aber den Prozentwert.</p>
-      <p><strong>Beispiele:</strong> Sie sparen 500€ pro Monat bei 4.000€ Gehalt (= 12,5%), 120 Stimmen von 600 Wählern (= 20%), 75kg von 250kg Gesamtgewicht (= 30%).</p>
-
-      <h4>Modus 3: Prozentuale Veränderung</h4>
-      <p>Misst den Wachstum oder die Abnahme zwischen zwei Werten. Das ist essentiell für Trends, Inflationen und Leistungsbewertungen.</p>
-      <p><strong>Beispiele:</strong> Mietpreise sind von 800€ auf 900€ gestiegen (+12,5%), die Arbeitslosenquote fiel von 6% auf 5,5% (−8,3%), die Besucherzahl wuchs von 1.000 auf 1.500 (+50%).</p>
-
-      <h4>Häufige Fehler vermeiden</h4>
-      <ul>
-        <li><strong>Fehler 1:</strong> Prozente addieren. Ein +10% Anstieg und dann −10% sind nicht wieder der Ausgangswert! Von 100 auf 110 auf 99.</li>
-        <li><strong>Fehler 2:</strong> Grundwert vergessen. 5% von 100 ist nicht dasselbe wie 5% von 1.000.</li>
-        <li><strong>Fehler 3:</strong> Prozentpunkte verwechseln mit Prozenten. Wenn die Steuer von 5% auf 7% steigt, sind das +2 Prozentpunkte, aber +40% relativ.</li>
-      </ul>
-
-      <h4>Anwendungen im Alltag</h4>
-      <ul>
-        <li><strong>Shopping &amp; Rabatte:</strong> "50% Rabatt" – schnell berechnen, wie viel Sie sparen.</li>
-        <li><strong>Finanzplanung:</strong> Sparquote (wie viel % des Gehalts sparen Sie?), Renditen, Zinsen.</li>
-        <li><strong>Statistik &amp; News:</strong> Wahlbeteiligung, Inflation, Arbeitslosenquote, Wachstum verstehen.</li>
-        <li><strong>Schule &amp; Arbeit:</strong> Notenberechnung, Gewinnmarge, Produktionsquoten.</li>
-      </ul>
-    `}
-    relatedSlugs={['mwst-rechner', 'rabatt-rechner']}
-  />
 </Layout>

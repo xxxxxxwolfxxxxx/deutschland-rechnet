@@ -1,6 +1,7 @@
 ---
 import Layout from '../../layouts/Layout.astro';
 import CalculatorShell from '../../components/CalculatorShell.astro';
+import ArtikelZahnersatz from '../../components/artikel/zahnersatz-bonusheft-und-tarif.astro';
 import CalculatorGuide from '../../components/CalculatorGuide.astro';
 import { CALCULATORS, CATEGORIES } from '../../data/calculators';
 import { berechneZahnersatz, festzuschussUmrechnen, FESTZUSCHUSS_ANTEIL } from '../../../public/scripts/zahnersatz.js';
@@ -106,6 +107,7 @@ const faqs = [
       </div>
       <div id="details" style="margin-top:0.75rem;font-size:0.88rem;color:#666;display:flex;gap:1.5rem;flex-wrap:wrap;"></div>
     </div>
+    <ArtikelZahnersatz slot="artikel" />
   </CalculatorShell>
 
   <CalculatorGuide

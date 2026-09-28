@@ -53,7 +53,7 @@ describe('Geltungsdauer der Förderung', () => {
   });
 
   it('nennt das Ende des Gültigkeitszeitraums der Sätze', () => {
-    expect(VERGUETUNG_GUELTIG_BIS).toBe('31. Januar 2027');
+    expect(VERGUETUNG_GUELTIG_BIS).toBe('31. Dezember 2026');
   });
 });
 

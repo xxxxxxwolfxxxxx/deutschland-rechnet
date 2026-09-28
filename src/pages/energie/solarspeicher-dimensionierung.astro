@@ -2,11 +2,13 @@
 import Layout from '../../layouts/Layout.astro';
 import CalculatorShell from '../../components/CalculatorShell.astro';
 import CalculatorGuide from '../../components/CalculatorGuide.astro';
+import ArtikelSolarspeicher from '../../components/artikel/solarspeicher-zyklen-statt-kapazitaet.astro';
 import { CALCULATORS, CATEGORIES } from '../../data/calculators';
 import {
   berechneStromspeicher,
   vergleicheSpeichergroessen,
   DIREKTVERBRAUCH_ANTEIL,
+  spanneJeEntladenerKwh,
   SPEICHER_NUTZTAGE,
   SPEICHER_WIRKUNGSGRAD,
 } from '../../../public/scripts/stromspeicher.js';
@@ -24,6 +26,7 @@ const REFERENZ_PV_KWP = 10;
 const verguetungCent = verguetungProKwh(REFERENZ_PV_KWP) * 100;
 const euro = (n: number) => n.toLocaleString('de-DE', { maximumFractionDigits: 0 }) + ' €';
 const kwh = (n: number) => n.toLocaleString('de-DE', { maximumFractionDigits: 0 }) + ' kWh';
+const spanneCent = spanneJeEntladenerKwh(STROMPREIS_CENT, verguetungCent);
 const dez = (n: number, stellen = 2) => n.toLocaleString('de-DE', { minimumFractionDigits: stellen, maximumFractionDigits: stellen });
 
 // Beispiel: 4-Personen-Haushalt, 5.000 kWh, 10 kWp. Preis und Nutzungsdauer
@@ -50,10 +53,10 @@ const faqs = [
   { q: 'Wie groß sollte der Speicher sein?', a: `So groß, wie die letzte zusätzliche Kilowattstunde Kapazität ihren Preis noch hereinholt. Im Beispiel mit 5.000 kWh Verbrauch und 10 kWp bringt die erste Stufe ${euro(erste.grenzertragJeKwh)} je kWh Kapazität im Jahr, die Stufe bis ${letzte.speicher} kWh nur noch ${euro(letzte.grenzertragJeKwh)}. Bis ${bei600.empfehlung} kWh bringt jede Stufe gleich viel, darüber bleibt Kapazität ungenutzt. Bei 15 Jahren Nutzung lohnt sich ein Speicher bis ${bei600.empfehlung} kWh deshalb, solange er weniger als rund ${euro(GRENZE)} je kWh kostet – teurer lohnt sich keine Größe.` },
   { q: 'Warum bringt ein größerer Speicher immer weniger?', a: 'Weil er an vielen Tagen nicht mehr leer wird. Entladen lässt sich nur, was der Haushalt außerhalb der Sonnenstunden verbraucht; darüber hinaus steht zusätzliche Kapazität ungenutzt. Außerdem füllt die Anlage den Speicher im Winterhalbjahr oft nicht.' },
   { q: 'Was ist der Unterschied zwischen nutzbarer und nominaler Kapazität?', a: 'Die nominale Kapazität ist die Größe der Batteriezellen, die nutzbare der Teil, den das System tatsächlich lädt und entlädt. Rechnen Sie immer mit der nutzbaren Kapazität aus dem Datenblatt – der Rechner tut das auch.' },
-  { q: 'Ist ein Stromspeicher immer wirtschaftlich?', a: `Nein. Ohne Speicher deckt die Anlage in diesem Rechner bereits ${Math.round(DIREKTVERBRAUCH_ANTEIL * 100)} % des Verbrauchs direkt. Der Speicher verdient nur an der Differenz zwischen Strompreis und Einspeisevergütung, derzeit ${dez(STROMPREIS_CENT - verguetungCent)} ct je verschobener kWh. Ist der Speicher im Verhältnis dazu zu teuer, empfiehlt der Rechner keinen.` },
+  { q: 'Ist ein Stromspeicher immer wirtschaftlich?', a: `Nein. Ohne Speicher deckt die Anlage in diesem Rechner bereits ${Math.round(DIREKTVERBRAUCH_ANTEIL * 100)} % des Verbrauchs direkt. Der Speicher verdient nur an der Differenz zwischen Strompreis und Einspeisevergütung – nach Ladeverlusten derzeit ${dez(spanneCent)} ct je verschobener kWh. Ist der Speicher im Verhältnis dazu zu teuer, empfiehlt der Rechner keinen.` },
 ];
 
-const guideHtml = `<p>Ein Stromspeicher verschiebt tagsüber erzeugten Überschuss in den Abend. Jede verschobene Kilowattstunde spart ${dez(STROMPREIS_CENT)} ct Netzstrom (${STROMPREIS_QUELLE}), kostet aber die Einspeisevergütung von ${dez(verguetungCent)} ct nach § 48 Abs. 2 EEG. Die richtige Größe ist deshalb keine Frage einer Faustregel, sondern des Grenzertrags: Was bringt die nächste Kilowattstunde Kapazität, und was kostet sie?</p>
+const guideHtml = `<p>Ein Stromspeicher verschiebt tagsüber erzeugten Überschuss in den Abend. Jede verschobene Kilowattstunde spart ${dez(STROMPREIS_CENT)} ct Netzstrom (${STROMPREIS_QUELLE}), kostet aber die Einspeisevergütung von ${dez(verguetungCent)} ct (Satz der Bundesnetzagentur für Anlagen bis 10 kWp mit Inbetriebnahme bis 31.12.2026) – und zwar für die ${dez(1 / SPEICHER_WIRKUNGSGRAD, 3)} kWh, die dafür geladen werden müssen. Netto bleiben ${dez(spanneCent)} ct. Die richtige Größe ist deshalb keine Frage einer Faustregel, sondern des Grenzertrags: Was bringt die nächste Kilowattstunde Kapazität, und was kostet sie?</p>
 
 <h3>Grenzertrag nach Speichergröße</h3>
 <p>Für einen Haushalt mit ${kwh(BEISPIEL.stromverbrauch)} Jahresverbrauch und einer ${REFERENZ_PV_KWP}-kWp-Anlage (${kwh(REFERENZ_PV_KWP * SPEZIFISCHER_ERTRAG)} Ertrag). Ohne Speicher deckt er ${ohneSpeicher.autarkiegrad} % des Verbrauchs selbst.</p>
@@ -89,7 +92,7 @@ ${groessenZeilen}
   <CalculatorShell
     calculator={calc}
     intro="Der Rechner vergleicht Speichergrößen von 2 bis 15 kWh für Ihre Anlage und Ihren Verbrauch und empfiehlt die größte, deren zusätzliche Kapazität sich zum Preis Ihres Angebots über die Nutzungsdauer noch bezahlt macht."
-    sourceNote={`Jahresbilanz aus dem Stromspeicher-Modul: Einspeisevergütung nach § 48 Abs. 2 EEG, Strompreis nach ${STROMPREIS_QUELLE}, ${SPEZIFISCHER_ERTRAG} kWh/kWp; Planungsannahmen ${Math.round(DIREKTVERBRAUCH_ANTEIL * 100)} % Direktverbrauch, ${SPEICHER_NUTZTAGE} Ladetage, ${Math.round(SPEICHER_WIRKUNGSGRAD * 100)} % Wirkungsgrad. Speicherpreis und Nutzungsdauer sind Ihre Eingaben. Ohne Zinsen und Alterung.`}
+    sourceNote={`Jahresbilanz aus dem Stromspeicher-Modul: Einspeisevergütung nach § 21 Abs. 1 i. V. m. §§ 48, 49, 53 Abs. 1 EEG 2023 (Bundesnetzagentur), Strompreis nach ${STROMPREIS_QUELLE}, ${SPEZIFISCHER_ERTRAG} kWh/kWp; Planungsannahmen ${Math.round(DIREKTVERBRAUCH_ANTEIL * 100)} % Direktverbrauch, ${SPEICHER_NUTZTAGE} Ladetage, ${Math.round(SPEICHER_WIRKUNGSGRAD * 100)} % Wirkungsgrad. Speicherpreis und Nutzungsdauer sind Ihre Eingaben. Ohne Zinsen und Alterung.`}
     explanation="Eine Stufe lohnt sich, wenn zusätzliche Ersparnis × Nutzungsdauer ≥ zusätzliche Kapazität × Preis je kWh. Empfohlen wird die größte Stufe, bis zu der das ohne Unterbrechung gilt."
     faqs={faqs}
   >
@@ -123,13 +126,14 @@ ${groessenZeilen}
       </div>
       <div class="ssd-tabelle"><table id="tabelle"></table></div>
     </div>
+    <ArtikelSolarspeicher slot="artikel" />
   </CalculatorShell>
-
   <CalculatorGuide
     title="Stromspeicher nach Grenzertrag dimensionieren"
     content={guideHtml}
     relatedSlugs={['photovoltaik-rechner', 'stromspeicher-rechner', 'jahresenergieverbrauch']}
   />
+
 </Layout>
 
 <script type="module">

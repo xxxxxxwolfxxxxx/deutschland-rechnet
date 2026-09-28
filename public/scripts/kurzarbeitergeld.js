@@ -19,7 +19,10 @@
 // Nettoentgeltdifferenz damit linear zum Arbeitsausfall. Die Lohnsteuer ist
 // aber progressiv, und wegfallendes Entgelt fällt oben weg: Bei 3.500 € Brutto,
 // Steuerklasse I und halbem Arbeitsausfall kam so ein Kurzarbeitergeld von
-// 732,90 € heraus statt 620,90 €.
+// 732,90 € heraus statt 620,90 € – dem reinen Progressionseffekt ohne die
+// zusätzliche Rundung von Soll- und Ist-Entgelt auf durch 20 teilbare Beträge
+// (§ 106 Abs. 1 Satz 5 SGB III). Mit dieser Rundung liefert berechneKurzarbeitergeld()
+// für dasselbe Beispiel 617,10 €.
 //
 // Nicht abgebildet, weil § 106 SGB III dafür Angaben verlangt, die ein Rechner
 // nicht kennen kann: Entgelt für Mehrarbeit und Einmalzahlungen bleiben nach

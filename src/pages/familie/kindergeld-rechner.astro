@@ -3,6 +3,7 @@ import Layout from '../../layouts/Layout.astro';
 import CalculatorShell from '../../components/CalculatorShell.astro';
 import CalculatorGuide from '../../components/CalculatorGuide.astro';
 import { CALCULATORS, CATEGORIES } from '../../data/calculators';
+import ArtikelEinheitlichesKindergeld from '../../components/artikel/kindergeld-jedes-kind-gleich-viel-wert.astro';
 import {
   KINDERGELD_MONAT,
   KINDERFREIBETRAG_JE_ELTERNTEIL,
@@ -69,6 +70,7 @@ const faqs = [
       <p id="jahr" style="margin-top:0.5rem;font-size:0.95rem;color:#666;"></p>
       <p id="proKind" style="margin-top:0.25rem;font-size:0.82rem;color:#999;"></p>
     </div>
+    <ArtikelEinheitlichesKindergeld slot="artikel" />
   </CalculatorShell>
 
   <CalculatorGuide

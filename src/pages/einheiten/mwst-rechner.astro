@@ -3,6 +3,7 @@ import Layout from '../../layouts/Layout.astro';
 import CalculatorShell from '../../components/CalculatorShell.astro';
 import CalculatorGuide from '../../components/CalculatorGuide.astro';
 import { CALCULATORS, CATEGORIES } from '../../data/calculators';
+import ArtikelMwst from '../../components/artikel/mwst-anteil-statt-aufschlag.astro';
 const calc = CALCULATORS.find(c => c.slug === 'mwst-rechner')!;
 const cat = CATEGORIES[calc.category];
 const year = new Date().getFullYear();
@@ -26,10 +27,10 @@ const year = new Date().getFullYear();
     explanation="Die Mehrwertsteuer ist eine indirekte Verbrauchssteuer und macht in Deutschland den größten Anteil der Steuereinnahmen aus. Der Regelsatz von 19% gilt für die meisten Waren und Dienstleistungen, während der ermäßigte Satz von 7% für Grundbedarfsgüter wie Lebensmittel, Bücher und öffentlichen Nahverkehr gilt. Die Berechnung folgt der Formel Brutto = Netto mal (1 + MwSt-Satz/100), wobei Unternehmen die gezahlte Vorsteuer gegenüber dem Finanzamt geltend machen können."
     faqs={[
       { q: "Was ist der Unterschied zwischen Netto und Brutto?", a: "Netto ist der Preis ohne Mehrwertsteuer, Brutto ist der Preis inklusive MwSt. Der Konsument zahlt immer den Bruttobetrag an der Kasse. Das Unternehmen zahlt die Differenz (die MwSt) an den Staat ab." },
-      { q: "Wann gilt 7% und wann 19% MwSt?", a: "7% MwSt gilt für Lebensmittel (außer Luxusartikel), Bücher, Zeitungen, Wasser, Nahverkehr. 19% ist der Regelsatz für alle anderen Waren und Dienstleistungen. Einige Branchen wie Gastronomie haben Sondersätze." },
+      { q: "Wann gilt 7% und wann 19% MwSt?", a: "7% gilt für Lebensmittel, Bücher, Zeitungen, Wasser und den Nahverkehr – und seit dem 1. Januar 2026 nach § 12 Abs. 2 Nr. 15 UStG auch für Restaurant- und Verpflegungsdienstleistungen, ausgenommen Getränke. 19% ist der Regelsatz für alles Übrige." },
       { q: "Warum gibt es unterschiedliche MwSt-Sätze?", a: "Der ermäßigte Satz von 7% soll lebensnotwendige Güter günstiger machen, damit auch Haushalte mit niedrigem Einkommen diese kaufen können. Luxusgüter und Standard-Dienstleistungen unterliegen dem vollen Satz von 19%." },
       { q: "Ist die MwSt ein Kostenfaktor für Unternehmen?", a: "Nein, die MwSt ist eine Steuer auf den Verbrauch. Unternehmen geben die MwSt ihrer Kunden an den Staat ab. Allerdings können sie Vorsteuer (MwSt auf ihre Einkäufe) geltend machen – das macht die MwSt meist neutral für B2B-Transaktionen." },
-      { q: "Welche Waren und Dienstleistungen sind steuerfrei?", a: "Manche Dienstleistungen sind steuerfrei: Versicherungen, Finanzdienstleistungen, Mieten (meist), Gesundheitsdienstleistungen von Ärzten/Zahnärzten. Diese haben 0% MwSt, nicht 7%." },
+      { q: "Welche Waren und Dienstleistungen sind steuerfrei?", a: "Nach § 4 UStG steuerfrei sind unter anderem Versicherungen, Finanzdienstleistungen, die Vermietung von Wohnraum und Heilbehandlungen von Ärzten und Zahnärzten. Auf solchen Rechnungen steht kein Steuerbetrag, den man herausrechnen könnte." },
       { q: "Wie berechne ich den Nettobetrag aus einem Bruttobetrag?", a: "Brutto ÷ 1,19 (bei 19% MwSt) oder Brutto ÷ 1,07 (bei 7%). Der Unterschied ist die MwSt. Beispiel: 119€ Brutto ÷ 1,19 = 100€ Netto, MwSt = 19€." }
     ]}
   >
@@ -60,6 +61,7 @@ const year = new Date().getFullYear();
       </div>
       <div id="details" style="margin-top:0.75rem;font-size:0.88rem;color:#666;display:flex;gap:1.5rem;flex-wrap:wrap;"></div>
     </div>
+    <ArtikelMwst slot="artikel" />
   </CalculatorShell>
 
   <CalculatorGuide
@@ -69,11 +71,11 @@ const year = new Date().getFullYear();
 
       <p><strong>Nettobetrag</strong> ist der Preis ohne MwSt, <strong>Bruttobetrag</strong> ist der Preis inklusive MwSt. Der Konsument zahlt immer den Bruttonpreis – das ist der Preis an der Kasse. Unternehmen rechnen intern mit Nettopreisen und geben die MwSt an den Finanzamt ab.</p>
 
-      <p><strong>Beispiel für einen Shop:</strong> Ein Artikel mit Nettopreis 100€ hat bei 19% MwSt einen Bruttoprois von 119€. Der Kunde zahlt 119€, das Unternehmen gibt 19€ MwSt ans Finanzamt ab und behält 100€.</p>
+      <p><strong>Beispiel für einen Shop:</strong> Ein Artikel mit Nettopreis 100€ hat bei 19% MwSt einen Bruttopreis von 119€. Der Kunde zahlt 119€, das Unternehmen gibt 19€ MwSt ans Finanzamt ab und behält 100€.</p>
 
       <h4>Die beiden MwSt-Sätze in Deutschland</h4>
       <ul>
-        <li><strong>19% (Regelsatz):</strong> Gilt für fast alle Waren und Dienstleistungen (Kleidung, Elektronik, Möbel, Handwerk, Gastronomie, Hotels, etc.)</li>
+        <li><strong>19% (Regelsatz):</strong> Gilt für fast alle Waren und Dienstleistungen (Kleidung, Elektronik, Möbel, Handwerk, Getränke in der Gastronomie, etc.)</li>
         <li><strong>7% (ermäßigter Satz):</strong> Lebensmittel, Bücher, Zeitungen, Nahverkehr, Wasser, Behindertenhilfe – Dinge des Grundbedarfs</li>
       </ul>
 
@@ -91,7 +93,7 @@ const year = new Date().getFullYear();
       </ul>
 
       <h4>Spezialfälle</h4>
-      <p>Manche Bereiche haben Sondersätze oder sind steuerfrei: Versicherungen, Arztbesuche, Mieten (keine MwSt), Bank- und Finanzdienstleistungen. Diese fallen unter 0% MwSt und sind für den Verbraucher günstiger.</p>
+      <p>Manche Umsätze sind nach § 4 UStG steuerfrei: Versicherungen, Arztbesuche, Vermietung von Wohnraum, Bank- und Finanzdienstleistungen. Das ist nicht dasselbe wie der Nullsteuersatz des § 12 Abs. 3 UStG für bestimmte Photovoltaikanlagen – zwar fällt in beiden Fällen keine Steuer an, aber beim Nullsatz bleibt der Vorsteuerabzug erhalten, bei den Befreiungen des § 4 in der Regel nicht.</p>
     `}
     relatedSlugs={['rabatt-rechner', 'prozent-rechner']}
   />

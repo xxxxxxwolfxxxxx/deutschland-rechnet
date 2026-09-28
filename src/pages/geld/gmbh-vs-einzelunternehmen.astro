@@ -1,6 +1,7 @@
 ---
 import Layout from '../../layouts/Layout.astro';
 import CalculatorShell from '../../components/CalculatorShell.astro';
+import ArtikelGmbh from '../../components/artikel/gmbh-break-even-ist-ein-hebesatz.astro';
 import CalculatorGuide from '../../components/CalculatorGuide.astro';
 import { CALCULATORS, CATEGORIES } from '../../data/calculators';
 const calc = CALCULATORS.find(c => c.slug === 'gmbh-vs-einzelunternehmen')!;
@@ -21,16 +22,16 @@ const year = new Date().getFullYear();
   </div>
   <CalculatorShell
     calculator={calc}
-    intro="Mit dem GmbH vs. Einzelunternehmen-Rechner vergleichen Sie die Steuerbelastung beider Rechtsformen. Finden Sie heraus, ab welchem Gewinn sich eine GmbH-Gründung steuerlich lohnt und wie viel Sie durch die richtige Wahl sparen."
-    sourceNote="Steuerbelastung im Vergleich."
-    explanation="Einzelunternehmen zahlen Einkommensteuer (14-45%) plus Gewerbesteuer; die GmbH zahlt Körperschaftsteuer (15%) plus Solidaritätszuschlag und Gewerbesteuer. Bei Gewinnen über ca. 80.000 Euro ist die GmbH häufig steuerlich günstiger, besonders wenn Gewinne im Unternehmen verbleiben."
+    intro="Der Rechner stellt die Steuerbelastung beider Rechtsformen für denselben Gewinn gegenüber – mit Gewerbesteuer, Anrechnung nach § 35 EStG beim Einzelunternehmen und der zweiten Stufe der GmbH bei der Ausschüttung. Wie viel Sie ausschütten, entscheidet über das Ergebnis mehr als die Höhe des Gewinns."
+    sourceNote="Einkommensteuer nach § 32a EStG, Gewerbesteuer nach §§ 11, 16 GewStG (Freibetrag 24.500 € nur für Einzelunternehmen), Anrechnung nach § 35 Abs. 1 EStG (das Vierfache des Messbetrags, begrenzt auf die gezahlte Gewerbesteuer), Körperschaftsteuer 15 % nach § 23 Abs. 1 KStG, Abgeltungsteuer 25 % nach § 32d Abs. 1 EStG, jeweils zuzüglich Solidaritätszuschlag."
+    explanation="Das Einzelunternehmen versteuert den Gewinn einmal: Einkommensteuer nach dem Tarif (14 bis 45 Prozent) plus Gewerbesteuer, die nach § 35 EStG zum großen Teil auf die Einkommensteuer angerechnet wird. Die GmbH versteuert zweimal: erst Körperschaftsteuer und Gewerbesteuer auf Gesellschaftsebene, dann Abgeltungsteuer auf die Ausschüttung. Weil keine dieser Steuern progressiv ist, ist die GmbH-Belastung bei jedem Gewinn gleich hoch – eine Gewinnschwelle, ab der sich die GmbH bei voller Ausschüttung lohnt, gibt es bei üblichen Hebesätzen deshalb nicht. Der Vorteil entsteht erst, wenn Gewinne im Unternehmen bleiben."
     faqs={[
-      { q: "Ab wann ist eine GmbH-Gründung sinnvoll?", a: "Grobe Faustregel: Ab Gewinnen von 50.000-80.000€/Jahr wird die GmbH interessant. Der Break-Even hängt vom Hebesatz, Ausschüttungen und persönlichen Steuersatz ab. Mit hohem persönlichem Einkommen (45% Grenzsteuer) ist die GmbH oft schon ab 40.000€ rentabel." },
-      { q: "Was kostet die GmbH-Gründung?", a: "Gründungskosten: ca. 800-1.500€ (Notar, Handelsregister, Geschäftsführervergütung Jahr 1). Jährliche Kosten: Bilanzbuchhaltung (500-2.000€/Jahr), Steuererklärungen. Erst ab ca. 50.000€ Gewinn lohnt sich das ökonomisch." },
-      { q: "Kann ich Gewinne in der GmbH steuerfrei aufbauen?", a: "Ja, das ist der Vorteil! Ersparte Gewinne (Thesaurierung) werden mit 30% KSt + 5,5% Soli = 31,65% besteuert. Bei Einzelunternehmen wären es bis zu 45% ESt + SV-Beiträge. Die GmbH funktioniert als Steuerstundungs-Vehikel." },
-      { q: "Was ist der Nachteil der GmbH?", a: "Aufwand: Gründung, Bilanzbuchhaltung, Geschäftsführervergütung, Gewerbesteuer auch ohne Gewinn. Komplexität: Doppelbesteuerung bei Ausschüttung. Haftung: Begrenzt auf Gesellschaftsvermögen, aber: Du bist persönlich für fahrlässige/vorsätzliche Schäden haftbar." },
-      { q: "Muss ich mich selbst Gehalt zahlen?", a: "Ja! Geschäftsführer-Gehalt ist betriebsausgabe und wird mit ESt belastet. Ideal: Gehalt so wählen, dass Restgewinn nicht zu hoch ist. Urteilsregel: 'Angemessenes Geschäftsführergehalt' – das Finanzamt prüft, ob dein Gehalt unrealistisch niedrig ist." },
-      { q: "Kann ich als Einzelunternehmer später zur GmbH wechseln?", a: "Ja, aber mit Steuerfallen! Die Umwandlung (Betriebsvermögensübergang) ist steuerstabil, aber: Eventuelle stille Reserven werden offengelegt und versteuert. Mit Steuerberater planen!" }
+      { q: "Ab welchem Gewinn lohnt sich eine GmbH?", a: "Bei voller Ausschüttung bei keinem: Weil Körperschaft-, Gewerbe- und Abgeltungsteuer feste Sätze haben, ist die GmbH-Belastung vom Gewinn unabhängig – bei einem Hebesatz von 410 % rund 48,6 Prozent. Das Einzelunternehmen bleibt selbst bei sehr hohen Gewinnen darunter. Die verbreiteten Faustregeln „ab 50.000 €“ oder „ab 80.000 €“ gelten nur für den Fall, dass Gewinne im Unternehmen bleiben. Die Rechnung dazu steht im Artikel auf dieser Seite." },
+      { q: "Wie werden einbehaltene Gewinne besteuert?", a: "Mit Körperschaftsteuer von 15 % (§ 23 Abs. 1 KStG), Solidaritätszuschlag darauf und Gewerbesteuer – bei einem Hebesatz von 410 % zusammen rund 30 Prozent. Das ist aber keine endgültige Ersparnis: Sobald das Geld an den Gesellschafter fließt, kommen Abgeltungsteuer und Solidaritätszuschlag hinzu. Einzelunternehmer können für nicht entnommene Gewinne einen ähnlichen Weg über § 34a EStG wählen, mit Nachversteuerung bei der Entnahme." },
+      { q: "Was kostet eine GmbH neben den Steuern?", a: "Notar und Handelsregister bei der Gründung, dazu laufend Buchführung nach HGB, Jahresabschluss und dessen Offenlegung. Diese Kosten rechnet der Rechner nicht mit; sie vergrößern den Abstand zulasten der GmbH. Ein Stammkapital von 25.000 € ist aufzubringen, davon mindestens die Hälfte bei der Anmeldung (§ 5 Abs. 1, § 7 Abs. 2 GmbHG)." },
+      { q: "Muss ich mir als Gesellschafter-Geschäftsführer ein Gehalt zahlen?", a: "Vorgeschrieben ist es nicht. Steuerlich wirkt es aber stark: Das Gehalt ist Betriebsausgabe der GmbH, mindert Gewerbe- und Körperschaftsteuer und wird beim Empfänger nur einmal versteuert. Die Grenze zieht die verdeckte Gewinnausschüttung – ein unangemessen hohes Gehalt behandelt das Finanzamt wie eine Ausschüttung." },
+      { q: "Zahlt eine GmbH auch ohne Gewinn Gewerbesteuer?", a: "Nein. Bemessungsgrundlage ist der Gewerbeertrag; ohne Ertrag fällt keine Gewerbesteuer an. Anders als das Einzelunternehmen hat die GmbH allerdings keinen Freibetrag von 24.500 € (§ 11 Abs. 1 Satz 3 Nr. 1 GewStG), sodass schon kleine Erträge belastet werden." },
+      { q: "Wie wirkt der Hebesatz der Gemeinde?", a: "Er trifft beide Rechtsformen, aber unterschiedlich stark. Beim Einzelunternehmen ist die Anrechnung nach § 35 EStG auf das Vierfache des Messbetrags gedeckelt – das entspricht einem Hebesatz von 400 %; was darüber liegt, bleibt endgültig hängen. Bei der GmbH mindert jeder Euro Gewerbesteuer zugleich die Ausschüttung und damit die Abgeltungsteuer." }
     ]}
   >
     <div class="calc-form">
@@ -54,6 +55,7 @@ const year = new Date().getFullYear();
       </div>
       <div id="details" style="margin-top:0.75rem;font-size:0.88rem;color:#666;display:flex;gap:1.5rem;flex-wrap:wrap;"></div>
     </div>
+    <ArtikelGmbh slot="artikel" />
   </CalculatorShell>
 
   <CalculatorGuide
@@ -108,27 +110,41 @@ function berechne() {
   const kSt = gewinn * 0.15;
   const soliKSt = kSt * 0.055;
   const gewStGmbH = gewinn * 0.035 * (hebesatz / 100);
-  const thesaurierung = gewinn - ausschuettung;
-  const abgeltungsteuer = ausschuettung * 0.25;
+  // Ausschütten lässt sich nur, was nach Gewerbe- und Körperschaftsteuer übrig
+  // ist. Vorher nahm die Seite die Eingabe ungeprüft und wies zugleich
+  // "Gewinn minus Ausschüttung" als thesauriert aus – zusammen war das mehr,
+  // als die GmbH überhaupt hat.
+  const verfuegbar = Math.max(0, gewinn - kSt - soliKSt - gewStGmbH);
+  const ausschuettungEff = Math.min(ausschuettung, verfuegbar);
+  const abgeltungsteuer = ausschuettungEff * 0.25;
   const soliAbgeltung = abgeltungsteuer * 0.055;
   const gesamtGmbH = kSt + soliKSt + gewStGmbH + abgeltungsteuer + soliAbgeltung;
-  
-  const guemstiger = gesamtEU < gesamtGmbH ? 'Einzelunternehmen' : 'GmbH';
+  const thesaurierung = verfuegbar - ausschuettungEff;
+
+  const guenstiger = gesamtEU < gesamtGmbH ? 'Einzelunternehmen' : 'GmbH';
   const diff = Math.abs(gesamtEU - gesamtGmbH);
-  
-  document.getElementById('ergebnis').textContent = guemstiger;
-  document.getElementById('ergebnis').style.color = guemstiger === 'GmbH' ? '#1565c0' : '#1e7e34';
-  
+  const eur = (n, stellen = 2) =>
+    n.toLocaleString('de-DE', { minimumFractionDigits: stellen, maximumFractionDigits: stellen }) + ' €';
+
+  document.getElementById('ergebnis').textContent = guenstiger;
+  document.getElementById('ergebnis').style.color = guenstiger === 'GmbH' ? '#1565c0' : '#1e7e34';
+
   const nettoEU = gewinn - gesamtEU;
-  const nettoGmbH = ausschuettung - abgeltungsteuer - soliAbgeltung;
-  
-  document.getElementById('details').innerHTML =
-    `<span>Steuern Einzelunternehmen: <strong>${gesamtEU.toLocaleString('de-DE', {minimumFractionDigits:2, maximumFractionDigits:2})} €</strong></span>` +
-    `<span>Steuern GmbH: <strong>${gesamtGmbH.toLocaleString('de-DE', {minimumFractionDigits:2, maximumFractionDigits:2})} €</strong></span>` +
-    `<span>Differenz: <strong>${diff.toLocaleString('de-DE', {minimumFractionDigits:2, maximumFractionDigits:2})} €</strong></span>` +
-    `<span>Netto EU: <strong>${nettoEU.toLocaleString('de-DE', {minimumFractionDigits:0})} €</strong></span>` +
-    `<span>Netto GmbH (Ausschüttung): <strong>${nettoGmbH.toLocaleString('de-DE', {minimumFractionDigits:0})} €</strong></span>` +
-    `<span>Thesauriert in GmbH: <strong>${thesaurierung.toLocaleString('de-DE', {minimumFractionDigits:0})} €</strong></span>`;
+  const nettoGmbH = ausschuettungEff - abgeltungsteuer - soliAbgeltung;
+
+  const teile = [
+    `<span>Steuern Einzelunternehmen: <strong>${eur(gesamtEU)}</strong> (${(gesamtEU / gewinn * 100).toLocaleString('de-DE', {maximumFractionDigits:2})} %)</span>`,
+    `<span>Steuern GmbH: <strong>${eur(gesamtGmbH)}</strong> (${(gesamtGmbH / gewinn * 100).toLocaleString('de-DE', {maximumFractionDigits:2})} %)</span>`,
+    `<span>Differenz: <strong>${eur(diff)}</strong></span>`,
+    `<span>Beim Einzelunternehmer bleiben: <strong>${eur(nettoEU, 0)}</strong></span>`,
+    `<span>Beim Gesellschafter kommen an: <strong>${eur(nettoGmbH, 0)}</strong></span>`,
+    `<span>In der GmbH bleiben: <strong>${eur(thesaurierung, 0)}</strong></span>`,
+  ];
+  if (ausschuettung > verfuegbar) {
+    teile.push(`<span style="flex-basis:100%;">Mehr als ${eur(verfuegbar, 0)} lassen sich nicht ausschütten: Gewerbe- und Körperschaftsteuer gehen vorher ab. Gerechnet wurde mit diesem Betrag.</span>`);
+  }
+  teile.push(`<span style="flex-basis:100%;">Was in der GmbH bleibt, ist nicht steuerfrei, sondern noch nicht ausgeschüttet – bei einer späteren Ausschüttung fallen Abgeltungsteuer und Solidaritätszuschlag an. Ein Geschäftsführergehalt rechnet diese Seite nicht mit; was es ändert, steht im Artikel unten.</span>`);
+  document.getElementById('details').innerHTML = teile.join('');
 }
 ['gewinn','ausschuettung','hebesatz'].forEach(id =>
   document.getElementById(id).addEventListener('input', berechne));

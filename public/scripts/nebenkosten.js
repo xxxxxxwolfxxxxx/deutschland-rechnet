@@ -175,8 +175,8 @@ export function berechneNebenkosten({
 
 /**
  * Einordnung eines Quadratmeterwerts gegenüber dem Betriebskostenspiegel.
- * Oberhalb von `alleArtenGesamt` fällt mehr an, als selbst bei voller
- * Ausstattung üblich ist – dann lohnt der Blick in die Belege (§ 556 Abs. 4 BGB).
+ * Oberhalb von `alleArtenGesamt` fällt mehr an, als selbst dann üblich ist,
+ * wenn sämtliche Kostenarten anfallen – dann lohnt der Blick in die Belege (§ 556 Abs. 4 BGB).
  */
 export function einordnung(euroProQmMonat) {
   const { durchschnittGesamt, alleArtenGesamt } = BETRIEBSKOSTENSPIEGEL;
@@ -188,9 +188,9 @@ export function einordnung(euroProQmMonat) {
     return { stufe: 'durchschnitt', text: `Im Bereich des Bundesdurchschnitts von ${eur(durchschnittGesamt)} €/m² und Monat.` };
   }
   if (euroProQmMonat <= alleArtenGesamt) {
-    return { stufe: 'erhoeht', text: `Über dem Durchschnitt, aber noch unter den ${eur(alleArtenGesamt)} €/m², die bei voller Ausstattung zusammenkommen.` };
+    return { stufe: 'erhoeht', text: `Über dem Durchschnitt, aber noch unter den ${eur(alleArtenGesamt)} €/m², die zusammenkommen, wenn sämtliche Kostenarten anfallen.` };
   }
-  return { stufe: 'ueber', text: `Höher als die ${eur(alleArtenGesamt)} €/m², die selbst bei voller Ausstattung anfallen – ein Blick in die Belege lohnt sich.` };
+  return { stufe: 'ueber', text: `Höher als die ${eur(alleArtenGesamt)} €/m², die selbst dann anfallen, wenn sämtliche Kostenarten vorkommen – ein Blick in die Belege lohnt sich.` };
 }
 
 /**

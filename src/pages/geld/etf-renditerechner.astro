@@ -1,7 +1,7 @@
 ---
 import Layout from '../../layouts/Layout.astro';
 import CalculatorShell from '../../components/CalculatorShell.astro';
-import CalculatorGuide from '../../components/CalculatorGuide.astro';
+import ArtikelEtfRendite from '../../components/artikel/durchschnittsrendite-und-reihenfolge.astro';
 import { CALCULATORS, CATEGORIES } from '../../data/calculators';
 const calc = CALCULATORS.find(c => c.slug === 'etf-renditerechner')!;
 const cat = CATEGORIES[calc.category];
@@ -9,7 +9,7 @@ const year = new Date().getFullYear();
 ---
 <Layout
   title={`ETF-Renditerechner ${year}`}
-  description="ETF-Rendite berechnen – Vermögensaufbau mit regelmäßiger Sparrate und erwarteter Rendite."
+  description="ETF-Rendite berechnen: Endwert eines Sparplans mit Anfangskapital, Sparrate und eigener Renditeannahme – und warum sieben Prozent im Schnitt keine sieben Prozent sind."
   canonicalPath="/geld/etf-renditerechner/"
   categoryColor={cat.color}
   categoryLight={cat.colorLight}
@@ -22,14 +22,14 @@ const year = new Date().getFullYear();
   <CalculatorShell
     calculator={calc}
     intro="Mit dem ETF-Renditerechner berechnen Sie Ihr Vermögen nach regelmäßigem Sparen mit einer erwarteten jährlichen Rendite."
-    sourceNote="Berechnung basiert auf historischen Durchschnittsrenditen von Aktien-ETFs."
-    explanation="ETFs (Exchange Traded Funds) sind kostengünstige Fonds, die Indizes abbilden. Mit regelmäßigem Sparen und Zinseszins-Effekt bauen Sie langfristig Vermögen auf."
+    sourceNote="Die Rendite ist Ihre Eingabe, keine Statistik. Gerechnet wird mit Einzahlung am Monatsende und einem Monatsfaktor, der über zwölf Monate genau die eingetragene Jahresrendite ergibt – vor Steuern und vor Fondskosten."
+    explanation="Der Rechner unterstellt, dass jedes Jahr genau die eingetragene Rendite bringt. Echte Anlagejahre schwanken – was das für den Durchschnitt und für einen Sparplan bedeutet, rechnet der Artikel unten durch. Steuern beim Verkauf berücksichtigt der ETF-Sparplan-Rechner."
     faqs={[
-      { q: "Was ist eine ETF?", a: "Exchange Traded Fund – ein Fonds, der einen Index (z.B. DAX, MSCI World) 1:1 abbildet. Kosten sehr niedrig (0,1-0,5% p.a.), diversifizierung breit." },
-      { q: "Welche Rendite kann ich erwarten?", a: "Aktienmärkte: 7-8% p.a. historisch, Anleihen: 2-3%. Ein ausgewogenes Portfolio: 5-6% p.a. Keine Garantie!" },
-      { q: "Wie oft sollte ich sparen?", a: "Monatlich ist ideal. Der Cost-Averaging-Effekt glättet Kursschwankungen. Kapitalerträge unterliegen Kapitalertragssteuer (26,375%)." },
-      { q: "Ist regelmäßiges Sparen besser als eine Einmalanlage?", a: "Psychologisch ja – man vermeidet schlechte Timing-Entscheidungen. Mathematisch: Eine große Einlage früher wächst mehr. Beste Strategie: Kombination." },
-      { q: "Wie lange sollte ich mindestens sparen?", a: "Mindestens 10-15 Jahre. Über 20+ Jahre ist Aktien-Sparen sehr zuverlässig. Unter 5 Jahren: eher Tagesgeld, keine Aktien." }
+      { q: "Was ist ein ETF?", a: "Ein Exchange Traded Fund ist ein börsengehandelter Fonds, der meist einen Index wie den DAX oder den MSCI World nachbildet. Die laufenden Kosten stehen im Basisinformationsblatt des jeweiligen Fonds; ziehen Sie sie von der Rendite ab, die Sie eintragen." },
+      { q: "Welche Rendite soll ich eintragen?", a: "Das ist eine Annahme über die Zukunft, die kein Rechner Ihnen abnehmen kann. Rechnen Sie mehrere Werte durch. Achten Sie bei historischen Angaben darauf, ob die jährliche Rendite gemeint ist, die das Depot tatsächlich gebracht hat (geometrisches Mittel), oder der Durchschnitt der einzelnen Jahresrenditen – der liegt bei schwankenden Anlagen immer höher." },
+      { q: "Wie werden ETF-Gewinne besteuert?", a: "Bei Aktienfonds sind für Privatanleger 30 Prozent der Erträge steuerfrei (§ 20 Abs. 1 InvStG). Auf den Rest fallen nach Abzug des Sparer-Pauschbetrags 25 Prozent Abgeltungsteuer an, dazu der Solidaritätszuschlag und gegebenenfalls Kirchensteuer. Diese Rechnung übernimmt der ETF-Sparplan-Rechner; der Wert hier ist vor Steuern." },
+      { q: "Ist regelmäßiges Sparen besser als eine Einmalanlage?", a: "Bei gleicher Rendite wächst Geld, das früher angelegt ist, länger. Ein Sparplan verteilt die Käufe dafür über die Zeit. Der Preis dafür: Beim Sparplan hängt das Ergebnis davon ab, in welcher Reihenfolge gute und schlechte Jahre kommen – bei der Einmalanlage nicht. Die Zahlen dazu stehen im Artikel auf dieser Seite." },
+      { q: "Warum rechnet der Rechner nicht einfach mit einem Zwölftel der Rendite pro Monat?", a: "Weil sich die Monatserträge mitverzinsen: 7 Prozent geteilt durch zwölf ergeben über ein Jahr 7,23 Prozent. Der Rechner nimmt deshalb den Monatsfaktor, der über zwölf Monate genau die eingetragenen 7 Prozent ergibt." }
     ]}
   >
     <div class="calc-form">
@@ -48,7 +48,7 @@ const year = new Date().getFullYear();
         </div>
         <div class="calc-group">
           <label for="jahre">Zeitraum (Jahre)</label>
-          <input type="number" id="jahre" min="1" max="50" value="20" step="1" />
+          <input type="number" id="jahre" min="0" max="50" value="20" step="1" />
         </div>
       </div>
 
@@ -72,63 +72,37 @@ const year = new Date().getFullYear();
 
       <div id="details" style="margin-top:0.75rem;font-size:0.88rem;color:#666;"></div>
     </div>
+    <ArtikelEtfRendite slot="artikel" />
   </CalculatorShell>
 
-  <CalculatorGuide
-    title="ETF-Rendite verstehen: So wächst Ihr Vermögen"
-    content="<p>ETFs (Exchange Traded Funds) haben die private Geldanlage in Deutschland revolutioniert. Mit jährlichen Kosten von oft nur 0,1-0,3% sind sie deutlich günstiger als aktiv gemanagte Fonds (1-2% p.a.). Der MSCI World Index hat über die letzten 50 Jahre eine durchschnittliche Rendite von etwa 7-8% pro Jahr erzielt - nach Inflation immer noch rund 5%.</p>
-
-<p><strong>Der Zinseszins-Effekt ist entscheidend:</strong> Wer monatlich 300 Euro in einen breit gestreuten Aktien-ETF investiert, hat bei 7% jährlicher Rendite nach 30 Jahren etwa 340.000 Euro - davon sind nur 108.000 Euro eigene Einzahlungen. Der Rest von über 230.000 Euro entsteht durch den Zinseszins-Effekt. Je früher Sie anfangen, desto stärker wirkt dieser Hebel.</p>
-
-<p><strong>Steuern berücksichtigen:</strong> Auf ETF-Erträge fällt in Deutschland die Abgeltungsteuer von 25% plus Solidaritätszuschlag (insgesamt 26,375%) an. Allerdings gilt seit 2018 die Teilfreistellung: Bei Aktien-ETFs sind 30% der Erträge steuerfrei. Außerdem steht jedem Anleger ein Sparerpauschbetrag von 1.000 Euro pro Jahr zu (2.000 Euro bei Ehepaaren). Richten Sie unbedingt einen Freistellungsauftrag bei Ihrem Broker ein.</p>
-
-<p><strong>Thesaurierend vs. ausschüttend:</strong> Thesaurierende ETFs legen Dividenden automatisch wieder an und verstärken den Zinseszins-Effekt. Ausschüttende ETFs zahlen Dividenden auf Ihr Konto aus. Für den langfristigen Vermögensaufbau sind thesaurierende ETFs in der Regel vorteilhafter.</p>
-
-<p><strong>Praxistipp:</strong> Starten Sie mit einem einzigen breit gestreuten ETF auf den MSCI World oder FTSE All-World. Erst ab einem Depotvolumen von 50.000 Euro lohnt sich eine differenziertere Aufteilung. Die wichtigste Entscheidung ist nicht welchen ETF Sie wählen, sondern dass Sie überhaupt anfangen und durchhalten.</p>"
-    relatedSlugs={['etf-sparplan-rechner', 'abgeltungsteuer-rechner', 'fire-rechner', 'sparen-rechner']}
-  />
 </Layout>
 
 <script type="module">
+const { sparplanVerlauf } = await import(window.__base + 'scripts/etf-sparplan.js');
+const eur = (n, stellen = 2) =>
+  n.toLocaleString('de-DE', { minimumFractionDigits: stellen, maximumFractionDigits: stellen }) + ' €';
+const wert = (id) => {
+  const n = parseFloat(document.getElementById(id).value);
+  return Number.isFinite(n) ? n : 0;
+};
 function berechne() {
-  const anfang = parseFloat(document.getElementById('anfangsinvest').value)||5000;
-  const sparrate = parseFloat(document.getElementById('sparrate').value)||500;
-  const rendite = parseFloat(document.getElementById('rendite').value)||7;
-  const jahre = parseInt(document.getElementById('jahre').value)||20;
+  const jahre = Math.max(0, Math.round(wert('jahre')));
+  const r = sparplanVerlauf({
+    startkapital: wert('anfangsinvest'),
+    sparrate: wert('sparrate'),
+    renditeProzent: wert('rendite'),
+    jahre,
+  });
+  document.getElementById('endsumme').textContent = eur(r.endkapital);
+  document.getElementById('gewinne').textContent = eur(r.gewinn);
+  document.getElementById('eingezahlt').textContent = eur(r.eingezahlt);
 
-  const monatrendite = rendite / 100 / 12;
-  let wert = anfang;
-  const eingezahlt = anfang + sparrate * 12 * jahre;
-
-  for (let monat = 1; monat <= jahre * 12; monat++) {
-    wert = wert * (1 + monatrendite) + sparrate;
-  }
-
-  const gewinne = wert - eingezahlt;
-
-  document.getElementById('endsumme').textContent = wert.toLocaleString('de-DE', {minimumFractionDigits:2}) + ' €';
-  document.getElementById('gewinne').textContent = gewinne.toLocaleString('de-DE', {minimumFractionDigits:2}) + ' €';
-  document.getElementById('eingezahlt').textContent = eingezahlt.toLocaleString('de-DE', {minimumFractionDigits:2}) + ' €';
-
-  // Fortschritt
-  let fortschritt = '<div style="display:grid; gap:0.5rem;">';
-  wert = anfang;
-  for (let y = 0; y <= jahre; y += 5) {
-    if (y > 0) {
-      for (let m = 0; m < 5 * 12; m++) {
-        wert = wert * (1 + monatrendite) + sparrate;
-      }
-    }
-    const eingez = anfang + sparrate * 12 * y;
-    fortschritt += `<div style="display:flex; gap:1rem;">
-      <strong style="width:60px;">Jahr ${y}:</strong>
-      <span>${wert.toLocaleString('de-DE', {maximumFractionDigits:0})} €</span>
-    </div>`;
-  }
-  fortschritt += '</div>';
-  document.getElementById('fortschritt').innerHTML = fortschritt;
+  const zeilen = r.jahreswerte
+    .map((w, j) => ({ w, j }))
+    .filter(({ j }) => j % 5 === 0 || j === jahre)
+    .map(({ w, j }) => `<div style="display:flex; gap:1rem;"><strong style="width:70px;">Jahr ${j}:</strong><span>${eur(w, 0)}</span></div>`);
+  document.getElementById('fortschritt').innerHTML = `<div style="display:grid; gap:0.5rem;">${zeilen.join('')}</div>`;
 }
-
 ['anfangsinvest','sparrate','rendite','jahre'].forEach(id =>
   document.getElementById(id).addEventListener('input', berechne));
 berechne();

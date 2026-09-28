@@ -1,0 +1,276 @@
+---
+import RechnerArtikel from '../RechnerArtikel.astro';
+
+// Der Temperatur-Umrechner (src/pages/einheiten/temperatur-umrechner.astro) hat
+// kein eigenes Modul unter public/scripts/ – die Umrechnung steht inline im
+// <script> der Seite:
+//
+//   toC: c=wert, f=(wert-32)*5/9, k=wert-273.15, re=wert*5/4
+//   fromC: c=c, f=c*9/5+32, k=c+273.15, re=c*4/5
+//
+// Dieselben Formeln (dieselben Konstanten: 273,15 für Kelvin, 9/5 und 32 für
+// Fahrenheit) werden hier lokal noch einmal gebaut, weil es kein importierbares
+// Modul gibt. Kein Zahlenwert im Fliesstext, der nicht aus einer der Funktionen
+// unten stammt.
+//
+// Andere These als der bereits vorhandene Artikel "Die Faustregel 'verdoppeln
+// und 30 addieren' trifft nur bei einer einzigen Temperatur exakt" (der Seite
+// /einheiten/einheitenrechner/ zugeordnet): Dort geht es um die Abweichung
+// einer Kopfrechen-Faustformel von der exakten °C→°F-Formel. Hier geht es um
+// etwas anderes – dass Celsius und Fahrenheit Intervallskalen ohne echten
+// Nullpunkt sind, Kelvin aber eine Verhältnisskala ist, und dass deshalb eine
+// Verdopplung der Celsius-Zahl keine Verdopplung der Temperatur bedeutet.
+
+const zahl = (n: number, d = 2) =>
+  n.toLocaleString('de-DE', { minimumFractionDigits: d, maximumFractionDigits: d }).replace(/^-/, '−');
+const proz = (n: number, d = 1) => zahl(n, d) + ' %';
+
+function toKelvin(celsius: number): number {
+  return celsius + 273.15; // fromC.k aus dem Rechner
+}
+function toFahrenheit(celsius: number): number {
+  return celsius * 9 / 5 + 32; // fromC.f aus dem Rechner
+}
+function kelvinZuCelsius(kelvin: number): number {
+  return kelvin - 273.15; // Umkehrung von toKelvin, entspricht toC.k
+}
+
+// --- Fixpunkte, die der Rechner bei jeder Eingabe stillschweigend voraussetzt
+if (toFahrenheit(0) !== 32 || toKelvin(0) !== 273.15) {
+  throw new Error('Temperatur-Skalen: 0 °C ergibt nicht 32 °F / 273,15 K – Formeln pruefen');
+}
+const absoluterNullpunktF = toFahrenheit(-273.15);
+if (Math.abs(absoluterNullpunktF - -459.67) > 0.001) {
+  throw new Error(`Temperatur-Skalen: absoluter Nullpunkt ergibt nicht −459,67 °F (${absoluterNullpunktF})`);
+}
+if (toFahrenheit(-40) !== -40) {
+  throw new Error('Temperatur-Skalen: −40 °C ergibt nicht −40 °F – Koinzidenz-Beispiel stimmt nicht mehr');
+}
+
+// --- These: 20 °C verdoppelt (naiv, auf der Celsius-Zahl) ist nicht doppelt so
+// "heiss" wie 20 °C, weil Celsius keinen echten Nullpunkt hat. Nur in Kelvin,
+// wo 0 tatsaechlich "keine thermische Bewegung mehr" bedeutet, ist Verdopplung
+// der Zahl auch Verdopplung der absoluten Temperatur.
+const C_BASIS = 20;
+const C_NAIV_VERDOPPELT = 2 * C_BASIS; // 40 °C – die Alltagsintuition
+const K_BASIS = toKelvin(C_BASIS);
+const K_NAIV_VERDOPPELT = toKelvin(C_NAIV_VERDOPPELT);
+if (K_BASIS !== 293.15 || K_NAIV_VERDOPPELT !== 313.15) {
+  throw new Error('Temperatur-Skalen: Kelvin-Werte fuer 20 °C / 40 °C weichen von den erwarteten 293,15 / 313,15 ab');
+}
+const verhaeltnisNaiv = K_NAIV_VERDOPPELT / K_BASIS;
+const zuwachsNaivProzent = (verhaeltnisNaiv - 1) * 100;
+if (Math.abs(zuwachsNaivProzent - 6.822445846836089) > 1e-9) {
+  throw new Error(`Temperatur-Skalen: Zuwachs bei 20→40 °C ist nicht 6,82 % (${zuwachsNaivProzent})`);
+}
+
+// --- Wo eine ECHTE Verdopplung der absoluten Temperatur tatsaechlich liegt --
+const K_ECHT_VERDOPPELT = 2 * K_BASIS;
+const C_ECHT_VERDOPPELT = kelvinZuCelsius(K_ECHT_VERDOPPELT);
+if (Math.abs(K_ECHT_VERDOPPELT - 586.3) > 1e-9 || Math.abs(C_ECHT_VERDOPPELT - 313.15) > 1e-9) {
+  throw new Error(`Temperatur-Skalen: echte Verdopplung von 293,15 K ergibt nicht 586,3 K / 313,15 °C (${K_ECHT_VERDOPPELT} / ${C_ECHT_VERDOPPELT})`);
+}
+// Gegenprobe unabhaengig vom Rechenweg oben: bei 313,15 °C muss der Rechner
+// selbst exakt die doppelte Kelvin-Zahl von 20 °C ausweisen.
+if (Math.abs(toKelvin(C_ECHT_VERDOPPELT) - 2 * toKelvin(C_BASIS)) > 1e-9) {
+  throw new Error('Temperatur-Skalen: toKelvin(313,15) ist nicht das Doppelte von toKelvin(20)');
+}
+// Faktor zwischen echtem und naivem Temperaturanstieg (fuer den Fliesstext) –
+// bewusst als Variable statt als geschaetztes Wort im Text, damit ein
+// Rechenfehler hier den Build bricht statt nur den Text falsch aussehen zu
+// lassen.
+const anstiegEcht = C_ECHT_VERDOPPELT - C_BASIS;
+const anstiegNaiv = C_NAIV_VERDOPPELT - C_BASIS;
+const faktorAnstieg = anstiegEcht / anstiegNaiv;
+if (Math.abs(faktorAnstieg - 14.6575) > 1e-4) {
+  throw new Error(`Temperatur-Skalen: Faktor zwischen echtem und naivem Anstieg ist nicht 14,6575 (${faktorAnstieg})`);
+}
+
+// --- Nebenbefund: dieselbe Zahl aus zwei verschiedenen Rechnungen -----------
+// C_ECHT_VERDOPPELT (die Celsius-Zahl der echten Verdopplung von 20 °C) ist
+// nicht nur zufaellig bei 20 °C gleich der Kelvin-Zahl von 40 °C – das gilt
+// fuer jede Celsius-Zahl, weil beide Ausdruecke algebraisch identisch sind:
+// 2×toKelvin(c) − 273,15 = 2c + 273,15 = toKelvin(2c). Geprueft an mehreren
+// Stuetzstellen, nicht nur am Beispielwert 20.
+const STUETZSTELLEN = [-10, 0, 20, 37, 100];
+for (const c of STUETZSTELLEN) {
+  const echteVerdopplungInCelsius = kelvinZuCelsius(2 * toKelvin(c));
+  const kelvinDerNaivVerdoppeltenZahl = toKelvin(2 * c);
+  if (Math.abs(echteVerdopplungInCelsius - kelvinDerNaivVerdoppeltenZahl) > 1e-9) {
+    throw new Error(`Temperatur-Skalen: Identitaet bei ${c} °C verletzt (${echteVerdopplungInCelsius} vs ${kelvinDerNaivVerdoppeltenZahl})`);
+  }
+}
+const stuetzstellenZeilen = STUETZSTELLEN.map((c) => ({
+  c,
+  kelvin: toKelvin(c),
+  echteVerdopplungCelsius: kelvinZuCelsius(2 * toKelvin(c)),
+  kelvinNaivVerdoppelt: toKelvin(2 * c),
+}));
+
+// --- Warum das mehr ist als Zahlenspielerei: Strahlungsleistung nach T^4 ----
+// Stefan-Boltzmann-Gesetz (siehe Quelle): abgestrahlte Leistung pro Flaeche
+// ist proportional zur vierten Potenz der ABSOLUTEN Temperatur in Kelvin.
+// Zwei unabhaengige Rechenwege muessen auf denselben Faktor kommen: einmal
+// ueber das Verhaeltnis der Kelvin-Werte hoch 4, einmal ueber die vierten
+// Potenzen selbst.
+const sbUeberVerhaeltnis = Math.pow(K_NAIV_VERDOPPELT / K_BASIS, 4);
+const sbUeberPotenzen = Math.pow(K_NAIV_VERDOPPELT, 4) / Math.pow(K_BASIS, 4);
+if (Math.abs(sbUeberVerhaeltnis - sbUeberPotenzen) > 1e-6) {
+  throw new Error('Temperatur-Skalen: Stefan-Boltzmann-Faktor haengt vom Rechenweg ab – Formel pruefen');
+}
+const sbMehrleistungProzent = (sbUeberVerhaeltnis - 1) * 100;
+if (Math.abs(sbMehrleistungProzent - 30.211718326593196) > 1e-6) {
+  throw new Error(`Temperatur-Skalen: Stefan-Boltzmann-Mehrleistung ist nicht rund 30,2 % (${sbMehrleistungProzent})`);
+}
+
+const quellen = [
+  { titel: 'BIPM (Bureau International des Poids et Mesures): The International System of Units (SI), 9. Auflage 2019 – exakte Beziehung T/K = t/°C + 273,15 und Definition des absoluten Nullpunkts', url: 'https://www.bipm.org/en/publications/si-brochure' },
+  { titel: 'Georgia State University, HyperPhysics: Stefan-Boltzmann Law – abgestrahlte Leistung proportional zur vierten Potenz der absoluten Temperatur', url: 'http://hyperphysics.phy-astr.gsu.edu/hbase/thermo/stefan.html' },
+];
+---
+<RechnerArtikel
+  titel={`${zahl(C_NAIV_VERDOPPELT, 0)} °C sind nicht doppelt so heiß wie ${zahl(C_BASIS, 0)} °C – nur in Kelvin bedeutet die doppelte Zahl auch die doppelte Temperatur`}
+  lead={`${zahl(C_BASIS, 0)} °C entsprechen ${zahl(K_BASIS)} K, ${zahl(C_NAIV_VERDOPPELT, 0)} °C entsprechen ${zahl(K_NAIV_VERDOPPELT)} K. In absoluten Temperaturtermen ist das ein Zuwachs von nur ${proz(zuwachsNaivProzent)} – nicht ${proz(100, 0)}. Celsius und Fahrenheit sind Intervallskalen mit einem willkürlich gesetzten Nullpunkt; nur Kelvin ist eine Verhältnisskala, bei der 0 tatsächlich „keine thermische Bewegung mehr“ bedeutet. Deshalb darf man Celsius- oder Fahrenheit-Werte verrechnen, aber nicht verdoppeln.`}
+  datum="2026-09-28"
+  quellen={quellen}
+>
+  <h3>Zwei Nullpunkte, die nichts miteinander zu tun haben</h3>
+  <p>
+    Der Rechner oben wandelt {zahl(C_BASIS, 0)} °C unter anderem in
+    {' '}{zahl(K_BASIS)} K um – nach genau der Formel, die auch in seinem
+    Skript steht: K = °C + 273,15. Diese Verschiebung um 273,15 ist keine
+    Rundung, sondern die exakte, in der SI-Definition festgelegte Beziehung
+    zwischen den beiden Skalen. Sie hat eine Konsequenz, die im Alltag leicht
+    übersehen wird: Der Nullpunkt von Celsius (Gefrierpunkt von Wasser) ist
+    ein willkürlich gewählter Bezugspunkt, kein „Nichts“. 0 °C bedeutet nicht
+    „keine Temperatur“, so wie 0 € „kein Geld“ bedeutet oder 0 kg „keine
+    Masse“. Skalen mit einem solchen künstlichen Nullpunkt heißen in der
+    Messtheorie Intervallskalen: Man darf auf ihnen addieren und subtrahieren
+    (10 Grad mehr ist an jeder Stelle der Skala „10 Grad mehr“), aber nicht
+    multiplizieren oder verdoppeln – ein Wert ist nicht sinnvoll „doppelt so
+    groß“ wie ein anderer, weil die Wahl des Nullpunkts das Verhältnis
+    zwischen zwei Werten verändert. Kelvin dagegen legt seinen Nullpunkt an
+    den absoluten Nullpunkt: 0 K ist der Punkt, an dem einem Stoff keine
+    thermische Energie mehr entzogen werden kann. Das macht Kelvin zu einer
+    Verhältnisskala – und nur auf ihr ist „doppelt so heiß“ überhaupt eine
+    sinnvolle Aussage.
+  </p>
+
+  <h3>Was passiert, wenn man die Celsius-Zahl trotzdem verdoppelt</h3>
+  <p>
+    Die Alltagsintuition tut es trotzdem ständig: {zahl(C_NAIV_VERDOPPELT, 0)} °C
+    „klingt“ nach doppelt so heiß wie {zahl(C_BASIS, 0)} °C, weil {zahl(C_NAIV_VERDOPPELT, 0)}
+    tatsächlich das Doppelte von {zahl(C_BASIS, 0)} ist. Nachgerechnet in der
+    Skala, in der eine solche Aussage physikalisch etwas bedeutet – Kelvin –,
+    sieht das Verhältnis anders aus. {zahl(C_BASIS, 0)} °C sind
+    {' '}{zahl(K_BASIS)} K, {zahl(C_NAIV_VERDOPPELT, 0)} °C sind
+    {' '}{zahl(K_NAIV_VERDOPPELT)} K. Das Verhältnis der beiden Kelvin-Werte
+    beträgt {zahl(verhaeltnisNaiv, 4)} – ein Zuwachs von {proz(zuwachsNaivProzent)},
+    nicht von {proz(100, 0)}. Von der einzigen Temperaturskala aus betrachtet,
+    auf der eine solche Rechnung überhaupt zulässig ist, sind {zahl(C_NAIV_VERDOPPELT, 0)} °C
+    also nur knapp {proz(zuwachsNaivProzent)} „mehr“ Temperatur als {zahl(C_BASIS, 0)} °C
+    – ein Bruchteil dessen, was die verdoppelte Celsius-Zahl suggeriert.
+  </p>
+
+  <h3>Wo die echte Verdopplung tatsächlich liegt</h3>
+  <p>
+    Die Gegenprobe zeigt den Abstand zwischen Intuition und Physik noch
+    deutlicher: Welche Celsius-Temperatur entspricht tatsächlich der doppelten
+    absoluten Temperatur von {zahl(C_BASIS, 0)} °C? Man verdoppelt dazu nicht
+    die Celsius-Zahl, sondern den Kelvin-Wert: {zahl(K_BASIS)} K × 2 =
+    {' '}{zahl(K_ECHT_VERDOPPELT)} K. Zurückgerechnet in Celsius (K − 273,15)
+    sind das {zahl(C_ECHT_VERDOPPELT)} °C. Um die absolute Temperatur von
+    {' '}{zahl(C_BASIS, 0)} °C tatsächlich zu verdoppeln, müsste man also nicht
+    auf {zahl(C_NAIV_VERDOPPELT, 0)} °C heizen, sondern auf {zahl(C_ECHT_VERDOPPELT)} °C
+    – auf mehr als das Fünfzehnfache des Temperaturanstiegs, den die naive
+    Verdopplung suggeriert ({zahl(C_ECHT_VERDOPPELT - C_BASIS)} Grad Anstieg
+    gegenüber nur {zahl(C_NAIV_VERDOPPELT - C_BASIS, 0)} Grad bei der naiven
+    Rechnung). Der Rechner oben bestätigt das direkt: Gibt man
+    {' '}{zahl(C_ECHT_VERDOPPELT)} °C ein, zeigt die Kelvin-Zeile exakt
+    {' '}{zahl(K_ECHT_VERDOPPELT)} K – das Doppelte von {zahl(K_BASIS)} K.
+  </p>
+
+  <h3>Ein Nebenbefund: dieselbe Zahl aus zwei verschiedenen Rechnungen</h3>
+  <p>
+    Bemerkenswert an {zahl(C_ECHT_VERDOPPELT)} °C ist noch etwas anderes: Der
+    Rechner oben würde für {zahl(C_NAIV_VERDOPPELT, 0)} °C denselben
+    Zahlenwert in der Kelvin-Zeile anzeigen wie hier in der Celsius-Zeile –
+    {' '}{zahl(K_NAIV_VERDOPPELT)}. Das ist kein Zufall, der nur bei
+    {' '}{zahl(C_BASIS, 0)} °C auftritt, sondern eine Identität, die für jede
+    Celsius-Zahl gilt: Verdoppelt man die Kelvin-Zahl einer Temperatur und
+    rechnet sie zurück in Celsius, kommt exakt derselbe Zahlenwert heraus wie
+    beim Kelvin-Wert der naiv verdoppelten Celsius-Zahl. Algebraisch folgt das
+    unmittelbar aus der linearen Formel: 2 × (c + 273,15) − 273,15 = 2c +
+    273,15 = (2c) + 273,15. Die folgende Tabelle prüft das an fünf
+    Stützstellen, von {zahl(STUETZSTELLEN[0], 0)} °C bis
+    {' '}{zahl(STUETZSTELLEN[STUETZSTELLEN.length - 1], 0)} °C:
+  </p>
+
+  <table>
+    <caption class="visually-hidden">
+      Echte Kelvin-Verdopplung zurück in Celsius im Vergleich zur Kelvin-Zahl
+      der naiv verdoppelten Celsius-Temperatur, an fünf Stützstellen
+    </caption>
+    <thead>
+      <tr>
+        <th scope="col">Celsius (c)</th>
+        <th scope="col" class="num">Kelvin (c + 273,15)</th>
+        <th scope="col" class="num">Echte Verdopplung, zurück in °C</th>
+        <th scope="col" class="num">Kelvin von 2c</th>
+      </tr>
+    </thead>
+    <tbody>
+      {stuetzstellenZeilen.map((z) => (
+        <tr>
+          <th scope="row">{zahl(z.c, 0)} °C</th>
+          <td class="num">{zahl(z.kelvin)} K</td>
+          <td class="num">{zahl(z.echteVerdopplungCelsius)} °C</td>
+          <td class="num">{zahl(z.kelvinNaivVerdoppelt)} K</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+
+  <p>
+    In jeder Zeile stimmen die letzten beiden Spalten exakt überein. Das ändert
+    nichts an der Kernaussage – die beiden Zahlen beschreiben trotzdem zwei
+    unterschiedliche Größen in zwei unterschiedlichen Einheiten (einmal °C,
+    einmal K) –, zeigt aber, wie eng die scheinbar getrennten Rechnungen
+    „Celsius verdoppeln“ und „Kelvin verdoppeln“ über die feste Verschiebung
+    von 273,15 miteinander verwoben sind.
+  </p>
+
+  <h3>Warum der Unterschied mehr als Definitionsklauberei ist</h3>
+  <p>
+    Dass nur Kelvin eine Verhältnisskala ist, hat eine messbare Folge, sobald
+    Temperatur in eine physikalische Formel eingeht, die mit der absoluten
+    Temperatur selbst rechnet statt mit einer Differenz. Ein Beispiel ist die
+    abgestrahlte Wärmeleistung eines Körpers nach dem Stefan-Boltzmann-Gesetz:
+    Sie ist proportional zur vierten Potenz der absoluten Temperatur in
+    Kelvin, nicht zur Celsius- oder Fahrenheit-Zahl. Für denselben Sprung von
+    {' '}{zahl(C_BASIS, 0)} °C auf {zahl(C_NAIV_VERDOPPELT, 0)} °C – die
+    {' '}{proz(zuwachsNaivProzent)} „mehr“ Temperatur in Kelvin – ergibt sich
+    daraus ein Verhältnis der vierten Potenzen von
+    {' '}{zahl(sbUeberPotenzen, 4)}: Ein Körper bei {zahl(C_NAIV_VERDOPPELT, 0)} °C
+    strahlt demnach etwa {proz(sbMehrleistungProzent)} mehr Wärmeleistung pro
+    Fläche ab als derselbe Körper bei {zahl(C_BASIS, 0)} °C – deutlich mehr als
+    die {proz(zuwachsNaivProzent)}, um die die absolute Temperatur selbst
+    gestiegen ist, weil sich der Effekt über die vierte Potenz verstärkt.
+    Gerechnet würde das mit Celsius- oder Fahrenheit-Werten in derselben
+    Formel schlicht falsche Ergebnisse liefern, weil deren Nullpunkte nichts
+    mit „keine Abstrahlung mehr“ zu tun haben.
+  </p>
+
+  <h3>Was das für die Zahlen auf dieser Seite bedeutet</h3>
+  <p>
+    Der Rechner oben rechnet Celsius, Fahrenheit, Kelvin und Réaumur korrekt
+    ineinander um – für Additionen und Vergleiche „wie viel wärmer“ sind
+    Celsius und Fahrenheit genauso brauchbar wie Kelvin. Sobald aber die Frage
+    „wie viel mal so warm“ oder „wie viel mehr thermische Energie“ lautet,
+    liefert nur die Kelvin-Spalte eine Zahl, die sich sinnvoll verdoppeln oder
+    halbieren lässt. {zahl(C_NAIV_VERDOPPELT, 0)} °C sind ein doppelt so hoher
+    Zahlenwert wie {zahl(C_BASIS, 0)} °C – aber nur {proz(zuwachsNaivProzent)}
+    mehr Temperatur im einzigen Sinn, in dem „mehr Temperatur“ physikalisch
+    etwas bedeutet.
+  </p>
+</RechnerArtikel>

@@ -1,0 +1,222 @@
+---
+import RechnerArtikel from '../RechnerArtikel.astro';
+import { berechneWieVielHaus } from '../../../public/scripts/wie-viel-haus.js';
+
+// Alle Zahlen dieses Artikels stammen aus berechneWieVielHaus() – demselben
+// Modul, das der Rechner auf dieser Seite lädt. Es wird hier nur mit anderen
+// Beispielwerten aufgerufen als im Frontmatter der Rechnerseite.
+//
+// These: Eine feste "Ratenquote" (Rate als Prozentsatz des Nettoeinkommens)
+// ist blind für den Kaufpreis. Bei gleicher Quote, gleichem Einkommen und
+// gleichem Eigenkapital bestimmt allein der Sollzins, wie teuer das Haus sein
+// darf, das sich daraus finanzieren lässt – und der Unterschied ist kein
+// Nuance, sondern näherungsweise ein Faktor 2.
+
+const fmt = (n: number, d = 0) =>
+  n.toLocaleString('de-DE', { minimumFractionDigits: d, maximumFractionDigits: d }).replace(/^-/, '−');
+const eur = (n: number) => fmt(n, 0) + ' €';
+const proz = (n: number, d = 1) => fmt(n, d) + ' %';
+
+const EINKOMMEN = 5000;
+const RATENQUOTE = 0.35; // 35 % Nettoeinkommen – eine der beiden Faustregeln,
+// die der Rechner laut seinem eigenen Modulkommentar bewusst nicht mehr
+// verwendet ("empfahl eine Rate von 35 % des Nettoeinkommens ohne Quelle").
+const RATE = EINKOMMEN * RATENQUOTE; // 1.750 €
+const EIGENKAPITAL = 40000;
+const TILGUNG = 2;
+const ZINSBINDUNG = 15;
+const BUNDESLAND = 'nw';
+
+const basis = { rate: RATE, eigenkapital: EIGENKAPITAL, tilgung: TILGUNG, zinsbindung: ZINSBINDUNG, bundesland: BUNDESLAND, mitMakler: false, einkommen: EINKOMMEN, ausgaben: 0 };
+const niedrig = berechneWieVielHaus({ ...basis, sollzins: 1.5 });
+const mittel = berechneWieVielHaus({ ...basis, sollzins: 3.5 });
+const hoch = berechneWieVielHaus({ ...basis, sollzins: 5.5 });
+
+const kaufpreisFaktor = niedrig.kaufpreis / hoch.kaufpreis;
+const darlehenFaktorIst = niedrig.darlehen / hoch.darlehen;
+const darlehenFaktorFormel = (5.5 + TILGUNG) / (1.5 + TILGUNG);
+const zinsFaktor = 5.5 / 1.5;
+const diffKaufpreis = niedrig.kaufpreis - hoch.kaufpreis;
+
+const nkNiedrig = niedrig.nebenkosten!;
+const nkHoch = hoch.nebenkosten!;
+const notarGrundbuchProzent = (r: typeof niedrig) =>
+  ((r.nebenkosten!.notar + r.nebenkosten!.grundbuch) / r.kaufpreis) * 100;
+const ngNiedrig = notarGrundbuchProzent(niedrig);
+const ngHoch = notarGrundbuchProzent(hoch);
+
+// Was passiert, wenn man statt der 60 Bisektionsschritte des Moduls die
+// bereits gerundete, angezeigte Nebenkosten-Quote nimmt und den Kaufpreis
+// daraus per einfacher Division zurückrechnet?
+const naivKaufpreis = (budget: number, gesamtProzent: number) => Math.floor(budget / (1 + gesamtProzent / 100));
+const naivMittel = naivKaufpreis(mittel.budget, mittel.nebenkosten!.gesamtProzent);
+const diffNaiv = mittel.kaufpreis - naivMittel;
+
+// Selbstprüfung 1: Das Darlehensverhältnis muss exakt dem Verhältnis der
+// Nenner (Zins + Tilgung) folgen – so ist darlehenAusRate() definiert.
+if (Math.abs(darlehenFaktorIst - darlehenFaktorFormel) > 0.001) {
+  throw new Error(`Ratenquote-Artikel: Darlehensfaktor ${darlehenFaktorIst} weicht von der Formel ${darlehenFaktorFormel} ab.`);
+}
+// Selbstprüfung 2: Die Ratenquote (Rate / Einkommen) muss in allen drei
+// Szenarien exakt 35 % betragen – sonst vergleicht der Artikel nicht mehr
+// "gleiche Quote, anderer Zins".
+if (niedrig.haushalt!.rateAnteilEinkommen !== 35 || mittel.haushalt!.rateAnteilEinkommen !== 35 || hoch.haushalt!.rateAnteilEinkommen !== 35) {
+  throw new Error('Ratenquote-Artikel: Rate macht in den drei Szenarien nicht überall 35 % des Einkommens aus.');
+}
+// Selbstprüfung 3: Notar- und Grundbuchkosten sollen bei niedrigerem
+// Kaufpreis einen HÖHEREN Anteil ausmachen (degressive Gebührentabelle). Kippt
+// das, widerspricht der Artikeltext dem Modul.
+if (!(ngHoch > ngNiedrig)) {
+  throw new Error('Ratenquote-Artikel: Notar/Grundbuch-Anteil verhält sich nicht wie erwartet degressiv.');
+}
+// Selbstprüfung 4: Die naive Rückrechnung über die gerundete Prozentanzeige
+// darf nur um wenige Euro von der bisektionsbasierten Lösung abweichen –
+// sonst stimmt die Größenordnung im Text nicht mehr.
+if (Math.abs(diffNaiv) > 200) {
+  throw new Error(`Ratenquote-Artikel: Naive Rückrechnung weicht um ${diffNaiv} € ab, mehr als angenommen.`);
+}
+---
+<RechnerArtikel
+  titel="Bei gleicher Ratenquote ein doppelt so teures Haus"
+  lead={`Zwei Haushalte mit demselben Nettoeinkommen von ${eur(EINKOMMEN)}, derselben Rate von ${eur(RATE)} – ${proz(RATENQUOTE * 100, 0)} des Einkommens – und demselben Eigenkapital von ${eur(EIGENKAPITAL)} kommen bei unterschiedlichem Sollzins auf einen komplett unterschiedlichen Kaufpreis: ${eur(niedrig.kaufpreis)} bei ${proz(1.5)} Zins, aber nur ${eur(hoch.kaufpreis)} bei ${proz(5.5)} – ${eur(diffKaufpreis)} weniger, obwohl die Haushaltsrechnung in beiden Fällen identisch aussieht.`}
+  datum="2026-09-24"
+  quellen={[
+    { titel: '§ 11 GrEStG – Steuersatz der Grunderwerbsteuer, Abrundung auf volle Euro', url: 'https://www.gesetze-im-internet.de/grestg_1983/__11.html' },
+    { titel: '§ 34 GNotKG – Wertgebühren nach Tabelle B (degressive Staffel)', url: 'https://www.gesetze-im-internet.de/gnotkg/__34.html' },
+  ]}
+>
+  <p>
+    "Die Rate soll nicht mehr als 35 bis 40 Prozent des Nettoeinkommens
+    ausmachen" ist eine der geläufigsten Faustregeln beim Hauskauf – so geläufig,
+    dass eine frühere Version dieses Rechners genau sie fest eingebaut hatte,
+    ohne Quelle dafür. Der Rechner oben rechnet seitdem umgekehrt: Er nimmt die
+    Rate, die tragbar ist, und leitet daraus Darlehen und Kaufpreis ab. Was
+    dabei verloren geht, wenn man stattdessen bei der Quote bleibt, zeigt ein
+    einfacher Vergleich mit dem Modul, das der Rechner lädt: Dieselbe Quote
+    lässt sich auf ein sehr teures oder ein deutlich günstigeres Haus anwenden
+    – je nachdem, zu welchem Zins gerade finanziert wird.
+  </p>
+
+  <h3>Zwei Zinssätze, dieselbe Belastung</h3>
+  <p>
+    Ausgangspunkt ist ein Haushalt mit {eur(EINKOMMEN)} Nettoeinkommen im Monat,
+    der sich an die 35-Prozent-Regel hält: eine Rate von {eur(RATE)}. Dazu
+    kommen {eur(EIGENKAPITAL)} Eigenkapital, {proz(TILGUNG)} anfängliche
+    Tilgung, {ZINSBINDUNG} Jahre Zinsbindung, Kauf in Nordrhein-Westfalen, ohne
+    Makler – alles identisch in allen drei Fällen. Einzige Variable ist der
+    Sollzins:
+  </p>
+  <table>
+    <caption class="visually-hidden">Kaufpreis bei gleicher Ratenquote und unterschiedlichem Zins</caption>
+    <thead>
+      <tr><th scope="col">Sollzins</th><th scope="col">Darlehen</th><th scope="col">Kaufpreis</th><th scope="col">Rate-Anteil Einkommen</th><th scope="col">Frei nach Rate</th></tr>
+    </thead>
+    <tbody>
+      <tr><th scope="row">{proz(1.5)}</th><td class="num">{eur(niedrig.darlehen)}</td><td class="num">{eur(niedrig.kaufpreis)}</td><td class="num">{proz(niedrig.haushalt!.rateAnteilEinkommen, 0)}</td><td class="num">{eur(niedrig.haushalt!.nachRate)}</td></tr>
+      <tr><th scope="row">{proz(3.5)}</th><td class="num">{eur(mittel.darlehen)}</td><td class="num">{eur(mittel.kaufpreis)}</td><td class="num">{proz(mittel.haushalt!.rateAnteilEinkommen, 0)}</td><td class="num">{eur(mittel.haushalt!.nachRate)}</td></tr>
+      <tr><th scope="row">{proz(5.5)}</th><td class="num">{eur(hoch.darlehen)}</td><td class="num">{eur(hoch.kaufpreis)}</td><td class="num">{proz(hoch.haushalt!.rateAnteilEinkommen, 0)}</td><td class="num">{eur(hoch.haushalt!.nachRate)}</td></tr>
+    </tbody>
+  </table>
+  <p>
+    Die vorletzte Spalte zeigt, warum die Quote allein nichts über den
+    Kaufpreis sagt: Sie steht in allen drei Zeilen bei genau {proz(niedrig.haushalt!.rateAnteilEinkommen, 0)},
+    und auch das frei verfügbare Einkommen nach der Rate ist überall
+    {eur(niedrig.haushalt!.nachRate)}. Wer nur auf die Quote schaut, sieht drei
+    identisch "verantwortungsvolle" Finanzierungen. Der Kaufpreis, den sie
+    tatsächlich tragen, unterscheidet sich um {eur(diffKaufpreis)} – zwischen
+    {eur(hoch.kaufpreis)} und {eur(niedrig.kaufpreis)}, ein Verhältnis von
+    {fmt(kaufpreisFaktor, 2)} zu 1.
+  </p>
+
+  <h3>Warum die Formel das erzwingt</h3>
+  <p>
+    Der Rechner bestimmt das Darlehen aus <code>Rate × 12 ÷ (Sollzins +
+    Tilgung)</code>. Bei fester Rate und fester Tilgung hängt das Darlehen
+    also nur vom Kehrwert der Summe aus Zins und Tilgung ab. Der Nenner wächst
+    von {fmt(1.5 + TILGUNG, 1)} (bei {proz(1.5)} Zins) auf {fmt(5.5 + TILGUNG, 1)}
+    (bei {proz(5.5)} Zins) – ein Faktor {fmt(darlehenFaktorFormel, 2)}. Genau um
+    diesen Faktor unterscheidet sich auch das tatsächlich berechnete Darlehen:
+    {eur(niedrig.darlehen)} gegenüber {eur(hoch.darlehen)}.
+  </p>
+  <p>
+    Bemerkenswert ist, dass dieser Faktor kleiner ausfällt als die Veränderung
+    des Zinses selbst: Der Sollzins steigt von {proz(1.5)} auf {proz(5.5)}, also
+    um das {fmt(zinsFaktor, 2)}-fache. Das größere Darlehen bei niedrigem Zins
+    ist gegenüber dem kleineren bei hohem Zins aber nur um den Faktor
+    {fmt(darlehenFaktorFormel, 2)} größer, nicht um {fmt(zinsFaktor, 2)}. Die
+    feste Tilgung von {proz(TILGUNG)} wirkt wie ein Puffer im Nenner: Sie ist in
+    jedem der drei Fälle gleich groß und dämpft dadurch, wie stark sich eine
+    Zinsänderung auf das Darlehen durchschlägt. Ohne diesen Tilgungsanteil – bei
+    einem endfälligen Darlehen etwa, das nur Zinsen und keine Tilgung in der
+    Rate trägt – wäre der Ausschlag genauso groß wie beim Zins selbst.
+  </p>
+
+  <h3>Warum der Kaufpreis nicht ganz mitzieht</h3>
+  <p>
+    Der Kaufpreis wächst mit {fmt(kaufpreisFaktor, 2)}-fach etwas langsamer als
+    das Darlehen mit seinem Faktor {fmt(darlehenFaktorFormel, 2)}. Zwei Gründe
+    dafür stehen im Modul. Erstens ist das Eigenkapital mit {eur(EIGENKAPITAL)}
+    in allen drei Fällen ein fester Euro-Betrag, der nicht mit dem Zins
+    mitwächst – bei niedrigem Zins macht es einen kleineren Anteil des
+    gesamten Budgets aus als bei hohem Zins, verwässert den Effekt also nicht,
+    aber es skaliert eben nicht mit.
+  </p>
+  <p>
+    Zweitens sind die Kaufnebenkosten keine feste Quote vom Kaufpreis. Die
+    Grunderwerbsteuer in Nordrhein-Westfalen ist zwar ein glatter Satz
+    (§ 11 GrEStG), aber Notar- und Grundbuchgebühren folgen der gestaffelten
+    Tabelle B des GNotKG (§ 34 GNotKG) und wachsen unterproportional mit dem
+    Geschäftswert. Beim niedrigen Zins – höherer Kaufpreis von {eur(niedrig.kaufpreis)} –
+    machen Notar und Grundbuch zusammen nur {proz(ngNiedrig, 2)} des Kaufpreises
+    aus, beim hohen Zins – Kaufpreis {eur(hoch.kaufpreis)} – sind es
+    {proz(ngHoch, 2)}. Die gesamten Nebenkosten liegen entsprechend bei
+    {proz(nkNiedrig.gesamtProzent, 1)} des Kaufpreises im einen und
+    {proz(nkHoch.gesamtProzent, 1)} im anderen Fall. Der Unterschied ist klein,
+    zieht den Kaufpreis-Faktor aber in dieselbe Richtung wie das feste
+    Eigenkapital: leicht unter den reinen Darlehensfaktor.
+  </p>
+
+  <h3>Wie der Kaufpreis überhaupt gefunden wird</h3>
+  <p>
+    Ein zweiter Punkt betrifft nicht den Zins, sondern die Nebenkosten selbst.
+    Budget ist Darlehen plus Eigenkapital – bislang unstrittig. Der Kaufpreis
+    ist aber nicht einfach das Budget minus einen Nebenkosten-Prozentsatz,
+    weil dieser Prozentsatz seinerseits vom Kaufpreis abhängt, den man gerade
+    erst sucht: Die Grunderwerbsteuer ist ein Satz vom Kaufpreis, nicht vom
+    Budget. Das Modul löst das nicht durch eine Formel, sondern durch
+    Bisektion – 60 Halbierungsschritte zwischen null und dem vollen Budget,
+    bis Kaufpreis plus Nebenkosten(Kaufpreis) das Budget ausschöpfen, ohne es
+    zu überschreiten.
+  </p>
+  <p>
+    Wie genau das ist, zeigt die Gegenprobe: Nimmt man beim mittleren
+    Zinsszenario die bereits gerundet angezeigte Nebenkosten-Quote von
+    {proz(mittel.nebenkosten!.gesamtProzent, 1)} und rechnet den Kaufpreis
+    daraus per einfacher Division zurück ({eur(mittel.budget)} ÷
+    (1 + {proz(mittel.nebenkosten!.gesamtProzent, 1)})), kommt {eur(naivMittel)}
+    heraus – {eur(Math.abs(diffNaiv))} mehr, als die Bisektion tatsächlich
+    ausweist. Der Fehler ist klein, weil die Bisektion mit voller Genauigkeit
+    rechnet und nur die Anzeige rundet. Er zeigt aber, dass die Nebenkosten
+    korrekt vom verfügbaren Budget abgezogen werden, bevor der Kaufpreis
+    feststeht – und nicht andersherum, wie es eine grobe Faustformel täte.
+  </p>
+
+  <h3>Was das für einen Vergleich bedeutet</h3>
+  <p>
+    Eine Ratenquote beschreibt, wie stark eine monatliche Zahlung das laufende
+    Budget belastet – dafür taugt sie. Sie beschreibt nicht, wie viel Haus sich
+    daraus finanzieren lässt, weil dieselbe Quote bei unterschiedlichem Zins zu
+    einem völlig unterschiedlichen Darlehen führt. Wer zwei Kaufangebote oder
+    zwei Zeitpunkte vergleicht, vergleicht mit einer festen Quote also nur die
+    Kaufkraft des eigenen Portemonnaies, nicht die des Immobilienmarkts.
+  </p>
+  <p>
+    Offen bleibt in dieser Rechnung, was auch der Rechner oben offenlässt: die
+    Kosten der Grundschuldbestellung, laufende Kosten des Hauses wie Grundsteuer
+    und Instandhaltung, und mögliche Zinsaufschläge der Bank bei wenig
+    Eigenkapital. Ob eine Rate von {proz(RATENQUOTE * 100, 0)} des Einkommens für
+    einen konkreten Haushalt tragbar ist, hängt außerdem von Ausgaben ab, die
+    diese Beispielrechnung nicht kennt – dafür hat der Rechner oben die
+    optionalen Felder für Einkommen und feste Ausgaben.
+  </p>
+</RechnerArtikel>

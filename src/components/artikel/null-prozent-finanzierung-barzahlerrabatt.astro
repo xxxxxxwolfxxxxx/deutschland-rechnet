@@ -1,0 +1,643 @@
+---
+import RechnerArtikel from '../RechnerArtikel.astro';
+import { artikelPfadVonSlug } from '../../data/ratgeber';
+import {
+  annuitaetenrate,
+  darlehenskosten,
+  effektivzinsGenau,
+} from '../../../public/scripts/annuitaet.js';
+
+// Die Rechnerseite rechnet (Stand September 2026) inline und hat kein eigenes
+// Modul. Alle Zahlen hier entstehen deshalb zur Buildzeit aus dem
+// Annuitaetenmodul, das Kreditvergleich und Tilgungsrechner laden – dort steht
+// auch der Effektivzins nach der Barwertformel der Anlage zu § 16 PAngV.
+
+const base = import.meta.env.BASE_URL;
+
+const minus = (s: string) => s.replace('-', '−');
+const eur = (n: number, d = 2) =>
+  minus(n.toLocaleString('de-DE', { minimumFractionDigits: d, maximumFractionDigits: d })) + ' €';
+const eurGlatt = (n: number) => minus(n.toLocaleString('de-DE', { maximumFractionDigits: 0 })) + ' €';
+/** Zwei Stellen, wie Anmerkung d der Anlage zu § 16 PAngV es fuer den Effektivzins vorschreibt. */
+const proz = (n: number, d = 2) =>
+  minus(n.toLocaleString('de-DE', { minimumFractionDigits: d, maximumFractionDigits: d })) + ' %';
+const mon = (n: number) => `${n} Monate`;
+const r2 = (n: number) => Math.round(n * 100) / 100;
+
+// --- Das durchgehende Beispiel ---------------------------------------------
+// Setzungen dieses Artikels, keine Marktbeobachtung.
+const KAUFPREIS = 25000;
+const ANZAHLUNG = 5000;
+const KREDIT = KAUFPREIS - ANZAHLUNG;
+const LAUFZEIT = 36;
+/** Vergleichsangebot einer Bank, angegeben als effektiver Jahreszins. */
+const BANK_EFF = 5.2;
+/** Monatlich verrechneter Sollzins, der ohne Nebenkosten genau BANK_EFF ergibt. */
+const BANK_SOLL = 12 * (Math.pow(1 + BANK_EFF / 100, 1 / 12) - 1) * 100;
+
+/**
+ * Versteckter Jahreszins einer 0-%-Finanzierung: Der Handel verlangt den
+ * vollen Preis, wer bar zahlt, bekaeme den Nachlass. Wirtschaftlich leiht der
+ * Kaeufer also nur (Kredit − Nachlass) und zahlt KREDIT zurueck.
+ */
+function versteckt(nachlassProzent: number, monate: number, anzahlung = ANZAHLUNG): number {
+  const kredit = KAUFPREIS - anzahlung;
+  const rate = annuitaetenrate({ betrag: kredit, sollzins: 0, monate });
+  return effektivzinsGenau({
+    auszahlung: kredit - (KAUFPREIS * nachlassProzent) / 100,
+    rate,
+    monate,
+  });
+}
+
+/** Nachlass in Prozent, ab dem die 0-%-Finanzierung teurer ist als ein Kredit zu `vergleich` effektiv. */
+function kippNachlass(monate: number, anzahlung = ANZAHLUNG, vergleich = BANK_EFF): number {
+  let lo = 0;
+  let hi = 60;
+  for (let k = 0; k < 100; k += 1) {
+    const mitte = (lo + hi) / 2;
+    if (versteckt(mitte, monate, anzahlung) < vergleich) lo = mitte;
+    else hi = mitte;
+  }
+  return (lo + hi) / 2;
+}
+
+// Probe: Der umgerechnete Sollzins ergibt tatsaechlich BANK_EFF.
+const bankProbe = effektivzinsGenau({
+  auszahlung: KREDIT,
+  rate: annuitaetenrate({ betrag: KREDIT, sollzins: BANK_SOLL, monate: LAUFZEIT }),
+  monate: LAUFZEIT,
+});
+if (Math.abs(bankProbe - BANK_EFF) > 0.01) {
+  throw new Error(`Autofinanzierung-Artikel: Sollzins-Umrechnung trifft ${BANK_EFF} % nicht (${bankProbe}).`);
+}
+
+// --- 1. Nachlass mal Laufzeit ----------------------------------------------
+const NACHLAESSE = [2, 3, 5, 8, 10];
+const LAUFZEITEN = [12, 24, 36, 48, 60];
+const matrix = LAUFZEITEN.map((monate) => ({
+  monate,
+  zellen: NACHLAESSE.map((n) => versteckt(n, monate)),
+}));
+const zeile = (m: number) => matrix.find((z) => z.monate === m)!;
+const idx = (n: number) => NACHLAESSE.indexOf(n);
+const fuenfKurz = zeile(12).zellen[idx(5)];
+const fuenfLang = zeile(60).zellen[idx(5)];
+// Behauptung: Jede Zeile faellt mit der Laufzeit, jede Spalte steigt mit dem Nachlass.
+for (const z of matrix) {
+  for (let i = 1; i < z.zellen.length; i += 1) {
+    if (z.zellen[i] <= z.zellen[i - 1]) throw new Error('Autofinanzierung-Artikel: Zins steigt nicht mit dem Nachlass.');
+  }
+}
+for (let j = 0; j < NACHLAESSE.length; j += 1) {
+  for (let i = 1; i < matrix.length; i += 1) {
+    if (matrix[i].zellen[j] >= matrix[i - 1].zellen[j]) {
+      throw new Error('Autofinanzierung-Artikel: Zins faellt nicht mit der Laufzeit.');
+    }
+  }
+}
+if (!(fuenfKurz > 2 * BANK_EFF)) {
+  throw new Error('Autofinanzierung-Artikel: 5 % Nachlass ueber 12 Monate liegt nicht ueber dem doppelten Bankzins.');
+}
+if (!(fuenfLang < BANK_EFF)) {
+  throw new Error('Autofinanzierung-Artikel: 5 % Nachlass ueber 60 Monate liegt nicht unter dem Bankzins.');
+}
+
+// --- 2. Die Schwelle je Laufzeit --------------------------------------------
+const ANZAHLUNGEN_KIPP = [0, 5000, 10000];
+const kippTabelle = LAUFZEITEN.map((monate) => ({
+  monate,
+  zellen: ANZAHLUNGEN_KIPP.map((a) => {
+    const p = kippNachlass(monate, a);
+    return { prozent: p, euro: (KAUFPREIS * p) / 100 };
+  }),
+}));
+const kippBasis = kippNachlass(LAUFZEIT);
+const kippBasisEuro = (KAUFPREIS * kippBasis) / 100;
+
+// --- 3. In Euro: zwei Nachlaesse, dieselbe Laufzeit ------------------------
+function euroVergleich(nachlassProzent: number) {
+  const nachlass = (KAUFPREIS * nachlassProzent) / 100;
+  const nullProzent = darlehenskosten({ betrag: KREDIT, sollzins: 0, monate: LAUFZEIT });
+  const bank = darlehenskosten({ betrag: KREDIT - nachlass, sollzins: BANK_SOLL, monate: LAUFZEIT });
+  return {
+    nachlassProzent,
+    nachlass,
+    nullRate: nullProzent.rate,
+    nullGezahlt: nullProzent.gezahlt,
+    bankKredit: KREDIT - nachlass,
+    bankRate: bank.rate,
+    bankZinsen: bank.zinsen,
+    bankGezahlt: bank.gezahlt,
+    versteckt: versteckt(nachlassProzent, LAUFZEIT),
+  };
+}
+const NACHLASS_KLEIN = 5;
+const NACHLASS_GROSS = 8;
+const klein = euroVergleich(NACHLASS_KLEIN);
+const gross = euroVergleich(NACHLASS_GROSS);
+// Differenzen aus den gerundeten, angezeigten Werten.
+const kleinVorteil = r2(klein.bankGezahlt) - r2(klein.nullGezahlt);
+const grossVorteil = r2(gross.nullGezahlt) - r2(gross.bankGezahlt);
+if (!(kleinVorteil > 0)) throw new Error('Autofinanzierung-Artikel: Bei 5 % Nachlass ist 0 % nicht guenstiger.');
+if (!(grossVorteil > 0)) throw new Error('Autofinanzierung-Artikel: Bei 8 % Nachlass ist die Bank nicht guenstiger.');
+if (!(klein.nachlassProzent < kippBasis && gross.nachlassProzent > kippBasis)) {
+  throw new Error('Autofinanzierung-Artikel: Die beiden Beispielnachlaesse liegen nicht beiderseits der Schwelle.');
+}
+// Probe: Genau an der Schwelle zahlen beide Wege dasselbe (bis auf Centrundung).
+const kippVergleich = euroVergleich(kippBasis);
+const kippDelta = Math.abs(kippVergleich.bankGezahlt - kippVergleich.nullGezahlt);
+if (kippDelta > 1) {
+  throw new Error(`Autofinanzierung-Artikel: An der Schwelle weichen die Summen ab (${kippDelta} €).`);
+}
+
+// --- 4. Die Anzahlung macht die Null teurer ---------------------------------
+const NACHLASS_ANZ = 3;
+const ANZAHLUNGEN = [0, 5000, 10000, 15000];
+const anzahlungsreihe = ANZAHLUNGEN.map((a) => ({
+  anzahlung: a,
+  kredit: KAUFPREIS - a,
+  anteil: ((KAUFPREIS * NACHLASS_ANZ) / 100 / (KAUFPREIS - a)) * 100,
+  zins: versteckt(NACHLASS_ANZ, LAUFZEIT, a),
+}));
+for (let i = 1; i < anzahlungsreihe.length; i += 1) {
+  if (anzahlungsreihe[i].zins <= anzahlungsreihe[i - 1].zins) {
+    throw new Error('Autofinanzierung-Artikel: Zins steigt nicht mit der Anzahlung.');
+  }
+}
+const anzOhne = anzahlungsreihe[0];
+const anzHoch = anzahlungsreihe[anzahlungsreihe.length - 1];
+if (!(anzOhne.zins < BANK_EFF && anzHoch.zins > BANK_EFF)) {
+  throw new Error('Autofinanzierung-Artikel: Die Anzahlung kippt die 3-%-Zeile nicht ueber den Bankzins.');
+}
+const nachlassAnzEuro = (KAUFPREIS * NACHLASS_ANZ) / 100;
+
+// --- 5. Schlussrate: niedrigerer Zins, gleicher Nachlass --------------------
+// Eigene Barwertrechnung, weil das Modul nur gleich hohe Raten kennt. Sie
+// folgt derselben Grundgleichung (Anlage zu § 16 PAngV, zwoelf Standardmonate)
+// und wird unten am Modul geeicht.
+function effMitSchlussrate(auszahlung: number, rate: number, monate: number, schluss: number): number {
+  const barwert = (x: number) => {
+    let s = 0;
+    for (let m = 1; m <= monate; m += 1) s += rate / Math.pow(1 + x / 100, m / 12);
+    s += schluss / Math.pow(1 + x / 100, monate / 12);
+    return s - auszahlung;
+  };
+  let lo = -99;
+  let hi = 1000;
+  for (let k = 0; k < 200; k += 1) {
+    const mitte = (lo + hi) / 2;
+    if (barwert(mitte) > 0) lo = mitte;
+    else hi = mitte;
+  }
+  return (lo + hi) / 2;
+}
+const eichung = Math.abs(
+  effMitSchlussrate(KREDIT - 1250, KREDIT / LAUFZEIT, LAUFZEIT, 0) -
+    effektivzinsGenau({ auszahlung: KREDIT - 1250, rate: KREDIT / LAUFZEIT, monate: LAUFZEIT }),
+);
+if (eichung > 0.0001) throw new Error(`Autofinanzierung-Artikel: Schlussratenrechnung weicht vom Modul ab (${eichung}).`);
+
+const SCHLUSSRATEN = [0, 5000, 10000, 15000];
+const nachlassKleinEuro = (KAUFPREIS * NACHLASS_KLEIN) / 100;
+const schlussreihe = SCHLUSSRATEN.map((s) => {
+  // Laufende Raten ungerundet: bei 0 % ist das die exakte Aufteilung.
+  const rate = (KREDIT - s) / LAUFZEIT;
+  return {
+    schluss: s,
+    rate,
+    zins: effMitSchlussrate(KREDIT - nachlassKleinEuro, rate, LAUFZEIT, s),
+    // Was der Kaeufer ueber den Barpreis hinaus zahlt – in jeder Zeile gleich.
+    mehr: rate * LAUFZEIT + s - (KREDIT - nachlassKleinEuro),
+  };
+});
+for (let i = 1; i < schlussreihe.length; i += 1) {
+  if (schlussreihe[i].zins >= schlussreihe[i - 1].zins) {
+    throw new Error('Autofinanzierung-Artikel: Zins faellt nicht mit der Schlussrate.');
+  }
+  if (Math.abs(schlussreihe[i].mehr - nachlassKleinEuro) > 0.005) {
+    throw new Error('Autofinanzierung-Artikel: Mehrbetrag haengt doch von der Schlussrate ab.');
+  }
+}
+const schlussOhne = schlussreihe[0];
+const schlussHoch = schlussreihe[schlussreihe.length - 1];
+
+// --- 6. Wer bar zahlen koennte: Anlagezins statt Kreditzins -----------------
+const ANLAGEZINSEN = [1, 2, 3, 4];
+const anlagereihe = ANLAGEZINSEN.map((x) => {
+  const p = kippNachlass(LAUFZEIT, ANZAHLUNG, x);
+  return { anlagezins: x, prozent: p, euro: (KAUFPREIS * p) / 100 };
+});
+const anlageZwei = anlagereihe.find((z) => z.anlagezins === 2)!;
+
+const quellen = [
+  {
+    titel: '§ 16 PAngV – Verbraucherdarlehen (effektiver Jahreszins)',
+    url: 'https://www.gesetze-im-internet.de/pangv_2022/__16.html',
+  },
+  {
+    titel: 'Anlage zu § 16 PAngV – Berechnung des effektiven Jahreszinses',
+    url: 'https://www.gesetze-im-internet.de/pangv_2022/anlage.html',
+  },
+  {
+    titel: '§ 491 BGB – Verbraucherdarlehensvertrag',
+    url: 'https://www.gesetze-im-internet.de/bgb/__491.html',
+  },
+  {
+    titel: '§ 514 BGB – Unentgeltliche Darlehensverträge',
+    url: 'https://www.gesetze-im-internet.de/bgb/__514.html',
+  },
+  {
+    titel: '§ 358 BGB – Mit dem widerrufenen Vertrag verbundener Vertrag',
+    url: 'https://www.gesetze-im-internet.de/bgb/__358.html',
+  },
+  {
+    titel: 'Art. 247 § 12 EGBGB – Verbundene Verträge und entgeltliche Finanzierungshilfen',
+    url: 'https://www.gesetze-im-internet.de/bgbeg/art_247__12.html',
+  },
+  {
+    titel: '§ 500 BGB – Kündigungsrecht des Darlehensnehmers; vorzeitige Rückzahlung',
+    url: 'https://www.gesetze-im-internet.de/bgb/__500.html',
+  },
+  {
+    titel: '§ 502 BGB – Vorfälligkeitsentschädigung',
+    url: 'https://www.gesetze-im-internet.de/bgb/__502.html',
+  },
+];
+---
+<RechnerArtikel
+  titel="Null Prozent Zinsen kosten den Barzahlerrabatt"
+  datum="2026-09-17"
+  lead={`Eine 0-%-Finanzierung ist nur dann gratis, wenn der Händler denselben Nachlass auch ohne Finanzierung nicht gewährt hätte. Verzichtet man für sie auf ${proz(NACHLASS_KLEIN, 0)} Barzahlerrabatt, zahlt man bei ${eurGlatt(KAUFPREIS)} Kaufpreis und ${eurGlatt(ANZAHLUNG)} Anzahlung über ${mon(12)} umgerechnet ${proz(fuenfKurz)} effektiven Jahreszins, über ${mon(60)} nur ${proz(fuenfLang)}. Gegen einen Bankkredit zu ${proz(BANK_EFF)} kippt die Rechnung über ${mon(LAUFZEIT)} bei ${proz(kippBasis)} Nachlass – und je höher die Anzahlung, desto früher.`}
+  quellen={quellen}
+>
+  <h3>Was „0 %“ misst – und was nicht</h3>
+  <p>
+    Der effektive Jahreszins ist nach § 16 Abs. 1 PAngV der Preis eines
+    Verbraucherdarlehens: die Gesamtkosten, „ausgedrückt als jährlicher
+    Prozentsatz des Nettodarlehensbetrags“. Bezugsgröße ist also der Betrag, den
+    die Bank finanziert. Bei einer Autofinanzierung ist das der Kaufpreis abzüglich
+    Anzahlung – und zwar der Kaufpreis, der im Kaufvertrag steht.
+  </p>
+  <p>
+    Ein Darlehen ganz ohne Zinsen und Kosten fällt schon aus der Definition
+    heraus. § 491 Abs. 2 Satz 1 BGB nennt Allgemein-Verbraucherdarlehensverträge
+    „entgeltliche Darlehensverträge“. Für unentgeltliche Darlehen eines
+    Unternehmers an einen Verbraucher gilt § 514 BGB, der nur einzelne
+    Vorschriften überträgt und in Absatz 2 ein Widerrufsrecht nach § 355 BGB
+    gewährt. Kommt dagegen eine Bearbeitungsgebühr oder eine zwingende
+    Versicherung hinzu, ist das Darlehen entgeltlich, und der effektive
+    Jahreszins liegt über null, obwohl der Sollzins null beträgt.
+  </p>
+  <p>
+    In keiner dieser Rechnungen kommt ein Nachlass vor, den der Händler nur
+    Barzahlern gewährt. Ob ein solcher Verzicht ein Entgelt für das Darlehen ist,
+    beantwortet der Gesetzeswortlaut nicht ausdrücklich, und dieser Artikel
+    entscheidet die Rechtsfrage nicht. Er rechnet sie wirtschaftlich aus: Wer
+    finanziert, zahlt den vollen Preis. Wer bar zahlt, zahlt weniger. Der
+    Unterschied ist der Preis des Kredits.
+  </p>
+  <p class="ra-hinweis">
+    Ist das Darlehen entgeltlich und mit dem Kauf verbunden, verlangt Art. 247
+    § 12 Abs. 1 Satz 2 EGBGB, dass die vorvertragliche Information (Nummer 1)
+    und der Vertrag (Nummer 2 Buchstabe a) den Gegenstand und den
+    Barzahlungspreis nennen. Welcher Betrag das im Einzelfall ist, lässt sich
+    vor der Unterschrift erfragen.
+  </p>
+
+  <h3>Der versteckte Zins</h3>
+  <p>
+    Das Modell ist einfach. Kaufpreis {eurGlatt(KAUFPREIS)}, Anzahlung
+    {' '}{eurGlatt(ANZAHLUNG)}, finanziert werden {eurGlatt(KREDIT)} zu 0 % in
+    gleichen Monatsraten. Hätte der Händler einem Barzahler einen Nachlass
+    gewährt, hätte der Käufer wirtschaftlich nur {eurGlatt(KREDIT)} minus Nachlass
+    geliehen, zahlt aber {eurGlatt(KREDIT)} zurück. Den Zinssatz, bei dem beides
+    gleich viel wert ist, liefert dieselbe Barwertformel der Anlage zu § 16 PAngV,
+    mit der Banken ihren effektiven Jahreszins berechnen.
+  </p>
+  <table>
+    <caption class="visually-hidden">
+      Versteckter effektiver Jahreszins einer 0-%-Finanzierung nach Nachlass und
+      Laufzeit, bei {eurGlatt(KAUFPREIS)} Kaufpreis und {eurGlatt(ANZAHLUNG)} Anzahlung
+    </caption>
+    <thead>
+      <tr>
+        <th scope="col">Laufzeit</th>
+        {NACHLAESSE.map((n) => (
+          <th scope="col" class="num">{proz(n, 0)} = {eurGlatt((KAUFPREIS * n) / 100)}</th>
+        ))}
+      </tr>
+    </thead>
+    <tbody>
+      {matrix.map((z) => (
+        <tr>
+          <th scope="row">{mon(z.monate)}</th>
+          {z.zellen.map((c) => (
+            <td class="num">{proz(c)}</td>
+          ))}
+        </tr>
+      ))}
+    </tbody>
+  </table>
+  <p>
+    Die Tabelle läuft in zwei Richtungen, und beide prüft der Build dieser Seite:
+    Je höher der Nachlass, desto teurer die Null; je länger die Laufzeit, desto
+    billiger. Das Zweite ist der eigentliche Fund. Ein Nachlass ist ein fester
+    Betrag, der einmal fällt. Über {mon(12)} verteilt, ergeben
+    {' '}{proz(NACHLASS_KLEIN, 0)} Rabatt einen Jahreszins von
+    {' '}<strong>{proz(fuenfKurz)}</strong> – mehr als das Doppelte der
+    {' '}{proz(BANK_EFF)}, die im Vergleich unten eine Bank verlangt. Über
+    {' '}{mon(60)} sind es nur {proz(fuenfLang)}.
+  </p>
+  <p>
+    Das widerspricht dem Gefühl, das eine Nullfinanzierung vermittelt. Die kurze
+    Laufzeit wirkt harmlos, weil man schnell schuldenfrei ist. Gerade sie macht den
+    entgangenen Rabatt teuer, denn sie verteilt ihn auf wenige Kreditmonate. Die
+    Logik ist dieselbe, mit der eine Bearbeitungsgebühr den effektiven Jahreszins
+    kurzer Kredite stärker hebt als den langer – ausführlich durchgerechnet in
+    {' '}<a href={`${base}${artikelPfadVonSlug('effektivzins-gegen-ratensumme')}`}>Der
+    niedrigere effektive Jahreszins kann der teurere Kredit sein</a>.
+  </p>
+
+  <h3>Ab welchem Nachlass die Bank gewinnt</h3>
+  <p>
+    Als Vergleich dient ein Ratenkredit einer Bank zu {proz(BANK_EFF)}
+    effektivem Jahreszins ohne weitere Kosten – eine Setzung dieses Artikels,
+    kein Marktwert. Wer ihn nimmt, zahlt beim Händler bar und bekommt den
+    Nachlass. Die Frage ist, ab welcher Höhe des Nachlasses das günstiger ist als
+    die Nullfinanzierung. Fein gesucht, je Laufzeit und Anzahlung:
+  </p>
+  <table>
+    <caption class="visually-hidden">
+      Nachlass, ab dem ein Bankkredit zu {proz(BANK_EFF)} günstiger ist als eine
+      0-%-Finanzierung, nach Laufzeit und Anzahlung
+    </caption>
+    <thead>
+      <tr>
+        <th scope="col">Laufzeit</th>
+        {ANZAHLUNGEN_KIPP.map((a) => (
+          <th scope="col" class="num">Anzahlung {eurGlatt(a)}</th>
+        ))}
+      </tr>
+    </thead>
+    <tbody>
+      {kippTabelle.map((z) => (
+        <tr>
+          <th scope="row">{mon(z.monate)}</th>
+          {z.zellen.map((c) => (
+            <td class="num">{proz(c.prozent)}<br />{eurGlatt(c.euro)}</td>
+          ))}
+        </tr>
+      ))}
+    </tbody>
+  </table>
+  <p>
+    Liegt der angebotene Barzahlerrabatt über dem Wert in der Zelle, ist der
+    Bankkredit das bessere Geschäft; liegt er darunter, die Nullfinanzierung. Im
+    Beispiel mit {eurGlatt(ANZAHLUNG)} Anzahlung über {mon(LAUFZEIT)} liegt die
+    Schwelle bei {proz(kippBasis)}, also {eur(kippBasisEuro)}.
+  </p>
+
+  <h3>Dieselbe Rechnung in Euro</h3>
+  <p>
+    Zwei Nachlässe beiderseits dieser Schwelle, jeweils über {mon(LAUFZEIT)}. Die
+    Anzahlung von {eurGlatt(ANZAHLUNG)} fällt in beiden Wegen gleich an und steht
+    deshalb nicht in der Tabelle.
+  </p>
+  <table>
+    <caption class="visually-hidden">
+      0-%-Finanzierung gegen Bankkredit mit Barzahlerrabatt über {mon(LAUFZEIT)}
+    </caption>
+    <thead>
+      <tr>
+        <th scope="col">Nachlass</th>
+        <th scope="col" class="num">Rate bei 0 %</th>
+        <th scope="col" class="num">Summe bei 0 %</th>
+        <th scope="col" class="num">Bankkredit</th>
+        <th scope="col" class="num">Rate Bank</th>
+        <th scope="col" class="num">Summe Bank</th>
+        <th scope="col" class="num">versteckter Zins</th>
+      </tr>
+    </thead>
+    <tbody>
+      {[klein, gross].map((z) => (
+        <tr>
+          <th scope="row">{proz(z.nachlassProzent, 0)} = {eurGlatt(z.nachlass)}</th>
+          <td class="num">{eur(z.nullRate)}</td>
+          <td class="num">{eur(z.nullGezahlt)}</td>
+          <td class="num">{eur(z.bankKredit)}</td>
+          <td class="num">{eur(z.bankRate)}</td>
+          <td class="num">{eur(z.bankGezahlt)}</td>
+          <td class="num">{proz(z.versteckt)}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+  <p>
+    Bei {proz(NACHLASS_KLEIN, 0)} Nachlass zahlt der Bankkunde trotz Rabatt
+    {' '}{eur(kleinVorteil)} mehr als der Nullfinanzierer: Die
+    {' '}{eur(klein.bankZinsen)} Zinsen fressen die {eurGlatt(klein.nachlass)}
+    Rabatt auf. Bei {proz(NACHLASS_GROSS, 0)} Nachlass dreht sich das um, die
+    Nullfinanzierung kostet {eur(grossVorteil)} mehr. Ein Blick auf die Rate hilft
+    bei dieser Entscheidung nicht: Im ersten Fall ist die Bankrate höher, im
+    zweiten niedriger, und genau das zeigt die Summe auch.
+  </p>
+  <p class="ra-hinweis">
+    Weil beide Wege gleich lange laufen und in gleichen Raten zurückgezahlt
+    werden, sortieren Summe und Zinssatz hier identisch. Genau an der Schwelle
+    von {proz(kippBasis)} liegen die beiden Summen {eur(kippDelta)} auseinander –
+    der Rest ist Centrundung der Raten. Bei ungleichen Laufzeiten gilt diese
+    Gleichwertigkeit nicht mehr.
+  </p>
+
+  <h3>Mehr Anzahlung macht die Null teurer</h3>
+  <p>
+    Die zweite Überraschung steckt in den Spalten der Schwellentabelle: Mit
+    wachsender Anzahlung sinkt die Schwelle. Das liegt daran, dass der Händler den
+    Rabatt auf den ganzen Kaufpreis gewährt, der Kredit aber nur den Rest
+    finanziert. Ein Nachlass von {proz(NACHLASS_ANZ, 0)} sind immer
+    {' '}{eurGlatt(nachlassAnzEuro)} – gemessen an einem kleineren Kredit ein
+    größerer Anteil.
+  </p>
+  <table>
+    <caption class="visually-hidden">
+      Versteckter Zins bei {proz(NACHLASS_ANZ, 0)} Nachlass über {mon(LAUFZEIT)} nach Höhe der Anzahlung
+    </caption>
+    <thead>
+      <tr>
+        <th scope="col" class="num">Anzahlung</th>
+        <th scope="col" class="num">finanziert</th>
+        <th scope="col" class="num">Nachlass je finanziertem Euro</th>
+        <th scope="col" class="num">versteckter Zins</th>
+      </tr>
+    </thead>
+    <tbody>
+      {anzahlungsreihe.map((z) => (
+        <tr>
+          <th scope="row" class="num">{eurGlatt(z.anzahlung)}</th>
+          <td class="num">{eurGlatt(z.kredit)}</td>
+          <td class="num">{proz(z.anteil)}</td>
+          <td class="num">{proz(z.zins)}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+  <p>
+    Ohne Anzahlung kosten {proz(NACHLASS_ANZ, 0)} Rabatt umgerechnet
+    {' '}{proz(anzOhne.zins)} und damit weniger als der Bankkredit. Mit
+    {' '}{eurGlatt(anzHoch.anzahlung)} Anzahlung sind es
+    {' '}<strong>{proz(anzHoch.zins)}</strong> – mehr als die {proz(BANK_EFF)} der
+    Bank, bei unverändertem Rabatt. Wer viel eigenes Geld mitbringt, sollte
+    deshalb besonders genau nach dem Barpreis fragen. Er hat für eine
+    Nullfinanzierung am meisten zu verlieren.
+  </p>
+
+  <h3>Eine Schlussrate senkt den Zins, nicht den Preis</h3>
+  <p>
+    Nullfinanzierungen gibt es auch als Drei-Wege-Finanzierung: Anzahlung,
+    niedrige Monatsraten, eine hohe Schlussrate am Ende. Bei 0 % Sollzins ändert
+    die Schlussrate nichts daran, was der Käufer über den Barpreis hinaus zahlt –
+    das bleibt der entgangene Nachlass. Sie ändert aber, wie lange er das Geld hat.
+  </p>
+  <table>
+    <caption class="visually-hidden">
+      Versteckter Zins bei {proz(NACHLASS_KLEIN, 0)} Nachlass über {mon(LAUFZEIT)} nach Höhe der Schlussrate
+    </caption>
+    <thead>
+      <tr>
+        <th scope="col" class="num">Schlussrate</th>
+        <th scope="col" class="num">Monatsrate</th>
+        <th scope="col" class="num">Mehrbetrag gegenüber Barpreis</th>
+        <th scope="col" class="num">versteckter Zins</th>
+      </tr>
+    </thead>
+    <tbody>
+      {schlussreihe.map((z) => (
+        <tr>
+          <th scope="row" class="num">{eurGlatt(z.schluss)}</th>
+          <td class="num">{eur(z.rate)}</td>
+          <td class="num">{eur(z.mehr)}</td>
+          <td class="num">{proz(z.zins)}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+  <p>
+    Mit {eurGlatt(schlussHoch.schluss)} Schlussrate fällt der versteckte Zins von
+    {' '}{proz(schlussOhne.zins)} auf {proz(schlussHoch.zins)}, der Mehrbetrag
+    bleibt in jeder Zeile bei {eur(schlussOhne.mehr)}. Die Schlussrate macht den
+    Kredit also nicht billiger, sondern länger hoch. Das ist nur dann ein Vorteil,
+    wenn das eigene Geld in dieser Zeit etwas verdient. Muss die Schlussrate am
+    Ende selbst finanziert werden, beginnt mit dem Anschlusskredit eine neue
+    Rechnung zu dessen Zinssatz.
+  </p>
+  <p class="ra-hinweis">
+    Das Modul hinter dem Kreditvergleich kennt nur gleich hohe Raten. Für diese
+    Tabelle steht deshalb im Artikel eine eigene Barwertrechnung nach der Anlage zu
+    § 16 PAngV mit zwölf Standardmonaten; der Build eicht sie ohne Schlussrate am
+    Modul. Die Schlussrate ist mit der letzten Monatsrate fällig gesetzt.
+  </p>
+
+  <h3>Wer bar zahlen könnte, vergleicht mit dem Anlagezins</h3>
+  <p>
+    Bisher ging es um Käufer, die ohnehin einen Kredit brauchen. Wer die
+    {' '}{eurGlatt(KREDIT)} auf dem Konto hat, steht vor einer anderen Wahl: bar
+    zahlen und den Rabatt mitnehmen, oder finanzieren und das Geld angelegt lassen.
+    Der Maßstab ist dann nicht der Kreditzins, sondern der Zins, den das Geld
+    während der Laufzeit bringt. Die Schwelle über {mon(LAUFZEIT)} bei
+    {' '}{eurGlatt(ANZAHLUNG)} Anzahlung:
+  </p>
+  <table>
+    <caption class="visually-hidden">
+      Nachlass, ab dem Barzahlung besser ist als 0-%-Finanzierung plus Geldanlage
+    </caption>
+    <thead>
+      <tr>
+        <th scope="col" class="num">Anlagezins p. a.</th>
+        <th scope="col" class="num">Barzahlung lohnt ab Nachlass</th>
+        <th scope="col" class="num">in Euro</th>
+      </tr>
+    </thead>
+    <tbody>
+      {anlagereihe.map((z) => (
+        <tr>
+          <th scope="row" class="num">{proz(z.anlagezins)}</th>
+          <td class="num">{proz(z.prozent)}</td>
+          <td class="num">{eur(z.euro)}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+  <p>
+    Bei {proz(anlageZwei.anlagezins)} Anlagezins reicht schon ein Rabatt ab
+    {' '}{eur(anlageZwei.euro)}, damit Barzahlen besser ist. Die Anlagezinsen in
+    der Tabelle sind vor Steuern gerechnet. Zinsen oberhalb des
+    Sparer-Pauschbetrags unterliegen der Abgeltungsteuer, der Nettozins ist
+    kleiner, und die Schwelle sinkt weiter. Wie viel davon bleibt, steht in
+    {' '}<a href={`${base}${artikelPfadVonSlug('abgeltungsteuer-nie-25-prozent')}`}>Warum
+    niemand 25 Prozent zahlt</a>.
+  </p>
+
+  <h3>Was aus der Rechnung folgt</h3>
+  <ul>
+    <li>
+      <strong>Nach dem Barpreis fragen, bevor über die Finanzierung gesprochen
+      wird.</strong> Solange nur ein Preis existiert, lässt sich keine der
+      Tabellen oben anwenden.
+    </li>
+    <li>
+      <strong>Nachlass und Laufzeit gemeinsam lesen.</strong> Derselbe Rabatt ist
+      über ein Jahr ein teurer, über fünf Jahre ein billiger Kredit.
+    </li>
+    <li>
+      <strong>Mit dem richtigen Zins vergleichen.</strong> Wer ohnehin Kredit
+      braucht, mit dem effektiven Jahreszins eines Bankangebots; wer bar zahlen
+      könnte, mit dem Nettozins seiner Geldanlage.
+    </li>
+    <li>
+      <strong>Die Null ist frei, wenn es den Rabatt nicht gibt.</strong> Gewährt
+      der Händler denselben Preis mit und ohne Finanzierung, ist eine
+      Nullfinanzierung ohne weitere Kosten tatsächlich zinslos.
+    </li>
+  </ul>
+  <p>
+    Wer ein Auto nicht kaufen, sondern leasen will, trifft beim Leasingfaktor auf
+    ein verwandtes Problem: eine Vergleichszahl, die sich durch eine Anzahlung
+    drücken lässt, ohne dass der Vertrag billiger wird –
+    {' '}<a href={`${base}${artikelPfadVonSlug('leasingfaktor-was-er-verschweigt')}`}>Der
+    Leasingfaktor lässt sich kaufen</a>. Zwei Kreditangebote mit gleicher Laufzeit
+    lassen sich im <a href={`${base}geld/kreditvergleich/`}>Kreditvergleich</a>
+    {' '}nebeneinanderlegen.
+  </p>
+
+  <h3>Was diese Rechnung nicht abbildet</h3>
+  <ul>
+    <li>
+      <strong>Kopplungen.</strong> Ist die Nullfinanzierung an eine Versicherung,
+      ein Wartungspaket oder eine Gebühr gebunden, gehören deren Kosten dazu. Sind
+      sie Voraussetzung für das Darlehen, zählen sie nach § 16 Abs. 3 und Abs. 4
+      Nr. 2 PAngV zum effektiven Jahreszins; das Modell hier setzt sie auf null.
+    </li>
+    <li>
+      <strong>Verhandlungsspielraum.</strong> Die Nachlässe in den Tabellen sind
+      gesetzt. Wie hoch ein Barzahlerrabatt tatsächlich ausfällt, beobachtet
+      dieser Artikel nicht.
+    </li>
+    <li>
+      <strong>Vorzeitige Ablösung.</strong> Nach § 500 Abs. 2 Satz 1 BGB darf ein
+      Verbraucherdarlehen jederzeit vorzeitig erfüllt werden, § 502 Abs. 3 BGB
+      begrenzt eine Vorfälligkeitsentschädigung. Wer eine Nullfinanzierung früher
+      ablöst, verkürzt die Laufzeit nachträglich – der entgangene Rabatt verteilt
+      sich dann auf weniger Monate, der versteckte Zins steigt.
+    </li>
+    <li>
+      <strong>Zahlungstermine.</strong> Gerechnet wird mit der ersten Rate einen
+      Standardmonat nach Auszahlung. Andere Fälligkeiten verschieben die Zinssätze
+      geringfügig.
+    </li>
+    <li>
+      <strong>Inflation und Steuern auf Anlageerträge.</strong> Die Anlagezinsen
+      sind nominal und vor Steuern angesetzt.
+    </li>
+  </ul>
+</RechnerArtikel>

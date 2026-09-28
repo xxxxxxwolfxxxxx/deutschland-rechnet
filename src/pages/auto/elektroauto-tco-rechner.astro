@@ -10,6 +10,7 @@ import {
   LADESTROM_DC_CENT_PRO_KWH,
   LADESTROM_ADHOC_AUTOBAHN_CENT_PRO_KWH,
   LADESTROM_QUELLE,
+  LADESTROM_ADHOC_QUELLE,
 } from '../../../public/scripts/strompreis.js';
 import {
   ADAC_STAND,
@@ -71,7 +72,7 @@ const steuerNachBefreiung = berechneKfzSteuer({
 const faqs = [
   { q: 'Woher stammen die vorbelegten Werte?', a: `Aus der ADAC Autokostenübersicht ${ADAC_STAND} für ${corsaBenzin.name} und ${corsaElektro.name} – zwei Varianten desselben Modells. Der ADAC rechnet mit ${ADAC_KM_PRO_JAHR.toLocaleString('de-DE')} km im Jahr und ${JAHRE} Jahren. Restwert, Fixkosten und Werkstatt sind aus seinen Monatswerten übernommen, der Verbrauch aus seinen Betriebskosten zurückgerechnet. Für Ihr eigenes Auto ersetzen Sie die Werte durch Angebot, Versicherungsschein und Werkstattrechnungen.` },
   { q: 'Warum ist das E-Auto im Beispiel teurer?', a: `Weil es ${eur0(corsaElektro.grundpreis - corsaBenzin.grundpreis)} mehr kostet und der ADAC einen höheren Wertverlust ansetzt. Die geringeren Energie-, Fix- und Werkstattkosten gleichen das in ${JAHRE} Jahren nicht aus: Beim Laden zu Hause bleibt das E-Auto ${eur0(-heim.differenz)} teurer. Mit anderen Modellen, längerer Haltedauer oder mehr Kilometern kann das Ergebnis kippen – genau dafür ist der Rechner da.` },
-  { q: 'Was kostet öffentliches Laden im Vergleich zu Hause?', a: `Zu Hause laden Sie zum Haushaltsstrompreis von ${ct(LADESTROM_HEIM_CENT_PRO_KWH)} ct/kWh. Öffentliches Normalladen (AC) kostet im Schnitt ${ct(LADESTROM_AC_CENT_PRO_KWH)} ct/kWh, Schnellladen (DC) ${ct(LADESTROM_DC_CENT_PRO_KWH)} ct/kWh, ohne Vertrag am Autobahn-Schnelllader bis zu ${ct(LADESTROM_ADHOC_AUTOBAHN_CENT_PRO_KWH)} ct/kWh (${LADESTROM_QUELLE}). Im Beispiel macht reines Schnellladen das E-Auto über ${JAHRE} Jahre um ${eur0(heim.differenz - dc.differenz)} teurer als Laden zu Hause.` },
+  { q: 'Was kostet öffentliches Laden im Vergleich zu Hause?', a: `Zu Hause laden Sie zum Haushaltsstrompreis von ${ct(LADESTROM_HEIM_CENT_PRO_KWH)} ct/kWh. Öffentliches Normalladen (AC) kostet im Schnitt ${ct(LADESTROM_AC_CENT_PRO_KWH)} ct/kWh, Schnellladen (DC) ${ct(LADESTROM_DC_CENT_PRO_KWH)} ct/kWh – beides nach ${LADESTROM_QUELLE}. Ohne Vertrag am Autobahn-Schnelllader nennt der ADAC als Beispiel ${ct(LADESTROM_ADHOC_AUTOBAHN_CENT_PRO_KWH)} ct/kWh (${LADESTROM_ADHOC_QUELLE}). Im Beispiel macht reines Schnellladen das E-Auto über ${JAHRE} Jahre um ${eur0(heim.differenz - dc.differenz)} teurer als Laden zu Hause.` },
   { q: 'Ist mein E-Auto von der Kfz-Steuer befreit?', a: `Reine Elektroautos sind nach § 3d KraftStG zehn Jahre ab Erstzulassung befreit, wenn diese bis zum ${datum(ELEKTRO_BEFREIUNG.zulassungBis)} erfolgt – längstens bis zum ${datum(ELEKTRO_BEFREIUNG.spaetestensBis)}. Danach gilt die Gewichtssteuer nach § 9 Abs. 1 Nr. 3 KraftStG, nach § 9 Abs. 2 um die Hälfte ermäßigt: bei 2.000 kg zulässigem Gesamtgewicht ${steuerNachBefreiung.jahressteuer?.toLocaleString('de-DE', { minimumFractionDigits: 2 })} € im Jahr. In den ADAC-Fixkosten ist die Steuer bereits enthalten.` },
   { q: 'Was fehlt in der Rechnung?', a: 'Finanzierungskosten, Preissteigerungen bei Strom und Kraftstoff, Förderungen und die Kosten einer Wallbox. Wer finanziert, rechnet die Zinsen zum Kaufpreis hinzu.' },
 ];

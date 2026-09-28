@@ -1,0 +1,396 @@
+---
+import RechnerArtikel from '../RechnerArtikel.astro';
+import {
+  trainingszonen,
+  maximalpulsFox,
+  maximalpulsTanaka,
+  zoneNachKarvonen,
+  zoneNachMaximalpuls,
+  SCHNITTPUNKT_ALTER,
+  ZONEN,
+} from '../../../public/scripts/trainingspuls.js';
+
+// Alle Zahlen dieses Artikels kommen aus demselben Modul, das der Rechner oben
+// laedt (public/scripts/trainingspuls.js). Nichts ist hier von Hand getippt.
+//
+// Zur Vorgeschichte: Die Seite hatte ihre Logik inline und fragte den Ruhepuls
+// ab, ohne ihn zu benutzen – sie berechnete `hrr = maxpuls - ruhepuls` und
+// liess die Variable dann ungenutzt stehen. Der Abschnitt "Ein Feld ohne
+// Wirkung" rechnet genau diese alte Fassung nach, um zu beziffern, was sie
+// ausgab. Die Nachbildung steht unten offen.
+
+const zahl = (n: number, d = 0) =>
+  n.toLocaleString('de-DE', { minimumFractionDigits: d, maximumFractionDigits: d }).replace(/^-/, '−');
+const bpm = (n: number, d = 0) => `${zahl(n, d)} bpm`;
+const proz = (n: number, d = 0) => `${zahl(n, d)} %`;
+const vz = (n: number, d = 0) => (n > 0 ? '+' : '') + zahl(n, d);
+
+// --- Die Voreinstellung des Formulars ---------------------------------------
+const ALTER = 35;
+const RUHEPULS = 65;
+const basis = trainingszonen({ alter: ALTER, ruhepuls: RUHEPULS });
+
+// --- Zusicherung 1: Der Abstand ist exakt Ruhepuls × (1 − Intensität) -------
+// Karvonen − Prozent = RP + (HFmax − RP)·i − HFmax·i = RP·(1 − i).
+// Der Maximalpuls kuerzt sich vollstaendig heraus. Genau das ist die These.
+for (const i of [0.5, 0.6, 0.7, 0.8, 0.9, 1.0]) {
+  const k = zoneNachKarvonen(basis.maximalpuls, RUHEPULS, i);
+  const p = zoneNachMaximalpuls(basis.maximalpuls, i);
+  if (Math.abs(k - p - RUHEPULS * (1 - i)) > 1e-9) {
+    throw new Error(`Trainingspuls-Artikel: Abstand ist nicht Ruhepuls × (1 − i) bei i=${i}.`);
+  }
+}
+// Gegenprobe mit ganz anderem Alter: Der Abstand darf sich NICHT aendern.
+const probe = trainingszonen({ alter: 70, ruhepuls: RUHEPULS });
+for (const i of [0.5, 0.7, 0.9]) {
+  const a = zoneNachKarvonen(basis.maximalpuls, RUHEPULS, i) - zoneNachMaximalpuls(basis.maximalpuls, i);
+  const b = zoneNachKarvonen(probe.maximalpuls, RUHEPULS, i) - zoneNachMaximalpuls(probe.maximalpuls, i);
+  if (Math.abs(a - b) > 1e-9) {
+    throw new Error('Trainingspuls-Artikel: Der Abstand haengt doch am Maximalpuls.');
+  }
+}
+
+const abstandBei = (i: number) => RUHEPULS * (1 - i);
+const halberRuhepuls = abstandBei(0.5);
+
+// --- Zusicherung 2: Die beiden Formeln schneiden sich bei 40 Jahren ---------
+if (Math.abs(maximalpulsFox(SCHNITTPUNKT_ALTER) - maximalpulsTanaka(SCHNITTPUNKT_ALTER)) > 1e-9) {
+  throw new Error('Trainingspuls-Artikel: Die Formeln schneiden sich nicht beim angegebenen Alter.');
+}
+const ALTERSREIHE = [20, 30, 40, 50, 60, 70, 80];
+const formelvergleich = ALTERSREIHE.map((a) => ({
+  alter: a,
+  fox: maximalpulsFox(a),
+  tanaka: maximalpulsTanaka(a),
+  diff: maximalpulsTanaka(a) - maximalpulsFox(a),
+}));
+// Die Differenz ist 0,3 × (Alter − 40) – auch das eine Gerade, keine Tabelle.
+for (const z of formelvergleich) {
+  if (Math.abs(z.diff - 0.3 * (z.alter - SCHNITTPUNKT_ALTER)) > 1e-9) {
+    throw new Error(`Trainingspuls-Artikel: Die Differenz folgt nicht 0,3 × (Alter − 40) bei ${z.alter}.`);
+  }
+}
+const diff70 = formelvergleich.find((z) => z.alter === 70)!;
+const diff20 = formelvergleich.find((z) => z.alter === 20)!;
+
+// --- Die alte Fassung der Seite, nachgebildet -------------------------------
+// So stand es im <script> der Rechnerseite: fuenf Zonen, alle als reiner
+// Prozentsatz von (220 − Alter). Der abgefragte Ruhepuls kam nicht vor.
+const alteUntergrenze = (alter: number) => maximalpulsFox(alter) * ZONEN[0].von;
+// Eingabebereich der alten Fassung: alter 10–100, ruhepuls 40–100.
+const ALT_ALTER = { min: 10, max: 100 };
+const ALT_RUHE = { min: 40, max: 100 };
+let unterRuhepuls = 0;
+let kombinationen = 0;
+for (let a = ALT_ALTER.min; a <= ALT_ALTER.max; a++) {
+  for (let rp = ALT_RUHE.min; rp <= ALT_RUHE.max; rp++) {
+    kombinationen++;
+    if (alteUntergrenze(a) <= rp) unterRuhepuls++;
+  }
+}
+const anteilUnterRuhepuls = (unterRuhepuls / kombinationen) * 100;
+// Zusicherung 3: Der Befund ist kein Randfall.
+if (!(anteilUnterRuhepuls > 25)) {
+  throw new Error('Trainingspuls-Artikel: Der Anteil der Faelle unter dem Ruhepuls ist kleiner als behauptet.');
+}
+
+// Ab welchem Ruhepuls kippt es je Alter?
+const KIPPALTER = [35, 50, 60, 70, 80];
+const kipptabelle = KIPPALTER.map((a) => ({
+  alter: a,
+  hfmax: maximalpulsFox(a),
+  grenze: alteUntergrenze(a),
+  abRuhepuls: Math.ceil(alteUntergrenze(a)),
+}));
+
+// Ein konkreter Fall aus der Mitte des Eingabebereichs.
+const FALL = { alter: 65, ruhepuls: 80 };
+const fall = trainingszonen(FALL);
+const fallAlt = alteUntergrenze(FALL.alter);
+if (!(fallAlt < FALL.ruhepuls)) {
+  throw new Error('Trainingspuls-Artikel: Der Beispielfall liegt nicht echt unter dem Ruhepuls.');
+}
+
+// --- Wie stark der Ruhepuls die Karvonen-Zonen verschiebt -------------------
+const RUHEPULSREIHE = [40, 50, 65, 80, 100];
+const ruhepulsWirkung = RUHEPULSREIHE.map((rp) => ({
+  ruhepuls: rp,
+  karvonen: Math.round(zoneNachKarvonen(basis.maximalpuls, rp, 0.6)),
+  prozent: Math.round(zoneNachMaximalpuls(basis.maximalpuls, 0.6)),
+}));
+const spanneKarvonen =
+  ruhepulsWirkung[ruhepulsWirkung.length - 1].karvonen - ruhepulsWirkung[0].karvonen;
+// Zusicherung 4: Die Prozent-Spalte bleibt ueber alle Ruhepulse gleich.
+if (new Set(ruhepulsWirkung.map((z) => z.prozent)).size !== 1) {
+  throw new Error('Trainingspuls-Artikel: Der reine Prozentwert reagiert doch auf den Ruhepuls.');
+}
+
+const zoneGrundlage = basis.zonen.find((z) => z.von === 0.6)!;
+const zoneRegeneration = basis.zonen[0];
+const zoneMaximal = basis.zonen[basis.zonen.length - 1];
+
+const quellen = [
+  {
+    titel: 'Tanaka, Monahan, Seals: Age-predicted maximal heart rate revisited. J Am Coll Cardiol 37 (2001), S. 153–156',
+    url: 'https://www.jacc.org/doi/10.1016/S0735-1097%2800%2901054-8',
+  },
+  {
+    titel: 'Karvonen, Kentala, Mustala: The effects of training on heart rate. Ann Med Exp Biol Fenn 35 (1957), S. 307–315',
+    url: 'https://pubmed.ncbi.nlm.nih.gov/13470504/',
+  },
+  {
+    titel: 'Fox, Naughton, Haskell: Physical activity and the prevention of coronary heart disease. Ann Clin Res 3 (1971), S. 404–432',
+    url: 'https://pubmed.ncbi.nlm.nih.gov/4945367/',
+  },
+];
+---
+<RechnerArtikel
+  titel={`Der Abstand zwischen beiden Zonen-Rechenwegen ist genau der Ruhepuls mal der Rest-Intensität`}
+  lead={`Dieselben ${proz(60)} bedeuten im Rechner oben ${bpm(zoneGrundlage.prozentVon)} oder ${bpm(zoneGrundlage.karvonenVon)} – je nachdem, worauf sich die Prozente beziehen. Der Unterschied von ${bpm(zoneGrundlage.abstandVon)} ist kein Rundungsrest, sondern hat eine geschlossene Form: Ruhepuls mal (1 − Intensität). Der Maximalpuls kürzt sich vollständig heraus. Bis vor Kurzem rechnete diese Seite nur die linke Spalte – und fragte den Ruhepuls trotzdem ab.`}
+  datum="2026-09-23"
+  quellen={quellen}
+>
+  <h3>Ein Feld, das nichts tat</h3>
+  <p>
+    Die frühere Fassung dieses Rechners hatte zwei Eingabefelder, Alter und
+    Ruhepuls. Sie berechnete daraus den Maximalpuls nach {zahl(220)} minus Alter
+    und anschließend die Herzfrequenzreserve als Maximalpuls minus Ruhepuls. Die
+    Zonen bildete sie dann ausschließlich aus dem Maximalpuls: {proz(50)} davon,
+    {' '}{proz(60)} davon, und so weiter. Die Herzfrequenzreserve stand als
+    Variable im Code und wurde nie verwendet.
+  </p>
+  <p>
+    Praktisch hieß das: Wer den Ruhepuls von {bpm(40)} auf {bpm(100)} änderte,
+    sah dieselben fünf Zonen wie vorher. Das Feld war Dekoration. Die
+    Fragenliste darunter erklärte derweil, warum der Ruhepuls wichtig sei.
+  </p>
+  <p>
+    Das bleibt folgenlos, solange man die Zahlen nur ansieht. Rechnerisch führt
+    es aber an einer Stelle ins Absurde. Die unterste Zone begann bei
+    {' '}{proz(ZONEN[0].von * 100)} des Maximalpuls – bei {zahl(FALL.alter)} Jahren
+    also bei {bpm(fallAlt, 1)}. Wer in dieses Formular {zahl(FALL.alter)} Jahre und
+    einen Ruhepuls von {bpm(FALL.ruhepuls)} eintrug, bekam eine
+    „Trainingszone“ genannt, die unterhalb seines eigenen Ruhepuls begann. Er
+    hätte sie im Sitzen erreicht.
+  </p>
+  <table>
+    <caption>
+      Untergrenze der untersten Zone in der alten Fassung und der Ruhepuls, ab
+      dem sie nicht mehr über ihm lag
+    </caption>
+    <thead>
+      <tr>
+        <th>Alter</th>
+        <th>Maximalpuls</th>
+        <th>{proz(ZONEN[0].von * 100)} davon</th>
+        <th>erreicht ab Ruhepuls</th>
+      </tr>
+    </thead>
+    <tbody>
+      {kipptabelle.map((z) => (
+        <tr>
+          <td>{zahl(z.alter)} Jahre</td>
+          <td>{bpm(z.hfmax)}</td>
+          <td>{bpm(z.grenze, 1)}</td>
+          <td>{bpm(z.abRuhepuls)}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+  <p>
+    Das ist kein Randfall am Rand des Eingabebereichs. Rechnet man alle
+    Kombinationen durch, die das alte Formular zuließ – Alter von
+    {' '}{zahl(ALT_ALTER.min)} bis {zahl(ALT_ALTER.max)}, Ruhepuls von
+    {' '}{zahl(ALT_RUHE.min)} bis {zahl(ALT_RUHE.max)} –, dann begann in
+    {' '}{zahl(unterRuhepuls)} von {zahl(kombinationen)} Fällen die unterste
+    Trainingszone nicht über dem eingegebenen Ruhepuls – sie begann bei ihm
+    oder darunter. Das sind
+    {' '}{proz(anteilUnterRuhepuls, 1)} aller Eingaben. Betroffen war
+    systematisch, wer älter ist oder einen höheren Ruhepuls hat: Beides senkt
+    den Maximalpuls beziehungsweise hebt den Vergleichswert.
+  </p>
+
+  <h3>Prozent wovon?</h3>
+  <p>
+    Der Rechner zeigt jetzt beide Wege nebeneinander, weil beide gebräuchlich
+    sind und dieselbe Prozentangabe verschieden auflösen.
+  </p>
+  <p>
+    Der eine multipliziert schlicht: {proz(60)} von {bpm(basis.maximalpuls)} sind
+    {' '}{bpm(zoneGrundlage.prozentVon)}. Der andere geht auf Karvonen zurück und
+    bezieht den Prozentsatz auf die Herzfrequenzreserve, also auf Maximalpuls
+    minus Ruhepuls – bei der Voreinstellung {bpm(basis.maximalpuls)} −
+    {' '}{bpm(RUHEPULS)} = {bpm(basis.herzfrequenzreserve)}. Dieser Anteil wird
+    dann auf den Ruhepuls aufgeschlagen: {bpm(RUHEPULS)} +
+    {' '}{proz(60)} von {bpm(basis.herzfrequenzreserve)} =
+    {' '}{bpm(zoneGrundlage.karvonenVon)}.
+  </p>
+  <table>
+    <caption>
+      Die fünf Zonen der Voreinstellung ({zahl(ALTER)} Jahre, Ruhepuls
+      {' '}{bpm(RUHEPULS)}) nach beiden Rechenwegen
+    </caption>
+    <thead>
+      <tr>
+        <th>Zone</th>
+        <th>Anteil</th>
+        <th>vom Maximalpuls</th>
+        <th>nach Karvonen</th>
+        <th>Abstand</th>
+      </tr>
+    </thead>
+    <tbody>
+      {basis.zonen.map((z) => (
+        <tr>
+          <td>{z.name}</td>
+          <td>{zahl(z.von * 100)}–{proz(z.bis * 100)}</td>
+          <td>{zahl(z.prozentVon)}–{bpm(z.prozentBis)}</td>
+          <td>{zahl(z.karvonenVon)}–{bpm(z.karvonenBis)}</td>
+          <td>{vz(z.abstandVon)}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+  <p>
+    Die letzte Spalte fällt gleichmäßig von {vz(zoneRegeneration.abstandVon)} auf
+    {' '}{vz(zoneMaximal.abstandVon)}. Das ist kein Zufall und keine Eigenschaft
+    dieser Zahlen.
+  </p>
+
+  <h3>Warum der Maximalpuls sich herauskürzt</h3>
+  <p>
+    Schreibt man beide Wege nebeneinander, steht die Differenz in zwei Zeilen da.
+    Mit <em>H</em> für den Maximalpuls, <em>R</em> für den Ruhepuls und
+    {' '}<em>i</em> für die Intensität:
+  </p>
+  <p>
+    Karvonen minus Prozentwert ist <em>R</em> + (<em>H</em> − <em>R</em>)·<em>i</em>
+    {' '}− <em>H</em>·<em>i</em>. Die beiden <em>H</em>·<em>i</em> heben sich auf,
+    übrig bleibt <em>R</em> · (1 − <em>i</em>).
+  </p>
+  <p>
+    Der Abstand hängt also weder vom Maximalpuls noch vom Alter ab, sondern
+    ausschließlich vom Ruhepuls und davon, wie weit man von der Vollbelastung
+    entfernt ist. Bei {proz(50)} Intensität ist er exakt der halbe Ruhepuls –
+    bei der Voreinstellung {bpm(halberRuhepuls, 1)}. Bei {proz(100)} ist er null,
+    denn dort sagen beide Wege dasselbe: den Maximalpuls. Der Build dieser Seite
+    prüft das für sechs Intensitäten und zusätzlich gegen einen völlig anderen
+    Maximalpuls; weicht auch nur ein Wert ab, erscheint die Seite nicht.
+  </p>
+  <p>
+    Daraus folgt eine Faustregel, die ohne Tabelle auskommt: Je ruhiger das Herz
+    im Ruhezustand schlägt, desto kleiner der Unterschied zwischen beiden
+    Angaben – und desto gleichgültiger ist es, welche Konvention jemand meint.
+    Je höher der Ruhepuls, desto mehr hängt von dieser Konvention ab. Und die
+    Lücke ist gerade in den niedrigen Zonen am größten, also dort, wo die
+    Angaben ohnehin am häufigsten missverstanden werden.
+  </p>
+  <table>
+    <caption>
+      Derselbe Prozentwert ({proz(60)}) bei {zahl(ALTER)} Jahren und
+      verschiedenen Ruhepulsen
+    </caption>
+    <thead>
+      <tr>
+        <th>Ruhepuls</th>
+        <th>vom Maximalpuls</th>
+        <th>nach Karvonen</th>
+      </tr>
+    </thead>
+    <tbody>
+      {ruhepulsWirkung.map((z) => (
+        <tr>
+          <td>{bpm(z.ruhepuls)}</td>
+          <td>{bpm(z.prozent)}</td>
+          <td>{bpm(z.karvonen)}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+  <p>
+    Die mittlere Spalte steht still, die rechte wandert über
+    {' '}{bpm(spanneKarvonen)}. Genau diese Bewegung fehlte der alten Fassung
+    vollständig.
+  </p>
+
+  <h3>Auch der Maximalpuls ist nur geschätzt</h3>
+  <p>
+    Die zweite Unsicherheit steckt eine Ebene darüber. {zahl(220)} minus Alter
+    geht auf eine Arbeit von Fox und Kollegen aus dem Jahr 1971 zurück. Tanaka,
+    Monahan und Seals haben die Schätzung 2001 überprüft – über eine Metaanalyse
+    von {zahl(351)} Studien mit {zahl(18712)} Personen, kreuzvalidiert an
+    {' '}{zahl(514)} Personen im Labor – und kamen auf {zahl(208)} minus
+    {' '}{zahl(0.7, 1)} mal Alter.
+  </p>
+  <p>
+    Beide Formeln sind Geraden, also schneiden sie sich in genau einem Punkt.
+    Setzt man sie gleich, bleibt {zahl(0.3, 1)} mal Alter gleich {zahl(12)} –
+    das Alter ist {zahl(SCHNITTPUNKT_ALTER)}. Darunter schätzt Tanaka niedriger,
+    darüber höher, und die Differenz wächst linear mit
+    {' '}{zahl(0.3, 1)} bpm je Lebensjahr Abstand von diesem Punkt.
+  </p>
+  <table>
+    <caption>Beide Schätzungen für den Maximalpuls nach Alter</caption>
+    <thead>
+      <tr>
+        <th>Alter</th>
+        <th>{zahl(220)} − Alter</th>
+        <th>{zahl(208)} − {zahl(0.7, 1)} × Alter</th>
+        <th>Differenz</th>
+      </tr>
+    </thead>
+    <tbody>
+      {formelvergleich.map((z) => (
+        <tr>
+          <td>{zahl(z.alter)} Jahre</td>
+          <td>{bpm(z.fox)}</td>
+          <td>{bpm(z.tanaka, 1)}</td>
+          <td>{vz(z.diff, 1)}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+  <p>
+    Mit {zahl(diff20.alter)} Jahren liegen die beiden Schätzungen
+    {' '}{bpm(Math.abs(diff20.diff), 1)} auseinander, mit
+    {' '}{zahl(diff70.alter)} Jahren {bpm(diff70.diff, 1)}. Für einen
+    Siebzigjährigen ist das mehr als der Abstand zwischen zwei benachbarten
+    Zonengrenzen in der Tabelle oben. Welche Formel eine Pulsuhr verwendet,
+    steht selten dabei.
+  </p>
+  <p>
+    Wichtiger als die Wahl zwischen beiden ist aber, was sie gemeinsam haben:
+    Es sind Mittelwerte von Gruppen. Tanaka und Kollegen weisen die Streuung um
+    den einzelnen Menschen ausdrücklich aus; sie ist groß genug, dass eine aus
+    dem Alter abgeleitete Zahl den individuellen Maximalpuls um deutlich mehr
+    verfehlen kann als der gesamte Unterschied zwischen den beiden Formeln.
+    Gemessen wird der Maximalpuls in einer Belastungsuntersuchung, nicht
+    gerechnet.
+  </p>
+
+  <h3>Was drei Stellen hinter dem Komma vortäuschen</h3>
+  <p>
+    Zählt man die Unsicherheiten zusammen, steht hinter jeder Zonenangabe dieses
+    Rechners eine Kette aus drei Schätzungen: eine Formel für den Maximalpuls,
+    die um den Einzelfall streut; eine Konvention, wo die Zonengrenzen liegen,
+    die bei runden Zehnerschritten gesetzt ist und keine physiologische
+    Schwelle markiert; und eine Wahl zwischen zwei Rechenwegen, die bei
+    {' '}{proz(60)} schon {bpm(zoneGrundlage.abstandVon)} ausmacht.
+  </p>
+  <p>
+    Der Rechner gibt trotzdem ganze Schläge aus, weil eine Pulsuhr das auch tut.
+    Nur sollte man die Grenze zwischen zwei Zonen nicht als Linie lesen, an der
+    sich etwas ändert. Die tatsächlichen Schwellen – die aerobe und die
+    anaerobe – liegen individuell verschieden und werden über Laktatmessung oder
+    Spiroergometrie bestimmt, nicht über einen Prozentsatz vom geschätzten
+    Maximum.
+  </p>
+  <p>
+    Dieser Text ordnet Rechenwege ein. Er sagt nicht, in welcher Zone jemand
+    trainieren sollte, und ersetzt keine ärztliche Beratung – besonders nicht
+    bei Herz-Kreislauf-Erkrankungen oder bei Medikamenten, die die Herzfrequenz
+    beeinflussen, etwa Betablockern. Unter deren Einfluss liefern beide Formeln
+    für den Maximalpuls keinen brauchbaren Wert mehr, weil sie genau die Größe
+    schätzen, die das Medikament absenkt.
+  </p>
+</RechnerArtikel>

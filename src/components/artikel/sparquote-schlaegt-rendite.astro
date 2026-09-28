@@ -1,0 +1,489 @@
+---
+import RechnerArtikel from '../RechnerArtikel.astro';
+import { artikelPfadVonSlug } from '../../data/ratgeber';
+import { steuerBeimVerkauf, TEILFREISTELLUNG_AKTIENFONDS } from '../../../public/scripts/etf-sparplan.js';
+import {
+  SPARERPAUSCHBETRAG_EINZEL,
+  ABGELTUNGSTEUERSATZ,
+  belastungssatz,
+} from '../../../public/scripts/abgeltungsteuer.js';
+
+// Der FIRE-Rechner hat kein eigenes Modul, er rechnet inline in
+// src/pages/geld/fire-rechner.astro. Die Ansparrechnung steht deshalb hier im
+// Frontmatter und bildet dieselbe Schleife nach (Sparrate am Jahresende, reale
+// Rendite). Die Steuer auf die Entnahme kommt aus den Modulen, die auch der
+// ETF-Sparplan-Rechner und der Abgeltungsteuer-Rechner laden.
+
+const zahl = (n: number, d = 1) =>
+  n.toLocaleString('de-DE', { minimumFractionDigits: d, maximumFractionDigits: d }).replace(/^-/, '−');
+const eur = (n: number) => zahl(n, 0) + ' €';
+const eurGenau = (n: number) => zahl(n, 2) + ' €';
+const proz = (n: number, d = 1) => zahl(n, d) + ' %';
+const jahreText = (n: number) => zahl(n, 1) + ' Jahre';
+
+// --- Die Ansparzeit -------------------------------------------------------
+// Ziel ist das Vielfache der Jahresausgaben, gespart wird am Jahresende, das
+// Kapital wächst mit der realen Rendite. Beides in Anteilen des Einkommens
+// gerechnet: Ausgaben = 1 − q, Sparrate = q. Das Einkommen kürzt sich heraus.
+const ENTNAHMERATE = 0.04;
+const VIELFACHES = 1 / ENTNAHMERATE;
+const REAL = 0.04;
+
+/** Jahre bis zum Ziel, iterativ wie die Schleife des Rechners. */
+function jahreIterativ(q: number, r: number, vielfaches = VIELFACHES): number {
+  const ziel = vielfaches * (1 - q);
+  let kapital = 0;
+  let jahre = 0;
+  while (kapital < ziel && jahre < 200) {
+    kapital = (kapital + q) * (1 + r);
+    jahre += 1;
+  }
+  return jahre;
+}
+
+/**
+ * Dieselbe Frage geschlossen gelöst – ohne Rundung auf volle Jahre.
+ * Die Sparrate fließt wie im Rechner zu Beginn des Jahres und verzinst sich
+ * deshalb ein volles Jahr mit (vorschüssige Rente).
+ */
+function jahreGenau(q: number, r: number, vielfaches = VIELFACHES): number {
+  const ziel = vielfaches * (1 - q);
+  if (q <= 0) return Infinity;
+  if (r === 0) return ziel / q;
+  return Math.log(1 + (r * ziel) / (q * (1 + r))) / Math.log(1 + r);
+}
+
+// Die geschlossene Form muss zur Schleife passen: aufgerundet dasselbe Jahr.
+for (const q of [0.1, 0.25, 0.4, 0.6]) {
+  if (Math.ceil(jahreGenau(q, REAL)) !== jahreIterativ(q, REAL)) {
+    throw new Error(`FIRE-Artikel: Formel und Schleife weichen bei ${q} ab.`);
+  }
+}
+
+// Kernbefund: Das Einkommen kürzt sich heraus. Gegenprobe mit echten Beträgen.
+function jahreMitEinkommen(einkommen: number, q: number, r: number): number {
+  const ausgaben = einkommen * (1 - q);
+  const sparrate = einkommen * q;
+  const ziel = ausgaben * VIELFACHES;
+  let kapital = 0;
+  let jahre = 0;
+  while (kapital < ziel && jahre < 200) {
+    kapital = (kapital + sparrate) * (1 + r);
+    jahre += 1;
+  }
+  return jahre;
+}
+const EINKOMMEN_PROBE = [24000, 50000, 120000, 400000];
+for (const e of EINKOMMEN_PROBE) {
+  if (jahreMitEinkommen(e, 0.4, REAL) !== jahreIterativ(0.4, REAL)) {
+    throw new Error(`FIRE-Artikel: Das Einkommen kürzt sich doch nicht heraus (${e}).`);
+  }
+}
+
+const QUOTEN = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7];
+const quotenreihe = QUOTEN.map((q) => ({
+  q: q * 100,
+  jahre: jahreGenau(q, REAL),
+  ziel: VIELFACHES * (1 - q),
+}));
+const q20 = quotenreihe.find((z) => z.q === 20)!;
+const q40 = quotenreihe.find((z) => z.q === 40)!;
+const q10 = quotenreihe[0];
+const q70 = quotenreihe[quotenreihe.length - 1];
+if (!(q10.jahre > q70.jahre * 6)) {
+  throw new Error('FIRE-Artikel: Die Spanne zwischen 10 und 70 Prozent ist kleiner als gedacht.');
+}
+
+// Verdopplung der Sparquote gegen einen Prozentpunkt mehr Rendite
+const sparquoteGewinn = jahreGenau(0.2, REAL) - jahreGenau(0.4, REAL);
+const renditeGewinn = jahreGenau(0.2, REAL) - jahreGenau(0.2, REAL + 0.01);
+if (!(sparquoteGewinn > renditeGewinn * 3)) {
+  throw new Error('FIRE-Artikel: Die Sparquote schlägt die Rendite nicht mehr deutlich.');
+}
+
+const RENDITEN = [0.02, 0.03, 0.04, 0.05, 0.06];
+const renditereihe = RENDITEN.map((r) => ({
+  r: r * 100,
+  jahre20: jahreGenau(0.2, r),
+  jahre40: jahreGenau(0.4, r),
+  jahre60: jahreGenau(0.6, r),
+}));
+const spanneRendite = renditereihe[0].jahre40 - renditereihe[renditereihe.length - 1].jahre40;
+const spanneQuote = q10.jahre - q70.jahre;
+
+// --- Die Steuer auf die Entnahme ------------------------------------------
+// Entnommen wird aus einem Aktienfonds: steuerpflichtig ist nur der
+// Gewinnanteil, davon sind 30 % teilfreigestellt (§ 20 Abs. 1 InvStG), und der
+// Sparer-Pauschbetrag steht jedes Jahr neu zur Verfügung.
+const AUSGABEN = 30000;
+const GEWINNANTEILE = [0.3, 0.5, 0.7, 0.9];
+
+function nettoEntnahme(brutto: number, gewinnanteil: number) {
+  const gewinn = brutto * gewinnanteil;
+  const s = steuerBeimVerkauf({
+    gewinn,
+    aktienfonds: true,
+    pauschbetrag: SPARERPAUSCHBETRAG_EINZEL,
+  });
+  return { steuer: s.steuer, netto: brutto - s.steuer };
+}
+
+/** Bruttoentnahme, die nach Steuer den gewünschten Betrag übrig lässt. */
+function bruttoFuer(netto: number, gewinnanteil: number): number {
+  let lo = netto;
+  let hi = netto * 3;
+  for (let i = 0; i < 80; i += 1) {
+    const mitte = (lo + hi) / 2;
+    if (nettoEntnahme(mitte, gewinnanteil).netto < netto) lo = mitte;
+    else hi = mitte;
+  }
+  return (lo + hi) / 2;
+}
+
+const steuerreihe = GEWINNANTEILE.map((g) => {
+  const brutto = bruttoFuer(AUSGABEN, g);
+  const kapital = brutto / ENTNAHMERATE;
+  return {
+    anteil: g * 100,
+    steuer: nettoEntnahme(brutto, g).steuer,
+    brutto,
+    kapital,
+    vielfaches: kapital / AUSGABEN,
+    quote: (nettoEntnahme(brutto, g).steuer / brutto) * 100,
+  };
+});
+const steuerNiedrig = steuerreihe[0];
+const steuerHoch = steuerreihe[steuerreihe.length - 1];
+if (!(steuerHoch.vielfaches > VIELFACHES && steuerNiedrig.vielfaches > VIELFACHES)) {
+  throw new Error('FIRE-Artikel: Die Steuer erhöht das nötige Kapital nicht.');
+}
+const zielOhneSteuer = AUSGABEN * VIELFACHES;
+const mehrKapital = steuerHoch.kapital - zielOhneSteuer;
+// Wie viele Jahre länger dauert das höhere Ziel bei 40 Prozent Sparquote?
+const jahreOhneSteuer = jahreGenau(0.4, REAL, VIELFACHES);
+const jahreMitSteuer = jahreGenau(0.4, REAL, steuerHoch.vielfaches);
+const jahreDurchSteuer = jahreMitSteuer - jahreOhneSteuer;
+if (!(jahreDurchSteuer > 0)) throw new Error('FIRE-Artikel: Die Steuer kostet keine Zeit.');
+
+// --- Wie lange das Kapital reicht -----------------------------------------
+// Rein arithmetisch, ohne Schwankung: Entnahme w vom Anfangskapital, jährlich
+// mit der Inflation angehoben; das Kapital wächst mit der realen Rendite.
+function reichweiteJahre(w: number, r: number): number {
+  let kapital = 1;
+  let jahre = 0;
+  while (kapital > 0 && jahre < 100) {
+    kapital = kapital * (1 + r) - w;
+    jahre += 1;
+  }
+  return jahre >= 100 ? Infinity : jahre;
+}
+const REALRENDITEN = [0.01, 0.02, 0.03, 0.04, 0.05];
+const reichweite = REALRENDITEN.map((r) => ({
+  r: r * 100,
+  jahre: reichweiteJahre(ENTNAHMERATE, r),
+}));
+if (reichweite[reichweite.length - 1].jahre !== Infinity) {
+  throw new Error('FIRE-Artikel: Bei fünf Prozent realer Rendite müsste das Kapital reichen.');
+}
+const reichweiteDrei = reichweite.find((z) => z.r === 3)!;
+
+const belastung = belastungssatz();
+
+const quellen = [
+  {
+    titel: 'Cooley, Hubbard, Walz: Retirement Savings – Choosing a Withdrawal Rate That Is Sustainable (AAII Journal 1998, „Trinity Study“)',
+    url: 'https://www.aaii.com/journal/199802/feature.pdf',
+  },
+  {
+    titel: 'William P. Bengen: Determining Withdrawal Rates Using Historical Data (Journal of Financial Planning 1994)',
+    url: 'https://www.financialplanningassociation.org/sites/default/files/2020-12/MAR04%20Determining%20Withdrawal%20Rates%20Using%20Historical%20Data.pdf',
+  },
+  { titel: '§ 20 InvStG – Teilfreistellung', url: 'https://www.gesetze-im-internet.de/invstg_2018/__20.html' },
+  { titel: '§ 20 EStG – Kapitalvermögen (Sparer-Pauschbetrag in Absatz 9)', url: 'https://www.gesetze-im-internet.de/estg/__20.html' },
+  { titel: '§ 32d EStG – Gesonderter Steuertarif für Einkünfte aus Kapitalvermögen', url: 'https://www.gesetze-im-internet.de/estg/__32d.html' },
+];
+---
+<RechnerArtikel
+  titel="Wie lange es dauert, hängt nicht am Einkommen"
+  datum="2026-09-18"
+  lead={`Zwei Menschen sparen ${proz(40, 0)} ihres Einkommens – der eine ${eur(24000)} im Jahr, der andere ${eur(400000)}. Beide brauchen ohne vorhandenes Vermögen exakt gleich lange bis zur finanziellen Unabhängigkeit: ${jahreText(q40.jahre)} bei ${proz(REAL * 100, 0)} realer Rendite. Das Einkommen kürzt sich aus der Rechnung heraus, die Sparquote nicht. Wer sie von ${proz(20, 0)} auf ${proz(40, 0)} verdoppelt, spart ${jahreText(sparquoteGewinn)}; ein Prozentpunkt mehr Rendite bringt an derselben Stelle nur ${jahreText(renditeGewinn)}.`}
+  quellen={quellen}
+>
+  <h3>Warum das Einkommen herausfällt</h3>
+  <p>
+    Der Rechner oben braucht zwei Zahlen, um die Ansparzeit zu bestimmen: wie
+    viel im Jahr gespart wird und wie viel Kapital am Ende dastehen soll. Beide
+    hängen am selben Einkommen – und zwar gegenläufig. Wer mehr spart, gibt
+    weniger aus; wer weniger ausgibt, braucht ein kleineres Zielkapital, denn
+    das Ziel ist ein Vielfaches der Ausgaben.
+  </p>
+  <p>
+    Schreibt man das auf, kürzt sich das Einkommen vollständig heraus. Übrig
+    bleiben zwei Größen: die Sparquote und die reale Rendite. Die Rechnung oben
+    ist deshalb für jemanden mit {eur(24000)} Jahreseinkommen dieselbe wie für
+    jemanden mit {eur(400000)} – solange beide denselben Anteil sparen. Diese
+    Aussage ist im Build dieser Seite geprüft: Für vier verschiedene Einkommen
+    liefert die Schleife des Rechners bei {proz(40, 0)} Sparquote jedes Mal
+    {' '}{jahreIterativ(0.4, REAL)} Jahre.
+  </p>
+  <p>
+    Eine Voraussetzung hat die Aussage: Sie gilt, solange noch kein Vermögen
+    vorhanden ist. Ein Startkapital ist ein absoluter Betrag und kürzt sich
+    nicht heraus – es verkürzt die Ansparzeit bei kleinem Einkommen stärker als
+    bei großem. Trägt man im Rechner oben {eur(20000)} Startvermögen ein,
+    braucht der Haushalt mit {eur(400000)} deshalb etwas länger als der mit
+    {' '}{eur(24000)}, obwohl beide dieselbe Quote sparen.
+  </p>
+  <p class="ra-hinweis">
+    Das heißt auch nicht, dass Einkommen gleichgültig wäre. Wer wenig verdient, kann
+    eine hohe Sparquote oft gar nicht erreichen, weil die Ausgaben nicht
+    beliebig sinken. Die Rechnung sagt nur: Sobald die Quote feststeht, spielt
+    die Höhe des Einkommens für die Dauer keine Rolle mehr.
+  </p>
+
+  <h3>Was die Sparquote an Jahren bedeutet</h3>
+  <p>
+    Die Tabelle rechnet mit {proz(REAL * 100, 0)} realer Rendite – also nach
+    Abzug der Inflation – und ohne Startkapital. Das Zielkapital ist das
+    {' '}{zahl(VIELFACHES, 0)}-Fache der Jahresausgaben, wie es die
+    {' '}{proz(ENTNAHMERATE * 100, 0)}-Regel vorgibt. Die dritte Spalte zeigt,
+    wie stark das Ziel selbst mit der Sparquote sinkt: gemessen in Jahren des
+    heutigen Einkommens.
+  </p>
+
+  <table>
+    <caption class="visually-hidden">
+      Jahre bis zur finanziellen Unabhängigkeit nach Sparquote, bei {proz(REAL * 100, 0)} realer Rendite
+    </caption>
+    <thead>
+      <tr>
+        <th scope="col" class="num">Sparquote</th>
+        <th scope="col" class="num">Jahre bis zum Ziel</th>
+        <th scope="col" class="num">Zielkapital in Jahreseinkommen</th>
+      </tr>
+    </thead>
+    <tbody>
+      {quotenreihe.map((z) => (
+        <tr>
+          <th scope="row" class="num">{proz(z.q, 0)}</th>
+          <td class="num">{jahreText(z.jahre)}</td>
+          <td class="num">{zahl(z.ziel, 1)}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+  <p class="ra-hinweis">
+    Zwischenwerte sind auf eine Nachkommastelle gerechnet; der Rechner oben
+    rundet auf volle Jahre auf, weil er Jahr für Jahr zählt.
+  </p>
+
+  <p>
+    Zwischen der obersten und der untersten Zeile liegen
+    {' '}{jahreText(spanneQuote)}. Die Kurve ist dabei nicht gleichmäßig: Von
+    {' '}{proz(10, 0)} auf {proz(20, 0)} sind es
+    {' '}{jahreText(q10.jahre - q20.jahre)}, von {proz(60, 0)} auf
+    {' '}{proz(70, 0)} nur noch
+    {' '}{jahreText(quotenreihe[5].jahre - q70.jahre)}. Der erste gesparte
+    Prozentpunkt bringt also am meisten – und zwar deshalb, weil er zweimal
+    wirkt: Er erhöht die Sparrate und senkt gleichzeitig das Ziel.
+  </p>
+
+  <h3>Die Rendite ist der schwächere Hebel</h3>
+  <p>
+    Über die richtige Renditeannahme wird viel gestritten. Für die Ansparzeit
+    ist sie weniger wichtig, als die Diskussion vermuten lässt. Die Tabelle
+    zeigt dieselbe Rechnung für fünf reale Renditen:
+  </p>
+
+  <table>
+    <caption class="visually-hidden">
+      Jahre bis zur finanziellen Unabhängigkeit nach realer Rendite und Sparquote
+    </caption>
+    <thead>
+      <tr>
+        <th scope="col" class="num">reale Rendite</th>
+        <th scope="col" class="num">bei {proz(20, 0)} Sparquote</th>
+        <th scope="col" class="num">bei {proz(40, 0)}</th>
+        <th scope="col" class="num">bei {proz(60, 0)}</th>
+      </tr>
+    </thead>
+    <tbody>
+      {renditereihe.map((z) => (
+        <tr>
+          <th scope="row" class="num">{proz(z.r, 0)}</th>
+          <td class="num">{jahreText(z.jahre20)}</td>
+          <td class="num">{jahreText(z.jahre40)}</td>
+          <td class="num">{jahreText(z.jahre60)}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+
+  <p>
+    Vier Prozentpunkte Unterschied in der Rendite – von {proz(2, 0)} auf
+    {' '}{proz(6, 0)} – verkürzen die Ansparzeit bei {proz(40, 0)} Sparquote um
+    {' '}{jahreText(spanneRendite)}. Zwanzig Prozentpunkte mehr Sparquote, von
+    {' '}{proz(20, 0)} auf {proz(40, 0)}, bringen bei unveränderter Rendite
+    {' '}{jahreText(sparquoteGewinn)}. Direkt gegeneinander gerechnet: Ein
+    Prozentpunkt mehr Rendite spart bei {proz(20, 0)} Sparquote
+    {' '}{jahreText(renditeGewinn)}, die Verdopplung der Sparquote
+    {' '}{jahreText(sparquoteGewinn)} – das
+    {' '}{zahl(sparquoteGewinn / renditeGewinn, 1)}-Fache.
+  </p>
+  <p>
+    Der Grund ist derselbe wie oben: Die Rendite wirkt nur auf das angesparte
+    Kapital, die Sparquote auf beide Seiten der Rechnung. Und sie ist die
+    einzige der beiden Größen, über die man selbst entscheidet. Welche Rendite
+    ein Depot bringt und in welcher Reihenfolge, entscheidet der Markt – was
+    das für den Endwert bedeutet, steht in
+    {' '}<a href={`${import.meta.env.BASE_URL}${artikelPfadVonSlug('durchschnittsrendite-und-reihenfolge')}`}>der Rechnung zur Durchschnittsrendite</a>.
+  </p>
+
+  <h3>Woher die {proz(ENTNAHMERATE * 100, 0)} kommen</h3>
+  <p>
+    Die Regel, aus der das Zielkapital folgt, stammt aus zwei
+    US-amerikanischen Arbeiten. William Bengen untersuchte 1994 historische
+    Marktdaten und kam zu dem Ergebnis, dass eine anfängliche Entnahme von
+    {' '}{proz(ENTNAHMERATE * 100, 0)} des Kapitals, jährlich an die Inflation
+    angepasst, in keinem der untersuchten Startjahre vor Ablauf von 30 Jahren
+    aufgebraucht war. Die Trinity-Studie von 1998 prüfte dasselbe für
+    verschiedene Aktien-Anleihen-Mischungen und Zeiträume und fand für 30 Jahre
+    hohe Erfolgsquoten.
+  </p>
+  <p>
+    Drei Einschränkungen gehören zu dieser Herkunft, und alle drei treffen den
+    Fall der frühen Unabhängigkeit besonders. Erstens ist die Regel auf
+    <em> 30 Jahre</em> berechnet. Wer mit 40 aufhört zu arbeiten, plant für 50
+    Jahre und mehr. Zweitens beruht sie auf US-Daten und einem Depot aus
+    US-Aktien und US-Anleihen. Drittens rechnet sie vor Steuern und vor Kosten –
+    beides fällt in Deutschland an.
+  </p>
+  <p>
+    Wie sehr die Laufzeit zählt, zeigt schon eine Rechnung ohne jede
+    Schwankung: Entnimmt man {proz(ENTNAHMERATE * 100, 0)} des Anfangskapitals
+    und hebt den Betrag jedes Jahr um die Inflation an, hängt alles daran, ob
+    die reale Rendite die Entnahmerate erreicht.
+  </p>
+
+  <table>
+    <caption class="visually-hidden">
+      Wie lange das Kapital bei {proz(ENTNAHMERATE * 100, 0)} Entnahme reicht, nach realer Rendite
+    </caption>
+    <thead>
+      <tr>
+        <th scope="col" class="num">reale Rendite</th>
+        <th scope="col" class="num">Kapital reicht</th>
+      </tr>
+    </thead>
+    <tbody>
+      {reichweite.map((z) => (
+        <tr>
+          <th scope="row" class="num">{proz(z.r, 0)}</th>
+          <td class="num">{z.jahre === Infinity ? 'unbegrenzt' : `${z.jahre} Jahre`}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+  <p class="ra-hinweis">
+    Gerechnet ohne Schwankung, mit gleichbleibender realer Rendite und Entnahme
+    am Jahresende. Ein realer Verlauf schwankt; genau daraus entsteht das
+    Risiko, das die Studien untersuchen.
+  </p>
+
+  <p>
+    Bei {proz(reichweiteDrei.r, 0)} realer Rendite ist das Kapital nach
+    {' '}{reichweiteDrei.jahre} Jahren leer – das reicht für einen Ruhestand mit
+    67, aber nicht für einen mit 45. Ab
+    {' '}{proz(ENTNAHMERATE * 100, 0)} realer Rendite trägt es sich unbegrenzt.
+    Die {proz(ENTNAHMERATE * 100, 0)}-Regel ist damit keine Naturkonstante,
+    sondern eine Wette darauf, dass die reale Rendite im Mittel über der
+    Entnahmerate liegt und die schlechten Jahre nicht zu früh kommen.
+  </p>
+
+  <h3>Was die deutsche Steuer aus dem Ziel macht</h3>
+  <p>
+    Die Regel nennt eine Entnahme vor Steuern. Wer in Deutschland aus einem
+    Aktien-ETF entnimmt, zahlt auf den Gewinnanteil Abgeltungsteuer und
+    Solidaritätszuschlag, zusammen {proz(belastung, 3)} – allerdings sind bei
+    Aktienfonds {proz(TEILFREISTELLUNG_AKTIENFONDS * 100, 0)} der Erträge nach
+    § 20 Abs. 1 InvStG steuerfrei, und der Sparer-Pauschbetrag von
+    {' '}{eur(SPARERPAUSCHBETRAG_EINZEL)} steht jedes Jahr neu zur Verfügung.
+    Besteuert wird außerdem nur der Gewinn, nicht die Rückzahlung des eigenen
+    Einsatzes.
+  </p>
+  <p>
+    Wie viel das ausmacht, hängt deshalb an einer Zahl, die in keinem
+    FIRE-Rechner steht: dem Gewinnanteil am Depot. Wer lange angespart hat,
+    entnimmt überwiegend Gewinn. Die Tabelle rechnet mit
+    {' '}{eur(AUSGABEN)} Jahresausgaben und fragt, welche Bruttoentnahme nötig
+    ist, damit dieser Betrag nach Steuer übrig bleibt – und welches Kapital das
+    bei {proz(ENTNAHMERATE * 100, 0)} Entnahmerate verlangt.
+  </p>
+
+  <table>
+    <caption class="visually-hidden">
+      Nötige Bruttoentnahme und nötiges Kapital für {eur(AUSGABEN)} netto, nach Gewinnanteil am Depot
+    </caption>
+    <thead>
+      <tr>
+        <th scope="col" class="num">Gewinnanteil</th>
+        <th scope="col" class="num">Entnahme brutto</th>
+        <th scope="col" class="num">davon Steuer</th>
+        <th scope="col" class="num">nötiges Kapital</th>
+        <th scope="col" class="num">Vielfaches der Ausgaben</th>
+      </tr>
+    </thead>
+    <tbody>
+      {steuerreihe.map((z) => (
+        <tr>
+          <th scope="row" class="num">{proz(z.anteil, 0)}</th>
+          <td class="num">{eurGenau(z.brutto)}</td>
+          <td class="num">{eurGenau(z.steuer)}</td>
+          <td class="num">{eur(z.kapital)}</td>
+          <td class="num">{zahl(z.vielfaches, 1)}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+
+  <p>
+    Aus dem {zahl(VIELFACHES, 0)}-Fachen der Ausgaben wird damit je nach
+    Gewinnanteil das {zahl(steuerNiedrig.vielfaches, 1)}- bis
+    {' '}{zahl(steuerHoch.vielfaches, 1)}-Fache. Im ungünstigsten Fall der
+    Tabelle sind das {eur(mehrKapital)} mehr als die
+    {' '}{eur(zielOhneSteuer)}, die die Regel nennt. Bei {proz(40, 0)}
+    Sparquote und {proz(REAL * 100, 0)} realer Rendite kostet dieser Aufschlag
+    {' '}{jahreText(jahreDurchSteuer)} zusätzliche Ansparzeit.
+  </p>
+  <p>
+    Der Rechner oben rechnet ohne Steuer. Wer sein Ziel ehrlich ansetzen will,
+    trägt deshalb entweder die Bruttoausgaben ein – also Ausgaben zuzüglich der
+    erwarteten Steuer – oder rechnet mit einem höheren Vielfachen als
+    {' '}{zahl(VIELFACHES, 0)}. Warum auf Kapitalerträge praktisch nie genau
+    {' '}{proz(ABGELTUNGSTEUERSATZ * 100, 0)} Steuer liegen, steht in
+    {' '}<a href={`${import.meta.env.BASE_URL}${artikelPfadVonSlug('abgeltungsteuer-nie-25-prozent')}`}>der Rechnung zur Abgeltungsteuer</a>;
+    die Steuer beim Verkauf eines Sparplans zeigt der
+    {' '}<a href={`${import.meta.env.BASE_URL}geld/etf-sparplan-rechner/`}>ETF-Sparplan-Rechner</a>.
+  </p>
+
+  <h3>Was diese Rechnung nicht abbildet</h3>
+  <p>
+    Die Ansparzeit unterstellt eine gleichbleibende reale Rendite. Reale Jahre
+    schwanken, und beim Ansparen entscheidet zusätzlich die Reihenfolge der
+    guten und schlechten Jahre über das Ergebnis. Nicht enthalten sind
+    Vorabpauschalen während der Ansparzeit (§ 18 InvStG), Fondskosten,
+    Gehaltsänderungen, Kinder, Erbschaften und jede Form von Rente: Die
+    gesetzliche Rente beginnt später, mindert aber den Kapitalbedarf für die
+    Zeit danach. Auch Krankenversicherung und Sozialabgaben nach dem Ausstieg
+    aus der Beschäftigung bleiben außen vor – sie gehören in die Ausgaben, mit
+    denen das Ziel gerechnet wird.
+  </p>
+  <p>
+    Und der Kernbefund hat eine Kehrseite, die man nicht überlesen sollte: Dass
+    das Einkommen herausfällt, gilt nur für die <em>Dauer</em> bei gegebener
+    Quote. Die Quote selbst ist bei niedrigem Einkommen kaum frei wählbar,
+    weil ein Teil der Ausgaben feststeht. Wer die eigene Quote heben will,
+    findet die größeren Hebel deshalb meist auf der Ausgabenseite –
+    und dort wirkt jeder eingesparte Euro doppelt.
+  </p>
+</RechnerArtikel>

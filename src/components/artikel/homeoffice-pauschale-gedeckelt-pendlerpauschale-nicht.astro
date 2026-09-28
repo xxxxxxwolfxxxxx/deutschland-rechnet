@@ -1,0 +1,355 @@
+---
+import RechnerArtikel from '../RechnerArtikel.astro';
+import { ENTFERNUNGSPAUSCHALE_JE_KM } from '../../../public/scripts/fahrtkosten.js';
+import { einkommensteuer } from '../../../public/scripts/einkommensteuer.js';
+
+const base = import.meta.env.BASE_URL;
+
+// § 4 Abs. 5 Satz 1 Nr. 6c EStG (für Angestellte über § 9 Abs. 5 Satz 1 EStG
+// entsprechend anwendbar). Seit dem Jahressteuergesetz 2022 dauerhaft im
+// Gesetz, zuvor befristete Corona-Sonderregelung mit 5 €/Tag und 120 Tagen.
+const HOMEOFFICE_TAGESSATZ = 6;
+const HOMEOFFICE_MAX_TAGE = 210;
+const HOMEOFFICE_MAX_BETRAG = HOMEOFFICE_TAGESSATZ * HOMEOFFICE_MAX_TAGE;
+
+// Realistische Zahl an Arbeitstagen in einer Fünf-Tage-Woche nach Abzug von
+// Urlaub und Feiertagen – derselbe Wert wie im Pendlerpauschale-Artikel, damit
+// beide Rechnungen vergleichbar bleiben.
+const ARBEITSTAGE_GESAMT = 220;
+
+const rund2 = (n: number) => Math.round(n * 100) / 100;
+const taeglicheEntfernungspauschale = (km: number) => rund2(km * ENTFERNUNGSPAUSCHALE_JE_KM);
+
+// Bei welcher Distanz bringt ein einzelner Bürotag genauso viel Abzug wie ein
+// einzelner Homeoffice-Tag? 6 € = km × 0,38 €.
+const schwelleGenau = HOMEOFFICE_TAGESSATZ / ENTFERNUNGSPAUSCHALE_JE_KM;
+
+const tagesvergleich = [5, 10, 15, 16, 20, 30, 50].map((km) => {
+  const pendlerTag = taeglicheEntfernungspauschale(km);
+  return { km, pendlerTag, differenz: rund2(HOMEOFFICE_TAGESSATZ - pendlerTag) };
+});
+
+// Jahresabzug als Funktion der Homeoffice-Tage n bei fester Gesamtzahl an
+// Arbeitstagen: n Tage Homeoffice (gedeckelt bei 210) plus die restlichen
+// Tage im Büro (ungedeckelt, sofern ein eigener Pkw genutzt wird).
+const jahresabzug = (km: number, n: number) => {
+  const homeofficeTeil = HOMEOFFICE_TAGESSATZ * Math.min(n, HOMEOFFICE_MAX_TAGE);
+  const buroTeil = taeglicheEntfernungspauschale(km) * Math.max(0, ARBEITSTAGE_GESAMT - n);
+  return rund2(homeofficeTeil + buroTeil);
+};
+
+const homeofficeTageReihe = [0, 50, 100, 150, 200, 210, 220];
+const distanzenJahresvergleich = [10, 16, 30];
+const jahresvergleich = homeofficeTageReihe.map((n) => ({
+  n,
+  bueroTage: Math.max(0, ARBEITSTAGE_GESAMT - n),
+  werte: distanzenJahresvergleich.map((km) => jahresabzug(km, n)),
+}));
+
+// Was der Sprung von 210 auf 220 Homeoffice-Tage real an Steuer kostet – bei
+// zwei Einkommen, über den echten Tarif gerechnet statt über einen
+// geschätzten Prozentsatz.
+const ZVE_MITTEL = 45_000;
+const ZVE_HOCH = 70_000;
+const ersparnis = (zvE: number, abzug: number) =>
+  einkommensteuer(zvE) - einkommensteuer(zvE - abzug);
+
+const verlustJenseitsDesDeckels = [10, 30].map((km) => {
+  const abzug210 = jahresabzug(km, 210);
+  const abzug220 = jahresabzug(km, 220);
+  const abzugsVerlust = rund2(abzug210 - abzug220);
+  return {
+    km,
+    abzugsVerlust,
+    steuerverlustMittel: ersparnis(ZVE_MITTEL, abzug210) - ersparnis(ZVE_MITTEL, abzug220),
+    steuerverlustHoch: ersparnis(ZVE_HOCH, abzug210) - ersparnis(ZVE_HOCH, abzug220),
+  };
+});
+
+const eur = (n: number) =>
+  n.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
+const eurKurz = (n: number) =>
+  n.toLocaleString('de-DE', { maximumFractionDigits: 0 }) + ' €';
+---
+<RechnerArtikel
+  titel="Warum der 211. Homeoffice-Tag steuerlich nichts mehr bringt"
+  lead={`Homeoffice-Pauschale und Pendlerpauschale schließen sich für denselben Tag aus – nur eine von beiden ist gedeckelt. Wer über ${HOMEOFFICE_MAX_TAGE} Tage im Jahr von zu Hause arbeitet, verzichtet an jedem weiteren Tag auf einen Abzug, der beim Pendeln noch etwas gebracht hätte, ohne dafür selbst noch etwas zu bekommen. Nachgerechnet für vier Entfernungen und zwei Einkommen.`}
+  datum="2026-08-14"
+  quellen={[
+    { titel: 'EStG § 4 Absatz 5 Satz 1 Nummer 6c – Tagespauschale für die häusliche Tätigkeit', url: 'https://www.gesetze-im-internet.de/estg/__4.html' },
+    { titel: 'EStG § 9 Absatz 5 Satz 1 – entsprechende Anwendung für Werbungskosten', url: 'https://www.gesetze-im-internet.de/estg/__9.html' },
+    { titel: 'EStG § 9 Absatz 1 Satz 3 Nummer 4 – Entfernungspauschale', url: 'https://www.gesetze-im-internet.de/estg/__9.html' },
+    { titel: 'EStG § 32a Einkommensteuertarif', url: 'https://www.gesetze-im-internet.de/estg/__32a.html' },
+  ]}
+>
+  <p>
+    Beide Pauschalen klingen wie zwei unabhängige Positionen der
+    Steuererklärung: {eurKurz(HOMEOFFICE_TAGESSATZ)} für jeden Tag im
+    Homeoffice, {eur(ENTFERNUNGSPAUSCHALE_JE_KM)} je Kilometer für jeden Tag im
+    Büro. Wer beide addiert, kommt schnell auf eine ansehnliche Summe. Das
+    Problem: Für denselben Kalendertag darf immer nur eine von beiden
+    angesetzt werden – und die beiden Pauschalen sind unterschiedlich
+    gedeckelt. Genau darin liegt eine Rechnung, die sich lohnt, sobald mehr
+    als gelegentlich von zu Hause gearbeitet wird.
+  </p>
+
+  <h3>Eine Pauschale pro Tag, nicht pro Aktivität</h3>
+  <p>
+    Nach § 4 Abs. 5 Satz 1 Nr. 6c EStG (für Arbeitnehmer über § 9 Abs. 5 Satz 1
+    EStG entsprechend anwendbar) gibt es die Tagespauschale für jeden
+    Kalendertag, an dem die berufliche Tätigkeit überwiegend in der häuslichen
+    Wohnung ausgeübt und <em>keine</em> außerhalb gelegene erste
+    Tätigkeitsstätte aufgesucht wird. Wird die Tätigkeitsstätte an einem Tag
+    doch aufgesucht, entfällt für diesen Tag die Tagespauschale – stattdessen
+    zählt die Entfernungspauschale nach § 9 Abs. 1 Satz 3 Nr. 4 EStG. Beide
+    nebeneinander für denselben Tag sind nicht vorgesehen.
+  </p>
+  <p>
+    Eine Ausnahme gibt es: Steht für die Tätigkeit dauerhaft kein anderer
+    Arbeitsplatz zur Verfügung – etwa bei Lehrkräften ohne eigenen Schreibtisch
+    im Kollegium –, bleibt die Tagespauschale auch an Tagen mit auswärtiger
+    Tätigkeit zulässig. Für alle anderen gilt die Entweder-oder-Regel, und
+    genau sie macht den Rest dieses Artikels nachrechenbar.
+  </p>
+
+  <h3>Wo der Tagesvergleich kippt: 15 gegen 16 Kilometer</h3>
+  <p>
+    Ein einzelner Homeoffice-Tag ist immer {eurKurz(HOMEOFFICE_TAGESSATZ)}
+    wert. Ein einzelner Bürotag ist {eur(ENTFERNUNGSPAUSCHALE_JE_KM)} je
+    Kilometer einfacher Entfernung wert. Beide Beträge sind bei
+    {' '}{schwelleGenau.toLocaleString('de-DE', { maximumFractionDigits: 2 })}
+    {' '}Kilometern exakt gleich groß – darunter bringt der Homeoffice-Tag pro
+    Tag mehr Abzug, darüber der Bürotag:
+  </p>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th scope="col" class="num">Entfernung</th>
+          <th scope="col" class="num">Pendlerpauschale/Tag</th>
+          <th scope="col" class="num">Differenz zu {eurKurz(HOMEOFFICE_TAGESSATZ)} Homeoffice</th>
+        </tr>
+      </thead>
+      <tbody>
+        {tagesvergleich.map((t) => (
+          <tr>
+            <th scope="row" class="num">{t.km} km</th>
+            <td class="num">{eur(t.pendlerTag)}</td>
+            <td class={`num strong ${t.differenz < 0 ? 'rot' : ''}`}>
+              {t.differenz > 0 ? '+' : ''}{eur(t.differenz)}
+            </td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  </div>
+
+  <p>
+    Bei fünfzehn Kilometern liegt der Bürotag mit {eur(taeglicheEntfernungspauschale(15))}
+    noch knapp unter der Homeoffice-Pauschale. Einen Kilometer weiter kippt es:
+    Bei sechzehn Kilometern bringt der Bürotag mit {eur(taeglicheEntfernungspauschale(16))}
+    schon acht Cent mehr als der Homeoffice-Tag. Dieser Kipppunkt gilt aber nur
+    für den einzelnen Tag – auf das Jahr gerechnet kommt ein zweiter Effekt
+    hinzu, der wichtiger ist als die acht Cent.
+  </p>
+
+  <h3>Der Deckel, den nur eine Seite hat</h3>
+  <p>
+    Die Tagespauschale ist bei {HOMEOFFICE_MAX_TAGE} Tagen gedeckelt, also bei
+    {' '}{eurKurz(HOMEOFFICE_MAX_BETRAG)} im Jahr. Die Entfernungspauschale
+    kennt keinen Tagesdeckel – nur einen Höchstbetrag von 4.500 € im Jahr, und
+    der greift ausschließlich, wenn kein eigener Pkw benutzt wird. Für
+    Autofahrer wächst die Entfernungspauschale mit jedem zusätzlichen Bürotag
+    unbegrenzt weiter, während die Tagespauschale ab dem 211. Homeoffice-Tag
+    keinen einzigen Euro mehr addiert.
+  </p>
+  <p>
+    Das lässt sich für eine feste Zahl von {ARBEITSTAGE_GESAMT} Arbeitstagen im
+    Jahr durchrechnen: Je mehr davon im Homeoffice stattfinden, desto weniger
+    bleiben fürs Büro übrig. Bei drei Entfernungen sieht der Jahresabzug so
+    aus:
+  </p>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th scope="col" class="num">Homeoffice-Tage</th>
+          <th scope="col" class="num">Bürotage</th>
+          {distanzenJahresvergleich.map((km) => (
+            <th scope="col" class="num">Abzug bei {km} km</th>
+          ))}
+        </tr>
+      </thead>
+      <tbody>
+        {jahresvergleich.map((z) => (
+          <tr>
+            <th scope="row" class="num">{z.n}</th>
+            <td class="num">{z.bueroTage}</td>
+            {z.werte.map((w) => <td class="num">{eur(w)}</td>)}
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  </div>
+
+  <p>
+    Die mittlere Spalte, sechzehn Kilometer, liegt so nah am Kipppunkt aus dem
+    Tagesvergleich, dass der Jahresabzug über den gesamten Bereich fast flach
+    verläuft – er sinkt nur minimal mit jedem zusätzlichen Homeoffice-Tag. Bei
+    zehn Kilometern dagegen steigt der Abzug zunächst mit jedem Homeoffice-Tag
+    und erreicht sein <strong>Maximum genau bei {HOMEOFFICE_MAX_TAGE} Tagen</strong>
+    – nicht bei mehr. Von {HOMEOFFICE_MAX_TAGE} auf {ARBEITSTAGE_GESAMT} Tage
+    Homeoffice fällt der Jahresabzug wieder, obwohl mehr Tage im Homeoffice
+    gearbeitet wurden. Bei dreißig Kilometern gibt es dieses Maximum gar
+    nicht: Der Abzug sinkt vom ersten Homeoffice-Tag an durchgehend, weil
+    jeder Bürotag von Anfang an mehr wert ist als jeder Homeoffice-Tag.
+  </p>
+  <p>
+    Der gemeinsame Punkt aller drei Spalten ist die letzte Zeile: Bei
+    {' '}{ARBEITSTAGE_GESAMT} Homeoffice-Tagen landen alle drei Entfernungen
+    beim selben Betrag, {eurKurz(HOMEOFFICE_MAX_BETRAG)} – der reinen
+    Tagespauschale ohne einen einzigen Bürotag. Die Entfernung spielt dann
+    keine Rolle mehr, weil keine Kilometer mehr abgerechnet werden.
+  </p>
+
+  <h3>Was der 211. Tag wirklich kostet</h3>
+  <p>
+    Der Unterschied zwischen {HOMEOFFICE_MAX_TAGE} und {ARBEITSTAGE_GESAMT}
+    Homeoffice-Tagen sind zehn Tage, an denen die Entfernungspauschale
+    weggefallen ist, ohne dass die Tagespauschale dafür noch gestiegen wäre.
+    Auf den Jahresabzug umgerechnet und mit dem echten Steuertarif nach
+    § 32a EStG bewertet, ergibt das bei zwei Einkommen:
+  </p>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th scope="col" class="num">Entfernung</th>
+          <th scope="col" class="num">Verlorener Jahresabzug</th>
+          <th scope="col" class="num">Steuerverlust bei {eurKurz(ZVE_MITTEL)}</th>
+          <th scope="col" class="num">bei {eurKurz(ZVE_HOCH)}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {verlustJenseitsDesDeckels.map((v) => (
+          <tr>
+            <th scope="row" class="num">{v.km} km</th>
+            <td class="num">{eur(v.abzugsVerlust)}</td>
+            <td class="num strong">{eurKurz(v.steuerverlustMittel)}</td>
+            <td class="num">{eurKurz(v.steuerverlustHoch)}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  </div>
+
+  <p>
+    Bei dreißig Kilometern Arbeitsweg kosten die zehn Tage jenseits des
+    Deckels real zwischen {eurKurz(verlustJenseitsDesDeckels[1].steuerverlustMittel)}
+    {' '}und {eurKurz(verlustJenseitsDesDeckels[1].steuerverlustHoch)} Steuer –
+    nicht, weil im Homeoffice weniger gearbeitet worden wäre, sondern allein,
+    weil die Tagespauschale bei {HOMEOFFICE_MAX_TAGE} Tagen endet und die
+    Entfernungspauschale für diese Tage nicht mehr nachgeholt werden kann.
+  </p>
+
+  <h3>Was das für die Wahl der Homeoffice-Tage bedeutet</h3>
+  <p>
+    Rein steuerlich betrachtet, ergeben sich aus der Rechnung zwei klare
+    Fälle. Liegt der Arbeitsweg unter rund {Math.floor(schwelleGenau)} bis
+    {' '}{Math.ceil(schwelleGenau)} Kilometern, maximiert sich der Jahresabzug
+    bei genau {HOMEOFFICE_MAX_TAGE} Homeoffice-Tagen – mehr bringt keinen
+    zusätzlichen Cent, sondern kostet Entfernungspauschale, die sonst noch
+    gegriffen hätte. Liegt der Arbeitsweg darüber, bringt in reiner
+    Abzugslogik jeder zusätzliche Bürotag mehr als jeder Homeoffice-Tag, und
+    der Deckel verschärft diesen Nachteil nur noch bei sehr hoher
+    Homeoffice-Quote.
+  </p>
+  <p>
+    Das ist ausdrücklich kein Argument gegen Homeoffice: Wegfallende
+    Fahrtkosten, Zeit und Verschleiß wiegen die hier beschriebenen
+    Steuerdifferenzen im Alltag meist auf. Es erklärt nur, warum die
+    Steuererklärung nach einem Jahr mit sehr vielen Homeoffice-Tagen manchmal
+    enttäuschender ausfällt als erwartet – und warum es sich lohnt, die Zahl
+    der im Kalender eingetragenen Homeoffice-Tage tatsächlich nachzuzählen,
+    statt sie zu schätzen.
+  </p>
+  <p>
+    Wer für seine berufliche Tätigkeit dauerhaft keinen anderen Arbeitsplatz
+    hat, fällt nicht unter die Entweder-oder-Regel und kann die Tagespauschale
+    unabhängig von Bürotagen ansetzen; für alle anderen gilt die Rechnung
+    dieses Artikels unverändert.
+  </p>
+
+  <h3>Den eigenen Fall rechnen</h3>
+  <p>
+    Die Tabellen hier unterstellen {ARBEITSTAGE_GESAMT} Arbeitstage im Jahr,
+    einen eigenen Pkw und keine weiteren Werbungskosten. Für die andere Seite
+    derselben Rechnung – wie stark die Entfernungspauschale selbst durch
+    Homeoffice-Tage sinkt, und ab welcher Entfernung sie überhaupt etwas
+    bringt – gibt es einen eigenen Artikel:
+  </p>
+  <ul>
+    <li><a href={`${base}auto/fahrtkosten-rechner/`}>Pendlerpauschale-Rechner</a> – Entfernungspauschale nach Kilometern und Arbeitstagen, samt der Schwelle zum Arbeitnehmer-Pauschbetrag</li>
+    <li><a href={`${base}geld/brutto-netto-rechner/`}>Brutto-Netto-Rechner</a> – wie sich ein zusätzlicher Werbungskosten-Abzug auf die Steuer auswirkt</li>
+  </ul>
+
+  <p class="hinweis">
+    Rechtsstand 1. Januar 2026, Tarif nach § 32a EStG in der für 2026 geltenden
+    Fassung. Die Beispielrechnungen unterstellen einen ledigen Arbeitnehmer mit
+    eigenem Pkw, {ARBEITSTAGE_GESAMT} Arbeitstagen im Jahr und ohne weitere
+    Werbungskosten; Kirchensteuer und Solidaritätszuschlag sind nicht
+    berücksichtigt. Dieser Artikel ersetzt keine steuerliche Beratung.
+  </p>
+</RechnerArtikel>
+
+<style>
+.table-wrap {
+  overflow-x: auto;
+  margin: 1.5rem 0 1.25rem;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+  background: white;
+}
+thead th {
+  background: var(--dark);
+  color: white;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-weight: 600;
+  padding: 0.7rem 0.75rem;
+  text-align: left;
+  white-space: nowrap;
+}
+tbody th {
+  text-align: left;
+  font-weight: 600;
+  padding: 0.6rem 0.75rem;
+  white-space: nowrap;
+}
+tbody td { padding: 0.6rem 0.75rem; }
+tbody tr:nth-child(even) { background: var(--surface); }
+tbody tr:hover { background: var(--cat-light, #f3f4f6); }
+.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.strong { font-weight: 700; }
+.rot { color: var(--red); }
+
+.hinweis {
+  margin-top: 2rem;
+  padding: 0.9rem 1.1rem;
+  background: var(--surface);
+  border-left: 3px solid var(--gold);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  font-size: 0.85rem !important;
+  line-height: 1.6 !important;
+  color: var(--text-light);
+}
+</style>

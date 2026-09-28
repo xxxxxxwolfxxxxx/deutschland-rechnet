@@ -3,6 +3,7 @@ import Layout from '../../layouts/Layout.astro';
 import CalculatorShell from '../../components/CalculatorShell.astro';
 import CalculatorGuide from '../../components/CalculatorGuide.astro';
 import { CALCULATORS, CATEGORIES } from '../../data/calculators';
+import ArtikelSchlaf from '../../components/artikel/schlafzyklen-neunzig-minuten-sind-ein-mittelwert.astro';
 const calc = CALCULATORS.find(c => c.slug === 'schlaf-rechner')!;
 const cat = CATEGORIES[calc.category];
 const year = new Date().getFullYear();
@@ -23,7 +24,7 @@ const year = new Date().getFullYear();
     calculator={calc}
     intro="Mit dem Schlaf-Rechner berechnen Sie optimale Schlafens- und Aufwachzeiten basierend auf 90-Minuten-Schlafzyklen. Wachen Sie am Ende eines Schlafzyklus auf, fühlen Sie sich deutlich erholter als mitten im Tiefschlaf. Der Rechner berücksichtigt Ihre individuelle Einschlafzeit und berechnet die besten Zeiten für erholsamen Schlaf."
     sourceNote="5-6 Zyklen (7,5-9 Stunden)."
-    explanation="Schlafforschung zeigt, dass jeder Schlafzyklus aus vier Phasen besteht: Leichtschlaf, mittlerer Schlaf, Tiefschlaf und REM-Schlaf (Traumphase), wobei ein Zyklus durchschnittlich 90 Minuten dauert. Die National Sleep Foundation empfiehlt Erwachsenen 7-9 Stunden Schlaf pro Nacht, was 5-6 vollständigen Zyklen entspricht. Chronischer Schlafmangel erhöht laut WHO das Risiko für Herz-Kreislauf-Erkrankungen, Diabetes und Depressionen erheblich."
+    explanation="Schlafforschung zeigt, dass jeder Schlafzyklus aus vier Phasen besteht: Leichtschlaf, mittlerer Schlaf, Tiefschlaf und REM-Schlaf (Traumphase), wobei ein Zyklus durchschnittlich 90 Minuten dauert. Fachgesellschaften empfehlen Erwachsenen 7 bis 9 Stunden Schlaf pro Nacht; bei 90 Minuten je Zyklus sind das 4 bis 6 vollständige Zyklen. Chronischer Schlafmangel erhöht laut WHO das Risiko für Herz-Kreislauf-Erkrankungen, Diabetes und Depressionen erheblich."
     faqs={[
       {
         q: "Ist das 90-Minuten-Zyklen-Modell wissenschaftlich?",
@@ -31,7 +32,7 @@ const year = new Date().getFullYear();
       },
       {
         q: "Was passiert, wenn ich in der REM-Phase aufwache?",
-        a: "Wenn Sie während einer REM-Phase (Traumschlaf, am Ende des Zyklus) aufwachen, fühlen Sie sich erhoxter. Aufwachen am Ende eines Zyklus verhindert den grogginess (Schlaftrunkenheit)."
+        a: "Wenn Sie während einer REM-Phase (Traumschlaf, am Ende des Zyklus) aufwachen, fühlen Sie sich erholter. Aufwachen am Ende eines Zyklus verhindert den grogginess (Schlaftrunkenheit)."
       },
       {
         q: "Ist 4-Stunden-Schlaf wirklich ausreichend?",
@@ -83,14 +84,15 @@ const year = new Date().getFullYear();
       </div>
       <div id="details" style="margin-top:0.75rem;font-size:0.88rem;color:#666;display:flex;gap:1.5rem;flex-wrap:wrap;"></div>
     </div>
+    <ArtikelSchlaf slot="artikel" />
   </CalculatorShell>
   <CalculatorGuide
     title="Schlafzyklen und optimale Aufwachzeiten"
     content="Das Schlafzyklen-Modell basiert auf der wissenschaftlichen Realität, dass der menschliche Schlaf in Zyklen erfolgt, nicht kontinuierlich. Jeder Zyklus hat vier Phasen: leichter Schlaf, tieferer Schlaf, tiefster Schlaf (Tiefschlaf) und REM-Schlaf (Traumschlaf). Ein kompletter Zyklus dauert im Durchschnitt 90 Minuten.
 
-**Warum das Aufwachen zwischen Zyklen wichtig ist:** Wenn Sie am Ende eines Zyklus aufwachen (wenn Sie sich der REM-Phase nähern), fühlen Sie sich deutlich ausgeruhter als wenn Sie mitten im Tiefschlaf geweckt werden. Dies ist der Grund, warum 7,5 Stunden (5 Zyklen) manchmal erholsamer fühlt als 8 Stunden.
+**Warum das Aufwachen zwischen Zyklen wichtig ist:** Wenn Sie am Ende eines Zyklus aufwachen (wenn Sie sich der REM-Phase nähern), fühlen Sie sich deutlich ausgeruhter als wenn Sie mitten im Tiefschlaf geweckt werden. Das ist der Grund, warum sich 7,5 Stunden (5 Zyklen) manchmal erholsamer anfühlen als 8 Stunden.
 
-**Praktische Anwendung:** Der Rechner berücksichtigt eine typische Einschlafzeit von 10-20 Minuten. Nutzen Sie diese Zeiten, es ist keine Wissenschaft – Variation von 15-30 Minuten ist völlig normal. Wichtiger als perfekte Uhrzeiten ist ein konsistenter Schlaf-Wach-Rhythmus.
+**Praktische Anwendung:** Der Rechner berücksichtigt eine typische Einschlafzeit von 10-20 Minuten. Nehmen Sie die Uhrzeiten als Anhaltspunkt, nicht als Vorgabe – eine Abweichung von 15 bis 30 Minuten ist völlig normal. Wichtiger als perfekte Uhrzeiten ist ein konsistenter Schlaf-Wach-Rhythmus.
 
 **Langzeitgesundheit:** Regelmäßiger 7-9-Stunden-Schlaf reduziert Krankheitsrisiken wie Diabetes, Herzerkrankungen und Depression. Die Zyklen helfen nur bei der Timing-Optimierung; die Gesamtschlafdauer und Konsistenz sind wichtiger."
     relatedSlugs={['blutdruck-bewerter', 'grundumsatz-rechner', 'kalorien-rechner']}

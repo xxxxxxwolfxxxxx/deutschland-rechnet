@@ -1,0 +1,326 @@
+---
+import RechnerArtikel from '../RechnerArtikel.astro';
+import { berechneSpritkosten } from '../../../public/scripts/spritkosten.js';
+
+// Alle Zahlen dieses Artikels kommen aus demselben Modul, das der Rechner oben
+// lädt: public/scripts/spritkosten.js. Die Ausgangswerte sind die
+// Voreinstellungen der Seite (500 km, 7,5 L/100 km, 1,75 €/L) und ihr
+// Jahres-Preset (15.000 km). Sie sind keine Statistik, sondern nur die Werte,
+// die ein Besucher vorfindet, bevor er etwas eintippt.
+
+const zahl = (n: number, d = 2) =>
+  n.toLocaleString('de-DE', { minimumFractionDigits: d, maximumFractionDigits: d }).replace(/^-/, '−');
+const eur = (n: number) => zahl(n, 2) + ' €';
+const proz = (n: number, d = 1) => zahl(n, d) + ' %';
+const lit = (n: number, d = 1) => zahl(n, d) + ' L';
+
+/** Kurzform für den Modulaufruf. */
+const k = (streckeKm: number, verbrauchL100: number, preisEuroL = 1.75) =>
+  berechneSpritkosten({ streckeKm, verbrauchL100, preisEuroL });
+
+/** Liter je 100 km aus Kilometern je Liter – der Kehrwert, mal 100. */
+const lPro100 = (kmProLiter: number) => 100 / kmProLiter;
+
+const STRECKE = 500;
+const JAHR_KM = 15000;
+const V_STD = 7.5;
+const P_STD = 1.75;
+
+// Das durstige und das sparsame Fahrzeug des Artikels.
+const V_A = 12;
+const V_A_MINUS1 = V_A - 1;
+const V_B = 6;
+
+// --- 1. Die Formel ist linear ---------------------------------------------
+const basis = k(STRECKE, V_STD);
+const sparsam = k(STRECKE, V_STD - 1);
+const durstig = k(STRECKE, V_A);
+const durstigMinus1 = k(STRECKE, V_A_MINUS1);
+
+const ersparnisSparsam = basis.kosten - sparsam.kosten;
+const ersparnisDurstig = durstig.kosten - durstigMinus1.kosten;
+
+// Kernaussage Abschnitt 1: Ein Liter je 100 km weniger spart über dieselbe
+// Strecke immer denselben Betrag – der Ausgangsverbrauch spielt keine Rolle.
+if (Math.abs(ersparnisSparsam - ersparnisDurstig) > 0.005) {
+  throw new Error(
+    `Spritkosten-Artikel: 1 L/100 km weniger spart nicht gleich viel ` +
+    `(${ersparnisSparsam} vs. ${ersparnisDurstig} €).`,
+  );
+}
+// Gegenprobe gegen die geschlossene Form: 1 L/100 km × Strecke/100 × Preis.
+const ersparnisFormel = (1 / 100) * STRECKE * P_STD;
+if (Math.abs(ersparnisSparsam - ersparnisFormel) > 0.005) {
+  throw new Error('Spritkosten-Artikel: Modulergebnis weicht von der Formel ab.');
+}
+
+// Prozentual ist derselbe Liter sehr unterschiedlich viel.
+const prozentSparsam = (ersparnisSparsam / basis.kosten) * 100;
+const prozentDurstig = (ersparnisDurstig / durstig.kosten) * 100;
+
+// --- 2. Kilometer je Liter sind der Kehrwert ------------------------------
+// Vier Punkte einer Skala, die im Ausland üblich ist (miles per gallon, km/l).
+const KM_PRO_LITER = [5, 6, 15, 20];
+const skala = KM_PRO_LITER.map((kpl) => {
+  const v = lPro100(kpl);
+  return { kpl, v, jahr: k(JAHR_KM, v) };
+});
+const [a5, a6, a15, a20] = skala;
+
+const sprungKlein = a5.jahr.kosten - a6.jahr.kosten;   // +1 km/l beim Durstigen
+const sprungGross = a15.jahr.kosten - a20.jahr.kosten; // +5 km/l beim Sparsamen
+const faktor = sprungKlein / sprungGross;
+
+// Kernaussage Abschnitt 2: Der kleinere Sprung auf der km/l-Skala spart mehr.
+if (!(sprungKlein > sprungGross)) {
+  throw new Error(
+    `Spritkosten-Artikel: +1 km/l bei ${a5.kpl} km/l spart nicht mehr als ` +
+    `+5 km/l bei ${a15.kpl} km/l (${sprungKlein} vs. ${sprungGross} €).`,
+  );
+}
+
+// --- 3. Zwei Autos im Haushalt --------------------------------------------
+const HALB = JAHR_KM / 2;
+const autoA = k(HALB, V_A);
+const autoB = k(HALB, V_B);
+const literGesamt = autoA.liter + autoB.liter;
+const vEcht = (literGesamt / JAHR_KM) * 100;
+
+// Derselbe Haushalt, in km/l gedacht und dort arithmetisch gemittelt.
+const kplA = 100 / V_A;
+const kplB = 100 / V_B;
+const kplArith = (kplA + kplB) / 2;
+const vFalsch = 100 / kplArith;
+
+const kostenEcht = k(JAHR_KM, vEcht);
+const kostenFalsch = k(JAHR_KM, vFalsch);
+const luecke = kostenEcht.kosten - kostenFalsch.kosten;
+const lueckeProzent = (luecke / kostenEcht.kosten) * 100;
+
+// Das richtige Mittel auf der km/l-Skala ist das harmonische. Es muss exakt
+// den Verbrauch treffen, den die Literrechnung ergibt.
+const kplHarmonisch = 2 / (1 / kplA + 1 / kplB);
+if (Math.abs(100 / kplHarmonisch - vEcht) > 1e-9) {
+  throw new Error(
+    `Spritkosten-Artikel: harmonisches Mittel (${100 / kplHarmonisch}) trifft ` +
+    `den echten Verbrauch (${vEcht}) nicht.`,
+  );
+}
+// Und das arithmetische Mittel muss danebenliegen – sonst trägt der Abschnitt nicht.
+if (!(vFalsch < vEcht)) {
+  throw new Error('Spritkosten-Artikel: arithmetisches km/l-Mittel liegt nicht zu niedrig.');
+}
+
+// --- 4. Prozent beim Verbrauch = Prozent beim Geld ------------------------
+const jahrBasis = k(JAHR_KM, V_STD);
+const jahrMinus10 = k(JAHR_KM, V_STD * 0.9);
+const jahrMinus15 = k(JAHR_KM, V_STD * 0.85);
+const spar10 = jahrBasis.kosten - jahrMinus10.kosten;
+const spar15 = jahrBasis.kosten - jahrMinus15.kosten;
+const spar10Prozent = (spar10 / jahrBasis.kosten) * 100;
+
+// Gegenprobe fuer die Groessenordnung: Welche Senkung braeuchte es fuer 500 €?
+const ZIELERSPARNIS = 500;
+const noetigeSenkung = (ZIELERSPARNIS / jahrBasis.kosten) * 100;
+
+// Zehn Prozent weniger Verbrauch müssen exakt zehn Prozent weniger Kosten sein.
+if (Math.abs(spar10Prozent - 10) > 0.01) {
+  throw new Error(
+    `Spritkosten-Artikel: 10 % weniger Verbrauch ergeben ${spar10Prozent} % weniger Kosten.`,
+  );
+}
+
+// --- 5. Preis und Verbrauch sind symmetrisch ------------------------------
+const CENT_WENIGER = 0.10;
+const jahrBilliger = k(JAHR_KM, V_STD, P_STD - CENT_WENIGER);
+const sparPreis = jahrBasis.kosten - jahrBilliger.kosten;
+const vAequivalent = V_STD * (1 - CENT_WENIGER / P_STD);
+const deltaV = V_STD - vAequivalent;
+const jahrAequivalent = k(JAHR_KM, vAequivalent);
+
+// Der billigere Liter und der niedrigere Verbrauch müssen aufs Gleiche kommen.
+if (Math.abs(jahrAequivalent.kosten - jahrBilliger.kosten) > 0.01) {
+  throw new Error(
+    `Spritkosten-Artikel: ${CENT_WENIGER} €/L weniger (${jahrBilliger.kosten} €) und ` +
+    `${deltaV} L/100 km weniger (${jahrAequivalent.kosten} €) sind nicht gleichwertig.`,
+  );
+}
+---
+
+<RechnerArtikel
+  titel="Ein Liter weniger je 100 Kilometer spart immer gleich viel – ein Kilometer mehr je Liter nicht"
+  lead={`Liter je 100 Kilometer und Kilometer je Liter sind Kehrwerte derselben Sache, aber nur die erste Zahl ist proportional zum Geld. Nachgerechnet mit dem Rechner oben: Warum ein Kilometer mehr je Liter beim durstigen Auto ${zahl(faktor, 0)}-mal so viel spart wie fünf Kilometer mehr beim sparsamen – und warum der Durchschnitt zweier Autos im Haushalt um ${eur(luecke)} im Jahr danebenliegt, wenn man ihn falsch herum bildet.`}
+  datum="2026-09-23"
+  quellen={[
+    { titel: 'Larrick, R. P. / Soll, J. B.: The MPG Illusion. Science 320 (5883), S. 1593–1594, 20.06.2008', url: 'https://doi.org/10.1126/science.1154983' },
+    { titel: 'Pkw-EnVKV – Verordnung über Verbraucherinformationen zu Kraftstoffverbrauch, CO₂-Emissionen und Stromverbrauch neuer Personenkraftwagen, Anlage 1 Nr. 7', url: 'https://www.gesetze-im-internet.de/pkw-envkv/anlage_1.html' },
+  ]}
+>
+
+  <h3>Die Formel des Rechners hat nur Produkte – deshalb ist sie gutmütig</h3>
+  <p>
+    Oben steht eine einzige Zeile: Kosten = Verbrauch ÷ 100 × Strecke × Preis. Drei
+    Faktoren, keine Summe, kein Exponent. In den Voreinstellungen der Seite –
+    {zahl(STRECKE, 0)} km, {zahl(V_STD, 1)} L/100 km, {eur(P_STD)} je Liter – ergibt
+    das {lit(basis.liter)} und {eur(basis.kosten)}, also {eur(basis.kostenPro100km)}
+    je 100 Kilometer.
+  </p>
+  <p>
+    Weil die Formel nur multipliziert, verhält sich der Verbrauch völlig
+    geradlinig zum Geld. Senken Sie ihn um genau einen Liter je 100 Kilometer,
+    von {zahl(V_STD, 1)} auf {zahl(V_STD - 1, 1)}, kostet dieselbe Strecke
+    {eur(sparsam.kosten)} – {eur(ersparnisSparsam)} weniger. Nehmen Sie stattdessen
+    einen Wagen mit {zahl(V_A, 0)} L/100 km und senken ihn um denselben einen Liter
+    auf {zahl(V_A_MINUS1, 0)}, sinken die Kosten von {eur(durstig.kosten)} auf
+    {eur(durstigMinus1.kosten)}. Das sind wieder exakt {eur(ersparnisDurstig)}.
+  </p>
+  <p>
+    Das ist kein Zufall, sondern die Formel: Ein Liter je 100 Kilometer weniger
+    spart über {zahl(STRECKE, 0)} Kilometer stets 1 ÷ 100 × {zahl(STRECKE, 0)} ×
+    {eur(P_STD)} = {eur(ersparnisFormel)} – unabhängig davon, wo Sie gestartet sind.
+    Die Prozentangabe daneben täuscht deshalb: Beim sparsamen Wagen sind dieselben
+    {eur(ersparnisSparsam)} ein Minus von {proz(prozentSparsam)}, beim durstigen nur
+    {proz(prozentDurstig)}. Die Prozentzahl ist größer, der gesparte Betrag ist
+    derselbe. Wer Autos vergleicht, sollte deshalb die Liter-Differenz ansehen, nicht
+    die Prozent-Differenz.
+  </p>
+
+  <h3>Auf der anderen Skala kippt genau das</h3>
+  <p>
+    In Deutschland ist die Bezugsgröße 100 Kilometer – die Pkw-EnVKV schreibt die
+    Verbrauchsangabe je 100 Kilometer vor und nennt für Erdgasfahrzeuge in Anlage 1
+    Nr. 7 ausdrücklich „kg je 100 km“. In den USA und in weiten Teilen Asiens dreht
+    man den Bruch um: Meilen je Gallone, Kilometer je Liter. Dieselbe Information –
+    und eine völlig andere Intuition.
+  </p>
+  <p>
+    Rechnen wir vier Fahrzeuge über ein Jahr mit {zahl(JAHR_KM, 0)} Kilometern
+    (das größte Preset des Rechners) und {eur(P_STD)} je Liter:
+  </p>
+  <ul>
+    {skala.map((s) => (
+      <li>
+        {zahl(s.kpl, 0)} km/l entsprechen {zahl(s.v, 2)} L/100 km →
+        {' '}{lit(s.jahr.liter, 0)} und {eur(s.jahr.kosten)} im Jahr
+      </li>
+    ))}
+  </ul>
+  <p>
+    Wer den Wagen mit {zahl(a5.kpl, 0)} km/l gegen einen mit {zahl(a6.kpl, 0)} km/l
+    tauscht, verbessert sich um einen einzigen Kilometer je Liter – und spart
+    {eur(sprungKlein)} im Jahr. Wer von {zahl(a15.kpl, 0)} km/l auf
+    {' '}{zahl(a20.kpl, 0)} km/l geht, verbessert sich um fünf Kilometer je Liter –
+    und spart nur {eur(sprungGross)}. Der optisch fünfmal kleinere Sprung bringt das
+    {' '}{zahl(faktor, 0)}-Fache.
+  </p>
+  <p>
+    Der Grund ist der Kehrwert. Kilometer je Liter sagen, wie weit ein Liter reicht;
+    bezahlt wird aber nicht Strecke, sondern Kraftstoff. Ein Liter je 100 Kilometer
+    ist immer ein Liter je 100 Kilometer. Ein Kilometer je Liter ist am unteren Ende
+    der Skala ein riesiger, am oberen ein winziger Unterschied im Verbrauch – bei
+    {' '}{zahl(a5.kpl, 0)} km/l sind es {zahl(a5.v - a6.v, 2)} L/100 km, bei
+    {' '}{zahl(a15.kpl, 0)} km/l auch nach fünf Kilometern erst
+    {' '}{zahl(a15.v - a20.v, 2)} L/100 km.
+  </p>
+
+  <h3>Der Denkfehler ist gemessen worden</h3>
+  <p>
+    Richard Larrick und Jack Soll haben das 2008 in <em>Science</em> unter dem Namen
+    „The MPG Illusion“ beschrieben: Weil Meilen je Gallone der Kehrwert des
+    Verbrauchs sind, schätzen Menschen den Spritgewinn einer Fahrzeugwahl
+    systematisch falsch ein und unterschätzen, wie viel bei den durstigen Fahrzeugen
+    zu holen ist. Die Autoren plädierten dafür, den Verbrauch je Strecke auszuweisen –
+    also im Ergebnis das, was der Rechner oben abfragt. Die Studie belegt die
+    Fehleinschätzung; sie sagt nichts darüber, welches Auto Sie kaufen sollten.
+  </p>
+  <p>
+    Für deutsche Nutzer ist die Illusion nicht erledigt, sondern nur verschoben. Der
+    Bordcomputer und das Datenblatt rechnen zwar in L/100 km. Sobald aber jemand
+    sagt „mit einer Tankfüllung komme ich 900 Kilometer weit“, ist er wieder auf der
+    Kehrwertskala – und dort gelten die schiefen Verhältnisse von oben.
+  </p>
+
+  <h3>Zwei Autos im Haushalt: der Durchschnitt, den man nicht bilden darf</h3>
+  <p>
+    Ein Haushalt mit zwei Wagen, {zahl(V_A, 0)} und {zahl(V_B, 0)} L/100 km, fährt
+    mit jedem {zahl(HALB, 0)} Kilometer im Jahr. Der erste braucht
+    {' '}{lit(autoA.liter, 0)}, der zweite {lit(autoB.liter, 0)}, zusammen
+    {' '}{lit(literGesamt, 0)} auf {zahl(JAHR_KM, 0)} Kilometer. Das sind
+    {' '}{zahl(vEcht, 1)} L/100 km, und es ist zufällig auch der einfache Mittelwert
+    der beiden Verbrauchsangaben. Bei gleichen Strecken geht das auf der
+    Liter-je-100-km-Skala gut.
+  </p>
+  <p>
+    Rechnet derselbe Haushalt in Reichweiten, passiert etwas anderes. Die beiden Autos
+    schaffen {zahl(kplA, 2)} und {zahl(kplB, 2)} Kilometer je Liter. Der Mittelwert
+    dieser beiden Zahlen ist {zahl(kplArith, 2)} km/l – umgerechnet
+    {' '}{zahl(vFalsch, 1)} L/100 km. Nach dieser Rechnung kostet das Jahr
+    {' '}{eur(kostenFalsch.kosten)}, tatsächlich sind es
+    {' '}{eur(kostenEcht.kosten)}. Die Lücke beträgt {eur(luecke)}, also
+    {' '}{proz(lueckeProzent)} der echten Kosten – und zwar immer nach unten.
+  </p>
+  <p>
+    Richtig wäre auf der km/l-Skala das harmonische Mittel: 2 ÷ (1÷{zahl(kplA, 2)} +
+    1÷{zahl(kplB, 2)}) = {zahl(kplHarmonisch, 2)} km/l, was exakt wieder
+    {' '}{zahl(vEcht, 1)} L/100 km ergibt. Wer die Mühe scheut, tippt schlicht beide
+    Fahrzeuge einzeln in den Rechner oben und addiert die Beträge. Das ist derselbe
+    Weg und lässt keinen Spielraum für den Fehler.
+  </p>
+
+  <h3>Was zehn Prozent weniger Verbrauch wirklich wert sind</h3>
+  <p>
+    Weil die Formel linear ist, gilt umgekehrt eine bequeme Regel: Eine prozentuale
+    Verbrauchssenkung ist exakt dieselbe prozentuale Kostensenkung. Das Jahr mit
+    {' '}{zahl(JAHR_KM, 0)} Kilometern, {zahl(V_STD, 1)} L/100 km und {eur(P_STD)}
+    {' '}kostet {eur(jahrBasis.kosten)}. Zehn Prozent weniger Verbrauch –
+    {' '}{zahl(V_STD * 0.9, 2)} L/100 km – kosten {eur(jahrMinus10.kosten)}, sparen
+    also {eur(spar10)}. Fünfzehn Prozent weniger ergeben
+    {' '}{eur(jahrMinus15.kosten)} und sparen {eur(spar15)}.
+  </p>
+  <p>
+    Diese Größenordnung ist nützlich zum Gegenprüfen. Wenn irgendwo eine
+    dreistellige Jahresersparnis im oberen Bereich versprochen wird, muss die
+    dahinterliegende Verbrauchssenkung dazu passen: Um bei dieser Fahrleistung
+    {' '}{eur(ZIELERSPARNIS)} im Jahr zu sparen, bräuchte es {proz(noetigeSenkung)}
+    {' '}weniger Verbrauch. Der Rechner oben macht diese Probe in zwei Eingaben.
+  </p>
+
+  <h3>Preis und Verbrauch sind in der Formel austauschbar</h3>
+  <p>
+    Verbrauch und Literpreis stehen als gleichwertige Faktoren nebeneinander. Ein
+    Prozent beim einen wirkt genau wie ein Prozent beim anderen. Zehn Cent weniger je
+    Liter – {eur(P_STD - CENT_WENIGER)} statt {eur(P_STD)} – senken das Jahr auf
+    {' '}{eur(jahrBilliger.kosten)} und sparen {eur(sparPreis)}.
+  </p>
+  <p>
+    Derselbe Betrag ergibt sich aus einer Verbrauchssenkung um
+    {' '}{zahl(deltaV, 4)} L/100 km, also von {zahl(V_STD, 1)} auf
+    {' '}{zahl(vAequivalent, 4)} L/100 km: {eur(jahrAequivalent.kosten)}, auf den
+    Cent dasselbe. Die vier Nachkommastellen stehen hier bewusst – mit dem auf
+    {' '}{zahl(vAequivalent, 2)} gerundeten Wert käme man auf
+    {' '}{eur(k(JAHR_KM, Number(vAequivalent.toFixed(2))).kosten)} und damit knapp daneben. Zehn Cent an der Zapfsäule und ein knapper halber Liter weniger
+    Verbrauch sind bei dieser Fahrleistung derselbe Geldbetrag. Welcher der beiden
+    Wege leichter zu gehen ist, entscheidet dieser Artikel nicht – die Rechnung sagt
+    nur, dass beide gleich viel bringen.
+  </p>
+
+  <h3>Was der Rechner nicht weiß</h3>
+  <p>
+    Die Formel setzt einen konstanten Verbrauch über die gesamte Strecke voraus. Das
+    ist eine Vereinfachung: Kaltstarts, Stadtverkehr, Autobahntempo und Zuladung
+    verändern den Momentanverbrauch erheblich. Der Rechner verlangt deshalb keinen
+    Normwert, sondern den Verbrauch, den Sie tatsächlich für die betrachtete Strecke
+    erwarten – wer den Wert vom Datenblatt einträgt, bekommt eine Untergrenze, keine
+    Prognose. Ebenso ist der Literpreis eine Momentaufnahme; für ein ganzes Jahr
+    lohnt es sich, die Rechnung mit einem hohen und einem niedrigen Preis zweimal zu
+    machen und die Spanne zu betrachten.
+  </p>
+  <p>
+    Was die Formel dagegen zuverlässig leistet, ist der Vergleich. Solange Sie beide
+    Fahrzeuge mit derselben Strecke und demselben Preis rechnen, kürzen sich beide
+    Faktoren aus dem Verhältnis heraus, und übrig bleibt das Verhältnis der
+    Verbräuche. Genau deshalb ist es die Liter-Differenz, die zählt – und nicht die
+    Differenz der Reichweiten.
+  </p>
+
+</RechnerArtikel>

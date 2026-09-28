@@ -1,0 +1,572 @@
+---
+import RechnerArtikel from '../RechnerArtikel.astro';
+import { ESH_STUFEN } from '../../../public/scripts/blutdruck.js';
+
+// Die Rechnerseite hat kein eigenes Modul, die Einstufung steht dort inline.
+// Dieser Artikel rechnet deshalb mit eigenen, hier offen gelegten Tabellen –
+// abgeschrieben aus den beiden europäischen Leitlinien (Quellen unten), nicht
+// aus dem Seitenskript. Alle Zahlen im Text entstehen aus diesen Tabellen.
+
+type Stufe = { name: string; sys: number; dia: number };
+type Paar = { sys: number; dia: number };
+
+const zahl = (n: number, d = 0) =>
+  n.toLocaleString('de-DE', { minimumFractionDigits: d, maximumFractionDigits: d }).replace('-', '−');
+const mmhg = (p: Paar, d = 0) => `${zahl(p.sys, d)}/${zahl(p.dia, d)}`;
+
+// --- Die Tabellen -----------------------------------------------------------
+// ESH 2023: Die Stufen kommen aus demselben Modul, das der Rechner oben lädt –
+// so können Artikel und Einstufung nicht auseinanderlaufen. Die Kategorie
+// bestimmt der höhere der beiden Werte.
+const ESH: Stufe[] = ESH_STUFEN.map((s) => ({ name: s.name, sys: s.systolischAb, dia: s.diastolischAb }));
+// ESC 2024: drei Kategorien in der Praxis, dazu die Entsprechungen für die
+// Selbstmessung zu Hause und die 24-Stunden-Messung.
+const ESC_PRAXIS: Stufe[] = [
+  { name: 'nicht erhöht', sys: 0, dia: 0 },
+  { name: 'erhöht', sys: 120, dia: 70 },
+  { name: 'Hypertonie', sys: 140, dia: 90 },
+];
+const ESC_HEIM: Stufe[] = [
+  { name: 'nicht erhöht', sys: 0, dia: 0 },
+  { name: 'erhöht', sys: 120, dia: 70 },
+  { name: 'Hypertonie', sys: 135, dia: 85 },
+];
+const ESC_24H: Stufe[] = [
+  { name: 'nicht erhöht', sys: 0, dia: 0 },
+  { name: 'erhöht', sys: 115, dia: 65 },
+  { name: 'Hypertonie', sys: 130, dia: 80 },
+];
+// Diagnosegrenzen außerhalb der Praxis, in beiden Leitlinien gleich.
+const GRENZE_PRAXIS: Paar = { sys: ESH[3].sys, dia: ESH[3].dia };
+const GRENZE_HEIM: Paar = { sys: 135, dia: 85 };
+const GRENZE_24H: Paar = { sys: 130, dia: 80 };
+const GRENZE_TAG: Paar = { sys: 135, dia: 85 };
+
+const rangEinzeln = (wert: number, stufen: Stufe[], feld: 'sys' | 'dia') => {
+  let r = 0;
+  stufen.forEach((s, i) => { if (wert >= s[feld]) r = i; });
+  return r;
+};
+function einstufen(p: Paar, stufen: Stufe[]) {
+  const rs = rangEinzeln(p.sys, stufen, 'sys');
+  const rd = rangEinzeln(p.dia, stufen, 'dia');
+  const rang = Math.max(rs, rd);
+  const treiber = rs > rd ? 'oberer Wert' : rd > rs ? 'unterer Wert' : 'beide';
+  return { rang, name: stufen[rang].name, treiber };
+}
+const esh = (p: Paar) => einstufen(p, ESH);
+const escP = (p: Paar) => einstufen(p, ESC_PRAXIS);
+const isoliert = (p: Paar) =>
+  p.sys >= GRENZE_PRAXIS.sys && p.dia < GRENZE_PRAXIS.dia ? 'isoliert systolisch'
+  : p.sys < GRENZE_PRAXIS.sys && p.dia >= GRENZE_PRAXIS.dia ? 'isoliert diastolisch'
+  : '';
+
+// Plausibilität der Tabellen selbst: aufsteigend, sonst ist rangEinzeln falsch.
+for (const t of [ESH, ESC_PRAXIS, ESC_HEIM, ESC_24H]) {
+  for (let i = 1; i < t.length; i += 1) {
+    if (!(t[i].sys > t[i - 1].sys && t[i].dia > t[i - 1].dia)) {
+      throw new Error('Blutdruck-Artikel: Stufentabelle nicht aufsteigend.');
+    }
+  }
+}
+
+// --- 1. Wo beide Leitlinien übereinstimmen – und wo nicht -------------------
+// Über das ganze Raster: Ist ab 140/90 nach beiden Tabellen Hypertonie, und
+// darunter nach keiner?
+let widersprueche = 0;
+const kombiEshOptimalEscErhoeht = new Set<number>();
+const eshRaengeInEscErhoeht = new Set<number>();
+for (let s = 70; s <= 250; s += 1) {
+  for (let d = 40; d <= 150; d += 1) {
+    const a = esh({ sys: s, dia: d });
+    const b = escP({ sys: s, dia: d });
+    const hypA = a.rang >= 3;
+    const hypB = b.name === 'Hypertonie';
+    if (hypA !== hypB) widersprueche += 1;
+    if (b.name === 'erhöht') eshRaengeInEscErhoeht.add(a.rang);
+    if (a.name === 'optimal' && b.name === 'erhöht' && s < ESC_PRAXIS[1].sys) kombiEshOptimalEscErhoeht.add(d);
+  }
+}
+if (widersprueche !== 0) throw new Error('Blutdruck-Artikel: ESH und ESC ziehen die Hypertoniegrenze nicht mehr gleich.');
+if (![0, 1, 2].every((r) => eshRaengeInEscErhoeht.has(r)) || eshRaengeInEscErhoeht.size !== 3) {
+  throw new Error('Blutdruck-Artikel: „erhöht“ überdeckt nicht mehr genau optimal, normal und hoch-normal.');
+}
+const bandVon = Math.min(...kombiEshOptimalEscErhoeht);
+const bandBis = Math.max(...kombiEshOptimalEscErhoeht);
+if (bandVon !== ESC_PRAXIS[1].dia || bandBis !== ESH[1].dia - 1) {
+  throw new Error('Blutdruck-Artikel: Band „optimal und erhöht“ stimmt nicht.');
+}
+const bandBreite = bandBis - bandVon + 1;
+
+const TITELWERT: Paar = { sys: 118, dia: 75 };
+if (!(esh(TITELWERT).name === 'optimal' && escP(TITELWERT).name === 'erhöht')) {
+  throw new Error('Blutdruck-Artikel: Titelwert ist nicht optimal und erhöht zugleich.');
+}
+
+// --- 2. Beispielwerte ------------------------------------------------------
+const BEISPIELE: Paar[] = [
+  { sys: 115, dia: 65 },
+  { sys: 118, dia: 75 },
+  { sys: 125, dia: 78 },
+  { sys: 118, dia: 88 },
+  { sys: 136, dia: 72 },
+  { sys: 146, dia: 72 },
+  { sys: 128, dia: 94 },
+  { sys: 185, dia: 88 },
+];
+const beispiele = BEISPIELE.map((p) => ({ p, e: esh(p), c: escP(p), iso: isoliert(p) }));
+const b118_88 = beispiele[3];
+const b136_72 = beispiele[4];
+const b185_88 = beispiele[7];
+if (b118_88.e.name !== 'hoch-normal' || b118_88.e.treiber !== 'unterer Wert') {
+  throw new Error('Blutdruck-Artikel: 118/88 nicht mehr hoch-normal über den unteren Wert.');
+}
+if (b136_72.e.name !== 'hoch-normal' || b136_72.e.treiber !== 'oberer Wert') {
+  throw new Error('Blutdruck-Artikel: 136/72 nicht mehr hoch-normal über den oberen Wert.');
+}
+if (b185_88.e.name !== 'Hypertonie Grad 3' || b185_88.iso !== 'isoliert systolisch') {
+  throw new Error('Blutdruck-Artikel: 185/88 nicht mehr Grad 3 isoliert systolisch.');
+}
+
+// --- 3. Wie weit ein Wert allein sinken müsste -----------------------------
+// Rein rechnerisch: Um wie viele mmHg müsste NUR der obere (bzw. NUR der
+// untere) Wert niedriger liegen, damit die ESH-Kategorie wechselt?
+const UNTERGRENZE = { sys: 70, dia: 40 };
+function abstandBisWechsel(p: Paar, feld: 'sys' | 'dia'): number | null {
+  const start = esh(p).rang;
+  for (let k = 1; p[feld] - k >= UNTERGRENZE[feld]; k += 1) {
+    const q = { ...p, [feld]: p[feld] - k };
+    if (esh(q).rang !== start) return k;
+  }
+  return null;
+}
+const SPIELRAUM: Paar[] = [
+  { sys: 150, dia: 95 },
+  { sys: 165, dia: 85 },
+  { sys: 145, dia: 104 },
+  { sys: 162, dia: 102 },
+];
+const spielraum = SPIELRAUM.map((p) => ({
+  p,
+  name: esh(p).name,
+  sys: abstandBisWechsel(p, 'sys'),
+  dia: abstandBisWechsel(p, 'dia'),
+}));
+const nieText = 'wechselt nie';
+const sr = (k: number | null) => (k === null ? nieText : `${zahl(k)} mmHg`);
+const s150 = spielraum[0];
+const s165 = spielraum[1];
+const s145 = spielraum[2];
+const s162 = spielraum[3];
+// Liegen beide Werte in derselben Stufe, kann keiner von beiden sie allein
+// verlassen – der andere haelt sie. Das gilt fuer 150/95 und 162/102.
+for (const z of [s150, s162]) {
+  if (z.sys !== null || z.dia !== null) {
+    throw new Error(`Blutdruck-Artikel: Bei ${mmhg(z.p)} wechselt die Kategorie doch ueber einen Wert allein.`);
+  }
+  if (esh(z.p).treiber !== 'beide') throw new Error(`Blutdruck-Artikel: ${mmhg(z.p)} wird nicht von beiden Werten getragen.`);
+}
+// Traegt nur einer der beiden die Einstufung, genuegt er allein.
+if (s165.sys === null || s165.dia !== null || esh(s165.p).treiber !== 'oberer Wert') {
+  throw new Error('Blutdruck-Artikel: 165/85 wird nicht allein vom oberen Wert getragen.');
+}
+if (s145.dia === null || s145.sys !== null || esh(s145.p).treiber !== 'unterer Wert') {
+  throw new Error('Blutdruck-Artikel: 145/104 wird nicht allein vom unteren Wert getragen.');
+}
+// Wie weit muessen bei 162/102 BEIDE Werte sinken, um eine Stufe tiefer zu kommen?
+function abstandBeide(p: Paar): { sys: number; dia: number; name: string } {
+  const start = esh(p).rang;
+  const grenze = ESH[start];
+  const sys = p.sys - grenze.sys + 1;
+  const dia = p.dia - grenze.dia + 1;
+  const ziel = esh({ sys: p.sys - sys, dia: p.dia - dia });
+  if (ziel.rang !== start - 1) throw new Error('Blutdruck-Artikel: Beide Werte senken fuehrt nicht genau eine Stufe tiefer.');
+  return { sys, dia, name: ziel.name };
+}
+const s162Beide = abstandBeide(s162.p);
+
+// --- 4. Praxis, zu Hause, 24 Stunden --------------------------------------
+const HEIMWERT: Paar = { sys: 137, dia: 86 };
+const heimAlsPraxis = esh(HEIMWERT);
+const heimUeberGrenze = HEIMWERT.sys >= GRENZE_HEIM.sys || HEIMWERT.dia >= GRENZE_HEIM.dia;
+const heimEscPraxis = escP(HEIMWERT).name;
+const heimEscHeim = einstufen(HEIMWERT, ESC_HEIM).name;
+if (heimAlsPraxis.name !== 'hoch-normal' || !heimUeberGrenze || heimEscHeim !== 'Hypertonie' || heimEscPraxis !== 'erhöht') {
+  throw new Error('Blutdruck-Artikel: Heimwert-Beispiel stimmt nicht mehr.');
+}
+// Welche Werte sind in der Praxis noch unter der Grenze, zu Hause schon darüber?
+const zwischenSys = GRENZE_PRAXIS.sys - GRENZE_HEIM.sys;
+const zwischenDia = GRENZE_PRAXIS.dia - GRENZE_HEIM.dia;
+// Abstand Praxis → Heim → 24 h an jeder ESC-Grenze
+const abstaende = [1, 2].map((i) => ({
+  name: ESC_PRAXIS[i].name,
+  praxis: { sys: ESC_PRAXIS[i].sys, dia: ESC_PRAXIS[i].dia },
+  heim: { sys: ESC_HEIM[i].sys, dia: ESC_HEIM[i].dia },
+  h24: { sys: ESC_24H[i].sys, dia: ESC_24H[i].dia },
+}));
+const abstUntenHeim = abstaende[0].praxis.sys - abstaende[0].heim.sys;
+const abstObenHeim = abstaende[1].praxis.sys - abstaende[1].heim.sys;
+const abstUnten24 = abstaende[0].praxis.sys - abstaende[0].h24.sys;
+const abstOben24 = abstaende[1].praxis.sys - abstaende[1].h24.sys;
+if (abstUntenHeim !== 0 || abstObenHeim !== 5 || abstUnten24 !== 5 || abstOben24 !== 10) {
+  throw new Error('Blutdruck-Artikel: Abstände Praxis/Heim/24 h haben sich geändert.');
+}
+if (abstaende[0].praxis.dia - abstaende[0].heim.dia !== abstUntenHeim
+  || abstaende[1].praxis.dia - abstaende[1].heim.dia !== abstObenHeim) {
+  throw new Error('Blutdruck-Artikel: Abstände systolisch und diastolisch laufen auseinander.');
+}
+if (GRENZE_HEIM.sys !== ESC_HEIM[2].sys || GRENZE_24H.sys !== ESC_24H[2].sys) {
+  throw new Error('Blutdruck-Artikel: Diagnosegrenzen und ESC-Tabellen passen nicht zusammen.');
+}
+
+// --- 5. Welche Messungen gemittelt werden ---------------------------------
+// Leitfaden 2023: Praxis drei Messungen im Minutenabstand, Mittel der letzten
+// zwei; zu Hause zwei Messungen, Mittel beider.
+const PRAXISREIHE: Paar[] = [
+  { sys: 148, dia: 93 },
+  { sys: 138, dia: 88 },
+  { sys: 136, dia: 86 },
+];
+const mittel = (reihe: Paar[]): Paar => ({
+  sys: reihe.reduce((a, p) => a + p.sys, 0) / reihe.length,
+  dia: reihe.reduce((a, p) => a + p.dia, 0) / reihe.length,
+});
+const nurErste = PRAXISREIHE[0];
+const letzteZwei = mittel(PRAXISREIHE.slice(1));
+const alleDrei = mittel(PRAXISREIHE);
+const kErste = esh(nurErste);
+const kLetzteZwei = esh(letzteZwei);
+const kAlleDrei = esh(alleDrei);
+if (!(kErste.rang === 3 && kLetzteZwei.rang === 2 && kAlleDrei.rang === 3)) {
+  throw new Error('Blutdruck-Artikel: Messreihen-Beispiel kippt nicht mehr wie beschrieben.');
+}
+if (!Number.isInteger(letzteZwei.sys) || !Number.isInteger(letzteZwei.dia)) {
+  throw new Error('Blutdruck-Artikel: Mittel der letzten zwei Messungen ist nicht ganzzahlig.');
+}
+if (!(alleDrei.sys >= GRENZE_PRAXIS.sys && alleDrei.dia < GRENZE_PRAXIS.dia)) {
+  throw new Error('Blutdruck-Artikel: Mittel aller drei ist nicht mehr isoliert systolisch.');
+}
+// Anzeige mit einer Nachkommastelle darf nicht unter die Grenze rutschen.
+if (Math.round(alleDrei.sys * 10) / 10 < GRENZE_PRAXIS.sys) {
+  throw new Error('Blutdruck-Artikel: gerundetes Mittel liegt unter der Grenze.');
+}
+
+const quellen = [
+  { titel: 'Deutsche Hochdruckliga – Leitfaden 2023, Hypertonie-Leitlinien (Kurzfassung, PDF)', url: 'https://www.hochdruckliga.de/fileadmin/downloads/mediziner/leitlinien/DHL-XXXXX-23-Leitlinien-Kurzfassung-Web.pdf' },
+  { titel: 'Deutsche Hochdruckliga – Pressemitteilung vom 5. Juli 2023: unter 140/90 in der Praxis, unter 135/85 zu Hause', url: 'https://www.hochdruckliga.de/pressemitteilung/nvl-pm-20230705-1' },
+  { titel: 'European Society of Hypertension – 2023 ESH Guidelines for the Management of Arterial Hypertension', url: 'https://www.eshonline.org/guidelines/2023-guidelines/' },
+  { titel: 'European Society of Cardiology – 2024 ESC Guidelines for the Management of Elevated Blood Pressure and Hypertension', url: 'https://www.escardio.org/Guidelines/Clinical-Practice-Guidelines/Elevated-Blood-Pressure-and-Hypertension' },
+  { titel: 'Lauder, Weber, Mahfoud u. a.: European guidelines for hypertension in 2024 – a comparison of key recommendations. Nature Reviews Cardiology 2025', url: 'https://doi.org/10.1038/s41569-025-01187-2' },
+  { titel: 'Nationale VersorgungsLeitlinie Hypertonie', url: 'https://www.leitlinien.de/themen/hypertonie' },
+];
+---
+<RechnerArtikel
+  titel={`Warum ${mmhg(TITELWERT)} zugleich optimal und erhöht ist`}
+  datum="2026-09-17"
+  lead={`Für Blutdruck gibt es in Europa zwei Tabellen, und sie sind sich nur an einer Stelle einig: ab ${mmhg(GRENZE_PRAXIS)} mmHg ist es Bluthochdruck. Darunter nennt die eine Leitlinie ${mmhg(TITELWERT)} „optimal“, die andere „erhöht“. Welche Kategorie gilt, entscheidet außerdem immer der ungünstigere der beiden Werte – und der Ort, an dem gemessen wurde. Zu Hause liegt die Grenze bei ${mmhg(GRENZE_HEIM)}.`}
+  quellen={quellen}
+>
+  <h3>Zwei Leitlinien, eine gemeinsame Grenze</h3>
+  <p>
+    Bis 2018 haben die Europäische Gesellschaft für Hypertonie (ESH) und die
+    Europäische Gesellschaft für Kardiologie (ESC) ihre Blutdruck-Leitlinien
+    gemeinsam herausgegeben. Seitdem gehen sie getrennte Wege: Die ESH hat 2023
+    eine eigene Leitlinie veröffentlicht, die ESC 2024. Die Deutsche Hochdruckliga
+    druckt in ihrem Leitfaden 2023 die Einteilung der ESH ab – sechs Stufen von
+    „optimal“ bis „Hypertonie Grad 3“. Die ESC dagegen kommt mit drei Kategorien
+    aus: „nicht erhöht“, „erhöht“ und „Hypertonie“.
+  </p>
+
+  <table>
+    <caption class="visually-hidden">
+      Blutdruck-Kategorien in der Praxismessung nach ESH 2023 und ESC 2024, jeweils ab welchem Wert sie beginnen
+    </caption>
+    <thead>
+      <tr>
+        <th scope="col">Leitlinie</th>
+        <th scope="col">Kategorie</th>
+        <th scope="col" class="num">ab oberem Wert</th>
+        <th scope="col" class="num">oder ab unterem Wert</th>
+      </tr>
+    </thead>
+    <tbody>
+      {ESH.map((s) => (
+        <tr>
+          <th scope="row">ESH 2023</th>
+          <td>{s.name}</td>
+          <td class="num">{s.sys === 0 ? 'unter ' + zahl(ESH[1].sys) : zahl(s.sys)}</td>
+          <td class="num">{s.dia === 0 ? 'unter ' + zahl(ESH[1].dia) : zahl(s.dia)}</td>
+        </tr>
+      ))}
+      {ESC_PRAXIS.map((s) => (
+        <tr>
+          <th scope="row">ESC 2024</th>
+          <td>{s.name}</td>
+          <td class="num">{s.sys === 0 ? 'unter ' + zahl(ESC_PRAXIS[1].sys) : zahl(s.sys)}</td>
+          <td class="num">{s.dia === 0 ? 'unter ' + zahl(ESC_PRAXIS[1].dia) : zahl(s.dia)}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+  <p class="ra-hinweis">
+    Alle Werte in mmHg, gemessen in der Praxis. „Optimal“ und „nicht erhöht“
+    verlangen, dass beide Werte unter der jeweiligen Grenze liegen; für jede
+    höhere Stufe genügt einer der beiden.
+  </p>
+  <p>
+    Einig sind sich beide Tabellen an genau einer Stelle: Bluthochdruck beginnt
+    bei {mmhg(GRENZE_PRAXIS)} mmHg. Für diesen Artikel wurden beide Einteilungen
+    auf jede ganzzahlige Kombination von {zahl(70)} bis {zahl(250)} mmHg oben und
+    {' '}{zahl(40)} bis {zahl(150)} mmHg unten angewendet. Bei der Frage „Hypertonie
+    ja oder nein“ gibt es keine einzige Abweichung. Darunter aber sortieren sie
+    dieselben Zahlen verschieden ein.
+  </p>
+
+  <h3>Optimal und erhöht zugleich</h3>
+  <p>
+    Die ESC-Kategorie „erhöht“ beginnt bei {zahl(ESC_PRAXIS[1].sys)} mmHg oben
+    {' '}<em>oder</em> {zahl(ESC_PRAXIS[1].dia)} mmHg unten. Der untere Grenzwert
+    liegt damit {zahl(ESH[1].dia - ESC_PRAXIS[1].dia)} mmHg tiefer als die Grenze,
+    an der bei der ESH das „Optimale“ endet. Daraus entsteht ein Streifen, in dem
+    ein Messwert nach der einen Leitlinie optimal und nach der anderen erhöht ist:
+    oberer Wert unter {zahl(ESC_PRAXIS[1].sys)}, unterer Wert von {zahl(bandVon)}
+    {' '}bis {zahl(bandBis)} mmHg – {zahl(bandBreite)} Millimeter Quecksilbersäule,
+    in denen die beiden Tabellen sich widersprechen.
+  </p>
+  <p>
+    {mmhg(TITELWERT)} liegt mitten darin. Und der Streifen ist kein Randfall: Die
+    ESC-Kategorie „erhöht“ überdeckt Werte aus allen drei ESH-Stufen unterhalb
+    der Hypertonie – optimal, normal und hoch-normal. Was die ESH in drei
+    Abstufungen trennt, fasst die ESC zu einer zusammen, und sie zieht die
+    Untergrenze diastolisch tiefer.
+  </p>
+  <p>
+    Das ist kein Messfehler und kein Widerspruch in der Sache. Die ESC begründet
+    die neue Kategorie damit, dass das Herz-Kreislauf-Risiko schon unterhalb von
+    {' '}{mmhg(GRENZE_PRAXIS)} mit dem Blutdruck steigt und dass für Menschen in
+    diesem Bereich das Gesamtrisiko den Ausschlag geben soll – nicht der
+    Blutdruckwert allein. Für den Leser einer Einstufung heißt es nur: Das Wort
+    „optimal“ oder „erhöht“ sagt wenig, solange nicht dasteht, nach welcher
+    Tabelle eingeordnet wurde.
+  </p>
+
+  <table>
+    <caption class="visually-hidden">
+      Beispielwerte, eingeordnet nach ESH 2023 und ESC 2024
+    </caption>
+    <thead>
+      <tr>
+        <th scope="col" class="num">Messwert</th>
+        <th scope="col">ESH 2023</th>
+        <th scope="col">entscheidet</th>
+        <th scope="col">ESC 2024</th>
+      </tr>
+    </thead>
+    <tbody>
+      {beispiele.map((b) => (
+        <tr>
+          <th scope="row" class="num">{mmhg(b.p)}</th>
+          <td>{b.e.name}{b.iso && ` (${b.iso})`}</td>
+          <td>{b.e.rang === 0 ? '–' : b.e.treiber}</td>
+          <td>{b.c.name}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+
+  <h3>Der ungünstigere Wert entscheidet</h3>
+  <p>
+    Die Spalte „entscheidet“ zeigt die zweite Regel, die bei der Einordnung gern
+    übersehen wird. Der Leitfaden der Hochdruckliga formuliert sie ausdrücklich:
+    Die Kategorie wird immer vom höchsten Blutdruck bestimmt, systolisch wie
+    diastolisch. Liegen oberer und unterer Wert in verschiedenen Stufen, zählt die
+    höhere.
+  </p>
+  <p>
+    {mmhg(b118_88.p)} ist deshalb {b118_88.e.name}, obwohl der obere Wert für sich
+    genommen optimal wäre. {mmhg(b136_72.p)} ist ebenfalls {b136_72.e.name} – hier
+    wegen des oberen Werts, während der untere unauffällig ist. Und
+    {' '}{mmhg(b185_88.p)} ist {b185_88.e.name}, obwohl der untere Wert nicht einmal
+    die Grenze von {zahl(GRENZE_PRAXIS.dia)} mmHg erreicht. Für solche Fälle führt
+    die ESH eigene Bezeichnungen: isolierte systolische Hypertonie, wenn nur der
+    obere Wert bei {zahl(GRENZE_PRAXIS.sys)} oder darüber liegt, isolierte
+    diastolische, wenn es nur der untere ist.
+  </p>
+  <p>
+    Aus der Regel folgt eine Eigenschaft, die man beim Beobachten eigener Werte
+    kennen sollte: Solange einer der beiden Werte in einer Stufe liegt, hält er
+    die Einstufung dort fest – egal, wie weit der andere sich bewegt. Die folgende
+    Tabelle rechnet das rein arithmetisch durch: Um wie viele mmHg müsste
+    {' '}<em>nur</em> der obere oder <em>nur</em> der untere Wert niedriger liegen,
+    damit sich die ESH-Kategorie ändert?
+  </p>
+
+  <table>
+    <caption class="visually-hidden">
+      Abstand, um den nur einer der beiden Werte niedriger liegen müsste, damit die ESH-Kategorie wechselt
+    </caption>
+    <thead>
+      <tr>
+        <th scope="col" class="num">Messwert</th>
+        <th scope="col">ESH 2023</th>
+        <th scope="col" class="num">nur oberer Wert</th>
+        <th scope="col" class="num">nur unterer Wert</th>
+      </tr>
+    </thead>
+    <tbody>
+      {spielraum.map((z) => (
+        <tr>
+          <th scope="row" class="num">{mmhg(z.p)}</th>
+          <td>{z.name}</td>
+          <td class="num">{sr(z.sys)}</td>
+          <td class="num">{sr(z.dia)}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+  <p>
+    Bei {mmhg(s150.p)} liegen beide Werte in Grad 1, bei {mmhg(s162.p)} beide in
+    Grad 2. In solchen Fällen ändert keiner der beiden Werte die Kategorie, solange
+    er allein sinkt: Der obere Wert könnte bis auf {zahl(UNTERGRENZE.sys)} mmHg
+    fallen, der untere bis auf {zahl(UNTERGRENZE.dia)} – die Stufe hält jeweils der
+    andere. Das ist keine Eigenheit dieser Beispiele, sondern folgt aus der Regel:
+    Wo beide Werte dieselbe Stufe tragen, braucht es beide, um sie zu verlassen.
+    Bei {mmhg(s162.p)} genügen dafür {zahl(s162Beide.sys)} mmHg oben und
+    {' '}{zahl(s162Beide.dia)} mmHg unten, zusammen also
+    {' '}{mmhg({ sys: s162.p.sys - s162Beide.sys, dia: s162.p.dia - s162Beide.dia })} –
+    dann ist es {s162Beide.name}.
+  </p>
+  <p>
+    Trägt dagegen nur einer der beiden Werte die Einstufung, genügt er auch allein.
+    Bei {mmhg(s165.p)} liegt der untere Wert zwei Stufen tiefer als der obere;
+    {' '}{sr(s165.sys)} weniger oben führen deshalb aus Grad 2 heraus, während der
+    untere Wert ohne Wirkung auf die Kategorie bleibt. Bei {mmhg(s145.p)} ist es
+    umgekehrt der untere Wert, der die Stufe trägt: {sr(s145.dia)} weniger genügen.
+    Eine Verbesserung des anderen Werts kann also real sein und trotzdem in der
+    Einstufung unsichtbar bleiben.
+  </p>
+
+  <h3>Zu Hause gelten andere Grenzen</h3>
+  <p>
+    Alle bisher genannten Grenzen gelten für die Messung in der Praxis. Dort liegt
+    der Blutdruck im Mittel höher als zu Hause, und beide Leitlinien ziehen daraus
+    dieselbe Konsequenz: Bei der Selbstmessung beginnt Bluthochdruck schon bei
+    {' '}{mmhg(GRENZE_HEIM)} mmHg, im Tagesmittel einer 24-Stunden-Messung ebenfalls
+    bei {mmhg(GRENZE_TAG)}, im Mittel über 24 Stunden bei {mmhg(GRENZE_24H)}.
+    Die Hochdruckliga übersetzt das in die Faustregel „zu Hause jeweils minus 5 mmHg“.
+  </p>
+  <p>
+    Dieselbe Zahl bedeutet damit je nach Messort etwas anderes. {mmhg(HEIMWERT)},
+    in der Praxis gemessen, ist nach ESH {heimAlsPraxis.name} und nach ESC
+    {' '}{heimEscPraxis}. Zu Hause gemessen liegt derselbe Wert über der Grenze
+    für Bluthochdruck. Betroffen sind obere Werte von {zahl(GRENZE_HEIM.sys)} bis
+    {' '}{zahl(GRENZE_PRAXIS.sys - 1)} und untere von {zahl(GRENZE_HEIM.dia)} bis
+    {' '}{zahl(GRENZE_PRAXIS.dia - 1)} mmHg – zwei Streifen von je {zahl(zwischenSys)} beziehungsweise
+    {' '}{zahl(zwischenDia)} mmHg, in denen die Praxistabelle „noch keine
+    Hypertonie“ anzeigt, die Heimmessung aber schon.
+  </p>
+  <p>
+    Die Faustregel stimmt allerdings nur an dieser einen Grenze. Die ESC hat für
+    ihre neuen Kategorien auch Entsprechungen für die Messung außerhalb der Praxis
+    veröffentlicht, und dort ist der Abstand nicht überall gleich:
+  </p>
+
+  <table>
+    <caption class="visually-hidden">
+      Beginn der ESC-Kategorien je Messart und Abstand zur Praxismessung
+    </caption>
+    <thead>
+      <tr>
+        <th scope="col">ESC 2024 ab</th>
+        <th scope="col" class="num">Praxis</th>
+        <th scope="col" class="num">zu Hause</th>
+        <th scope="col" class="num">24 Stunden</th>
+      </tr>
+    </thead>
+    <tbody>
+      {abstaende.map((a) => (
+        <tr>
+          <th scope="row">{a.name}</th>
+          <td class="num">{mmhg(a.praxis)}</td>
+          <td class="num">{mmhg(a.heim)} ({a.praxis.sys - a.heim.sys === 0 ? '±0' : '−' + zahl(a.praxis.sys - a.heim.sys)})</td>
+          <td class="num">{mmhg(a.h24)} (−{zahl(a.praxis.sys - a.h24.sys)})</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+  <p>
+    Zu Hause beginnt „erhöht“ bei denselben {mmhg(abstaende[0].heim)} mmHg wie in
+    der Praxis – der Abstand ist dort null. Erst an der Hypertoniegrenze wächst er
+    auf {zahl(abstObenHeim)} mmHg. Bei der 24-Stunden-Messung beträgt der Abstand
+    {' '}{zahl(abstUnten24)} mmHg für „erhöht“ und {zahl(abstOben24)} mmHg für die
+    Hypertoniegrenze. Die ESC gibt an,
+    diese Entsprechungen statistisch aus Bevölkerungsdaten abgeleitet zu haben;
+    eine feste Umrechnung zwischen den Messarten gibt es nicht. Wer einen zu Hause
+    gemessenen Wert mit einer Praxistabelle vergleicht, vergleicht Werte, die für
+    diesen Vergleich nicht gedacht sind.
+  </p>
+
+  <h3>Welche Messung zählt</h3>
+  <p>
+    Auch innerhalb einer Sitzung schreibt der Leitfaden der Hochdruckliga vor,
+    welche Werte gemittelt werden: in der Praxis drei Messungen im Abstand von
+    einer Minute, gewertet wird der Durchschnitt der letzten zwei. Zu Hause sind es
+    zwei Messungen im Minutenabstand, gewertet wird der Durchschnitt beider. Die
+    erste Praxismessung fällt also bewusst heraus – sie ist erfahrungsgemäß die
+    unruhigste.
+  </p>
+  <p>
+    Wie viel das ausmachen kann, zeigt eine Reihe von drei Praxismessungen:
+    {' '}{PRAXISREIHE.map((p) => mmhg(p)).join(', ')} mmHg.
+  </p>
+  <ul>
+    <li>
+      Nur die erste Messung: {mmhg(nurErste)} – nach ESH {kErste.name}.
+    </li>
+    <li>
+      Durchschnitt der letzten zwei, wie vorgesehen: {mmhg(letzteZwei)} –
+      {' '}{kLetzteZwei.name}.
+    </li>
+    <li>
+      Durchschnitt aller drei: {mmhg(alleDrei, 1)} – {kAlleDrei.name}, und zwar
+      {' '}{isoliert(alleDrei)}, weil der obere Mittelwert knapp über
+      {' '}{zahl(GRENZE_PRAXIS.sys)} liegt.
+    </li>
+  </ul>
+  <p>
+    Drei Messungen, drei Rechenwege, zwei verschiedene Stufen. Das Verfahren ist
+    Teil der Grenzwerte: Ein Wert, der anders zustande gekommen ist, lässt sich
+    nicht ohne Weiteres an ihnen messen. Dazu kommen die Bedingungen, die der
+    Leitfaden ebenfalls nennt – validiertes Oberarmgerät, passende Manschette auf
+    Herzhöhe, drei bis fünf Minuten Ruhe im Sitzen, eine halbe Stunde vorher
+    weder Rauchen noch Kaffee, noch Essen oder Sport, und während der Messung
+    nicht sprechen.
+  </p>
+
+  <h3>Was eine Einstufung nicht leistet</h3>
+  <p>
+    Keine der beiden Tabellen hat eine Spalte für das Alter. Die Kategorien gelten
+    für Erwachsene unabhängig davon, wie alt sie sind; unterschiedlich behandeln
+    die Leitlinien das Alter erst bei der Frage, ob und wie weit der Blutdruck
+    gesenkt werden soll. Diese Frage beantwortet keine Tabelle, sondern eine
+    ärztliche Abwägung, in die Vorerkrankungen, weitere Risikofaktoren und
+    Organschäden eingehen.
+  </p>
+  <p>
+    Eine einzelne Messung ist außerdem keine Diagnose. Beide Leitlinien verlangen,
+    dass erhöhte Praxiswerte bei wiederholten Terminen bestätigt werden, und
+    empfehlen dafür bevorzugt die Selbstmessung über mehrere Tage oder eine
+    24-Stunden-Messung. Wer wiederholt Werte über den oben genannten Grenzen misst
+    – in der Praxis {mmhg(GRENZE_PRAXIS)}, zu Hause {mmhg(GRENZE_HEIM)} –, sollte
+    sie ärztlich abklären lassen. Eine Einordnung nach Tabelle ersetzt das nicht;
+    sie hilft nur, die Zahlen auf dem Messgerät richtig zu lesen.
+  </p>
+  <p class="ra-hinweis">
+    Grundlage dieses Artikels sind die Einteilungen der ESH-Leitlinie 2023 (in der
+    Fassung des Leitfadens 2023 der Deutschen Hochdruckliga) und der
+    ESC-Leitlinie 2024 samt den dort genannten Entsprechungen für die Heim- und
+    24-Stunden-Messung. Die Rechnungen verwenden ganze mmHg; Werte genau auf einer
+    Grenze zählen zur höheren Stufe. Nicht betrachtet sind Schwangerschaft,
+    Kinder und Jugendliche sowie die Nachtwerte der 24-Stunden-Messung.
+  </p>
+</RechnerArtikel>

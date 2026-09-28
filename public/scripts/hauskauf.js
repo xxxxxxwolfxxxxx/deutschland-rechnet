@@ -7,7 +7,7 @@
 //     und das Saarland mit 6,65 statt 6,5 % stand.
 //   * die Maklerprovision als nackte Zahl.
 // Alle drei kommen jetzt aus den Modulen, in denen sie gepflegt werden.
-import { grunderwerbsteuersatz } from './grunderwerbsteuer.js';
+import { berechneGrunderwerbsteuer } from './grunderwerbsteuer.js';
 import { berechneNotarUndGrundbuch } from './gnotkg.js';
 import { MAKLER_PROVISION_PROZENT_JE_SEITE } from './immokauf-nebenkosten.js';
 
@@ -38,8 +38,10 @@ function tilgungsdauerMonate(darlehen, monatszins, rate) {
 }
 
 export function berechneHauskauf({ kaufpreis, bundesland, eigenkapital, zins, tilgung, laufzeit, makler }) {
-  const gewSatz = grunderwerbsteuersatz(bundesland);
-  const grunderwerbsteuer = aufCent(kaufpreis * gewSatz / 100);
+  // § 11 Abs. 2 GrEStG rundet auf volle Euro nach unten ab. Hier stand vorher
+  // eine eigene, auf Cent gerundete Berechnung, die bei krummen Kaufpreisen
+  // um bis zu rund einen Euro von berechneGrunderwerbsteuer() abwich.
+  const { steuer: grunderwerbsteuer, satz: gewSatz } = berechneGrunderwerbsteuer({ kaufpreis, bundesland });
 
   const notarUndGrundbuch = berechneNotarUndGrundbuch(kaufpreis).gesamt;
   const maklerKosten = makler

@@ -3,6 +3,7 @@ import Layout from '../../layouts/Layout.astro';
 import CalculatorShell from '../../components/CalculatorShell.astro';
 import CalculatorGuide from '../../components/CalculatorGuide.astro';
 import { CALCULATORS, CATEGORIES } from '../../data/calculators';
+import ArtikelMakro from '../../components/artikel/makro-prozentpunkt-in-gramm.astro';
 const calc = CALCULATORS.find(c => c.slug === 'makronaehrstoff-rechner')!;
 const cat = CATEGORIES[calc.category];
 const year = new Date().getFullYear();
@@ -22,8 +23,8 @@ const year = new Date().getFullYear();
   <CalculatorShell
     calculator={calc}
     intro="Mit dem Makronährstoff-Rechner berechnen Sie Ihren täglichen Bedarf an Protein, Fett und Kohlenhydraten. Die optimale Verteilung der Makronährstoffe hängt von Ihrem Ziel ab, ob Abnehmen, Muskelaufbau oder Gewichtserhalt. Erfahren Sie, wie viel Gramm jedes Makronährstoffs Sie täglich benötigen, angepasst an Ihre körperlichen Daten und Ihr Aktivitätslevel."
-    sourceNote="Protein 1,6-2,2g/kg."
-    explanation="Die Empfehlungen basieren auf Studien der International Society of Sports Nutrition (ISSN), die 1,6-2,2 g Protein pro kg Körpergewicht für aktive Erwachsene empfiehlt. Fette sollten laut DGE mindestens 20-30% der Gesamtkalorien ausmachen, da sie essenziell für Hormonproduktion und Vitaminabsorption sind. Die verbleibenden Kalorien werden durch Kohlenhydrate gedeckt, die als primäre Energiequelle besonders für sportlich aktive Menschen unverzichtbar sind."
+    sourceNote="Protein 1,2-2,0 g/kg je nach Ziel, Fett 0,9 g/kg."
+    explanation="Der Rechner setzt zwei der drei Nährstoffe fest am Körpergewicht an und bildet den dritten aus dem Rest: Protein je nach Ziel 1,2 g/kg beim Erhalten, 1,8 g/kg beim Zunehmen und 2,0 g/kg beim Abnehmen, Fett durchgehend 0,9 g/kg. Was vom Tagesbudget übrig bleibt, wird als Kohlenhydrate ausgewiesen. Die erhöhten Proteinwerte folgen Empfehlungen aus der Sportwissenschaft; der D-A-CH-Referenzwert der DGE liegt mit 0,8 g/kg für Erwachsene von 19 bis unter 65 Jahren darunter und bezieht sich auf das Normalgewicht, nicht auf das eingegebene. Für Fett nennt die DGE einen Richtwert von 30 Prozent der Energiezufuhr; die 0,9 g/kg dieses Rechners treffen ihn nur bei einer Tagesenergie von 27 kcal je Kilogramm Körpergewicht."
     faqs={[
       {
         q: "Warum ist Protein beim Abnehmen wichtiger als beim Erhalten?",
@@ -97,6 +98,7 @@ const year = new Date().getFullYear();
       </div>
       <div id="details" style="margin-top:0.75rem;font-size:0.88rem;color:#666;display:flex;gap:1.5rem;flex-wrap:wrap;"></div>
     </div>
+    <ArtikelMakro slot="artikel" />
   </CalculatorShell>
   <CalculatorGuide
     title="Makronährstoffe optimal verteilen"

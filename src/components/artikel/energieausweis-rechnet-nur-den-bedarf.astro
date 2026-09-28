@@ -1,0 +1,352 @@
+---
+import RechnerArtikel from '../RechnerArtikel.astro';
+import { artikelPfadVonSlug } from '../../data/ratgeber';
+
+const base = import.meta.env.BASE_URL;
+
+// --- Formatierer ------------------------------------------------------------
+const nz = (s: string) => s.replace('-', '−');
+const zahl = (n: number, d = 1) =>
+  nz(n.toLocaleString('de-DE', { minimumFractionDigits: d, maximumFractionDigits: d }));
+const proz = (n: number, d = 1) => zahl(n, d) + ' %';
+const glatt = (n: number) => nz(n.toLocaleString('de-DE', { maximumFractionDigits: 0 }));
+
+// --- 1. Die Bedarfstabelle des Rechners --------------------------------------
+// Diese Werte stehen NICHT in scripts/energieausweis.js (dort liegen nur die
+// CO2-Faktoren als Modul). Der eigentliche Rechenkern – Basisbedarf je
+// Baujahr, Dämm- und Heizungsfaktor, Klassengrenzen – steckt nur inline im
+// <script type="module"> der Rechnerseite selbst und ist von hier aus nicht
+// importierbar. Die folgenden Zahlen sind deshalb von Hand aus
+// src/pages/energie/energieausweis-vorberechnung.astro (Stand dieses Artikels)
+// übernommen, nicht programmatisch abgeglichen.
+const BASISBEDARF: Record<string, number> = {
+  'vor 1977': 250,
+  '1977–1984': 180,
+  '1984–1995': 150,
+  '1995–2002': 120,
+  '2002–2009': 95,
+  'nach 2009': 70,
+};
+if (Object.keys(BASISBEDARF).length !== 6) {
+  throw new Error('Die Rechnerseite kennt sechs Baujahr-Kategorien, dieser Artikel eine andere Zahl.');
+}
+const werte = Object.values(BASISBEDARF);
+for (let i = 1; i < werte.length; i += 1) {
+  if (!(werte[i] < werte[i - 1])) {
+    throw new Error('Der Basisbedarf sinkt nicht mehr monoton mit dem Baujahr.');
+  }
+}
+
+// --- 2. Die amtliche Klassentabelle -----------------------------------------
+// Anlage 10 zu § 86 GModG (Fundstelle BGBl. I 2020, 1790) – neun Klassen A+
+// bis H. Der Rechner kennt nur acht: Er prüft ausschließlich, ob der Wert
+// unter 30/50/75/100/130/160/200 liegt, und vergibt sonst pauschal "G" – ohne
+// eigene Prüfung, ob 250 überschritten ist. Klasse H kommt im Ergebnis der
+// Rechnerseite nie vor.
+const ANLAGE10_GRENZEN = [30, 50, 75, 100, 130, 160, 200, 250];
+const ANLAGE10_KLASSEN = ['A+', 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
+if (ANLAGE10_KLASSEN.length !== ANLAGE10_GRENZEN.length + 1) {
+  throw new Error('Zu jeder Grenze gehört eine Klasse plus die oberste offene Klasse H.');
+}
+
+function klasseAmtlich(kwhJeQm: number): string {
+  for (let i = 0; i < ANLAGE10_GRENZEN.length; i += 1) {
+    if (kwhJeQm <= ANLAGE10_GRENZEN[i]) return ANLAGE10_KLASSEN[i];
+  }
+  return ANLAGE10_KLASSEN.at(-1)!;
+}
+
+// Die FRÜHERE Klassenlogik des Rechners (acht Fälle, kein H) – hier
+// eingefroren, um zu zeigen, wo sie von Anlage 10 abwich. Der Rechner selbst
+// nutzt seit dieser Prüfung effizienzklasse() aus scripts/energieausweis.js
+// und kennt Klasse H; diese Kopie bleibt bewusst auf dem alten Stand.
+function klasseFruehereFassung(kwhJeQm: number): string {
+  if (kwhJeQm <= 30) return 'A+';
+  if (kwhJeQm <= 50) return 'A';
+  if (kwhJeQm <= 75) return 'B';
+  if (kwhJeQm <= 100) return 'C';
+  if (kwhJeQm <= 130) return 'D';
+  if (kwhJeQm <= 160) return 'E';
+  if (kwhJeQm <= 200) return 'F';
+  return 'G';
+}
+
+// Wie nah liegt der Basisbedarf jeder Kategorie an der nächsten Klassengrenze?
+// "runter" = nötige Verringerung in Prozent, um eine Klasse besser zu werden.
+// "hoch" = nötige Erhöhung in Prozent, um eine Klasse schlechter zu werden.
+function naechsteUntereGrenze(x: number): number {
+  let g = 0;
+  for (const b of ANLAGE10_GRENZEN) if (b < x) g = b;
+  return g;
+}
+function naechsteObereGrenze(x: number): number {
+  for (const b of ANLAGE10_GRENZEN) if (b >= x) return b;
+  return Infinity;
+}
+const tabelle = Object.entries(BASISBEDARF).map(([baujahr, bedarf]) => {
+  const unten = naechsteUntereGrenze(bedarf);
+  const oben = naechsteObereGrenze(bedarf);
+  return {
+    baujahr,
+    bedarf,
+    klasse: klasseAmtlich(bedarf),
+    runter: ((bedarf - unten) / bedarf) * 100,
+    hoch: Number.isFinite(oben) ? ((oben - bedarf) / bedarf) * 100 : null,
+  };
+});
+const vor1977 = tabelle[0];
+if (vor1977.baujahr !== 'vor 1977' || vor1977.bedarf !== 250) {
+  throw new Error('Die erste Zeile der Tabelle ist nicht mehr die Kategorie "vor 1977".');
+}
+if (vor1977.hoch !== 0) {
+  throw new Error('Der Basisbedarf "vor 1977" liegt nicht mehr exakt auf der G/H-Grenze.');
+}
+
+// --- 3. Das Beispiel, an dem der Rechner die Klasse H verschluckt -----------
+// Baujahr vor 1977, keine Dämmung (Faktor 1,0), Nachtspeicherheizung
+// (Faktor 1,8 laut Rechner) – die größte Kombination, die sich mit den
+// Dropdowns der Seite bilden lässt.
+const NACHTSPEICHER_BEISPIEL = 250 * 1.0 * 1.8;
+if (klasseAmtlich(NACHTSPEICHER_BEISPIEL) !== 'H') {
+  throw new Error('Das Nachtspeicher-Beispiel liegt nicht mehr in Klasse H nach Anlage 10.');
+}
+if (klasseFruehereFassung(NACHTSPEICHER_BEISPIEL) !== 'G') {
+  throw new Error('Die eingefrorene frühere Logik weicht nicht mehr von Anlage 10 ab – Beispiel veraltet.');
+}
+
+// --- 4. Gebäudenutzfläche statt Wohnfläche ----------------------------------
+// § 82 Abs. 2 Satz 4 GModG – Pauschale, wenn die Gebäudenutzfläche unbekannt
+// ist. Derselbe Faktor wie im Artikel zu den CO2-Kostenstufen, hier aber auf
+// die Flächenbasis der Vorberechnung selbst angewendet.
+const AN_FAKTOR_KLEIN_MIT_KELLER = 1.35;
+const AN_FAKTOR_SONSTIGE = 1.2;
+const BEISPIEL_WOHNFLAECHE = 120;
+const anKlein = BEISPIEL_WOHNFLAECHE * AN_FAKTOR_KLEIN_MIT_KELLER;
+const anSonstige = BEISPIEL_WOHNFLAECHE * AN_FAKTOR_SONSTIGE;
+if (!(anKlein > anSonstige)) {
+  throw new Error('Der Kleinhaus-Faktor liegt nicht mehr über dem allgemeinen Faktor.');
+}
+
+const quellen = [
+  {
+    titel: '§ 79 GModG – Grundsätze des Energieausweises',
+    url: 'https://www.gesetze-im-internet.de/geg/__79.html',
+  },
+  {
+    titel: '§ 80 GModG – Ausstellung und Verwendung von Energieausweisen',
+    url: 'https://www.gesetze-im-internet.de/geg/__80.html',
+  },
+  {
+    titel: '§ 82 GModG – Energieverbrauchsausweis',
+    url: 'https://www.gesetze-im-internet.de/geg/__82.html',
+  },
+  {
+    titel: '§ 86 GModG – Energieeffizienzklasse eines Wohngebäudes',
+    url: 'https://www.gesetze-im-internet.de/geg/__86.html',
+  },
+  {
+    titel: 'Anlage 10 GModG – Energieeffizienzklassen von Wohngebäuden',
+    url: 'https://www.gesetze-im-internet.de/geg/anlage_10.html',
+  },
+  {
+    titel: '§ 38 GModG – Energetische Bewertung eines bestehenden Gebäudes',
+    url: 'https://www.gesetze-im-internet.de/geg/__38.html',
+  },
+];
+---
+<RechnerArtikel
+  titel="Der Rechner berechnet nur den Bedarf – nie den tatsächlichen Verbrauch"
+  datum="2026-09-28"
+  lead={`Vier Eingabefelder hat diese Vorberechnung, und keines fragt nach einem tatsächlichen Verbrauch. Beim ältesten Baujahr im Dropdown ist das ohnehin die einzig zulässige Ausweisart – § 80 Abs. 3 GModG lässt vielen Häusern mit Baujahr vor 1977 gar keine Wahl zwischen den beiden Verfahren. Und schon eine Abweichung von ${proz(vor1977.runter)} zwischen Standardannahme und echtem Verbrauch reicht bei dieser Kategorie, um eine ganze Effizienzklasse besser dazustehen – nach oben braucht es dafür so gut wie nichts: Der Referenzwert liegt exakt auf der Grenze zur schlechtesten Klasse.`}
+  quellen={quellen}
+>
+  <h3>Zwei Verfahren, die dasselbe Haus unterschiedlich bewerten</h3>
+  <p>
+    § 79 Abs. 1 Satz 2 GModG kennt zwei Wege zum Energieausweis: den
+    Energiebedarfsausweis und den Energieverbrauchsausweis. Beide landen am
+    Ende auf derselben Skala – § 86 Abs. 2 GModG bestimmt, dass sich die
+    Energieeffizienzklasse "unmittelbar aus dem Endenergieverbrauch oder
+    Endenergiebedarf" ergibt. Die Skala unterscheidet nicht, welcher der
+    beiden Werte sie gefüttert hat. Die beiden Wege selbst unterscheiden sich
+    aber grundlegend.
+  </p>
+  <p>
+    Der Bedarfsausweis rechnet ein Gebäude technisch durch: Bauteile,
+    Dämmung, Anlagentechnik, verglichen mit einem Referenzgebäude nach § 38
+    GModG, unter festen Randbedingungen für Klima und Heizverhalten. Wie die
+    Bewohner tatsächlich heizen, geht nicht ein – das ist kein Mangel,
+    sondern der Zweck: Der Bedarfsausweis soll Gebäude vergleichbar machen,
+    unabhängig davon, wer gerade darin wohnt.
+  </p>
+  <p>
+    Der Verbrauchsausweis rechnet das genaue Gegenteil: § 82 Abs. 4 GModG
+    schreibt vor, mindestens 36 Monate tatsächliche Abrechnungsdaten
+    zugrunde zu legen, deren Ende nicht mehr als 18 Monate zurückliegen darf.
+    Witterungsbereinigt wird nur der Einfluss von kalten und warmen Wintern
+    herausgerechnet (§ 82 Abs. 3 GModG) – das Heizverhalten der Bewohner
+    bleibt vollständig im Ergebnis. Genau das ist mit "Standardnutzung"
+    gemeint, wenn diese Seite an anderer Stelle erklärt, warum sich die
+    tatsächlichen Heizkosten vom errechneten Wert unterscheiden: Der
+    Bedarfsausweis unterstellt sie, der Verbrauchsausweis nicht.
+  </p>
+  <p class="ra-hinweis">
+    Diese Vorberechnung fragt nach Nutzfläche, Baujahr, Heizungsart und
+    Dämmstandard – vier Merkmale des Gebäudes, keines davon ein Verbrauch.
+    Sie kann also strukturell immer nur eine Bedarfsausweis-artige Schätzung
+    liefern, nie eine verbrauchsbasierte. Das ist an sich kein Fehler – die
+    Seite nennt sich "Vorberechnung" und ersetzt ohnehin keinen
+    Energieberater. Nur sollte klar sein, welches der beiden Verfahren man
+    da in der Hand hält.
+  </p>
+
+  <h3>Beim ältesten Baujahr gibt es die Wahl gar nicht</h3>
+  <p>
+    Eine der sechs Auswahlmöglichkeiten heißt im Dropdown "vor 1977
+    (unsaniert)". Für genau diese Gebäude schränkt das Gesetz die freie Wahl
+    zwischen beiden Ausweisarten ein. § 80 Abs. 3 Satz 2 GModG schreibt vor:
+    Bei Verkauf oder Vermietung ist für Wohngebäude mit weniger als fünf
+    Wohnungen, deren Bauantrag vor dem 1. November 1977 gestellt wurde, ein
+    Energiebedarfsausweis auszustellen – kein Verbrauchsausweis. Satz 3
+    macht davon nur eine Ausnahme: wenn das Gebäude bereits bei
+    Fertigstellung die Wärmeschutzverordnung von 1977 erfüllt hat oder
+    später auf dieses Niveau gebracht wurde. Das Dropdown nennt diese
+    Kategorie deshalb treffend "unsaniert" – ist sie es tatsächlich nicht,
+    greift die Ausnahme und die freie Wahl besteht doch.
+  </p>
+  <p>
+    Zwei Einschränkungen gehören zur Genauigkeit dazu. Das Gesetz stellt auf
+    das Bauantragsdatum ab, nicht auf das Baujahr der Fertigstellung – in
+    der Praxis meist nur wenige Monate auseinander, aber nicht dasselbe
+    Datum. Und die Fünf-Wohnungen-Grenze fragt der Rechner gar nicht erst
+    ab: Ob ein Haus dieser Kategorie eine oder zwölf Wohnungen hat, macht
+    für die Pflicht zum Bedarfsausweis den Unterschied, für das Ergebnis
+    dieser Vorberechnung keinen.
+  </p>
+  <p>
+    Diese Seite selbst beantwortet an anderer Stelle die Frage "Wie bekomme
+    ich einen offiziellen Energieausweis?" mit: "Sie können einen
+    Bedarfsausweis (genauer) oder Verbrauchsausweis (günstiger) wählen." Für
+    die meisten Baujahr-Kategorien im Dropdown stimmt das. Für die älteste –
+    ausgerechnet die, deren Eigentümer am ehesten zum günstigeren
+    Verbrauchsausweis greifen möchten – stimmt es nur, wenn das Haus längst
+    nicht mehr "unsaniert" ist.
+  </p>
+
+  <h3>Wie knapp der Standardwert an der schlechtesten Klasse liegt</h3>
+  <p>
+    Der Rechner setzt für "vor 1977 (unsaniert)" ohne weitere Abzüge einen
+    Basisbedarf von {glatt(vor1977.bedarf)} kWh/(m²·a) an. Nach Anlage 10 zu
+    § 86 GModG endet die Klasse G exakt bei {glatt(250)} – ein einziger
+    Punkt mehr, und dasselbe Haus rutscht in Klasse H, die schlechteste der
+    neun Stufen. Der Referenzwert dieser Kategorie liegt also nicht
+    irgendwo in Klasse G, sondern exakt auf ihrer oberen Kante.
+  </p>
+
+  <table>
+    <caption class="visually-hidden">
+      Basisbedarf je Baujahr-Kategorie nach Anlage 10 GModG eingeordnet, mit der
+      Abweichung in Prozent, die für eine bessere oder schlechtere Klasse nötig
+      wäre
+    </caption>
+    <thead>
+      <tr>
+        <th scope="col">Baujahr</th>
+        <th scope="col" class="num">Basisbedarf</th>
+        <th scope="col" class="num">Klasse</th>
+        <th scope="col" class="num">für eine Klasse besser</th>
+        <th scope="col" class="num">für eine Klasse schlechter</th>
+      </tr>
+    </thead>
+    <tbody>
+      {tabelle.map((z) => (
+        <tr>
+          <th scope="row">{z.baujahr}</th>
+          <td class="num">{glatt(z.bedarf)} kWh/m²</td>
+          <td class="num">{z.klasse}</td>
+          <td class="num">−{proz(z.runter)}</td>
+          <td class="num">{z.hoch === null ? '–' : z.hoch === 0 ? 'schon erreicht' : `+${proz(z.hoch)}`}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+
+  <p>
+    Beide Spalten sind reine Bedarfsausweis-Kennzahlen – wie stark der
+    Bedarf abweichen müsste, um eine Klasse zu wechseln. Genau diese
+    Abweichung ist es, die zwischen Bedarfs- und Verbrauchsausweis
+    entstehen kann, sobald reales Heizverhalten von der unterstellten
+    Standardnutzung abweicht: Bei der Kategorie "1977–1984" reichen
+    {' '}{proz(tabelle[1].hoch!)} mehr Verbrauch als der Standardwert für den
+    Sprung von F nach G, bei "nach 2009" erst {proz(tabelle[5].hoch!)}. Je
+    neuer das Baujahr, desto mehr Puffer hat die Klasse zur nächsten Grenze
+    – nicht weil neue Häuser gleichmäßiger beheizt würden, sondern weil ihr
+    Basisbedarf weiter von jeder Grenze entfernt liegt.
+  </p>
+
+  <h3>Die neunte Klasse fehlte – bis zu dieser Prüfung</h3>
+  <p>
+    Anlage 10 kennt neun Klassen, nicht acht: Zwischen 200 und 250
+    kWh/(m²·a) folgt noch Klasse G, erst darüber beginnt Klasse H, die
+    schlechteste überhaupt. Die Klassifizierung dieser Rechnerseite prüfte
+    bis zur Erstellung dieses Artikels nur, ob der Endenergiebedarf unter
+    30, 50, 75, 100, 130, 160 oder 200 kWh/(m²·a) liegt, und vergab
+    andernfalls ohne weitere Prüfung "G" – ohne oberes Ende. Ein
+    Extrembeispiel aus den eigenen Dropdowns der Seite machte den
+    Unterschied sichtbar: Baujahr vor 1977, keine Dämmung,
+    Nachtspeicherheizung (Faktor 1,8) ergibt
+    {' '}{glatt(NACHTSPEICHER_BEISPIEL)} kWh/(m²·a). Nach Anlage 10 ist das
+    Klasse {klasseAmtlich(NACHTSPEICHER_BEISPIEL)}, die frühere Logik der
+    Seite hätte dafür {klasseFruehereFassung(NACHTSPEICHER_BEISPIEL)}
+    ausgegeben – eine Stufe zu gut, und die einzige Klasse, die auf dieser
+    Seite nie zu sehen war, war ausgerechnet H. Der Rechner oben rechnet
+    seit dieser Prüfung mit der vollständigen Neun-Klassen-Tabelle.
+  </p>
+
+  <h3>Welche Fläche überhaupt gemeint ist</h3>
+  <p>
+    Das Eingabefeld heißt "Nutzfläche (m²)", im Code der Seite trägt es aber
+    die Kennung <code>wohnflaeche</code> – und dort steht die
+    Ausgangsgröße der Rechnung: {glatt(BEISPIEL_WOHNFLAECHE)} m² Wohnfläche
+    liefern bei den Vorgabewerten der Seite ein anderes Ergebnis in
+    kWh/(m²·a) als dieselbe Zahl, verstanden als Gebäudenutzfläche. Ein
+    offizieller Verbrauchsausweis rechnet nach § 82 Abs. 2 Satz 4 GModG mit
+    der Gebäudenutzfläche, und wo sie nicht bekannt ist, pauschal mit dem
+    {' '}{zahl(AN_FAKTOR_KLEIN_MIT_KELLER, 2)}-fachen der Wohnfläche bei
+    kleinen Häusern mit beheiztem Keller oder dem
+    {' '}{zahl(AN_FAKTOR_SONSTIGE, 1)}-fachen bei den übrigen Wohngebäuden. Aus
+    {' '}{glatt(BEISPIEL_WOHNFLAECHE)} m² Wohnfläche würden so amtlich
+    {' '}{glatt(anSonstige)} bzw. {glatt(anKlein)} m² Gebäudenutzfläche – eine
+    um {proz((AN_FAKTOR_SONSTIGE - 1) * 100, 0)} bis
+    {' '}{proz((AN_FAKTOR_KLEIN_MIT_KELLER - 1) * 100, 0)} größere Fläche, über die
+    sich derselbe Energiebedarf verteilt. Wer den kWh/(m²·a)-Wert dieser
+    Vorberechnung direkt neben den einer echten Heizkostenabrechnung legt,
+    vergleicht deshalb im Zweifel zwei unterschiedliche Nenner – zusätzlich
+    zu den zwei unterschiedlichen Verfahren.
+  </p>
+
+  <h3>Was diese Vorberechnung nicht abbildet</h3>
+  <p>
+    Die Seite ist als Vorstufe gedacht, nicht als Ersatz: Der eigene
+    Einleitungstext rät ausdrücklich, "bevor Sie einen Energieberater
+    beauftragen" vorab zu rechnen. Für die Kategorien 1977 und später ist
+    ein Verbrauchsausweis grundsätzlich eine gleichwertige, meist günstigere
+    Alternative zum Bedarfsausweis – nur bildet dieser Rechner ihn an keiner
+    Stelle ab, weil ihm dafür die Eingabe fehlt, die ihn ausmacht: der
+    tatsächliche, mindestens dreijährige Verbrauch.
+  </p>
+  <p>
+    Bis zu dieser Prüfung nannte diese Seite an drei Stellen – FAQ,
+    Hintergrundtext und der einleitende Kurztext – je andere Klassengrenzen
+    als das Ergebnisfeld tatsächlich verwendete, und keine davon kannte
+    Klasse H. Alle drei Stellen sind inzwischen auf die neun Grenzen aus
+    Anlage 10 (30/50/75/100/130/160/200/250) angeglichen, dieselben Zahlen,
+    mit denen auch dieser Artikel rechnet.
+  </p>
+  <p class="ra-hinweis">
+    Der CO₂-Ausstoß, den diese Vorberechnung aus dem Endenergiebedarf
+    ableitet, ist ebenfalls eine Bedarfsgröße und teilt damit dieselbe
+    Einschränkung. Was daraus für die Kostenaufteilung zwischen Mieter und
+    Vermieter folgt, steht in der Rechnung zu den
+    {' '}<a href={`${base}${artikelPfadVonSlug('co2-kosten-stufen-mieter-vermieter')}`}>CO₂-Kostenstufen</a>.
+  </p>
+</RechnerArtikel>

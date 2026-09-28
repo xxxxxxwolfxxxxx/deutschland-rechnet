@@ -1,0 +1,468 @@
+---
+import RechnerArtikel from '../RechnerArtikel.astro';
+import { berechneAnkerkette } from '../../../public/scripts/ankerkette.js';
+
+// --- Formatierer -----------------------------------------------------------
+// toLocaleString setzt bei negativen Werten einen ASCII-Bindestrich; im
+// Fliesstext gehoert dort das echte Minuszeichen U+2212 hin.
+const zahl = (n: number, d = 2) =>
+  n
+    .toLocaleString('de-DE', { minimumFractionDigits: d, maximumFractionDigits: d })
+    .replace('-', '−');
+const meter = (n: number, d = 1) => zahl(n, d) + ' m';
+const proz = (n: number, d = 1) => zahl(n, d) + ' %';
+/** Vorlaufverhaeltnis in der Schreibweise, die an Bord gesprochen wird. */
+const verh = (n: number) => zahl(n, Number.isInteger(n) ? 0 : 2) + ':1';
+
+const pruefe = (bedingung: boolean, meldung: string) => {
+  if (!bedingung) throw new Error(`ankerkette-zuschlag-statt-wassertiefe: ${meldung}`);
+};
+
+// --- Faktoren aus dem Modul lesen ------------------------------------------
+// Die Faktortabelle im Modul ist nicht exportiert. Sie laesst sich aber
+// vollstaendig ueber das Rueckgabefeld "faktor" auslesen, ohne eine einzige
+// Zahl hier zu wiederholen.
+const faktorVon = (material: string, lage: string) =>
+  berechneAnkerkette({ wassertiefeM: 1, bughoeheM: 0, tidenhubM: 0, material, lage }).faktor;
+
+const MATERIALIEN = [
+  { key: 'kette', name: 'Kette' },
+  { key: 'leine', name: 'Leine mit Kettenvorlauf' },
+];
+const LAGEN = [
+  { key: 'ruhig', name: 'Ruhig, geschützte Bucht' },
+  { key: 'maessig', name: 'Wind bis etwa 5 Bft' },
+  { key: 'sturm', name: 'Starkwind bis Sturm' },
+];
+
+const fKetteRuhig = faktorVon('kette', 'ruhig');
+const fKetteMaessig = faktorVon('kette', 'maessig');
+const fKetteSturm = faktorVon('kette', 'sturm');
+const fLeineSturm = faktorVon('leine', 'sturm');
+
+pruefe(
+  fKetteRuhig < fKetteMaessig && fKetteMaessig < fKetteSturm && fLeineSturm > fKetteSturm,
+  'Die Faktoren des Moduls sind nicht in der erwarteten Reihenfolge.',
+);
+
+// --- Durchgehendes Beispiel ------------------------------------------------
+// Ein Bug, dessen Ankerrolle einen Meter ueber Wasser steht: der Wert, mit dem
+// die Rechnerseite vorbelegt ist.
+const BUG = 1;
+
+/** Ergebnis des Moduls mit Zuschlag (so, wie der Rechner oben rechnet). */
+const mitZuschlag = (tiefe: number, bug = BUG, tide = 0, material = 'kette', lage = 'maessig') =>
+  berechneAnkerkette({ wassertiefeM: tiefe, bughoeheM: bug, tidenhubM: tide, material, lage });
+
+/**
+ * Dasselbe Modul, aber mit Zuschlag null: genau das Ergebnis, das herauskommt,
+ * wenn jemand den Faktor auf die blanke Wassertiefe anwendet. Die "naive"
+ * Zahl ist damit keine Handrechnung, sondern derselbe Code.
+ */
+const ohneZuschlag = (tiefe: number, material = 'kette', lage = 'maessig') =>
+  berechneAnkerkette({ wassertiefeM: tiefe, bughoeheM: 0, tidenhubM: 0, material, lage });
+
+const TIEFEN = [2, 3, 4, 5, 8, 10, 15, 20];
+
+const reihe = (tiefe: number) => {
+  const soll = mitZuschlag(tiefe);
+  const naiv = ohneZuschlag(tiefe);
+  return {
+    tiefe,
+    rechentiefeM: soll.rechentiefeM,
+    sollM: soll.benoetigtM,
+    naivM: naiv.benoetigtM,
+    // Was der naiv gesteckte Vorlauf, gemessen an der wirklichen Hoehe ab
+    // Ankerrolle, tatsaechlich noch an Verhaeltnis liefert.
+    effektiv: naiv.benoetigtM / soll.rechentiefeM,
+    // Anteil des Zuschlags an der Rechentiefe, bezogen auf die Wassertiefe.
+    anteilProzent: (BUG / tiefe) * 100,
+    fehltM: soll.benoetigtM - naiv.benoetigtM,
+  };
+};
+
+const tabelle = TIEFEN.map(reihe);
+
+// --- Der Kernfall: drei Meter Wasser ---------------------------------------
+const TIEFE_FLACH = 3;
+const flach = reihe(TIEFE_FLACH);
+
+pruefe(
+  flach.rechentiefeM === TIEFE_FLACH + BUG,
+  'Die Rechentiefe ist nicht die Summe aus Wassertiefe und Bughöhe.',
+);
+pruefe(
+  Math.abs(flach.effektiv - 3.75) < 0.001,
+  `Das effektive Verhältnis bei ${TIEFE_FLACH} m ist nicht 3,75:1, sondern ${flach.effektiv}.`,
+);
+pruefe(
+  flach.effektiv < fKetteRuhig,
+  'Das effektive Verhältnis im Flachwasser liegt nicht unter dem Ruhigwetter-Faktor.',
+);
+
+// --- Der Zuschlag in Metern ist von der Tiefe unabhaengig ------------------
+// Behauptung: benoetigt(T, Bug) − benoetigt(T, 0) = Faktor × Bug, fuer jedes T.
+const zuschlagMeterBei = (tiefe: number, material: string, lage: string) =>
+  mitZuschlag(tiefe, BUG, 0, material, lage).benoetigtM -
+  ohneZuschlag(tiefe, material, lage).benoetigtM;
+
+const zuschlagTabelle = MATERIALIEN.map((m) => ({
+  name: m.name,
+  werte: LAGEN.map((l) => {
+    const f = faktorVon(m.key, l.key);
+    const gemessen = TIEFEN.map((t) => zuschlagMeterBei(t, m.key, l.key));
+    pruefe(
+      gemessen.every((g) => g === f * BUG),
+      `Der Zuschlag für ${m.key}/${l.key} ist nicht über alle Tiefen konstant: ${gemessen.join(', ')}.`,
+    );
+    return { lage: l.name, faktor: f, zuschlagM: f * BUG };
+  }),
+}));
+
+const zuschlagSturmKette = fKetteSturm * BUG;
+pruefe(
+  zuschlagSturmKette > TIEFE_FLACH,
+  'Der Sturmzuschlag für einen Meter Bughöhe ist nicht größer als die Flachwassertiefe.',
+);
+
+// --- Ab welcher Tiefe der Zuschlag klein wird ------------------------------
+// Anteil des Zuschlags an der Wassertiefe ist Bug/T — eine Hyperbel.
+// Umgestellt: T = Bug / Anteil.
+const SCHWELLEN = [0.2, 0.1, 0.05, 0.02];
+const schwellenTabelle = SCHWELLEN.map((eps) => {
+  const tiefe = BUG / eps;
+  const r = reihe(tiefe);
+  pruefe(
+    Math.abs(r.anteilProzent / 100 - eps) < 1e-9,
+    `Die Schwellentiefe für ${eps} stimmt nicht mit dem Anteil überein.`,
+  );
+  return { eps, tiefe, effektiv: r.effektiv };
+});
+
+// Ab welcher Tiefe reicht der naiv gesteckte Vorlauf wenigstens noch fuer den
+// Ruhigwetter-Faktor? f·T / (T + Bug) >= fRuhig  <=>  T >= fRuhig·Bug / (f − fRuhig).
+const tiefeFuerRuhig = (fKetteRuhig * BUG) / (fKetteMaessig - fKetteRuhig);
+const probe = reihe(tiefeFuerRuhig);
+pruefe(
+  Math.abs(probe.effektiv - fKetteRuhig) < 1e-9,
+  'Die hergeleitete Grenztiefe liefert nicht genau den Ruhigwetter-Faktor.',
+);
+
+// --- Tide ------------------------------------------------------------------
+// Das BSH gibt den Tidenhub an der deutschen Nordseeküste mit "ungefähr einem
+// Meter bis über vier Metern" an. TIDE ist ein Rechenbeispiel aus diesem Band,
+// kein Wert für einen bestimmten Ort.
+const TIDE_BAND_MIN = 1;
+const TIDE_BAND_MAX = 4;
+const TIDE = 3;
+pruefe(
+  TIDE >= TIDE_BAND_MIN && TIDE <= TIDE_BAND_MAX,
+  'Der Beispiel-Tidenhub liegt außerhalb des vom BSH genannten Bandes.',
+);
+
+const mitTide = mitZuschlag(TIEFE_FLACH, BUG, TIDE);
+const naivFlach = ohneZuschlag(TIEFE_FLACH);
+const effektivMitTide = naivFlach.benoetigtM / mitTide.rechentiefeM;
+const faktorRechentiefe = mitTide.rechentiefeM / TIEFE_FLACH;
+
+pruefe(
+  mitTide.rechentiefeM === TIEFE_FLACH + BUG + TIDE,
+  'Die Rechentiefe mit Tide ist nicht die Summe der drei Eingaben.',
+);
+pruefe(
+  effektivMitTide < flach.effektiv && effektivMitTide < fKetteRuhig,
+  'Die Tide verschärft das Verhältnis nicht wie behauptet.',
+);
+// Traegt die Formulierung "nicht einmal halb so viel" an zwei Textstellen.
+pruefe(
+  effektivMitTide < fKetteMaessig / 2,
+  `Das Verhältnis mit Tide (${effektivMitTide}) ist nicht kleiner als die Hälfte von ${fKetteMaessig}.`,
+);
+
+// --- Schwojkreis -----------------------------------------------------------
+// Der Rechner setzt den Schwojradius gleich dem gesteckten Vorlauf. Straff
+// gespannt reicht die Kette waagerecht nur Wurzel(S² − Rechentiefe²) weit.
+// Der relative Abstand haengt allein vom Faktor ab, nicht von der Tiefe.
+const horizontal = (vorlaufM: number, rechentiefeM: number) =>
+  Math.sqrt(vorlaufM * vorlaufM - rechentiefeM * rechentiefeM);
+
+const schwojAbweichungProzent = (tiefe: number, lage: string) => {
+  const r = mitZuschlag(tiefe, BUG, 0, 'kette', lage);
+  const waagerecht = horizontal(r.benoetigtM, r.rechentiefeM);
+  return ((r.benoetigtM - waagerecht) / r.benoetigtM) * 100;
+};
+
+const schwojFlach = mitZuschlag(TIEFE_FLACH);
+const schwojFlachWaagerecht = horizontal(schwojFlach.benoetigtM, schwojFlach.rechentiefeM);
+const schwojFlachDiffM = schwojFlach.benoetigtM - schwojFlachWaagerecht;
+const schwojProzent = schwojAbweichungProzent(TIEFE_FLACH, 'maessig');
+
+// Theoriewert: 1 − Wurzel(1 − 1/f²), unabhaengig von der Tiefe.
+const schwojTheorie = (1 - Math.sqrt(1 - 1 / (fKetteMaessig * fKetteMaessig))) * 100;
+pruefe(
+  TIEFEN.every((t) => Math.abs(schwojAbweichungProzent(t, 'maessig') - schwojTheorie) < 0.35),
+  'Die Schwojkreis-Abweichung ist nicht über alle Tiefen annähernd gleich.',
+);
+pruefe(
+  schwojProzent > 0 && schwojProzent < 5,
+  'Die Schwojkreis-Vereinfachung liegt nicht im erwarteten Bereich.',
+);
+
+const titel = `Bei ${meter(TIEFE_FLACH, 0)} Wasser sind ${verh(fKetteMaessig)} in Wahrheit ${verh(flach.effektiv)}`;
+---
+
+<RechnerArtikel
+  titel={titel}
+  lead={`Der Rechner oben multipliziert den Faktor nicht mit der Wassertiefe, sondern mit dem Abstand von der Ankerrolle bis zum Grund. Wer stattdessen die schlichte Tiefe nimmt, steckt bei ${meter(TIEFE_FLACH, 0)} Wasser und ${meter(BUG, 0)} Bughöhe ${meter(flach.naivM, 0)} statt ${meter(flach.sollM, 0)} — und liegt damit unter dem Faktor, den dasselbe Modul für die ruhigste Lage ansetzt. Der Zuschlag kostet dabei immer dieselbe Zahl Meter, egal wie tief das Wasser ist.`}
+  datum="2026-09-23"
+  quellen={[
+    {
+      titel: 'BSH: Gezeiten – Tidenhub an der deutschen Nordseeküste, Spring- und Nippzeit',
+      url: 'https://www.bsh.de/DE/THEMEN/Wasserstand_und_Gezeiten/Gezeiten/gezeiten_node.html',
+    },
+    {
+      titel: 'BSH: Das deutsche Seekartennull (SKN) – Bezugsfläche der Kartentiefen, seit 2013 auf LAT',
+      url: 'https://www.bsh.de/DE/THEMEN/Vermessung_und_Kartographie/Seekartennull/Deutsches_Seekartennull/deutsches-seekartennull_node.html',
+    },
+  ]}
+>
+  <h3>Die Rechengröße ist eine Höhe, keine Tiefe</h3>
+
+  <p>
+    Ein Anker hält nicht, weil er schwer ist, sondern weil die Kette flach an ihm
+    zieht. Der Vorlauf wird deshalb als Vielfaches gesteckt — und bei der Frage,
+    wovon das Vielfache genommen wird, gehen die verbreitete Kurzformel und der
+    Rechner oben auseinander. Umgangssprachlich heißt es
+    „das Fünffache der Wassertiefe“. Das Modul hinter dem Formular rechnet
+    anders: Es addiert erst Wassertiefe, Höhe der Ankerrolle über Wasser und
+    erwarteten Anstieg bis Hochwasser zu einer Rechentiefe und multipliziert
+    dann.
+  </p>
+
+  <p>
+    Das ist kein Detail. Die Kette beginnt nicht an der Wasseroberfläche,
+    sondern an der Rolle am Bug. Der Schenkel, dessen Winkel man flach halten
+    will, reicht von dort bis zum Anker. Bei {meter(TIEFE_FLACH, 0)} Wasser und
+    einer Rolle {meter(BUG, 0)} über der Oberfläche sind das
+    {' '}{meter(flach.rechentiefeM, 0)} — ein Drittel mehr als die Tiefe, die
+    das Echolot anzeigt.
+  </p>
+
+  <h3>Was der Unterschied in Metern kostet</h3>
+
+  <p>
+    Die folgende Tabelle stellt beides gegenüber. „Ab Wasserlinie“ ist dasselbe
+    Modul mit Bughöhe null, also die Zahl, die herauskommt, wenn jemand den
+    Faktor {zahl(fKetteMaessig, 0)} auf die blanke Wassertiefe anwendet. „Ab
+    Ankerrolle“ ist das Ergebnis des Rechners. Die letzte Spalte sagt, welches
+    Verhältnis der so gesteckte Vorlauf, gemessen an der wirklichen Höhe,
+    tatsächlich noch liefert.
+  </p>
+
+  <table>
+    <caption class="visually-hidden">
+      Kettenvorlauf ab Wasserlinie und ab Ankerrolle, Kette bei Wind bis etwa 5 Bft,
+      Ankerrolle {meter(BUG, 0)} über Wasser
+    </caption>
+    <thead>
+      <tr>
+        <th scope="col">Wassertiefe</th>
+        <th scope="col" class="num">Ab Wasserlinie</th>
+        <th scope="col" class="num">Ab Ankerrolle</th>
+        <th scope="col" class="num">Fehlend</th>
+        <th scope="col" class="num">Wirkt wie</th>
+      </tr>
+    </thead>
+    <tbody>
+      {tabelle.map((r) => (
+        <tr>
+          <th scope="row">{meter(r.tiefe, 0)}</th>
+          <td class="num">{meter(r.naivM, 0)}</td>
+          <td class="num">{meter(r.sollM, 0)}</td>
+          <td class="num">{meter(r.fehltM, 0)}</td>
+          <td class="num">{verh(r.effektiv)}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+
+  <p>
+    Die Spalte ganz rechts ist der eigentliche Befund. Wer im Flachwasser „fünf
+    zu eins“ sagt und dabei die Wassertiefe meint, liegt bei
+    {' '}{meter(TIEFE_FLACH, 0)} real bei {verh(flach.effektiv)} — unter
+    {' '}{verh(fKetteRuhig)}, dem Faktor, den dasselbe Modul für die ruhigste
+    Lage in einer geschützten Bucht ansetzt. Bei {meter(2, 0)} Wasser sind es
+    noch {verh(tabelle[0].effektiv)}. Die Grenze lässt sich genau angeben: Erst
+    ab {meter(tiefeFuerRuhig, 0)} Wassertiefe erreicht der ab Wasserlinie
+    gesteckte Vorlauf wenigstens noch den Ruhigwetter-Faktor. Darunter steckt
+    man bei mäßigem Wind weniger, als der Rechner für die geschützte Bucht
+    verlangen würde.
+  </p>
+
+  <h3>Der Zuschlag hängt nicht von der Tiefe ab</h3>
+
+  <p>
+    Der zweite Teil der Rechnung ist der, der an Bord am meisten überrascht: Die
+    zusätzlichen Meter, die der Bug kostet, sind über alle Tiefen dieselben. Das
+    folgt direkt aus der Multiplikation — Faktor mal Summe ist Faktor mal Tiefe
+    plus Faktor mal Bughöhe. Der zweite Summand kennt die Tiefe nicht. Ein Meter
+    Bughöhe kostet also in {meter(2, 0)} Wasser dieselbe Kette wie in
+    {' '}{meter(20, 0)}:
+  </p>
+
+  <table>
+    <caption class="visually-hidden">
+      Zusätzlich zu steckender Vorlauf je {meter(BUG, 0)} Höhe der Ankerrolle über Wasser
+    </caption>
+    <thead>
+      <tr>
+        <th scope="col">Rode</th>
+        <th scope="col">Wetterlage</th>
+        <th scope="col" class="num">Faktor</th>
+        <th scope="col" class="num">Zuschlag je {meter(BUG, 0)}</th>
+      </tr>
+    </thead>
+    <tbody>
+      {zuschlagTabelle.map((m) =>
+        m.werte.map((w) => (
+          <tr>
+            <th scope="row">{m.name}</th>
+            <td>{w.lage}</td>
+            <td class="num">{zahl(w.faktor, 0)}</td>
+            <td class="num">{meter(w.zuschlagM, 0)}</td>
+          </tr>
+        )),
+      )}
+    </tbody>
+  </table>
+
+  <p>
+    Der Prüfcode zu diesem Artikel rechnet diese Gleichheit für jede Tiefe der
+    ersten Tabelle einzeln nach; weicht auch nur ein Wert ab, scheitert der
+    Build. Bemerkenswert ist die Größenordnung in der Sturmzeile: Bei Starkwind
+    verlangt {meter(BUG, 0)} Bughöhe {meter(zuschlagSturmKette, 0)} zusätzliche
+    Kette — mehr, als das Wasser in unserem Flachwasserbeispiel tief ist. Mit
+    Leine statt Kette sind es {meter(fLeineSturm * BUG, 0)}.
+  </p>
+
+  <h3>Ab wann man den Zuschlag vergessen darf</h3>
+
+  <p>
+    Weil die Zusatzmeter fest sind und der Grundbetrag mit der Tiefe wächst,
+    schrumpft der Anteil des Zuschlags wie eine Hyperbel: Er beträgt schlicht
+    Bughöhe geteilt durch Wassertiefe. Nach der Tiefe aufgelöst ergibt das eine
+    kurze Tabelle:
+  </p>
+
+  <table>
+    <caption class="visually-hidden">
+      Wassertiefe, ab der der Zuschlag für {meter(BUG, 0)} Bughöhe unter den genannten Anteil fällt
+    </caption>
+    <thead>
+      <tr>
+        <th scope="col">Anteil des Zuschlags</th>
+        <th scope="col" class="num">ab Wassertiefe</th>
+        <th scope="col" class="num">Ab Wasserlinie wirkt wie</th>
+      </tr>
+    </thead>
+    <tbody>
+      {schwellenTabelle.map((s) => (
+        <tr>
+          <th scope="row">unter {proz(s.eps * 100, 0)}</th>
+          <td class="num">{meter(s.tiefe, 0)}</td>
+          <td class="num">{verh(s.effektiv)}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+
+  <p>
+    Auf {proz(10, 0)} fällt der Zuschlag erst bei {meter(10, 0)} Wasser, auf
+    {' '}{proz(5, 0)} erst bei {meter(20, 0)}. Ankerplätze in dieser Tiefe sind
+    für Sportboote die Ausnahme; die Eingabefelder oben sind
+    mit {meter(5, 0)} vorbelegt. Anders gesagt: In dem Tiefenbereich, in dem
+    tatsächlich geankert wird, ist der Zuschlag nie vernachlässigbar. Er
+    verschwindet genau dort, wo man ohnehin nicht ankert.
+  </p>
+
+  <h3>Mit Tide kippt die Rechnung vollends</h3>
+
+  <p>
+    Das dritte Eingabefeld addiert den erwarteten Anstieg bis Hochwasser. Das
+    Bundesamt für Seeschifffahrt und Hydrographie gibt den Tidenhub an der
+    deutschen Nordseeküste mit ungefähr einem Meter bis über vier Metern an; der
+    genaue Wert hängt vom Ort ab und steht in den Gezeitentafeln. Rechnen wir
+    mit {meter(TIDE, 0)} — eine Zahl aus diesem Band, kein Wert für einen
+    bestimmten Ort.
+  </p>
+
+  <p>
+    Aus {meter(TIEFE_FLACH, 0)} gemessener Tiefe werden dann
+    {' '}{meter(mitTide.rechentiefeM, 0)} Rechentiefe: das
+    {' '}{zahl(faktorRechentiefe, 2)}-Fache dessen, was das Echolot beim Ankern
+    anzeigte. Der Rechner verlangt {meter(mitTide.benoetigtM, 0)}. Wer
+    {' '}{meter(naivFlach.benoetigtM, 0)} steckt, weil er den Faktor
+    {' '}{zahl(fKetteMaessig, 0)} auf die gemessene Tiefe angewendet hat, liegt
+    bei Hochwasser real bei {verh(effektivMitTide)} — nicht einmal mehr halb so
+    viel wie der Faktor, den er zu stecken glaubte, und weit unter jedem Wert,
+    den das Modul für irgendeine Wetterlage ansetzt.
+  </p>
+
+  <p class="ra-hinweis">
+    Dieselbe Richtung, nur kleiner: Kartentiefen sind nicht die Tiefe zum
+    Zeitpunkt des Ankerns. Sie beziehen sich auf das Seekartennull, das in den
+    Karten des BSH seit 2013 auf dem niedrigsten astronomisch möglichen
+    Gezeitenwasserstand liegt. Die wirkliche Tiefe ist deshalb meist größer als
+    die gedruckte — ein Sicherheitspolster gegen Grundberührung, aber eben auch
+    eine Größe, die man nicht ungeprüft als Wassertiefe in ein Formular tippt.
+    Wie viel ein Echolot vom Geber bis zur Oberfläche hinzurechnet, hängt
+    zusätzlich von seiner Konfiguration ab; belastbar quantifizieren lässt sich
+    das hier nicht.
+  </p>
+
+  <h3>Was der Schwojkreis von alldem übrig lässt</h3>
+
+  <p>
+    Der Rechner nennt unter dem Ergebnis einen Schwojkreis in Höhe des
+    gesteckten Vorlaufs, plus Bootslänge. Geometrisch ist das eine
+    Vereinfachung: Selbst straff gespannt reicht die Kette waagerecht nur so
+    weit, wie die Wurzel aus dem Quadrat des Vorlaufs minus dem Quadrat der
+    Rechentiefe — sie steigt ja vom Grund zur Bugrolle an. Im Flachwasserfall
+    sind das {meter(schwojFlachWaagerecht, 2)} statt
+    {' '}{meter(schwojFlach.benoetigtM, 0)}, ein Unterschied von
+    {' '}{meter(schwojFlachDiffM, 2)}.
+  </p>
+
+  <p>
+    Der relative Abstand hängt dabei allein vom Faktor ab, nicht von der Tiefe:
+    Er beträgt bei Faktor {zahl(fKetteMaessig, 0)} rund {proz(schwojTheorie)} —
+    in {meter(2, 0)} Wasser wie in {meter(20, 0)}. Die Vereinfachung im Rechner
+    liegt damit auf der sicheren Seite und ist klein gegen die Effekte, um die
+    es in diesem Text geht. Real liegt der Vorlauf ohnehin in einer Kurve am
+    Grund, der Schwojradius fällt also noch kleiner aus. Die Bootslänge, die
+    oben separat genannt wird, überwiegt diesen Unterschied bei weitem.
+  </p>
+
+  <h3>Was die Rechnung nicht leistet</h3>
+
+  <p>
+    Die Faktoren selbst sind das schwächste Glied der Kette, und die Seite sagt
+    das oben auch: Es sind seemännische Faustwerte, keine Normvorgaben. Grund,
+    Ankertyp, Bewuchs und Schwell gehen in keine der hier gezeigten Zahlen ein.
+    Nichts an diesem Text ist deshalb eine Aussage darüber, ob ein bestimmter
+    Ankerplatz hält.
+  </p>
+
+  <p>
+    Belastbar ist nur die Struktur — und die ist eindeutig. Der Zuschlag aus
+    Bughöhe und Tide ist keine Feinheit für den Nachkommabereich. Er ist in
+    Metern konstant, in Prozent umgekehrt proportional zur Tiefe, und er trifft
+    dadurch ausgerechnet die flachen Ankerplätze am härtesten, auf denen der
+    absolute Kettenbedarf klein und die Zahl im Kopf deshalb am schnellsten
+    gebildet ist. Wer den Faktor auf das anwendet, was das Echolot zeigt, hat
+    nicht ein bisschen zu wenig gesteckt, sondern liegt bei
+    {' '}{meter(TIEFE_FLACH, 0)} Wasser und {meter(TIDE, 0)} Tidenhub bei
+    {' '}{verh(effektivMitTide)} statt {verh(fKetteMaessig)} — bei weniger als
+    der Hälfte.
+  </p>
+</RechnerArtikel>

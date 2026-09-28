@@ -3,6 +3,7 @@ import Layout from '../../layouts/Layout.astro';
 import CalculatorShell from '../../components/CalculatorShell.astro';
 import CalculatorGuide from '../../components/CalculatorGuide.astro';
 import { CALCULATORS, CATEGORIES } from '../../data/calculators';
+import ArtikelFaustregelFahrenheit from '../../components/artikel/faustregel-fahrenheit-trifft-nur-bei-10-grad.astro';
 const calc = CALCULATORS.find(c => c.slug === 'einheitenrechner')!;
 const cat = CATEGORIES[calc.category];
 const year = new Date().getFullYear();
@@ -30,7 +31,7 @@ const year = new Date().getFullYear();
       { q: "Wie rechne ich Temperaturen um?", a: "°C zu °F: (°C × 9/5) + 32. °F zu °C: (°F − 32) × 5/9. Kelvin: K = °C + 273,15. Die Umrechnung erfolgt über Celsius als Basis." },
       { q: "Was ist der Unterschied zwischen US-Gallonen und Litern?", a: "1 US-Gallone = 3,78541 Liter. 1 Liter = 0,264172 US-Gallonen. Die US-Gallone ist kleiner als die britische Gallone (4,54609 Liter)." },
       { q: "Warum sollte ich Umrechner nutzen?", a: "Für schnelle, fehlerfreie Umrechnungen zwischen verschiedenen Einheitensystemen. Besonders praktisch bei internationalen Umrechnungen (metrisch ↔ anglo-amerikanisch), etwa bei Rezepten, Bauplänen, Reisen oder technischen Datenblättern aus den USA." },
-      { q: "Wie rechne ich schnell im Kopf um?", a: "Nutzen Sie Näherungswerte: 1 kg ≈ 2,2 Pfund, 1 Meile ≈ 1,6 km, 1 Zoll ≈ 2,5 cm, 1 Liter ≈ 0,26 US-Gallonen. Für Fahrenheit gilt als grobe Faustformel: °C verdoppeln und 30 addieren ergibt ungefähr °F (20 °C → etwa 70 °F)." },
+      { q: "Wie rechne ich schnell im Kopf um?", a: "Nutzen Sie Näherungswerte: 1 kg ≈ 2,2 Pfund, 1 Meile ≈ 1,6 km, 1 Zoll ≈ 2,5 cm, 1 Liter ≈ 0,26 US-Gallonen. Für Fahrenheit gilt als grobe Faustformel: °C verdoppeln und 30 addieren ergibt ungefähr °F – exakt nur bei 10 °C (beide Wege ergeben 50 °F), bei 20 °C weicht die Faustregel bereits um 2 °F vom exakten Wert 68 °F ab (Faustregel: 70 °F)." },
       { q: "Was ist der Unterschied zwischen Masse und Gewicht?", a: "Physikalisch ist Masse (in Kilogramm) eine Materialeigenschaft, während Gewicht die Gewichtskraft (in Newton) ist, die von der Schwerkraft abhängt. Im Alltag werden beide Begriffe aber synonym verwendet, weshalb dieser Rechner Kilogramm, Gramm und Pfund als Gewichtseinheiten führt." },
       { q: "Warum verwenden die USA nicht das metrische System?", a: "Aus historischen Gründen: Die USA haben das imperiale bzw. das davon abgeleitete US-übliche Maßsystem beibehalten. Offiziell ist das metrische System zwar zugelassen, im Alltag dominieren aber weiterhin Meilen, Fuß, Pfund und Fahrenheit. Auch Großbritannien nutzt eine Mischung aus beiden Systemen." },
       { q: "Ist die Umrechnung immer exakt?", a: "Bei Länge, Gewicht und Volumen sind die Faktoren exakt definiert (z. B. 1 Zoll = 2,54 cm), die Anzeige wird jedoch gerundet. Temperaturumrechnungen sind über die Formeln ebenfalls exakt. Kleine Abweichungen zu anderen Rechnern entstehen nur durch unterschiedliche Rundungsstellen." }
@@ -58,6 +59,7 @@ const year = new Date().getFullYear();
       </div>
       <div id="ergebnis-liste" class="ergebnis-liste"></div>
     </div>
+    <ArtikelFaustregelFahrenheit slot="artikel" />
   </CalculatorShell>
 
   <CalculatorGuide

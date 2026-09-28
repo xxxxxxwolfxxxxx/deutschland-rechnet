@@ -1,0 +1,281 @@
+---
+import RechnerArtikel from '../RechnerArtikel.astro';
+import { berechneGrundumsatz } from '../../../public/scripts/grundumsatz.js';
+
+// Deutsches Zahlenformat, Minus als U+2212 (Vorgabe für alle Artikel).
+const zahl = (n: number, d = 1) =>
+  n.toLocaleString('de-DE', { minimumFractionDigits: d, maximumFractionDigits: d }).replace(/^-/, '−');
+const kcal = (n: number, d = 0) => zahl(n, d) + ' kcal';
+const proz = (n: number, d = 1) => zahl(n, d) + ' %';
+const cmTxt = (n: number, d = 1) => zahl(n, d) + ' cm';
+const jahreTxt = (n: number, d = 1) => zahl(n, d) + ' Jahre';
+const kg1 = (n: number, d = 1) => zahl(n, d) + ' kg';
+
+type Geschlecht = 'm' | 'w';
+// Die Vorbelegung des Formulars oben auf der Seite (Mann, 75 kg, 175 cm, 30 Jahre).
+const BASIS = { gewicht: 75, groesse: 175, alter: 30 };
+// Grenzen laut den min/max-Attributen der Eingabefelder oben auf der Seite.
+const GEWICHT_MIN = 30, GEWICHT_MAX = 250;
+const GROESSE_MIN = 100, GROESSE_MAX = 220;
+const ALTER_MIN = 15, ALTER_MAX = 100;
+// Die beiden additiven Konstanten der revidierten Harris-Benedict-Gleichung
+// (Roza & Shizgal 1984), identisch mit denen im Modul dieses Rechners.
+const GRUNDZAHL_M = 88.362;
+const GRUNDZAHL_W = 447.593;
+
+function bmr(geschlecht: Geschlecht, overrides: Partial<typeof BASIS> = {}) {
+  return berechneGrundumsatz({ ...BASIS, ...overrides, geschlecht }).grundumsatz;
+}
+
+// --- 1. Die drei Steigungen, aus dem Modul gemessen, nicht abgeschrieben ----
+// Harris-Benedict ist eine reine Linearkombination aus Gewicht, Größe und
+// Alter. Also lässt sich die Steigung je Einheit direkt aus zwei Aufrufen der
+// Funktion messen, die der Rechner oben lädt. Damit die Rundung auf ganze
+// kcal (Math.round im Modul) die Steigung nicht verfälscht, liegen die beiden
+// Stützpunkte jeweils an den äußersten Rändern des zulässigen Eingabebereichs.
+function steigungGewicht(g: Geschlecht) {
+  return (bmr(g, { gewicht: GEWICHT_MAX }) - bmr(g, { gewicht: GEWICHT_MIN })) / (GEWICHT_MAX - GEWICHT_MIN);
+}
+function steigungGroesse(g: Geschlecht) {
+  return (bmr(g, { groesse: GROESSE_MAX }) - bmr(g, { groesse: GROESSE_MIN })) / (GROESSE_MAX - GROESSE_MIN);
+}
+function steigungAlter(g: Geschlecht) {
+  return (bmr(g, { alter: ALTER_MAX }) - bmr(g, { alter: ALTER_MIN })) / (ALTER_MAX - ALTER_MIN);
+}
+
+const steigungen = (['m', 'w'] as Geschlecht[]).map((g) => ({
+  geschlecht: g,
+  gewicht: steigungGewicht(g),
+  groesse: steigungGroesse(g),
+  alter: steigungAlter(g),
+}));
+const [sM, sW] = steigungen;
+
+// Kontrolle: Diese gemessenen Steigungen müssen den veröffentlichten
+// Koeffizienten der revidierten Harris-Benedict-Gleichung entsprechen
+// (Roza & Shizgal 1984, Quelle unten) – sonst hat sich das Modul geändert,
+// ohne dass dieser Artikel es mitbekommen hätte.
+const ERWARTUNG = {
+  m: { gewicht: 13.397, groesse: 4.799, alter: -5.677 },
+  w: { gewicht: 9.247, groesse: 3.098, alter: -4.330 },
+};
+for (const s of steigungen) {
+  const e = ERWARTUNG[s.geschlecht];
+  if (
+    Math.abs(s.gewicht - e.gewicht) > 0.05 ||
+    Math.abs(s.groesse - e.groesse) > 0.05 ||
+    Math.abs(s.alter - e.alter) > 0.05
+  ) {
+    throw new Error(`Grundumsatz-Artikel: gemessene Steigung (${s.geschlecht}) weicht von Harris-Benedict ab.`);
+  }
+}
+
+// --- 2. Tauschverhältnisse: 1 kg in cm bzw. in Jahren -----------------------
+const tauschKgCm = (s: typeof sM) => s.gewicht / s.groesse;
+const tauschKgJahre = (s: typeof sM) => s.gewicht / -s.alter;
+
+// Die Linearität heißt: Das Tauschverhältnis ist überall im Formular
+// dasselbe, nicht nur nahe der Vorbelegung. Stichprobe an einem Punkt, der
+// von 75/175/30 so weit wie möglich entfernt liegt.
+function tauschAnPunkt(gewicht: number, groesse: number, alter: number, g: Geschlecht) {
+  const dw = (berechneGrundumsatz({ gewicht: gewicht + 60, groesse, alter, geschlecht: g }).grundumsatz -
+    berechneGrundumsatz({ gewicht: gewicht - 40, groesse, alter, geschlecht: g }).grundumsatz) / 100;
+  const dh = (berechneGrundumsatz({ gewicht, groesse: groesse + 40, alter, geschlecht: g }).grundumsatz -
+    berechneGrundumsatz({ gewicht, groesse: groesse - 40, alter, geschlecht: g }).grundumsatz) / 80;
+  return dw / dh;
+}
+const FERN = { gewicht: 35, groesse: 210, alter: 90 };
+const tauschNah = tauschAnPunkt(BASIS.gewicht, BASIS.groesse, BASIS.alter, 'm');
+const tauschFern = tauschAnPunkt(FERN.gewicht, FERN.groesse, FERN.alter, 'm');
+if (Math.abs(tauschNah - tauschFern) > 0.05) {
+  throw new Error('Grundumsatz-Artikel: Tauschverhältnis Gewicht/Größe ist nicht mehr überall gleich.');
+}
+
+// --- 3. Der Geschlechterunterschied je Stellschraube ------------------------
+const verhaeltnis = {
+  gewicht: sM.gewicht / sW.gewicht,
+  groesse: sM.groesse / sW.groesse,
+  alter: sM.alter / sW.alter,
+};
+const mehrProzent = {
+  gewicht: (verhaeltnis.gewicht - 1) * 100,
+  groesse: (verhaeltnis.groesse - 1) * 100,
+  alter: (verhaeltnis.alter - 1) * 100,
+};
+// Kernbehauptung des Artikels: Die Größe unterscheidet die Geschlechter
+// stärker als das Gewicht, das Gewicht stärker als das Alter.
+if (!(mehrProzent.groesse > mehrProzent.gewicht && mehrProzent.gewicht > mehrProzent.alter)) {
+  throw new Error('Grundumsatz-Artikel: Reihenfolge Größe > Gewicht > Alter beim Geschlechterunterschied stimmt nicht mehr.');
+}
+
+// --- 4. Konkrete Einzelschritte an der Vorbelegung, ganzzahlig wie oben -----
+const basisMann = bmr('m');
+const basisFrau = bmr('w');
+const schritt = (g: Geschlecht, feld: keyof typeof BASIS) =>
+  bmr(g, { [feld]: BASIS[feld as 'gewicht' | 'groesse' | 'alter'] + 1 } as Partial<typeof BASIS>) - bmr(g);
+const mannKg = schritt('m', 'gewicht');
+const mannCm = schritt('m', 'groesse');
+const mannJahr = schritt('m', 'alter');
+const frauKg = schritt('w', 'gewicht');
+const frauCm = schritt('w', 'groesse');
+const frauJahr = schritt('w', 'alter');
+// Die ganzzahligen Einzelschritte müssen zu den gemessenen Steigungen passen
+// (Toleranz 1 kcal wegen der Rundung auf ganze Zahlen im Modul).
+if (Math.abs(mannCm - sM.groesse) > 1 || Math.abs(frauCm - sW.groesse) > 1) {
+  throw new Error('Grundumsatz-Artikel: Einzelschritt Größe passt nicht mehr zur gemessenen Steigung.');
+}
+
+// --- 5. Der Geschlechterunterschied an der Vorbelegung selbst --------------
+// Das FAQ auf dieser Seite nennt für Frauen „etwa 5-10% unter dem von Männern
+// mit gleichen Parametern“. Test an der eigenen Vorbelegung (75/175/30) –
+// nicht an einem Extremfall, sondern an den Werten, die beim Laden der Seite
+// bereits im Formular stehen.
+const geschlechterGapBasis = ((basisMann - basisFrau) / basisMann) * 100;
+if (!(geschlechterGapBasis > 10)) {
+  throw new Error('Grundumsatz-Artikel: Geschlechterunterschied an der Vorbelegung liegt nicht mehr über 10 %.');
+}
+
+const quellen = [
+  {
+    titel: 'Roza, Shizgal: The Harris Benedict equation reevaluated. Am J Clin Nutr 40 (1984), S. 168–182',
+    url: 'https://doi.org/10.1093/ajcn/40.1.168',
+  },
+];
+---
+<RechnerArtikel
+  titel="Beim Geschlechterunterschied schlägt die Körpergröße das Gewicht"
+  lead={`Harris-Benedict rechnet mit drei Stellschrauben: Gewicht, Größe, Alter. Zwischen Mann und Frau unterscheidet die Formel keine davon so stark wie die Körpergröße – ein Zentimeter mehr bewegt den Grundumsatz eines Mannes um ${proz(mehrProzent.groesse)} stärker als den einer Frau, beim Gewicht sind es nur ${proz(mehrProzent.gewicht)}, beim Alter ${proz(mehrProzent.alter)}.`}
+  datum="2026-09-23"
+  quellen={quellen}
+>
+  <h3>Drei Steigungen, direkt aus dem Rechner gemessen</h3>
+  <p>
+    Der Rechner oben addiert für Männer {kcal(sM.gewicht, 1)} je Kilogramm Gewicht,
+    {' '}{kcal(sM.groesse, 1)} je Zentimeter Größe und zieht {kcal(Math.abs(sM.alter), 1)} je
+    Lebensjahr ab – zu einer festen Grundzahl von {kcal(GRUNDZAHL_M, 3)}. Bei Frauen sind die
+    Steigungen {kcal(sW.gewicht, 1)} je Kilogramm, {kcal(sW.groesse, 1)} je Zentimeter und
+    {' '}{kcal(Math.abs(sW.alter), 1)} je Lebensjahr, zu einer Grundzahl von {kcal(GRUNDZAHL_W, 3)}.
+    Das ist keine Näherung: Harris-Benedict (in der 1984 revidierten Fassung, die dieser Rechner
+    verwendet) ist eine reine Linearkombination der drei Werte, ohne Wechselwirkung zwischen
+    ihnen. Deshalb gilt jede Steigung überall im Formular gleich – bei {kg1(GEWICHT_MIN, 0)}
+    genauso wie bei {kg1(GEWICHT_MAX, 0)}.
+  </p>
+  <p>
+    Dass hier überhaupt eine feste Steigung existiert, liegt an der Methode: James Arthur
+    Harris und Francis Gano Benedict hatten 1919 an der Carnegie Institution eine
+    Regressionsgleichung aus gemessenem Ruheumsatz, Gewicht, Größe, Alter und Geschlecht
+    geschätzt. 1984 haben A. M. Roza und H. M. Shizgal dieselbe Gleichungsform an einer größeren
+    Stichprobe neu geschätzt, mit den Koeffizienten, die auch im Modul dieses Rechners stehen.
+    Eine Regressionsgleichung legt sich dabei zwangsläufig auf konstante Koeffizienten fest –
+    sie kann nicht abbilden, dass ein zusätzliches Kilogramm am unteren Rand des Eingabefelds
+    ({kg1(GEWICHT_MIN, 0)}) etwas anderes bedeutet als am oberen Rand ({kg1(GEWICHT_MAX, 0)}).
+    Genau diese Konstanz macht die folgenden Tauschverhältnisse möglich.
+  </p>
+
+  <table>
+    <caption class="visually-hidden">Steigung des Grundumsatzes je Einheit, nach Geschlecht</caption>
+    <thead>
+      <tr>
+        <th scope="col">Stellschraube</th>
+        <th scope="col" class="num">Mann</th>
+        <th scope="col" class="num">Frau</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr><th scope="row">je Kilogramm Gewicht</th><td class="num">{kcal(sM.gewicht, 1)}</td><td class="num">{kcal(sW.gewicht, 1)}</td></tr>
+      <tr><th scope="row">je Zentimeter Größe</th><td class="num">{kcal(sM.groesse, 1)}</td><td class="num">{kcal(sW.groesse, 1)}</td></tr>
+      <tr><th scope="row">je Lebensjahr</th><td class="num">{kcal(sM.alter, 1)}</td><td class="num">{kcal(sW.alter, 1)}</td></tr>
+    </tbody>
+  </table>
+
+  <p>
+    An der Vorbelegung oben ({kg1(BASIS.gewicht, 0)}, {cmTxt(BASIS.groesse, 0)},
+    {' '}{jahreTxt(BASIS.alter, 0)}, männlich) zeigt das sich in ganzen Zahlen:
+    Ein Kilogramm mehr hebt die Anzeige um {kcal(mannKg)}, ein Zentimeter mehr um {kcal(mannCm)},
+    ein Lebensjahr mehr senkt sie um {kcal(Math.abs(mannJahr))}. Stellt man das Geschlecht auf
+    „Weiblich“ um, bei sonst gleichen Werten, sind es {kcal(frauKg)}, {kcal(frauCm)} und
+    {' '}{kcal(Math.abs(frauJahr))}.
+  </p>
+
+  <h3>Ein Kilogramm ist hier so viel wie drei Zentimeter</h3>
+  <p>
+    Aus den beiden Steigungen für Gewicht und Größe folgt ein Tauschverhältnis: Bei Männern
+    entspricht ein Kilogramm Gewicht {cmTxt(tauschKgCm(sM))} Körpergröße – beide bewegen den
+    Grundumsatz um denselben Betrag. Bei Frauen sind es {cmTxt(tauschKgCm(sW))}. Gegen das Alter
+    getauscht: Ein Kilogramm gleicht bei Männern {jahreTxt(tauschKgJahre(sM))} aus, bei Frauen
+    {' '}{jahreTxt(tauschKgJahre(sW))}. Diese Verhältnisse sind keine Eigenschaft der
+    Beispielwerte, sondern der Formel selbst – an einem Punkt weit entfernt von der Vorbelegung
+    ({kg1(FERN.gewicht, 0)}, {cmTxt(FERN.groesse, 0)}, {jahreTxt(FERN.alter, 0)}) liefert dieselbe
+    Rechnung {zahl(tauschFern, 3)} statt {zahl(tauschNah, 3)}, also praktisch denselben Wert.
+  </p>
+  <p>
+    Das ist zugleich eine Warnung vor einer naheliegenden Verwechslung: Der Ratgeber unter
+    diesem Rechner nennt an anderer Stelle einen Verbrauch von „etwa 13 kcal pro Tag“ je
+    Kilogramm Muskelgewebe. Die {kcal(sM.gewicht, 1)} je Kilogramm Gesamtgewicht in der Tabelle
+    oben sind damit nicht identisch – die Formel unterscheidet nicht zwischen Muskel-, Fett- und
+    Knochenmasse, sie kennt nur das Gesamtgewicht auf der Waage. Die Ähnlichkeit der beiden
+    Zahlen ist Zufall, kein Beleg füreinander.
+  </p>
+
+  <h3>Der Geschlechterunterschied hat einen Gewinner – und es ist nicht das Gewicht</h3>
+  <p>
+    Vergleicht man Mann und Frau Steigung für Steigung, ergibt sich eine Reihenfolge: Bei der
+    Körpergröße ist der männliche Wert um {proz(mehrProzent.groesse)} höher als der weibliche,
+    beim Gewicht um {proz(mehrProzent.gewicht)}, beim Alter nur um {proz(mehrProzent.alter)}. Wer
+    annimmt, das Gewicht müsse der Faktor sein, der Männer und Frauen in dieser Formel am
+    stärksten auseinanderzieht – weil mehr Körpermasse bei Männern typischerweise mehr
+    Muskelanteil bedeutet –, liegt bei Harris-Benedict daneben: Rechnerisch reagiert die Formel
+    auf einen zusätzlichen Zentimeter Körpergröße geschlechtsspezifischer als auf ein
+    zusätzliches Kilogramm Gewicht.
+  </p>
+  <p>
+    Praktisch heißt das: Ändert eine Nutzerin oder ein Nutzer oben nur die Körpergröße um einen
+    Zentimeter, bewegt sich die Anzeige bei einem Mann um {kcal(mannCm)}, bei einer Frau nur um
+    {' '}{kcal(frauCm)} – ein größerer relativer Unterschied, als ihn ein zusätzliches Kilogramm
+    Gewicht erzeugt ({kcal(mannKg)} gegenüber {kcal(frauKg)}). Die Formel selbst trifft dabei
+    keine Aussage darüber, warum das so ist; sie ist eine 1984 an Messdaten angepasste
+    Regressionsgleichung, kein physiologisches Modell von Muskeln oder Organen.
+  </p>
+
+  <h3>Der Ratgeber nennt 5 bis 10 Prozent – die Vorbelegung liegt schon darüber</h3>
+  <p>
+    Eine der FAQ unter diesem Rechner beantwortet die Frage „Warum unterscheidet sich der
+    Grundumsatz nach Geschlecht?“ mit einer Hausnummer: Frauen lägen „etwa 5-10% unter dem von
+    Männern mit gleichen Parametern“. Prüft man das nicht an einem Extremfall, sondern an genau
+    den Werten, die beim Öffnen der Seite bereits im Formular stehen ({kg1(BASIS.gewicht, 0)},
+    {' '}{cmTxt(BASIS.groesse, 0)}, {jahreTxt(BASIS.alter, 0)}), zeigt der Rechner
+    {' '}{kcal(basisMann)} für „Männlich“ und, stellt man nur das Auswahlfeld um,
+    {' '}{kcal(basisFrau)} für „Weiblich“. Das ist ein Unterschied von {proz(geschlechterGapBasis)}
+    {' '}– schon an der Vorbelegung mehr, als die im FAQ genannte Obergrenze von 10 % zulässt, und
+    ohne dass dafür ein ungewöhnlich schwerer, großer oder alter Beispielfall nötig wäre. Die
+    Formel selbst kennt keinen festen Prozentsatz zwischen den Geschlechtern: Weil Grundzahl,
+    Gewichts-, Größen- und Altersfaktor bei Mann und Frau alle vier unterschiedlich sind (siehe
+    Tabelle oben), verschiebt sich der prozentuale Abstand mit jeder Eingabe neu – er ist nur an
+    diesem einen Punkt {proz(geschlechterGapBasis)}, nicht generell.
+  </p>
+
+  <h3>Was das für die Bedienung des Rechners bedeutet</h3>
+  <p>
+    Wer die Eingabefelder oben der Reihe nach durchgeht, sieht drei unterschiedlich empfindliche
+    Regler: Größe und Gewicht bewegen die Anzeige in dieselbe Richtung, das Alter in die
+    Gegenrichtung, und alle drei tun das mit einer festen, nie wechselnden Steigung – unabhängig
+    davon, ob die übrigen Werte hoch oder niedrig eingestellt sind. Das erklärt zum Beispiel,
+    warum ein Eintrag von {kg1(GEWICHT_MAX, 0)} im Feld „Gewicht“ die Anzeige nicht anders
+    reagieren lässt als ein Eintrag von {kg1(GEWICHT_MIN, 0)}: Bei einer reinen Linearkombination
+    bleibt die Steigung je Kilogramm überall exakt {kcal(sM.gewicht, 1)} (Mann) bzw.
+    {' '}{kcal(sW.gewicht, 1)} (Frau). Für die
+    Einordnung der eigenen Werte bedeutet das vor allem: Der angezeigte Grundumsatz reagiert auf
+    Größe und Geschlecht empfindlicher, als der Blick auf das Eingabefeld „Gewicht“ zuerst
+    vermuten lässt.
+  </p>
+  <p>
+    Wer zwei Ergebnisse dieses Rechners vergleicht – das eigene mit dem einer anderen Person,
+    oder das eigene von vor und nach einer Änderung der Eingaben –, rechnet damit im Grunde
+    entlang dieser drei festen Geraden. Ein Unterschied im angezeigten Grundumsatz lässt sich so
+    in Gewicht, Größe oder Alter „umrechnen“, ohne die Formel neu auszuwerten: Zum Beispiel
+    entspricht der oben ermittelte Geschlechterabstand von {proz(geschlechterGapBasis)} an der
+    Vorbelegung ziemlich genau {kg1(Math.abs(basisMann - basisFrau) / sM.gewicht)} Körpergewicht,
+    wenn man ihn allein über die Gewichtssteigung des Mannes ausdrückt. Das ersetzt keine
+    Einschätzung des eigenen Körpers – es zeigt nur, mit welcher Elle die Formel selbst misst.
+  </p>
+</RechnerArtikel>

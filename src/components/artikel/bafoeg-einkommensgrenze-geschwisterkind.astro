@@ -1,0 +1,258 @@
+---
+import RechnerArtikel from '../RechnerArtikel.astro';
+import {
+  berechneBafoeg,
+  GRUNDBEDARF_STUDIUM,
+  WOHNEN_AUSWAERTS,
+  ZUSCHLAG_KRANKENVERSICHERUNG,
+  ZUSCHLAG_PFLEGEVERSICHERUNG,
+  FREIBETRAG_ELTERN_VERHEIRATET,
+  FREIBETRAG_JE_KIND,
+  ANRECHNUNGSFREI_GRUND,
+  ANRECHNUNGSFREI_JE_KIND,
+} from '../../../public/scripts/bafoeg.js';
+
+// Alle Zahlen dieses Artikels stammen aus demselben Modul, das der BAföG-Rechner
+// laedt (public/scripts/bafoeg.js). Nichts wird hier neu erfunden – die
+// Formel unten bildet nur nach, was berechneBafoeg() ohnehin tut, und wird
+// gegen dessen tatsaechliche Ausgabe geprueft (siehe throw-Zusicherungen).
+
+const minus = (s: string) => s.replace(/^-/, '−');
+const eur = (n: number, d = 0) =>
+  minus(n.toLocaleString('de-DE', { minimumFractionDigits: d, maximumFractionDigits: d })) + ' €';
+const zahl = (n: number, d = 0) => minus(n.toLocaleString('de-DE', { minimumFractionDigits: d, maximumFractionDigits: d }));
+
+// --- Der Hoechstbedarf, der bei Foerderung = 0 komplett angerechnet sein muss
+// (auswaerts wohnend, selbst kranken- und pflegeversichert – derselbe Fall,
+// den auch die Rechnerseite selbst als Beispiel nutzt).
+const bedarf = GRUNDBEDARF_STUDIUM + WOHNEN_AUSWAERTS + ZUSCHLAG_KRANKENVERSICHERUNG + ZUSCHLAG_PFLEGEVERSICHERUNG;
+
+// --- Anrechnungsquote und Freibetrag verheirateter Eltern in Abhaengigkeit
+// von der Zahl k der weiteren Kinder OHNE eigene foerderungsfaehige Ausbildung
+// (§ 25 Abs. 3, 4 BAföG).
+const anteilAngerechnet = (k: number) => Math.max(0, 1 - ANRECHNUNGSFREI_GRUND - ANRECHNUNGSFREI_JE_KIND * k);
+const freibetragVerheiratet = (k: number) => FREIBETRAG_ELTERN_VERHEIRATET + FREIBETRAG_JE_KIND * k;
+
+// Foerderung sinkt auf 0, sobald die Anrechnung aus dem Elterneinkommen den
+// gesamten Bedarf erreicht (bei Vermoegen = 0, einem geförderten Kind):
+// bedarf = (einkommenMonat − freibetrag) * anteilAngerechnet
+// -> einkommenMonat = freibetrag + bedarf / anteilAngerechnet
+const grenzeMonat = (k: number) => freibetragVerheiratet(k) + bedarf / anteilAngerechnet(k);
+
+const g0 = grenzeMonat(0);
+const g1 = grenzeMonat(1);
+const g2 = grenzeMonat(2);
+const g3 = grenzeMonat(3);
+const schub1 = g1 - g0;
+const schub2 = g2 - g1;
+const schub3 = g3 - g2;
+
+const tabelle = [0, 1, 2, 3].map((k) => ({
+  k,
+  freibetrag: freibetragVerheiratet(k),
+  quote: Math.round(anteilAngerechnet(k) * 100),
+  grenze: grenzeMonat(k),
+}));
+
+// --- Selbstpruefung: Trifft die Formel den tatsaechlichen Nulldurchgang von
+// berechneBafoeg()? Dazu wird ein Elternteil mit einem so hohen Einkommen
+// ausgestattet, dass die Sozialpauschale sicher gedeckelt ist (Kappungsgrenze
+// bei rvPflichtig: 17.200 € / 22,3 % ≈ 77.130 €), und die Steuer so gewaehlt,
+// dass exakt ein gewuenschtes monatliches Nettoeinkommen herauskommt. So laesst
+// sich jede beliebige Netto-Zielgroesse gegen das echte Modul testen, ohne die
+// Rechnung des Moduls selbst nachzubauen.
+function foerderungBeiNetto(zielNettoMonat: number, k: number): number {
+  const einkuenfte = 200000; // weit ueber der Kappungsgrenze von rvPflichtig
+  const steuern = einkuenfte - 17200 - 12 * zielNettoMonat;
+  if (steuern < 0) throw new Error('BAföG-Artikel: Testfall ungueltig, Steuern negativ.');
+  return berechneBafoeg({
+    auswaerts: true,
+    eigeneVersicherung: true,
+    verheiratet: true,
+    elternteile: [
+      { einkuenfte, status: 'rvPflichtig', steuern },
+      { einkuenfte: 0, status: 'rvPflichtig', steuern: 0 },
+    ],
+    kinderMitFreibetrag: k,
+    gefoerderteKinder: 1,
+    vermoegen: 0,
+  }).foerderung;
+}
+
+for (const [k, grenze] of [[0, g0], [1, g1], [2, g2]] as [number, number][]) {
+  const knappDrunter = foerderungBeiNetto(grenze - 1, k);
+  const knappDrueber = foerderungBeiNetto(grenze + 1, k);
+  if (!(knappDrunter > 0)) {
+    throw new Error(`BAföG-Artikel: Bei k=${k} müsste 1 € unter der Grenze noch Förderung übrig sein, war aber ${knappDrunter}.`);
+  }
+  if (knappDrueber !== 0) {
+    throw new Error(`BAföG-Artikel: Bei k=${k} müsste 1 € über der Grenze die Förderung 0 sein, war aber ${knappDrueber}.`);
+  }
+}
+
+// Die Schübe müssen mit wachsendem k selbst wieder wachsen (die Formel ist
+// nicht linear, weil bedarf / anteilAngerechnet(k) mit fallendem Nenner
+// überproportional steigt) – sonst wäre die zentrale These des Artikels falsch.
+if (!(schub2 > schub1)) {
+  throw new Error('BAföG-Artikel: Der zweite Schub müsste größer sein als der erste.');
+}
+if (Math.abs(schub1 - FREIBETRAG_JE_KIND) < 1) {
+  throw new Error('BAföG-Artikel: Der Schub dürfte nicht (ungefähr) gleich dem reinen Freibetrag sein.');
+}
+if (!(schub3 > schub2)) {
+  throw new Error('BAföG-Artikel: Der dritte Schub müsste größer sein als der zweite.');
+}
+
+// --- Grenzsatz-Probe: Innerhalb der Anrechnungszone (zwischen Freibetrag und
+// Grenze) muss ein zusätzlicher Euro Nettoeinkommen die Förderung exakt um
+// anteilAngerechnet(0) senken – das ist die Kausalkette hinter "50 Cent je
+// Euro", separat gegen das Modul nachgerechnet statt nur behauptet.
+const grenzsatzBasis = 3500; // liegt zwischen 2.540 € Freibetrag und 4.524 € Grenze
+const grenzsatzDelta = 1000;
+const foerderungGrenzsatzBasis = foerderungBeiNetto(grenzsatzBasis, 0);
+const foerderungGrenzsatzPlus = foerderungBeiNetto(grenzsatzBasis + grenzsatzDelta, 0);
+const grenzsatzDiff = foerderungGrenzsatzBasis - foerderungGrenzsatzPlus;
+if (Math.abs(grenzsatzDiff - anteilAngerechnet(0) * grenzsatzDelta) > 0.01) {
+  throw new Error(`BAföG-Artikel: Grenzsatz-Probe schlägt fehl: ${grenzsatzDiff} statt ${anteilAngerechnet(0) * grenzsatzDelta}.`);
+}
+
+// --- Beispiel zur Bruttoeinkommensfrage: dieselbe Nettogrenze g0, aber bei
+// zwei unterschiedlichen Sozialpauschalen (§ 21 Abs. 2) – ohne Steuerlast, rein
+// zur Veranschaulichung, wie stark der Bruttobetrag je nach Erwerbsstatus
+// auseinanderfaellt, obwohl netto derselbe Betrag herauskommt.
+function bruttoGrenzeOhneSteuer(status: string): number {
+  function foerderungBei(e: number): number {
+    return berechneBafoeg({
+      auswaerts: true,
+      eigeneVersicherung: true,
+      verheiratet: true,
+      elternteile: [
+        { einkuenfte: e, status, steuern: 0 },
+        { einkuenfte: 0, status, steuern: 0 },
+      ],
+      kinderMitFreibetrag: 0,
+      gefoerderteKinder: 1,
+      vermoegen: 0,
+    }).foerderung;
+  }
+  let lo = 0, hi = 2000000;
+  for (let i = 0; i < 80; i++) {
+    const mid = (lo + hi) / 2;
+    if (foerderungBei(mid) > 0) lo = mid; else hi = mid;
+  }
+  return hi;
+}
+const bruttoAngestellt = bruttoGrenzeOhneSteuer('rvPflichtig');
+const bruttoSelbststaendig = bruttoGrenzeOhneSteuer('nichtArbeitnehmer');
+if (bruttoSelbststaendig <= bruttoAngestellt) {
+  throw new Error('BAföG-Artikel: Selbstständige müssten bei gleichem Netto ein höheres Brutto brauchen.');
+}
+---
+<RechnerArtikel
+  titel="Ein Geschwisterkind ohne Ausbildung hebt die BAföG-Grenze um mehr als seinen eigenen Freibetrag"
+  lead={`Ab welchem Einkommen der Eltern ist der BAföG-Anspruch komplett aufgebraucht? Die Formel dahinter lässt sich exakt ausrechnen: bei verheirateten Eltern und einem auswärts wohnenden, selbst versicherten Kind liegt der Nullpunkt bei ${eur(g0)} gemeinsamem Nettoeinkommen im Monat. Ein zusätzliches Kind ohne eigene Ausbildung verschiebt diesen Punkt nicht um den Freibetrag von ${eur(FREIBETRAG_JE_KIND)}, sondern um ${eur(schub1, 2)} – weil § 25 BAföG an derselben Stelle zwei Hebel gleichzeitig zieht.`}
+  datum="2026-09-24"
+  quellen={[
+    { titel: '§ 13 BAföG – Bedarf für Studierende an Hochschulen', url: 'https://www.gesetze-im-internet.de/baf_g/__13.html' },
+    { titel: '§ 13a BAföG – Zuschläge zur Kranken- und Pflegeversicherung', url: 'https://www.gesetze-im-internet.de/baf_g/__13a.html' },
+    { titel: '§ 21 BAföG – Begriff des Einkommens, Sozialpauschale', url: 'https://www.gesetze-im-internet.de/baf_g/__21.html' },
+    { titel: '§ 25 BAföG – Freibeträge vom Einkommen', url: 'https://www.gesetze-im-internet.de/baf_g/__25.html' },
+  ]}
+>
+  <h3>Der Punkt, an dem die Förderung auf null fällt</h3>
+  <p>
+    Der Rechner oben zeigt für jede Eingabe eine Zahl, aber er zeigt nicht, ab
+    wann diese Zahl zwangsläufig null ist. Dabei lässt sich das ausrechnen,
+    ohne eine einzige Kombination durchzuprobieren. Die Förderung ist
+    <code>Bedarf − Anrechnung aus Vermögen − Anrechnung aus Elterneinkommen</code>.
+    Ohne eigenes Vermögen wird sie exakt dann null, wenn die Anrechnung aus dem
+    Elterneinkommen den gesamten Bedarf auffrisst. Für ein Kind, das nicht bei
+    den Eltern wohnt und sich selbst kranken- und pflegeversichert, sind das
+    nach § 13, § 13a BAföG {eur(bedarf)} im Monat
+    ({eur(GRUNDBEDARF_STUDIUM)} Grundbedarf, {eur(WOHNEN_AUSWAERTS)} Wohnen,
+    {' '}{eur(ZUSCHLAG_KRANKENVERSICHERUNG + ZUSCHLAG_PFLEGEVERSICHERUNG)} Zuschläge).
+  </p>
+  <p>
+    Nach § 25 BAföG bleibt vom Einkommen verheirateter, zusammenlebender
+    Eltern ein monatlicher Freibetrag von {eur(FREIBETRAG_ELTERN_VERHEIRATET)}
+    komplett anrechnungsfrei; vom Rest werden nur 50 % angerechnet, die
+    anderen 50 % bleiben ebenfalls frei. Damit die Anrechnung genau
+    {' '}{eur(bedarf)} erreicht, muss der übersteigende Teil doppelt so groß sein:
+    {' '}{eur(bedarf / anteilAngerechnet(0))}. Addiert zum Freibetrag ergibt das
+    einen festen Punkt: Bei {eur(g0)} gemeinsamem Nettoeinkommen der Eltern im
+    Monat – nach Sozialpauschale und nach Einkommen- und Kirchensteuer, wie es
+    § 21 BAföG verlangt – kippt die Förderung von einem positiven Betrag auf
+    null. Ein Euro weniger, und ein Rest bleibt; ein Euro mehr, und der
+    Anspruch ist weg. Das ist kein Schätzwert, sondern folgt zwingend aus den
+    beiden Größen, die das Gesetz für diesen Fall vorsieht.
+  </p>
+  <p class="ra-hinweis">
+    Wichtig ist die Einheit: Das ist eine Grenze beim <em>Nettoeinkommen nach
+    Abzug von Sozialpauschale und Steuern</em>, nicht beim Bruttoeinkommen. Eine
+    feste Bruttogrenze gibt es nicht, weil die Sozialpauschale nach § 21 Abs. 2
+    BAföG vom Erwerbsstatus abhängt. Bei identischem Nettoeinkommen und ohne
+    sonstige Steuerlast läge die Bruttogrenze für ein rentenversicherungspflichtig
+    beschäftigtes Elternpaar bei rund {eur(bruttoAngestellt)} im Jahr, für ein
+    selbstständiges Elternpaar wegen der höheren Pauschale (38,8 % statt
+    22,3 %, § 21 Abs. 2) bei rund {eur(bruttoSelbststaendig)} – über
+    {' '}{eur(bruttoSelbststaendig - bruttoAngestellt)} mehr, für dasselbe
+    Netto-Ergebnis.
+  </p>
+
+  <h3>Warum ein Geschwisterkind mehr verschiebt als seinen Freibetrag</h3>
+  <p>
+    § 25 Abs. 3 BAföG erhöht die Freibeträge um {eur(FREIBETRAG_JE_KIND)} für
+    jedes weitere Kind der Eltern, das selbst nicht in einer förderungsfähigen
+    Ausbildung steht – ein jüngeres Geschwisterkind in der Schule etwa, nicht
+    ein zweites Kind, das ebenfalls BAföG bezieht (das wird stattdessen über
+    § 11 Abs. 4 BAföG bei der Aufteilung der Anrechnung berücksichtigt). Naheliegend
+    wäre die Annahme, ein solches Kind schiebe die Einkommensgrenze um genau
+    diese {eur(FREIBETRAG_JE_KIND)} nach oben. Tatsächlich sind es
+    {' '}{eur(schub1, 2)}: Die Rechnung ergibt für ein Kind {eur(g1, 2)} statt
+    {' '}{eur(g0)} – eine Differenz von {eur(schub1, 2)}, nicht {eur(FREIBETRAG_JE_KIND)}.
+  </p>
+  <p>
+    Der Grund ist § 25 Abs. 4 Satz 2 BAföG: Dasselbe Kind, das den Freibetrag
+    erhöht, senkt zugleich die Anrechnungsquote um 5 Prozentpunkte – von 50 %
+    auf 45 %. Beide Effekte wirken auf verschiedene Teile derselben Formel.
+    Der Freibetrag verschiebt den Startpunkt der Anrechnung nach oben, das ist
+    der direkte, additive Teil: {eur(FREIBETRAG_JE_KIND)}. Die kleinere
+    Anrechnungsquote verändert aber, wie stark der übersteigende Betrag wachsen
+    muss, um denselben Bedarf von {eur(bedarf)} aufzuwiegen – von
+    {' '}{eur(bedarf / anteilAngerechnet(0))} bei 50 % auf
+    {' '}{eur(bedarf / anteilAngerechnet(1), 2)} bei 45 %, einem Unterschied von
+    {' '}{eur(bedarf / anteilAngerechnet(1) - bedarf / anteilAngerechnet(0), 2)}.
+    Addiert man beides – {eur(FREIBETRAG_JE_KIND)} plus
+    {' '}{eur(bedarf / anteilAngerechnet(1) - bedarf / anteilAngerechnet(0), 2)} –, ergibt
+    sich exakt der beobachtete Schub von {eur(schub1, 2)}.
+  </p>
+  <p>
+    Ein zweites Kind ohne Ausbildung verschiebt die Grenze auf {eur(g2)},
+    also um weitere {eur(schub2, 2)} – mehr als beim ersten Kind
+    ({eur(schub1, 2)}). Das liegt daran, dass die Anrechnungsquote nicht
+    linear, sondern im Nenner steht: Je kleiner sie wird, desto stärker
+    schlägt jeder weitere Prozentpunkt Abzug auf den übersteigenden Betrag
+    durch, der nötig ist, um denselben Bedarf zu erreichen. Jedes weitere Kind
+    ist für die Einkommensgrenze also wertvoller als das vorherige – eine
+    Eigenschaft der Formel, die sich aus keiner der beiden Zahlen allein (770 €
+    Freibetrag, 5 Prozentpunkte) ablesen lässt, sondern erst aus ihrem
+    Zusammenspiel.
+  </p>
+
+  <h3>Was das nicht heißt</h3>
+  <p>
+    Diese Rechnung gilt für den Fall, den auch der Rechner oben als Beispiel
+    nutzt: verheiratete, zusammenlebende Eltern, ein Kind, das auswärts wohnt
+    und sich selbst versichert, kein Vermögen, kein weiteres Kind mit eigenem
+    BAföG-Anspruch. Getrennt lebende oder nicht miteinander verheiratete Eltern
+    haben getrennte, niedrigere Freibeträge ({eur(1690)} statt
+    {' '}{eur(FREIBETRAG_ELTERN_VERHEIRATET)}) und werden getrennt veranlagt –
+    die Grenze verschiebt sich dadurch anders und ist hier nicht nachgerechnet.
+    Eigenes Vermögen der oder des Studierenden senkt die Grenze zusätzlich,
+    weil es zuerst vom Bedarf abgezogen wird, bevor das Elterneinkommen
+    überhaupt zum Zug kommt. Und all das gilt ausschließlich für die
+    Elternabhängigkeit selbst – Fälle, in denen das Elterneinkommen gar nicht
+    zählt (etwa nach vierjähriger Erwerbstätigkeit), rechnet der Rechner oben
+    nicht mit. Verbindlich ist ohnehin nur das Amt für Ausbildungsförderung.
+  </p>
+</RechnerArtikel>

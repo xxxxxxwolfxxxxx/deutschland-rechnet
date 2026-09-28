@@ -1,0 +1,182 @@
+---
+import RechnerArtikel from '../RechnerArtikel.astro';
+
+// Der Einheitenrechner (src/pages/einheiten/einheitenrechner.astro) hat kein
+// eigenes Modul unter public/scripts/ – die Temperaturumrechnung steht inline
+// im <script> der Seite:
+//
+//   function toC(wert, von) {
+//     if (von==='c') return wert;
+//     if (von==='f') return (wert - 32) * 5/9;
+//     if (von==='k') return wert - 273.15;
+//   }
+//   function fromC(celsius, zu) {
+//     if (zu==='c') return celsius;
+//     if (zu==='f') return celsius * 9/5 + 32;
+//     if (zu==='k') return celsius + 273.15;
+//   }
+//   // Anzeige: Math.round(fromC(celsius,k)*10000)/10000
+//
+// Die Faustregel "verdoppeln und 30 addieren" stammt wörtlich aus der FAQ
+// derselben Seite: "Für Fahrenheit gilt als grobe Faustformel: °C verdoppeln
+// und 30 addieren ergibt ungefähr °F (20 °C → etwa 70 °F)." Der CalculatorGuide
+// derselben Seite nennt für denselben Wert 20 °C an anderer Stelle "20 °C ≈
+// 68 °F (Raumtemperatur)" – zwei verschiedene Zahlen für dieselbe Temperatur,
+// beide auf derselben Seite. Dieser Artikel rechnet nach, wann und warum sie
+// auseinanderfallen.
+
+const zahl = (n: number, d = 1) =>
+  n.toLocaleString('de-DE', { minimumFractionDigits: d, maximumFractionDigits: d }).replace(/^-/, '−');
+const proz = (n: number, d = 1) => zahl(n, d) + ' %';
+
+function toC(wert: number, von: 'c' | 'f' | 'k'): number {
+  if (von === 'c') return wert;
+  if (von === 'f') return (wert - 32) * 5 / 9;
+  return wert - 273.15; // 'k'
+}
+function fromC(celsius: number, zu: 'c' | 'f' | 'k'): number {
+  if (zu === 'c') return celsius;
+  if (zu === 'f') return celsius * 9 / 5 + 32;
+  return celsius + 273.15; // 'k'
+}
+const rechnerAnzeige = (celsius: number, zu: 'c' | 'f' | 'k') =>
+  Math.round(fromC(celsius, zu) * 10000) / 10000;
+const faustregel = (c: number) => 2 * c + 30;
+const fehler = (c: number) => faustregel(c) - fromC(c, 'f');
+
+// --- Selbstprüfung 1: Die beiden Zahlen von der Seite selbst ----------------
+// Guide-Text: 20 °C ≈ 68 °F (exakte Formel). FAQ: 20 °C → etwa 70 °F (Faustregel).
+const beispielC = 20;
+const exaktBei20 = rechnerAnzeige(beispielC, 'f');
+const faustregelBei20 = faustregel(beispielC);
+if (Math.abs(exaktBei20 - 68) > 0.0001) {
+  throw new Error(`Artikel Faustregel-Fahrenheit: 20 °C ergibt in der Rechner-Formel nicht 68 °F (${exaktBei20}).`);
+}
+if (faustregelBei20 !== 70) {
+  throw new Error(`Artikel Faustregel-Fahrenheit: Faustregel bei 20 °C ergibt nicht 70 °F (${faustregelBei20}).`);
+}
+
+// --- Fixpunkt 1: Wo Faustregel und exakte Formel exakt übereinstimmen -------
+// 2c + 30 = 1,8c + 32  =>  0,2 c = 2  =>  c = 10
+const fixpunktFaustregel = 2 / (2 - 1.8);
+if (Math.abs(fixpunktFaustregel - 10) > 1e-6) {
+  throw new Error(`Artikel Faustregel-Fahrenheit: Fixpunkt Faustregel ist nicht 10 (${fixpunktFaustregel}).`);
+}
+if (Math.abs(faustregel(10) - fromC(10, 'f')) > 1e-9) {
+  throw new Error('Artikel Faustregel-Fahrenheit: Bei 10 °C liefern Faustregel und Formel unterschiedliche Werte.');
+}
+
+// --- Selbstprüfung 2: Fehlerformel 0,2 × (c − 10) gilt an mehreren Stützstellen
+const PRUEFPUNKTE = [-20, -10, 0, 10, 20, 30, 40, 50] as const;
+for (const c of PRUEFPUNKTE) {
+  const direkt = fehler(c);
+  const ueberFormel = 0.2 * (c - 10);
+  if (Math.abs(direkt - ueberFormel) > 1e-9) {
+    throw new Error(`Artikel Faustregel-Fahrenheit: Fehlerformel stimmt bei ${c} °C nicht (${direkt} vs ${ueberFormel}).`);
+  }
+}
+
+// --- Fixpunkt 2: Celsius = Fahrenheit (c = 1,8c + 32 => c = −40) ------------
+const fixpunktCF = 32 / (1 - 1.8);
+if (Math.abs(fixpunktCF - -40) > 1e-9) {
+  throw new Error(`Artikel Faustregel-Fahrenheit: Fixpunkt C=F ist nicht −40 (${fixpunktCF}).`);
+}
+if (rechnerAnzeige(fixpunktCF, 'f') !== -40) {
+  throw new Error('Artikel Faustregel-Fahrenheit: Rechner zeigt bei −40 °C nicht −40 °F.');
+}
+
+// --- Fixpunkt 3: Fahrenheit = 2 × Celsius (2c = 1,8c + 32 => c = 160) -------
+const fixpunktF2C = 32 / 0.2;
+if (Math.abs(fixpunktF2C - 160) > 1e-9) {
+  throw new Error(`Artikel Faustregel-Fahrenheit: Fixpunkt F=2C ist nicht 160 (${fixpunktF2C}).`);
+}
+if (rechnerAnzeige(fixpunktF2C, 'f') !== 320) {
+  throw new Error('Artikel Faustregel-Fahrenheit: Rechner zeigt bei 160 °C nicht 320 °F.');
+}
+
+// --- Selbstprüfung 3: Kelvin-Versatz ist über den gesamten Bereich konstant -
+// SI-Definition (BIPM SI-Brochure): T/K = t/°C + 273,15, exakt.
+const KELVIN_VERSATZ = 273.15;
+for (const c of PRUEFPUNKTE) {
+  const versatz = fromC(c, 'k') - c;
+  if (Math.abs(versatz - KELVIN_VERSATZ) > 1e-9) {
+    throw new Error(`Artikel Faustregel-Fahrenheit: Kelvin-Versatz bei ${c} °C ist nicht 273,15 (${versatz}).`);
+  }
+}
+
+// Vorzeichenwechsel-Zone: exakte Nullstelle (−17,78 °C) vs. Nullstelle der
+// Faustregel (−15 °C). Dazwischen zeigen beide Formeln unterschiedliche
+// Vorzeichen für dieselbe Temperatur.
+const nullstelleExakt = -32 / 1.8;
+const nullstelleFaustregel = -15;
+if (Math.abs(fromC(nullstelleExakt, 'f')) > 1e-9) {
+  throw new Error('Artikel Faustregel-Fahrenheit: Nullstelle der exakten Formel stimmt nicht.');
+}
+if (faustregel(nullstelleFaustregel) !== 0) {
+  throw new Error('Artikel Faustregel-Fahrenheit: Nullstelle der Faustregel stimmt nicht.');
+}
+const beispielVorzeichenC = -16;
+const exaktBeiVorzeichen = fromC(beispielVorzeichenC, 'f');
+const faustregelBeiVorzeichen = faustregel(beispielVorzeichenC);
+if (!(exaktBeiVorzeichen > 0 && faustregelBeiVorzeichen < 0)) {
+  throw new Error('Artikel Faustregel-Fahrenheit: Vorzeichen-Beispiel bei −16 °C stimmt nicht mehr.');
+}
+
+// Relative Abweichungen für den Abschnitt zum Vorzeichenwechsel
+const relFehlerBei30 = (fehler(30) / fromC(30, 'f')) * 100;
+const relFehlerBeiMinus10 = (fehler(-10) / fromC(-10, 'f')) * 100;
+---
+<RechnerArtikel
+  titel="Die Faustregel „verdoppeln und 30 addieren“ trifft nur bei einer einzigen Temperatur exakt: 10 Grad Celsius"
+  lead={`Der Umrechner oben nennt für 20 °C in seinem Erklärtext den exakten Wert von ${zahl(exaktBei20, 0)} °F, in seiner FAQ dieselbe Temperatur aber als Beispiel für eine Faustregel mit dem Ergebnis „etwa ${zahl(faustregelBei20, 0)} °F“. Beide Zahlen stehen auf derselben Seite, beide sind für sich richtig – nur beziehen sie sich auf zwei verschiedene Rechenwege. Wo beide exakt zusammenfallen, lässt sich ausrechnen: bei genau ${zahl(fixpunktFaustregel, 0)} °C, keinem Grad mehr oder weniger.`}
+  datum="2026-09-28"
+  quellen={[
+    { titel: 'BIPM (Bureau International des Poids et Mesures): The International System of Units (SI), 9. Auflage 2019 – Definition des Kelvin und exakte Beziehung t/°C = T/K − 273,15', url: 'https://www.bipm.org/en/publications/si-brochure' },
+  ]}
+>
+  <h3>Zwei Zahlen für dieselbe Temperatur</h3>
+  <p>Im Erklärtext des Einheitenrechners steht unter den „praktischen Alltags-Umrechnungen“ die Zeile „20 °C ≈ 68 °F (Raumtemperatur)“ – ein Wert aus der exakten Formel °F = °C × 9/5 + 32, wie sie der Rechner oben für jede Eingabe verwendet. In der FAQ derselben Seite steht wenige Absätze weiter eine zweite Angabe: „Für Fahrenheit gilt als grobe Faustformel: °C verdoppeln und 30 addieren ergibt ungefähr °F (20 °C → etwa 70 °F).“ Beide Sätze widersprechen sich nicht – „ungefähr“ und „etwa“ sind ausdrücklich als Näherung gekennzeichnet –, aber sie zeigen für dieselbe Eingabe zwei unterschiedliche Zahlen: {zahl(exaktBei20, 0)} °F exakt gegen {zahl(faustregelBei20, 0)} °F über den Kopfrechen-Trick. Die Differenz von {zahl(Math.abs(fehler(beispielC)), 0)} °F wirkt klein. Die Frage, die sich daraus ergibt, ist, ob sie bei 20 °C zufällig so klein ist oder ob sie das immer ist.</p>
+
+  <h3>Warum die Faustregel überhaupt so nah dran liegt</h3>
+  <p>Die exakte Formel multipliziert die Celsius-Zahl mit 9/5, also 1,8. Die Faustregel multipliziert mit 2. Beide Faktoren liegen nur 0,2 auseinander – das ist der ganze Trick der Regel: Sie ersetzt einen krummen Bruch durch eine Zahl, die sich im Kopf verdoppeln lässt, und gleicht den Unterschied näherungsweise über den Summanden aus (32 exakt gegen 30 in der Faustregel). Für Temperaturen in der Nähe der Raumtemperatur bleibt der Fehler dadurch klein. Er verschwindet aber nicht grundsätzlich, sondern nur an einer einzigen Stelle vollständig – und diese Stelle lässt sich direkt ausrechnen, indem man beide Formeln gleichsetzt: 2c + 30 = 1,8c + 32. Umgestellt ergibt das 0,2 c = 2, also c = {zahl(fixpunktFaustregel, 0)}.</p>
+
+  <h3>Der Punkt, an dem beide Rechnungen exakt zusammenfallen</h3>
+  <p>Bei {zahl(fixpunktFaustregel, 0)} °C liefern beide Formeln exakt {zahl(fromC(10, 'f'), 0)} °F – nicht ungefähr, sondern auf die Nachkommastelle gleich, wie sich direkt nachrechnen lässt: 2 × 10 + 30 = 50 und 10 × 1,8 + 32 = 50. Für jede andere Temperatur weichen beide Formeln voneinander ab, weil es sich um zwei Geraden mit unterschiedlicher Steigung (2 gegenüber 1,8) handelt, die sich nur in genau einem Punkt schneiden können. Die Faustregel ist also keine grobe Schätzung, die „meistens ungefähr stimmt“ – sie ist eine zweite, andere lineare Funktion, die die exakte Formel an exakt einer Stelle berührt und sich von ihr mit wachsendem Abstand von dieser Stelle gleichmäßig entfernt.</p>
+
+  <h3>Wie der Fehler mit dem Abstand von 10 °C wächst</h3>
+  <p>Weil beide Formeln linear sind, wächst auch ihre Differenz linear: Sie beträgt exakt 0,2 °F für jedes Grad Celsius, um das man sich von {zahl(fixpunktFaustregel, 0)} °C entfernt – unabhängig davon, in welche Richtung. Bei 20 °C, dem Beispiel aus der FAQ, sind das 10 Grad Abstand vom Fixpunkt, also 0,2 × 10 = 2 °F Differenz. Bei 30 °C sind es bereits 4 °F, bei 50 °C schon 8 °F:</p>
+  <table>
+    <caption class="visually-hidden">Faustregel gegen exakte Formel bei verschiedenen Celsius-Werten</caption>
+    <thead>
+      <tr>
+        <th scope="col">Celsius</th>
+        <th scope="col" class="num">Exakt (°F)</th>
+        <th scope="col" class="num">Faustregel (°F)</th>
+        <th scope="col" class="num">Differenz</th>
+      </tr>
+    </thead>
+    <tbody>
+      {PRUEFPUNKTE.map((c) => (
+        <tr>
+          <th scope="row">{zahl(c, 0)} °C</th>
+          <td class="num">{zahl(fromC(c, 'f'), 0)} °F</td>
+          <td class="num">{zahl(faustregel(c), 0)} °F</td>
+          <td class="num">{c === 10 ? '0' : zahl(fehler(c), 0)} °F</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+  <p>Die Differenz ist an keiner Stelle zufällig – sie folgt exakt der Formel 0,2 × (Celsius − 10), wie sich für jede Zeile der Tabelle nachrechnen lässt. Für Temperaturen, mit denen die FAQ selbst wirbt (Raumtemperatur, Wetterangaben zwischen 0 °C und 30 °C), bleibt der absolute Fehler mit ein bis vier Grad Fahrenheit überschaubar. Wer die Regel aber auf einen Backofen (200 °C) oder einen strengen Wintertag (−15 °C) anwendet, gerät deutlich weiter vom Fixpunkt weg und entsprechend weiter von der exakten Umrechnung.</p>
+
+  <h3>Wo der kleine Fehler unangenehm groß wird</h3>
+  <p>Ein absoluter Fehler von wenigen Grad Fahrenheit klingt harmlos, solange die Zieltemperatur selbst weit von null entfernt ist. Das ändert sich in einem schmalen Bereich um den Gefrierpunkt: Die exakte Formel erreicht 0 °F bei {zahl(nullstelleExakt, 2)} °C, die Faustregel dagegen erst bei {zahl(nullstelleFaustregel, 0)} °C. Dazwischen, etwa bei {zahl(beispielVorzeichenC, 0)} °C, zeigt die exakte Formel noch {zahl(exaktBeiVorzeichen, 1)} °F – also noch über dem Fahrenheit-Nullpunkt –, während die Faustregel bereits {zahl(faustregelBeiVorzeichen, 0)} °F ausgibt und damit einen Wert unter null suggeriert, den es bei dieser Temperatur exakt gerechnet gar nicht gibt. Der absolute Fehler ist an dieser Stelle mit rund {zahl(Math.abs(fehler(beispielVorzeichenC)), 1)} °F nicht größer als anderswo – er fällt hier nur besonders auf, weil er das Vorzeichen kippt. In relativen Zahlen zeigt sich derselbe Effekt gedämpfter, aber in dieselbe Richtung: Bei 30 °C weicht die Faustregel um {proz(Math.abs(relFehlerBei30))} vom exakten Wert ab, bei −10 °C bereits um {proz(Math.abs(relFehlerBeiMinus10))} – der relative Fehler wächst schneller als der absolute, je näher man dem Nullpunkt der jeweiligen Skala kommt.</p>
+
+  <h3>Zwei weitere Punkte, an denen Skalen sich treffen</h3>
+  <p>Dieselbe Rechnung – zwei lineare Formeln gleichsetzen und nach Celsius auflösen – beantwortet auch zwei andere, oft zitierte Kuriositäten der Temperaturskalen. Celsius und Fahrenheit zeigen exakt denselben Zahlenwert bei c = 1,8c + 32, aufgelöst c = {zahl(fixpunktCF, 0)} °C: Bei −40 Grad zeigen beide Thermometer „−40“, ohne dass eine Einheit angehängt werden müsste, um sie zu unterscheiden. Der Umrechner oben bestätigt das direkt: Wählt man −40 als Ausgangswert in Celsius, zeigt die Fahrenheit-Zeile ebenfalls −40. Ebenso lässt sich fragen, wo Fahrenheit exakt das Doppelte von Celsius zeigt: 2c = 1,8c + 32, aufgelöst c = {zahl(fixpunktF2C, 0)} °C, mit {zahl(fromC(fixpunktF2C, 'f'), 0)} °F als Ergebnis – tatsächlich das Doppelte von 160. Weil beide Formeln Geraden mit fester, unterschiedlicher Steigung sind, kann es von jeder dieser Übereinstimmungen jeweils nur eine einzige geben, nicht mehrere.</p>
+
+  <h3>Warum Kelvin nie mit Celsius übereinstimmt</h3>
+  <p>Für Kelvin gilt eine andere Beziehung: K = °C + 273,15. Anders als bei Fahrenheit ist die Steigung hier exakt 1 – dieselbe wie bei Celsius selbst –, nur der Nullpunkt ist um genau 273,15 verschoben. Zwei Geraden mit gleicher Steigung, aber unterschiedlichem Achsenabschnitt, verlaufen parallel und schneiden sich nie: Der Abstand zwischen Kelvin- und Celsius-Wert bleibt für jede beliebige Temperatur exakt 273,15, ob bei −40 °C, bei 0 °C oder bei 100 °C. Diese Zahl ist keine Rundung, sondern Teil der SI-Definition selbst: Die Internationale Meterkonvention legt die Beziehung zwischen Kelvin und Grad Celsius exakt auf diesen Wert fest. Der Umrechner oben übernimmt sie unverändert – weshalb in seiner Ergebnisliste bei jeder Kategorie „Kelvin“ und „Celsius“ zwar nah beieinanderstehen, aber niemals denselben Zahlenwert zeigen können.</p>
+
+  <h3>Was das für die Zahlen auf dieser Seite bedeutet</h3>
+  <p>Weder der exakte Wert im Guide-Text noch die Faustregel in der FAQ ist falsch – beide sind das, was sie zu sein behaupten: eine Formel und eine Schätzhilfe für den Kopf. Der Unterschied zwischen ihnen ist aber kein Zufall und keine Ungenauigkeit, die sich durch mehr Nachkommastellen beheben ließe, sondern eine feste, lineare Funktion des Abstands zu 10 °C. Wer mit der Faustregel rechnet, sollte wissen, dass sie nur an einer einzigen Temperatur exakt ist und sich davor und danach mit konstanter Rate von der Formel entfernt, die der Rechner oben tatsächlich verwendet. Für die Übersetzung eines Wetterberichts reicht das meistens. Für eine Ofentemperatur oder eine Angabe knapp über oder unter dem Gefrierpunkt lohnt sich stattdessen ein Blick auf das Ergebnis oben – dort steht die exakte Formel, nicht die Faustregel.</p>
+</RechnerArtikel>

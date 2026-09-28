@@ -1,0 +1,250 @@
+---
+import RechnerArtikel from '../RechnerArtikel.astro';
+import { berechneGehaltserhoehung } from '../../../public/scripts/gehaltserhoehung.js';
+import { berechneNettoGehalt } from '../../../public/scripts/brutto-netto.js';
+import { BBG_KV_PV_MONAT, BBG_RV_AV_MONAT } from '../../../public/scripts/sozialversicherung.js';
+import { ZONE_3_OBERGRENZE } from '../../../public/scripts/einkommensteuer.js';
+
+// Der Gehaltserhöhung-Rechner zeigt oben bereits eine "Grenzbelastung" an –
+// diesen Artikel nutzen wir, um zu zeigen, warum dieser Wert regelmäßig höher
+// ausfällt als das, was auf dem Gehaltszettel als Abzugsquote steht, und dass
+// der Rechner eine Erhöhung korrekt Euro für Euro einordnet statt sie beim
+// Überschreiten einer Schwelle komplett zum neuen Satz zu versteuern.
+// Alle Zahlen unten kommen aus genau den Modulen, die auch die Rechnerseite
+// lädt (gehaltserhoehung.js → brutto-netto.js → lohnsteuer.js/einkommensteuer.js
+// und sozialversicherung.js). Nichts ist von Hand eingetippt.
+
+const zahl = (n: number, d = 1) =>
+  n.toLocaleString('de-DE', { minimumFractionDigits: d, maximumFractionDigits: d }).replace(/-/g, '−');
+const eur = (n: number) => zahl(n, 0) + ' €';
+const eurGenau = (n: number) => zahl(n, 2) + ' €';
+const proz = (n: number, d = 1) => zahl(n, d) + ' %';
+
+// --- Kernbeispiel: 4.000 € brutto, Steuerklasse IV, +500 € Erhöhung --------
+const BEISPIEL_BRUTTO = 4000;
+const BEISPIEL_ERHOEHUNG = 500;
+const STKLASSE = 'IV';
+
+const basis = berechneNettoGehalt({ bruttoMonat: BEISPIEL_BRUTTO, steuerklasse: 4 });
+const avgAbzugsquote = (1 - basis.netto / BEISPIEL_BRUTTO) * 100;
+const erhoehung = berechneGehaltserhoehung({
+  brutto: BEISPIEL_BRUTTO,
+  erhoehung: BEISPIEL_ERHOEHUNG,
+  typ: 'euro',
+  stklasse: STKLASSE,
+});
+const verhaeltnis = erhoehung.grenzbelastung / avgAbzugsquote;
+
+// These: Die Grenzbelastung auf die Erhöhung liegt spürbar über der
+// durchschnittlichen Abzugsquote auf das bisherige Gehalt.
+if (!(erhoehung.grenzbelastung > avgAbzugsquote + 5)) {
+  throw new Error(
+    `Artikel Gehaltserhöhung: Grenzbelastung (${erhoehung.grenzbelastung}%) liegt nicht deutlich über der Durchschnittsquote (${avgAbzugsquote}%).`
+  );
+}
+
+// --- Reihe über mehrere Bruttogehälter (immer +500 €, Steuerklasse IV) ----
+const REIHE_BRUTTOS = [2500, 3500, 4500, 5500, 5900, 8600];
+const reihe = REIHE_BRUTTOS.map((brutto) => {
+  const b = berechneNettoGehalt({ bruttoMonat: brutto, steuerklasse: 4 });
+  const avg = (1 - b.netto / brutto) * 100;
+  const e = berechneGehaltserhoehung({ brutto, erhoehung: 500, typ: 'euro', stklasse: 'IV' });
+  return { brutto, avg, grenz: e.grenzbelastung, nettoGewinn: e.nettoGewinn };
+});
+
+// Beleg für den letzten Absatz dieses Abschnitts: Oberhalb beider
+// Beitragsbemessungsgrenzen kommt die Grenzbelastung ausschließlich aus der
+// Lohnsteuer, nicht mehr aus Sozialabgaben.
+const oberhalbBeiderBBG = berechneNettoGehalt({ bruttoMonat: reihe[5].brutto, steuerklasse: 4 });
+const oberhalbBeiderBBGPlus = berechneNettoGehalt({ bruttoMonat: reihe[5].brutto + 500, steuerklasse: 4 });
+const svAnteilLetzeReihe = oberhalbBeiderBBGPlus.sozialversicherung - oberhalbBeiderBBG.sozialversicherung;
+
+if (Math.abs(svAnteilLetzeReihe) > 0.01) {
+  throw new Error(
+    `Artikel Gehaltserhöhung: Oberhalb von ${reihe[5].brutto} Euro sollten keine zusätzlichen Sozialabgaben mehr anfallen, tatsächlich sind es ${svAnteilLetzeReihe} Euro.`
+  );
+}
+
+// --- Additivität: eine Erhöhung in einem Schritt vs. in zwei Schritten -----
+// Wenn der Rechner eine Progressionsstufe beim Überschreiten korrekt nur für
+// den überschreitenden Teil ansetzt (kein Klippeneffekt), muss eine Erhöhung
+// von 1.000 € in einem Rutsch denselben Netto-Gewinn ergeben wie zwei
+// Erhöhungen von je 500 €, die nacheinander angewendet werden.
+function nettoGewinnBei(brutto: number, erhoehungEuro: number, stklasse: string) {
+  return berechneGehaltserhoehung({ brutto, erhoehung: erhoehungEuro, typ: 'euro', stklasse }).nettoGewinn;
+}
+const direkt = nettoGewinnBei(BEISPIEL_BRUTTO, 1000, STKLASSE);
+const zweistufig =
+  nettoGewinnBei(BEISPIEL_BRUTTO, 500, STKLASSE) + nettoGewinnBei(BEISPIEL_BRUTTO + 500, 500, STKLASSE);
+
+if (Math.abs(direkt - zweistufig) > 0.01) {
+  throw new Error(
+    `Artikel Gehaltserhöhung: Erhöhung in einem vs. zwei Schritten weicht ab (${direkt} vs ${zweistufig}).`
+  );
+}
+
+// --- Beitragsbemessungsgrenze: eine Erhöhung, die die Grenze überschreitet -
+// Wer knapp unter der KV/PV-Beitragsbemessungsgrenze verdient, zahlt auf eine
+// Erhöhung noch volle Sozialabgaben; wer knapp darüber verdient, gar keine
+// zusätzlichen mehr. Wichtig ist, was der Rechner tut, wenn die Erhöhung
+// selbst genau über diese Schwelle reicht: Er darf weder den ganzen
+// überschreitenden Betrag zum niedrigeren, noch zum höheren Satz
+// verbeitragen, sondern muss ihn aufteilen.
+const ganzUnterBBG = berechneGehaltserhoehung({
+  brutto: BBG_KV_PV_MONAT - 300,
+  erhoehung: 100,
+  typ: 'euro',
+  stklasse: 'IV',
+});
+const straddleBBG = berechneGehaltserhoehung({
+  brutto: BBG_KV_PV_MONAT - 50,
+  erhoehung: 100,
+  typ: 'euro',
+  stklasse: 'IV',
+});
+const ganzUeberBBG = berechneGehaltserhoehung({
+  brutto: BBG_KV_PV_MONAT + 300,
+  erhoehung: 100,
+  typ: 'euro',
+  stklasse: 'IV',
+});
+
+if (
+  !(
+    straddleBBG.grenzbelastung < ganzUnterBBG.grenzbelastung &&
+    straddleBBG.grenzbelastung > ganzUeberBBG.grenzbelastung
+  )
+) {
+  throw new Error(
+    `Artikel Gehaltserhöhung: Der Übergang über die Beitragsbemessungsgrenze springt, statt zu vermitteln (unter ${ganzUnterBBG.grenzbelastung}%, Übergang ${straddleBBG.grenzbelastung}%, über ${ganzUeberBBG.grenzbelastung}%).`
+  );
+}
+---
+<RechnerArtikel
+  titel={`Bei ${eur(BEISPIEL_BRUTTO)} brutto zahlt die Erhöhung ${proz(erhoehung.grenzbelastung, 0)}, das Gehalt davor nur ${proz(avgAbzugsquote, 0)}`}
+  lead="Wer im Gehaltsgespräch eine Zahl im Kopf hat, rechnet meist mit dem Steuersatz vom eigenen Gehaltszettel. Der Rechner oben nennt aber einen anderen Wert – die Grenzbelastung – und der ist regelmäßig höher, weil er nicht das ganze Gehalt betrifft, sondern nur den zusätzlichen Teil."
+  datum="2026-09-24"
+  quellen={[
+    { titel: '§ 32a Abs. 1 EStG – Einkommensteuertarif', url: 'https://www.gesetze-im-internet.de/estg/__32a.html' },
+    { titel: '§ 39b Abs. 2 EStG – Lohnsteuerabzug', url: 'https://www.gesetze-im-internet.de/estg/__39b.html' },
+    { titel: 'Sozialversicherungsrechengrößen-Verordnung 2026, § 2 Abs. 2 – Beitragsbemessungsgrenze KV/PV', url: 'https://www.gesetze-im-internet.de/svbezgrv_2026/' },
+  ]}
+>
+  <h3>Zwei Sätze für ein Gehalt</h3>
+  <p>
+    Bei {eur(BEISPIEL_BRUTTO)} Monatsbrutto und Steuerklasse {STKLASSE} bleiben nach
+    Steuer und Sozialabgaben {eur(basis.netto)} netto übrig. Das entspricht einer
+    durchschnittlichen Abzugsquote von {proz(avgAbzugsquote)} – so viel geht insgesamt
+    vom gesamten Gehalt weg, und diese Zahl kennt man ungefähr vom eigenen
+    Gehaltszettel. Kommt jetzt eine Erhöhung von {eur(BEISPIEL_ERHOEHUNG)} brutto
+    dazu, bleiben davon aber nur {eurGenau(erhoehung.nettoGewinn)} netto übrig – eine
+    Grenzbelastung von {proz(erhoehung.grenzbelastung)}. Das ist das{' '}
+    {zahl(verhaeltnis, 2)}-Fache der durchschnittlichen Quote.
+  </p>
+  <p>
+    Der Grund ist banal, sobald man ihn ausspricht, aber im Kopf oft nicht präsent:
+    Die Erhöhung wird nicht mit dem Durchschnitt aus Grundfreibetrag, den
+    niedrigeren unteren Progressionsstufen und der bisherigen Abzugsquote verrechnet,
+    sondern ausschließlich mit dem Satz, der am oberen Ende des <em>neuen</em>{' '}
+    Einkommens gilt. Wer 4.000 Euro verdient und auf 4.500 Euro steigt, zahlt auf
+    die letzten 500 Euro also ungefähr den Satz, der zwischen 4.000 und 4.500 Euro
+    gilt – nicht den Satz, der im Schnitt auf die ersten 4.000 Euro anfällt. Genau
+    diesen Wert zeigt das Feld „Abgaben" im Rechner oben an, wenn man 4.000 Euro,
+    500 Euro Erhöhung und Steuerklasse IV einträgt.
+  </p>
+  <p>
+    Drei Dinge bestimmen, wie groß dieser Unterschied im Einzelfall ausfällt: der
+    Einkommensteuertarif nach § 32a EStG, der von 14 % linear bis 42 % ansteigt und
+    erst ab einem zu versteuernden Einkommen von {eur(ZONE_3_OBERGRENZE + 1)} im Jahr
+    konstant bleibt; die Steuerklasse, die über den Lohnsteuerabzug nach § 39b EStG
+    entscheidet, wie
+    dieser Tarif auf den Monat verteilt wird; und die Beitragsbemessungsgrenzen der
+    Sozialversicherung, die weiter unten eine eigene Rolle spielen. Die
+    durchschnittliche Abzugsquote wächst dabei über das ganze bisherige Einkommen
+    gemittelt nur langsam, während die Grenzbelastung unmittelbar den Satz am oberen
+    Ende widerspiegelt – deshalb läuft sie ihr voraus.
+  </p>
+
+  <h3>Der Abstand über das Gehalt hinweg</h3>
+  <p>
+    Wie groß die Lücke zwischen Durchschnitt und Grenze ist, hängt vom bisherigen
+    Gehalt ab. Die folgende Reihe hält die Erhöhung konstant bei 500 Euro und
+    Steuerklasse IV, verändert nur das Ausgangsgehalt – alle Werte stammen aus
+    demselben Rechner oben:
+  </p>
+  <table>
+    <caption class="visually-hidden">Durchschnittliche Abzugsquote und Grenzbelastung je nach Ausgangsgehalt, jeweils bei 500 Euro Erhöhung und Steuerklasse IV</caption>
+    <thead>
+      <tr><th scope="col">Bisheriges Brutto</th><th scope="col">Ø-Abzugsquote</th><th scope="col">Grenzbelastung (+500 €)</th><th scope="col">Netto-Gewinn</th></tr>
+    </thead>
+    <tbody>
+      {reihe.map((r) => (
+        <tr>
+          <th scope="row">{eur(r.brutto)}</th>
+          <td class="num">{proz(r.avg)}</td>
+          <td class="num">{proz(r.grenz)}</td>
+          <td class="num">{eurGenau(r.nettoGewinn)}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+  <p>
+    Der Abstand wächst zunächst mit dem Gehalt – bei {eur(reihe[0].brutto)} liegen
+    noch {zahl(reihe[0].grenz - reihe[0].avg, 1)} Prozentpunkte zwischen beiden
+    Werten, bei {eur(reihe[3].brutto)} sind es {zahl(reihe[3].grenz - reihe[3].avg, 1)}.
+    Bei {eur(reihe[4].brutto)} fällt die Grenzbelastung dagegen wieder auf{' '}
+    {proz(reihe[4].grenz)}: Ab {eur(BBG_KV_PV_MONAT)} Monatsbrutto endet die Beitragspflicht
+    zur Kranken- und Pflegeversicherung (§ 2 Abs. 2 SVBezGrV 2026), ein Teil dieser
+    Erhöhung liegt bereits darüber und bleibt entsprechend beitragsfrei. Bei{' '}
+    {eur(reihe[5].brutto)} greift zusätzlich die höhere Grenze für Renten- und
+    Arbeitslosenversicherung von {eur(BBG_RV_AV_MONAT)}: Für eine Erhöhung, die
+    komplett oberhalb beider Grenzen liegt, verändert sich die Sozialversicherung
+    um {eurGenau(svAnteilLetzeReihe)}, die verbleibende Grenzbelastung von{' '}
+    {proz(reihe[5].grenz)} kommt dort ausschließlich aus der Lohnsteuer.
+  </p>
+
+  <h3>Keine Klippe: Euro für Euro</h3>
+  <p>
+    Eine nahe liegende Sorge ist, ob der Rechner beim Überschreiten einer solchen
+    Schwelle die <em>gesamte</em> Erhöhung zum neuen Satz behandelt statt nur den
+    Teil, der tatsächlich darüber liegt – ein sogenannter Klippeneffekt. Das lässt
+    sich prüfen: Wird eine Erhöhung von 1.000 Euro auf einmal eingetragen oder in
+    zwei Schritten von je 500 Euro, muss beim selben Rechenweg derselbe
+    Netto-Gewinn herauskommen. Bei {eur(BEISPIEL_BRUTTO)} und Steuerklasse{' '}
+    {STKLASSE} ergibt eine einzelne Erhöhung um 1.000 Euro einen Netto-Gewinn von{' '}
+    {eurGenau(direkt)}; zwei Erhöhungen von je 500 Euro nacheinander ergeben in
+    der Summe {eurGenau(zweistufig)} – auf den Cent identisch.
+  </p>
+  <p>
+    Genauso an der Beitragsbemessungsgrenze: Bei einem Ausgangsgehalt von{' '}
+    {eur(BBG_KV_PV_MONAT - 300)}, ganz unterhalb der Grenze, kostet eine Erhöhung
+    um 100 Euro {proz(ganzUnterBBG.grenzbelastung)} Abgaben. Bei{' '}
+    {eur(BBG_KV_PV_MONAT + 300)}, ganz oberhalb, sind es nur noch{' '}
+    {proz(ganzUeberBBG.grenzbelastung)}. Liegt das Ausgangsgehalt bei{' '}
+    {eur(BBG_KV_PV_MONAT - 50)} – die Erhöhung reicht dann genau über die Grenze
+    hinweg –, landet die Belastung mit {proz(straddleBBG.grenzbelastung)} sauber
+    dazwischen, statt auf einen der beiden Werte zu springen. Der Rechner
+    verbeitragt also nur den Teil der Erhöhung unterhalb der Grenze und lässt den
+    Rest unverbeitragt, statt die ganze Erhöhung pauschal einer Seite zuzuschlagen.
+  </p>
+
+  <h3>Was daraus folgt</h3>
+  <p>
+    Für die Gehaltsverhandlung heißt das vor allem: Der Wert, an dem man eine
+    Erhöhung misst, ist nicht der Steuersatz auf dem letzten Gehaltszettel, sondern
+    die Grenzbelastung, die der Rechner oben zusammen mit Steuerklasse und
+    Sozialabgaben ausweist. Wie viel davon im konkreten Fall übrig bleibt, hängt an
+    Steuerklasse, bisherigem Gehalt und daran, ob die Erhöhung eine
+    Beitragsbemessungsgrenze über- oder unterschreitet – das lässt sich mit den
+    eigenen Zahlen oben nachrechnen. Wie viel Erhöhung realistisch verhandelbar ist
+    oder ob sich eine steuerfreie Alternative mehr lohnt, ist eine andere Frage, die
+    dieser Rechner nicht beantwortet.
+  </p>
+  <p class="ra-hinweis">
+    Der Solidaritätszuschlag ist in allen Zahlen oben bereits enthalten, da er in
+    dieselbe Netto-Berechnung einfließt wie die Lohnsteuer. Nicht enthalten ist die
+    Kirchensteuer: Der Gehaltserhöhung-Rechner fragt sie nicht ab, sie hängt zudem
+    von Konfession und Bundesland ab. Wer sie braucht, findet sie im
+    Brutto-Netto-Rechner, der dieselben Module lädt.
+  </p>
+</RechnerArtikel>

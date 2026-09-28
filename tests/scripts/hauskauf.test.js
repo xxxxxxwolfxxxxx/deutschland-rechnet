@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { berechneHauskauf } from '../../public/scripts/hauskauf.js';
-import { STEUERSAETZE } from '../../public/scripts/grunderwerbsteuer.js';
+import { STEUERSAETZE, berechneGrunderwerbsteuer } from '../../public/scripts/grunderwerbsteuer.js';
 import { berechneNotarUndGrundbuch } from '../../public/scripts/gnotkg.js';
 import { MAKLER_PROVISION_PROZENT_JE_SEITE } from '../../public/scripts/immokauf-nebenkosten.js';
 
@@ -168,5 +168,26 @@ describe('Finanzierung', () => {
     expect(r.restschuld).toBe(Math.round((r.darlehen - getilgt) * 100) / 100);
     expect(r.restschuld).toBeGreaterThan(240000);
     expect(r.restschuld).toBeLessThan(247000);
+  });
+});
+
+// Nachtrag 24.09.2026: Die Grunderwerbsteuer wurde hier ein zweites Mal
+// berechnet statt über berechneGrunderwerbsteuer() aus grunderwerbsteuer.js
+// bezogen - mit Rundung auf Cent statt der gesetzlich vorgeschriebenen
+// Abrundung auf volle Euro (§ 11 Abs. 2 GrEStG). Bei krummen Kaufpreisen
+// driftete das um bis zu rund einen Euro auseinander.
+describe('Grunderwerbsteuer folgt der Abrundung auf volle Euro (§ 11 Abs. 2 GrEStG)', () => {
+  it('stimmt bei einem krummen Kaufpreis exakt mit berechneGrunderwerbsteuer() ueberein', () => {
+    const kaufpreis = 333333;
+    const bundesland = 'nw';
+    const r = berechneHauskauf({
+      kaufpreis, bundesland, eigenkapital: 80000,
+      zins: 3.5, tilgung: 2, laufzeit: 10, makler: false,
+    });
+    const erwarteteGrunderwerbsteuer = berechneGrunderwerbsteuer({ kaufpreis, bundesland }).steuer;
+    const erwarteteNotarUndGrundbuch = berechneNotarUndGrundbuch(kaufpreis).gesamt;
+    const erwarteteNebenkosten = Math.round((erwarteteGrunderwerbsteuer + erwarteteNotarUndGrundbuch) * 100) / 100;
+    expect(erwarteteGrunderwerbsteuer).toBe(Math.floor(333333 * 6.5 / 100));
+    expect(r.nebenkosten).toBeCloseTo(erwarteteNebenkosten, 2);
   });
 });

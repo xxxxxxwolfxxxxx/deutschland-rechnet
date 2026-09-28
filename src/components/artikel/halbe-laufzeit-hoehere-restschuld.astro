@@ -1,0 +1,286 @@
+---
+import RechnerArtikel from '../RechnerArtikel.astro';
+import { artikelPfadVonSlug } from '../../data/ratgeber';
+import { darlehenskosten } from '../../../public/scripts/annuitaet.js';
+
+// Alle Zahlen dieses Artikels entstehen zur Buildzeit aus demselben Modul,
+// das der Rechner oben auf dieser Seite im Browser laedt. Kein Angebots-
+// vergleich, keine Kosten, kein Effektivzins – nur die Frage, wie sich EIN
+// Annuitaetendarlehen innerhalb seiner eigenen Laufzeit verhaelt. Die
+// Nachbarfrage (zwei Angebote, unterschiedliche Laufzeit, Ratensumme gegen
+// Effektivzins) beantwortet bereits der Artikel "effektivzins-gegen-
+// ratensumme", der ebenfalls auf diesen Rechner verweist – bewusst ein
+// anderes Thema, damit beide nebeneinander stehen koennen.
+
+const base = import.meta.env.BASE_URL;
+
+const eur = (n: number, d = 2) =>
+  n.toLocaleString('de-DE', { minimumFractionDigits: d, maximumFractionDigits: d }) + ' €';
+const eur0 = (n: number) => n.toLocaleString('de-DE', { maximumFractionDigits: 0 }) + ' €';
+const proz = (n: number, d = 1) =>
+  n.toLocaleString('de-DE', { minimumFractionDigits: d, maximumFractionDigits: d }) + ' %';
+const mon = (n: number) => `${n} Monate`;
+
+// --- Das durchgehende Beispiel: die Startwerte des Rechners oben -----------
+const BETRAG = 10000;
+const LAUFZEIT = 60;
+const SOLLZINS = 6;
+const HALB = LAUFZEIT / 2;
+
+const basis = darlehenskosten({ betrag: BETRAG, sollzins: SOLLZINS, monate: LAUFZEIT });
+const restschuldHalb = basis.plan[HALB - 1].restschuld;
+const getilgtHalb = BETRAG - restschuldHalb;
+const restschuldHalbProzent = (restschuldHalb / BETRAG) * 100;
+const getilgtHalbProzent = (getilgtHalb / BETRAG) * 100;
+const halbierungsMonat = basis.plan.findIndex((z) => z.restschuld <= BETRAG / 2) + 1;
+
+const ersteHaelfteZinsen = basis.plan.slice(0, HALB).reduce((s, z) => s + z.zins, 0);
+const zweiteHaelfteZinsen = basis.plan.slice(HALB).reduce((s, z) => s + z.zins, 0);
+const ersteHaelfteAnteil =
+  (ersteHaelfteZinsen / (ersteHaelfteZinsen + zweiteHaelfteZinsen)) * 100;
+
+const zinsanteilErsteRateProzent = (basis.zinsanteilErsteRate / basis.rate) * 100;
+const letzteRate = basis.plan[basis.plan.length - 1];
+const zinsanteilLetzteRateProzent = (letzteRate.zins / letzteRate.rate) * 100;
+
+// Selbstpruefung 1: Nach der Haelfte der Laufzeit muss WENIGER als die
+// Haelfte getilgt sein – sonst traegt die These des Artikels nicht.
+if (restschuldHalbProzent <= 50) {
+  throw new Error(
+    `Ratenkredit-Artikel: Restschuld nach halber Laufzeit ist nicht ueber 50 % (${restschuldHalbProzent} %).`,
+  );
+}
+
+// --- Reihe ueber den Sollzins, Betrag und Laufzeit fest ---------------------
+const SOLLZINS_REIHE = [0, 2, 4, 6, 8, 10, 12, 15];
+const sollzinsReihe = SOLLZINS_REIHE.map((z) => {
+  const k = darlehenskosten({ betrag: BETRAG, sollzins: z, monate: LAUFZEIT });
+  const restHalb = k.plan[HALB - 1].restschuld;
+  const halbMonat = k.plan.findIndex((p) => p.restschuld <= BETRAG / 2) + 1;
+  return {
+    sollzins: z,
+    rate: k.rate,
+    restHalb,
+    restHalbProzent: (restHalb / BETRAG) * 100,
+    halbMonat,
+    zinsanteilErsteRateProzent: (k.zinsanteilErsteRate / k.rate) * 100,
+  };
+});
+
+// Selbstpruefung 2: Ohne Zins liegt die Restschuld zur Halbzeit exakt bei
+// 50 % (reine Kontrollgroesse, Rundung auf Cent erlaubt Minimalabweichung).
+const kontrolleOhneZins = sollzinsReihe[0];
+if (Math.abs(kontrolleOhneZins.restHalbProzent - 50) > 0.1) {
+  throw new Error(
+    `Ratenkredit-Artikel: Ohne Zins muesste die Restschuld zur Halbzeit exakt 50 % sein (${kontrolleOhneZins.restHalbProzent} %).`,
+  );
+}
+
+// Selbstpruefung 3: Restschuld-Anteil zur Halbzeit waechst streng monoton
+// mit dem Sollzins, der Halbierungsmonat faellt nie mit steigendem Zins,
+// und der Zinsanteil der ersten Rate waechst ebenfalls streng monoton.
+for (let i = 1; i < sollzinsReihe.length; i += 1) {
+  if (sollzinsReihe[i].restHalbProzent <= sollzinsReihe[i - 1].restHalbProzent) {
+    throw new Error('Ratenkredit-Artikel: Restschuld-Anteil zur Halbzeit steigt nicht monoton mit dem Sollzins.');
+  }
+  if (sollzinsReihe[i].halbMonat < sollzinsReihe[i - 1].halbMonat) {
+    throw new Error('Ratenkredit-Artikel: Halbierungsmonat faellt mit steigendem Sollzins.');
+  }
+  if (sollzinsReihe[i].zinsanteilErsteRateProzent <= sollzinsReihe[i - 1].zinsanteilErsteRateProzent) {
+    throw new Error('Ratenkredit-Artikel: Zinsanteil der ersten Rate steigt nicht monoton mit dem Sollzins.');
+  }
+}
+
+// --- Reihe ueber die Laufzeit, Sollzins fest --------------------------------
+const LAUFZEITEN = [24, 36, 60, 84, 120];
+const laufzeitReihe = LAUFZEITEN.map((m) => {
+  const k = darlehenskosten({ betrag: BETRAG, sollzins: SOLLZINS, monate: m });
+  const halb = Math.floor(m / 2);
+  const restHalb = k.plan[halb - 1].restschuld;
+  return { monate: m, restHalb, restHalbProzent: (restHalb / BETRAG) * 100 };
+});
+
+// Selbstpruefung 4: Bei gleichem Sollzins waechst der Restschuld-Anteil zur
+// Halbzeit streng monoton mit der Laufzeit – je laenger der Kredit laeuft,
+// desto staerker die Verzerrung.
+for (let i = 1; i < laufzeitReihe.length; i += 1) {
+  if (laufzeitReihe[i].restHalbProzent <= laufzeitReihe[i - 1].restHalbProzent) {
+    throw new Error('Ratenkredit-Artikel: Restschuld-Anteil zur Halbzeit steigt nicht monoton mit der Laufzeit.');
+  }
+}
+---
+<RechnerArtikel
+  titel="Nach der Hälfte der Laufzeit ist mehr als die Hälfte der Schuld noch offen"
+  datum="2026-09-28"
+  lead={`Bei ${eur0(BETRAG)}, ${mon(LAUFZEIT)} Laufzeit und ${proz(SOLLZINS, 1)} Sollzins – den Startwerten des Rechners oben – sind nach genau ${mon(HALB)}, der exakten Hälfte der Zeit, erst ${proz(getilgtHalbProzent)} der Kreditsumme getilgt. Die Restschuld liegt bei ${eur(restschuldHalb)}, also ${proz(restschuldHalbProzent)} statt der erwarteten ${proz(50)}. Halbiert ist die Schuld erst in Monat ${halbierungsMonat} von ${LAUFZEIT} – und in der ersten Hälfte der Laufzeit fallen bereits ${proz(ersteHaelfteAnteil)} aller Zinsen an.`}
+>
+  <h3>Die Rate bleibt gleich, ihr Innenleben nicht</h3>
+  <p>
+    Ein Ratenkredit als Annuitätendarlehen zahlt über die gesamte Laufzeit
+    dieselbe Monatsrate. Was sich verschiebt, ist die Aufteilung dieser Rate:
+    Am Anfang ist die Restschuld hoch, also ist auch der Zinsanteil hoch und
+    nur ein kleiner Rest tilgt. Mit jeder Rate sinkt die Restschuld ein
+    Stück, also sinkt der nächste Zinsanteil, und mehr von der gleich
+    hohen Rate tilgt. Bei {eur0(BETRAG)} über {mon(LAUFZEIT)} zu
+    {' '}{proz(SOLLZINS, 1)} Sollzins sind in der ersten Rate
+    {' '}{proz(zinsanteilErsteRateProzent)} reiner Zins, in der letzten Rate
+    noch {proz(zinsanteilLetzteRateProzent, 2)}.
+  </p>
+  <p>
+    Diese Verschiebung ist bekannt. Weniger bekannt ist, wie stark sie sich
+    auf die Restschuld zur Mitte der Laufzeit auswirkt – und dass sie mit
+    Zins und Laufzeit systematisch wächst.
+  </p>
+
+  <h3>Wie schief die Mitte tatsächlich liegt</h3>
+  <p>
+    Halbe Zeit müsste naiv halbe Schuld bedeuten. Das stimmt nur ohne Zins:
+    Fließen keine Zinsen, tilgt jede Rate exakt denselben Betrag, und nach
+    {' '}{mon(HALB)} von {mon(LAUFZEIT)} steht die Restschuld exakt bei
+    {' '}{proz(kontrolleOhneZins.restHalbProzent)}. Sobald ein Zins dazukommt,
+    kippt das Bild – und zwar mit jedem Prozentpunkt mehr.
+  </p>
+  <table>
+    <caption class="visually-hidden">
+      Restschuld nach halber Laufzeit und Monat der tatsächlichen Halbierung,
+      nach Sollzins, bei {eur0(BETRAG)} über {mon(LAUFZEIT)}
+    </caption>
+    <thead>
+      <tr>
+        <th scope="col">Sollzins</th>
+        <th scope="col">Rate</th>
+        <th scope="col">Restschuld nach {mon(HALB)}</th>
+        <th scope="col">Halbiert in Monat</th>
+      </tr>
+    </thead>
+    <tbody>
+      {sollzinsReihe.map((z) => (
+        <tr>
+          <th scope="row">{proz(z.sollzins, 0)}</th>
+          <td class="num">{eur(z.rate)}</td>
+          <td class="num">{eur(z.restHalb)} ({proz(z.restHalbProzent)})</td>
+          <td class="num">{z.halbMonat} / {LAUFZEIT}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+  <p>
+    Bei {proz(SOLLZINS, 1)} Sollzins, der Voreinstellung des Rechners, sind
+    zur Halbzeit noch {proz(restschuldHalbProzent)} offen statt {proz(50)},
+    und die tatsächliche Halbierung fällt erst auf Monat {halbierungsMonat}
+    {' '}– drei Monate später als die Kalenderhälfte. Bei {proz(15, 0)} Sollzins
+    sind es schon {mon(sollzinsReihe[sollzinsReihe.length - 1].halbMonat)}
+    {' '}bis zur Halbierung, sechs Monate später als die Zeitmitte.
+  </p>
+
+  <h3>Der Effekt wächst mit der Laufzeit</h3>
+  <p>
+    Derselbe Mechanismus verschärft sich, je länger der Kredit läuft, weil
+    die Zinsen mehr Monate lang auf eine hohe Restschuld wirken können. Bei
+    unverändert {proz(SOLLZINS, 1)} Sollzins:
+  </p>
+  <table>
+    <caption class="visually-hidden">
+      Restschuld nach halber Laufzeit, nach Laufzeit, bei {eur0(BETRAG)} und
+      {' '}{proz(SOLLZINS, 1)} Sollzins
+    </caption>
+    <thead>
+      <tr>
+        <th scope="col">Laufzeit</th>
+        <th scope="col">Halbe Laufzeit</th>
+        <th scope="col">Restschuld dort</th>
+      </tr>
+    </thead>
+    <tbody>
+      {laufzeitReihe.map((z) => (
+        <tr>
+          <th scope="row">{mon(z.monate)}</th>
+          <td class="num">{mon(z.monate / 2)}</td>
+          <td class="num">{eur(z.restHalb)} ({proz(z.restHalbProzent)})</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+  <p>
+    Über {mon(24)} sind zur Halbzeit noch {proz(laufzeitReihe[0].restHalbProzent)}
+    {' '}offen, über {mon(120)} bereits {proz(laufzeitReihe[laufzeitReihe.length - 1].restHalbProzent)}.
+    Ein längerer Kredit tilgt in seiner ersten Hälfte also nicht nur absolut,
+    sondern auch relativ weniger von der Summe, die er insgesamt zurückzahlt.
+  </p>
+
+  <h3>Wo die Zinslast tatsächlich anfällt</h3>
+  <p>
+    Dieselbe Schieflage zeigt sich bei den Zinsen selbst. Von den
+    {' '}{eur0(basis.zinsen)} Gesamtzinsen des Beispiels oben fallen
+    {' '}{eur(ersteHaelfteZinsen)} – {proz(ersteHaelfteAnteil)} – bereits in der
+    ersten Hälfte der Laufzeit an, obwohl dort genau die Hälfte der Raten
+    gezahlt wird. Der Grund ist derselbe wie oben: Zinsen berechnen sich aus
+    der Restschuld, und die ist in der ersten Hälfte im Schnitt deutlich
+    höher als in der zweiten.
+  </p>
+  <p class="ra-hinweis">
+    Alle Werte dieser Seite stammen aus demselben Tilgungsplan, den der
+    Rechner oben Monat für Monat berechnet – hier nur einmal vollständig
+    durchgerechnet statt nur für die ersten zwölf Monate angezeigt. Wer die
+    Zahlen nachprüfen will, muss oben nur {eur0(BETRAG)}, {mon(LAUFZEIT)}
+    {' '}und {proz(SOLLZINS, 1)} eingeben, den Tilgungsplan weiterblättern und
+    Monat {HALB} mit der Restschuld hier vergleichen.
+  </p>
+
+  <h3>Was das für die Praxis bedeutet</h3>
+  <ul>
+    <li>
+      <strong>Eigenkapital, das über den Kredit entsteht:</strong> Wer ein
+      Fahrzeug oder eine Anschaffung zur Hälfte der Kreditlaufzeit weiterreicht
+      oder beleiht, hat weniger Schuld abgebaut, als die verstrichene Zeit
+      vermuten lässt. Im Beispiel oben sind es {proz(restschuldHalbProzent - 50)}
+      {' '}Prozentpunkte mehr Restschuld als die naive Rechnung „halbe Zeit,
+      halbe Schuld" ergibt.
+    </li>
+    <li>
+      <strong>Zeitpunkt einer außerplanmäßigen Zahlung:</strong> Weil frühe
+      Raten überproportional aus Zinsen bestehen und die Restschuld in der
+      ersten Hälfte am höchsten ist, spart ein zusätzlich getilgter Euro am
+      Anfang der Laufzeit über die Restlaufzeit mehr Zinsen als derselbe Euro
+      gegen Ende – dort, wo die letzte Rate im Beispiel oben nur noch
+      {' '}{proz(zinsanteilLetzteRateProzent, 2)} Zins enthält.
+    </li>
+    <li>
+      <strong>Vergleich mit der reinen Kalenderzeit:</strong> „Ich bin zur
+      Hälfte durch" sagt über eine Annuität wenig aus. Aussagekräftig ist
+      allein die Restschuld aus dem Tilgungsplan, nicht der Anteil der
+      verstrichenen Monate.
+    </li>
+  </ul>
+
+  <h3>Was diese Rechnung nicht abbildet</h3>
+  <ul>
+    <li>
+      <strong>Außerplanmäßige Tilgungen.</strong> Der Rechner oben kennt kein
+      Feld dafür; jede Zeile dieses Artikels geht von planmäßigen Raten ohne
+      Sondertilgung aus.
+    </li>
+    <li>
+      <strong>Kosten und effektiver Jahreszins.</strong> Diese Seite
+      vergleicht ausschließlich die Restschuld innerhalb eines einzelnen
+      Kredits. Wie einmalige Kosten den effektiven Jahreszins verändern und
+      wie sich zwei Angebote unterschiedlicher Laufzeit vergleichen lassen,
+      steht im verwandten Artikel zum {' '}
+      <a href={`${base}${artikelPfadVonSlug('effektivzins-gegen-ratensumme')}`}>
+        Kreditvergleich
+      </a>.
+    </li>
+    <li>
+      <strong>Variable Sollzinsen.</strong> Gerechnet wird mit einem über die
+      gesamte Laufzeit unveränderten Sollzins, wie ihn auch der Rechner oben
+      voraussetzt.
+    </li>
+    <li>
+      <strong>Rundung auf den Cent.</strong> Jede Monatsrate im Tilgungsplan
+      wird auf den Cent gerundet; über {LAUFZEIT} Monate kann sich das auf
+      wenige Cent summieren. Die Kontrollrechnung ohne Zins zeigt das oben:
+      {' '}{proz(kontrolleOhneZins.restHalbProzent)} statt der theoretischen
+      {' '}{proz(50)}.
+    </li>
+  </ul>
+</RechnerArtikel>

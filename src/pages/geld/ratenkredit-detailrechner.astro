@@ -3,6 +3,7 @@ import Layout from '../../layouts/Layout.astro';
 import CalculatorShell from '../../components/CalculatorShell.astro';
 import CalculatorGuide from '../../components/CalculatorGuide.astro';
 import { CALCULATORS, CATEGORIES } from '../../data/calculators';
+import ArtikelHalbeLaufzeit from '../../components/artikel/halbe-laufzeit-hoehere-restschuld.astro';
 import { annuitaetenrate, tilgungsplan, effektivzins } from '../../../public/scripts/annuitaet.js';
 const calc = CALCULATORS.find(c => c.slug === 'ratenkredit-detailrechner')!;
 const cat = CATEGORIES[calc.category];
@@ -114,6 +115,7 @@ const faqs = [
         </table>
       </div>
     </div>
+    <ArtikelHalbeLaufzeit slot="artikel" />
   </CalculatorShell>
 
   <CalculatorGuide

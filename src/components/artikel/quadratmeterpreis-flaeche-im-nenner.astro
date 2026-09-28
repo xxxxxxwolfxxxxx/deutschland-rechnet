@@ -1,0 +1,445 @@
+---
+import RechnerArtikel from '../RechnerArtikel.astro';
+import {
+  berechneQmPreis,
+  quadratmeterpreis,
+  wohnflaecheNachWoFlV,
+  ANRECHNUNG,
+} from '../../../public/scripts/qm-preis.js';
+
+// Alle Zahlen dieses Artikels kommen aus demselben Modul, das der Rechner
+// oben laedt (public/scripts/qm-preis.js). Nichts ist hier von Hand
+// eingetragen – die Preise je Quadratmeter entstehen aus Kaufpreis und
+// Flaeche, die Wohnflaechen aus den Anrechnungsfaktoren des § 4 WoFlV.
+
+const zahl = (n: number, d = 1) =>
+  n.toLocaleString('de-DE', { minimumFractionDigits: d, maximumFractionDigits: d }).replace(/^-/, '−');
+const eur = (n: number) => zahl(n, 0) + ' €';
+const eurGenau = (n: number) => zahl(n, 2) + ' €';
+const qm = (n: number, d = 0) => zahl(n, d) + ' m²';
+const proz = (n: number, d = 1) => zahl(n, d) + ' %';
+const proQm = (n: number) => (Number.isInteger(n) ? eur(n) : eurGenau(n)) + '/m²';
+
+// --- Das Beispiel der Rechnerseite ---------------------------------------
+// Dieselben Eingaben, die im Rechner oben voreingestellt sind.
+const KAUFPREIS = 360000;
+const BEWORBEN = 85;
+const GRUNDFLAECHEN = { vollHoch: 64, halbHoch: 16, niedrig: 5 };
+
+const bsp = berechneQmPreis({
+  kaufpreis: KAUFPREIS,
+  beworbeneFlaeche: BEWORBEN,
+  flaechen: GRUNDFLAECHEN,
+});
+if (bsp.wohnflaeche !== 72 || bsp.preisWoFlV !== 5000) {
+  throw new Error('Quadratmeterpreis-Artikel: Das Beispiel der Rechnerseite rechnet anders als erwartet.');
+}
+
+const verlustQm = BEWORBEN - bsp.wohnflaeche;
+const flaechenAenderung = (bsp.wohnflaeche / BEWORBEN - 1) * 100;
+const aufschlag = bsp.aufschlagProzent as number;
+
+// Zusicherung 1: Der Preisaufschlag ist groesser als der Flaechenverlust.
+// Genau das ist die These der Ueberschrift – stimmt sie nicht, bricht der Build.
+if (!(aufschlag > Math.abs(flaechenAenderung))) {
+  throw new Error('Quadratmeterpreis-Artikel: Der Aufschlag ist nicht groesser als der Flaechenverlust.');
+}
+
+// Zusicherung 2: Die Kehrwert-Formel erklaert den Aufschlag vollstaendig.
+// Faellt der Anteil v der beworbenen Flaeche weg, steigt der Preis je m²
+// um v / (1 − v). Weicht das vom Modulwert ab, stimmt die Begruendung nicht.
+const verlustAnteil = verlustQm / BEWORBEN;
+const aufschlagFormel = (verlustAnteil / (1 - verlustAnteil)) * 100;
+if (Math.abs(aufschlagFormel - aufschlag) > 0.05) {
+  throw new Error('Quadratmeterpreis-Artikel: Kehrwert-Formel und Modul weichen voneinander ab.');
+}
+
+// Zusicherung 3: Der Kaufpreis kuerzt sich aus dem Aufschlag heraus.
+// Gegenprobe mit vier sehr verschiedenen Kaufpreisen bei gleichen Flaechen.
+const PROBEPREISE = [180000, 360000, 900000, 2500000];
+for (const p of PROBEPREISE) {
+  const r = berechneQmPreis({ kaufpreis: p, beworbeneFlaeche: BEWORBEN, flaechen: GRUNDFLAECHEN });
+  if (r.aufschlagProzent !== aufschlag) {
+    throw new Error(`Quadratmeterpreis-Artikel: Der Aufschlag haengt doch am Kaufpreis (${p}).`);
+  }
+}
+
+// --- Wie stark der Preis je m² auf fehlende Flaeche reagiert --------------
+const VERLUSTQUOTEN = [5, 10, 15, 20, 25, 30];
+const asymmetrie = VERLUSTQUOTEN.map((p) => {
+  const anteil = p / 100;
+  const flaeche = BEWORBEN * (1 - anteil);
+  return {
+    verlust: p,
+    flaeche,
+    preis: quadratmeterpreis({ kaufpreis: KAUFPREIS, flaeche }) as number,
+    aufschlag: (anteil / (1 - anteil)) * 100,
+  };
+});
+const zwanzig = asymmetrie.find((z) => z.verlust === 20) as (typeof asymmetrie)[number];
+if (Math.abs(zwanzig.aufschlag - 25) > 1e-9) {
+  throw new Error('Quadratmeterpreis-Artikel: 20 Prozent weniger Flaeche ergeben nicht 25 Prozent mehr Preis.');
+}
+
+const preisBeworben = bsp.preisBeworben as number;
+
+// --- Drei Wohnungen mit identischem Quadratmeterpreis ---------------------
+// Konstruiert wird jeweils ueber den Kaufpreis: Er ist so gewaehlt, dass alle
+// drei exakt denselben Preis je m² Wohnflaeche nach WoFlV ergeben.
+const ZIELPREIS = 5000;
+type Angebot = { name: string; lage: string; flaechen: Record<string, number> };
+const ANGEBOTE: Angebot[] = [
+  { name: 'Wohnung A', lage: 'Altbau, zweites Obergeschoss, ohne Balkon', flaechen: { vollHoch: 80 } },
+  { name: 'Wohnung B', lage: 'Dachgeschoss mit Schrägen, ohne Balkon', flaechen: { vollHoch: 55, halbHoch: 18, niedrig: 7 } },
+  { name: 'Wohnung C', lage: 'Erdgeschoss mit Terrasse', flaechen: { vollHoch: 70, balkon: 16 } },
+];
+const wohnungen = ANGEBOTE.map((a) => {
+  const wf = wohnflaecheNachWoFlV(a.flaechen);
+  const kaufpreis = wf.wohnflaeche * ZIELPREIS;
+  const r = berechneQmPreis({ kaufpreis, beworbeneFlaeche: wf.wohnflaeche, flaechen: a.flaechen });
+  return {
+    ...a,
+    kaufpreis,
+    wohnflaeche: wf.wohnflaeche,
+    preisWoFlV: r.preisWoFlV as number,
+    vollHoch: a.flaechen.vollHoch,
+    halbHoch: a.flaechen.halbHoch ?? 0,
+    niedrig: a.flaechen.niedrig ?? 0,
+    balkon: a.flaechen.balkon ?? 0,
+    proVollHoch: quadratmeterpreis({ kaufpreis, flaeche: a.flaechen.vollHoch }) as number,
+  };
+});
+
+// Zusicherung 4: Alle drei zeigen denselben Quadratmeterpreis …
+for (const w of wohnungen) {
+  if (w.preisWoFlV !== ZIELPREIS) {
+    throw new Error(`Quadratmeterpreis-Artikel: ${w.name} liegt nicht bei ${ZIELPREIS} €/m².`);
+  }
+}
+// … unterscheiden sich aber deutlich im Preis je m² Raum mit voller Stehhöhe.
+const proVollSortiert = wohnungen.map((w) => w.proVollHoch).sort((a, b) => a - b);
+const spanneVoll = (proVollSortiert[proVollSortiert.length - 1] / proVollSortiert[0] - 1) * 100;
+if (!(spanneVoll > 15)) {
+  throw new Error('Quadratmeterpreis-Artikel: Die Spanne beim Preis je m² voller Höhe ist kleiner als gedacht.');
+}
+const wohnungA = wohnungen[0];
+const wohnungB = wohnungen[1];
+const wohnungC = wohnungen[2];
+
+// --- Derselbe Grundriss, zwei zulaessige Quadratmeterpreise ---------------
+// § 4 Nr. 4 WoFlV nennt keine feste Zahl, sondern eine Spanne: in der Regel
+// ein Viertel, hoechstens die Haelfte. Beide Werte sind vom Wortlaut gedeckt.
+const ZIMMER = 72;
+const TERRASSE = 12;
+const ohneTerrasse = berechneQmPreis({
+  kaufpreis: KAUFPREIS,
+  beworbeneFlaeche: ZIMMER,
+  flaechen: { vollHoch: ZIMMER },
+});
+const mitViertel = berechneQmPreis({
+  kaufpreis: KAUFPREIS,
+  beworbeneFlaeche: ZIMMER,
+  flaechen: { vollHoch: ZIMMER, balkon: TERRASSE },
+});
+const mitHaelfte = berechneQmPreis({
+  kaufpreis: KAUFPREIS,
+  beworbeneFlaeche: ZIMMER,
+  flaechen: { vollHoch: ZIMMER, balkon: TERRASSE, balkonZurHaelfte: true },
+});
+
+// Zusicherung 5: Die Terrasse senkt den Quadratmeterpreis, der Hoechstsatz
+// senkt ihn noch weiter – obwohl sich am Kaufpreis nichts aendert.
+const pOhne = ohneTerrasse.preisWoFlV as number;
+const pViertel = mitViertel.preisWoFlV as number;
+const pHaelfte = mitHaelfte.preisWoFlV as number;
+if (!(pHaelfte < pViertel && pViertel < pOhne)) {
+  throw new Error('Quadratmeterpreis-Artikel: Die Terrasse senkt den Preis je m² nicht wie erwartet.');
+}
+const terrasseSenkung = (pViertel / pOhne - 1) * 100;
+const spanneBalkon = (pHaelfte / pViertel - 1) * 100;
+
+const quellen = [
+  { titel: '§ 1 WoFlV – Anwendungsbereich', url: 'https://www.gesetze-im-internet.de/woflv/__1.html' },
+  { titel: '§ 2 WoFlV – Zur Wohnfläche gehörende Grundflächen', url: 'https://www.gesetze-im-internet.de/woflv/__2.html' },
+  { titel: '§ 3 WoFlV – Ermittlung der Grundfläche', url: 'https://www.gesetze-im-internet.de/woflv/__3.html' },
+  { titel: '§ 4 WoFlV – Anrechnung der Grundflächen', url: 'https://www.gesetze-im-internet.de/woflv/__4.html' },
+];
+---
+<RechnerArtikel
+  titel={`${proz(Math.abs(flaechenAenderung))} weniger Fläche sind ${proz(aufschlag)} mehr Preis je Quadratmeter`}
+  datum="2026-09-23"
+  lead={`Die Wohnung im Rechner oben kostet ${eur(KAUFPREIS)} und wird mit ${qm(BEWORBEN)} angeboten – ${proQm(preisBeworben)}. Nach § 4 WoFlV bleiben davon ${qm(bsp.wohnflaeche)} Wohnfläche, und der Preis steigt auf ${proQm(bsp.preisWoFlV as number)}. Die Fläche schrumpft um ${proz(Math.abs(flaechenAenderung))}, der Preis je Quadratmeter steigt um ${proz(aufschlag)}: Beide Prozentsätze stehen in derselben Zeile, sind aber nicht dieselbe Zahl. Und der Aufschlag hängt überhaupt nicht am Kaufpreis.`}
+  quellen={quellen}
+>
+  <h3>Wo die {qm(verlustQm)} bleiben</h3>
+  <p>
+    Der Quadratmeterpreis ist ein Bruch, und in Exposés ist meist nur der
+    Zähler unstrittig. Der Kaufpreis steht fest, die Fläche im Nenner nicht –
+    sie ist keine Messung, sondern das Ergebnis einer Rechenvorschrift. Für
+    Wohnraum lautet die Vorschrift § 4 der Wohnflächenverordnung, und sie
+    rechnet nicht jeden Quadratmeter Fußboden als Quadratmeter Wohnfläche.
+  </p>
+  <table>
+    <caption class="visually-hidden">Anrechnung der Grundflächen nach § 4 WoFlV</caption>
+    <thead>
+      <tr>
+        <th scope="col">Fläche</th>
+        <th scope="col" class="num">zählt zu</th>
+        <th scope="col">Fundstelle</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <th scope="row">lichte Höhe mindestens 2 m</th>
+        <td class="num">{proz(ANRECHNUNG.voll * 100, 0)}</td>
+        <td>§ 4 Nr. 1</td>
+      </tr>
+      <tr>
+        <th scope="row">lichte Höhe 1 m bis unter 2 m</th>
+        <td class="num">{proz(ANRECHNUNG.halb * 100, 0)}</td>
+        <td>§ 4 Nr. 2</td>
+      </tr>
+      <tr>
+        <th scope="row">lichte Höhe unter 1 m</th>
+        <td class="num">{proz(ANRECHNUNG.keine * 100, 0)}</td>
+        <td>nicht in § 4 genannt</td>
+      </tr>
+      <tr>
+        <th scope="row">unbeheizbarer Wintergarten, Schwimmbad</th>
+        <td class="num">{proz(ANRECHNUNG.wintergarten * 100, 0)}</td>
+        <td>§ 4 Nr. 3</td>
+      </tr>
+      <tr>
+        <th scope="row">Balkon, Loggia, Dachgarten, Terrasse</th>
+        <td class="num">{proz(ANRECHNUNG.balkonRegel * 100, 0)} bis {proz(ANRECHNUNG.balkonHoechst * 100, 0)}</td>
+        <td>§ 4 Nr. 4</td>
+      </tr>
+    </tbody>
+  </table>
+  <p>
+    Die Wohnung aus dem Rechner hat {qm(BEWORBEN)} Fußboden: {qm(GRUNDFLAECHEN.vollHoch)} mit
+    voller Höhe, {qm(GRUNDFLAECHEN.halbHoch)} unter der Schräge zwischen einem und
+    zwei Metern, {qm(GRUNDFLAECHEN.niedrig)} unter einem Meter. Angerechnet werden
+    daraus {qm(GRUNDFLAECHEN.vollHoch)} plus die Hälfte von {qm(GRUNDFLAECHEN.halbHoch)},
+    also {qm(bsp.wohnflaeche)}. Die {qm(GRUNDFLAECHEN.niedrig)} ganz unter der Schräge
+    tauchen in § 4 nicht auf und bleiben deshalb außer Ansatz. Es fehlen
+    {' '}{qm(verlustQm)} – Fläche, die es real gibt, auf der aber niemand steht.
+  </p>
+  <p>
+    Was gar nicht erst in die Grundfläche kommt, steht in § 2 Abs. 3: Keller,
+    Abstellräume, Waschküchen, Bodenräume, Trockenräume, Heizungsräume und
+    Garagen. Und § 3 regelt das Messen selbst – nach den lichten Maßen, mit
+    Fußleisten und fest eingebauten Öfen, Herden und Badewannen, aber ohne
+    Schornsteine und ohne Treppen mit mehr als drei Steigungen. Ein Exposé, das
+    die Kellerfläche mitzählt, rechnet nicht ungenau, sondern nach einer anderen
+    Vorschrift.
+  </p>
+
+  <h3>Warum der Aufschlag größer ist als der Verlust</h3>
+  <p>
+    Aus {qm(BEWORBEN)} werden {qm(bsp.wohnflaeche)}, das sind
+    {' '}{proz(Math.abs(flaechenAenderung))} weniger. Der Preis je Quadratmeter steigt
+    aber nicht um {proz(Math.abs(flaechenAenderung))}, sondern von
+    {' '}{proQm(preisBeworben)} auf {proQm(bsp.preisWoFlV as number)} – um
+    {' '}{proz(aufschlag)}. Beide Sätze beschreiben denselben Vorgang und haben
+    verschiedene Bezugsgrößen: Der Flächenverlust misst sich an der beworbenen
+    Fläche, der Preisaufschlag am Preis, der zur beworbenen Fläche gehört. Die
+    beiden Prozentsätze lassen sich deshalb nicht ineinander umrechnen, indem
+    man ein Vorzeichen dreht – wohl aber die Faktoren dahinter: Die Fläche
+    schrumpft auf {qm(bsp.wohnflaeche)} geteilt durch {qm(BEWORBEN)}, der Preis
+    je Quadratmeter wächst um genau den Kehrwert dieses Bruchs.
+  </p>
+  <p>
+    Fällt der Anteil <em>v</em> der beworbenen Fläche weg, steigt der Preis je
+    Quadratmeter um <em>v</em> geteilt durch (1 − <em>v</em>). Die Tabelle
+    rechnet das für die Wohnung oben durch, immer mit demselben Kaufpreis von
+    {' '}{eur(KAUFPREIS)}:
+  </p>
+  <table>
+    <caption class="visually-hidden">
+      Preis je m² bei {eur(KAUFPREIS)} Kaufpreis, wenn ein Teil der beworbenen {qm(BEWORBEN)} nicht anrechenbar ist
+    </caption>
+    <thead>
+      <tr>
+        <th scope="col" class="num">nicht anrechenbar</th>
+        <th scope="col" class="num">Wohnfläche</th>
+        <th scope="col" class="num">Preis je m²</th>
+        <th scope="col" class="num">Aufschlag</th>
+      </tr>
+    </thead>
+    <tbody>
+      {asymmetrie.map((z) => (
+        <tr>
+          <th scope="row" class="num">{proz(z.verlust, 0)}</th>
+          <td class="num">{qm(z.flaeche, 2)}</td>
+          <td class="num">{proQm(z.preis)}</td>
+          <td class="num">{proz(z.aufschlag)}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+  <p>
+    Die beiden Spalten laufen auseinander, und zwar immer schneller.
+    {' '}{proz(5, 0)} fehlende Fläche kosten {proz(asymmetrie[0].aufschlag)} Aufschlag,
+    {' '}{proz(20, 0)} kosten genau {proz(zwanzig.aufschlag, 0)}, und
+    {' '}{proz(30, 0)} kosten {proz(asymmetrie[asymmetrie.length - 1].aufschlag)}. Wer
+    umgekehrt vom Quadratmeterpreis auf den Flächenfehler zurückschließt,
+    überschätzt ihn deshalb regelmäßig: {proz(aufschlag)} mehr Preis bedeuten
+    nicht {proz(aufschlag)}, sondern {proz(Math.abs(flaechenAenderung))} weniger
+    Fläche.
+  </p>
+
+  <h3>Der Kaufpreis kürzt sich heraus</h3>
+  <p>
+    Der Aufschlag sieht aus wie eine Geldgröße, ist aber keine. In der Rechnung
+    stehen über und unter dem Bruchstrich zweimal dieselben
+    {' '}{eur(KAUFPREIS)}; sie kürzen sich weg. Übrig bleibt das Verhältnis der
+    beiden Flächen – beworbene Fläche geteilt durch Wohnfläche, minus eins. Der
+    Build dieser Seite prüft das mit vier sehr verschiedenen Kaufpreisen, von
+    {' '}{eur(PROBEPREISE[0])} bis {eur(PROBEPREISE[PROBEPREISE.length - 1])}: Bei
+    unveränderten Flächen liefert das Modul jedes Mal denselben Aufschlag von
+    {' '}{proz(aufschlag)}.
+  </p>
+  <p>
+    Praktisch heißt das: Man kann die Frage, ob eine Flächenangabe belastbar
+    ist, vom Preis trennen. Sie hängt an Grundriss und Bauzeichnung, nicht am
+    Verhandlungsergebnis. Wer den Preis um {proz(10, 0)} drückt, ändert an der
+    Differenz zwischen Exposé-Fläche und Wohnfläche nichts – beide Preise je
+    Quadratmeter sinken um denselben Satz.
+  </p>
+
+  <h3>Drei Wohnungen, ein Quadratmeterpreis</h3>
+  <p>
+    Die zweite Hälfte des Problems zeigt sich erst beim Vergleich mehrerer
+    Angebote. Die folgenden drei Wohnungen sind so gerechnet, dass sie alle
+    exakt {proQm(ZIELPREIS)} Wohnfläche nach WoFlV kosten – die Zahl, die im
+    Rechner oben im großen Feld steht. Sie sind trotzdem drei verschiedene
+    Dinge.
+  </p>
+  <table>
+    <caption class="visually-hidden">
+      Drei Angebote mit identischem Preis je m² Wohnfläche, verglichen nach der Fläche mit voller Stehhöhe
+    </caption>
+    <thead>
+      <tr>
+        <th scope="col">Angebot</th>
+        <th scope="col" class="num">Kaufpreis</th>
+        <th scope="col" class="num">Wohnfläche</th>
+        <th scope="col" class="num">Preis je m² WoFlV</th>
+        <th scope="col" class="num">davon ab 2 m Höhe</th>
+        <th scope="col" class="num">Preis je m² voller Höhe</th>
+      </tr>
+    </thead>
+    <tbody>
+      {wohnungen.map((w) => (
+        <tr>
+          <th scope="row">{w.name} – {w.lage}</th>
+          <td class="num">{eur(w.kaufpreis)}</td>
+          <td class="num">{qm(w.wohnflaeche)}</td>
+          <td class="num">{proQm(w.preisWoFlV)}</td>
+          <td class="num">{qm(w.vollHoch)}</td>
+          <td class="num">{proQm(w.proVollHoch)}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+  <p>
+    In der vierten Spalte steht dreimal dasselbe. In der letzten stehen
+    {' '}{proQm(wohnungA.proVollHoch)}, {proQm(wohnungB.proVollHoch)} und
+    {' '}{proQm(wohnungC.proVollHoch)} – gemessen am günstigsten Wert eine Spanne
+    von {proz(spanneVoll)}. Wohnung B hat bei gleichem Quadratmeterpreis
+    {' '}{qm(wohnungA.vollHoch - wohnungB.vollHoch)} weniger Fläche, auf der man
+    aufrecht stehen kann, als Wohnung A; die Differenz steckt in
+    {' '}{qm(wohnungB.halbHoch)} Schrägenfläche, die nach § 4 Nr. 2 nur zur
+    Hälfte zählt, und {qm(wohnungB.niedrig)} Fläche unter einem Meter, die gar
+    nicht zählt. Wohnung C bezahlt einen Teil des
+    Preises für {qm(wohnungC.balkon)} Terrasse, von denen
+    {' '}{qm(wohnungC.balkon * ANRECHNUNG.balkonRegel)} in der Wohnfläche stehen.
+  </p>
+  <p class="ra-hinweis">
+    Das ist keine Wertung. Eine Dachschräge kann ein Argument für die Wohnung
+    sein, eine Terrasse erst recht, und § 4 rechnet beide bewusst anteilig an,
+    weil sie eben nicht nichts wert sind. Der Punkt ist ein anderer: Der
+    Quadratmeterpreis allein unterscheidet diese drei Angebote nicht. Welche
+    Fläche er im Nenner hat, muss man dazulesen.
+  </p>
+
+  <h3>Derselbe Grundriss, zwei zulässige Quadratmeterpreise</h3>
+  <p>
+    § 4 Nr. 4 nennt für Balkone, Loggien, Dachgärten und Terrassen keine feste
+    Zahl, sondern eine Spanne: in der Regel ein Viertel, höchstens jedoch die
+    Hälfte. Beide Ränder sind vom Wortlaut gedeckt, und der Rechner oben lässt
+    beide zu. Eine Wohnung mit {qm(ZIMMER)} Zimmerfläche, {qm(TERRASSE)} Terrasse
+    und {eur(KAUFPREIS)} Kaufpreis ergibt damit:
+  </p>
+  <table>
+    <caption class="visually-hidden">
+      Preis je m² derselben Wohnung, je nach Anrechnung der Terrasse
+    </caption>
+    <thead>
+      <tr>
+        <th scope="col">Anrechnung der Terrasse</th>
+        <th scope="col" class="num">Wohnfläche</th>
+        <th scope="col" class="num">Preis je m²</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <th scope="row">Terrasse nicht mitgerechnet</th>
+        <td class="num">{qm(ohneTerrasse.wohnflaeche)}</td>
+        <td class="num">{proQm(pOhne)}</td>
+      </tr>
+      <tr>
+        <th scope="row">zu einem Viertel (§ 4 Nr. 4, Regel)</th>
+        <td class="num">{qm(mitViertel.wohnflaeche)}</td>
+        <td class="num">{proQm(pViertel)}</td>
+      </tr>
+      <tr>
+        <th scope="row">zur Hälfte (§ 4 Nr. 4, Höchstsatz)</th>
+        <td class="num">{qm(mitHaelfte.wohnflaeche)}</td>
+        <td class="num">{proQm(pHaelfte)}</td>
+      </tr>
+    </tbody>
+  </table>
+  <p>
+    Der Kaufpreis ist in allen drei Zeilen derselbe, die Wohnung auch. Trotzdem
+    schwankt der Quadratmeterpreis. Rechnet man die Terrasse mit der Regel des
+    Viertels an, sinkt er gegenüber den reinen Zimmern um
+    {' '}{proz(Math.abs(terrasseSenkung))}; mit dem Höchstsatz liegt er noch einmal
+    {' '}{proz(Math.abs(spanneBalkon))} unter dem Wert der Regelanrechnung, gemessen
+    an diesem. Eine Außenfläche macht ein Angebot rechnerisch also günstiger,
+    ohne dass sich am Geld etwas ändert – und wer zwei Wohnungen vergleicht, von
+    denen nur eine einen Balkon hat, vergleicht schon deshalb nicht dasselbe.
+  </p>
+
+  <h3>Wofür die Verordnung gilt – und wofür nicht</h3>
+  <p>
+    § 1 Abs. 1 WoFlV beschreibt ihren Anwendungsbereich eng: Die Vorschriften
+    sind anzuwenden, wenn die Wohnfläche <em>nach dem Wohnraumförderungsgesetz</em>
+    {' '}berechnet wird. Für einen frei finanzierten Kaufvertrag ordnet die
+    Verordnung sich selbst nicht an. Sie ist dort ein Maßstab, auf den man sich
+    beziehen kann, und in der Praxis der verbreitetste – aber wer einen
+    Quadratmeterpreis aus einer Anzeige übernimmt, weiß zunächst nicht, ob
+    dieser Maßstab benutzt wurde.
+  </p>
+  <p>
+    Deshalb ist die einzige Zahl, die der Rechner oben wirklich prüft, nicht
+    der Preis, sondern die Fläche. Er verlangt die Grundflächen getrennt nach
+    lichter Höhe und rechnet sie selbst zusammen. Wer die Angaben aus einer
+    Bauzeichnung oder einer eigenen Messung nach § 3 einträgt, bekommt eine
+    Vergleichsgröße, die für zwei Angebote dasselbe bedeutet. Wer nur die Zahl
+    aus dem Exposé einträgt, bekommt die Zahl aus dem Exposé zurück.
+  </p>
+  <p>
+    Was dieser Rechner nicht beantwortet, ist die andere Hälfte jedes
+    Immobilienvergleichs: ob {proQm(ZIELPREIS)} für eine Lage viel oder wenig
+    sind. Dazu enthält er bewusst keine Werte. Ortsübliche Vergleichspreise
+    veröffentlichen die Gutachterausschüsse für Grundstückswerte in ihren
+    Grundstücksmarktberichten; Bodenrichtwerte stehen in den Portalen der
+    Länder. Und der Kaufpreis ist ohnehin nur ein Teil der Summe – was an
+    Grunderwerbsteuer, Notar und Grundbuch dazukommt, rechnet der
+    {' '}<a href={`${import.meta.env.BASE_URL}wohnen/immobilienkauf-nebenkosten/`}>Rechner für die Kaufnebenkosten</a>,
+    und was daraus an laufender Belastung wird, der
+    {' '}<a href={`${import.meta.env.BASE_URL}wohnen/hauskauf-rechner/`}>Hauskauf-Rechner</a>.
+  </p>
+</RechnerArtikel>

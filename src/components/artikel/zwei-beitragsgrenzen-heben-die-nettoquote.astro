@@ -1,0 +1,374 @@
+---
+import RechnerArtikel from '../RechnerArtikel.astro';
+import { berechneNettoGehalt } from '../../../public/scripts/brutto-netto.js';
+import { jahreslohnsteuer, solidaritaetszuschlagJahr } from '../../../public/scripts/lohnsteuer.js';
+import {
+  BBG_KV_PV_MONAT, BBG_KV_PV_JAHR, BBG_RV_AV_MONAT, BBG_RV_AV_JAHR,
+  BEITRAGSSAETZE, pflegeArbeitnehmerSatz, krankenkasseArbeitnehmerSatz,
+} from '../../../public/scripts/sozialversicherung.js';
+
+// Alle Zahlen dieses Artikels laufen durch dieselben Module, die auch der
+// Brutto-Netto-Rechner auf dieser Seite lädt: brutto-netto.js für den
+// Nettolohn, lohnsteuer.js für die Lohnsteuer- und Soli-Anteile getrennt vom
+// Nettolohn (die braucht dieser Artikel, um Steuer- und Sozialversicherungs-
+// anteil auseinanderzuhalten – der Rechner oben zeigt nur die Summe), und
+// sozialversicherung.js für die beiden Beitragsbemessungsgrenzen und die
+// Beitragssätze.
+//
+// Modellannahme, identisch mit der Vorbelegung des Rechners oben:
+// Steuerklasse I, Bundesland Nordrhein-Westfalen, ein Kind unter 25 Jahren,
+// keine Kirchensteuer, durchschnittlicher Zusatzbeitrag der Krankenkasse. Die
+// beiden Beitragsbemessungsgrenzen selbst liegen unabhängig davon immer bei
+// denselben Bruttobeträgen – nur wie groß der Sprung an ihnen ausfällt,
+// verschiebt sich mit Steuerklasse und Kinderzahl geringfügig.
+const STEUERKLASSE = 1;
+const BUNDESLAND = 'NW';
+const KINDER = 1;
+
+const minus = (s: string) => s.replace(/^-/, '−');
+const eurZahl = (n: number, d = 2) =>
+  n.toLocaleString('de-DE', { minimumFractionDigits: d, maximumFractionDigits: d });
+const eur = (n: number, d = 2) => minus(eurZahl(n, d)) + ' €';
+const proz = (n: number, d = 2) =>
+  minus(n.toLocaleString('de-DE', { minimumFractionDigits: d, maximumFractionDigits: d })) + ' %';
+
+function netto(bruttoMonat: number): number {
+  return berechneNettoGehalt({
+    bruttoMonat, steuerklasse: STEUERKLASSE, bundesland: BUNDESLAND, kirchensteuer: false, kinder: KINDER,
+  }).netto;
+}
+
+// Lohnsteuer + Soli im Jahr, für den reinen Steueranteil an einem
+// zusätzlichen Euro brutto – getrennt von der Sozialversicherung, die der
+// Rechner oben nur zusammen mit der Steuer als "Netto" ausgibt.
+function steuerJahr(bruttoMonat: number): number {
+  const jahr = bruttoMonat * 12;
+  const lst = jahreslohnsteuer({ jahresarbeitslohn: jahr, steuerklasse: STEUERKLASSE, kinder: KINDER });
+  return lst + solidaritaetszuschlagJahr(lst, STEUERKLASSE);
+}
+
+// Marginalquote: welcher Anteil eines zusätzlichen Euro brutto in diesem
+// Fenster als Netto ankommt bzw. als Steuer abgeht, in Prozent.
+const marginalNetto = (von: number, bis: number) => ((netto(bis) - netto(von)) / (bis - von)) * 100;
+const marginalSteuer = (von: number, bis: number) => ((steuerJahr(bis) - steuerJahr(von)) / ((bis - von) * 12)) * 100;
+
+const grenze1 = BBG_KV_PV_MONAT; // Kranken- und Pflegeversicherung
+const grenze2 = BBG_RV_AV_MONAT; // Renten- und Arbeitslosenversicherung
+const fenster = 100;
+
+// Vier 100-Euro-Fenster, je eines unmittelbar vor und nach jeder Grenze.
+const nettoVor1 = marginalNetto(grenze1 - fenster, grenze1);
+const nettoNach1 = marginalNetto(grenze1, grenze1 + fenster);
+const nettoVor2 = marginalNetto(grenze2 - fenster, grenze2);
+const nettoNach2 = marginalNetto(grenze2, grenze2 + fenster);
+
+const steuerVor1 = marginalSteuer(grenze1 - fenster, grenze1);
+const steuerNach1 = marginalSteuer(grenze1, grenze1 + fenster);
+const steuerVor2 = marginalSteuer(grenze2 - fenster, grenze2);
+const steuerNach2 = marginalSteuer(grenze2, grenze2 + fenster);
+
+// Die Sozialversicherungs-Marginalsätze lassen sich anders als die Steuer
+// exakt aus den Beitragssätzen ableiten, weil sie unterhalb jeder Grenze
+// linear mit dem Brutto wachsen und darüber konstant bleiben (§ 249 SGB V,
+// § 158 SGB VI, § 341 Abs. 2 SGB III, § 55 SGB XI).
+const kvAn = krankenkasseArbeitnehmerSatz();
+const pvAn = pflegeArbeitnehmerSatz({ kinder: KINDER });
+const rvAn = BEITRAGSSAETZE.rentenversicherung / 2;
+const avAn = BEITRAGSSAETZE.arbeitslosenversicherung / 2;
+const svUnten = (kvAn + pvAn + rvAn + avAn) * 100; // unterhalb beider Grenzen
+const svMitte = (rvAn + avAn) * 100;               // zwischen den Grenzen
+const svOben = 0;                                   // oberhalb beider Grenzen
+
+// Marginalquoten über einen größeren Einkommensbereich, für die Tabelle mit
+// dem Gesamtbild.
+const zonenRoh = [
+  { von: 4000, bis: 5000, label: '4.000 – 5.000' },
+  { von: 6000, bis: 7000, label: '6.000 – 7.000' },
+  { von: 7000, bis: 8000, label: '7.000 – 8.000' },
+  { von: grenze2, bis: 10000, label: `${eurZahl(grenze2, 0)} – 10.000` },
+  { von: 10000, bis: 15000, label: '10.000 – 15.000' },
+  { von: 15000, bis: 20000, label: '15.000 – 20.000' },
+];
+const zonen = zonenRoh.map((z) => ({ ...z, quote: marginalNetto(z.von, z.bis) }));
+
+// Absolutwerte an ein paar Ankerpunkten für den Fließtext.
+const netto4000 = netto(4000);
+const netto5812 = netto(grenze1);
+const netto8450 = netto(grenze2);
+const netto15000 = netto(15000);
+
+// Beispiel einer Gehaltserhöhung, die die erste Grenze überspannt: 400 Euro
+// mehr brutto, beginnend deutlich unterhalb und endend deutlich oberhalb von
+// grenze1, damit das Beispiel nicht zufällig genau auf der Grenze landet.
+const beispielVorher = 5700;
+const beispielNachher = 6100;
+const beispielNettoVorher = netto(beispielVorher);
+const beispielNettoNachher = netto(beispielNachher);
+const beispielAnteil = ((beispielNettoNachher - beispielNettoVorher) / (beispielNachher - beispielVorher)) * 100;
+
+// --- Selbstprüfung 1: An der ersten Grenze springt die Nettoquote spürbar
+// nach oben, nicht nur im Rahmen der Rundung.
+if (nettoNach1 - nettoVor1 < 3) {
+  throw new Error(
+    `Brutto-Netto-Artikel: Der Sprung an der ersten Beitragsbemessungsgrenze ` +
+    `ist mit ${(nettoNach1 - nettoVor1).toFixed(2)} Punkten zu klein für die These.`
+  );
+}
+
+// --- Selbstprüfung 2: Dasselbe an der zweiten Grenze.
+if (nettoNach2 - nettoVor2 < 3) {
+  throw new Error(
+    `Brutto-Netto-Artikel: Der Sprung an der zweiten Beitragsbemessungsgrenze ` +
+    `ist mit ${(nettoNach2 - nettoVor2).toFixed(2)} Punkten zu klein für die These.`
+  );
+}
+
+// --- Selbstprüfung 3: Monats- und Jahreswerte der Beitragsbemessungsgrenzen
+// müssen zueinander passen (Monat × 12 = Jahr) – sonst rechnen Artikel und
+// Rechnerseite an verschiedenen Grenzen.
+if (Math.abs(grenze1 * 12 - BBG_KV_PV_JAHR) > 0.01 || Math.abs(grenze2 * 12 - BBG_RV_AV_JAHR) > 0.01) {
+  throw new Error(
+    'Brutto-Netto-Artikel: Monats- und Jahres-Beitragsbemessungsgrenzen in sozialversicherung.js widersprechen sich.'
+  );
+}
+
+// --- Selbstprüfung 4: In jedem der vier Fenster müssen sich Steueranteil,
+// Sozialversicherungsanteil und Nettoanteil zu 100 Prozent aufsummieren –
+// sonst wäre die Zerlegung in der Tabelle weiter unten falsch.
+const summenpruefung: Array<[number, number, number]> = [
+  [steuerVor1, svUnten, nettoVor1],
+  [steuerNach1, svMitte, nettoNach1],
+  [steuerVor2, svMitte, nettoVor2],
+  [steuerNach2, svOben, nettoNach2],
+];
+for (const [s, sv, n] of summenpruefung) {
+  if (Math.abs(s + sv + n - 100) > 0.5) {
+    throw new Error(
+      `Brutto-Netto-Artikel: Steuer- (${s.toFixed(2)}), SV- (${sv.toFixed(2)}) und ` +
+      `Nettoanteil (${n.toFixed(2)}) summieren sich nicht auf 100 Prozent.`
+    );
+  }
+}
+
+const quellen = [
+  {
+    titel: 'Sozialversicherungsrechengrößen-Verordnung 2026 (SVBezGrV 2026) – Beitragsbemessungsgrenzen',
+    url: 'https://www.gesetze-im-internet.de/svbezgrv_2026/',
+  },
+  { titel: '§ 249 SGB V – Tragung der Krankenversicherungsbeiträge', url: 'https://www.gesetze-im-internet.de/sgb_5/__249.html' },
+  { titel: '§ 158 SGB VI – Beitragssatz der Rentenversicherung', url: 'https://www.gesetze-im-internet.de/sgb_6/__158.html' },
+  { titel: '§ 341 Abs. 2 SGB III – Beitragssatz der Arbeitslosenversicherung', url: 'https://www.gesetze-im-internet.de/sgb_3/__341.html' },
+  { titel: '§ 55 SGB XI – Beitragssatz der Pflegeversicherung', url: 'https://www.gesetze-im-internet.de/sgb_11/__55.html' },
+  { titel: '§ 39b Abs. 2 EStG – Lohnsteuerabzug und Vorsorgepauschale', url: 'https://www.gesetze-im-internet.de/estg/__39b.html' },
+  { titel: '§§ 3, 4 SolzG 1995 – Freigrenze und Milderungszone des Solidaritätszuschlags', url: 'https://www.gesetze-im-internet.de/solzg_1995/' },
+];
+---
+<RechnerArtikel
+  titel={`Ab ${eur(grenze1, 2)} brutto bleibt vom nächsten Euro plötzlich mehr netto übrig – nicht weniger`}
+  lead={`Unmittelbar unterhalb von ${eur(grenze1, 2)} Bruttogehalt im Monat bleiben von einem zusätzlichen Euro ${proz(nettoVor1)} netto übrig, unmittelbar darüber ${proz(nettoNach1)} – ein Sprung um ${proz(nettoNach1 - nettoVor1)}-Punkte, obwohl der Steuersatz in genau diesem Fenster gleichzeitig von ${proz(steuerVor1)} auf ${proz(steuerNach1)} steigt. Bei ${eur(grenze2, 0)} wiederholt sich das Muster: von ${proz(nettoVor2)} auf ${proz(nettoNach2)}. Der Grund liegt nicht bei der Steuer, sondern dabei, dass die Sozialversicherung in zwei Stufen aufhört, mitzuwachsen.`}
+  datum="2026-09-28"
+  quellen={quellen}
+>
+  <h3>Was der Rechner oben zeigt – und was er nicht zeigt</h3>
+  <p>
+    Der Rechner oben liefert für ein eingegebenes Bruttogehalt einen einzigen
+    Nettobetrag und dessen Aufschlüsselung. Er zeigt also einen{' '}
+    <strong>Zustand</strong>, keine <strong>Veränderung</strong>. Für die Frage,
+    die hier interessiert – wie viel von einem zusätzlichen Euro Gehalt
+    ankommt, nicht wie viel vom ganzen Gehalt –, muss man den Rechner zweimal
+    aufrufen und die Differenz bilden. Bei {eur(4000, 0)} brutto zeigt er{' '}
+    {eur(netto4000)} netto, bei {eur(grenze1, 2)} brutto {eur(netto5812)}. Auf den
+    ersten Blick sieht das nach einer stetigen Kurve aus. Sie ist es nicht: An
+    zwei ganz bestimmten Bruttobeträgen knickt sie ab – und zwar nach oben, in
+    Richtung eines höheren Netto-Anteils, nicht nach unten.
+  </p>
+
+  <h3>Die erste Grenze: {eur(grenze1, 2)} Euro</h3>
+  <p>
+    {eur(grenze1, 2)} im Monat ist die <strong>Beitragsbemessungsgrenze der
+    Kranken- und Pflegeversicherung</strong> für 2026 (§ 2 Abs. 2 SVBezGrV
+    2026). Bis zu diesem Betrag wachsen die Beiträge zur Kranken- und
+    Pflegeversicherung linear mit dem Bruttogehalt. Jeder zusätzliche Euro
+    unterhalb dieser Grenze wird also mit allen vier
+    Sozialversicherungszweigen belastet: Kranken-, Pflege-, Renten- und
+    Arbeitslosenversicherung zusammen {proz(svUnten)} beim Arbeitnehmeranteil
+    in der hier angenommenen Modellrechnung (ein Kind, durchschnittlicher
+    Zusatzbeitrag). Oberhalb der Grenze ändert sich das: Die
+    Bemessungsgrundlage für Kranken- und Pflegeversicherung ist gedeckelt, ein
+    zusätzlicher Euro brutto erhöht diese beiden Beiträge nicht mehr. Nur
+    Renten- und Arbeitslosenversicherung laufen weiter mit, macht zusammen
+    noch {proz(svMitte)}.
+  </p>
+  <p>
+    Das lässt sich direkt im Fenster von {eur(fenster, 0)} Euro um die Grenze
+    herum nachrechnen:
+  </p>
+  <table>
+    <caption class="visually-hidden">Anteile eines zusätzlichen Euro brutto unmittelbar vor und nach der ersten Beitragsbemessungsgrenze</caption>
+    <thead>
+      <tr><th scope="col">Bruttofenster</th><th scope="col" class="num">Steuer + Soli</th><th scope="col" class="num">Sozialversicherung</th><th scope="col" class="num">Netto</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <th scope="row">{eur(grenze1 - fenster, 2)} – {eur(grenze1, 2)}</th>
+        <td class="num">{proz(steuerVor1)}</td>
+        <td class="num">{proz(svUnten)}</td>
+        <td class="num">{proz(nettoVor1)}</td>
+      </tr>
+      <tr>
+        <th scope="row">{eur(grenze1, 2)} – {eur(grenze1 + fenster, 2)}</th>
+        <td class="num">{proz(steuerNach1)}</td>
+        <td class="num">{proz(svMitte)}</td>
+        <td class="num">{proz(nettoNach1)}</td>
+      </tr>
+    </tbody>
+  </table>
+  <p class="ra-hinweis">
+    Die Steuerzeile ist keine feste Zahl wie die Sozialversicherungszeile,
+    sondern selbst aus zwei Rechnerläufen im Abstand von {eur(fenster, 0)} Euro
+    gebildet (§ 39b Abs. 2 EStG lässt sich nicht direkt nach dem Grenzsteuersatz
+    auflösen, weil auch die Vorsorgepauschale vom Bruttogehalt abhängt). Beide
+    Zeilen zusammen mit der Nettozeile ergeben rechnerisch 100 Prozent – das
+    prüft die Selbstprüfung im Quellcode dieses Artikels.
+  </p>
+
+  <h3>Die zweite Grenze: {eur(grenze2, 0)} Euro</h3>
+  <p>
+    {eur(grenze2, 0)} im Monat ist die{' '}
+    <strong>Beitragsbemessungsgrenze der Renten- und
+    Arbeitslosenversicherung</strong> (§ 4, § 5 SVBezGrV 2026) – deutlich höher
+    als die erste Grenze, weil Renten- und Arbeitslosenversicherung eine
+    eigene, großzügigere Bemessungsgrenze haben. Oberhalb dieses Betrags
+    wächst gar kein Sozialversicherungsbeitrag mehr mit dem Bruttogehalt: Die
+    Sozialversicherungslast eines zusätzlichen Euro sinkt von {proz(svMitte)}{' '}
+    auf {proz(svOben, 0)}.
+  </p>
+  <table>
+    <caption class="visually-hidden">Anteile eines zusätzlichen Euro brutto unmittelbar vor und nach der zweiten Beitragsbemessungsgrenze</caption>
+    <thead>
+      <tr><th scope="col">Bruttofenster</th><th scope="col" class="num">Steuer + Soli</th><th scope="col" class="num">Sozialversicherung</th><th scope="col" class="num">Netto</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <th scope="row">{eur(grenze2 - fenster, 0)} – {eur(grenze2, 0)}</th>
+        <td class="num">{proz(steuerVor2)}</td>
+        <td class="num">{proz(svMitte)}</td>
+        <td class="num">{proz(nettoVor2)}</td>
+      </tr>
+      <tr>
+        <th scope="row">{eur(grenze2, 0)} – {eur(grenze2 + fenster, 0)}</th>
+        <td class="num">{proz(steuerNach2)}</td>
+        <td class="num">{proz(svOben, 0)}</td>
+        <td class="num">{proz(nettoNach2)}</td>
+      </tr>
+    </tbody>
+  </table>
+  <p>
+    Auch hier steigt der Steueranteil weiter an – von {proz(steuerVor2)} auf{' '}
+    {proz(steuerNach2)} –, weil die Lohnsteuer progressiv bleibt, während die
+    Sozialversicherung schon am Anschlag ist. Trotzdem bleibt unter dem Strich
+    mehr vom zusätzlichen Euro übrig, weil die wegfallende
+    Sozialversicherungslast ({proz(svMitte)}) größer ist als der zusätzliche
+    Steueranteil.
+  </p>
+
+  <h3>Warum die Lohnsteuer den Sprung nicht ausgleicht</h3>
+  <p>
+    Man könnte erwarten, dass ein progressiver Steuertarif solche Sprünge
+    glättet: Wer mehr verdient, zahlt schließlich einen höheren Steuersatz.
+    Genau das passiert auch – der Grenzsteuersatz aus Lohnsteuer und
+    Solidaritätszuschlag steigt an beiden Grenzen tatsächlich an, nicht ab.
+    Nur reicht dieser Anstieg nicht annähernd aus, um den Wegfall der
+    Sozialversicherungsbeiträge aufzuwiegen: An der ersten Grenze steht einem
+    Rückgang der Sozialversicherungslast um {proz(svUnten - svMitte)}-Punkte ein
+    Anstieg der Steuerlast um nur {proz(steuerNach1 - steuerVor1)}-Punkte
+    gegenüber. An der zweiten Grenze sind es {proz(svMitte - svOben, 1)}-Punkte
+    weniger Sozialversicherung gegen {proz(steuerNach2 - steuerVor2)}-Punkte
+    mehr Steuer. In beiden Fällen bleibt ein deutliches Plus beim
+    Nettoanteil übrig.
+  </p>
+
+  <h3>Das Gesamtbild über einen größeren Einkommensbereich</h3>
+  <p>
+    Zieht man den Blick weiter, zeigt sich, dass die Nettoquote eines
+    zusätzlichen Euro nicht gleichmäßig steigt, sondern in den beiden
+    beschriebenen Sprüngen – dazwischen und danach bewegt sie sich, getrieben
+    von der weiterlaufenden Steuerprogression, in einer engeren Bandbreite:
+  </p>
+  <table>
+    <caption class="visually-hidden">Nettoanteil eines zusätzlichen Euro brutto über verschiedene Einkommensbereiche</caption>
+    <thead>
+      <tr><th scope="col">Bruttofenster (€/Monat)</th><th scope="col" class="num">Nettoanteil je Euro</th></tr>
+    </thead>
+    <tbody>
+      {zonen.map((z) => (
+        <tr>
+          <th scope="row">{z.label}</th>
+          <td class="num">{proz(z.quote)}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+  <p>
+    Bei {eur(15000, 0)} brutto im Monat läge das Nettogehalt nach diesem Modell
+    bei {eur(netto15000)} – gegenüber {eur(netto8450)} an der zweiten Grenze bei{' '}
+    {eur(grenze2, 0)}. Der Zuwachs von {eur(15000 - grenze2, 0)} Euro brutto dazwischen
+    kommt zu einem größeren Anteil netto an als derselbe Zuwachs unterhalb der
+    ersten Grenze – nicht, weil hohe Einkommen steuerlich begünstigt wären,
+    sondern weil ab einem bestimmten Punkt nur noch die Steuer mitwächst, die
+    Sozialversicherung aber nicht mehr.
+  </p>
+
+  <h3>Ein Beispiel: eine Gehaltserhöhung, die genau über die Grenze reicht</h3>
+  <p>
+    Abstrakte Prozentpunkte lassen sich schwer vorstellen, eine konkrete
+    Gehaltserhöhung schon eher. Wer von {eur(beispielVorher, 0)} auf{' '}
+    {eur(beispielNachher, 0)} Euro brutto im Monat steigt – eine Erhöhung um{' '}
+    {eur(beispielNachher - beispielVorher, 0)} Euro, die deutlich unterhalb
+    beginnt und deutlich oberhalb der ersten Grenze endet –, bekommt nach
+    diesem Modell {eur(beispielNettoVorher)} statt {eur(beispielNettoNachher)}{' '}
+    netto, also {eur(beispielNettoNachher - beispielNettoVorher)} mehr im
+    Monat. Das sind {proz(beispielAnteil)} der Bruttoerhöhung – mehr, als die
+    Faustregel „ungefähr die Hälfte bleibt netto" vermuten lässt, und mehr, als
+    dieselbe Erhöhung eine Gehaltsstufe tiefer bringen würde. Der Grund ist
+    derselbe wie oben: Ein Teil dieser {eur(beispielNachher - beispielVorher, 0)}{' '}
+    Euro fällt in den Bereich unterhalb von {eur(grenze1, 2)}, ein anderer Teil
+    in den Bereich darüber, und im zweiten Teil greift die volle
+    Sozialversicherung nicht mehr.
+  </p>
+
+  <h3>Die Arbeitgeberseite spiegelt denselben Effekt</h3>
+  <p>
+    Der Rechner oben zeigt nur den Arbeitnehmeranteil, weil nur der das
+    Nettogehalt bestimmt. Die beiden Beitragsbemessungsgrenzen wirken aber
+    ebenso auf den Arbeitgeberanteil: Auch die Lohnnebenkosten für Kranken-
+    und Pflegeversicherung wachsen oberhalb von {eur(grenze1, 2)} nicht mehr
+    mit, und auch der Arbeitgeberanteil zur Renten- und
+    Arbeitslosenversicherung ist oberhalb von {eur(grenze2, 0)} gedeckelt – an
+    denselben beiden Bruttobeträgen, mit denselben zwei Stufen, nur auf der
+    anderen Seite der Lohnabrechnung. Für die Arbeitskosten insgesamt gilt
+    deshalb dieselbe Beobachtung wie fürs Nettogehalt: Ein zusätzlicher, im
+    Arbeitsvertrag vereinbarter Euro kostet den Arbeitgeber oberhalb beider
+    Grenzen anteilig weniger an Sozialversicherung als darunter – während sich
+    für den Arbeitnehmer gleichzeitig ein höherer Netto-Anteil ergibt. Beide
+    Effekte verstärken sich also, statt sich gegenseitig aufzuheben.
+  </p>
+
+  <h3>Was diese Rechnung voraussetzt</h3>
+  <p>
+    Die beiden Beitragsbemessungsgrenzen selbst – {eur(grenze1, 2)} und{' '}
+    {eur(grenze2, 0)} im Monat – gelten unabhängig von Steuerklasse,
+    Kirchensteuer oder Kinderzahl; sie sind bundeseinheitliche Rechengrößen
+    der Sozialversicherungsrechengrößen-Verordnung. Die genaue Höhe der Sprünge
+    verschiebt sich dagegen etwas mit diesen Angaben: Eine andere Steuerklasse
+    ändert die Lohnsteuer-Zeile der Tabellen, ein anderer Zusatzbeitrag der
+    Krankenkasse die Sozialversicherungs-Zeile unterhalb der ersten Grenze, und
+    kinderlose oder kinderreiche Beschäftigte zahlen einen anderen
+    Pflegeversicherungssatz. Keiner dieser Faktoren verschiebt jedoch die
+    Position der beiden Grenzen selbst oder kehrt die Richtung der Sprünge um.
+    Nicht eingerechnet sind außerdem individuelle Freibeträge nach § 39a EStG,
+    private Kranken- und Pflegeversicherung sowie der Übergangsbereich der
+    Gleitzone nach § 20 Abs. 2 SGB IV, der bei sehr viel niedrigeren Einkommen
+    einen eigenen, gegenläufigen Effekt hat.
+  </p>
+</RechnerArtikel>

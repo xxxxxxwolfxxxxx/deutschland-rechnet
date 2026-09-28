@@ -1,7 +1,7 @@
 ---
 import Layout from '../../layouts/Layout.astro';
 import CalculatorShell from '../../components/CalculatorShell.astro';
-import CalculatorGuide from '../../components/CalculatorGuide.astro';
+import ArtikelBmi from '../../components/artikel/bmi-punkt-kilogramm-koerpergroesse.astro';
 import { CALCULATORS, CATEGORIES } from '../../data/calculators';
 const calc = CALCULATORS.find(c => c.slug === 'bmi-rechner')!;
 const cat = CATEGORIES[calc.category];
@@ -23,7 +23,7 @@ const year = new Date().getFullYear();
     calculator={calc}
     intro="Mit dem BMI-Rechner berechnen Sie Ihren Body-Mass-Index nach der WHO-Formel. Der BMI ist das weltweit am häufigsten verwendete Screening-Tool zur Gewichtseinordnung und hilft Ihnen, Ihr Körpergewicht im Verhältnis zur Körpergröße einzuschätzen. Erfahren Sie, in welche WHO-Kategorie Sie fallen und was das für Ihre Gesundheit bedeutet."
     sourceNote="BMI = Gewicht / Größe²."
-    explanation="Die WHO definiert sechs BMI-Kategorien: Untergewicht (unter 18,5), Normalgewicht (18,5-24,9), Übergewicht (25-29,9) und drei Adipositas-Grade ab BMI 30. Studien zeigen, dass das Risiko für Typ-2-Diabetes, Bluthochdruck und Herzerkrankungen ab einem BMI von 25 signifikant ansteigt. Der BMI berücksichtigt jedoch keine Muskelmasse, daher kann er bei Sportlern zu falschen Ergebnissen führen."
+    explanation="Die WHO unterscheidet sechs Klassen: Untergewicht (unter 18,5), Normalgewicht (18,5 bis unter 25), Übergewicht bzw. Präadipositas (25 bis unter 30) und drei Adipositas-Grade: I (30 bis unter 35), II (35 bis unter 40), III (ab 40). Der Rechner ordnet den auf zwei Nachkommastellen gerundeten Wert ein, deshalb zeigt er ihn auch mit zwei Stellen. Der BMI berücksichtigt jedoch keine Muskelmasse, daher kann er bei Sportlern zu falschen Ergebnissen führen."
     faqs={[
       { q: "Ist der BMI aussagekräftig?", a: "Der BMI ist ein gutes Screening-Tool, aber er berücksichtigt keine Muskelmasse. Sportler können einen hohen BMI haben, sind aber nicht übergewichtig." },
       { q: "Ab wann spricht man von Übergewicht?", a: "Laut WHO liegt Übergewicht bei BMI 25-29,9. Adipositas beginnt bei BMI 30+. Grad I (30-34,9), Grad II (35-39,9), Grad III (≥40). Diese Grenzen gelten für Erwachsene." },
@@ -47,31 +47,11 @@ const year = new Date().getFullYear();
         <div id="bmi-wert">—</div>
       </div>
       <p id="kategorie" style="margin-top:0.75rem;font-size:1rem;font-weight:600;"></p>
+      <p style="margin-top:0.5rem;font-size:0.85rem;color:var(--muted);">Die Einteilung gilt für Erwachsene. Für Kinder und Jugendliche wird der BMI mit alters- und geschlechtsbezogenen Perzentilen bewertet.</p>
     </div>
+    <ArtikelBmi slot="artikel" />
   </CalculatorShell>
 
-  <CalculatorGuide
-    title="Body-Mass-Index verstehen"
-    content={`<p>Der <strong>Body-Mass-Index (BMI)</strong> ist ein einfaches Maß zur Beurteilung des Körpergewichts. Er wird berechnet, indem das Körpergewicht (in kg) durch die Körpergröße (in m) zum Quadrat geteilt wird.</p>
-
-<p><strong>BMI-Formel:</strong> BMI = Gewicht (kg) ÷ Größe² (m²)</p>
-
-<p><strong>WHO-Klassifikation:</strong>
-<ul>
-  <li><strong>BMI &lt; 18,5:</strong> Untergewicht</li>
-  <li><strong>BMI 18,5 – 24,9:</strong> Normalgewicht</li>
-  <li><strong>BMI 25 – 29,9:</strong> Übergewicht</li>
-  <li><strong>BMI ≥ 30:</strong> Adipositas (Fettleibigkeit)</li>
-  <li><strong>BMI ≥ 35:</strong> Schwere Adipositas</li>
-  <li><strong>BMI ≥ 40:</strong> Grad III Adipositas</li>
-</ul>
-</p>
-
-<p><strong>Wichtige Einschränkung:</strong> Der BMI berücksichtigt nicht die Körperzusammensetzung. Ein trainierter Mensch mit viel Muskelmasse kann einen hohen BMI haben, ohne übergewichtig zu sein. Sportler, Jugendliche und ältere Menschen brauchen andere Bewertungsmaßstäbe.</p>
-
-<p><strong>Aussagekraft:</strong> Der BMI ist ein statistisches Screening-Tool für große Bevölkerungsgruppen. Für die individuelle Gesundheitsbewertung sollte ein Arzt hinzugezogen werden, der auch Muskelmasse, Knochendichte, Fettverteilung und andere Faktoren berücksichtigt.</p>`}
-    relatedSlugs={['idealgewicht-rechner', 'kalorien-rechner', 'grundumsatz-rechner']}
-  />
 </Layout>
 
 <script type="module">
@@ -80,7 +60,7 @@ function berechne() {
   const g = parseFloat(document.getElementById('gewicht').value)||0;
   const gr = parseFloat(document.getElementById('groesse').value)||1;
   const r = berechneBMI({ gewichtKg: g, groesseCm: gr });
-  document.getElementById('bmi-wert').textContent = r.bmi.toLocaleString('de-DE', {minimumFractionDigits:1, maximumFractionDigits:1});
+  document.getElementById('bmi-wert').textContent = r.bmi.toLocaleString('de-DE', {minimumFractionDigits:2, maximumFractionDigits:2});
   document.getElementById('kategorie').textContent = r.kategorie;
 }
 ['gewicht','groesse'].forEach(id => document.getElementById(id).addEventListener('input', berechne));

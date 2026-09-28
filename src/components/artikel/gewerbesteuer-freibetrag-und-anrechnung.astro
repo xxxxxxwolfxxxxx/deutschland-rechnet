@@ -1,0 +1,341 @@
+---
+import RechnerArtikel from '../RechnerArtikel.astro';
+import {
+  berechneGewerbesteuer,
+  FREIBETRAG,
+  MESSZAHL,
+  ANRECHNUNGSFAKTOR,
+  MINDESTHEBESATZ,
+} from '../../../public/scripts/gewerbesteuer.js';
+
+// Die Konstanten kommen aus demselben Modul, das der Rechner oben laedt. Die
+// Formeln unten bilden dessen Rechenweg nach; eine Zusicherung prueft sie
+// gegen das Modul, damit beide nicht auseinanderlaufen:
+//   freibetrag      = (einzel | person) ? 24500 : 0
+//   steuerpflichtig = max(0, gewerbeertrag − freibetrag)
+//   messbetrag      = steuerpflichtig × 0,035
+//   gewerbesteuer   = messbetrag × hebesatz/100
+//   anrechnungESt   = messbetrag × 4,0
+// Die Kappung nach § 35 Abs. 1 Satz 5 EStG – der Abzug ist auf die tatsaechlich
+// zu zahlende Gewerbesteuer begrenzt – steht inzwischen auch im Modul.
+// Rechtsstand: § 11 Abs. 1 Satz 3 Nr. 1 und Abs. 2 GewStG, § 16 Abs. 4 Satz 2
+// GewStG, § 35 Abs. 1 EStG, § 4 Abs. 5b EStG.
+
+const zahl = (n: number, d = 2) =>
+  n.toLocaleString('de-DE', { minimumFractionDigits: d, maximumFractionDigits: d })
+    .replace(/^-/, '−');
+const eur = (n: number) => zahl(n, 2) + ' €';
+const eurRund = (n: number) => zahl(n, 0) + ' €';
+const proz = (n: number, d = 2) => zahl(n, d) + ' %';
+const punkte = (n: number) => zahl(n, 0) + ' Prozentpunkte';
+
+// FREIBETRAG (§ 11 Abs. 1 Satz 3 Nr. 1 GewStG), MESSZAHL (§ 11 Abs. 2 GewStG –
+// 3,5 %, nicht 3,5-fach), ANRECHNUNGSFAKTOR (§ 35 Abs. 1 Satz 1 EStG) und
+// MINDESTHEBESATZ (§ 16 Abs. 4 Satz 2 GewStG) stammen aus dem Modul.
+
+// Voreinstellung der Eingabefelder auf der Seite darüber.
+const ERTRAG = 100000;
+const HEBESATZ = 410;
+
+/** Messbetrag – mit Freibetrag für natürliche Personen, ohne für Körperschaften. */
+const messbetrag = (ertrag: number, frei: number) =>
+  Math.max(0, ertrag - frei) * MESSZAHL;
+
+/** Gewerbesteuer der Gemeinde. Der Hebesatz ist ein Prozentsatz des Messbetrags. */
+const gewerbesteuer = (mess: number, hebesatz: number) => mess * (hebesatz / 100);
+
+/** Anrechnung nach § 35 EStG: 4,0 × Messbetrag, gedeckelt auf die gezahlte Steuer. */
+const anrechnung = (mess: number, hebesatz: number) =>
+  Math.min(ANRECHNUNGSFAKTOR * mess, gewerbesteuer(mess, hebesatz));
+
+/** Was nach der Anrechnung übrig bleibt. */
+const nettoLast = (mess: number, hebesatz: number) =>
+  gewerbesteuer(mess, hebesatz) - anrechnung(mess, hebesatz);
+
+// --- Der Fall, den die Seite oben voreingestellt zeigt ---------------------
+const messEinzel = messbetrag(ERTRAG, FREIBETRAG);
+const messOhneFrei = messbetrag(ERTRAG, 0);
+const stEinzel = gewerbesteuer(messEinzel, HEBESATZ);
+const anrEinzel = anrechnung(messEinzel, HEBESATZ);
+const nettoEinzel = nettoLast(messEinzel, HEBESATZ);
+const stKoerper = gewerbesteuer(messOhneFrei, HEBESATZ);
+
+// Zusicherung: Die Nachbildung oben trifft das Modul, das der Rechner laedt –
+// fuer beide Rechtsformen und ueber die Kappungsgrenze hinweg. Weicht eine
+// Zahl ab, erscheint die Seite nicht, statt zwei Staende nebeneinander zu
+// zeigen. Der Ertrag ist hier glatt durch 100 teilbar, sodass die Abrundung
+// nach § 11 Abs. 1 Satz 3 GewStG nichts veraendert.
+for (const hebesatz of [MINDESTHEBESATZ, 300, 400, HEBESATZ, 550]) {
+  const modulEinzel = berechneGewerbesteuer({ gewerbeertrag: ERTRAG, hebesatz, rechtsform: 'einzel' });
+  const modulKoerper = berechneGewerbesteuer({ gewerbeertrag: ERTRAG, hebesatz, rechtsform: 'koerper' });
+  const eigenMess = messbetrag(ERTRAG, FREIBETRAG);
+  if (
+    Math.abs(modulEinzel.messbetrag - eigenMess) > 1e-9 ||
+    Math.abs(modulEinzel.gewerbesteuer - gewerbesteuer(eigenMess, hebesatz)) > 1e-9 ||
+    Math.abs(modulEinzel.anrechnung - anrechnung(eigenMess, hebesatz)) > 1e-9 ||
+    Math.abs(modulEinzel.restbelastung - nettoLast(eigenMess, hebesatz)) > 1e-9 ||
+    Math.abs(modulKoerper.gewerbesteuer - gewerbesteuer(messbetrag(ERTRAG, 0), hebesatz)) > 1e-9 ||
+    modulKoerper.anrechnung !== 0
+  ) {
+    throw new Error(`Gewerbesteuer-Artikel: Nachbildung und Modul weichen bei Hebesatz ${hebesatz} ab.`);
+  }
+}
+
+// Was der Freibetrag bewirkt – einmal brutto, einmal nach Anrechnung.
+const fbBrutto = gewerbesteuer(messOhneFrei, HEBESATZ) - stEinzel;
+const fbNetto = nettoLast(messOhneFrei, HEBESATZ) - nettoEinzel;
+const fbVerhaeltnis = fbBrutto / fbNetto;
+
+// Der Messbetragseffekt des Freibetrags: 24.500 € × 3,5 %.
+const fbMessEffekt = FREIBETRAG * MESSZAHL;
+
+// Die Schwelle, an der die Anrechnung die Steuer gerade noch deckt.
+const SCHWELLE = ANRECHNUNGSFAKTOR * 100; // in Prozent Hebesatz
+
+// Effektive Sätze, bezogen auf den Gewerbeertrag – Basis ist der Ausgangswert.
+const effBrutto = (stEinzel / ERTRAG) * 100;
+const effNetto = (nettoEinzel / ERTRAG) * 100;
+
+// --- Tabelle über den Hebesatz --------------------------------------------
+const HEBESAETZE = [MINDESTHEBESATZ, 300, 350, 400, 410, 490, 600, 900];
+const tabelle = HEBESAETZE.map((h) => ({
+  h,
+  steuer: gewerbesteuer(messEinzel, h),
+  anr: anrechnung(messEinzel, h),
+  netto: nettoLast(messEinzel, h),
+  fbNetto: nettoLast(messOhneFrei, h) - nettoLast(messEinzel, h),
+}));
+
+// --- Zwei Umzüge mit identischer Bruttoersparnis ---------------------------
+const UMZUG_SPANNE = 50;
+const umzugTief = { von: 400, nach: 400 - UMZUG_SPANNE };
+const umzugHoch = { von: 500, nach: 500 - UMZUG_SPANNE };
+const sparBrutto = (a: number, b: number) =>
+  gewerbesteuer(messEinzel, a) - gewerbesteuer(messEinzel, b);
+const sparNetto = (a: number, b: number) =>
+  nettoLast(messEinzel, a) - nettoLast(messEinzel, b);
+const tiefBrutto = sparBrutto(umzugTief.von, umzugTief.nach);
+const tiefNetto = sparNetto(umzugTief.von, umzugTief.nach);
+const hochBrutto = sparBrutto(umzugHoch.von, umzugHoch.nach);
+const hochNetto = sparNetto(umzugHoch.von, umzugHoch.nach);
+
+// --- Selbstprüfung: scheitert der Build, ist die These falsch --------------
+
+// 1. Der Nachbau muss die Anzeige der Seite treffen: 100.000 €, 410 %, Einzel.
+if (Math.abs(messEinzel - 2642.5) > 0.005)
+  throw new Error('Gewerbesteuer-Artikel: Messbetrag weicht vom Rechner ab.');
+if (Math.abs(stEinzel - 10834.25) > 0.005)
+  throw new Error('Gewerbesteuer-Artikel: Gewerbesteuer weicht vom Rechner ab.');
+
+// 2. Einheiten: Messzahl 3,5 % und Hebesatz 410 % dürfen nicht verwechselt
+//    werden. Messbetrag muss ein Bruchteil des Ertrags sein, die Steuer ein
+//    Vielfaches des Messbetrags.
+if (!(messEinzel < ERTRAG * 0.05) || !(stEinzel > messEinzel * 2))
+  throw new Error('Gewerbesteuer-Artikel: Messzahl und Hebesatz vertauscht.');
+
+// 3. Kernidentität: Nach Anrechnung bleibt der Messbetrag mal dem Überhang
+//    des Hebesatzes über 400 % – und nichts darunter.
+for (const h of [250, 399, 400, 401, 410, 700, 900]) {
+  const erwartet = messEinzel * Math.max(0, h / 100 - ANRECHNUNGSFAKTOR);
+  if (Math.abs(nettoLast(messEinzel, h) - erwartet) > 0.005)
+    throw new Error(`Gewerbesteuer-Artikel: Nettolast bei ${h} % passt nicht zur Formel.`);
+}
+
+// 4. Die These zum Freibetrag: sein Wert nach Anrechnung ist 857,50 € mal
+//    demselben Überhang – unabhängig vom Gewerbeertrag.
+for (const e of [30000, 100000, 500000, 2000000]) {
+  for (const h of [300, 400, 410, 490, 900]) {
+    const wert = nettoLast(messbetrag(e, 0), h) - nettoLast(messbetrag(e, FREIBETRAG), h);
+    const erwartet = fbMessEffekt * Math.max(0, h / 100 - ANRECHNUNGSFAKTOR);
+    if (Math.abs(wert - erwartet) > 0.005)
+      throw new Error(
+        `Gewerbesteuer-Artikel: Freibetragswert bei ${e} €/${h} % passt nicht zur Formel.`,
+      );
+  }
+}
+
+// 5. Unterhalb der Schwelle ist der Freibetrag nach Anrechnung wertlos,
+//    oberhalb ist er ein Bruchteil der ausgewiesenen Steuerdifferenz.
+if (nettoLast(messOhneFrei, SCHWELLE) - nettoLast(messEinzel, SCHWELLE) !== 0)
+  throw new Error('Gewerbesteuer-Artikel: Freibetrag wäre bei 400 % doch etwas wert.');
+if (!(fbNetto > 0) || !(fbVerhaeltnis > 10))
+  throw new Error('Gewerbesteuer-Artikel: Verhältnis brutto zu netto trägt die These nicht.');
+
+// 6. Die beiden Umzüge müssen brutto gleich viel und netto verschieden viel
+//    bringen – sonst stimmt die Pointe des Standortabschnitts nicht.
+if (Math.abs(tiefBrutto - hochBrutto) > 0.005)
+  throw new Error('Gewerbesteuer-Artikel: Umzüge sind brutto nicht gleichwertig.');
+if (tiefNetto !== 0 || Math.abs(hochNetto - hochBrutto) > 0.005)
+  throw new Error('Gewerbesteuer-Artikel: Umzüge sind netto nicht wie beschrieben.');
+---
+
+<RechnerArtikel
+  titel={`${eurRund(FREIBETRAG)} Freibetrag, ${eur(fbNetto)} Ersparnis`}
+  lead={`Der Freibetrag nach § 11 GewStG senkt die Gewerbesteuer im Rechner oben um ${eur(fbBrutto)}. Beim Einzelunternehmer kommt davon fast nichts an: Er senkt den Messbetrag – und damit auch die Anrechnung nach § 35 EStG, die vom Messbetrag abhängt. Übrig bleiben ${eur(fbNetto)}. Unterhalb von ${SCHWELLE} % Hebesatz ist der Freibetrag rechnerisch gar nichts wert.`}
+  datum="2026-09-23"
+  quellen={[
+    { titel: '§ 11 GewStG – Steuermesszahl und Steuermessbetrag (Freibetrag 24.500 €, Messzahl 3,5 %)', url: 'https://www.gesetze-im-internet.de/gewstg/__11.html' },
+    { titel: '§ 16 GewStG – Hebesatz (Mindesthebesatz 200 %)', url: 'https://www.gesetze-im-internet.de/gewstg/__16.html' },
+    { titel: '§ 35 EStG – Steuerermäßigung bei Einkünften aus Gewerbebetrieb', url: 'https://www.gesetze-im-internet.de/estg/__35.html' },
+    { titel: '§ 4 EStG – Gewinnbegriff im Allgemeinen (Abs. 5b: Gewerbesteuer keine Betriebsausgabe)', url: 'https://www.gesetze-im-internet.de/estg/__4.html' },
+  ]}
+>
+  <h3>Was der Rechner ausweist</h3>
+  <p>
+    In der Voreinstellung oben stehen {eurRund(ERTRAG)} Gewerbeertrag, ein Hebesatz
+    von {proz(HEBESATZ, 0)} und die Rechtsform Einzelunternehmen. Der Rechner zieht den
+    Freibetrag von {eurRund(FREIBETRAG)} ab, multipliziert die verbleibenden
+    {' '}{eurRund(ERTRAG - FREIBETRAG)} mit der Steuermesszahl von {proz(MESSZAHL * 100, 1)} und
+    kommt auf einen Messbetrag von {eur(messEinzel)}. Diesen Messbetrag nimmt die Gemeinde
+    mit ihrem Hebesatz mal: {eur(messEinzel)} × {proz(HEBESATZ, 0)} = {eur(stEinzel)}.
+  </p>
+  <p>
+    Zwei Größen werden hier gern verwechselt. Die Steuermesszahl ist ein Anteil des
+    Ertrags – {proz(MESSZAHL * 100, 1)}, bundesweit gleich nach § 11 Abs. 2 GewStG. Der
+    Hebesatz ist ein Prozentsatz des Messbetrags, den jede Gemeinde selbst beschließt; er
+    liegt nach § 16 Abs. 4 Satz 2 GewStG bei mindestens {proz(MINDESTHEBESATZ, 0)} und reicht
+    nach oben weit über {proz(500, 0)} hinaus. {proz(HEBESATZ, 0)} bedeuten das
+    {' '}{zahl(HEBESATZ / 100, 1)}-Fache des Messbetrags, nicht {proz(HEBESATZ / 100, 1)} vom Gewinn.
+  </p>
+  <p>
+    Dieselbe Eingabe als Körperschaft gerechnet ergibt {eur(stKoerper)}: Die GmbH bekommt
+    keinen Freibetrag, ihr Messbetrag beträgt volle {eur(messOhneFrei)}. Die Differenz von
+    {' '}{eur(fbBrutto)} ist das, was der Freibetrag an Gewerbesteuer spart. Damit ist die
+    Rechnung für die GmbH zu Ende – für den Einzelunternehmer fängt sie hier erst an.
+  </p>
+
+  <h3>Die Anrechnung hängt am Messbetrag, nicht an der Steuer</h3>
+  <p>
+    § 35 Abs. 1 Satz 1 EStG ermäßigt die Einkommensteuer um das
+    {' '}{zahl(ANRECHNUNGSFAKTOR, 1)}-Fache des Gewerbesteuer-Messbetrags. Bemessungsgrundlage
+    ist also nicht die gezahlte Gewerbesteuer, sondern der Messbetrag – die Zahl, die vor dem
+    Hebesatz steht. Aus {eur(messEinzel)} Messbetrag werden
+    {' '}{zahl(ANRECHNUNGSFAKTOR, 1)} × {eur(messEinzel)} = {eur(ANRECHNUNGSFAKTOR * messEinzel)}
+    {' '}Anrechnungsvolumen.
+  </p>
+  <p>
+    Dazu kommt eine zweite Grenze: § 35 Abs. 1 Satz 5 EStG beschränkt den Abzug auf die
+    tatsächlich zu zahlende Gewerbesteuer. Bei {proz(HEBESATZ, 0)} beträgt die
+    Steuer {eur(stEinzel)}, angerechnet werden {eur(anrEinzel)} – hier greift die Grenze
+    nicht, weil die Steuer höher ist als das Anrechnungsvolumen. Übrig bleiben
+    {' '}{eur(nettoEinzel)}. Gemessen am Gewerbeertrag sind das {proz(effNetto)} statt der
+    {' '}{proz(effBrutto)}, die der Rechner als effektiven Steuersatz ausgibt.
+  </p>
+  <p>
+    Aus beiden Regeln zusammen folgt eine einfache Formel. Angerechnet wird der kleinere der
+    beiden Beträge, und beide sind Vielfache desselben Messbetrags: das
+    {' '}{zahl(ANRECHNUNGSFAKTOR, 1)}-Fache einerseits, das Hebesatz-Fache andererseits. Was
+    nach Anrechnung bleibt, ist deshalb der Messbetrag mal dem Überhang des Hebesatzes über
+    {' '}{proz(SCHWELLE, 0)}. Unterhalb dieser Schwelle ist der Rest null, oberhalb wächst er
+    linear mit jedem Prozentpunkt.
+  </p>
+
+  <h3>Der Freibetrag senkt beide Seiten gleichzeitig</h3>
+  <p>
+    Der Freibetrag mindert den Gewerbeertrag um {eurRund(FREIBETRAG)} und damit den Messbetrag
+    um {eurRund(FREIBETRAG)} × {proz(MESSZAHL * 100, 1)} = {eur(fbMessEffekt)}. Er senkt also
+    die Gewerbesteuer – und im selben Zug das Anrechnungsvolumen, denn das hängt am selben
+    Messbetrag. Die Steuer sinkt um {eur(fbMessEffekt)} × {proz(HEBESATZ, 0)} =
+    {' '}{eur(fbBrutto)}, die mögliche Anrechnung um {zahl(ANRECHNUNGSFAKTOR, 1)} ×
+    {' '}{eur(fbMessEffekt)} = {eur(ANRECHNUNGSFAKTOR * fbMessEffekt)}.
+  </p>
+  <p>
+    Netto bleibt vom Freibetrag deshalb nur der Teil übrig, der auf den Hebesatz-Überhang
+    entfällt: {eur(fbMessEffekt)} × ({zahl(HEBESATZ / 100, 1)} − {zahl(ANRECHNUNGSFAKTOR, 1)})
+    = {eur(fbNetto)}. Das ist rund ein {zahl(fbVerhaeltnis, 0)}stel der {eur(fbBrutto)}, die der
+    Rechner als Steuerdifferenz zwischen Einzelunternehmen und Körperschaft ausweist.
+  </p>
+  <p>
+    Bemerkenswert daran ist, dass dieser Betrag nicht vom Gewinn abhängt. Ob der
+    Gewerbeertrag {eurRund(30000)} oder {eurRund(2000000)} beträgt: Solange er über dem
+    Freibetrag liegt, verschiebt der Freibetrag den Messbetrag immer um dieselben
+    {' '}{eur(fbMessEffekt)}, und nach Anrechnung bleiben immer dieselben {eur(fbNetto)}. Der
+    Freibetrag wirkt als Freibetrag, nicht als Freigrenze – ein Euro mehr Ertrag löst keinen
+    Sprung aus, sondern kostet nur seinen eigenen Anteil.
+  </p>
+
+  <h3>Was vom Hebesatz abhängt – und was nicht</h3>
+  <p>
+    Die Tabelle rechnet den voreingestellten Fall über die Bandbreite der Hebesätze durch:
+    {' '}{eurRund(ERTRAG)} Gewerbeertrag, Einzelunternehmen, Freibetrag abgezogen.
+  </p>
+  <table>
+    <thead>
+      <tr>
+        <th>Hebesatz</th>
+        <th>Gewerbesteuer</th>
+        <th>Anrechnung § 35</th>
+        <th>bleibt</th>
+        <th>davon Freibetrag</th>
+      </tr>
+    </thead>
+    <tbody>
+      {tabelle.map((r) => (
+        <tr>
+          <td>{proz(r.h, 0)}</td>
+          <td>{eur(r.steuer)}</td>
+          <td>{eur(r.anr)}</td>
+          <td>{eur(r.netto)}</td>
+          <td>{eur(r.fbNetto)}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+  <p>
+    Die erste Spalte steigt gleichmäßig, die vierte nicht. Bis {proz(SCHWELLE, 0)} steht dort
+    null, obwohl die Gewerbesteuer von {eur(tabelle[0].steuer)} auf {eur(tabelle[3].steuer)}
+    {' '}wächst. Erst darüber beginnt die Belastung, und dann voll: Jeder Prozentpunkt Hebesatz
+    schlägt mit einem Hundertstel des Messbetrags durch, also mit {eur(messEinzel / 100)}.
+  </p>
+  <p>
+    Das dreht die übliche Standortlogik um. Zwei Umzüge über jeweils {punkte(UMZUG_SPANNE)}
+    {' '}sehen im Rechner identisch aus: Von {proz(umzugTief.von, 0)} auf
+    {' '}{proz(umzugTief.nach, 0)} sinkt die Gewerbesteuer um {eur(tiefBrutto)}, von
+    {' '}{proz(umzugHoch.von, 0)} auf {proz(umzugHoch.nach, 0)} um genau denselben Betrag. Nach
+    Anrechnung bleibt vom ersten Umzug {eur(tiefNetto)} und vom zweiten {eur(hochNetto)}. Für
+    den Einzelunternehmer sind Hebesatzunterschiede unterhalb von {proz(SCHWELLE, 0)} eine
+    Frage der Zahlungsströme, nicht der Belastung: Die Gewerbesteuer ist an die Gemeinde
+    fällig, die Entlastung kommt später über die Einkommensteuerveranlagung zurück.
+  </p>
+
+  <h3>Für die GmbH gilt beides nicht</h3>
+  <p>
+    Kapitalgesellschaften haben keinen Freibetrag – § 11 Abs. 1 Satz 3 Nr. 1 GewStG nennt
+    ausdrücklich nur natürliche Personen und Personengesellschaften. Und sie haben keine
+    Anrechnung: § 35 EStG ermäßigt die Einkommensteuer, die eine GmbH nicht zahlt. Im
+    voreingestellten Fall bleibt es deshalb bei {eur(stKoerper)}, während beim
+    Einzelunternehmer {eur(nettoEinzel)} übrig bleiben.
+  </p>
+  <p>
+    Daraus folgt eine Umkehrung, die dem Namen des Freibetrags widerspricht: Für die
+    Körperschaft, die ihn nicht bekommt, wäre er die vollen {eur(fbBrutto)} wert, weil bei ihr
+    keine Anrechnung gegenzurechnen ist. Für den Einzelunternehmer, dem er zusteht, sind es
+    {' '}{eur(fbNetto)}. Der Vergleich der beiden Rechtsformen lässt sich mit diesen Zahlen
+    allerdings nicht abschließen – dazu gehören Körperschaftsteuer, Solidaritätszuschlag und
+    die Besteuerung der Ausschüttung, die dieser Rechner nicht abbildet.
+  </p>
+
+  <h3>Wo diese Rechnung endet</h3>
+  <p>
+    Drei Einschränkungen gehören dazu. Erstens kennt § 35 Abs. 1 EStG neben der Kappung auf
+    die gezahlte Gewerbesteuer einen Ermäßigungshöchstbetrag: Angerechnet wird höchstens der
+    Teil der Einkommensteuer, der anteilig auf die gewerblichen Einkünfte entfällt. Die Zahlen
+    oben unterstellen, dass dieser Anteil das Anrechnungsvolumen deckt. Fällt er kleiner aus –
+    etwa bei geringem zu versteuerndem Einkommen oder hohen Verlusten aus anderen Quellen –,
+    verfällt der Rest; einen Vortrag auf spätere Jahre sieht die Vorschrift nicht vor.
+  </p>
+  <p>
+    Zweitens ist der Gewerbeertrag nicht der Gewinn. § 7 GewStG geht vom Gewinn aus
+    Gewerbebetrieb aus, § 8 GewStG rechnet Finanzierungsanteile hinzu, § 9 GewStG kürzt unter
+    anderem um Grundbesitz. Zusätzlich ist der Gewerbeertrag nach § 11 Abs. 1 Satz 3 GewStG auf
+    volle {eurRund(100)} nach unten abzurunden, bevor der Freibetrag abgezogen wird – bei
+    {' '}{eurRund(ERTRAG)} ändert das nichts, bei krummen Beträgen um bis zu {eurRund(99)}.
+  </p>
+  <p>
+    Drittens ist die Gewerbesteuer selbst seit 2008 keine Betriebsausgabe mehr; § 4 Abs. 5b
+    EStG schließt den Abzug aus. Genau deshalb ist die Anrechnung nach § 35 EStG für
+    natürliche Personen der einzige Weg, auf dem die Gewerbesteuer noch entlastet wird – und
+    deshalb entscheidet der Abstand des Hebesatzes zu {proz(SCHWELLE, 0)} darüber, was sie am
+    Ende kostet. Dieser Text ordnet Rechenwege ein und ist keine steuerliche Beratung.
+  </p>
+</RechnerArtikel>

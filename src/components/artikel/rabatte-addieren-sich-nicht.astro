@@ -1,0 +1,262 @@
+---
+import RechnerArtikel from '../RechnerArtikel.astro';
+
+// Der Rabatt-Rechner (src/pages/einheiten/rabatt-rechner.astro) hat kein
+// eigenes Modul unter public/scripts/ – er rechnet inline in seinem <script>:
+//   let preis = original;
+//   rabatte.forEach(r => { preis *= (1 - r / 100); });
+// Genau diese Kette (Multiplikation je Rabatt auf den jeweils aktuellen
+// Preis) wird hier im Frontmatter nachgebaut. Keine Zahl im Fließtext ist
+// abgetippt, alle stammen aus dieser Funktion oder den Prüfungen darunter.
+
+const minus = (text: string) => text.replace(/^-/, '−');
+const zahl = (n: number, d = 2) =>
+  minus(n.toLocaleString('de-DE', { minimumFractionDigits: d, maximumFractionDigits: d }));
+const proz = (n: number, d = 1) => zahl(n, d) + ' %';
+const prozKurz = (n: number) => minus(n.toLocaleString('de-DE', { maximumFractionDigits: 2 })) + ' %';
+const eur = (n: number) => zahl(n, 2) + ' €';
+const nahe = (a: number, b: number, eps = 1e-9) => Math.abs(a - b) < eps;
+
+/** Bildet exakt die Kette des Rechner-Skripts nach: preis *= (1 - r/100) je Rabatt. */
+function kette(original: number, raten: number[]): number {
+  let preis = original;
+  for (const r of raten) preis *= 1 - r / 100;
+  return preis;
+}
+/** Gesamtrabatt in Prozent, gemessen am Originalpreis – wie die Anzeige „Ersparnis (x %)“ des Rechners. */
+function gesamtProzent(original: number, raten: number[]): number {
+  return ((original - kette(original, raten)) / original) * 100;
+}
+
+// --- 1. Das Beispiel aus der Denkrichtung: zwei Rabatte --------------------
+const BASIS = 100;
+const zwei = [20, 10];
+const naivZwei = zwei.reduce((a, b) => a + b, 0);
+const echtZwei = gesamtProzent(BASIS, zwei);
+if (!nahe(echtZwei, 28)) throw new Error('Rabatt-Artikel: 20 % + 10 % müsste 28 % Gesamtrabatt ergeben.');
+if (!nahe(naivZwei - echtZwei, 2)) throw new Error('Rabatt-Artikel: Differenz bei 20 %/10 % müsste genau 2 Punkte sein.');
+
+// Tabelle mehrerer Paare, wachsende Lücke zwischen Addition und Multiplikation.
+const PAARE: Array<[number, number]> = [[10, 10], [20, 10], [30, 20], [50, 20], [40, 40]];
+const paare = PAARE.map(([a, b]) => {
+  const naiv = a + b;
+  const echt = gesamtProzent(BASIS, [a, b]);
+  return { a, b, naiv, echt, diff: naiv - echt };
+});
+
+// --- 2. Drei Rabatte: die Lücke wächst weiter -------------------------------
+const DREIER: Array<[number, number, number]> = [[20, 15, 10], [30, 20, 10], [25, 25, 25]];
+const dreier = DREIER.map((s) => {
+  const naiv = s.reduce((x, y) => x + y, 0);
+  const echt = gesamtProzent(BASIS, s);
+  return { s, naiv, echt, diff: naiv - echt };
+});
+const headline = dreier.find((d) => d.s.join() === '30,20,10')!;
+if (!nahe(headline.echt, 49.6)) throw new Error('Rabatt-Artikel: 30/20/10 % müsste 49,6 % Gesamtrabatt ergeben.');
+if (!nahe(headline.diff, 10.4)) throw new Error('Rabatt-Artikel: Differenz bei 30/20/10 % müsste 10,4 Punkte sein.');
+
+// Kommutativität: alle 6 Reihenfolgen von [30,20,10] ergeben denselben Endpreis.
+function permutationen<T>(arr: T[]): T[][] {
+  if (arr.length <= 1) return [arr];
+  const ergebnis: T[][] = [];
+  for (let i = 0; i < arr.length; i++) {
+    const rest = [...arr.slice(0, i), ...arr.slice(i + 1)];
+    for (const p of permutationen(rest)) ergebnis.push([arr[i], ...p]);
+  }
+  return ergebnis;
+}
+const alleReihenfolgen = permutationen(headline.s).map((r) => kette(BASIS, r));
+const alleGleich = alleReihenfolgen.every((e) => nahe(e, alleReihenfolgen[0]));
+if (!alleGleich) throw new Error('Rabatt-Artikel: Reihenfolge dreier reiner Prozentrabatte dürfte den Endpreis nicht ändern.');
+
+// Cross-Check gegen das eigene Beispiel im Guide-Text der Rechnerseite
+// (200 €, 50 % dann 20 %: „Gesamtrabatt: 120€, nicht 140€“).
+const guidePreis = kette(200, [50, 20]);
+const guideErsparnis = 200 - guidePreis;
+if (!nahe(guidePreis, 80) || !nahe(guideErsparnis, 120)) {
+  throw new Error('Rabatt-Artikel: Guide-Beispiel (200€, 50%, 20%) stimmt nicht mehr mit der Kette überein.');
+}
+
+// --- 3. Der Bruch der Kommutativität: fester Betrag statt Prozentsatz ------
+// Der Rechner oben kennt nur Prozentrabatte, die je auf den AKTUELLEN Preis
+// wirken – dafür ist die Reihenfolge nachweislich egal (siehe oben). Ein
+// Gutschein über einen FESTEN Euro-Betrag ist aber kein Prozentsatz vom
+// jeweils aktuellen Preis, sondern ein fixer Abzug. Sobald ein solcher Betrag
+// mit echten Prozentrabatten gemischt wird, entscheidet die Reihenfolge über
+// den Endpreis – das bildet der Rechner nicht ab, weil er kein Gutschein-Feld
+// hat.
+const P1 = 30;
+const P2 = 20;
+const GUTSCHEIN = 15;
+const prozenteZuerst = kette(BASIS, [P1, P2]) - GUTSCHEIN;
+const gutscheinZuerst = kette(BASIS - GUTSCHEIN, [P1, P2]);
+const gutscheinDiff = gutscheinZuerst - prozenteZuerst;
+if (nahe(prozenteZuerst, gutscheinZuerst)) {
+  throw new Error('Rabatt-Artikel: Gutschein-Beispiel sollte die Reihenfolge-Abhängigkeit gerade zeigen, nicht widerlegen.');
+}
+if (!nahe(gutscheinDiff, 6.6)) throw new Error('Rabatt-Artikel: Differenz im Gutschein-Beispiel müsste 6,60 € sein.');
+
+const quellen = [
+  { titel: 'Bundesrat – Pressemitteilung 157/2001: Aufhebung von Zugabeverordnung und Rabattgesetz (gebilligt 13. Juli 2001)', url: 'https://www.bundesrat.de/SharedDocs/pm/2001/157-2001.html' },
+  { titel: 'Wikipedia – Rabattgesetz (§ 2: 3 % Obergrenze für Barrabatt; Aufhebung zum 25. Juli 2001)', url: 'https://de.wikipedia.org/wiki/Rabattgesetz' },
+];
+---
+<RechnerArtikel
+  titel={`${prozKurz(zwei[0])} plus ${prozKurz(zwei[1])} Rabatt sind ${prozKurz(echtZwei)}, nicht ${prozKurz(naivZwei)}`}
+  datum="2026-09-23"
+  lead={`Wer zwei Rabatte addiert, überschätzt die Ersparnis – aus ${prozKurz(zwei[0])} und ${prozKurz(zwei[1])} werden ${prozKurz(echtZwei)}, nicht ${prozKurz(naivZwei)}. Bei drei Rabatten wird die Lücke noch größer: ${headline.s.join(' + ')} % ergeben ${proz(headline.echt)}, nicht ${zahl(headline.naiv, 0)} %. Und sobald ein Rabatt kein Prozentsatz, sondern ein fester Euro-Betrag ist, entscheidet plötzlich die Reihenfolge über den Preis.`}
+  quellen={quellen}
+>
+  <h3>Woher die Lücke kommt</h3>
+  <p>
+    Der Rechner oben verkettet Rabatte, er addiert sie nicht: Nach jedem
+    Prozentsatz wird der neue, bereits reduzierte Preis mit
+    (1 − Rabatt ÷ 100) multipliziert. Bei {prozKurz(zwei[0])} und
+    {' '}{prozKurz(zwei[1])} auf {eur(BASIS)} bedeutet das {eur(BASIS)} ×
+    {' '}{zahl(1 - zwei[0] / 100, 2)} × {zahl(1 - zwei[1] / 100, 2)} =
+    {' '}{eur(kette(BASIS, zwei))}. Das ist ein Gesamtrabatt von
+    {' '}{proz(echtZwei)} – nicht von {zahl(naivZwei, 0)} %, wie die Addition
+    nahelegt. Der Unterschied von {zahl(naivZwei - echtZwei, 0)} Prozentpunkten
+    entsteht, weil der zweite Rabatt nicht mehr auf {eur(BASIS)}, sondern nur
+    noch auf {eur(kette(BASIS, [zwei[0]]))} wirkt.
+  </p>
+  <p>
+    Diese Lücke ist keine Eigenheit eines einzelnen Beispiels, sie wächst mit
+    jedem zusätzlichen Prozentpunkt:
+  </p>
+
+  <table>
+    <caption class="visually-hidden">Naiv addierter gegen tatsächlichen Gesamtrabatt bei zwei Rabatten</caption>
+    <thead>
+      <tr>
+        <th scope="col">Zwei Rabatte</th>
+        <th scope="col" class="num">Addiert</th>
+        <th scope="col" class="num">Tatsächlich</th>
+        <th scope="col" class="num">Differenz</th>
+      </tr>
+    </thead>
+    <tbody>
+      {paare.map((p) => (
+        <tr>
+          <th scope="row">{p.a} % + {p.b} %</th>
+          <td class="num">{zahl(p.naiv, 0)} %</td>
+          <td class="num">{proz(p.echt)}</td>
+          <td class="num">{zahl(p.diff, 0)} Pkt.</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+
+  <p>
+    Bei zwei kleinen Rabatten bleibt der Fehler klein – bei {paare[0].a} % und
+    {' '}{paare[0].b} % nur {zahl(paare[0].diff, 0)} Punkt. Je größer die Sätze,
+    desto teurer die Fehleinschätzung: Bei {paare[4].a} % und {paare[4].b} %
+    liegen schon {zahl(paare[4].diff, 0)} Punkte zwischen dem, was man
+    ausgerechnet zu bekommen glaubt, und dem, was der Rechner tatsächlich
+    anzeigt.
+  </p>
+
+  <h3>Drei Rabatte hintereinander – Schwarzer Freitag, Newsletter-Code, Restposten</h3>
+  <p>
+    Der Rechner oben erlaubt bis zu drei Rabatte gleichzeitig – genau das
+    Szenario, das an Aktionstagen üblich ist: ein Rabatt auf reduzierte Ware,
+    ein Newsletter-Code obendrauf, ein Extra-Abschlag auf Restposten. Mit
+    {' '}{headline.s.join(' %, ')} % kommt der Rechner auf einen Gesamtrabatt
+    von {proz(headline.echt)} – nicht auf {zahl(headline.naiv, 0)} %, wie die
+    Summe der drei Sätze suggeriert. Der Unterschied von
+    {' '}{zahl(headline.diff, 1)} Prozentpunkten ist bei drei Rabatten mehr als
+    doppelt so groß wie bei zwei vergleichbaren Sätzen weiter oben.
+  </p>
+
+  <table>
+    <caption class="visually-hidden">Naiv addierter gegen tatsächlichen Gesamtrabatt bei drei Rabatten</caption>
+    <thead>
+      <tr>
+        <th scope="col">Drei Rabatte</th>
+        <th scope="col" class="num">Addiert</th>
+        <th scope="col" class="num">Tatsächlich</th>
+        <th scope="col" class="num">Differenz</th>
+      </tr>
+    </thead>
+    <tbody>
+      {dreier.map((d) => (
+        <tr>
+          <th scope="row">{d.s.join(' % + ')} %</th>
+          <td class="num">{zahl(d.naiv, 0)} %</td>
+          <td class="num">{proz(d.echt)}</td>
+          <td class="num">{zahl(d.diff, 1)} Pkt.</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+
+  <p>
+    Dabei ist es egal, in welcher Reihenfolge die drei Prozentsätze
+    eingetragen werden: Alle sechs Reihenfolgen von {headline.s.join(', ')} %
+    ergeben denselben Endpreis von {eur(kette(BASIS, headline.s))}, weil
+    Multiplikation kommutativ ist – 0,7 × 0,8 × 0,9 ist dasselbe Produkt wie
+    0,9 × 0,7 × 0,8. Wer im Rechner oben die Reihenfolge der drei Felder
+    vertauscht, sieht deshalb immer denselben Endpreis. Auch das Beispiel im
+    Erklärtext dieser Seite – {eur(200)}, {prozKurz(50)} dann {prozKurz(20)} –
+    bestätigt das: Es ergibt {eur(guidePreis)}, eine Ersparnis von
+    {' '}{eur(guideErsparnis)}, exakt wie dort vorgerechnet.
+  </p>
+
+  <h3>Wo die Reihenfolge doch etwas ändert</h3>
+  <p>
+    Die Kommutativität gilt nur, solange jeder Rabatt wirklich ein
+    Prozentsatz des jeweils aktuellen Preises ist. Sobald einer der
+    „Rabatte“ in Wirklichkeit ein fester Euro-Betrag ist – ein
+    {' '}{eur(GUTSCHEIN)}-Gutschein, ein Treuebonus, eine Versandkosten-Gutschrift
+    – bricht das zusammen. Auf {eur(BASIS)} mit {prozKurz(P1)} und
+    {' '}{prozKurz(P2)} Rabatt sowie einem {eur(GUTSCHEIN)}-Gutschein ergibt
+    sich, je nachdem, wann der Gutschein verrechnet wird, ein anderer Preis:
+  </p>
+  <ul>
+    <li>
+      Erst die Prozente, dann der Gutschein: {eur(BASIS)} ×
+      {' '}{zahl(1 - P1 / 100, 2)} × {zahl(1 - P2 / 100, 2)} =
+      {' '}{eur(kette(BASIS, [P1, P2]))}, minus {eur(GUTSCHEIN)} ={' '}
+      <strong>{eur(prozenteZuerst)}</strong>.
+    </li>
+    <li>
+      Erst der Gutschein, dann die Prozente: {eur(BASIS)} minus
+      {' '}{eur(GUTSCHEIN)} = {eur(BASIS - GUTSCHEIN)}, davon
+      {' '}{prozKurz(P1)} und {prozKurz(P2)} ={' '}
+      <strong>{eur(gutscheinZuerst)}</strong>.
+    </li>
+  </ul>
+  <p>
+    Die Differenz beträgt {eur(gutscheinDiff)} – bei denselben drei
+    Nachlässen, nur in anderer Reihenfolge verrechnet. Der Grund: Ein
+    Euro-Betrag bleibt immer gleich groß, ein Prozentsatz schrumpft mit dem
+    Preis, auf den er wirkt. Wird der Gutschein zuerst abgezogen, wirken die
+    folgenden Prozentrabatte auf eine kleinere Summe und sparen dadurch selbst
+    weniger absolute Euro – der Gutschein „verschenkt“ dann einen Teil seines
+    Werts an die Prozentrabatte. Der Rechner oben bildet das nicht ab, weil er
+    ausschließlich mit Prozentsätzen rechnet; wer einen echten Euro-Gutschein
+    einbeziehen will, muss ihn separat und mit Blick auf die Reihenfolge
+    verrechnen.
+  </p>
+
+  <h3>Warum das Rechnen überhaupt erlaubt ist</h3>
+  <p>
+    Dass Händler in Deutschland beliebig viele Prozentrabatte miteinander
+    kombinieren dürfen, ist historisch nicht selbstverständlich. Von 1934 bis
+    2001 begrenzte das Rabattgesetz Barrabatte an Endverbraucher auf 3 Prozent
+    des Warenpreises – jede der Beispielrechnungen oben, ob {proz(echtZwei)}
+    oder {proz(headline.echt)} Gesamtrabatt, wäre damals rechtswidrig gewesen.
+    Am 13. Juli 2001 billigte der Bundesrat die Aufhebung, am 25. Juli 2001
+    trat sie in Kraft. Seither gilt für Rabattaktionen nur noch das allgemeine
+    Wettbewerbsrecht, keine feste Prozentgrenze mehr – weshalb dreifach
+    gestaffelte Rabatte wie im Rechner oben heute ein normales Angebot sind
+    und keine Ausnahme.
+  </p>
+  <p class="ra-hinweis">
+    Alle Werte in diesem Artikel sind mit derselben Formel berechnet, die auch
+    das Skript der Rechnerseite verwendet (preis ×= 1 − Rabatt ÷ 100, je
+    Rabatt einmal), nicht gerundet weitergerechnet und erst in der Anzeige
+    gerundet. Das Gutschein-Beispiel ist ein Rechenbeispiel zur
+    Veranschaulichung, keine Aussage über ein bestimmtes Angebot.
+  </p>
+</RechnerArtikel>

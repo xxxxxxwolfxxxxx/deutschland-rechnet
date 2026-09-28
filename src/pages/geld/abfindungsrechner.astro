@@ -3,6 +3,7 @@ import Layout from '../../layouts/Layout.astro';
 import CalculatorShell from '../../components/CalculatorShell.astro';
 import CalculatorGuide from '../../components/CalculatorGuide.astro';
 import { CALCULATORS, CATEGORIES } from '../../data/calculators';
+import ArtikelFuenftel from '../../components/artikel/fuenftelregelung-wirkt-nur-wo-der-tarif-steigt.astro';
 import { berechneAbfindung, steuerAufAbfindung, MONATSVERDIENSTE_JE_JAHR } from '../../../public/scripts/abfindung.js';
 const calc = CALCULATORS.find(c => c.slug === 'abfindungsrechner')!;
 const cat = CATEGORIES[calc.category];
@@ -89,6 +90,7 @@ const faqs = [
       </div>
       <div id="details" style="margin-top:0.75rem;font-size:0.88rem;color:#666;display:flex;gap:1.5rem;flex-wrap:wrap;"></div>
     </div>
+    <ArtikelFuenftel slot="artikel" />
   </CalculatorShell>
 
   <CalculatorGuide
@@ -108,8 +110,8 @@ function berechne() {
   document.getElementById('abfindung').textContent = eur(r.abfindung);
   document.getElementById('details').innerHTML = [
     `<span>Angerechnete Jahre: <strong>${r.jahre}</strong> (${r.monatsgehaelter.toLocaleString('de-DE')} Monatsverdienste)</span>`,
-    `<span>Einkommensteuer regulär: <strong>${eur(s.ohneFuenftelregelung)}</strong></span>`,
-    `<span>mit Fünftelregelung: <strong>${eur(s.mitFuenftelregelung)}</strong></span>`,
+    `<span>Steuer auf die Abfindung, regulär versteuert: <strong>${eur(s.ohneFuenftelregelung)}</strong></span>`,
+    `<span>… mit Fünftelregelung: <strong>${eur(s.mitFuenftelregelung)}</strong></span>`,
     `<span>Ersparnis: <strong>${eur(s.ersparnis)}</strong></span>`,
   ].join('');
 }

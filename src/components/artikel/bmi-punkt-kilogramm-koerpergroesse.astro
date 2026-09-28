@@ -1,0 +1,446 @@
+---
+import RechnerArtikel from '../RechnerArtikel.astro';
+import { berechneBMI } from '../../../public/scripts/bmi.js';
+
+// Alle Zahlen zur Buildzeit aus demselben Modul, das auch der Rechner lädt.
+const zahl = (n: number, d = 1) =>
+  n.toLocaleString('de-DE', { minimumFractionDigits: d, maximumFractionDigits: d });
+const kg = (n: number, d = 1) => zahl(n, d) + ' kg';
+const cm = (n: number) => n.toLocaleString('de-DE', { maximumFractionDigits: 1 }) + ' cm';
+const meter = (h: number) => zahl(h / 100, 2) + ' m';
+
+// Die Klassen in der Reihenfolge des Moduls. Ändert das Modul eine
+// Bezeichnung, bricht der Build hier ab, statt leere Tabellen zu rendern.
+const ORDNUNG = [
+  'Untergewicht',
+  'Normalgewicht',
+  'Übergewicht',
+  'Adipositas Grad I',
+  'Adipositas Grad II',
+  'Adipositas Grad III',
+];
+const rang = (gewichtKg: number, groesseCm: number) => {
+  const k = berechneBMI({ gewichtKg, groesseCm }).kategorie;
+  const i = ORDNUNG.indexOf(k);
+  if (i < 0) throw new Error(`BMI-Artikel: unbekannte Kategorie "${k}" im Modul.`);
+  return i;
+};
+
+/**
+ * Kleinstes Gewicht, ab dem das Modul die Klasse NACH `klasse` ausgibt.
+ * Bisektion auf der Kategorie selbst, nicht auf der Formel – so geht die
+ * Rundung des Moduls mit ein.
+ */
+function grenzgewicht(groesseCm: number, klasse: string): number {
+  const ziel = ORDNUNG.indexOf(klasse);
+  let lo = 1;
+  let hi = 500;
+  for (let i = 0; i < 60; i += 1) {
+    const mitte = (lo + hi) / 2;
+    if (rang(mitte, groesseCm) <= ziel) lo = mitte;
+    else hi = mitte;
+  }
+  return hi;
+}
+
+// --- 1. Was ein BMI-Punkt wiegt -------------------------------------------
+const GROESSEN = [150, 160, 170, 180, 190, 200];
+const zeilen = GROESSEN.map((h) => {
+  const abNormal = grenzgewicht(h, 'Untergewicht');
+  const abUeber = grenzgewicht(h, 'Normalgewicht');
+  const abAdipositas = grenzgewicht(h, 'Übergewicht');
+  return {
+    h,
+    abNormal,
+    abUeber,
+    abAdipositas,
+    spanne: abUeber - abNormal,
+    // Zwischen 25 und 30 liegen genau fünf Punkte.
+    proPunkt: (abAdipositas - abUeber) / 5,
+  };
+});
+const klein = zeilen[0];
+const gross = zeilen[zeilen.length - 1];
+const spannenVerhaeltnis = gross.spanne / klein.spanne;
+const spannenDifferenz = gross.spanne - klein.spanne;
+if (!(gross.proPunkt > klein.proPunkt * 1.7)) {
+  throw new Error('BMI-Artikel: Ein Punkt bei 2 m wiegt nicht mehr deutlich mehr als bei 1,50 m.');
+}
+// „Die Spanne der Kleinsten ist schmaler als das Übergewichtsband der Größten“
+const uebergewichtsbandGross = gross.abAdipositas - gross.abUeber;
+const uebergewichtsbandKlein = klein.abAdipositas - klein.abUeber;
+const band170 = zeilen.find((z) => z.h === 170)!;
+if (!(uebergewichtsbandGross > klein.spanne)) {
+  throw new Error('BMI-Artikel: Vergleich Normalspanne/Übergewichtsband stimmt nicht mehr.');
+}
+
+// --- 2. Das Beispiel des Rechners: 175 cm, 75 kg ---------------------------
+const BSP_GROESSE = 175;
+const BSP_GEWICHT = 75;
+const bsp = berechneBMI({ gewichtKg: BSP_GEWICHT, groesseCm: BSP_GROESSE });
+const bspAbUeber = grenzgewicht(BSP_GROESSE, 'Normalgewicht');
+const bspAbNormal = grenzgewicht(BSP_GROESSE, 'Untergewicht');
+const bspAbstand = bspAbUeber - BSP_GEWICHT;
+const bspSpanne = bspAbUeber - bspAbNormal;
+const bspAnteil = (bspAbstand / bspSpanne) * 100;
+if (bsp.kategorie !== 'Normalgewicht' || !(bspAbstand > 0 && bspAbstand < 2)) {
+  throw new Error('BMI-Artikel: Das Rechnerbeispiel liegt nicht mehr knapp unter der Übergewichtsgrenze.');
+}
+// Dieselbe BMI-Lage bei 1,50 m und 2,00 m: Abstand zur Grenze in kg.
+const bspAbstandKlein = klein.abUeber - (bsp.bmi * (klein.h / 100) ** 2);
+const bspAbstandGross = gross.abUeber - (bsp.bmi * (gross.h / 100) ** 2);
+// Text: „mit gut der Hälfte des Gewichts, das der größere zunehmen müsste“
+const bspAbstandQuote = bspAbstandKlein / bspAbstandGross;
+if (!(bspAbstandQuote > 0.5 && bspAbstandQuote < 0.65)) {
+  throw new Error(`BMI-Artikel: „gut die Hälfte“ stimmt nicht mehr (${bspAbstandQuote}).`);
+}
+
+// --- 3. Gleiche Gestalt, andere Größe ---------------------------------------
+// Modellannahme: Ein Körper wird in allen drei Richtungen gleichmäßig
+// vergrößert (isometrisch). Das Gewicht wächst dann mit der dritten Potenz
+// der Größe. Menschen wachsen so nicht exakt – die Rechnung zeigt nur, was
+// der Exponent 2 mit einer unveränderten Gestalt macht.
+const ISO_START_H = 160;
+const ISO_START_BMI = 22;
+const isoStartGewicht = ISO_START_BMI * (ISO_START_H / 100) ** 2;
+const isoGewicht = (h: number) => isoStartGewicht * (h / ISO_START_H) ** 3;
+const NEU_FAKTOR = 1.3; // Trefethen: 1,3 = Wurzel aus 1,69
+const neuerIndex = (g: number, h: number) => (NEU_FAKTOR * g) / (h / 100) ** 2.5;
+const ISO_GROESSEN = [150, 160, 170, 180, 190, 200];
+const isoZeilen = ISO_GROESSEN.map((h) => {
+  const g = isoGewicht(h);
+  const r = berechneBMI({ gewichtKg: g, groesseCm: h });
+  return { h, g, bmi: r.bmi, kategorie: r.kategorie, neu: neuerIndex(g, h) };
+});
+const isoStart = isoZeilen.find((z) => z.h === ISO_START_H)!;
+const iso190 = isoZeilen.find((z) => z.h === 190)!;
+if (isoStart.kategorie !== 'Normalgewicht' || iso190.kategorie !== 'Übergewicht') {
+  throw new Error('BMI-Artikel: Die isometrische Hochrechnung kippt nicht mehr in Übergewicht.');
+}
+// Ab welcher Größe wird dieselbe Gestalt zu Übergewicht? Fein in 0,1-cm-Schritten.
+let isoKipp = 0;
+for (let h10 = ISO_START_H * 10; h10 <= 2200; h10 += 1) {
+  const h = h10 / 10;
+  if (berechneBMI({ gewichtKg: isoGewicht(h), groesseCm: h }).kategorie !== 'Normalgewicht') {
+    isoKipp = h;
+    break;
+  }
+}
+if (!(isoKipp > 175 && isoKipp < 190)) {
+  throw new Error(`BMI-Artikel: Kipppunkt der isometrischen Rechnung unerwartet (${isoKipp}).`);
+}
+const iso150 = isoZeilen[0];
+const isoAnstiegBmi = iso190.bmi - isoStart.bmi;
+const isoAnstiegNeu = iso190.neu - isoStart.neu;
+if (!(isoAnstiegNeu < isoAnstiegBmi * 0.6)) {
+  throw new Error('BMI-Artikel: Der neue Index halbiert die Drift nicht mehr annähernd.');
+}
+// Trefethens Eichung: bei 1,69 m sind beide Indizes gleich.
+const EICH_H = 169;
+const eichAbweichung = Math.abs(neuerIndex(60, EICH_H) - 60 / (EICH_H / 100) ** 2);
+if (eichAbweichung > 1e-9) throw new Error('BMI-Artikel: Eichhöhe des neuen Index stimmt nicht.');
+
+// --- 4. Broca gegen BMI ------------------------------------------------------
+// Broca-Normalgewicht = Größe in cm minus 100 (so auch der Idealgewicht-Rechner).
+const BROCA_GROESSEN = [150, 160, 170, 180, 190, 200, 210];
+const brocaZeilen = BROCA_GROESSEN.map((h) => {
+  const r = berechneBMI({ gewichtKg: h - 100, groesseCm: h });
+  return { h, g: h - 100, bmi: r.bmi, kategorie: r.kategorie };
+});
+// Größte BMI-Lage des Broca-Gewichts, fein gesucht.
+let brocaMaxH = 0;
+let brocaMaxBmi = 0;
+for (let h = 120; h <= 250; h += 0.1) {
+  const b = (h - 100) / (h / 100) ** 2;
+  if (b > brocaMaxBmi) { brocaMaxBmi = b; brocaMaxH = h; }
+}
+const broca200 = brocaZeilen.find((z) => z.h === 200)!;
+if (Math.abs(brocaMaxH - 200) > 0.2 || Math.abs(brocaMaxBmi - 25) > 1e-6) {
+  throw new Error('BMI-Artikel: Das Broca-Maximum liegt nicht bei 2 m und BMI 25.');
+}
+if (broca200.kategorie !== 'Übergewicht' || brocaZeilen.some((z) => z.h !== 200 && z.kategorie !== 'Normalgewicht')) {
+  throw new Error('BMI-Artikel: Broca-Tabelle passt nicht mehr zur Aussage im Text.');
+}
+const broca150 = brocaZeilen[0];
+
+const quellen = [
+  { titel: 'Deutsche Adipositas-Gesellschaft – Definition von Übergewicht und Adipositas (Klassifikation nach WHO 2000, Kinder und Jugendliche)', url: 'https://adipositas-gesellschaft.de/ueber-adipositas/definition-von-adipositas/' },
+  { titel: 'WHO – Obesity and overweight, Fact Sheet (Definitionen für Erwachsene und Kinder)', url: 'https://www.who.int/news-room/fact-sheets/detail/obesity-and-overweight' },
+  { titel: 'WHO – Growth reference data for 5–19 years', url: 'https://www.who.int/tools/growth-reference-data-for-5to19-years' },
+  { titel: 'Nick Trefethen, University of Oxford – New BMI (Leserbrief im Economist vom 5. Januar 2013 und Formel)', url: 'https://people.maths.ox.ac.uk/trefethen/bmi.html' },
+];
+---
+<RechnerArtikel
+  titel="Ein BMI-Punkt wiegt nicht überall gleich viel"
+  datum="2026-09-17"
+  lead={`Die Grenzen der BMI-Tabelle sind für alle Erwachsenen dieselben – die Kilogramm dahinter nicht. Bei ${meter(klein.h)} entspricht ein BMI-Punkt ${kg(klein.proPunkt, 2)}, bei ${meter(gross.h)} ${kg(gross.proPunkt, 2)}. Das Normalgewicht umfasst bei der kleineren Größe ${kg(klein.spanne)}, bei der größeren ${kg(gross.spanne)}. Und wer eine Gestalt unverändert von ${meter(ISO_START_H)} auf ${meter(190)} vergrößert, rutscht von BMI ${zahl(isoStart.bmi)} auf ${zahl(iso190.bmi)} – ins Übergewicht, ohne dass sich an den Proportionen etwas ändert.`}
+  quellen={quellen}
+>
+  <h3>Woher die Grenzen im Rechner stammen</h3>
+  <p>
+    Der Rechner oben auf dieser Seite teilt das Gewicht in Kilogramm durch das
+    Quadrat der Größe in Metern und ordnet das Ergebnis in sechs Klassen ein:
+    unter 18,5 Untergewicht, bis unter 25 Normalgewicht, bis unter 30
+    Übergewicht, danach Adipositas in drei Graden mit den Grenzen 35 und 40.
+    Das ist die Gewichtsklassifikation für Erwachsene, die die Weltgesundheitsorganisation
+    im Jahr 2000 festgelegt hat; die Deutsche Adipositas-Gesellschaft gibt sie
+    in dieser Form wieder. Das Modul kennt weder Alter noch Geschlecht, und die
+    Tabelle für Erwachsene sieht auch keine Stufen danach vor.
+  </p>
+  <p>
+    Für Kinder und Jugendliche gilt sie dagegen nicht. Die WHO bewertet
+    zwischen 5 und 19 Jahren den BMI im Verhältnis zum Alter – Übergewicht
+    beginnt dort eine Standardabweichung über dem Median ihrer
+    Wachstumsreferenz, nicht bei einem festen Wert. In Deutschland empfiehlt die
+    Arbeitsgemeinschaft Adipositas im Kindes- und Jugendalter Perzentilkurven:
+    Übergewicht oberhalb der 90., Adipositas oberhalb der 97. Perzentile. Wer für
+    ein Kind rechnet, bekommt oben eine Klasse angezeigt, die für Kinder nicht
+    definiert ist.
+  </p>
+  <p>
+    Innerhalb der Erwachsenen verbirgt die Tabelle etwas anderes. Weil die Größe
+    im Quadrat im Nenner steht, bedeutet derselbe Abstand auf der BMI-Skala je
+    nach Körpergröße eine ganz andere Menge Körpergewicht.
+  </p>
+
+  <h3>Die Grenzen in Kilogramm</h3>
+  <p>
+    Die Tabelle zeigt für sechs Größen, ab welchem Gewicht der Rechner die
+    nächste Klasse ausgibt. Die Werte sind nicht mit der Formel
+    zurückgerechnet, sondern am Rechner selbst gesucht – feiner als auf das
+    Gramm, einschließlich der Rundung, die er intern vornimmt – und auf
+    100 Gramm gerundet angezeigt.
+  </p>
+
+  <table>
+    <caption class="visually-hidden">
+      Gewichtsgrenzen der BMI-Klassen und Gewicht je BMI-Punkt nach Körpergröße
+    </caption>
+    <thead>
+      <tr>
+        <th scope="col" class="num">Größe</th>
+        <th scope="col" class="num">Normalgewicht ab</th>
+        <th scope="col" class="num">Übergewicht ab</th>
+        <th scope="col" class="num">Adipositas ab</th>
+        <th scope="col" class="num">Spanne Normalgewicht</th>
+        <th scope="col" class="num">1 BMI-Punkt</th>
+      </tr>
+    </thead>
+    <tbody>
+      {zeilen.map((z) => (
+        <tr>
+          <th scope="row" class="num">{meter(z.h)}</th>
+          <td class="num">{kg(z.abNormal)}</td>
+          <td class="num">{kg(z.abUeber)}</td>
+          <td class="num">{kg(z.abAdipositas)}</td>
+          <td class="num">{kg(z.spanne)}</td>
+          <td class="num">{kg(z.proPunkt, 2)}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+
+  <p>
+    Die letzte Spalte ist das Quadrat der Größe in Metern, und sie wächst
+    entsprechend schnell: Zwischen {meter(klein.h)} und {meter(gross.h)} liegt
+    ein Drittel mehr Körpergröße, aber ein BMI-Punkt wiegt am oberen Ende
+    {' '}{zahl(gross.proPunkt / klein.proPunkt, 2)}-mal so viel wie am unteren.
+    Dasselbe gilt für die Spanne des Normalgewichts. Sie ist bei
+    {' '}{meter(gross.h)} mit {kg(gross.spanne)} um {kg(spannenDifferenz)} breiter
+    als bei {meter(klein.h)} mit {kg(klein.spanne)} – das
+    {' '}{zahl(spannenVerhaeltnis, 2)}-Fache.
+  </p>
+  <p>
+    Anschaulich wird das an einem Vergleich über die Tabelle hinweg: Allein
+    das Übergewichtsband eines zwei Meter großen Menschen, also die fünf Punkte
+    zwischen 25 und 30, umfasst {kg(uebergewichtsbandGross)}. Das ist mehr als
+    der gesamte Normalbereich eines Menschen von {meter(klein.h)} mit
+    {' '}{kg(klein.spanne)}.
+  </p>
+  <p class="ra-hinweis">
+    Die Grenzwerte liegen um wenige Gramm unter dem, was die Formel ergibt,
+    weil der Rechner den BMI auf zwei Nachkommastellen rundet, bevor er
+    einordnet. Ein Wert von 24,995 wird so bereits als 25 behandelt. Für die
+    Aussagen dieses Artikels spielt das keine Rolle.
+  </p>
+
+  <h3>Wie nah das Beispiel an der Grenze liegt</h3>
+  <p>
+    Der Rechner startet mit {cm(BSP_GROESSE)} und {kg(BSP_GEWICHT, 0)}. Das
+    ergibt BMI {zahl(bsp.bmi, 2)} und die Anzeige „{bsp.kategorie}". Die Zahl
+    klingt nach sicherem Abstand zur 25 – sie ist es in Kilogramm nicht. Ab
+    {' '}{kg(bspAbUeber, 2)} zeigt der Rechner Übergewicht an; bis dahin fehlen
+    {' '}{kg(bspAbstand, 2)}. Die Normalgewichtsspanne dieser Größe reicht über
+    {' '}{kg(bspSpanne)}, und das Beispiel steht im obersten
+    {' '}{zahl(bspAnteil, 0)}-Prozent-Streifen davon.
+  </p>
+  <p>
+    Wie groß der Puffer in Kilogramm ist, hängt wieder von der Größe ab. Wer bei
+    {' '}{meter(klein.h)} denselben BMI von {zahl(bsp.bmi, 2)} hat, ist
+    {' '}{kg(bspAbstandKlein, 2)} von der Grenze entfernt, bei
+    {' '}{meter(gross.h)} sind es {kg(bspAbstandGross, 2)}. Gleicher Wert,
+    gleicher Abstand auf der Skala, aber der kleinere Mensch wechselt die
+    Klasse schon mit gut der Hälfte des Gewichts, das der größere zunehmen
+    müsste. Die Klasse ist eine Einteilung eines stetigen Werts und springt, wo der Wert es
+    nicht tut.
+  </p>
+
+  <p>
+    Rückwärts gelesen gilt dasselbe für Ziele, die in BMI-Punkten formuliert
+    sind. Von der Grenze zur Adipositas bis zurück zur Grenze des
+    Normalgewichts sind es immer fünf Punkte. In Kilogramm sind das bei
+    {' '}{meter(klein.h)} {kg(uebergewichtsbandKlein)}, bei {meter(band170.h)}
+    {' '}{kg(band170.abAdipositas - band170.abUeber)} und bei {meter(gross.h)}
+    {' '}{kg(uebergewichtsbandGross)}. Ein Vergleich zweier Menschen, die „fünf
+    BMI-Punkte" abgenommen haben, vergleicht also sehr verschiedene
+    Gewichtsverluste. Umgekehrt senken zehn Kilogramm den BMI bei
+    {' '}{meter(klein.h)} um {zahl(10 / klein.proPunkt, 2)} Punkte, bei
+    {' '}{meter(gross.h)} nur um {zahl(10 / gross.proPunkt, 2)} – für den
+    kleineren Menschen ist dieselbe Abnahme auf der Skala um
+    {' '}{zahl((gross.proPunkt / klein.proPunkt - 1) * 100, 0)} Prozent
+    größer.
+  </p>
+
+  <h3>Gleiche Gestalt, andere Klasse</h3>
+  <p>
+    Warum steht die Größe gerade im Quadrat im Nenner? Ein Körper hat drei
+    Dimensionen. Würde man einen Menschen in allen Richtungen gleichmäßig
+    vergrößern – gleiche Proportionen, gleicher Körperbau, nur maßstäblich
+    größer –, wüchse sein Gewicht mit der dritten Potenz der Größe. Der BMI
+    teilt aber nur durch die zweite. Die folgende Rechnung macht sichtbar, was
+    das heißt. Sie ist ein Modell, keine Beschreibung echter Menschen: Sie
+    beginnt mit einer Person von {meter(ISO_START_H)} und BMI
+    {' '}{zahl(ISO_START_BMI, 0)} und vergrößert oder verkleinert sie maßstäblich.
+  </p>
+
+  <table>
+    <caption class="visually-hidden">
+      BMI und Einstufung einer maßstäblich vergrößerten Gestalt nach Körpergröße,
+      daneben der Index mit Exponent 2,5
+    </caption>
+    <thead>
+      <tr>
+        <th scope="col" class="num">Größe</th>
+        <th scope="col" class="num">Gewicht bei gleicher Gestalt</th>
+        <th scope="col" class="num">BMI</th>
+        <th scope="col">Einstufung im Rechner</th>
+        <th scope="col" class="num">Index mit Exponent 2,5</th>
+      </tr>
+    </thead>
+    <tbody>
+      {isoZeilen.map((z) => (
+        <tr>
+          <th scope="row" class="num">{meter(z.h)}</th>
+          <td class="num">{kg(z.g)}</td>
+          <td class="num">{zahl(z.bmi, 2)}</td>
+          <td>{z.kategorie}</td>
+          <td class="num">{zahl(z.neu, 2)}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+
+  <p>
+    Bei maßstäblicher Vergrößerung wächst der BMI proportional zur Größe. Die
+    Person mit BMI {zahl(isoStart.bmi, 0)} bei {meter(ISO_START_H)} hätte als
+    {' '}{meter(iso150.h)} kleine Ausgabe BMI {zahl(iso150.bmi, 2)}, als
+    {' '}{meter(iso190.h)} große BMI {zahl(iso190.bmi, 2)} – und würde ab
+    {' '}{cm(isoKipp)} als übergewichtig eingestuft, obwohl sich an ihren
+    Proportionen nichts geändert hat.
+  </p>
+  <p>
+    Menschen wachsen allerdings nicht maßstäblich, und ein Exponent von 3
+    passt nach den Worten des Oxforder Mathematikers Nick Trefethen nicht zu
+    den Daten. Trefethen hat 2013 vorgeschlagen, den Mittelweg zu nehmen: Gewicht durch Größe hoch 2,5, mal
+    1,3. Der Faktor ist so gewählt, dass bei {meter(EICH_H)} beide Indizes
+    denselben Wert liefern. Die letzte Spalte zeigt, dass auch dieser Index bei
+    maßstäblicher Vergrößerung steigt, aber langsamer: von {meter(ISO_START_H)}
+    auf {meter(iso190.h)} um {zahl(isoAnstiegNeu, 2)} Punkte statt um
+    {' '}{zahl(isoAnstiegBmi, 2)}. Trefethen selbst betont, dass keine einzelne
+    Zahl „richtig" sein kann; sein Index ist ein Vorschlag, keine Norm. Die
+    geltenden Grenzen der WHO beziehen sich auf den klassischen BMI, und nur den
+    rechnet der Rechner.
+  </p>
+  <p>
+    Was daraus folgt, ist eine Leserichtung, keine Korrektur: Folgt man
+    Trefethen, fällt der BMI bei sehr kleinen Menschen eher zu niedrig aus, bei
+    sehr großen eher zu hoch. Wer mit
+    {' '}{meter(190)} knapp über 25 liegt, sollte das anders lesen als jemand mit
+    {' '}{meter(155)} knapp über 25.
+  </p>
+
+  <h3>Broca und BMI treffen sich bei zwei Metern</h3>
+  <p>
+    Eine ältere Faustformel rechnet ganz ohne Quadrat, die nach Broca:
+    Normalgewicht gleich Körpergröße in Zentimetern minus 100. Der
+    {' '}<a href={`${import.meta.env.BASE_URL}gesundheit/idealgewicht-rechner/`}>Idealgewicht-Rechner</a>
+    {' '}nutzt sie. Legt man das Broca-Gewicht in den BMI-Rechner, zeigt sich ein
+    auffälliges Muster.
+  </p>
+
+  <table>
+    <caption class="visually-hidden">
+      BMI des Broca-Normalgewichts nach Körpergröße
+    </caption>
+    <thead>
+      <tr>
+        <th scope="col" class="num">Größe</th>
+        <th scope="col" class="num">Broca-Normalgewicht</th>
+        <th scope="col" class="num">BMI</th>
+        <th scope="col">Einstufung im Rechner</th>
+      </tr>
+    </thead>
+    <tbody>
+      {brocaZeilen.map((z) => (
+        <tr>
+          <th scope="row" class="num">{meter(z.h)}</th>
+          <td class="num">{kg(z.g, 0)}</td>
+          <td class="num">{zahl(z.bmi, 2)}</td>
+          <td>{z.kategorie}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+
+  <p>
+    Der BMI des Broca-Gewichts steigt mit der Größe, erreicht bei genau
+    {' '}{meter(brocaMaxH)} seinen höchsten Wert von {zahl(brocaMaxBmi, 0)} und
+    fällt danach wieder. Das ist kein Zufall der Tabelle, sondern Algebra: Der
+    Ausdruck (Größe − 1) geteilt durch Größe zum Quadrat, beide in Metern, ist
+    bei 2 Metern am größten und hat dort den Wert 1/4, mal 100 also 25. Das
+    Broca-Normalgewicht liegt deshalb bei keiner Größe über der Grenze zum
+    Übergewicht – und bei {meter(broca200.h)} genau darauf. Der Rechner stuft
+    {' '}{kg(broca200.g, 0)} bei dieser Größe bereits als
+    {' '}{broca200.kategorie} ein, weil die Klasse bei 25 beginnt.
+  </p>
+  <p>
+    Am unteren Ende liegt Broca weit unter der Übergewichtsgrenze: Bei
+    {' '}{meter(broca150.h)} ergibt das Broca-Gewicht von {kg(broca150.g, 0)}
+    einen BMI von {zahl(broca150.bmi, 2)}, mitten im Normalbereich, der dort
+    von {kg(klein.abNormal)} bis unter {kg(klein.abUeber)} reicht. Beide
+    Formeln sind also nicht zwei Schätzungen desselben Werts, sondern
+    beschreiben verschiedene Dinge: Broca einen Punkt, der BMI ein Band.
+  </p>
+
+  <h3>Was die Zahl nicht misst</h3>
+  <p>
+    Der BMI kennt nur Gewicht und Größe. Ob das Gewicht aus Muskeln oder Fett
+    besteht und wo das Fett sitzt, sieht er nicht. Die Deutsche
+    Adipositas-Gesellschaft verweist deshalb auf den Taillenumfang als
+    einfaches Maß für Fett im Bauchraum: Ab 88 cm bei Frauen und 102 cm bei
+    Männern spricht sie von abdominaler Adipositas, und bei einem BMI ab 25 soll
+    er stets gemessen werden. Der Rechner fragt danach nicht.
+  </p>
+  <p>
+    In der Tabelle der Gesellschaft heißt die Stufe von 25 bis 29,9 übrigens
+    „Präadipositas"; „Übergewicht" ist dort der Oberbegriff für alles ab 25,
+    einschließlich der Adipositas. Der Rechner verwendet „Übergewicht" im
+    engeren Sinn für diese eine Stufe. Wer mit einem Befund oder einer
+    Leitlinie vergleicht, sollte das im Kopf behalten.
+  </p>
+  <p>
+    Schließlich bleibt die Einschränkung vom Anfang: Alle Zahlen dieses
+    Artikels gelten für Erwachsene. Für Kinder und Jugendliche entscheidet
+    nicht die Tabelle, sondern die Perzentile für Alter und Geschlecht.
+  </p>
+</RechnerArtikel>

@@ -9,6 +9,8 @@ import {
   LADESTROM_DC_CENT_PRO_KWH,
   LADESTROM_ADHOC_AUTOBAHN_CENT_PRO_KWH,
   LADESTROM_QUELLE,
+  LADESTROM_ADHOC_QUELLE,
+  LADESTROM_ADHOC_QUELLE_URL,
   LADESTROM_DATENSTAND,
 } from '../../../public/scripts/strompreis.js';
 // Fahrzeugdaten und Kraftstoffpreise aus der ADAC Autokostenuebersicht
@@ -142,6 +144,7 @@ const datum = (iso: string) => new Date(iso).toLocaleDateString('de-DE', { day: 
     { titel: 'ADAC Gebrauchtwagenpreise Frühjahr/Sommer 2026 (PDF, DAT-Notierungen)', url: 'https://assets.adac.de/Autodatenbank/Autokosten/gebrauchtwagenpreise.pdf' },
     { titel: `${STROMPREIS_QUELLE} (Haushaltsstrompreis)`, url: 'https://www.bdew.de/service/daten-und-grafiken/bdew-strompreisanalyse/' },
     { titel: `${LADESTROM_QUELLE} (öffentliche Ladepreise)`, url: 'https://www.lichtblick.de/ladesaeulencheck/' },
+    { titel: `${LADESTROM_ADHOC_QUELLE} (Ad-hoc-Preis an der Autobahn)`, url: LADESTROM_ADHOC_QUELLE_URL },
   ]}
 >
   <p>
@@ -290,8 +293,8 @@ const datum = (iso: string) => new Date(iso).toLocaleDateString('de-DE', { day: 
   </div>
   <p class="tabellenhinweis">
     Bei {ganz(KM_PRO_JAHR)} Kilometern im Jahr. Haushaltsstrompreis nach
-    {' '}{STROMPREIS_QUELLE}, öffentliche Ladepreise nach {LADESTROM_QUELLE},
-    Stand {LADESTROM_DATENSTAND}.
+    {' '}{STROMPREIS_QUELLE}, öffentliche Ladepreise nach {LADESTROM_QUELLE}
+    (Stand {LADESTROM_DATENSTAND}), Ad-hoc-Preis nach {LADESTROM_ADHOC_QUELLE}.
   </p>
 
   <p>
@@ -413,7 +416,7 @@ const datum = (iso: string) => new Date(iso).toLocaleDateString('de-DE', { day: 
     Standardannahmen {ADAC_HALTEDAUER_MONATE} Monate und {ganz(KM_PRO_JAHR)} km im Jahr,
     ohne Finanzierungszinsen. Kfz-Steuer berechnet nach KraftStG in der Fassung vom
     {' '}22.12.2025, Stichtag {datum(STICHTAG)}. Ladepreise: {STROMPREIS_QUELLE} und
-    {' '}{LADESTROM_QUELLE} ({LADESTROM_DATENSTAND}). Der Verbrauch ist aus den
+    {' '}{LADESTROM_QUELLE} ({LADESTROM_DATENSTAND}), Ad-hoc-Preis: {LADESTROM_ADHOC_QUELLE}. Der Verbrauch ist aus den
     ADAC-Betriebskosten zurückgerechnet; das zulässige Gesamtgewicht des Elektrofahrzeugs
     ist eine Annahme und wirkt sich erst nach Ablauf der Steuerbefreiung aus.
   </p>

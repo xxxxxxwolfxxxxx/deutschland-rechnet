@@ -3,6 +3,7 @@ import Layout from '../../layouts/Layout.astro';
 import CalculatorShell from '../../components/CalculatorShell.astro';
 import CalculatorGuide from '../../components/CalculatorGuide.astro';
 import { CALCULATORS, CATEGORIES } from '../../data/calculators';
+import ArtikelVierzigGrad from '../../components/artikel/vierzig-grad-celsius-sind-nicht-doppelt-so-heiss-wie-zwanzig.astro';
 const calc = CALCULATORS.find(c => c.slug === 'temperatur-umrechner')!;
 const cat = CATEGORIES[calc.category];
 const year = new Date().getFullYear();
@@ -51,6 +52,7 @@ const year = new Date().getFullYear();
       </div>
       <div id="ergebnis-liste" class="ergebnis-liste"></div>
     </div>
+    <ArtikelVierzigGrad slot="artikel" />
   </CalculatorShell>
 
   <CalculatorGuide
