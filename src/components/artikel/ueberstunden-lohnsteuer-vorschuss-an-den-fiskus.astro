@@ -1,0 +1,407 @@
+---
+import RechnerArtikel from '../RechnerArtikel.astro';
+import { berechneUeberstunden } from '../../../public/scripts/ueberstunden.js';
+import { berechneNettoGehalt } from '../../../public/scripts/brutto-netto.js';
+import { jahreslohnsteuer } from '../../../public/scripts/lohnsteuer.js';
+
+// Der Rechner oben zeigt nur eine Zahl: die Bruttovergütung für die
+// eingegebenen Überstunden. Dieser Artikel rechnet mit denselben zwei
+// zusätzlichen Modulen weiter, die auch der Brutto-Netto-Rechner dieser
+// Website lädt (brutto-netto.js für den Nettolohn, lohnsteuer.js zusätzlich
+// für die reine Jahreslohnsteuer ohne Sozialversicherung), um zwei Fragen zu
+// beantworten, die der Bruttobetrag allein nicht beantwortet: Wie viel davon
+// kommt in genau diesem Monat netto an – und wie viel davon ist am
+// Jahresende, nach Steuererklärung, tatsächlich fällig?
+//
+// Modellannahme für alle Rechnungen unten: Steuerklasse I, Bundesland
+// Nordrhein-Westfalen, kinderlos, keine Kirchensteuer, durchschnittlicher
+// Zusatzbeitrag der Krankenkasse. Andere Annahmen verschieben die absoluten
+// Beträge, nicht die Richtung der beiden beschriebenen Effekte.
+const STEUERKLASSE = 1;
+const BUNDESLAND = 'NW';
+const KINDER = 0;
+
+const minus = (s: string) => s.replace(/^-/, '−');
+const eurZahl = (n: number, d = 2) =>
+  n.toLocaleString('de-DE', { minimumFractionDigits: d, maximumFractionDigits: d });
+const eur = (n: number, d = 2) => minus(eurZahl(n, d)) + ' €';
+const proz = (n: number, d = 2) =>
+  minus(n.toLocaleString('de-DE', { minimumFractionDigits: d, maximumFractionDigits: d })) + ' %';
+
+function netto(bruttoMonat: number) {
+  return berechneNettoGehalt({
+    bruttoMonat, steuerklasse: STEUERKLASSE, bundesland: BUNDESLAND, kirchensteuer: false, kinder: KINDER,
+  });
+}
+
+// Jahreslohnsteuer für einen gegebenen Jahresbruttobetrag – dieselbe Funktion,
+// die brutto-netto.js intern aufruft (dort mit bruttoMonat * 12 als
+// Jahresarbeitslohn). Hier gebraucht, um die Jahressteuer auf einen Jahresbrutto
+// zu berechnen, der NICHT einfach "Monat mal 12" ist, sondern aus elf
+// Normalmonaten und einem Überstundenmonat zusammengesetzt ist.
+function jahressteuer(jahresarbeitslohn: number) {
+  return jahreslohnsteuer({ jahresarbeitslohn, steuerklasse: STEUERKLASSE, kinder: KINDER });
+}
+
+interface Monatsvergleich {
+  ueberstunden: number;
+  vergütung: number;
+  grundvergütung: number;
+  zuschlagBetrag: number;
+  nettoNormal: number;
+  nettoMonat: number;
+  mehrSV: number;
+  einbehalteneMehrsteuer: number;
+  korrekteMehrsteuer: number;
+  erstattung: number;
+  nettoZuwachsTatsaechlich: number;
+  nettoZuwachsKorrekt: number;
+  anteilTatsaechlich: number;
+  anteilKorrekt: number;
+  zuschlagNettoSteuerpflichtig: number;
+  zuschlagDifferenzZuSteuerfrei: number;
+}
+
+// Rechnet ein Monatsbeispiel komplett durch: Bruttovergütung aus
+// ueberstunden.js, Nettolohn mit und ohne die Überstunden aus
+// brutto-netto.js, und – als Vergleichsmaßstab – die Jahreslohnsteuer, wie sie
+// bei einer korrekten Veranlagung anfiele, wenn diese eine
+// Überstundenvergütung nur in einem einzigen Monat des Jahres auftritt.
+function rechneMonat(grundgehalt: number, ueberstunden: number, zuschlagProzent: number): Monatsvergleich {
+  const uest = berechneUeberstunden({ bruttoMonat: grundgehalt, stundenProWoche: 40, ueberstunden, zuschlagProzent });
+  const grundvergütung = Math.round(uest.stundenlohn * ueberstunden * 100) / 100;
+  const zuschlagBetrag = Math.round((uest.vergütung - grundvergütung) * 100) / 100;
+
+  const bruttoMonat = grundgehalt + uest.vergütung;
+  const bruttoOhneZuschlag = grundgehalt + grundvergütung;
+
+  const nNormal = netto(grundgehalt);
+  const nMonat = netto(bruttoMonat);
+  const nOhneZuschlag = netto(bruttoOhneZuschlag);
+
+  const mehrSV = nMonat.sozialversicherung - nNormal.sozialversicherung;
+  const einbehalteneMehrsteuer = nMonat.lohnsteuer - nNormal.lohnsteuer;
+
+  // Jahresmaßstab: elf Monate normal, ein Monat mit der Überstundenvergütung –
+  // das entspricht dem, was am Jahresende bei einer Steuererklärung
+  // tatsächlich als Jahreseinkommen zugrunde liegt, im Unterschied zum
+  // Lohnsteuerabzugsverfahren, das jeden Monat einzeln auf zwölf Monate
+  // hochrechnet (§ 39b Abs. 2 EStG).
+  const jahresBasis = jahressteuer(grundgehalt * 12);
+  const jahresMitUeberstunden = jahressteuer(grundgehalt * 11 + bruttoMonat);
+  const korrekteMehrsteuer = jahresMitUeberstunden - jahresBasis;
+  const erstattung = einbehalteneMehrsteuer - korrekteMehrsteuer;
+
+  const nettoZuwachsTatsaechlich = uest.vergütung - mehrSV - einbehalteneMehrsteuer;
+  const nettoZuwachsKorrekt = uest.vergütung - mehrSV - korrekteMehrsteuer;
+
+  const zuschlagNettoSteuerpflichtig = nMonat.netto - nOhneZuschlag.netto;
+  const zuschlagDifferenzZuSteuerfrei = zuschlagBetrag - zuschlagNettoSteuerpflichtig;
+
+  return {
+    ueberstunden,
+    vergütung: uest.vergütung,
+    grundvergütung,
+    zuschlagBetrag,
+    nettoNormal: nNormal.netto,
+    nettoMonat: nMonat.netto,
+    mehrSV,
+    einbehalteneMehrsteuer,
+    korrekteMehrsteuer,
+    erstattung,
+    nettoZuwachsTatsaechlich,
+    nettoZuwachsKorrekt,
+    anteilTatsaechlich: (nettoZuwachsTatsaechlich / uest.vergütung) * 100,
+    anteilKorrekt: (nettoZuwachsKorrekt / uest.vergütung) * 100,
+    zuschlagNettoSteuerpflichtig,
+    zuschlagDifferenzZuSteuerfrei,
+  };
+}
+
+const GRUNDGEHALT = 3500;
+const ZUSCHLAG = 25;
+
+const basis = rechneMonat(GRUNDGEHALT, 20, ZUSCHLAG);
+const mittel = rechneMonat(GRUNDGEHALT, 60, ZUSCHLAG);
+const extrem = rechneMonat(GRUNDGEHALT, 100, ZUSCHLAG);
+
+const anteilNormalgehalt = (basis.nettoNormal / GRUNDGEHALT) * 100;
+
+// Für die Tabelle mit dem steigenden Effekt.
+const staffelung = [basis, mittel, extrem];
+
+// --- Selbstprüfung 1: Stimmt die Bruttovergütung des Basisbeispiels mit dem
+// überein, was der Rechner oben für dieselbe Eingabe anzeigt? Eine spätere
+// Änderung an ueberstunden.js (andere Rundung, anderer Rechenweg) würde diesen
+// Artikel sonst von der Rechnerseite entkoppeln, ohne dass es auffällt.
+const erwarteteVergütungBasis = 504.75;
+if (Math.abs(basis.vergütung - erwarteteVergütungBasis) > 0.01) {
+  throw new Error(
+    `Überstunden-Artikel: Basisbeispiel (${GRUNDGEHALT} € Grundgehalt, 20 Überstunden, ` +
+    `${ZUSCHLAG}% Zuschlag) ergibt ${basis.vergütung.toFixed(2)} € Vergütung statt der ` +
+    `erwarteten ${erwarteteVergütungBasis.toFixed(2)} € – ueberstunden.js hat sich geändert.`
+  );
+}
+
+// --- Selbstprüfung 2: Die These "ein Überstundenmonat lässt den Arbeitgeber
+// mehr Lohnsteuer einbehalten, als am Jahresende tatsächlich fällig ist" muss
+// in allen drei Beispielen zutreffen (Erstattung > 0) – sonst würde der
+// Artikel einen Effekt behaupten, den die Module in Wirklichkeit gar nicht
+// erzeugen.
+for (const fall of staffelung) {
+  if (fall.erstattung <= 0) {
+    throw new Error(
+      `Überstunden-Artikel: Bei ${fall.ueberstunden} Überstunden ist die Erstattung ` +
+      `${fall.erstattung.toFixed(2)} € – nicht positiv. Die These vom Steuervorschuss ` +
+      `durch die Monatshochrechnung nach § 39b EStG trägt mit diesen Modulen nicht.`
+    );
+  }
+}
+
+// --- Selbstprüfung 3: Der Effekt muss mit der Zahl der Überstunden wachsen
+// (streng monoton), sonst wäre die Eskalationstabelle irreführend.
+if (!(staffelung[0].erstattung < staffelung[1].erstattung && staffelung[1].erstattung < staffelung[2].erstattung)) {
+  throw new Error(
+    `Überstunden-Artikel: Die Erstattung wächst nicht monoton mit der Zahl der ` +
+    `Überstunden (${staffelung.map((f) => f.erstattung.toFixed(2)).join(' / ')} €) – ` +
+    `die Eskalationstabelle würde eine falsche Reihenfolge zeigen.`
+  );
+}
+
+// --- Selbstprüfung 4: Zerlegung in Grundvergütung + Zuschlagsbetrag muss
+// wieder die Gesamtvergütung ergeben (Rundungscent-Toleranz) – sonst stimmt
+// die Zuschlag-Tabelle im zweiten Teil nicht mit der Kopfzahl überein.
+for (const fall of staffelung) {
+  if (Math.abs(fall.grundvergütung + fall.zuschlagBetrag - fall.vergütung) > 0.02) {
+    throw new Error(
+      `Überstunden-Artikel: Grundvergütung (${fall.grundvergütung.toFixed(2)} €) + ` +
+      `Zuschlag (${fall.zuschlagBetrag.toFixed(2)} €) ergibt nicht die Gesamtvergütung ` +
+      `(${fall.vergütung.toFixed(2)} €) bei ${fall.ueberstunden} Überstunden.`
+    );
+  }
+}
+
+// --- Selbstprüfung 5: Die zweite These – derselbe Zuschlagsbetrag kommt
+// steuerfrei so gut wie vollständig an, steuerpflichtig aber zu einem
+// erkennbar kleineren Anteil – muss im 60-Stunden-Beispiel einen Unterschied
+// von mindestens 30 Prozent des Zuschlagsbetrags ausmachen. Sonst wäre der
+// im Guide oben bereits erwähnte § 3b-Unterschied hier nur behauptet, nicht
+// nachgerechnet.
+const zuschlagDifferenzAnteil = (mittel.zuschlagDifferenzZuSteuerfrei / mittel.zuschlagBetrag) * 100;
+if (zuschlagDifferenzAnteil < 30) {
+  throw new Error(
+    `Überstunden-Artikel: Der Unterschied zwischen steuerfreiem und steuerpflichtigem ` +
+    `Zuschlag beträgt im 60-Stunden-Beispiel nur ${zuschlagDifferenzAnteil.toFixed(1)}% ` +
+    `des Zuschlagsbetrags – zu klein, um die These vom "fast doppelten" Unterschied zu tragen.`
+  );
+}
+
+const quellen = [
+  { titel: '§ 39b Abs. 2 EStG – Lohnsteuerabzug nach der Jahrestabelle', url: 'https://www.gesetze-im-internet.de/estg/__39b.html' },
+  { titel: '§ 3b EStG – Steuerfreiheit von Sonntags-, Feiertags- und Nachtzuschlägen', url: 'https://www.gesetze-im-internet.de/estg/__3b.html' },
+  { titel: '§ 46 Abs. 2 EStG – Pflicht- und Antragsveranlagung bei Arbeitnehmern', url: 'https://www.gesetze-im-internet.de/estg/__46.html' },
+  { titel: '§ 32a EStG – Einkommensteuertarif', url: 'https://www.gesetze-im-internet.de/estg/__32a.html' },
+];
+---
+<RechnerArtikel
+  titel={`Warum ein Überstunden-Monat mehr Lohnsteuer kostet, als am Jahresende wirklich fällig ist`}
+  lead={`Bei ${eur(GRUNDGEHALT, 0)} Grundgehalt und ${mittel.ueberstunden} in einem Monat abgerechneten Überstunden (${ZUSCHLAG}% Zuschlag) behält der Arbeitgeber ${eur(mittel.einbehalteneMehrsteuer)} zusätzliche Lohnsteuer ein – am Jahresende wären auf dieselbe Vergütung aber nur ${eur(mittel.korrekteMehrsteuer)} fällig. Die Differenz von ${eur(mittel.erstattung)} ist kein Fehler, sondern die Kehrseite eines Verfahrens, das jeden Monat einzeln aufs Jahr hochrechnet. Der zweite, deutlich größere Unterschied steckt nicht im Zeitpunkt, sondern in der Einordnung des Zuschlags selbst: Derselbe Zuschlagsbetrag von ${eur(mittel.zuschlagBetrag)} kommt steuerpflichtig nur zu ${proz(100 - zuschlagDifferenzAnteil, 0)} an – der Rest, ${eur(mittel.zuschlagDifferenzZuSteuerfrei)}, wäre unter § 3b EStG steuer- und beitragsfrei geblieben.`}
+  datum="2026-09-28"
+  quellen={quellen}
+>
+  <h3>Zwei Zahlen, die der Rechner oben nicht zeigt</h3>
+  <p>
+    Der Rechner oben beantwortet eine Frage: Wie viel <strong>brutto</strong>{' '}
+    steht für die eingegebenen Überstunden zu? Für {basis.ueberstunden} Überstunden
+    bei {eur(GRUNDGEHALT, 0)} Grundgehalt und {ZUSCHLAG}% Zuschlag zeigt er{' '}
+    {eur(basis.vergütung)}. Was er nicht zeigt, sind zwei Anschlussfragen, die
+    für die Gehaltsabrechnung mehr ausmachen als der Zuschlagsatz selbst:
+    Erstens, wie viel von diesem Betrag in genau diesem Monat netto ankommt –
+    und zweitens, ob dieser Netto-Betrag am Jahresende, nach Abgabe einer
+    Steuererklärung, überhaupt so bleibt. Beide Fragen beantwortet dieser
+    Artikel mit denselben Modulen, die auch der Brutto-Netto-Rechner dieser
+    Website verwendet.
+  </p>
+
+  <h3>Der erste Effekt: die Monatshochrechnung nach § 39b EStG</h3>
+  <p>
+    Der Lohnsteuerabzug, den der Arbeitgeber jeden Monat einbehält, wird nicht
+    aus dem tatsächlichen Jahreseinkommen berechnet – das kennt der Arbeitgeber
+    ja noch gar nicht –, sondern aus einer Hochrechnung: Das Bruttogehalt des
+    laufenden Monats wird mit zwölf multipliziert, so behandelt, als würde
+    genau dieser Betrag jeden Monat des Jahres anfallen, und die darauf
+    entfallende Jahreslohnsteuer wird durch zwölf geteilt (§ 39b Abs. 2 EStG).
+    In einem Monat mit normalem Gehalt ist das unproblematisch, weil die
+    Annahme "jeden Monat gleich viel" ungefähr zutrifft. In einem Monat mit
+    vielen bezahlten Überstunden trifft sie nicht zu: Der Fiskus rechnet für
+    diesen einen Monat so, als würde man das ganze Jahr über {eur(GRUNDGEHALT, 0)}{' '}
+    plus Überstundenvergütung verdienen – und behält entsprechend mehr
+    Lohnsteuer ein, als für eine einmalige Spitze angemessen wäre.
+  </p>
+  <p>
+    Konkret für {eur(GRUNDGEHALT, 0)} Grundgehalt bei {mittel.ueberstunden}{' '}
+    Überstunden mit {ZUSCHLAG}% Zuschlag ({eur(mittel.vergütung)}{' '}
+    Bruttovergütung, zusammen {eur(GRUNDGEHALT + mittel.vergütung)}{' '}
+    Bruttogehalt in diesem einen Monat statt der üblichen{' '}
+    {eur(GRUNDGEHALT, 0)}) ergibt sich dieser Unterschied zwischen dem, was der
+    Arbeitgeber tatsächlich einbehält, und dem, was am Jahresende korrekt
+    fällig wäre:
+  </p>
+  <table>
+    <caption class="visually-hidden">Einbehaltene Mehr-Lohnsteuer im Überstundenmonat gegenüber der bei einer Steuererklärung korrekt fälligen Mehrsteuer</caption>
+    <thead>
+      <tr><th scope="col"></th><th scope="col" class="num">Betrag</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <th scope="row">Vom Arbeitgeber einbehaltene Mehr-Lohnsteuer im Überstundenmonat</th>
+        <td class="num">{eur(mittel.einbehalteneMehrsteuer)}</td>
+      </tr>
+      <tr>
+        <th scope="row">Bei einer Steuererklärung korrekt fällige Mehrsteuer auf dieselbe Vergütung</th>
+        <td class="num">{eur(mittel.korrekteMehrsteuer)}</td>
+      </tr>
+      <tr>
+        <th scope="row">Differenz – Erstattung erst nach der Steuererklärung</th>
+        <td class="num">{eur(mittel.erstattung)}</td>
+      </tr>
+    </tbody>
+  </table>
+  <p>
+    Die Zeile "korrekt fällige Mehrsteuer" ist keine feste Tabelle, sondern
+    selbst gerechnet: Sie vergleicht die Jahreslohnsteuer auf ein Jahr aus elf
+    Normalmonaten plus einem Überstundenmonat mit der Jahreslohnsteuer auf
+    zwölf Normalmonate – also genau die Steuer, die anfiele, wenn das
+    Finanzamt (wie bei einer Steuererklärung) das tatsächliche Jahreseinkommen
+    zugrunde legt, statt den einen Monat auf zwölf hochzurechnen. Der
+    Unterschied von {eur(mittel.erstattung)} ist damit kein verlorenes Geld,
+    sondern ein zinsloser Vorschuss an das Finanzamt, der erst mit der
+    Steuererklärung zurückkommt – bei Steuerklasse I ohne weitere
+    Nebeneinkünfte in der Regel über eine freiwillige Antragsveranlagung
+    (§ 46 Abs. 2 EStG), nicht automatisch.
+  </p>
+
+  <h3>Der Effekt wächst mit der Zahl der Überstunden</h3>
+  <p>
+    Bei {basis.ueberstunden} Überstunden im Monat ist der Vorschuss noch klein –
+    er fällt kaum ins Gewicht. Er wächst aber überproportional mit der Zahl der
+    Überstunden, weil eine größere einmalige Spitze die Hochrechnung stärker
+    verzerrt:
+  </p>
+  <table>
+    <caption class="visually-hidden">Einbehaltene Mehr-Lohnsteuer gegenüber korrekt fälliger Mehrsteuer bei steigender Zahl von Überstunden</caption>
+    <thead>
+      <tr><th scope="col">Überstunden</th><th scope="col" class="num">Vergütung (brutto)</th><th scope="col" class="num">Einbehalten</th><th scope="col" class="num">Korrekt fällig</th><th scope="col" class="num">Vorschuss</th></tr>
+    </thead>
+    <tbody>
+      {staffelung.map((f) => (
+        <tr>
+          <th scope="row">{f.ueberstunden} Std.</th>
+          <td class="num">{eur(f.vergütung)}</td>
+          <td class="num">{eur(f.einbehalteneMehrsteuer)}</td>
+          <td class="num">{eur(f.korrekteMehrsteuer)}</td>
+          <td class="num">{eur(f.erstattung)}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+  <p>
+    Bei {extrem.ueberstunden} Überstunden im Monat – ein Extremfall, aber in
+    Produktions- oder Pflegeberufen in Ausnahmemonaten keine Seltenheit – macht
+    der Vorschuss bereits {eur(extrem.erstattung)} aus, gegenüber{' '}
+    {eur(basis.erstattung)} bei {basis.ueberstunden} Überstunden. Der
+    Netto-Anteil, der im selben Monat tatsächlich auf dem Konto landet, sinkt
+    entsprechend: von {proz(basis.anteilTatsaechlich)} bei{' '}
+    {basis.ueberstunden} Überstunden auf {proz(extrem.anteilTatsaechlich)} bei{' '}
+    {extrem.ueberstunden} Überstunden – während der bei korrekter
+    Jahresveranlagung eigentlich zustehende Anteil in beiden Fällen bei rund{' '}
+    {proz((basis.anteilKorrekt + extrem.anteilKorrekt) / 2, 0)} liegt. Zum
+    Vergleich: Vom normalen Grundgehalt ohne Überstunden bleiben{' '}
+    {proz(anteilNormalgehalt)} netto übrig – mehr als von der
+    Überstundenvergütung im selben Monat, obwohl beides mit demselben
+    Steuersatz beginnt.
+  </p>
+
+  <h3>Der zweite, größere Effekt: steuerfreier oder steuerpflichtiger Zuschlag</h3>
+  <p>
+    Der oben beschriebene Zeiteffekt betrifft die <strong>gesamte</strong>{' '}
+    Überstundenvergütung – Grundlohn und Zuschlag zusammen. Er ist real, aber
+    im Vergleich zu einem zweiten Effekt klein: ob der Zuschlagsanteil selbst
+    steuerpflichtig ist oder nicht. Wie der Ratgeber oben bereits einordnet,
+    ist der reine Überstundenzuschlag steuerpflichtig; steuerfrei nach § 3b
+    EStG sind nur Zuschläge für tatsächlich geleistete Sonntags-, Feiertags-
+    und Nachtarbeit. Was das in Euro bedeutet, zeigt derselbe{' '}
+    {mittel.ueberstunden}-Stunden-Fall: Von den {eur(mittel.vergütung)} Gesamtvergütung
+    entfallen {eur(mittel.grundvergütung)} auf den Grundlohn und{' '}
+    {eur(mittel.zuschlagBetrag)} auf den {ZUSCHLAG}%-Zuschlag.
+  </p>
+  <table>
+    <caption class="visually-hidden">Netto-Ankunft desselben Zuschlagsbetrags je nachdem, ob er steuerfrei nach § 3b EStG behandelt wird oder nicht</caption>
+    <thead>
+      <tr><th scope="col"></th><th scope="col" class="num">Betrag</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <th scope="row">Zuschlagsbetrag (brutto), z. B. gewöhnlicher Überstundenzuschlag</th>
+        <td class="num">{eur(mittel.zuschlagBetrag)}</td>
+      </tr>
+      <tr>
+        <th scope="row">Netto-Ankunft, wenn steuer- und beitragspflichtig behandelt (Regelfall bei reinem Überstundenzuschlag)</th>
+        <td class="num">{eur(mittel.zuschlagNettoSteuerpflichtig)}</td>
+      </tr>
+      <tr>
+        <th scope="row">Netto-Ankunft, wenn steuer- und beitragsfrei nach § 3b EStG (nur bei Nacht-/Sonn-/Feiertagsarbeit)</th>
+        <td class="num">{eur(mittel.zuschlagBetrag)}</td>
+      </tr>
+      <tr>
+        <th scope="row">Unterschied zwischen beiden Fällen</th>
+        <td class="num">{eur(mittel.zuschlagDifferenzZuSteuerfrei)}</td>
+      </tr>
+    </tbody>
+  </table>
+  <p>
+    Der Unterschied von {eur(mittel.zuschlagDifferenzZuSteuerfrei)} entspricht{' '}
+    {proz(zuschlagDifferenzAnteil, 0)} des Zuschlagsbetrags selbst – mehr als
+    der komplette oben beschriebene Zeiteffekt für die gesamte Vergütung
+    ({eur(mittel.erstattung)}) zusammen ausmacht. Ob ein Zuschlag unter § 3b
+    EStG fällt, hängt nicht vom Namen auf der Lohnabrechnung ab, sondern von
+    der tatsächlich geleisteten Arbeit: Ein "Überstundenzuschlag" für
+    Mehrarbeit am helllichten Tag ist steuerpflichtig, derselbe Zuschlagsatz
+    für nachts, sonntags oder an Feiertagen geleistete Stunden kann steuerfrei
+    sein – begrenzt auf die in § 3b EStG genannten Prozentsätze des
+    Grundlohns (z. B. 25 % für Nachtarbeit, 50 % für Sonntagsarbeit, 125 % für
+    gesetzliche Feiertage), wie im Ratgeber oben dargestellt.
+  </p>
+
+  <h3>Was in der Praxis daraus folgt</h3>
+  <p>
+    Für die Gehaltsabrechnung eines einzelnen Überstundenmonats ergeben sich
+    daraus zwei getrennte, aber verstärkende Effekte: Die gesamte
+    Überstundenvergütung wird im Abrechnungsmonat höher besteuert, als sie es
+    bei korrekter Jahresbetrachtung müsste – dieser Teil kommt über eine
+    Steuererklärung zurück, kostet also nur Liquidität, kein Geld. Der
+    Zuschlagsanteil dagegen bleibt endgültig geringer, wenn er nicht unter
+    § 3b EStG fällt – dieser Teil kommt über keine Steuererklärung zurück,
+    weil es schlicht keinen Anspruch auf Steuerfreiheit für gewöhnliche
+    Mehrarbeit gibt. Wer regelmäßig Nacht-, Sonntags- oder Feiertagsstunden
+    leistet, für die der Arbeitgeber pauschal "Überstundenzuschlag" statt der
+    korrekten, steuerfrei möglichen Bezeichnung abrechnet, verschenkt damit
+    unter Umständen dauerhaft Nettogehalt – nicht nur vorübergehend wie beim
+    ersten Effekt.
+  </p>
+
+  <h3>Annahmen und Grenzen dieser Rechnung</h3>
+  <p>
+    Alle Beträge oben gelten für Steuerklasse I, Bundesland Nordrhein-Westfalen,
+    kinderlos, ohne Kirchensteuer und mit dem durchschnittlichen
+    Zusatzbeitragssatz der Krankenkasse – dieselben Annahmen, mit denen auch
+    der Brutto-Netto-Rechner dieser Website ohne eigene Eingabe rechnet. Eine
+    andere Steuerklasse oder Kirchensteuerpflicht verschiebt die absoluten
+    Beträge, kehrt aber weder die Richtung des Zeiteffekts noch die des
+    § 3b-Unterschieds um. Nicht abgebildet sind individuelle Freibeträge nach
+    § 39a EStG, die einen Teil des Zeiteffekts bereits unterjährig ausgleichen
+    können, sowie die Frage, ob im Einzelfall überhaupt eine Pflicht- oder
+    Antragsveranlagung vorliegt – das regelt § 46 EStG abhängig von der
+    gesamten steuerlichen Situation, nicht allein vom Überstundenmonat.
+  </p>
+</RechnerArtikel>

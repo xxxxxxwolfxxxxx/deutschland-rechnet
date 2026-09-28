@@ -1,0 +1,312 @@
+---
+import RechnerArtikel from '../RechnerArtikel.astro';
+import {
+  berechneErbschaftsteuer,
+  FREIBETRAEGE,
+  PERSONENGRUPPEN,
+  STEUERSAETZE,
+  steuersatz,
+} from '../../../public/scripts/erbschaftsteuer.js';
+
+// Alle Zahlen kommen aus demselben Modul, mit dem der Rechner oben rechnet.
+// Keine Zahl im Fliesstext, die nicht aus einer Variablen stammt.
+
+const zahl = (n: number, d = 2) =>
+  n.toLocaleString('de-DE', { minimumFractionDigits: d, maximumFractionDigits: d }).replace(/^-/, '−');
+const eur = (n: number, d = 2) => zahl(n, d) + ' €';
+const eur0 = (n: number) => zahl(n, 0) + ' €';
+const proz = (n: number, d = 0) => zahl(n, d) + ' %';
+
+// --- These 1: Vollmengenstaffelung statt Stufensteuer ----------------------
+// Ein Kind erbt 500.000 € (der Beispielwert, den der Rechner beim Öffnen
+// zeigt). § 19 Abs. 1 ErbStG wendet auf den GANZEN steuerpflichtigen Erwerb
+// den Satz der erreichten Wertstufe an – nicht wie bei der Einkommensteuer
+// stufenweise nur auf den jeweils übersteigenden Teil.
+const kind500 = berechneErbschaftsteuer({ nachlass: 500000, klasse: 'I2' });
+if (kind500.zuVersteuern !== 100000 || kind500.satz !== 11) {
+  throw new Error('Haerteausgleich: Beispiel Kind/500.000 weicht vom Modul ab');
+}
+// Fiktive, FALSCHE Stufenrechnung zur Gegenprobe: 75.000 € zu 7 % plus der
+// Rest zu 11 % – das wäre die Logik der Einkommensteuer, nicht die des ErbStG.
+const falscheStufenrechnung =
+  STEUERSAETZE.I[0].bis * (STEUERSAETZE.I[0].satz / 100) +
+  (kind500.zuVersteuern - STEUERSAETZE.I[0].bis) * (kind500.satz / 100);
+if (Math.abs(falscheStufenrechnung - 8000) > 0.01) {
+  throw new Error('Haerteausgleich: falsche Stufenrechnung ergibt nicht mehr 8.000 Euro – Text pruefen');
+}
+if (kind500.steuer === falscheStufenrechnung) {
+  throw new Error('Haerteausgleich: Vollmengenrechnung und Stufenrechnung duerfen nicht gleich sein');
+}
+const differenzStufenIrrtum = kind500.steuer - falscheStufenrechnung;
+
+// --- These 2: Ohne Deckelung waere ein einziger Euro extrem teuer ----------
+// Für jede Wertgrenze der Steuerklasse I (außer der letzten, offenen Stufe):
+// ein Erwerb einen Euro darunter gegen einen Euro darüber, mit derselben
+// Personengruppe (Kind, Freibetrag 400.000 €).
+const FREIBETRAG_KIND = FREIBETRAEGE.I2;
+const grenzenKlasseI = STEUERSAETZE.I.filter((s) => s.bis !== Infinity).map((s) => s.bis);
+const sprungZeilen = grenzenKlasseI.map((grenze) => {
+  const unten = berechneErbschaftsteuer({ nachlass: FREIBETRAG_KIND + grenze - 1, klasse: 'I2' });
+  const oben = berechneErbschaftsteuer({ nachlass: FREIBETRAG_KIND + grenze + 1, klasse: 'I2' });
+  return {
+    grenze,
+    satzUnten: unten.satz,
+    satzOben: oben.satz,
+    sprungOhne: oben.steuerOhneAusgleich - unten.steuerOhneAusgleich,
+    sprungMit: oben.steuer - unten.steuer,
+    haerteausgleich: oben.haerteausgleich,
+  };
+});
+// Zusicherung: An jeder Wertgrenze greift der Härteausgleich, und der
+// tatsächliche Sprung bleibt um mehrere Größenordnungen kleiner als der
+// hypothetische Sprung ohne Deckelung.
+for (const z of sprungZeilen) {
+  if (!z.haerteausgleich) {
+    throw new Error(`Haerteausgleich: an Grenze ${z.grenze} sollte der Ausgleich greifen`);
+  }
+  if (z.sprungOhne < 1000 * z.sprungMit) {
+    throw new Error(`Haerteausgleich: Sprung ohne Deckelung an Grenze ${z.grenze} ist nicht deutlich groesser`);
+  }
+  // Steuerklasse I erreicht nach § 19 Abs. 1 ErbStG hoechstens 30 % – der Text
+  // behauptet, der Haerteausgleich-Anteil bleibe dort DURCHGEHEND bei der
+  // Haelfte (nie bei drei Vierteln). Das gilt nur, wenn wirklich JEDE Grenze
+  // unter 30 % bleibt, nicht nur die im Beispiel gezeigte.
+  if (z.satzOben > 30) {
+    throw new Error(`Haerteausgleich: Satz an Grenze ${z.grenze} uebersteigt 30 % – "durchgehend Haelfte" stimmt nicht mehr`);
+  }
+}
+const beispielGrenze = sprungZeilen.find((z) => z.grenze === 300000)!;
+if (!beispielGrenze) throw new Error('Haerteausgleich: 300.000-Euro-Grenze nicht in der Steuersatztabelle gefunden');
+
+// --- These 3: Der Härteausgleich nachgerechnet (§ 19 Abs. 3) ---------------
+// Unabhängig vom Modul aus dem Gesetzestext nachgebaut: An der Wertgrenze
+// wird zur Steuer AN der Grenze der übersteigende Betrag mit der Hälfte
+// (Satz bis 30 %) bzw. drei Vierteln (Satz über 30 %) hinzugerechnet.
+const grenzeBsp = 300000;
+const erwerbKnappOben = grenzeBsp + 1;
+const satzAnGrenze = steuersatz('I', grenzeBsp);
+const satzDanach = steuersatz('I', erwerbKnappOben);
+const steuerAnGrenze = grenzeBsp * (satzAnGrenze / 100);
+const uebersteigenderBetrag = erwerbKnappOben - grenzeBsp;
+const anteilKlasseI = satzDanach > 30 ? 0.75 : 0.5;
+const nachgebauterHaerteausgleich =
+  Math.round((steuerAnGrenze + uebersteigenderBetrag * anteilKlasseI) * 100) / 100;
+const modulErgebnis = berechneErbschaftsteuer({ nachlass: FREIBETRAG_KIND + erwerbKnappOben, klasse: 'I2' });
+if (Math.abs(nachgebauterHaerteausgleich - modulErgebnis.steuer) > 0.01) {
+  throw new Error('Haerteausgleich: unabhaengig nachgebaute Formel weicht vom Modul ab');
+}
+if (anteilKlasseI !== 0.5) {
+  throw new Error('Haerteausgleich: in Steuerklasse I sollte der Anteil ueberall 0,5 sein (Hoechstsatz 30 %)');
+}
+
+// --- These 4: Steuerklasse wiegt schwerer als der Betrag --------------------
+// Gleicher Erwerb, zwei Personengruppen: Kind (Steuerklasse I) gegen Neffe
+// (Steuerklasse II).
+const ERWERB_VERGLEICH = 500000;
+const kindVergleich = berechneErbschaftsteuer({ nachlass: ERWERB_VERGLEICH, klasse: 'I2' });
+const neffeVergleich = berechneErbschaftsteuer({ nachlass: ERWERB_VERGLEICH, klasse: 'II' });
+if (kindVergleich.satz !== 11 || neffeVergleich.satz !== 25) {
+  throw new Error('Haerteausgleich: Saetze im Kind/Neffe-Vergleich weichen vom Modul ab');
+}
+const effektivKind = parseFloat(kindVergleich.effektiv);
+const effektivNeffe = parseFloat(neffeVergleich.effektiv);
+if (!(effektivNeffe > effektivKind * 5)) {
+  throw new Error('Haerteausgleich: Neffe muesste effektiv deutlich (mehr als 5x) hoeher belastet sein als Kind');
+}
+const faktorEffektiv = effektivNeffe / effektivKind;
+if (PERSONENGRUPPEN.II.klasse !== 'II' || PERSONENGRUPPEN.I2.klasse !== 'I') {
+  throw new Error('Haerteausgleich: Personengruppen-Zuordnung weicht von § 15 Abs. 1 ErbStG ab');
+}
+
+const quellen = [
+  { titel: '§ 15 ErbStG – Steuerklassen', url: 'https://www.gesetze-im-internet.de/erbstg_1974/__15.html' },
+  { titel: '§ 16 ErbStG – Freibeträge', url: 'https://www.gesetze-im-internet.de/erbstg_1974/__16.html' },
+  { titel: '§ 19 ErbStG – Steuersätze und Härteausgleich', url: 'https://www.gesetze-im-internet.de/erbstg_1974/__19.html' },
+];
+---
+<RechnerArtikel
+  titel="Ein Euro mehr Erbe hebt den ganzen Betrag in die nächste Steuerstufe – der Härteausgleich bremst nur den Sprung"
+  lead={`Die Erbschaftsteuer kennt keine Progression wie die Einkommensteuer. Überschreitet der steuerpflichtige Erwerb eine Wertgrenze auch nur um einen Euro, gilt der höhere Satz für die volle Summe (§ 19 Abs. 1 ErbStG). An der Grenze von ${eur0(300000)} wären das ohne Gegenmaßnahme ${eur(beispielGrenze.sprungOhne)} mehr Steuer für einen einzigen Euro mehr Erbe. Tatsächlich sind es ${eur(beispielGrenze.sprungMit)} – weil § 19 Abs. 3 ErbStG einen Härteausgleich vorschreibt.`}
+  datum="2026-09-28"
+  quellen={quellen}
+>
+  <h3>Kein Stufentarif: ein Satz für den ganzen Erwerb</h3>
+
+  <p>
+    § 19 Abs. 1 ErbStG ordnet an: „Die Erbschaftsteuer wird nach folgenden
+    Prozentsätzen erhoben“ – gefolgt von einer Tabelle, die jedem
+    steuerpflichtigen Erwerb genau eine Wertstufe zuweist. Der Satz dieser
+    Stufe gilt für den <em>gesamten</em> Erwerb, nicht nur für den Teil
+    oberhalb der vorherigen Grenze. Das ist der zentrale Unterschied zur
+    Einkommensteuer, die nach § 32a EStG jeden Euro innerhalb einer Zone
+    einzeln besteuert und die Zonen aufsummiert.
+  </p>
+
+  <p>
+    Am Beispiel des Rechners oben, {eur0(500000)} Erbe für ein Kind
+    (Steuerklasse I, Freibetrag {eur0(FREIBETRAEGE.I2)}): Der steuerpflichtige
+    Erwerb beträgt {eur0(kind500.zuVersteuern)} und liegt damit in der
+    zweiten Wertstufe von § 19 Abs. 1 ErbStG, mit {proz(kind500.satz)}. Die
+    Steuer beträgt deshalb {eur0(kind500.zuVersteuern)} × {proz(kind500.satz)}
+    = {eur0(kind500.steuer)}. Wer stattdessen wie bei der Einkommensteuer
+    stufenweise rechnet – die ersten {eur0(STEUERSAETZE.I[0].bis)} zu
+    {proz(STEUERSAETZE.I[0].satz)}, den Rest zu {proz(kind500.satz)} – kommt
+    auf {eur0(falscheStufenrechnung)}, also {eur0(differenzStufenIrrtum)} zu
+    wenig. Diese Rechnung ist schlicht falsch: Das Gesetz kennt hier keine
+    Stufenaddition.
+  </p>
+
+  <h3>Ohne Deckelung wäre ein einziger Euro extrem teuer</h3>
+
+  <p>
+    Genau weil der ganze Erwerb in die höhere Stufe rutscht, sobald er eine
+    Wertgrenze übersteigt, entstünde ohne Gegenmaßnahme an jeder Grenze ein
+    Sprung, der in keinem Verhältnis zum zusätzlichen Euro Erbe steht. Die
+    folgende Tabelle vergleicht für ein Kind (Steuerklasse I) einen Erwerb
+    genau einen Euro unter und einen Euro über jeder Wertgrenze aus
+    § 19 Abs. 1 ErbStG – einmal mit dem tatsächlich erhobenen Betrag, einmal
+    mit dem Wert, der ohne den Härteausgleich fällig würde (Feld
+    <code>steuerOhneAusgleich</code> des Rechners).
+  </p>
+
+  <table>
+    <caption class="visually-hidden">
+      Steuersprung an den Wertgrenzen des § 19 Abs. 1 ErbStG, Steuerklasse I,
+      mit und ohne Härteausgleich
+    </caption>
+    <thead>
+      <tr>
+        <th scope="col">Wertgrenze (zu versteuernder Erwerb)</th>
+        <th scope="col">Satz davor → danach</th>
+        <th scope="col" class="num">Sprung ohne Ausgleich</th>
+        <th scope="col" class="num">Sprung tatsächlich</th>
+      </tr>
+    </thead>
+    <tbody>
+      {sprungZeilen.map((z) => (
+        <tr>
+          <th scope="row">{eur0(z.grenze)}</th>
+          <td>{proz(z.satzUnten)} → {proz(z.satzOben)}</td>
+          <td class="num">{eur(z.sprungOhne)}</td>
+          <td class="num">{eur(z.sprungMit)}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+
+  <p>
+    An der meistgesuchten Grenze von {eur0(300000)} zu versteuerndem Erwerb
+    steigt der Satz von {proz(beispielGrenze.satzUnten)} auf
+    {proz(beispielGrenze.satzOben)}. Ohne Härteausgleich würde ein einziger
+    Euro mehr Erbe die Steuer um {eur(beispielGrenze.sprungOhne)} erhöhen –
+    weil dann nicht nur der eine Euro, sondern der gesamte steuerpflichtige
+    Erwerb mit dem höheren Satz belastet würde. Tatsächlich beträgt der
+    Sprung {eur(beispielGrenze.sprungMit)}. Der Rechner oben weist beide
+    Werte aus: <code>steuer</code> für den tatsächlich gedeckelten Betrag,
+    <code>steuerOhneAusgleich</code> für den hypothetischen Wert ohne
+    § 19 Abs. 3.
+  </p>
+
+  <h3>Der Härteausgleich nach § 19 Abs. 3 ErbStG</h3>
+
+  <p>
+    Das Gesetz begrenzt den Sprung, indem es die Mehrsteuer kappt. § 19 Abs. 3
+    ErbStG lautet wörtlich: „Der Unterschied zwischen der Steuer, die sich bei
+    Anwendung des Absatzes 1 ergibt, und der Steuer, die sich berechnen würde,
+    wenn der Erwerb die letztvorhergehende Wertgrenze nicht überstiegen hätte,
+    wird nur insoweit erhoben, als er a) bei einem Steuersatz bis zu 30 Prozent
+    aus der Hälfte, b) bei einem Steuersatz über 30 Prozent aus drei Vierteln,
+    des die Wertgrenze übersteigenden Betrags gedeckt werden kann.“ Die
+    Steuerklasse I erreicht nach § 19 Abs. 1 ErbStG höchstens {proz(30)}, der
+    Anteil bleibt dort also durchgehend bei der Hälfte (Buchstabe a).
+  </p>
+
+  <p>
+    Nachgerechnet für die {eur0(300000)}-Euro-Grenze, unabhängig vom Rechner:
+    Die Steuer an der Grenze selbst beträgt {eur0(grenzeBsp)} ×
+    {proz(satzAnGrenze)} = {eur(steuerAnGrenze)}. Der übersteigende Betrag
+    ist {eur(uebersteigenderBetrag)}, davon zählt die Hälfte, also
+    {eur(uebersteigenderBetrag * anteilKlasseI)}. Zusammen ergibt das
+    {eur(nachgebauterHaerteausgleich)} – exakt der Betrag, den
+    <code>berechneErbschaftsteuer</code> für {eur0(FREIBETRAG_KIND + erwerbKnappOben)}
+    Erbe eines Kindes ausweist. Ein Selbsttest im Kopf dieser Seite prüft das
+    bei jedem Build nach und lässt ihn scheitern, sobald Modul und
+    Handrechnung auseinanderlaufen.
+  </p>
+
+  <h3>Die Steuerklasse wiegt schwerer als der Betrag</h3>
+
+  <p>
+    Wie stark der Erwerb besteuert wird, hängt nach § 15 Abs. 1 ErbStG vom
+    Verwandtschaftsgrad ab – nicht nur über den Freibetrag nach § 16 Abs. 1,
+    sondern auch über den Steuersatz selbst. Ein Neffe zählt nach § 15 Abs. 1
+    zur Steuerklasse II, ein Kind zur Steuerklasse I. Bei gleichem Erwerb von
+    {eur0(ERWERB_VERGLEICH)} zeigt sich der Unterschied deutlich:
+  </p>
+
+  <table>
+    <caption class="visually-hidden">
+      Erbschaftsteuer auf {eur0(500000)} Erwerb für ein Kind und einen Neffen im Vergleich
+    </caption>
+    <thead>
+      <tr>
+        <th scope="col">Erwerber</th>
+        <th scope="col">Steuerklasse</th>
+        <th scope="col" class="num">Freibetrag</th>
+        <th scope="col" class="num">zu versteuern</th>
+        <th scope="col" class="num">Satz</th>
+        <th scope="col" class="num">Steuer</th>
+        <th scope="col" class="num">effektiv</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <th scope="row">Kind</th>
+        <td>{kindVergleich.steuerklasse}</td>
+        <td class="num">{eur0(FREIBETRAEGE.I2)}</td>
+        <td class="num">{eur0(kindVergleich.zuVersteuern)}</td>
+        <td class="num">{proz(kindVergleich.satz)}</td>
+        <td class="num">{eur0(kindVergleich.steuer)}</td>
+        <td class="num">{proz(effektivKind)}</td>
+      </tr>
+      <tr>
+        <th scope="row">Neffe</th>
+        <td>{neffeVergleich.steuerklasse}</td>
+        <td class="num">{eur0(FREIBETRAEGE.II)}</td>
+        <td class="num">{eur0(neffeVergleich.zuVersteuern)}</td>
+        <td class="num">{proz(neffeVergleich.satz)}</td>
+        <td class="num">{eur0(neffeVergleich.steuer)}</td>
+        <td class="num">{proz(effektivNeffe)}</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <p>
+    Der Freibetrag des Neffen ist mit {eur0(FREIBETRAEGE.II)} nur ein
+    Zwanzigstel dessen, was ein Kind absetzen darf
+    ({eur0(FREIBETRAEGE.I2)}), und der Satz liegt mit {proz(neffeVergleich.satz)}
+    mehr als doppelt so hoch wie beim Kind ({proz(kindVergleich.satz)}). Beide
+    Effekte zusammen ergeben eine effektive Belastung von
+    {proz(effektivNeffe)} des Erwerbs beim Neffen gegenüber
+    {proz(effektivKind)} beim Kind – das {zahl(faktorEffektiv, 1)}-Fache.
+    Wer sein Vermögen einem Neffen statt einem Kind hinterlässt, verliert
+    diesen Unterschied nicht durch einen höheren Nachlasswert, sondern allein
+    durch die Zuordnung zu einer anderen Steuerklasse nach § 15 Abs. 1 ErbStG.
+  </p>
+
+  <h3>Was der Rechner bewusst nicht berücksichtigt</h3>
+
+  <p>
+    Der besondere Versorgungsfreibetrag nach § 17 ErbStG (bis zu
+    {eur0(256000)} für Ehegatten, gestaffelt nach Alter für Kinder) fehlt,
+    weil das Formular die dafür nötigen Angaben – etwa den Kapitalwert
+    steuerfreier Versorgungsbezüge – gar nicht erhebt. Ihn ungefragt
+    anzusetzen würde die Steuer in den meisten Fällen zu niedrig ausweisen.
+    Ebenfalls nicht abgebildet sind die Verschonungsregeln für
+    Betriebsvermögen (§§ 13a ff. ErbStG) und vermietete Wohnimmobilien
+    (§ 13d ErbStG), das Familienheim (§ 13 Abs. 1 Nr. 4b ErbStG) sowie die
+    Zusammenrechnung mehrerer Erwerbe binnen zehn Jahren nach § 14 ErbStG.
+    Wer eine dieser Vergünstigungen in Anspruch nehmen kann, zahlt weniger,
+    als der Rechner oben zeigt.
+  </p>
+</RechnerArtikel>

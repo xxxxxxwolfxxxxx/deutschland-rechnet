@@ -1,0 +1,400 @@
+---
+import RechnerArtikel from '../RechnerArtikel.astro';
+import { berechneSteuernachzahlung } from '../../../public/scripts/steuernachzahlung.js';
+import { ARBEITNEHMER_PAUSCHBETRAG, SONDERAUSGABEN_PAUSCHBETRAG } from '../../../public/scripts/lohnsteuer.js';
+
+const base = import.meta.env.BASE_URL;
+
+// Alle Zahlen dieses Artikels stammen zur Buildzeit aus demselben Modul, das
+// auch der Rechner oben auf dieser Seite lädt. Rechtsstand des Moduls:
+// 2026-01-01.
+//
+// These: Wer im Feld "Werbungskosten" oder "Sonderausgaben" einen Betrag
+// unterhalb des jeweiligen Pauschbetrags einträgt, verändert das Ergebnis
+// nicht um einen einzigen Cent – das Modul zieht ohnehin den Pauschbetrag ab
+// (Math.max(betrag, Pauschbetrag) in zuVersteuerndesEinkommen(),
+// public/scripts/steuernachzahlung.js). Das betrifft direkt die
+// Vorbelegung dieses Rechners: Das Feld "Werbungskosten" steht oben
+// standardmäßig auf 1.000 € – ein Betrag, der unter dem Pauschbetrag von
+// 1.230 € liegt und deshalb am Ergebnis nichts ändert.
+
+const BRUTTO = 45_000;
+const STKLASSE = 1;
+
+const wkReihe = [0, 500, 1000, ARBEITNEHMER_PAUSCHBETRAG, 1500, 2000, 3000];
+const wkErgebnisse = wkReihe.map((wk) => ({
+  wk,
+  r: berechneSteuernachzahlung({ bruttoJahr: BRUTTO, steuerklasse: STKLASSE, kinder: 0, werbungskosten: wk }),
+}));
+
+const wkNull = wkErgebnisse.find((e) => e.wk === 0)!;
+const wkAmPauschbetrag = wkErgebnisse.find((e) => e.wk === ARBEITNEHMER_PAUSCHBETRAG)!;
+const wkUeberPauschbetrag = wkErgebnisse.find((e) => e.wk === 1500)!;
+
+// Selbstprüfung 1: Bis zum Pauschbetrag ändert sich an der geschuldeten
+// Jahressteuer nichts – 0 € und der volle Pauschbetrag müssen exakt
+// dasselbe Ergebnis liefern.
+if (wkNull.r.jahressteuer !== wkAmPauschbetrag.r.jahressteuer) {
+  throw new Error(
+    `These widerlegt: 0 € und ${ARBEITNEHMER_PAUSCHBETRAG} € Werbungskosten ergeben unterschiedliche Jahressteuer ` +
+    `(${wkNull.r.jahressteuer} € vs. ${wkAmPauschbetrag.r.jahressteuer} €). Modul oder Zahlen prüfen.`
+  );
+}
+
+// Selbstprüfung 2: Oberhalb des Pauschbetrags muss sich tatsächlich etwas
+// ändern – sonst wäre der ganze Artikel falsch angelegt.
+if (wkAmPauschbetrag.r.jahressteuer === wkUeberPauschbetrag.r.jahressteuer) {
+  throw new Error(
+    `These widerlegt: Werbungskosten oberhalb des Pauschbetrags (${wkUeberPauschbetrag.wk} €) verändern die ` +
+    `Jahressteuer nicht gegenüber genau dem Pauschbetrag. Modul oder Zahlen prüfen.`
+  );
+}
+
+// Selbstprüfung 3: Die einbehaltene Lohnsteuer darf sich über die gesamte
+// Reihe hinweg nicht ändern – der Arbeitgeber kennt die tatsächlichen
+// Werbungskosten beim laufenden Lohnsteuerabzug gar nicht, er rechnet immer
+// mit dem Pauschbetrag (§ 39b Abs. 2 Satz 5 Nr. 1 EStG).
+const einbehaltenWerte = new Set(wkErgebnisse.map((e) => e.r.einbehalten));
+if (einbehaltenWerte.size !== 1) {
+  throw new Error(
+    `These widerlegt: Die einbehaltene Lohnsteuer schwankt mit den eingegebenen Werbungskosten ` +
+    `(Werte: ${[...einbehaltenWerte].join(', ')}). Das widerspricht § 39b Abs. 2 EStG.`
+  );
+}
+
+// Pendlerbeispiel: kurze gegen lange Fahrstrecke, dieselbe Person.
+const ARBEITSTAGE = 220;
+const KM_SATZ = 0.38;
+const pendlerKurzKm = 8;
+const pendlerLangKm = 25;
+const pendlerKurz = pendlerKurzKm * ARBEITSTAGE * KM_SATZ;
+const pendlerLang = pendlerLangKm * ARBEITSTAGE * KM_SATZ;
+const rPendlerKurz = berechneSteuernachzahlung({ bruttoJahr: BRUTTO, steuerklasse: STKLASSE, kinder: 0, werbungskosten: pendlerKurz });
+const rPendlerLang = berechneSteuernachzahlung({ bruttoJahr: BRUTTO, steuerklasse: STKLASSE, kinder: 0, werbungskosten: pendlerLang });
+
+// Selbstprüfung 4: Die kurze Strecke liegt unter dem Pauschbetrag und darf
+// keine andere Differenz ergeben als gar keine Werbungskosten.
+if (rPendlerKurz.differenz !== wkNull.r.differenz) {
+  throw new Error(
+    `These widerlegt: ${pendlerKurzKm} km Pendlerstrecke (${pendlerKurz.toFixed(2)} €) ergeben eine andere ` +
+    `Differenz als 0 € Werbungskosten. Pauschbetrag-Schwelle prüfen.`
+  );
+}
+
+// Sonderausgaben: derselbe Mechanismus, ein Zehntel des Schwellenwerts.
+const saReihe = [0, 20, SONDERAUSGABEN_PAUSCHBETRAG, 100, 400];
+const saErgebnisse = saReihe.map((sa) => ({
+  sa,
+  r: berechneSteuernachzahlung({ bruttoJahr: BRUTTO, steuerklasse: STKLASSE, kinder: 0, sonderausgaben: sa }),
+}));
+const saNull = saErgebnisse.find((e) => e.sa === 0)!;
+const saAmPauschbetrag = saErgebnisse.find((e) => e.sa === SONDERAUSGABEN_PAUSCHBETRAG)!;
+const saUeberPauschbetrag = saErgebnisse.find((e) => e.sa === 100)!;
+
+// Selbstprüfung 5: Derselbe Schwelleneffekt bei den Sonderausgaben, nur bei
+// 36 € statt 1.230 €.
+if (saNull.r.differenz !== saAmPauschbetrag.r.differenz || saAmPauschbetrag.r.differenz === saUeberPauschbetrag.r.differenz) {
+  throw new Error(
+    `These widerlegt: Der Sonderausgaben-Pauschbetrag (${SONDERAUSGABEN_PAUSCHBETRAG} €) zeigt nicht denselben ` +
+    `Schwelleneffekt wie der Arbeitnehmer-Pauschbetrag. Modul oder Zahlen prüfen.`
+  );
+}
+
+// Bezug zur Vorbelegung dieses Rechners: oben steht das Feld "Werbungskosten"
+// standardmäßig auf 1.000 €. Vergleich mit 0 € bei denselben übrigen Werten.
+const seiteBrutto = 50_000;
+const seiteKlasse = 4;
+const seiteKinder = 1;
+const seiteVorbelegung = 1000;
+const seiteMitVorbelegung = berechneSteuernachzahlung({ bruttoJahr: seiteBrutto, steuerklasse: seiteKlasse, kinder: seiteKinder, werbungskosten: seiteVorbelegung, sonderausgaben: 0 });
+const seiteOhneVorbelegung = berechneSteuernachzahlung({ bruttoJahr: seiteBrutto, steuerklasse: seiteKlasse, kinder: seiteKinder, werbungskosten: 0, sonderausgaben: 0 });
+
+if (seiteMitVorbelegung.jahressteuer !== seiteOhneVorbelegung.jahressteuer || seiteMitVorbelegung.differenz !== seiteOhneVorbelegung.differenz) {
+  throw new Error(
+    `These widerlegt: Die Vorbelegung von ${seiteVorbelegung} € im Werbungskosten-Feld dieser Rechnerseite ` +
+    `verändert das Ergebnis gegenüber 0 € doch. Vorbelegung im Astro-Formular hat sich vermutlich geändert ` +
+    `(> ${ARBEITNEHMER_PAUSCHBETRAG} €) – Artikeltext prüfen.`
+  );
+}
+
+const eur = (n: number) => n.toLocaleString('de-DE', { minimumFractionDigits: 0, maximumFractionDigits: 0 }) + ' €';
+const eurGenau = (n: number) => n.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
+const signiert = (n: number) => {
+  if (n > 0) return '+' + eur(n);
+  if (n < 0) return '−' + eur(Math.abs(n));
+  return eur(0);
+};
+
+const quellen = [
+  { titel: '§ 9a EStG – Pauschbeträge für Werbungskosten', url: 'https://www.gesetze-im-internet.de/estg/__9a.html' },
+  { titel: '§ 10c EStG – Sonderausgaben-Pauschbetrag', url: 'https://www.gesetze-im-internet.de/estg/__10c.html' },
+  { titel: '§ 39b Abs. 2 EStG – Einbehaltung der Lohnsteuer', url: 'https://www.gesetze-im-internet.de/estg/__39b.html' },
+  { titel: '§ 9 Abs. 1 Satz 3 Nr. 4a EStG – Entfernungspauschale', url: 'https://www.gesetze-im-internet.de/estg/__9.html' },
+];
+---
+<RechnerArtikel
+  titel={`Warum ${eur(seiteVorbelegung)} Werbungskosten im Feld oben gar nichts bewirken`}
+  lead={`Das Eingabefeld "Werbungskosten" auf dieser Seite steht standardmäßig auf ${eur(seiteVorbelegung)} – ein Betrag, der am Ergebnis exakt nichts ändert. Der Grund ist der Arbeitnehmer-Pauschbetrag von ${eur(ARBEITNEHMER_PAUSCHBETRAG)}: Er wird ohnehin abgezogen, ganz gleich, ob echte Kosten darunter eingetragen werden oder gar keine.`}
+  datum="2026-09-28"
+  quellen={quellen}
+>
+  <h3>Der Pauschbetrag schluckt jeden kleineren Betrag</h3>
+
+  <p>
+    Der Rechner oben zieht für Werbungskosten nicht einfach den eingetragenen
+    Betrag ab. Er vergleicht ihn mit dem Arbeitnehmer-Pauschbetrag nach
+    § 9a Satz 1 Nr. 1 Buchst. a EStG und nimmt den größeren von beiden – im
+    Quellcode steht das als <code>Math.max(werbungskosten, {ARBEITNEHMER_PAUSCHBETRAG})</code>.
+    Das ist exakt die gesetzliche Logik: Der Pauschbetrag gilt ohne Nachweis,
+    tatsächliche Kosten zählen erst, sobald sie ihn übersteigen. Für eine
+    Beispielperson mit {eur(BRUTTO)} Jahresbrutto in Steuerklasse I ergibt das
+    diese Reihe:
+  </p>
+
+  <div class="table-wrap">
+    <table>
+      <caption class="visually-hidden">Jahressteuer und Differenz je nach eingetragenen Werbungskosten</caption>
+      <thead>
+        <tr>
+          <th scope="col">Eingetragene Werbungskosten</th>
+          <th scope="col" class="num">Geschuldete Jahressteuer</th>
+          <th scope="col" class="num">Differenz</th>
+        </tr>
+      </thead>
+      <tbody>
+        {wkErgebnisse.map(({ wk, r }) => (
+          <tr>
+            <th scope="row">
+              {eur(wk)}
+              {wk <= ARBEITNEHMER_PAUSCHBETRAG && <span class="klasse">wirkt wie 0 €</span>}
+            </th>
+            <td class="num">{eur(r.jahressteuer)}</td>
+            <td class="num strong">{signiert(r.differenz)}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  </div>
+  <p class="tabellenhinweis">
+    {eur(BRUTTO)} Jahresbrutto, Steuerklasse I, keine Kinder, keine
+    Zusammenveranlagung. Die ersten vier Zeilen führen zur selben Jahressteuer
+    von {eur(wkNull.r.jahressteuer)} – 0 € und {eur(ARBEITNEHMER_PAUSCHBETRAG)}
+    unterscheiden sich um keinen Cent.
+  </p>
+
+  <p>
+    Erst ab Beträgen über dem Pauschbetrag bewegt sich etwas: Bei
+    {' '}{eur(2000)} Werbungskosten sinkt die Jahressteuer auf
+    {' '}{eur(wkErgebnisse.find(e => e.wk === 2000)!.r.jahressteuer)}, bei
+    {' '}{eur(3000)} auf {eur(wkErgebnisse.find(e => e.wk === 3000)!.r.jahressteuer)}.
+    Wer weniger als {eur(ARBEITNEHMER_PAUSCHBETRAG)} an Fahrtkosten, Arbeitsmitteln
+    oder Fortbildung nachweisen kann, hätte sich das Eintragen sparen können –
+    das Finanzamt hätte ohnehin den Pauschbetrag angesetzt.
+  </p>
+
+  <h3>Woran das in der Praxis hängt: die Pendlerstrecke</h3>
+
+  <p>
+    Am konkretesten wird das bei der Entfernungspauschale. Sie beträgt
+    0,38 € je Entfernungskilometer ab dem ersten Kilometer (§ 9 Abs. 1 Satz 3
+    Nr. 4a EStG) und ist bei den meisten Arbeitnehmern der größte Einzelposten
+    unter den Werbungskosten. Für dieselbe Beispielperson mit {ARBEITSTAGE}{' '}
+    Arbeitstagen im Jahr:
+  </p>
+
+  <div class="table-wrap">
+    <table>
+      <caption class="visually-hidden">Entfernungspauschale bei kurzer und langer Pendelstrecke</caption>
+      <thead>
+        <tr>
+          <th scope="col">Einfache Strecke</th>
+          <th scope="col" class="num">Entfernungspauschale im Jahr</th>
+          <th scope="col" class="num">Differenz</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <th scope="row">{pendlerKurzKm} km<span class="klasse">unter dem Pauschbetrag</span></th>
+          <td class="num">{eurGenau(pendlerKurz)}</td>
+          <td class="num strong">{signiert(rPendlerKurz.differenz)}</td>
+        </tr>
+        <tr>
+          <th scope="row">{pendlerLangKm} km<span class="klasse">über dem Pauschbetrag</span></th>
+          <td class="num">{eurGenau(pendlerLang)}</td>
+          <td class="num strong">{signiert(rPendlerLang.differenz)}</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="tabellenhinweis">
+    Gleiche Beispielperson wie oben, {ARBEITSTAGE} Arbeitstage, 0,38 € je
+    Entfernungskilometer, keine weiteren Werbungskosten.
+  </p>
+
+  <p>
+    Bei {pendlerKurzKm} Kilometern einfacher Strecke summiert sich die
+    Entfernungspauschale auf {eurGenau(pendlerKurz)} im Jahr – weniger als der
+    Pauschbetrag, also ohne jede Wirkung auf die Steuer. Bei
+    {' '}{pendlerLangKm} Kilometern sind es {eurGenau(pendlerLang)}, und die
+    Differenz zur Jahressteuer verschiebt sich um {eur(rPendlerLang.differenz)}
+    in Richtung Erstattung. Zwischen beiden Fällen liegt keine andere
+    Berechnung, nur eine andere Distanz zur Arbeit.
+  </p>
+
+  <h3>Warum die einbehaltene Lohnsteuer davon unberührt bleibt</h3>
+
+  <p>
+    Auffällig an der ersten Tabelle: Die einbehaltene Lohnsteuer ändert sich
+    über alle sieben Zeilen hinweg nicht – sie bleibt bei
+    {' '}{eur(wkNull.r.einbehalten)}. Das liegt daran, dass der Arbeitgeber
+    beim laufenden Lohnsteuerabzug nach § 39b Abs. 2 Satz 5 Nr. 1 EStG immer
+    mit dem Pauschbetrag rechnet – er kennt die tatsächlichen Werbungskosten
+    gar nicht, sie tauchen erstmals in der Steuererklärung auf. Jede Differenz
+    oberhalb des Pauschbetrags kommt deshalb erst mit dem Steuerbescheid als
+    Erstattung zurück, nie über das laufende Jahr.
+  </p>
+
+  <h3>Derselbe Effekt, kleinerer Schwellenwert: Sonderausgaben</h3>
+
+  <p>
+    Denselben Mechanismus gibt es beim Sonderausgaben-Pauschbetrag nach
+    § 10c EStG – nur liegt die Schwelle mit {eur(SONDERAUSGABEN_PAUSCHBETRAG)}
+    (bei Zusammenveranlagung {eur(SONDERAUSGABEN_PAUSCHBETRAG * 2)}) so
+    niedrig, dass sie fast jeder reale Betrag übersteigt:
+  </p>
+
+  <div class="table-wrap">
+    <table>
+      <caption class="visually-hidden">Differenz je nach eingetragenen Sonderausgaben ohne Vorsorgeaufwendungen</caption>
+      <thead>
+        <tr>
+          <th scope="col">Eingetragene Sonderausgaben</th>
+          <th scope="col" class="num">Differenz</th>
+        </tr>
+      </thead>
+      <tbody>
+        {saErgebnisse.map(({ sa, r }) => (
+          <tr>
+            <th scope="row">
+              {eur(sa)}
+              {sa <= SONDERAUSGABEN_PAUSCHBETRAG && <span class="klasse">wirkt wie 0 €</span>}
+            </th>
+            <td class="num strong">{signiert(r.differenz)}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  </div>
+  <p class="tabellenhinweis">
+    Gleiche Beispielperson, ohne Werbungskosten. "Sonderausgaben" meint hier
+    ausdrücklich nicht die Vorsorgeaufwendungen (Kranken- und
+    Pflegeversicherung) – die laufen im Rechner über die Vorsorgepauschale und
+    haben ihre eigene, deutlich höhere Berücksichtigung.
+  </p>
+
+  <p>
+    Mit {eur(SONDERAUSGABEN_PAUSCHBETRAG)} ist die Schwelle so niedrig, dass
+    sie praktisch nur bei Eintragung von 0 € überhaupt greift. Schon eine
+    kleinere Spende oder ein paar Euro Kirchensteuer-Zahllast reichen, um
+    darüber zu liegen. Das Feld "Sonderausgaben" in diesem Rechner lohnt sich
+    deshalb fast immer auszufüllen – anders als das Feld "Werbungskosten",
+    bei dem sich das erst ab vierstelligen Beträgen lohnt.
+  </p>
+
+  <h3>Was das für die eigene Eingabe bedeutet</h3>
+
+  <p>
+    Für die Praxis heißt das: Wer im Werbungskosten-Feld einen Betrag
+    unterhalb von {eur(ARBEITNEHMER_PAUSCHBETRAG)} einträgt – etwa, weil er
+    nur einen Teil seiner Kosten kennt oder vorsichtshalber niedrig ansetzt –
+    bekommt exakt dasselbe Ergebnis wie mit einer 0 im Feld. Das ist keine
+    Ungenauigkeit des Rechners, sondern korrekt abgebildetes Recht: Das
+    Finanzamt macht es beim echten Steuerbescheid genauso. Erst wer die
+    eigenen Fahrtkosten, Arbeitsmittel und Fortbildungen zusammenrechnet und
+    über dem Pauschbetrag landet, sollte den vollen, genauen Betrag eintragen
+    – jeder Euro darüber wirkt sich unmittelbar auf die geschätzte Erstattung
+    aus.
+  </p>
+
+  <p>
+    Wer die eigene Pendelstrecke oder die Homeoffice-Tage noch nicht
+    zusammengerechnet hat, findet die Entfernungspauschale und weitere
+    Abzugsposten im Abschnitt "Wichtige Freibeträge und Pauschalen" weiter
+    unten auf dieser Seite. Für den Vergleich der vier Steuerklassenkombinationen
+    eines Paares lohnt sich zusätzlich der
+    {' '}<a href={`${base}geld/steuerklassen-vergleich/`}>Steuerklassen-Vergleich</a>.
+  </p>
+
+  <p class="hinweis">
+    Die hier gerechneten Beispiele nutzen dieselbe Vorsorgepauschale wie der
+    Rechner oben, nicht die tatsächlichen Vorsorgeaufwendungen der
+    Veranlagung nach § 10 EStG. Kinderfreibeträge und Progressionsvorbehalt
+    sind nicht abgebildet. Der Artikel ersetzt keine Steuerberatung.
+  </p>
+</RechnerArtikel>
+
+<style>
+.table-wrap {
+  overflow-x: auto;
+  margin: 1.5rem 0 0.5rem;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.87rem;
+  background: white;
+}
+thead th {
+  background: var(--dark);
+  color: white;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-weight: 600;
+  padding: 0.7rem 0.6rem;
+  text-align: left;
+  white-space: nowrap;
+}
+tbody th {
+  text-align: left;
+  font-weight: 600;
+  padding: 0.6rem;
+  min-width: 12ch;
+}
+tbody td { padding: 0.6rem; }
+tbody tr:nth-child(even) { background: var(--surface); }
+tbody tr:hover { background: var(--cat-light, #f3f4f6); }
+.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.strong { font-weight: 700; }
+.klasse {
+  display: block;
+  font-weight: 400;
+  font-size: 0.75rem;
+  color: var(--text-light);
+}
+.tabellenhinweis {
+  font-size: 0.78rem !important;
+  color: var(--text-light);
+  margin: 0 0 1.5rem !important;
+}
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+.hinweis {
+  margin-top: 2rem;
+  padding: 0.9rem 1.1rem;
+  background: var(--surface);
+  border-left: 3px solid var(--gold);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  font-size: 0.85rem !important;
+  line-height: 1.6 !important;
+  color: var(--text-light);
+}
+</style>

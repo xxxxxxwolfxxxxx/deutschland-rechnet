@@ -3,6 +3,7 @@ import Layout from '../../layouts/Layout.astro';
 import CalculatorShell from '../../components/CalculatorShell.astro';
 import CalculatorGuide from '../../components/CalculatorGuide.astro';
 import { CALCULATORS, CATEGORIES } from '../../data/calculators';
+import ArtikelZehnerrundung from '../../components/artikel/zehnerrundung-friert-pfaendbaren-betrag-ein.astro';
 import {
   GRUNDFREIBETRAG_MONAT,
   ERHOEHUNG_ERSTE_PERSON,
@@ -81,6 +82,7 @@ const tabellenZeilen = [1600, 1800, 2000, 2200, 2500, 3000, 3500, 4000, 4500].ma
       </div>
       <div id="details" style="margin-top:0.75rem;font-size:0.88rem;color:#666;display:flex;gap:1.5rem;flex-wrap:wrap;"></div>
     </div>
+    <ArtikelZehnerrundung slot="artikel" />
   </CalculatorShell>
 
   <CalculatorGuide

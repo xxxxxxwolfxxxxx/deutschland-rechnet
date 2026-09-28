@@ -1,0 +1,274 @@
+---
+import RechnerArtikel from '../RechnerArtikel.astro';
+import {
+  MINDESTLOHN_ENTWICKLUNG,
+  geringfuegigkeitsgrenze,
+  berechneMindestlohn,
+} from '../../../public/scripts/mindestlohn.js';
+
+// Dieser Artikel prüft eine naheliegende Vermutung: Wenn der Mindestlohn
+// steigt und die Wochenstunden gleich bleiben, müsste ein Minijobber
+// irgendwann über die Geringfügigkeitsgrenze rutschen. Das Modul widerlegt
+// das für den Fall, der in der Praxis am häufigsten vorkommt – exakt zehn
+// Wochenstunden zum Mindestlohn. Der Grund steckt in der Formel selbst:
+// § 8 Abs. 1a SGB IV rechnet Mindestlohn × 130 ÷ 3, und 130/3 ist genau der
+// Monatswert von zehn Wochenstunden (10 × 52 ÷ 12 = 130/3, exakt dieselbe
+// Bruchzahl). Die Grenze und ein Zehn-Stunden-Gehalt wachsen deshalb immer
+// im exakt selben Verhältnis mit dem Mindestlohn – eine Erhöhung allein kann
+// das Verhältnis der beiden zueinander nicht verändern. Nur die Rundung auf
+// volle Euro (immer aufwärts) schafft einen kleinen, aber verlässlichen
+// Cent-Puffer zugunsten des Minijobbers.
+
+const minus = (s: string) => s.replace(/^-/, '−');
+const eurZahl = (n: number, d = 2) =>
+  n.toLocaleString('de-DE', { minimumFractionDigits: d, maximumFractionDigits: d });
+const eur = (n: number, d = 2) => minus(eurZahl(n, d)) + ' €';
+
+const WOCHEN_JE_MONAT = 52 / 12;
+
+// Für jeden verkündeten Satz: exakte (ungerundete) Grenze, gerundete Grenze
+// und der Cent-Unterschied, den die Aufrundung erzeugt.
+const grenzenTabelle = MINDESTLOHN_ENTWICKLUNG.map((e) => {
+  const exakt = (e.betrag * 130) / 3;
+  const gerundet = geringfuegigkeitsgrenze(e.betrag);
+  return { ...e, exakt, gerundet, rundungsdifferenz: gerundet - exakt };
+});
+
+// Zehn-Stunden-Minijob zum jeweils gültigen Mindestlohn, Jahr für Jahr –
+// jeweils gegen die Grenze DESSELBEN Jahres verglichen (nicht gegen die
+// eingefrorene Modulkonstante MINIJOB_GRENZE, die nur den aktuellen
+// Rechtsstand kennt).
+const zehnStundenTabelle = MINDESTLOHN_ENTWICKLUNG.map((e) => {
+  const r = berechneMindestlohn({ stundenProWoche: 10, stundenlohn: e.betrag });
+  const grenzeDamals = geringfuegigkeitsgrenze(e.betrag);
+  return { ...e, monat: r.monat, grenzeDamals, ueber: r.monat > grenzeDamals };
+});
+
+// Gegenprobe mit 9,5 und 10,5 Wochenstunden: Weil beide Seiten der
+// Ungleichung proportional zum Mindestlohn wachsen, bleibt das Verhältnis
+// über alle Jahre hinweg gleich – anders als beim Rundungs-Grenzfall bei
+// genau zehn Stunden.
+const NEBENSTUNDEN = [9.5, 10.5];
+const nebenstundenTabelle = NEBENSTUNDEN.map((h) => ({
+  stunden: h,
+  ergebnisse: MINDESTLOHN_ENTWICKLUNG.map((e) => {
+    const r = berechneMindestlohn({ stundenProWoche: h, stundenlohn: e.betrag });
+    const grenzeDamals = geringfuegigkeitsgrenze(e.betrag);
+    return { ab: e.ab, ueber: r.monat > grenzeDamals };
+  }),
+}));
+
+const aktuell = grenzenTabelle[grenzenTabelle.length - 2]; // Stand 2026
+const naechster = grenzenTabelle[grenzenTabelle.length - 1]; // 2027 bereits verkündet
+
+// --- Selbstprüfung 1: Die Formel aus § 8 Abs. 1a SGB IV (×130, ÷3, volle
+// Euro aufrunden) muss für jeden verkündeten Satz exakt das liefern, was
+// geringfuegigkeitsgrenze() zurückgibt – sonst weicht dieser Artikel von der
+// Gesetzesformel ab, die er zu erklären vorgibt.
+for (const g of grenzenTabelle) {
+  const nachformel = Math.ceil((g.betrag * 130) / 3);
+  if (nachformel !== g.gerundet) {
+    throw new Error(
+      `Minijob-Artikel: Für ${g.ab} liefert die Formel aus § 8 Abs. 1a SGB IV ${nachformel} €, ` +
+      `das Modul aber ${g.gerundet} € – Formel und Modul widersprechen sich.`
+    );
+  }
+}
+
+// --- Selbstprüfung 2: Kernthese – eine feste Zehn-Stunden-Woche zum
+// jeweils gültigen Mindestlohn darf in KEINEM verkündeten Jahr über die
+// Geringfügigkeitsgrenze desselben Jahres steigen. Genau das würde die
+// eingangs vermutete "Erhöhung drückt aus dem Minijob"-These zeigen, falls
+// sie zuträfe.
+const abweichler = zehnStundenTabelle.find((z) => z.ueber);
+if (abweichler) {
+  throw new Error(
+    `Minijob-Artikel: Ab ${abweichler.ab} überschreitet eine Zehn-Stunden-Woche (${eur(abweichler.monat)}) ` +
+    `die Grenze desselben Jahres (${eur(abweichler.grenzeDamals, 0)}) – die Kernthese des Artikels stimmt nicht mehr.`
+  );
+}
+
+// --- Selbstprüfung 3: Die Aufrundung muss in mindestens einem Jahr einen
+// sichtbaren (> 1 Cent) Unterschied zwischen exakter und gerundeter Grenze
+// erzeugen – sonst gäbe es nichts über die Rundung zu schreiben.
+if (!grenzenTabelle.some((g) => g.rundungsdifferenz > 0.01)) {
+  throw new Error('Minijob-Artikel: Die Aufrundung erzeugt in keinem Jahr einen messbaren Unterschied.');
+}
+
+// --- Selbstprüfung 4: 9,5 Wochenstunden müssen in JEDEM Jahr unter der
+// Grenze bleiben, 10,5 Wochenstunden in JEDEM Jahr darüber liegen – das
+// belegt, dass abseits der Zehn-Stunden-Schwelle einzig die Stundenzahl,
+// nicht die Höhe des Mindestlohns, über den Status entscheidet.
+const [neunFuenf, zehnFuenf] = nebenstundenTabelle;
+if (neunFuenf.ergebnisse.some((e) => e.ueber)) {
+  throw new Error('Minijob-Artikel: 9,5 Wochenstunden liegen in mindestens einem Jahr über der Grenze – Gegenbeispiel widerlegt die Invarianz-These.');
+}
+if (zehnFuenf.ergebnisse.some((e) => !e.ueber)) {
+  throw new Error('Minijob-Artikel: 10,5 Wochenstunden liegen in mindestens einem Jahr NICHT über der Grenze – Gegenbeispiel widerlegt die Invarianz-These.');
+}
+
+// --- Selbstprüfung 5: 10 × 52 ÷ 12 muss exakt 130/3 ergeben – das ist die
+// mathematische Wurzel der ganzen These, keine Näherung.
+if (Math.abs(10 * WOCHEN_JE_MONAT - 130 / 3) > 1e-9) {
+  throw new Error('Minijob-Artikel: 10 Wochenstunden im Monat entsprechen nicht mehr exakt 130/3 – Grundannahme des Artikels ist falsch.');
+}
+
+const quellen = [
+  { titel: '§ 1 Abs. 2 MiLoG – Höhe des Mindestlohns und Anpassung per Verordnung', url: 'https://www.gesetze-im-internet.de/milog/__1.html' },
+  { titel: '§ 8 Abs. 1a SGB IV – Berechnung der Geringfügigkeitsgrenze', url: 'https://www.gesetze-im-internet.de/sgb_4/__8.html' },
+  { titel: 'Fünfte Verordnung zur Anpassung der Höhe des Mindestlohns (MiLoV5)', url: 'https://www.gesetze-im-internet.de/milov5/' },
+];
+---
+<RechnerArtikel
+  titel={`Eine Zehn-Stunden-Woche zum Mindestlohn rutscht durch keine Erhöhung aus dem Minijob`}
+  lead={`Die Geringfügigkeitsgrenze ist kein politischer Wert, den jemand getrennt vom Mindestlohn festlegt – sie ergibt sich zwingend aus ihm: Mindestlohn × 130 ÷ 3, aufgerundet auf volle Euro (§ 8 Abs. 1a SGB IV). Von ${eur(grenzenTabelle[0].gerundet, 0)} im Oktober 2022 ist sie so über ${eur(grenzenTabelle[1].gerundet, 0)} und ${eur(grenzenTabelle[2].gerundet, 0)} auf ${eur(aktuell.gerundet, 0)} seit Januar 2026 gestiegen, ${eur(naechster.gerundet, 0)} sind für 2027 bereits verkündet. Wer testet, ob eine Mindestlohnerhöhung einen Minijob mit gleichbleibenden Stunden über diese Grenze drückt, findet im Rechenmodul das Gegenteil: bei exakt zehn Wochenstunden passiert das nie – nicht durch Zufall, sondern weil die Formel selbst auf einer Zehn-Stunden-Woche beruht.`}
+  datum="2026-09-28"
+  quellen={quellen}
+>
+  <h3>Die Formel: keine eigene Zahl, sondern ein Vielfaches des Mindestlohns</h3>
+  <p>
+    § 1 Abs. 2 MiLoG legt nur den Ausgangswert fest – 12 Euro ab dem 1.
+    Oktober 2022 – und überlässt jede weitere Erhöhung einer
+    Rechtsverordnung der Bundesregierung auf Vorschlag der
+    Mindestlohnkommission. § 8 Abs. 1a Satz 2 SGB IV knüpft die
+    Geringfügigkeitsgrenze unmittelbar an genau diesen Betrag: Mindestlohn
+    vervielfacht mit 130, geteilt durch drei, auf volle Euro aufgerundet.
+    Eine eigenständige politische Entscheidung über die Minijob-Grenze
+    findet seit Oktober 2022 nicht mehr statt – sie folgt automatisch, sooft
+    eine neue Mindestlohnverordnung in Kraft tritt.
+  </p>
+  <table>
+    <caption class="visually-hidden">Verkündete Mindestlohnsätze und die daraus resultierende Geringfügigkeitsgrenze, exakt und gerundet</caption>
+    <thead>
+      <tr>
+        <th scope="col">Gültig ab</th>
+        <th scope="col" class="num">Mindestlohn</th>
+        <th scope="col" class="num">Grenze exakt</th>
+        <th scope="col" class="num">Grenze gerundet</th>
+        <th scope="col" class="num">Rundungsdifferenz</th>
+      </tr>
+    </thead>
+    <tbody>
+      {grenzenTabelle.map((g) => (
+        <tr>
+          <th scope="row">{new Date(g.ab).toLocaleDateString('de-DE')}</th>
+          <td class="num">{eur(g.betrag)}</td>
+          <td class="num">{eur(g.exakt)}</td>
+          <td class="num">{eur(g.gerundet, 0)}</td>
+          <td class="num">{g.rundungsdifferenz > 0.005 ? eur(g.rundungsdifferenz) : '– (glatt)'}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+  <p class="ra-hinweis">
+    Die Fundstelle wechselt mit jeder Verordnung: 2022 direkt aus dem
+    Gesetzestext, 2024 und 2025 aus der Vierten, 2026 und 2027 aus der
+    Fünften Mindestlohnanpassungsverordnung – die Formel aus § 8 Abs. 1a SGB
+    IV bleibt dabei unverändert dieselbe.
+  </p>
+
+  <h3>Woher die Zahl 130 ⁄ 3 kommt: eine Zehn-Stunden-Woche</h3>
+  <p>
+    130 ⁄ 3 wirkt wie eine willkürliche Konstante, ist es aber nicht. Ein
+    Monatsgehalt bei <var>h</var> Wochenstunden zum Mindestlohn <var>L</var>{' '}
+    berechnet sich als <var>L</var> × <var>h</var> × 52 ⁄ 12 (52 Wochen auf
+    12 Monate verteilt – dieselbe Rechnung, die auch der Rechner oben für das
+    Monatsgehalt verwendet). Setzt man <var>h</var> = 10, ergibt sich{' '}
+    <var>L</var> × 10 × 52 ⁄ 12 = <var>L</var> × 520 ⁄ 12 = <var>L</var> × 130 ⁄
+    3 – exakt dieselbe Bruchzahl wie in der Gesetzesformel. Die
+    Geringfügigkeitsgrenze ist mit anderen Worten so konstruiert, dass sie
+    (vor der Rundung) genau dem Monatsgehalt einer Zehn-Stunden-Woche zum
+    Mindestlohn entspricht – für jeden Mindestlohn, nicht nur für den
+    aktuellen.
+  </p>
+
+  <h3>Die Gegenprobe: steigt der Mindestlohn, rutscht die Zehn-Stunden-Woche nie hinüber</h3>
+  <p>
+    Weil Monatsgehalt und Grenze bei genau zehn Stunden vor der Rundung
+    identisch sind, wächst diese Gleichheit mit jeder Mindestlohnerhöhung
+    einfach proportional mit – eine Erhöhung allein kann das Verhältnis der
+    beiden zueinander nicht verschieben. Übrig bleibt nur der Effekt der
+    Rundung, und die rundet ausschließlich <strong>aufwärts</strong>: Das
+    Monatsgehalt bleibt dadurch in jedem einzelnen Jahr auf oder unter der
+    Grenze, nie darüber.
+  </p>
+  <table>
+    <caption class="visually-hidden">Monatsgehalt bei zehn Wochenstunden zum jeweils gültigen Mindestlohn im Vergleich zur Geringfügigkeitsgrenze desselben Jahres</caption>
+    <thead>
+      <tr>
+        <th scope="col">Gültig ab</th>
+        <th scope="col" class="num">Monatsgehalt (10 h)</th>
+        <th scope="col" class="num">Grenze desselben Jahres</th>
+        <th scope="col">Status</th>
+      </tr>
+    </thead>
+    <tbody>
+      {zehnStundenTabelle.map((z) => (
+        <tr>
+          <th scope="row">{new Date(z.ab).toLocaleDateString('de-DE')}</th>
+          <td class="num">{eur(z.monat)}</td>
+          <td class="num">{eur(z.grenzeDamals, 0)}</td>
+          <td>{z.ueber ? 'über der Grenze' : 'innerhalb der Grenze'}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+  <p class="ra-hinweis">
+    2022 sind Monatsgehalt und Grenze sogar auf den Cent gleich ({eur(zehnStundenTabelle[0].monat)}) –
+    zufällig, weil 12,00 € × 130 ⁄ 3 ohne Rest aufgeht. In allen anderen
+    Jahren schafft die Aufrundung einen kleinen Puffer von wenigen Cent bis
+    zu {eur(Math.max(...grenzenTabelle.map((g) => g.rundungsdifferenz)))}.
+    Ein Selbsttest im Quellcode dieses Artikels bricht den Build ab, sollte
+    sich das für einen zukünftig verkündeten Satz einmal ändern.
+  </p>
+
+  <h3>Was tatsächlich über die Grenze entscheidet: die Stundenzahl, nicht der Mindestlohn</h3>
+  <p>
+    Bei jeder anderen Stundenzahl als genau zehn verschwindet dieser
+    Gleichstand, und zwar unabhängig davon, wie hoch der Mindestlohn gerade
+    ist. Bei 9,5 Wochenstunden liegt das Monatsgehalt in jedem der fünf
+    verkündeten Jahre unter der jeweiligen Grenze, bei 10,5 Wochenstunden in
+    jedem Jahr darüber – die Differenz zum Mindestlohn wächst auf beiden
+    Seiten im exakt gleichen Verhältnis mit, sodass sich am Vorzeichen nichts
+    ändert:
+  </p>
+  <table>
+    <caption class="visually-hidden">Status gegenüber der Minijob-Grenze bei 9,5 und 10,5 Wochenstunden über alle verkündeten Mindestlohnsätze</caption>
+    <thead>
+      <tr>
+        <th scope="col">Wochenstunden</th>
+        {MINDESTLOHN_ENTWICKLUNG.map((e) => <th scope="col">{e.ab.slice(0, 4)}</th>)}
+      </tr>
+    </thead>
+    <tbody>
+      {nebenstundenTabelle.map((n) => (
+        <tr>
+          <th scope="row">{n.stunden.toLocaleString('de-DE')} h</th>
+          {n.ergebnisse.map((e) => <td>{e.ueber ? 'über' : 'unter'}</td>)}
+        </tr>
+      ))}
+    </tbody>
+  </table>
+  <p>
+    Eine Mindestlohnerhöhung verändert also für sich genommen bei fester
+    Stundenzahl nie den Minijob-Status – weder nach oben noch nach unten. Was
+    ihn tatsächlich verschieben kann, sind zusätzliche Stunden, eine
+    Gehaltserhöhung oberhalb des Mindestlohns oder ein Bonus in einem
+    einzelnen Monat (dafür gibt es die Zwei-Monats-Toleranz nach § 8 Abs. 1b
+    SGB IV) – nicht der Mindestlohn selbst, solange die Wochenstunden
+    gleichbleiben.
+  </p>
+
+  <h3>Für die Praxis: 10 Wochenstunden als Faustregel, mit einer Einschränkung</h3>
+  <p>
+    Wer einen Minijob exakt an der Grenze plant, kann sich an{' '}
+    <strong>zehn Wochenstunden zum jeweils aktuellen Mindestlohn</strong>{' '}
+    orientieren, ohne bei der nächsten Mindestlohnerhöhung nachrechnen zu
+    müssen – die Formel hält das automatisch im Gleichgewicht. Die
+    Einschränkung: Das gilt nur, solange der Stundenlohn tatsächlich exakt
+    dem gesetzlichen Mindestlohn entspricht. Verdient jemand mehr – etwa
+    durch einen Branchenmindestlohn oder eine übertarifliche Zulage –, wächst
+    das Monatsgehalt schneller als die Grenze mitwächst, sobald die
+    zusätzliche Differenz größer ist als der Cent-Puffer aus der Rundung.
+  </p>
+</RechnerArtikel>
