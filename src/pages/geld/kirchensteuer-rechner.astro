@@ -3,6 +3,7 @@ import Layout from '../../layouts/Layout.astro';
 import CalculatorShell from '../../components/CalculatorShell.astro';
 import CalculatorGuide from '../../components/CalculatorGuide.astro';
 import { CALCULATORS, CATEGORIES } from '../../data/calculators';
+import ArtikelKappung from '../../components/artikel/kappung-lohnt-sich-nur-bei-niedrigem-kappungssatz.astro';
 import { KIRCHENSTEUER_LAENDER, KAPPUNG_MIN, KAPPUNG_MAX } from '../../../public/scripts/kirchensteuer.js';
 const calc = CALCULATORS.find(c => c.slug === 'kirchensteuer-rechner')!;
 const cat = CATEGORIES[calc.category];
@@ -87,6 +88,7 @@ const kappungSpanne = `${proz(KAPPUNG_MIN)} bis ${proz(KAPPUNG_MAX)}`;
         Sie kennen Ihre Lohnsteuer nicht? Der <a href={`${base}geld/brutto-netto-rechner/`}>Brutto-Netto-Rechner</a> ermittelt sie aus Ihrem Bruttogehalt.
       </p>
     </div>
+    <ArtikelKappung slot="artikel" />
   </CalculatorShell>
 
   <CalculatorGuide

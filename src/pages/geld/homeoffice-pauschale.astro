@@ -3,6 +3,7 @@ import Layout from '../../layouts/Layout.astro';
 import CalculatorShell from '../../components/CalculatorShell.astro';
 import CalculatorGuide from '../../components/CalculatorGuide.astro';
 import { CALCULATORS, CATEGORIES } from '../../data/calculators';
+import ArtikelHomeofficeDeckel from '../../components/artikel/homeoffice-pauschale-gedeckelt-pendlerpauschale-nicht.astro';
 const calc = CALCULATORS.find(c => c.slug === 'homeoffice-pauschale')!;
 const cat = CATEGORIES[calc.category];
 const year = new Date().getFullYear();
@@ -28,9 +29,9 @@ const year = new Date().getFullYear();
       { q: "Wie viel ist die Homeoffice-Pauschale wert?", a: "6€ pro Arbeitstag im Homeoffice, maximal 210 Tage = 1.260€/Jahr. Sie schreiben das als Werbungskosten ab, ohne Belege. Das reduziert Ihr zu versteuerndes Einkommen. Bei 30% persönlichem Steuersatz spart das ca. 378€ Steuern pro Jahr." },
       { q: "Was muss ich dokumentieren?", a: "Nichts! Das ist das Schöne der Pauschale. Während der Pandemie kam das, weil Menschen Homeoffice machen mussten – ohne Belege nachzuweisen. Sie schreiben einfach die Tage auf Ihrer Steuererklärung ein." },
       { q: "Kann ich trotzdem teurere Ausgaben absetzen?", a: "Ja! Wenn Sie echte Nebenkosten haben (Möbel, Beleuchtung, Software, Telefon) UND diese nachweisen können, können Sie alternativ die HÖHEREN KOSTEN absetzen (statt der Pauschale). Das lohnt sich aber meist erst ab echtem Heimarbeitszimmer." },
-      { q: "Wer kann die Pauschale nutzen?", a: "Nur Angestellte, die sich im Homeoffice Kosten selbst tragen. Selbstständige und Freiberufler mit eigenem Arbeitszimmer können das Arbeitszimmer (bis 1.250€/Jahr) absetzen – das ist ähnlich, aber eine andere Regel." },
+      { q: "Wer kann die Pauschale nutzen?", a: "Angestellte als Werbungskosten und Selbstständige/Freiberufler als Betriebsausgabe – beide können die Homeoffice-Pauschale ansetzen, auch ohne separates Arbeitszimmer. Wer ein eigenes Arbeitszimmer hat, sollte prüfen, ob die tatsächlichen anteiligen Raumkosten über den 1.260 € liegen; dann ist der Einzelnachweis günstiger." },
       { q: "Gilt das auch für Mischarbeit (hybrid)?", a: "Ja! Jeder Tag, an dem Sie zu Hause arbeiten (auch 4h/Tag zählt), ist ein Homeoffice-Tag. 2 Tage/Woche = ca. 100 Tage/Jahr. 3 Tage/Woche = ca. 150 Tage/Jahr." },
-      { q: "Was ist mit Pendlerpauschale und Homeoffice-Pauschale?", a: "Beide können kombiniert werden! Wenn Sie an Bürotagen pendeln und an Homeoffice-Tagen nicht, schreiben Sie sowohl Pendlerpauschale (1,30€/km für Hin+Rückweg) als auch Homeoffice ab. Das addiert sich." },
+      { q: "Was ist mit Pendlerpauschale und Homeoffice-Pauschale?", a: "Beide können kombiniert werden, aber nicht für denselben Tag: An Tagen mit Fahrt zur ersten Tätigkeitsstätte gilt die Entfernungspauschale (0,38 €/km für die einfache Strecke), an reinen Homeoffice-Tagen die 6 €-Pauschale. Wer an Bürotagen pendelt und an Homeoffice-Tagen nicht, setzt beide für die jeweils eigenen Tage an – das addiert sich." },
       { q: "Kann ich die Homeoffice-Pauschale nutzen, wenn ich keinen eigenen Raum habe?", a: "Ja, genau dafür wurde sie geschaffen. Sie brauchen kein separates Arbeitszimmer und keinen eigenen Schreibtisch. Selbst wer am Küchentisch arbeitet, kann die 6 €/Tag geltend machen. Der einzige Nachweis: Sie haben an dem Tag überwiegend von zu Hause gearbeitet." },
       { q: "Lohnt sich die Pauschale auch unter dem Werbungskosten-Pauschbetrag?", a: "Der Werbungskosten-Pauschbetrag beträgt 1.230 € (2026). Die Homeoffice-Pauschale zählt als Werbungskosten. Haben Sie sonst keine weiteren Werbungskosten, lohnt sich die Homeoffice-Pauschale erst ab ca. 205 Tagen (1.230 €), weil der Pauschbetrag ohnehin gewährt wird. Haben Sie aber andere Werbungskosten (Fachliteratur, Fortbildung, Berufskleidung), addiert sich alles und überschreitet den Pauschbetrag schneller." }
     ]}
@@ -56,6 +57,7 @@ const year = new Date().getFullYear();
       </div>
       <div id="details" style="margin-top:0.75rem;font-size:0.88rem;color:#666;display:flex;gap:1.5rem;flex-wrap:wrap;"></div>
     </div>
+    <ArtikelHomeofficeDeckel slot="artikel" />
   </CalculatorShell>
 
   <CalculatorGuide

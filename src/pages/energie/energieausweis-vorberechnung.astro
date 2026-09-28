@@ -3,6 +3,7 @@ import Layout from '../../layouts/Layout.astro';
 import CalculatorShell from '../../components/CalculatorShell.astro';
 import CalculatorGuide from '../../components/CalculatorGuide.astro';
 import { CALCULATORS, CATEGORIES } from '../../data/calculators';
+import ArtikelBedarfVerbrauch from '../../components/artikel/energieausweis-rechnet-nur-den-bedarf.astro';
 const calc = CALCULATORS.find(c => c.slug === 'energieausweis-vorberechnung')!;
 const cat = CATEGORIES[calc.category];
 const year = new Date().getFullYear();
@@ -23,10 +24,10 @@ const year = new Date().getFullYear();
      calculator={calc}
      intro="Ermitteln Sie vorab die wichtigsten Kennwerte für Ihren Energieausweis. So schätzen Sie die Energieeffizienzklasse Ihres Gebäudes ein, bevor Sie einen Energieberater beauftragen."
      sourceNote="Endenergiebedarf in kWh/(m²·a); CO₂-Emissionsfaktoren nach Anlage 9 Nr. 3 GModG (vormals GEG). Für Fernwärme ist der KWK-Wert für gasförmige und flüssige Brennstoffe (180 g/kWh) unterstellt – Ihr Versorger weist den netzscharfen Wert aus."
-     explanation="Der Energieausweis ist seit 2014 Pflicht bei Verkauf und Vermietung. Werte unter 100 kWh/(m²·a) gelten als gut, über 250 als schlecht. Das Gebäudemodernisierungsgesetz (GModG, bis Juli 2026 GEG) schreibt Mindeststandards für Neubauten vor."
+     explanation="Der Energieausweis ist seit 2014 Pflicht bei Verkauf und Vermietung. Die Effizienzklassen reichen nach Anlage 10 zu § 86 GModG von A+ (bis 30 kWh/(m²·a)) bis H (über 250); Werte unter 100 gelten grob als gut, über 200 als schlecht. Das Gebäudemodernisierungsgesetz (GModG, bis Juli 2026 GEG) schreibt Mindeststandards für Neubauten vor."
       faqs={[
         { q: "Was ist der Unterschied zwischen Endenergiebedarf und Primärenergiebedarf?", a: "Der Endenergiebedarf ist die am Gebäude benötigte Energie (z.B. kWh Gas). Der Primärenergiebedarf rechnet die Vorkette ein und ist deshalb um 30-50% höher. Der Energieausweis zeigt den Primärenergiebedarf." },
-        { q: "Welche Energieausweis-Klassen gibt es und was sind gute Werte?", a: "A+ (beste, <55 kWh/m²a), A, B, C, D, E, F, G (schlechteste, >350 kWh/m²a). Typische Werte: vor 1977 250-350, 1977-2000 150-250, nach 2009 80-120. Unter 100 ist sehr gut." },
+        { q: "Welche Energieausweis-Klassen gibt es und was sind gute Werte?", a: "Neun Klassen nach Anlage 10 zu § 86 GModG: A+ (bis 30 kWh/(m²·a)), A (50), B (75), C (100), D (130), E (160), F (200), G (250) und H (darüber, schlechteste Klasse). Typische Werte: vor 1977 unsaniert 250-350, 1977-2000 150-250, nach 2009 80-120. Unter 100 ist sehr gut." },
         { q: "Wie bekomme ich einen offiziellen Energieausweis?", a: "Ein zertifizierter Energieberater stellt ihn aus (Kosten: 50-250€). Für den Verkauf/Vermietung ab 2021 ist ein Energieausweis Pflicht. Sie können einen Bedarfsausweis (genauer) oder Verbrauchsausweis (günstiger) wählen." },
         { q: "Warum unterscheiden sich meine tatsächlichen Heizkosten vom errechneten Wert?", a: "Der Energieausweis geht von Standardnutzung aus. Tatsächliche Verbrauch hängt ab von: Nutzerverhalten (wie oft heizen Sie?), Witterung (warme vs. kalte Winter), Lüftungsverhalten und Gebäudezustand (Risse, undichte Fenster)." },
         { q: "Kann ich meinen Energieausweis verbessern?", a: "Ja! Durch Sanierungsmaßnahmen wie Dämmung (50% Einsparung), Heizungstausch (30%), Fensteraustausch (30%). Ein saniertes Haus mit A-Klasse spart 200-300€/a Heizkosten gegenüber G-Klasse ein." },
@@ -94,6 +95,7 @@ const year = new Date().getFullYear();
        </div>
       <div id="details" style="margin-top:0.75rem;font-size:0.88rem;color:#666;display:flex;gap:1.5rem;flex-wrap:wrap;"></div>
     </div>
+    <ArtikelBedarfVerbrauch slot="artikel" />
   </CalculatorShell>
 
   <CalculatorGuide
@@ -102,9 +104,9 @@ const year = new Date().getFullYear();
 
 <p><strong>Arten von Energieausweisen:</strong> Der Bedarfsausweis basiert auf einer Gebäudeanalyse und ist genauer, erfordert aber einen Energieberater (100-250€). Der Verbrauchsausweis berücksichtigt tatsächliche Heizrechnungen und ist günstiger (50-100€), kann aber durch Nutzerverhalten verfälscht sein. Für Verkauf/Vermietung ist der Bedarfsausweis vorzuziehen.</p>
 
-<p><strong>Energieklassen und Benchmarks:</strong> Die Einteilung reicht von A+ (sehr effizient, <55 kWh/m²a) bis G (unsaniert, >350 kWh/m²a). Ein typisches Haus von 1980 hat Klasse E (150-200), neuere Häuser ab 2015 Klasse B-C. Die Klassifizierung berücksichtigt auch die Art des Energieträgers – Wärmepumpen werden günstiger bewertet als Ölheizungen.</p>
+<p><strong>Energieklassen und Benchmarks:</strong> Die Einteilung reicht nach Anlage 10 zu § 86 GModG von A+ (sehr effizient, bis 30 kWh/(m²·a)) bis H (schlechteste Klasse, über 250 kWh/(m²·a)) – neun Stufen, nicht acht. Ein typisches Haus von 1980 hat Klasse E (150-200), neuere Häuser ab 2015 Klasse B-C. Die Klassifizierung selbst kennt keinen Bonus für den Energieträger; günstiger bewertet wird eine Wärmepumpe nur, weil ihre Jahresarbeitszahl den Endenergiebedarf senkt, nicht weil ihre Kennzahl anders eingestuft würde.</p>
 
-<p><strong>Endenergie vs. Primärenergie:</strong> Die im Ausweis angegebene Primärenergie ist 30-50% höher als die tatsächlich am Gebäude benötigte Endenergie, da sie die Vorkette (Förderung, Transport, Umwandlung) berücksichtigt. Ein Gas-Brennwertkessel mit 100 kWh Endenergie benötigt ca. 110 kWh Primärenergie, eine Wärmepumpe nur 40-50 kWh.</p>
+<p><strong>Endenergie vs. Primärenergie:</strong> Die Primärenergie rechnet die Vorkette (Förderung, Transport, Umwandlung) ein und unterscheidet sich dabei deutlich nach Energieträger: Nach Anlage 4 GModG (nicht erneuerbarer Anteil) sind es beim Faktor 1,1 für Gas und Heizöl 110 kWh Primärenergie je 100 kWh Endenergie, beim Faktor 1,8 für netzbezogenen Strom 180 kWh je 100 kWh. Wärmepumpen schneiden trotzdem besser ab, weil ihr Endenergiebedarf durch die Jahresarbeitszahl von vornherein viel kleiner ist als der eines Gas- oder Ölkessels für dasselbe Gebäude.</p>
 
 <p><strong>Praktischer Nutzen:</strong> Der Energieausweis ermöglicht direkten Vergleich zwischen Objekten. Ein Käufer erkennt sofort, ob ein Haus wenig oder viel kosten wird zum Heizen. Die Einstufung beeinflusst auch die Immobilienbewertung – sanierte Häuser mit guter Klasse sind begehrter und wertbeständiger.</p>
 
@@ -114,7 +116,7 @@ const year = new Date().getFullYear();
 </Layout>
 
 <script type="module">
-const { co2FaktorJeKwhEndenergie } = await import(window.__base + 'scripts/energieausweis.js');
+const { co2FaktorJeKwhEndenergie, primaerenergiefaktor, effizienzklasse } = await import(window.__base + 'scripts/energieausweis.js');
 
 function berechne() {
   const flaeche = parseFloat(document.getElementById('wohnflaeche').value) || 120;
@@ -161,16 +163,8 @@ function berechne() {
   const co2Faktor = co2FaktorJeKwhEndenergie(heizungsart);
   const co2Emissionen = endenergiebedarf * co2Faktor;
   
-  // Energieeffizienzklasse (nach Gebäudeenergiegesetz)
-  let effizienzklasse;
-  if (endenergiebedarf <= 30) effizienzklasse = 'A+';
-  else if (endenergiebedarf <= 50) effizienzklasse = 'A';
-  else if (endenergiebedarf <= 75) effizienzklasse = 'B';
-  else if (endenergiebedarf <= 100) effizienzklasse = 'C';
-  else if (endenergiebedarf <= 130) effizienzklasse = 'D';
-  else if (endenergiebedarf <= 160) effizienzklasse = 'E';
-  else if (endenergiebedarf <= 200) effizienzklasse = 'F';
-  else effizienzklasse = 'G';
+  // Energieeffizienzklasse nach Anlage 10 zu § 86 GModG (A+ bis H, neun Stufen).
+  const klasse = effizienzklasse(endenergiebedarf);
   
   document.getElementById('ergebnis').textContent = endenergiebedarf.toFixed(1) + ' kWh/(m²·a)';
   document.getElementById('ergebnis').style.color = 
@@ -178,11 +172,18 @@ function berechne() {
     endenergiebedarf <= 100 ? '#f57c00' : 
     '#c62828';
   
+  // Absolute Jahreswerte für die eingegebene Nutzfläche – vorher wurde die
+  // Fläche zwar abgefragt, aber nirgends in der Ausgabe verwendet.
+  const endenergieGesamt = endenergiebedarf * flaeche;
+  const co2Gesamt = co2Emissionen * flaeche;
+
   document.getElementById('details').innerHTML =
     `<span>CO₂-Emissionen: <strong>${co2Emissionen.toFixed(2)} kg CO₂/(m²·a)</strong></span>` +
-    `<span>Energieeffizienzklasse: <strong>${effizienzklasse}</strong></span>` +
-    `<span>Primärenergiebedarf: <strong>${(endenergiebedarf * 1.4).toFixed(1)} kWh/(m²·a)</strong></span>` +
-    `<span>Wärmeverlust durch Transmission: <strong>${(endenergiebedarf * 0.6).toFixed(1)} kWh/(m²·a)</strong></span>`;
+    `<span>Energieeffizienzklasse: <strong>${klasse}</strong></span>` +
+    `<span>Primärenergiebedarf: <strong>${(endenergiebedarf * primaerenergiefaktor(heizungsart)).toFixed(1)} kWh/(m²·a)</strong></span>` +
+    `<span>Wärmeverlust durch Transmission: <strong>${(endenergiebedarf * 0.6).toFixed(1)} kWh/(m²·a)</strong></span>` +
+    `<span>Endenergie gesamt (${flaeche.toFixed(0)} m²): <strong>${endenergieGesamt.toFixed(0)} kWh/a</strong></span>` +
+    `<span>CO₂ gesamt: <strong>${co2Gesamt.toFixed(0)} kg/a</strong></span>`;
 }
 ['wohnflaeche'].forEach(id => document.getElementById(id).addEventListener('input', berechne));
 ['baujahr','heizungsart','dämmstandard'].forEach(id => document.getElementById(id).addEventListener('change', berechne));

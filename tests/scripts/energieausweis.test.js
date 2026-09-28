@@ -89,3 +89,54 @@ describe('Abgrenzung zu den BEHG-Faktoren aus heizkosten.js', () => {
     );
   });
 });
+
+// Nachtrag 28.09.2026: Primärenergiefaktor nach Anlage 4 GModG (nicht
+// erneuerbarer Anteil) und Effizienzklasse nach Anlage 10 zu § 86 GModG.
+// Beide Funktionen standen vorher gar nicht als Modul zur Verfügung, nur
+// inline im <script> der Rechnerseite - mit einem flachen Faktor 1,4 für
+// alle Energieträger (statt 1,1 Gas/Öl, 1,8 Strom) und ohne die Klasse H.
+describe('primaerenergiefaktor nach Anlage 4 GModG', () => {
+  it('rechnet fossile Brennstoffe mit 1,1', async () => {
+    const { primaerenergiefaktor } = await import('../../public/scripts/energieausweis.js');
+    expect(primaerenergiefaktor('gas-brennwert')).toBeCloseTo(1.1, 5);
+    expect(primaerenergiefaktor('oel-niedertemp')).toBeCloseTo(1.1, 5);
+  });
+
+  it('rechnet netzbezogenen Strom mit 1,8', async () => {
+    const { primaerenergiefaktor } = await import('../../public/scripts/energieausweis.js');
+    expect(primaerenergiefaktor('waermepumpe')).toBeCloseTo(1.8, 5);
+    expect(primaerenergiefaktor('nachtspeicher')).toBeCloseTo(1.8, 5);
+  });
+
+  it('wirft bei unbekannter Heizungsart', async () => {
+    const { primaerenergiefaktor } = await import('../../public/scripts/energieausweis.js');
+    expect(() => primaerenergiefaktor('holzpellets')).toThrow();
+  });
+});
+
+describe('effizienzklasse nach Anlage 10 zu § 86 GModG', () => {
+  it('kennt alle neun Klassen A+ bis H', async () => {
+    const { effizienzklasse, ANLAGE10_GRENZEN } = await import('../../public/scripts/energieausweis.js');
+    expect(ANLAGE10_GRENZEN).toEqual([30, 50, 75, 100, 130, 160, 200, 250]);
+    expect(effizienzklasse(30)).toBe('A+');
+    expect(effizienzklasse(50)).toBe('A');
+    expect(effizienzklasse(75)).toBe('B');
+    expect(effizienzklasse(100)).toBe('C');
+    expect(effizienzklasse(130)).toBe('D');
+    expect(effizienzklasse(160)).toBe('E');
+    expect(effizienzklasse(200)).toBe('F');
+    expect(effizienzklasse(250)).toBe('G');
+  });
+
+  it('vergibt oberhalb von 250 die Klasse H, nicht G', async () => {
+    const { effizienzklasse } = await import('../../public/scripts/energieausweis.js');
+    expect(effizienzklasse(251)).toBe('H');
+    expect(effizienzklasse(450)).toBe('H');
+  });
+
+  it('trifft die Grenzen exakt (Grenzwert selbst gehört zur besseren Klasse)', async () => {
+    const { effizienzklasse } = await import('../../public/scripts/energieausweis.js');
+    expect(effizienzklasse(29.9)).toBe('A+');
+    expect(effizienzklasse(30.1)).toBe('A');
+  });
+});

@@ -65,3 +65,53 @@ export function co2FaktorJeKwhEndenergie(heizungsart) {
   }
   return EMISSIONSFAKTOREN_G_JE_KWH[schluessel] / 1000;
 }
+
+// Primärenergiefaktoren (nicht erneuerbarer Anteil) nach Anlage 4 GModG
+// (Fundstelle BGBl. I 2020, 1775): Erdgas und Heizöl 1,1; netzbezogener Strom
+// 1,8. Für Fernwärme aus KWK schreibt Anlage 4 kein festes Vielfaches vor,
+// sondern verweist auf eine Berechnung nach DIN V 18599-9 – dafür fehlen
+// dieser Vorberechnung die nötigen Eingaben (Erzeugungsart, KWK-Anteil). Sie
+// rechnet Fernwärme deshalb mit demselben Näherungswert wie fossile
+// Energieträger, in Anlehnung an den dokumentierten Rückfall bei den
+// CO2-Faktoren oben (FERNWAERME_RUECKFALL: überwiegend KWK mit gasförmigen
+// und flüssigen Brennstoffen) – keine Angabe aus Anlage 4 selbst.
+export const PRIMAERENERGIEFAKTOREN = {
+  fossil: 1.1,
+  strom: 1.8,
+};
+
+const HEIZUNGSART_PRIMAERENERGIETYP = {
+  'gas-brennwert': 'fossil',
+  'oel-niedertemp': 'fossil',
+  'fernwaerme': 'fossil', // Näherung, siehe Kommentar oben
+  'waermepumpe': 'strom',
+  'nachtspeicher': 'strom',
+};
+
+/**
+ * Primärenergiefaktor (nicht erneuerbarer Anteil) einer Heizungsart nach
+ * Anlage 4 GModG.
+ */
+export function primaerenergiefaktor(heizungsart) {
+  const typ = HEIZUNGSART_PRIMAERENERGIETYP[heizungsart];
+  if (!typ) {
+    throw new Error(`Unbekannte Heizungsart: ${heizungsart}`);
+  }
+  return PRIMAERENERGIEFAKTOREN[typ];
+}
+
+// Energieeffizienzklassen nach Anlage 10 zu § 86 GModG (Fundstelle
+// BGBl. I 2020, 1790): neun Klassen A+ bis H, nicht acht. Die frühere
+// Fassung dieser Seite prüfte nur bis 200 kWh/(m²·a) und vergab darüber
+// pauschal "G" - ohne eigene Prüfung, ob 250 überschritten ist. Damit
+// erschien Klasse H im Ergebnis nie, obwohl das Gesetz sie kennt.
+export const ANLAGE10_GRENZEN = [30, 50, 75, 100, 130, 160, 200, 250];
+const ANLAGE10_KLASSEN = ['A+', 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
+
+/** Energieeffizienzklasse eines Endenergiebedarfs in kWh/(m²·a). */
+export function effizienzklasse(kwhJeQm) {
+  for (let i = 0; i < ANLAGE10_GRENZEN.length; i += 1) {
+    if (kwhJeQm <= ANLAGE10_GRENZEN[i]) return ANLAGE10_KLASSEN[i];
+  }
+  return ANLAGE10_KLASSEN.at(-1);
+}
