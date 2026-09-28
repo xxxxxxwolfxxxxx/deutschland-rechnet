@@ -905,6 +905,33 @@ export const ARTIKEL: Artikel[] = [
     rechner: ['ueberstunden-rechner'],
     aufRechnerseite: true,
   },
+  {
+    slug: 'fuenf-euro-rate-entscheiden-ueber-nie-oder-25-jahre',
+    titel: '5 € mehr Rate machen aus „nie" 19,5 Jahre',
+    teaser: 'Eine Schuld von 6.000 € zu 14 % kostet pro Monat exakt 70 € Zinsen. Wer genau diese 70 € als Rate ansetzt, zahlt 50 Jahre lang nur Zinsen und ist danach noch immer 6.000 € im Minus – ein einziger Euro mehr reicht zur vollständigen Tilgung, dauert aber 30,7 Jahre. Erst 5 € über der Zinsgrenze sinkt die Laufzeit auf 19,5 Jahre.',
+    datum: '2026-09-28',
+    thema: 'Geld',
+    rechner: ['schuldentilgungs-rechner'],
+    aufRechnerseite: true,
+  },
+  {
+    slug: 'vierzig-grad-celsius-sind-nicht-doppelt-so-heiss-wie-zwanzig',
+    titel: '40 °C sind nicht doppelt so heiß wie 20 °C – nur in Kelvin bedeutet die doppelte Zahl auch die doppelte Temperatur',
+    teaser: '20 °C entsprechen 293,15 K, 40 °C entsprechen 313,15 K – ein Zuwachs von nur 6,8 %, nicht 100 %. Celsius und Fahrenheit sind Intervallskalen mit willkürlichem Nullpunkt, nur Kelvin ist eine Verhältnisskala. Die absolute Temperatur von 20 °C tatsächlich zu verdoppeln erfordert 313,15 °C – mehr als das Fünfzehnfache des naiv erwarteten Anstiegs.',
+    datum: '2026-09-28',
+    thema: 'Einheiten',
+    rechner: ['temperatur-umrechner'],
+    aufRechnerseite: true,
+  },
+  {
+    slug: 'mpg-unterschied-liegt-an-der-gallone-nicht-am-auto',
+    titel: '40 mpg (UK) und 40 mpg (US) sind nicht dasselbe Auto – der Unterschied steckt allein in der Gallone',
+    teaser: 'Die Meile ist in UK und USA seit 1959 exakt identisch, die Gallone nicht: Die britische ist um den Faktor 1,20095 größer. Ein Auto mit 40 mpg (UK) fährt real so sparsam wie eines mit nur 33,3 mpg (US) – wer die Zahl unverändert übernimmt, verschätzt den Verbrauch um konstant 16,7 %, unabhängig vom mpg-Wert.',
+    datum: '2026-09-28',
+    thema: 'Einheiten',
+    rechner: ['volumen-umrechner'],
+    aufRechnerseite: true,
+  },
 ];
 
 // Tippfehler in einem Rechner-Slug wuerde den Hinweis stillschweigend
