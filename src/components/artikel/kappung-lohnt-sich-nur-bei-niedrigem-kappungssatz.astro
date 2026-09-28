@@ -1,0 +1,287 @@
+---
+import RechnerArtikel from '../RechnerArtikel.astro';
+import { artikelPfadVonSlug } from '../../data/ratgeber';
+import { KIRCHENSTEUER_LAENDER, KAPPUNG_MIN, KAPPUNG_MAX } from '../../../public/scripts/kirchensteuer.js';
+import { einkommensteuer } from '../../../public/scripts/einkommensteuer.js';
+
+// Der Rechner oben bildet nur die Grundformel ab (Kirchensteuer = Lohnsteuer ×
+// 8 % oder 9 %) und wendet die Kappung bewusst nicht an – er kennt das zu
+// versteuernde Einkommen (zvE) nicht, auf das sich die Kappung bezieht, und der
+// konkrete Kappungssatz hängt von der Landeskirche oder Diözese ab, nicht vom
+// Bundesland. Dieser Artikel rechnet nach, was die Kappung bei den beiden in
+// public/scripts/kirchensteuer.js dokumentierten Randwerten (KAPPUNG_MIN und
+// KAPPUNG_MAX) tatsächlich bringt – anhand des Einkommensteuertarifs aus
+// public/scripts/einkommensteuer.js, derselben Quelle, die auch der
+// Einkommensteuer-Rechner der Seite verwendet. Keine zweite Kopie des Tarifs.
+
+const runde = (n: number) => Math.round(n * 100) / 100;
+const zahl = (n: number, d = 0) =>
+  n.toLocaleString('de-DE', { minimumFractionDigits: d, maximumFractionDigits: d }).replace(/^-/, '−');
+const eur = (n: number, d = 0) => zahl(n, d) + ' €';
+const proz = (n: number, d = 2) => zahl(n, d) + ' %';
+
+// --- Die beiden dokumentierten Kappungssätze mit ihrem jeweils passenden
+// Kirchensteuersatz. Beide Zahlenpaare kommen unveraendert aus
+// kirchensteuer.js: KAPPUNG_MIN gehoert laut Kommentar dort zur evangelischen
+// Landeskirche in Wuerttemberg (Bundesland Baden-Wuerttemberg, Satz 8 %),
+// KAPPUNG_MAX zu katholischen Bistuemern in Nordrhein-Westfalen,
+// Rheinland-Pfalz und dem Saarland (alle Satz 9 %). Es wird kein Bundesland
+// mit einem Kappungssatz kombiniert, der laut Modul-Kommentar nicht zu ihm
+// gehoert.
+const satzBW = KIRCHENSTEUER_LAENDER.BW.satz;
+const satzNW = KIRCHENSTEUER_LAENDER.NW.satz;
+
+if (!KIRCHENSTEUER_LAENDER.BW.kappungMoeglich) {
+  throw new Error('Kirchensteuer-Kappungs-Artikel: Baden-Württemberg kennt laut Modul plötzlich keine Kappung mehr.');
+}
+if (Math.abs(satzBW - 0.08) > 1e-9 || Math.abs(satzNW - 0.09) > 1e-9) {
+  throw new Error('Kirchensteuer-Kappungs-Artikel: Die Sätze für BW/NW im Modul haben sich geändert – Zahlen im Artikel prüfen.');
+}
+if (KAPPUNG_MIN >= KAPPUNG_MAX) {
+  throw new Error('Kirchensteuer-Kappungs-Artikel: KAPPUNG_MIN/KAPPUNG_MAX im Modul sind nicht mehr sinnvoll sortiert.');
+}
+
+// Kirchensteuer ohne Kappung waechst mit der Steuerprogression (konvex),
+// Kappung waechst linear mit dem zvE. Beide Funktionen kreuzen sich hoechstens
+// einmal; eine Kreuzung existiert nur, wenn satz * 45 % (der Spitzensteuersatz
+// nach § 32a Abs. 1 Satz 2 Nr. 5 EStG) groesser ist als der Kappungssatz.
+function kirchensteuerOhneKappung(satz: number, zvE: number) {
+  return runde(satz * einkommensteuer(zvE));
+}
+function kirchensteuerGekappt(kappungssatz: number, zvE: number) {
+  return runde(kappungssatz * zvE);
+}
+function findeKreuzung(satz: number, kappungssatz: number, obergrenze = 10_000_000) {
+  let lo = 0;
+  let hi = obergrenze;
+  for (let i = 0; i < 100; i += 1) {
+    const mitte = (lo + hi) / 2;
+    const differenz = kirchensteuerOhneKappung(satz, mitte) - kirchensteuerGekappt(kappungssatz, mitte);
+    if (differenz > 0) hi = mitte; else lo = mitte;
+  }
+  return (lo + hi) / 2;
+}
+
+const kreuzungBW = findeKreuzung(satzBW, KAPPUNG_MIN);
+const kreuzungNW = findeKreuzung(satzNW, KAPPUNG_MAX);
+
+// Selbstprüfung: Unterhalb der Kreuzung muss die Kappung teurer sein als die
+// Grundformel (deshalb beantragt sie dort niemand), oberhalb billiger.
+const pruefpunkteBW = [kreuzungBW - 20000, kreuzungBW + 20000];
+if (kirchensteuerGekappt(KAPPUNG_MIN, pruefpunkteBW[0]) <= kirchensteuerOhneKappung(satzBW, pruefpunkteBW[0])) {
+  throw new Error('Kirchensteuer-Kappungs-Artikel: Unterhalb der berechneten Kreuzung müsste die Kappung teurer sein als die Grundformel.');
+}
+if (kirchensteuerGekappt(KAPPUNG_MIN, pruefpunkteBW[1]) >= kirchensteuerOhneKappung(satzBW, pruefpunkteBW[1])) {
+  throw new Error('Kirchensteuer-Kappungs-Artikel: Oberhalb der berechneten Kreuzung müsste die Kappung billiger sein als die Grundformel.');
+}
+// Die "praktisch nie"-These für den hohen Kappungssatz: Selbst bei einer
+// Million Euro zu versteuerndem Einkommen darf die Kappung dort noch keinen
+// Vorteil bringen, und die Kreuzung selbst muss weit jenseits realistischer
+// Einkommen liegen.
+if (kirchensteuerGekappt(KAPPUNG_MAX, 1_000_000) <= kirchensteuerOhneKappung(satzNW, 1_000_000)) {
+  throw new Error('Kirchensteuer-Kappungs-Artikel: Bei 1 Mio. € zvE müsste die Kappung mit KAPPUNG_MAX noch immer teurer sein als die Grundformel.');
+}
+if (kreuzungNW < 1_000_000) {
+  throw new Error('Kirchensteuer-Kappungs-Artikel: Die Kreuzung für KAPPUNG_MAX liegt nicht mehr "praktisch nie" – Text anpassen.');
+}
+
+// --- Tabelle Baden-Württemberg / 2,75 % ------------------------------------
+const zvEWerteBW = [100000, 120000, 150000, 200000, 300000];
+const tabelleBW = zvEWerteBW.map((zvE) => {
+  const ohne = kirchensteuerOhneKappung(satzBW, zvE);
+  const mit = kirchensteuerGekappt(KAPPUNG_MIN, zvE);
+  return { zvE, ohne, mit, differenz: runde(ohne - mit) };
+});
+
+// --- Beispiele Nordrhein-Westfalen / 4 % ------------------------------------
+const zvEWerteNW = [300000, 1000000];
+const tabelleNW = zvEWerteNW.map((zvE) => {
+  const ohne = kirchensteuerOhneKappung(satzNW, zvE);
+  const mit = kirchensteuerGekappt(KAPPUNG_MAX, zvE);
+  return { zvE, ohne, mit, differenz: runde(mit - ohne) };
+});
+
+const kreuzungBWGerundet = Math.round(kreuzungBW / 1000) * 1000;
+const kreuzungNWGerundet = Math.round(kreuzungNW / 100000) * 100000;
+const beispiel300kBW = tabelleBW.find((z) => z.zvE === 300000)!;
+const beispiel1MioNW = tabelleNW.find((z) => z.zvE === 1000000)!;
+---
+<RechnerArtikel
+  titel={`In Württemberg lohnt sich die Kappung ab rund ${eur(kreuzungBWGerundet)} zu versteuerndem Einkommen – bei vielen katholischen Bistümern greift derselbe Mechanismus praktisch nie`}
+  lead={`Der Rechner oben wendet die Kappung absichtlich nicht an – er kennt nur Ihre Lohnsteuer, nicht Ihr zu versteuerndes Einkommen, an dem sich die Kappung bemisst. Nachgerechnet mit den beiden im Rechner-Modul dokumentierten Kappungssätzen zeigt sich: Bei ${proz(KAPPUNG_MIN * 100)} (evangelische Landeskirche Württemberg) beginnt der Vorteil bereits bei rund ${eur(kreuzungBWGerundet)} zu versteuerndem Einkommen. Bei ${proz(KAPPUNG_MAX * 100, 0)} (katholische Bistümer in Nordrhein-Westfalen, Rheinland-Pfalz und dem Saarland) liegt dieselbe Grenze erst bei über ${eur(kreuzungNWGerundet)} – für praktisch niemanden erreichbar.`}
+  datum="2026-09-28"
+  quellen={[
+    { titel: '§ 51a EStG – Bemessung der Kirchensteuer als Zuschlagsteuer', url: 'https://www.gesetze-im-internet.de/estg/__51a.html' },
+    { titel: '§ 32a EStG – Einkommensteuertarif', url: 'https://www.gesetze-im-internet.de/estg/__32a.html' },
+    { titel: 'Kirchenamt der EKD / Verband der Diözesen – Übersicht Kirchensteuer und Kappung', url: 'https://www.kirchenfinanzen.de/kirchensteuer/' },
+  ]}
+>
+  <h3>Warum der Rechner oben die Kappung nicht rechnet</h3>
+  <p>
+    Die Grundformel ist einfach: Kirchensteuer = festgesetzte Lohn- oder
+    Einkommensteuer × {proz(0.08 * 100, 0)} oder {proz(0.09 * 100, 0)}. Die
+    Kappung ersetzt diese Formel bei hohen Einkommen durch eine andere
+    Bemessungsgrundlage: Statt an der Steuer wird die Kirchensteuer dann an
+    einem Prozentsatz des <strong>zu versteuernden Einkommens</strong> (zvE)
+    gedeckelt – laut Modul zwischen {proz(KAPPUNG_MIN * 100)} und{' '}
+    {proz(KAPPUNG_MAX * 100, 0)}, je nachdem, welche Landeskirche oder Diözese
+    zuständig ist. Der Rechner oben fragt nur nach der Lohnsteuer, nicht nach
+    dem zvE – er kann die Kappung deshalb gar nicht anwenden, selbst wenn er
+    wollte. Das ist keine Lücke, sondern eine bewusste Grenze: Ohne zvE-Eingabe
+    lässt sich die Kappung nicht seriös berechnen, und der konkrete Satz steht
+    ohnehin nicht im Bundesland, sondern in der Kirchensteuerordnung der
+    einzelnen Landeskirche oder Diözese.
+  </p>
+
+  <h3>Zwei Kurven, eine Kreuzung</h3>
+  <p>
+    Damit die Kappung überhaupt einen Vorteil bringt, müssen zwei
+    unterschiedlich geformte Kurven sich kreuzen. Die Kirchensteuer ohne
+    Kappung wächst mit der Steuerprogression: Sie ist der Kirchensteuersatz
+    mal die tarifliche Einkommensteuer, und die Einkommensteuer nach § 32a
+    EStG steigt mit dem zvE zunehmend schneller, bis sie ab{' '}
+    {eur(277825, 0)} zvE konstant mit {proz(45, 0)} Grenzsteuersatz weiterläuft.
+    Die gekappte Kirchensteuer dagegen ist schlicht ein fester Prozentsatz des
+    zvE – eine Gerade. Eine konvex wachsende Kurve und eine Gerade kreuzen
+    sich höchstens einmal, und genau dann, wenn die Kirchensteuerkurve am Ende
+    steiler verläuft als die Gerade. Das ist nur der Fall, wenn Kirchensteuersatz
+    mal Spitzensteuersatz größer ist als der Kappungssatz selbst:
+  </p>
+  <table>
+    <caption class="visually-hidden">Vergleich von Kirchensteuersatz mal Spitzensteuersatz gegen den Kappungssatz</caption>
+    <thead>
+      <tr>
+        <th scope="col">Kombination</th>
+        <th scope="col" class="num">Kirchensteuersatz × {proz(45, 0)}</th>
+        <th scope="col" class="num">Kappungssatz</th>
+        <th scope="col">Kreuzung existiert?</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <th scope="row">Baden-Württemberg (8 %) × {proz(KAPPUNG_MIN * 100)}</th>
+        <td class="num">{proz(satzBW * 45, 1)}</td>
+        <td class="num">{proz(KAPPUNG_MIN * 100)}</td>
+        <td>Ja, bei rund {eur(kreuzungBWGerundet)} zvE</td>
+      </tr>
+      <tr>
+        <th scope="row">Nordrhein-Westfalen (9 %) × {proz(KAPPUNG_MAX * 100, 0)}</th>
+        <td class="num">{proz(satzNW * 45)}</td>
+        <td class="num">{proz(KAPPUNG_MAX * 100, 0)}</td>
+        <td>Ja, aber erst über {eur(kreuzungNWGerundet)} zvE</td>
+      </tr>
+    </tbody>
+  </table>
+  <p>
+    Im zweiten Fall liegt {proz(satzNW * 45)} nur ganz knapp über{' '}
+    {proz(KAPPUNG_MAX * 100, 0)} – die Kurve überholt die Gerade zwar
+    rechnerisch, aber erst so spät, dass die Kreuzung weit außerhalb jedes
+    realistischen Einkommens liegt.
+  </p>
+
+  <h3>Württemberg: der Vorteil beginnt im sechsstelligen Bereich</h3>
+  <p>
+    Bei einem Kappungssatz von {proz(KAPPUNG_MIN * 100)} – dem Wert, den das
+    Rechner-Modul der evangelischen Landeskirche Württemberg zuordnet – liegt
+    die Kreuzung bei rund {eur(kreuzungBWGerundet)} zu versteuerndem Einkommen.
+    Darunter kostet die Kappung mehr, als die Grundformel ohnehin verlangt;
+    darüber lohnt sich der Antrag zunehmend:
+  </p>
+  <table>
+    <caption class="visually-hidden">Kirchensteuer in Baden-Württemberg (8 %) mit und ohne Kappung bei {proz(KAPPUNG_MIN * 100)}, nach zu versteuerndem Einkommen</caption>
+    <thead>
+      <tr>
+        <th scope="col">Zu versteuerndes Einkommen</th>
+        <th scope="col" class="num">Kirchensteuer ohne Kappung</th>
+        <th scope="col" class="num">Kirchensteuer gekappt</th>
+        <th scope="col" class="num">Differenz</th>
+      </tr>
+    </thead>
+    <tbody>
+      {tabelleBW.map((z) => (
+        <tr>
+          <th scope="row">{eur(z.zvE, 0)}</th>
+          <td class="num">{eur(z.ohne, 2)}</td>
+          <td class="num">{eur(z.mit, 2)}</td>
+          <td class="num">
+            {z.differenz > 0 ? `${eur(z.differenz, 2)} gespart` : `${eur(Math.abs(z.differenz), 2)} teurer`}
+          </td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+  <p>
+    Bei {eur(100000, 0)} zvE kostet die Kappung noch mehr, als es die
+    Grundformel verlangt – hier würde niemand den Antrag stellen. Bei{' '}
+    {eur(300000, 0)} zvE spart die Kappung bereits {eur(beispiel300kBW.differenz, 2)}{' '}
+    im Jahr gegenüber der reinen {proz(8, 0)}-Rechnung.
+  </p>
+
+  <h3>NRW, Rheinland-Pfalz, Saarland: derselbe Mechanismus, praktisch ohne Wirkung</h3>
+  <p>
+    Bei {proz(KAPPUNG_MAX * 100, 0)} Kappungssatz – dem Wert, den das Modul
+    mehreren katholischen Bistümern in Nordrhein-Westfalen, Rheinland-Pfalz
+    und dem Saarland zuordnet, alle mit {proz(9, 0)} Kirchensteuersatz –
+    verschiebt sich dieselbe Rechnung um Größenordnungen. Selbst bei{' '}
+    {eur(1000000, 0)} zu versteuerndem Einkommen im Jahr würde ein Antrag auf
+    Kappung noch immer {eur(beispiel1MioNW.differenz, 2)} mehr kosten als die
+    einfache Formel:
+  </p>
+  <table>
+    <caption class="visually-hidden">Kirchensteuer in Nordrhein-Westfalen (9 %) mit und ohne Kappung bei {proz(KAPPUNG_MAX * 100, 0)}, nach zu versteuerndem Einkommen</caption>
+    <thead>
+      <tr>
+        <th scope="col">Zu versteuerndes Einkommen</th>
+        <th scope="col" class="num">Kirchensteuer ohne Kappung</th>
+        <th scope="col" class="num">Kirchensteuer gekappt</th>
+        <th scope="col" class="num">Kappung wäre teurer um</th>
+      </tr>
+    </thead>
+    <tbody>
+      {tabelleNW.map((z) => (
+        <tr>
+          <th scope="row">{eur(z.zvE, 0)}</th>
+          <td class="num">{eur(z.ohne, 2)}</td>
+          <td class="num">{eur(z.mit, 2)}</td>
+          <td class="num">{eur(z.differenz, 2)}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+  <p>
+    Rechnerisch kreuzen sich beide Kurven auch hier irgendwann – nach der
+    Selbstprüfung dieses Artikels erst deutlich jenseits von{' '}
+    {eur(kreuzungNWGerundet)} zu versteuerndem Einkommen im Jahr. Für die
+    weit überwiegende Mehrheit der Kirchenmitglieder in diesen Bistümern ist
+    die Kappung damit kein Instrument, das je zum Tragen kommt, selbst wenn
+    ihre Landeskirche oder Diözese sie „von Amts wegen" prüfen würde.
+  </p>
+
+  <h3>Was das für die eigene Anfrage bedeutet</h3>
+  <p>
+    Beide Rechnungen hier sind Beispiele für die beiden im Rechner-Modul
+    dokumentierten Randwerte – nicht für jede Landeskirche und jedes Bistum.
+    Der tatsächliche Kappungssatz Ihrer Kirchensteuerordnung kann irgendwo
+    zwischen {proz(KAPPUNG_MIN * 100)} und {proz(KAPPUNG_MAX * 100, 0)} liegen,
+    und nur Ihre Landeskirche oder Diözese kennt den für Sie geltenden Wert.
+    Die Rechenregel bleibt aber dieselbe: Je niedriger der Kappungssatz Ihrer
+    Kirche, desto niedriger das zu versteuernde Einkommen, ab dem sich ein
+    Antrag lohnt – und je näher der Kappungssatz an {proz(0.09 * 45)} heranreicht
+    (Kirchensteuersatz {proz(9, 0)} mal Spitzensteuersatz {proz(45, 0)}), desto
+    unwahrscheinlicher wird ein Vorteil überhaupt.
+  </p>
+  <p class="ra-hinweis">
+    Alle Zahlen hier gelten für die Grundtabelle (Einzelveranlagung) ohne
+    Kinderfreibeträge, Werbungskosten oder sonstige Abzüge und verwenden das
+    zu versteuernde Einkommen als Bemessungsgrundlage – der Rechner oben fragt
+    dagegen nach der bereits festgesetzten Lohnsteuer, die bei Angestellten
+    ohne weitere Einkünfte näherungsweise derselben Größe entspricht. Nicht
+    behandelt ist hier die Kirchensteuer auf Kapitalerträge: Dort mindert die
+    gezahlte Kirchensteuer die Bemessungsgrundlage der Abgeltungsteuer selbst
+    (§ 32d Abs. 1 Satz 3 EStG), was eine eigene, andere Rechnung ergibt – dazu
+    im Detail{' '}
+    <a href={`${import.meta.env.BASE_URL}${artikelPfadVonSlug('abgeltungsteuer-nie-25-prozent')}`}>
+      „Warum die Abgeltungsteuer nie 25 Prozent beträgt"
+    </a>.
+  </p>
+</RechnerArtikel>

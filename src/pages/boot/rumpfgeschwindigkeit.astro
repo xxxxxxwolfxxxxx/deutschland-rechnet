@@ -1,6 +1,7 @@
 ---
 import Layout from '../../layouts/Layout.astro';
 import CalculatorShell from '../../components/CalculatorShell.astro';
+import ArtikelRumpf from '../../components/artikel/rumpfgeschwindigkeit-was-der-faktor-verschweigt.astro';
 import CalculatorGuide from '../../components/CalculatorGuide.astro';
 import { CALCULATORS, CATEGORIES } from '../../data/calculators';
 const calc = CALCULATORS.find(c => c.slug === 'rumpfgeschwindigkeit')!;
@@ -38,7 +39,7 @@ const cat = CATEGORIES[calc.category];
       },
       {
         q: "Was ist die wirtschaftlichste Geschwindigkeit?",
-        a: "Meist etwa 80 Prozent der Rumpfgeschwindigkeit. Dort ist das Verhältnis von Verbrauch zu zurückgelegter Strecke am günstigsten. Die letzten 20 Prozent Fahrt kosten oft ein Drittel mehr Sprit für wenige Minuten Zeitgewinn."
+        a: "Als Faustwert gelten etwa 80 Prozent der Rumpfgeschwindigkeit – dort liegt die Fahrt noch im flachen Teil der Widerstandskurve, die erst ab einer Froude-Zahl von rund 0,35 steil wird. Die letzten 20 Prozent Fahrt sind nicht umsonst zu haben: Wächst der Leistungsbedarf wie üblich mit der dritten Potenz der Geschwindigkeit, kosten sie mindestens 56 Prozent mehr Energie je Seemeile und sparen 25 Prozent Zeit – auf 30 Seemeilen gut eine Stunde. Der Artikel auf dieser Seite rechnet beides durch."
       },
       {
         q: "Gilt die Formel auch für Katamarane?",
@@ -60,6 +61,7 @@ const cat = CATEGORIES[calc.category];
       <p id="details" style="margin-top:0.5rem;font-size:0.9rem;font-weight:600;"></p>
       <p id="hinweis" style="margin-top:0.35rem;font-size:0.85rem;color:#666;line-height:1.5;"></p>
     </div>
+    <ArtikelRumpf slot="artikel" />
   </CalculatorShell>
 
   <CalculatorGuide

@@ -1,0 +1,461 @@
+---
+import RechnerArtikel from '../RechnerArtikel.astro';
+import { artikelPfadVonSlug } from '../../data/ratgeber';
+
+// Der Prozent-Rechner hat kein eigenes Modul, er rechnet inline im <script>
+// der Seite (Prozentwert = Grundwert × Satz ÷ 100, Veränderung = (neu − alt)
+// ÷ alt × 100). Dieser Artikel rechnet deshalb hier im Frontmatter mit genau
+// diesen beiden Formeln. Keine Zahl im Fließtext ist abgetippt.
+/** Typografisches Minus statt Bindestrich, wie im Fließtext. */
+const minus = (text: string) => text.replace(/^-/, '−');
+const zahl = (n: number, d = 2) =>
+  minus(n.toLocaleString('de-DE', { minimumFractionDigits: d, maximumFractionDigits: d }));
+const proz = (n: number, d = 2) => zahl(n, d) + ' %';
+const eur = (n: number) => zahl(n, 2) + ' €';
+/** Prozentangabe ohne überflüssige Nachkommastellen (25 %, aber 11,11 %). */
+const prozKurz = (n: number) =>
+  minus(n.toLocaleString('de-DE', { maximumFractionDigits: 2 })) + ' %';
+
+/** Die Formel des Modus „% Veränderung". */
+const veraenderung = (alt: number, neu: number) => ((neu - alt) / alt) * 100;
+/** Faktor aus einer prozentualen Veränderung: +25 → 1,25; −20 → 0,8. */
+const faktor = (p: number) => 1 + p / 100;
+const nahe = (a: number, b: number, eps = 1e-9) => Math.abs(a - b) < eps;
+
+// --- 1. Der Rückweg nach einem Verlust -------------------------------------
+// Nach −p braucht es +p/(1−p), um zurückzukommen. Aus der Veränderungsformel
+// hergeleitet, nicht aus der geschlossenen Form – so prüft sich beides.
+const VERLUSTE = [5, 10, 20, 30, 50, 75, 90];
+const rueckwegVerlust = VERLUSTE.map((p) => ({
+  p,
+  noetig: veraenderung(100 - p, 100),
+}));
+for (const r of rueckwegVerlust) {
+  const geschlossen = (r.p / (100 - r.p)) * 100;
+  if (!nahe(r.noetig, geschlossen)) {
+    throw new Error(`Prozent-Artikel: Rückwegformel stimmt nicht bei ${r.p} %.`);
+  }
+}
+const ANSTIEGE = [10, 25, 50, 100, 200];
+const rueckwegAnstieg = ANSTIEGE.map((p) => ({
+  p,
+  noetig: -veraenderung(100 + p, 100),
+}));
+const HEADLINE_VERLUST = 20;
+const headlineRueckweg = veraenderung(100 - HEADLINE_VERLUST, 100);
+if (!nahe(headlineRueckweg, 25)) {
+  throw new Error('Prozent-Artikel: Titel behauptet 25 % Rückweg nach 20 % Verlust.');
+}
+const halbierung = rueckwegVerlust.find((r) => r.p === 50)!;
+// Text: „ab einem Verlust von 20 % ist der Anstieg um ein Viertel größer".
+if (rueckwegVerlust[2].p !== HEADLINE_VERLUST || !nahe(rueckwegVerlust[2].noetig / rueckwegVerlust[2].p, 1.25)) {
+  throw new Error('Prozent-Artikel: Tabellenzeile 3 ist nicht mehr der 20-%-Fall.');
+}
+
+// --- 2. Hin und zurück mit demselben Satz ----------------------------------
+// (1 + p)(1 − p) = 1 − p². Der Verlust ist exakt das Quadrat des Satzes.
+const HIN_ZURUECK = [1, 5, 10, 19, 20, 50];
+const hinZurueck = HIN_ZURUECK.map((p) => {
+  const ergebnis = 100 * faktor(p) * faktor(-p);
+  return { p, ergebnis, verlust: 100 - ergebnis, quadrat: (p * p) / 100 };
+});
+for (const h of hinZurueck) {
+  if (!nahe(h.verlust, h.quadrat)) {
+    throw new Error(`Prozent-Artikel: Verlust bei ±${h.p} % ist nicht p².`);
+  }
+}
+const zehn = hinZurueck.find((h) => h.p === 10)!;
+const fuenfzig = hinZurueck.find((h) => h.p === 50)!;
+
+// --- 3. Reihenfolge und Addition -------------------------------------------
+const NETTO = 100;
+const RABATT = 20;
+const UST_REGEL = 19; // § 12 Abs. 1 UStG
+const UST_ERM = 7; // § 12 Abs. 2 UStG
+const rabattZuerst = NETTO * faktor(-RABATT) * faktor(UST_REGEL);
+const steuerZuerst = NETTO * faktor(UST_REGEL) * faktor(-RABATT);
+if (!nahe(rabattZuerst, steuerZuerst)) {
+  throw new Error('Prozent-Artikel: Rabatt vor/nach Steuer müsste identisch sein.');
+}
+const naivSumme = NETTO * faktor(UST_REGEL - RABATT);
+const additionsfehler = naivSumme - rabattZuerst;
+// Der Fehler der Addition ist genau das Produkt der beiden Sätze.
+if (!nahe(additionsfehler, (NETTO * UST_REGEL * RABATT) / 10000)) {
+  throw new Error('Prozent-Artikel: Additionsfehler ist nicht p·q.');
+}
+
+// Zwölf Monate zu je 1 Prozent.
+const MONATSSATZ = 1;
+const jahrAusMonaten = (Math.pow(faktor(MONATSSATZ), 12) - 1) * 100;
+const jahrAddiert = MONATSSATZ * 12;
+const kleinFehler = jahrAusMonaten - jahrAddiert;
+
+// --- 4. Die Steuer im Bruttopreis -------------------------------------------
+const anteilRegel = (UST_REGEL / (100 + UST_REGEL)) * 100;
+const anteilErm = (UST_ERM / (100 + UST_ERM)) * 100;
+const BRUTTO = 100;
+const nettoRichtig = BRUTTO / faktor(UST_REGEL);
+const nettoFalsch = BRUTTO * faktor(-UST_REGEL);
+const fehlerEuro = nettoRichtig - nettoFalsch;
+const fehlerRelativ = -veraenderung(nettoRichtig, nettoFalsch);
+const fehlerRelativErm = -veraenderung(BRUTTO / faktor(UST_ERM), BRUTTO * faktor(-UST_ERM));
+if (!nahe(fehlerRelativ, (UST_REGEL * UST_REGEL) / 100) || !nahe(fehlerRelativErm, (UST_ERM * UST_ERM) / 100)) {
+  throw new Error('Prozent-Artikel: Fehler beim Herausrechnen ist nicht p².');
+}
+
+// --- 5. Drei Zahlen für eine Steuersenkung ----------------------------------
+// Speisen im Restaurant: 19 → 7 Prozent (§ 12 Abs. 2 Nr. 15 UStG, seit 1.1.2026).
+const punkte = UST_ERM - UST_REGEL;
+const satzRelativ = veraenderung(UST_REGEL, UST_ERM);
+const preisRelativ = veraenderung(faktor(UST_REGEL), faktor(UST_ERM));
+const nettoPlus = veraenderung(faktor(UST_ERM), faktor(UST_REGEL));
+const GERICHT = 18.9;
+const gerichtNeu = Math.round(GERICHT * (faktor(UST_ERM) / faktor(UST_REGEL)) * 100) / 100;
+if (!(Math.abs(preisRelativ) < Math.abs(punkte) && Math.abs(punkte) < Math.abs(satzRelativ))) {
+  throw new Error('Prozent-Artikel: Reihenfolge Preis < Punkte < relativer Satz stimmt nicht.');
+}
+if (!(nettoPlus > Math.abs(preisRelativ))) {
+  throw new Error('Prozent-Artikel: Nettoplus müsste größer sein als die mögliche Preissenkung.');
+}
+
+// Beispiel von der Seite selbst: 5 → 7 Prozent.
+const bspPunkte = 7 - 5;
+const bspRelativ = veraenderung(5, 7);
+
+// --- 6. Der Durchschnitt, der trügt ----------------------------------------
+const JAHRE = 20;
+const schwankung = (auf: number, ab: number) => {
+  const paar = faktor(auf) * faktor(-ab);
+  const ende = Math.pow(paar, JAHRE / 2);
+  return {
+    auf,
+    ab,
+    arithmetisch: (auf - ab) / 2,
+    geometrisch: (Math.sqrt(paar) - 1) * 100,
+    gesamt: (ende - 1) * 100,
+  };
+};
+const SCHWANKUNGEN: Array<[number, number]> = [[10, 10], [20, 20], [30, 30], [25, 20], [30, 20]];
+const schwankungen = SCHWANKUNGEN.map(([a, b]) => schwankung(a, b));
+const nullrunde = schwankungen.find((s) => s.auf === 25 && s.ab === 20)!;
+const zwanzig = schwankungen.find((s) => s.auf === 20 && s.ab === 20)!;
+if (!nahe(nullrunde.gesamt, 0) || !(nullrunde.arithmetisch > 0)) {
+  throw new Error('Prozent-Artikel: +25/−20 müsste bei positivem Mittel genau null ergeben.');
+}
+if (!(zwanzig.arithmetisch === 0 && zwanzig.gesamt < 0)) {
+  throw new Error('Prozent-Artikel: ±20 % müsste bei Mittel null einen Verlust ergeben.');
+}
+
+const quellen = [
+  { titel: '§ 12 UStG – Steuersätze (Absatz 2 Nummer 15: Restaurant- und Verpflegungsdienstleistungen)', url: 'https://www.gesetze-im-internet.de/ustg_1980/__12.html' },
+  { titel: '§ 10 UStG – Bemessungsgrundlage (Entgelt abzüglich der Umsatzsteuer)', url: 'https://www.gesetze-im-internet.de/ustg_1980/__10.html' },
+  { titel: 'Zentralverband des Deutschen Handwerks – Ermäßigter Umsatzsteuersatz für die Gastronomie ab 1.1.2026', url: 'https://www.zdh.de/ueber-uns/fachbereich-steuern-und-finanzen/umsatzsteuer/ermaessigter-umsatzsteuersatz-fuer-die-gastronomie-ab-112026/' },
+];
+---
+<RechnerArtikel
+  titel={`Wer ${HEADLINE_VERLUST} Prozent verliert, braucht ${zahl(headlineRueckweg, 0)} zurück`}
+  datum="2026-09-17"
+  lead={`Prozentangaben lassen sich weder umkehren noch addieren, ohne dass man den Grundwert wechselt. Nach einem Minus von ${prozKurz(HEADLINE_VERLUST)} braucht es ${prozKurz(headlineRueckweg)} Plus, um wieder am Anfang zu stehen. Wer denselben Satz erst auf- und dann abschlägt, verliert genau dessen Quadrat. Und ein Depot, das im Schnitt ${prozKurz(nullrunde.arithmetisch)} im Jahr zulegt, kann nach ${JAHRE} Jahren auf den Cent genau dort stehen, wo es angefangen hat.`}
+  quellen={quellen}
+>
+  <h3>Jede Prozentzahl hat einen Nenner</h3>
+  <p>
+    Ein Prozent ist ein Hundertstel – aber ein Hundertstel <em>wovon</em>? Die
+    Formel, mit der der Rechner oben im Modus „% Veränderung" arbeitet, gibt die
+    Antwort: Die Differenz wird durch den <strong>alten</strong> Wert geteilt. Der
+    Ausgangswert ist der Grundwert, und der ändert sich, sobald man von der anderen
+    Seite rechnet.
+  </p>
+  <p>
+    Sinkt ein Betrag von 100 auf {zahl(100 - HEADLINE_VERLUST, 0)}, ist das ein Minus
+    von {prozKurz(HEADLINE_VERLUST)}, gemessen an 100. Der Weg zurück wird aber an
+    {' '}{zahl(100 - HEADLINE_VERLUST, 0)} gemessen: {zahl(HEADLINE_VERLUST, 0)} von
+    {' '}{zahl(100 - HEADLINE_VERLUST, 0)} sind {prozKurz(headlineRueckweg)}. Allgemein
+    braucht ein Verlust von <em>p</em> einen Anstieg von <em>p</em> ÷ (1 − <em>p</em>),
+    mit <em>p</em> als Dezimalzahl. Bei kleinen Verlusten fällt das kaum auf, bei großen
+    läuft der Rückweg davon:
+  </p>
+
+  <table>
+    <caption class="visually-hidden">Nötiger Anstieg, um einen prozentualen Verlust auszugleichen</caption>
+    <thead>
+      <tr>
+        <th scope="col" class="num">Verlust</th>
+        <th scope="col" class="num">nötiger Anstieg</th>
+      </tr>
+    </thead>
+    <tbody>
+      {rueckwegVerlust.map((r) => (
+        <tr>
+          <th scope="row" class="num">−{prozKurz(r.p)}</th>
+          <td class="num">+{proz(r.noetig)}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+
+  <p>
+    Im oberen Teil der Tabelle liegen Verlust und Rückweg noch nah beieinander:
+    Nach −{prozKurz(rueckwegVerlust[0].p)} genügen +{proz(rueckwegVerlust[0].noetig)},
+    der Unterschied geht im Alltag unter. Genau deshalb hält sich die Vorstellung,
+    Prozente ließen sich einfach umdrehen. Sie stimmt ungefähr, solange die Sätze
+    klein sind, und wird falsch, sobald sie es nicht mehr sind. Ab einem Verlust von
+    {' '}{prozKurz(rueckwegVerlust[2].p)} ist der nötige Anstieg bereits um ein Viertel
+    größer als der Verlust selbst.
+  </p>
+  <p>
+    Die Halbierung ist der Punkt, an dem die Intuition endgültig versagt: Nach
+    {' '}−{prozKurz(halbierung.p)} braucht es +{prozKurz(halbierung.noetig)}, also eine
+    Verdopplung. In umgekehrter Richtung ist es genauso, nur mit anderem Vorzeichen –
+    nach einem Anstieg genügt ein kleinerer Rückgang, um ihn aufzuheben:
+  </p>
+
+  <table>
+    <caption class="visually-hidden">Rückgang, der einen prozentualen Anstieg aufhebt</caption>
+    <thead>
+      <tr>
+        <th scope="col" class="num">Anstieg</th>
+        <th scope="col" class="num">hebt sich auf durch</th>
+      </tr>
+    </thead>
+    <tbody>
+      {rueckwegAnstieg.map((r) => (
+        <tr>
+          <th scope="row" class="num">+{prozKurz(r.p)}</th>
+          <td class="num">−{proz(r.noetig)}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+
+  <p>
+    Daraus folgt eine Sprachregel, die in Preisvergleichen ständig verletzt wird:
+    Ist A {prozKurz(25)} teurer als B, dann ist B nicht {prozKurz(25)}, sondern
+    {' '}{prozKurz(20)} billiger als A. Beide Sätze beschreiben denselben Abstand, nur
+    mit einem anderen Grundwert. Wer im Rechner oben „Alter Wert" und „Neuer Wert"
+    vertauscht, bekommt genau diesen Unterschied zu sehen.
+  </p>
+
+  <h3>Hin und zurück kostet genau das Quadrat</h3>
+  <p>
+    Das bekannte Beispiel: 100 plus {prozKurz(10)} sind
+    110, davon {prozKurz(10)} ab sind {zahl(zehn.ergebnis, 0)}. Dass dabei genau
+    {' '}{zahl(zehn.verlust, 0)} verloren geht, ist kein Zufall. Wer mit demselben Satz
+    <em>p</em> erst aufschlägt und dann abschlägt, multipliziert mit (1 + <em>p</em>)
+    und (1 − <em>p</em>) – und das Produkt ist nach der dritten binomischen Formel
+    1 − <em>p</em>². Der Verlust ist immer exakt das Quadrat des Satzes, egal in
+    welcher Reihenfolge:
+  </p>
+
+  <table>
+    <caption class="visually-hidden">Ergebnis nach Auf- und Abschlag mit demselben Satz, Ausgangswert 100</caption>
+    <thead>
+      <tr>
+        <th scope="col" class="num">Satz</th>
+        <th scope="col" class="num">von 100 bleiben</th>
+        <th scope="col" class="num">Verlust</th>
+      </tr>
+    </thead>
+    <tbody>
+      {hinZurueck.map((h) => (
+        <tr>
+          <th scope="row" class="num">±{prozKurz(h.p)}</th>
+          <td class="num">{zahl(h.ergebnis)}</td>
+          <td class="num">{proz(h.verlust)}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+
+  <p>
+    Die Quadratregel erklärt, warum der Effekt im Alltag so lange unbemerkt bleibt:
+    Bei {prozKurz(1)} geht ein Zehntausendstel verloren, bei {prozKurz(10)} ein
+    Hundertstel. Erst bei großen Sätzen wird er grob – ein Plus und ein Minus von je
+    {' '}{prozKurz(50)} lassen von 100 nur {zahl(fuenfzig.ergebnis, 0)} übrig.
+  </p>
+
+  <h3>Die Reihenfolge ist egal, die Summe nicht</h3>
+  <p>
+    Weil aufeinanderfolgende Prozentänderungen multipliziert werden, spielt ihre
+    Reihenfolge keine Rolle. Ein Beispiel, bei dem das oft bezweifelt wird: Ein
+    Nettopreis von {eur(NETTO)} bekommt {prozKurz(RABATT)} Rabatt und
+    {' '}{prozKurz(UST_REGEL)} Umsatzsteuer. Rabatt zuerst ergibt
+    {' '}{eur(rabattZuerst)}, Steuer zuerst ebenfalls {eur(steuerZuerst)}. Für den
+    Endpreis ist es gleichgültig, ob der Rabatt auf den Netto- oder den Bruttopreis
+    gewährt wird – solange er in beiden Fällen denselben Prozentsatz hat. Wer das
+    selbst nachrechnen will, kann den{' '}
+    <a href={`${import.meta.env.BASE_URL}einheiten/rabatt-rechner/`}>Rabatt-Rechner</a>
+    {' '}und den{' '}
+    <a href={`${import.meta.env.BASE_URL}einheiten/mwst-rechner/`}>MwSt-Rechner</a>
+    {' '}hintereinander benutzen.
+  </p>
+  <p>
+    Was dagegen nicht funktioniert, ist das Zusammenzählen. „Minus
+    {' '}{prozKurz(RABATT)}, plus {prozKurz(UST_REGEL)}, macht unterm Strich
+    {' '}{prozKurz(UST_REGEL - RABATT)}" führt auf {eur(naivSumme)}. Tatsächlich sind es
+    {' '}{eur(rabattZuerst)}, {eur(additionsfehler)} weniger. Auch dieser Fehler hat
+    eine feste Größe: Er ist das Produkt der beiden Sätze,
+    {' '}{zahl(RABATT / 100)} × {zahl(UST_REGEL / 100)} = {zahl((RABATT * UST_REGEL) / 10000, 3)},
+    also {eur(additionsfehler)} je {eur(NETTO)} Nettopreis.
+  </p>
+  <p>
+    Deshalb lassen sich kleine Sätze näherungsweise doch addieren – ihr Produkt ist
+    winzig. Zwölf Monate mit je {prozKurz(MONATSSATZ)} Zuwachs ergeben nicht
+    {' '}{prozKurz(jahrAddiert)}, sondern {proz(jahrAusMonaten)} im Jahr. Die
+    Abweichung von {zahl(kleinFehler)} Prozentpunkten entsteht nur, weil jeder Monat
+    auf dem Ergebnis des vorigen aufsetzt. Über Jahrzehnte wird aus diesem kleinen
+    Rest der Zinseszins.
+  </p>
+
+  <h3>Wie viel Steuer in 100 Euro brutto steckt</h3>
+  <p>
+    Nach § 10 Abs. 1 Satz 2 UStG ist die Bemessungsgrundlage das Entgelt „abzüglich
+    der für diese Leistung gesetzlich geschuldeten Umsatzsteuer". Die
+    {' '}{prozKurz(UST_REGEL)} werden also vom Nettopreis berechnet. Im Bruttopreis
+    steckt deshalb nicht ein Anteil von {prozKurz(UST_REGEL)}, sondern von
+    {' '}{UST_REGEL}/{100 + UST_REGEL} = {proz(anteilRegel)}. Beim ermäßigten Satz
+    sind es {UST_ERM}/{100 + UST_ERM} = {proz(anteilErm)} statt
+    {' '}{prozKurz(UST_ERM)}.
+  </p>
+  <p>
+    Wer aus {eur(BRUTTO)} brutto den Nettopreis gewinnt, indem er
+    {' '}{prozKurz(UST_REGEL)} abzieht, kommt auf {eur(nettoFalsch)}. Richtig ist die
+    Division durch {zahl(faktor(UST_REGEL))}: {eur(nettoRichtig)}. Der Fehler von
+    {' '}{eur(fehlerEuro)} entspricht {proz(fehlerRelativ)} des richtigen
+    Nettopreises – und das ist wieder die Quadratregel: {zahl(UST_REGEL / 100)}² =
+    {' '}{zahl((UST_REGEL * UST_REGEL) / 10000, 4)}. Beim ermäßigten Satz schrumpft
+    derselbe Fehler auf {proz(fehlerRelativErm)}, weshalb der falsche Weg bei
+    Lebensmitteln kaum auffällt und beim Regelsteuersatz spürbar danebenliegt.
+  </p>
+
+  <h3>Drei Zahlen für eine Steuersenkung</h3>
+  <p>
+    Seit dem 1. Januar 2026 gilt für Speisen im Restaurant nach § 12 Abs. 2 Nr. 15
+    UStG dauerhaft der ermäßigte Satz von {prozKurz(UST_ERM)}; Getränke sind davon
+    ausgenommen und bleiben bei {prozKurz(UST_REGEL)}. Wie stark ist diese Senkung?
+    Je nach Rechnung ergeben sich drei ganz verschiedene Antworten:
+  </p>
+
+  <table>
+    <caption class="visually-hidden">Die Senkung von 19 auf 7 Prozent Umsatzsteuer, auf drei Arten gemessen</caption>
+    <thead>
+      <tr>
+        <th scope="col">Was gemessen wird</th>
+        <th scope="col" class="num">Veränderung</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <th scope="row">Steuersatz, Differenz</th>
+        <td class="num">{zahl(punkte, 0)} Prozentpunkte</td>
+      </tr>
+      <tr>
+        <th scope="row">Steuersatz, relativ</th>
+        <td class="num">{proz(satzRelativ)}</td>
+      </tr>
+      <tr>
+        <th scope="row">Bruttopreis bei voller Weitergabe</th>
+        <td class="num">{proz(preisRelativ)}</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <p>
+    Alle drei Zahlen sind richtig, aber nur die letzte betrifft den Gast. Der
+    Steuersatz fällt um {zahl(Math.abs(punkte), 0)} Prozentpunkte, das sind
+    {' '}{proz(Math.abs(satzRelativ))} weniger Steuer. Der Bruttopreis kann aber
+    höchstens um {proz(Math.abs(preisRelativ))} sinken, weil sich der Faktor nur von
+    {' '}{zahl(faktor(UST_REGEL))} auf {zahl(faktor(UST_ERM))} ändert. Ein Gericht für
+    {' '}{eur(GERICHT)} kostet bei unverändertem Nettopreis danach {eur(gerichtNeu)}.
+  </p>
+  <p>
+    Die Rechnung lässt sich auch von der anderen Seite lesen. Lässt ein Wirt den
+    Bruttopreis stehen, bleibt ihm netto {proz(nettoPlus)} mehr – mehr, als der Gast
+    im besten Fall gespart hätte. Die Asymmetrie aus dem ersten Abschnitt steckt
+    auch hier: Die {proz(Math.abs(preisRelativ))} sind am alten Preis gemessen, die
+    {' '}{proz(nettoPlus)} am neuen. Ob und wie Betriebe die Senkung weitergegeben
+    haben, ist eine Frage an die Preisstatistik, nicht an die Prozentrechnung.
+  </p>
+  <p>
+    Dieselbe Doppeldeutigkeit steckt im Beispiel aus dem Erklärtext dieser Seite: Steigt ein
+    Satz von {prozKurz(5)} auf {prozKurz(7)}, sind das {zahl(bspPunkte, 0)}
+    {' '}Prozentpunkte oder {prozKurz(bspRelativ)}. Der Rechner oben liefert im Modus
+    „% Veränderung" immer die relative Zahl. Die Differenz in Prozentpunkten ist
+    schlicht neuer minus alter Satz.
+  </p>
+
+  <h3>Der Durchschnitt, der ein Minus versteckt</h3>
+  <p>
+    Am teuersten wird die Asymmetrie bei schwankenden Werten, etwa einem Depot. Ein
+    Jahr mit +{prozKurz(nullrunde.auf)} und eines mit −{prozKurz(nullrunde.ab)} ergeben
+    im Mittel +{prozKurz(nullrunde.arithmetisch)} pro Jahr. Das Vermögen hat sich aber
+    nicht bewegt, denn {zahl(faktor(nullrunde.auf))} × {zahl(faktor(-nullrunde.ab))} =
+    {' '}{zahl(faktor(nullrunde.auf) * faktor(-nullrunde.ab))}. Wiederholt sich dieses
+    Muster {JAHRE} Jahre lang, steht am Ende exakt der Anfangsbetrag – bei einem
+    „durchschnittlichen Wachstum" von {prozKurz(nullrunde.arithmetisch)}.
+  </p>
+  <p>
+    Die folgende Tabelle zeigt, was verschiedene Wechsel aus guten und schlechten
+    Jahren über {JAHRE} Jahre anrichten. Die mittlere Spalte ist das, was man
+    ausrechnet, wenn man die Jahresraten mittelt; die rechte das, was im Depot
+    tatsächlich passiert.
+  </p>
+
+  <table>
+    <caption class="visually-hidden">Abwechselnde Gewinn- und Verlustjahre über 20 Jahre</caption>
+    <thead>
+      <tr>
+        <th scope="col">Wechsel</th>
+        <th scope="col" class="num">Mittel der Raten</th>
+        <th scope="col" class="num">tatsächlich je Jahr</th>
+        <th scope="col" class="num">nach {JAHRE} Jahren</th>
+      </tr>
+    </thead>
+    <tbody>
+      {schwankungen.map((s) => (
+        <tr>
+          <th scope="row">+{prozKurz(s.auf)} / −{prozKurz(s.ab)}</th>
+          <td class="num">{proz(s.arithmetisch)}</td>
+          <td class="num">{proz(s.geometrisch)}</td>
+          <td class="num">{proz(s.gesamt)}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+
+  <p>
+    Ein Wert, der jedes Jahr abwechselnd um {prozKurz(zwanzig.auf)} steigt und fällt,
+    hat im Mittel eine Rate von null – und nach {JAHRE} Jahren
+    {' '}{proz(Math.abs(zwanzig.gesamt))} verloren. Je stärker die Schwankung, desto
+    größer der Abstand zwischen Mittelwert und Wirklichkeit; bei jedem Paar aus gleich
+    großem Plus und Minus ist es wieder die Quadratregel. Wer Renditen über mehrere
+    Jahre vergleicht, braucht deshalb die tatsächliche Rate pro Jahr, das
+    geometrische Mittel, nicht den Durchschnitt der Jahreszahlen. Der{' '}
+    <a href={`${import.meta.env.BASE_URL}geld/etf-renditerechner/`}>ETF-Renditerechner</a>
+    {' '}rechnet mit einer festen Rate und bildet solche Schwankungen deshalb nicht ab.
+  </p>
+
+  <h3>Was daraus für das Nachrechnen folgt</h3>
+  <p>
+    Drei Fragen genügen, um die meisten Prozentfehler zu vermeiden. Erstens: Worauf
+    bezieht sich die Zahl – auf den alten oder den neuen Wert? Zweitens: Werden
+    mehrere Änderungen hintereinander angewendet? Dann werden die Faktoren
+    multipliziert, nicht die Sätze addiert. Drittens: Ist von einem Anteil die Rede,
+    der selbst schon in Prozent angegeben ist? Dann muss klar sein, ob Prozent oder
+    Prozentpunkte gemeint sind.
+  </p>
+  <p>
+    Dieselbe Verwechslung von Abschlag und Division steckt übrigens hinter dem
+    häufigsten Fehler bei der Kaufkraft: Wer nach einer Teuerung den Anstieg abzieht,
+    statt durch den Index zu teilen, rechnet sein Geld schlechter, als es ist. Der
+    Artikel zum{' '}
+    <a href={`${import.meta.env.BASE_URL}${artikelPfadVonSlug('inflation-was-die-rate-verschweigt')}`}>Inflationsrechner</a>
+    {' '}rechnet das an echten Indexwerten durch.
+  </p>
+  <p class="ra-hinweis">
+    Alle Werte in diesem Artikel sind mit den beiden Formeln des Rechners oben
+    berechnet und nicht gerundet weitergerechnet; gerundet wird erst in der Anzeige.
+    Die Beispiele mit schwankenden Jahren sind Modellrechnungen, keine Aussage über
+    einen bestimmten Markt.
+  </p>
+</RechnerArtikel>

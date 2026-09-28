@@ -3,6 +3,7 @@ import Layout from '../../layouts/Layout.astro';
 import CalculatorShell from '../../components/CalculatorShell.astro';
 import CalculatorGuide from '../../components/CalculatorGuide.astro';
 import { CALCULATORS, CATEGORIES } from '../../data/calculators';
+import ArtikelTrainingspuls from '../../components/artikel/trainingspuls-prozent-wovon.astro';
 const calc = CALCULATORS.find(c => c.slug === 'optimalerpuls-rechner')!;
 const cat = CATEGORIES[calc.category];
 const year = new Date().getFullYear();
@@ -22,32 +23,32 @@ const year = new Date().getFullYear();
   <CalculatorShell
     calculator={calc}
     intro="Mit dem Optimaler-Puls-Rechner berechnen Sie Ihren optimalen Trainingspuls basierend auf Alter und Trainingsziel. Finden Sie heraus, in welcher Herzfrequenzzone Sie trainieren sollten, um Fettverbrennung, Ausdauer oder maximale Leistung zu optimieren. Der Rechner zeigt Ihnen alle fünf Trainingszonen und hilft Ihnen, Ihr Workout gezielt zu steuern."
-    sourceNote="Maximalpuls = 220 - Alter."
-    explanation="Die Berechnung nutzt die Formel 220 minus Alter für den geschätzten Maximalpuls, die von der American Heart Association als praxistaugliche Näherung empfohlen wird. Die fünf Herzfrequenzzonen reichen von Regeneration (50-60%) bis zur maximalen Belastung (90-100%) und bestimmen, ob der Körper primär Fett oder Kohlenhydrate als Energiequelle nutzt. Studien zeigen, dass ein gezielter Wechsel zwischen den Zonen (Polarized Training) die kardiovaskuläre Fitness effektiver verbessert als monotones Training in einer Zone."
+    sourceNote="Maximalpuls nach Fox 1971 (220 − Alter) oder Tanaka 2001 (208 − 0,7 × Alter); Zonen wahlweise als Anteil des Maximalpuls oder nach Karvonen über die Herzfrequenzreserve."
+    explanation="Der Maximalpuls wird hier geschätzt, nicht gemessen: 220 minus Alter geht auf Fox und Kollegen (1971) zurück, 208 minus 0,7 mal Alter auf eine Metaanalyse von Tanaka und Kollegen (2001). Beide Formeln beschreiben Mittelwerte von Bevölkerungsgruppen und streuen um den einzelnen Menschen erheblich; gemessen wird der Maximalpuls über eine Belastungsuntersuchung. Die fünf Zonen lassen sich auf zwei Arten in Schläge je Minute umrechnen: als reiner Anteil des Maximalpuls oder nach Karvonen, wobei der Anteil sich auf die Herzfrequenzreserve aus Maximalpuls minus Ruhepuls bezieht. Beide Wege ergeben bei derselben Prozentangabe unterschiedliche Werte."
     faqs={[
       {
-        q: "Ist die Formel 220 minus Alter genau?",
-        a: "Die Formel ist eine grobe Schätzung mit einer Standardabweichung von etwa 10-20 bpm. Fitter Menschen haben oft einen niedrigeren Maximalpuls, ältere Menschen einen höheren. Eine Belastungs-EKG ist genauer, aber die Formel reicht für Training."
+        q: "Wie genau ist die Formel 220 minus Alter?",
+        a: "Sie ist eine Schätzung aus dem Alter allein und streut um den einzelnen Menschen deutlich; in der Literatur werden Standardabweichungen in der Größenordnung von zehn Schlägen je Minute genannt. Für eine belastbare Zahl wird der Maximalpuls unter ärztlicher Aufsicht gemessen."
       },
       {
-        q: "Warum ist der Ruhepuls wichtig?",
-        a: "Der Ruhepuls zeigt deine kardiovaskuläre Fitness. Ein niedrigerer Ruhepuls (60 bpm) bedeutet bessere Herzeffizienz als ein höherer (80 bpm). Trainingserfolge senken den Ruhepuls über Zeit."
+        q: "Warum stehen hier zwei Formeln zur Auswahl?",
+        a: "Weil sie unterschiedliche Werte liefern. 220 − Alter und 208 − 0,7 × Alter schneiden sich bei genau 40 Jahren. Darunter schätzt Tanaka niedriger, darüber höher – mit 70 Jahren liegen die beiden Schätzungen neun Schläge auseinander."
       },
       {
-        q: "In welcher Zone sollte ich trainieren?",
-        a: "Das hängt vom Ziel ab: Fettverbrennung (50-70%) für Anfänger, aerobe Ausdauer (70-80%) für mittlere Intensität, HIIT (80-90%+) für maximale Fitness-Gewinne. Variation ist optimal."
+        q: "Was ist der Unterschied zwischen den beiden Zonen-Spalten?",
+        a: "Die linke Spalte nimmt den Prozentsatz direkt vom Maximalpuls. Die rechte folgt Karvonen: Der Prozentsatz bezieht sich auf die Herzfrequenzreserve, also auf Maximalpuls minus Ruhepuls, und wird auf den Ruhepuls aufgeschlagen. Dieselben 60 Prozent bedeuten dadurch verschiedene Pulswerte."
       },
       {
-        q: "Kann ich auch unter meiner Fettverbrennung-Zone trainieren?",
-        a: "Ja, Zonen 50-60% sind sehr effektiv für Regeneration und sind größtenteils aerob. Sie verbrennen zwar weniger kcal/h, aber sind nachhaltiger und verletzungsfreier."
+        q: "Wirkt sich der Ruhepuls auf das Ergebnis aus?",
+        a: "Auf die Karvonen-Spalte ja, auf den reinen Prozentwert nicht. Frühere Fassungen dieses Rechners fragten den Ruhepuls ab, ohne ihn zu verwenden – die Zonen waren ausschließlich Prozentsätze des Maximalpuls."
       },
       {
-        q: "Ist anaerobes Training sicherer?",
-        a: "Nein, anaerobes Training (80%+) ist belastender für das Herz. Es sollte nur 1-2x pro Woche und mit Vorsicht gemacht werden. Vor intensivem Training bei älteren Personen sollte ein Arzt konsultiert werden."
+        q: "Gibt es eine Zone, in der besonders viel Fett verbrannt wird?",
+        a: "Bei niedriger Intensität stammt ein größerer Anteil der Energie aus Fett, bei höherer Intensität ein größerer Anteil aus Kohlenhydraten – der absolute Energieumsatz steigt aber mit der Intensität. Welche Intensität für ein bestimmtes Ziel sinnvoll ist, beantwortet dieser Rechner nicht."
       },
       {
-        q: "Wie oft sollte ich mein Training-Puls überprüfen?",
-        a: "Eine Pulsuhr oder Smartwatch bietet konstante Rückmeldung. Bei manueller Messung (Hals/Handgelenk für 15 Sekunden mal 4) sollte regelmäßig kontrolliert werden. Eine 10 bpm Abweichung ist normal."
+        q: "Wie wird der Ruhepuls gemessen?",
+        a: "Üblicherweise im Liegen nach dem Aufwachen, bevor man aufsteht. Tageszeit, Koffein, Schlaf und Erkrankungen verschieben den Wert, weshalb mehrere Messungen an verschiedenen Tagen aussagekräftiger sind als eine einzelne."
       }
     ]}
   >
@@ -59,46 +60,99 @@ const year = new Date().getFullYear();
         </div>
         <div class="calc-group">
           <label for="ruhepuls">Ruhepuls (Schläge/min)</label>
-          <input type="number" id="ruhepuls" min="40" max="100" value="65" step="1" />
+          <input type="number" id="ruhepuls" min="30" max="120" value="65" step="1" />
+        </div>
+        <div class="calc-group">
+          <label for="formel">Schätzung für den Maximalpuls</label>
+          <select id="formel">
+            <option value="fox">220 − Alter (Fox 1971)</option>
+            <option value="tanaka">208 − 0,7 × Alter (Tanaka 2001)</option>
+          </select>
         </div>
       </div>
 
       <div class="calc-result">
-        <div class="label">Maximalpuls</div>
+        <div class="label">Geschätzter Maximalpuls</div>
         <div id="maxpuls">— bpm</div>
       </div>
-      <div id="details" style="margin-top:0.75rem;font-size:0.88rem;color:#666;display:flex;gap:1.5rem;flex-wrap:wrap;"></div>
+      <p id="vergleich" style="margin-top:0.5rem;font-size:0.85rem;color:var(--muted);"></p>
+      <div id="zonen" style="margin-top:0.75rem;overflow-x:auto;"></div>
+      <p style="margin-top:0.75rem;font-size:0.85rem;color:var(--muted);">
+        Beide Spalten gehören zu derselben Prozentangabe. Links der reine Anteil
+        am Maximalpuls, rechts die Karvonen-Methode, die den Anteil auf die
+        Herzfrequenzreserve bezieht und auf den Ruhepuls aufschlägt. Nur die
+        rechte Spalte reagiert auf den Ruhepuls.
+      </p>
     </div>
+    <ArtikelTrainingspuls slot="artikel" />
   </CalculatorShell>
   <CalculatorGuide
     title="Herzfrequenzzonen und Trainingsintensität"
-    content="Die Herzfrequenz ist ein zuverlässiger Indikator für Trainingsintensität. Durch gezieltes Training in bestimmten Pulszonen optimieren Sie die Effektivität Ihres Workouts und reduzieren das Verletzungsrisiko.
+    content="Eine Zonenangabe in Prozent ist erst dann eindeutig, wenn dabeisteht, worauf sich die Prozente beziehen. Dieselben 70 Prozent meinen je nach Rechenweg verschiedene Pulswerte.
 
-**Die fünf Trainingszonen:** Niedrig (50-60%) ist ideal für Aufwärmen und Recovery, Fettverbrennung (60-70%) ist belastungsarm und lange haltbar, aerob (70-80%) verbessert die Ausdauer, anaerobschwelle (80-90%) ist intensiv und kurzfristig, maximal (90-100%+) ist nur für Sprints und Tests geeignet.
+**Die fünf Zonen:** Regeneration (50–60 %), Grundlage (60–70 %), Aerob (70–80 %), Schwelle (80–90 %) und Maximal (90–100 %). Die Grenzen sind Konvention, keine physiologischen Schwellen – die tatsächliche aerobe und anaerobe Schwelle liegt individuell verschieden und wird über Laktat- oder Spiroergometrie bestimmt, nicht über einen Prozentsatz.
 
-**Warum Ruhepuls wichtig ist:** Ein gesunker Ruhepuls über Zeit signalisiert bessere kardiovaskuläre Gesundheit. Trainingserfolge zeigen sich oft zuerst darin: Eine Person mit Ruhepuls 80, die auf 70 trainiert hat, macht messbare Fortschritte.
+**Zwei Rechenwege:** Der reine Anteil am Maximalpuls multipliziert einfach: 70 Prozent von 185 sind 130. Die Karvonen-Methode bezieht den Anteil auf die Herzfrequenzreserve, also auf Maximalpuls minus Ruhepuls, und schlägt ihn auf den Ruhepuls auf: 65 + (185 − 65) × 0,7 = 149. Der Abstand zwischen beiden Wegen ist am größten bei niedriger Intensität und verschwindet erst bei 100 Prozent.
 
-**Praktische Anwendung:** Nutzen Sie eine Pulsuhr für genaues Feedback. Wenn Sie kein Gerät haben, trainieren Sie nach Empfindung: Leichte Atmung in Zone 2, normal sprechend in Zone 3, kurze Worte in Zone 4. Vielfalt in den Zonen ist wichtiger als immer maximale Intensität – die beste Trainingsroutine wechselt zwischen allen Zonen."
+**Was der Ruhepuls hier tut:** Er geht ausschließlich in die Karvonen-Spalte ein. Ein sinkender Ruhepuls über Wochen und Monate ist ein verbreiteter Verlaufsparameter; ein einzelner Wert sagt für sich genommen wenig, weil Schlaf, Koffein, Stress und Infekte ihn verschieben.
+
+**Grenzen der Schätzung:** Beide Formeln für den Maximalpuls stammen aus Bevölkerungsdaten und sagen nichts über eine einzelne Person. Wer Beschwerden hat, Medikamente einnimmt, die die Herzfrequenz beeinflussen – etwa Betablocker – oder nach längerer Pause wieder mit Sport beginnt, bekommt aus keiner dieser Formeln eine belastbare Zahl. Dieser Rechner rechnet Prozentangaben in Schläge um; er ersetzt keine ärztliche Beratung."
     relatedSlugs={['kalorien-verbrennen', 'kalorien-rechner', 'grundumsatz-rechner']}
   />
 </Layout>
 
 <script type="module">
+const { trainingszonen } = await import(window.__base + 'scripts/trainingspuls.js');
+
+const bpm = (n) => n.toLocaleString('de-DE') + ' bpm';
+const vz = (n) => (n > 0 ? '+' : n < 0 ? '\u2212' : '\u00b1') + Math.abs(n).toLocaleString('de-DE');
+
 function berechne() {
-  const alter = parseInt(document.getElementById('alter').value)||35;
-  const ruhepuls = parseInt(document.getElementById('ruhepuls').value)||65;
-  const maxpuls = 220 - alter;
-  const hrr = maxpuls - ruhepuls;
-  
-  document.getElementById('maxpuls').textContent = maxpuls + ' bpm';
-  document.getElementById('details').innerHTML =
-    `<span>Fettverbrennung (50-60%): <strong>${Math.round(maxpuls*0.5)}–${Math.round(maxpuls*0.6)} bpm</strong></span>` +
-    `<span>Ausdauer (60-70%): <strong>${Math.round(maxpuls*0.6)}–${Math.round(maxpuls*0.7)} bpm</strong></span>` +
-    `<span> aerober Bereich (70-80%): <strong>${Math.round(maxpuls*0.7)}–${Math.round(maxpuls*0.8)} bpm</strong></span>` +
-    `<span>anaerob/HIIT (80-90%): <strong>${Math.round(maxpuls*0.8)}–${Math.round(maxpuls*0.9)} bpm</strong></span>` +
-    `<span>Maximum (90-100%): <strong>${Math.round(maxpuls*0.9)}–${maxpuls} bpm</strong></span>`;
+  const alter = parseInt(document.getElementById('alter').value, 10);
+  const ruhepuls = parseInt(document.getElementById('ruhepuls').value, 10);
+  const formel = document.getElementById('formel').value;
+
+  let r;
+  try {
+    r = trainingszonen({ alter, ruhepuls, formel });
+  } catch (e) {
+    document.getElementById('maxpuls').textContent = '\u2014 bpm';
+    document.getElementById('vergleich').textContent = e.message;
+    document.getElementById('zonen').innerHTML = '';
+    return;
+  }
+
+  document.getElementById('maxpuls').textContent = bpm(Math.round(r.maximalpuls));
+
+  const andere = formel === 'fox' ? r.maxTanaka : r.maxFox;
+  const andersName = formel === 'fox' ? '208 \u2212 0,7 \u00d7 Alter' : '220 \u2212 Alter';
+  const diff = Math.round(r.maximalpuls) - Math.round(andere);
+  document.getElementById('vergleich').textContent =
+    `Nach ${andersName} w\u00e4ren es ${bpm(Math.round(andere))} \u2013 eine Differenz von `
+    + `${vz(diff)} bpm. Herzfrequenzreserve: ${bpm(r.herzfrequenzreserve)}.`;
+
+  const zeilen = r.zonen.map((z) =>
+    `<tr><td>${z.name}</td>`
+    + `<td>${Math.round(z.von * 100)}\u2013${Math.round(z.bis * 100)}\u00a0%</td>`
+    + `<td>${z.prozentVon}\u2013${z.prozentBis}</td>`
+    + `<td>${z.karvonenVon}\u2013${z.karvonenBis}</td>`
+    + `<td>${vz(z.abstandVon)}</td></tr>`).join('');
+
+  document.getElementById('zonen').innerHTML =
+    '<table style="width:100%;border-collapse:collapse;font-size:0.9rem;">'
+    + '<caption style="text-align:left;font-size:0.85rem;color:var(--muted);padding-bottom:0.4rem;">'
+    + 'Trainingszonen nach beiden Rechenwegen, in Schl\u00e4gen je Minute</caption>'
+    + '<thead><tr>'
+    + '<th style="text-align:left;">Zone</th>'
+    + '<th style="text-align:left;">Anteil</th>'
+    + '<th style="text-align:left;">% vom Maximalpuls</th>'
+    + '<th style="text-align:left;">Karvonen</th>'
+    + '<th style="text-align:left;">Abstand</th>'
+    + '</tr></thead><tbody>' + zeilen + '</tbody></table>';
 }
-['alter','ruhepuls'].forEach(id =>
+
+['alter', 'ruhepuls', 'formel'].forEach((id) =>
   document.getElementById(id).addEventListener('input', berechne));
+document.getElementById('formel').addEventListener('change', berechne);
 berechne();
 </script>

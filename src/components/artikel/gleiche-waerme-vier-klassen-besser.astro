@@ -1,0 +1,279 @@
+---
+import RechnerArtikel from '../RechnerArtikel.astro';
+import { berechneJahresenergie, EFFIZIENZKLASSEN } from '../../../public/scripts/jahresenergie.js';
+import { BRENNSTOFFE, abgerechneteKwh, HEIZKOSTEN_STAND } from '../../../public/scripts/heizkosten.js';
+import { WAERMEPUMPENSTROM_CENT_PRO_KWH } from '../../../public/scripts/strompreis.js';
+
+const base = import.meta.env.BASE_URL;
+
+// --- Formatierer ----------------------------------------------------------
+const nz = (s: string) => s.replace('-', '−');
+const zahl = (n: number, d = 1) =>
+  nz(n.toLocaleString('de-DE', { minimumFractionDigits: d, maximumFractionDigits: d }));
+const glatt = (n: number) => nz(n.toLocaleString('de-DE', { maximumFractionDigits: 0 }));
+const eur = (n: number, d = 0) => zahl(n, d) + ' €';
+const proz = (n: number, d = 1) => zahl(n, d) + ' %';
+const standLesbar = (() => {
+  const [j, m] = HEIZKOSTEN_STAND.split('-');
+  return new Date(Number(j), Number(m) - 1, 1).toLocaleDateString('de-DE', { month: 'long', year: 'numeric' });
+})();
+
+// --- Kerngroessen, alle aus den Modulen der Rechnerseite -------------------
+// Der Rechner selbst nimmt die abgerechnete Menge unbesehen als Endenergie:
+// HEIZENERGIETRAEGER[...].kwhJeEinheit() ist bei allen vier Trägern entweder 1
+// oder eine reine Einheitenumrechnung (Liter -> kWh bei Heizöl), nie ein
+// Wirkungsgrad. Für Verbrennungsträger ist das die abgerechnete Kilowattstunde
+// selbst; bei der Wärmepumpe ist die "Menge" bereits die verbrauchte
+// Kilowattstunde Strom. Genau das nutzt dieser Artikel: Derselbe
+// Wärmebedarf sieht im Kennwert vollkommen anders aus, je nachdem, mit
+// welchem Träger man ihn deckt.
+const WOHNFLAECHE = 100;
+const gasNutzungsgrad = BRENNSTOFFE.gas.nutzungsgrad;
+const wpJaz = BRENNSTOFFE.waermepumpe.jaz;
+const gasPreis = BRENNSTOFFE.gas.arbeitspreisCent;
+const wpPreis = WAERMEPUMPENSTROM_CENT_PRO_KWH;
+
+const klassenIndex = (k: string) => EFFIZIENZKLASSEN.findIndex((e) => e.klasse === k);
+if (klassenIndex('A+') !== 0 || klassenIndex('H') !== EFFIZIENZKLASSEN.length - 1) {
+  throw new Error('Die Reihenfolge der Effizienzklassen hat sich geändert.');
+}
+
+function gasHaus(gasKwh: number) {
+  return berechneJahresenergie({
+    strom: {},
+    heizung: { traeger: 'gas', menge: gasKwh, preisCentJeEinheit: gasPreis },
+    wohnflaeche: WOHNFLAECHE,
+  });
+}
+// Gleiche Nutzwärme wie das Gas-Haus, nur über eine Wärmepumpe geliefert:
+// abgerechneteKwh() ist dieselbe Funktion, mit der auch der Heizkosten-Rechner
+// Brennstoff- und Wärmepumpen-Häuser vergleichbar macht.
+function wpHausGleicheWaerme(gasKwh: number) {
+  const nutzwaerme = gasKwh * gasNutzungsgrad;
+  const strom = abgerechneteKwh({ waermebedarfKwh: nutzwaerme, nutzungsgrad: wpJaz });
+  const ergebnis = berechneJahresenergie({
+    strom: {},
+    heizung: { traeger: 'waermepumpe', menge: strom, preisCentJeEinheit: wpPreis },
+    wohnflaeche: WOHNFLAECHE,
+  });
+  return { strom, ergebnis };
+}
+
+const ANKER_GAS_KWH = [8000, 13000, 20000, 28000];
+const vergleich = ANKER_GAS_KWH.map((gasKwh) => {
+  const g = gasHaus(gasKwh);
+  const { strom, ergebnis: w } = wpHausGleicheWaerme(gasKwh);
+  const abstand = klassenIndex(g.kennwert!.klasse) - klassenIndex(w.kennwert!.klasse);
+  const ersparnis = g.heizung.kosten - w.heizung.kosten;
+  return { gasKwh, g, wpKwh: Math.round(strom), w, abstand, ersparnis };
+});
+
+// Jede Zeile muss eine gleich gute oder bessere Klasse für die Wärmepumpe
+// zeigen – bei gleicher Nutzwärme darf sie nie schlechter abschneiden.
+for (const z of vergleich) {
+  if (!(z.abstand > 0)) {
+    throw new Error('Die Wärmepumpe erreicht bei gleicher Nutzwärme keine bessere Klasse als Gas.');
+  }
+}
+const hauptbeispiel = vergleich[1]; // 13.000 kWh Gas – dieselbe Menge wie im Beispiel auf der Rechnerseite
+if (hauptbeispiel.gasKwh !== 13000) {
+  throw new Error('Das Hauptbeispiel weicht vom Beispiel auf der Rechnerseite ab.');
+}
+
+// Die Kostenersparnis der Wärmepumpe ist ein reines Preisverhältnis
+// (Wärmepreis = Arbeitspreis / Wirkungsgrad bzw. JAZ) und deshalb für jede
+// Hausgröße identisch – das ist eine Kontrolle, keine Näherung.
+const waermepreisGas = gasPreis / gasNutzungsgrad;
+const waermepreisWp = wpPreis / wpJaz;
+const ersparnisProzent = (1 - waermepreisWp / waermepreisGas) * 100;
+for (const z of vergleich) {
+  const p = (z.ersparnis / z.g.heizung.kosten) * 100;
+  if (Math.abs(p - ersparnisProzent) > 0.1) {
+    throw new Error('Die Kostenersparnis der Wärmepumpe ist entgegen der Erwartung nicht größenunabhängig.');
+  }
+}
+
+// Budget-Szenario: nicht gleiche Wärme, sondern gleiches Geld.
+const BUDGET = 1500;
+const gasKwhBudget = (BUDGET * 100) / gasPreis;
+const wpKwhBudget = (BUDGET * 100) / wpPreis;
+const gBudget = gasHaus(gasKwhBudget);
+const wBudget = berechneJahresenergie({
+  strom: {},
+  heizung: { traeger: 'waermepumpe', menge: wpKwhBudget, preisCentJeEinheit: wpPreis },
+  wohnflaeche: WOHNFLAECHE,
+});
+if (!(klassenIndex(wBudget.kennwert!.klasse) < klassenIndex(gBudget.kennwert!.klasse))) {
+  throw new Error('Beim Budget-Szenario schneidet die Wärmepumpe nicht besser ab als Gas.');
+}
+
+const quellen = [
+  {
+    titel: '§ 82 GModG – Energieverbrauchsausweis, Gebäudenutzfläche',
+    url: 'https://www.gesetze-im-internet.de/geg/__82.html',
+  },
+  {
+    titel: 'Anlage 10 GModG – Energieeffizienzklassen',
+    url: 'https://www.gesetze-im-internet.de/geg/anlage_10.html',
+  },
+  {
+    titel: 'EBeV 2030 Anlage 2 Teil 4 – Standardwerte für Heizwert und Emissionsfaktor',
+    url: 'https://www.gesetze-im-internet.de/ebev_2030/anlage_2.html',
+  },
+];
+---
+<RechnerArtikel
+  titel="Gleiche Wärme, vier Klassen besser – nur durch den Energieträger"
+  datum="2026-09-28"
+  lead={`Ein Haus mit ${glatt(hauptbeispiel.gasKwh)} kWh Erdgas im Jahr landet im Kennwert dieses Rechners bei Klasse ${hauptbeispiel.g.kennwert!.klasse}. Liefert eine Wärmepumpe exakt dieselbe Wärmemenge, zeigt derselbe Rechner Klasse ${hauptbeispiel.w.kennwert!.klasse} – ${glatt(hauptbeispiel.abstand)} Klassen besser, ohne dass am Haus auch nur eine Dämmplatte verbaut wurde. Das ist kein Fehler: Der Kennwert misst per Gesetz die eingekaufte Energiemenge, nicht den Wärmebedarf des Gebäudes.`}
+  quellen={quellen}
+>
+  <h3>Zwei Ergebnisse, zwei völlig getrennte Rechnungen</h3>
+  <p>
+    Dieser Rechner zeigt zwei Zahlen, die nichts miteinander zu tun haben. Die
+    große Zahl oben, die Energiekosten, addiert Strom, Heizung und Wasser –
+    jede Position mit ihrem eigenen Preis. Der Heizkennwert darunter kommt
+    dagegen ausschließlich aus der Heizungszeile: der abgerechneten Menge,
+    umgerechnet in Kilowattstunden und geteilt durch die
+    Gebäudenutzfläche. Was Sie bei Strom oder Wasser eintragen, welche Preise
+    Sie ansetzen, wie hoch der Grundpreis ist – all das ändert am Kennwert
+    nichts.
+  </p>
+  <p>
+    Genauso wichtig ist, was in die Heizungszeile eingeht: die abgerechnete
+    Menge, nicht die daraus gewonnene Wärme. Bei Erdgas, Heizöl und Fernwärme
+    rechnet der Rechner die Liefereinheit nur auf Kilowattstunden um – Heizöl
+    über den Energiegehalt eines Liters, Gas und Fernwärme sind ohnehin schon
+    in kWh abgerechnet. Ein Wirkungsgrad taucht nirgends auf. Bei der
+    Wärmepumpe ist die eingetragene Menge bereits die verbrauchte
+    Kilowattstunde Strom. Das ist genau das, was § 82 Abs. 2 GModG verlangt:
+    Endenergieverbrauch, also die eingekaufte Energie – nicht die Wärme, die
+    am Heizkörper ankommt.
+  </p>
+
+  <h3>Dieselbe Wärme, viermal anders eingekauft</h3>
+  <p>
+    Was das bedeutet, zeigt sich, wenn man dieselbe Wärmemenge einmal über
+    Erdgas und einmal über eine Wärmepumpe liefern lässt. Ein Gaskessel mit
+    {' '}{proz(gasNutzungsgrad * 100, 0)} Nutzungsgrad macht aus
+    {' '}{glatt(hauptbeispiel.gasKwh)} kWh Gas rund
+    {' '}{glatt(hauptbeispiel.gasKwh * gasNutzungsgrad)} kWh Wärme. Eine
+    Wärmepumpe mit einer Jahresarbeitszahl von {zahl(wpJaz, 1)} braucht für
+    dieselbe Wärmemenge nur {glatt(hauptbeispiel.wpKwh)} kWh Strom – die
+    Jahresarbeitszahl ist hier dieselbe Marktannahme wie im
+    {' '}<a href={`${base}energie/heizkosten-rechner/`}>Heizkosten-Rechner</a> und im
+    {' '}<a href={`${base}energie/waermepumpe-rechner/`}>Wärmepumpe-Rechner</a>.
+  </p>
+
+  <table>
+    <caption class="visually-hidden">
+      Gleiche Nutzwärme aus Erdgas oder aus einer Wärmepumpe: abgerechnete
+      Energiemenge, Heizkennwert, Effizienzklasse und Heizkosten bei
+      {' '}{glatt(WOHNFLAECHE)} m² Wohnfläche
+    </caption>
+    <thead>
+      <tr>
+        <th scope="col" class="num">Nutzwärme aus</th>
+        <th scope="col" class="num">Erdgas</th>
+        <th scope="col" class="num">Kennwert / Klasse</th>
+        <th scope="col" class="num">Wärmepumpe</th>
+        <th scope="col" class="num">Kennwert / Klasse</th>
+        <th scope="col" class="num">Klassen dazwischen</th>
+      </tr>
+    </thead>
+    <tbody>
+      {vergleich.map((z) => (
+        <tr>
+          <th scope="row" class="num">{glatt(z.gasKwh * gasNutzungsgrad)} kWh</th>
+          <td class="num">{glatt(z.gasKwh)} kWh</td>
+          <td class="num">{z.g.kennwert!.kwhJeQm} kWh/m² · {z.g.kennwert!.klasse}</td>
+          <td class="num">{glatt(z.wpKwh)} kWh</td>
+          <td class="num">{z.w.kennwert!.kwhJeQm} kWh/m² · {z.w.kennwert!.klasse}</td>
+          <td class="num">{glatt(z.abstand)}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+
+  <p>
+    Der Abstand wächst mit der Hausgröße, weil die Stufen der Anlage 10 GModG
+    nicht gleich breit sind: Je höher der Verbrauch, desto mehr Stufen
+    überspringt derselbe Faktor aus Nutzungsgrad und Jahresarbeitszahl. In
+    keinem der vier Fälle wurde am Gebäude irgendetwas verändert – nur der
+    Haken bei „Heizung" auf der Rechnerseite.
+  </p>
+
+  <h3>Auch beim Geld liegt die Wärmepumpe vorn – und zwar immer um denselben Anteil</h3>
+  <p>
+    Bei diesen Preisen (Marktannahme, Stand {standLesbar}) ist die Wärmepumpe
+    in der Tabelle nicht nur besser eingestuft, sie ist auch günstiger: In
+    jeder Zeile spart sie {proz(ersparnisProzent)} der Heizkosten gegenüber
+    Gas – unabhängig von der Hausgröße, weil beides lineare Rechnungen sind.
+    Der Grund ist der Wärmepreis, die einzige zwischen Energieträgern
+    vergleichbare Größe: Arbeitspreis geteilt durch Nutzungsgrad
+    beziehungsweise Jahresarbeitszahl. Gas kommt bei
+    {' '}{zahl(gasPreis, 1)} ct/kWh und {proz(gasNutzungsgrad * 100, 0)}
+    {' '}Nutzungsgrad auf {zahl(waermepreisGas, 2)} ct je Kilowattstunde
+    Wärme, die Wärmepumpe bei {zahl(wpPreis, 1)} ct/kWh Strom und Jahresarbeitszahl
+    {' '}{zahl(wpJaz, 1)} auf {zahl(waermepreisWp, 2)} ct.
+  </p>
+  <p class="ra-hinweis">
+    Der Wärmepumpenstrom rechnet hier mit dem oberen Ende der auf der
+    Rechnerseite hinterlegten Preisspanne für Wärmepumpentarife – die
+    Ersparnis ist also eher vorsichtig geschätzt, nicht schöngerechnet.
+    Nicht eingerechnet sind Anschaffung und Einbau der Wärmepumpe; dazu gehört
+    der {' '}<a href={`${base}energie/waermepumpe-rechner/`}>Wärmepumpe-Rechner</a>, nicht diese Seite.
+  </p>
+
+  <h3>Wenn nicht die Wärme, sondern das Budget gleich bleibt</h3>
+  <p>
+    Ebenso lässt sich fragen, was passiert, wenn ein Haushalt nicht dieselbe
+    Wärmemenge, sondern denselben Betrag für Heizenergie ausgibt. Für
+    {' '}{eur(BUDGET)} im Jahr bekommt ein Gas-Haushalt bei diesen Preisen
+    {' '}{glatt(gasKwhBudget)} kWh Erdgas – Kennwert
+    {' '}{gBudget.kennwert!.kwhJeQm} kWh/m², Klasse {gBudget.kennwert!.klasse}.
+    Derselbe Betrag kauft {glatt(wpKwhBudget)} kWh Wärmepumpenstrom – Kennwert
+    {' '}{wBudget.kennwert!.kwhJeQm} kWh/m², Klasse {wBudget.kennwert!.klasse}.
+    Wer nur auf die Jahresrechnung schaut, gibt in beiden Fällen dasselbe Geld
+    aus; im Energieausweis-Kennwert liegen trotzdem Welten dazwischen.
+  </p>
+
+  <h3>Was dabei korrekt ist – und was der Kennwert deshalb nicht kann</h3>
+  <p>
+    Rechtlich ist daran nichts falsch. § 82 Abs. 2 GModG verlangt den
+    Endenergieverbrauch, nicht den Wärmebedarf des Gebäudes, und genau den
+    liefert der Rechner. Bei einer Wärmepumpe ist die verbrauchte
+    Kilowattstunde Strom die Endenergie – eine Kilowattstunde Strom, aus der
+    die Anlage mehrere Kilowattstunden Wärme macht, zählt deshalb auch nur
+    einfach. Das ist derselbe Effekt, den auch die
+    {' '}<a href={`${base}energie/energieausweis-vorberechnung/`}>Vorberechnung zum Energieausweis</a>
+    {' '}zeigt: Der CO₂-Ausstoß einer Wärmepumpe wirkt dort niedrig, weil ihr
+    Endenergiebedarf durch die Jahresarbeitszahl klein ist.
+  </p>
+  <p>
+    Der Kennwert kann deshalb zwei Dinge nicht unterscheiden, die für die
+    Energiewende eigentlich beide zählen. Erstens: ob ein niedriger Wert aus
+    einem gut gedämmten Haus stammt oder aus einem ungedämmten Haus mit
+    effizientem Wärmeerzeuger – im Kennwert sehen beide gleich gut aus.
+    Zweitens: ob dieselbe Verbesserung bei Gas, Heizöl oder Fernwärme genauso
+    zustande kommt. Auch dort verbessert ein sparsamerer Kessel mit
+    höherem Nutzungsgrad die Klasse, ohne dass am Haus gedämmt wurde – nur
+    fällt der Sprung dort viel kleiner aus, weil Nutzungsgrade zwischen
+    Kesseln enger beieinanderliegen als der Faktor zwischen Verbrennung und
+    Wärmepumpe.
+  </p>
+  <p>
+    Ob eine Wärmepumpe in einem bestimmten Haus wirklich eine Jahresarbeitszahl
+    von {zahl(wpJaz, 1)} erreicht, hängt stark von Vorlauftemperatur und
+    Dämmstandard ab – in einem unsanierten Altbau mit hohen Vorlauftemperaturen
+    liegt sie eher darunter. Die Tabelle rechnet mit derselben Marktannahme wie
+    die übrigen Wärmepumpen-Rechner dieser Seite; wer eine reale Jahresarbeitszahl
+    kennt, sollte damit rechnen, nicht mit diesem Beispiel.
+  </p>
+  <p class="ra-hinweis">
+    Und wie auf der Rechnerseite selbst vermerkt: Der Kennwert bereinigt den
+    Verbrauch nicht um die Witterung (§ 82 Abs. 3 GModG). Ein kalter oder milder
+    Winter verschiebt beide Seiten dieses Vergleichs gleichermaßen, ändert am
+    Abstand zwischen den Energieträgern aber nichts.
+  </p>
+</RechnerArtikel>

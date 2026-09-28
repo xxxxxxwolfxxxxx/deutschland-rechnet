@@ -6,6 +6,7 @@ import { CALCULATORS, CATEGORIES } from '../../data/calculators';
 import {
   berechneStromspeicher,
   DIREKTVERBRAUCH_ANTEIL,
+  spanneJeEntladenerKwh,
   SPEICHER_WIRKUNGSGRAD,
   SPEICHER_NUTZTAGE,
 } from '../../../public/scripts/stromspeicher.js';
@@ -15,12 +16,13 @@ const calc = CALCULATORS.find(c => c.slug === 'stromspeicher-rechner')!;
 const cat = CATEGORIES[calc.category];
 const year = new Date().getFullYear();
 
-// Einspeisevergütung nach § 48 Abs. 2 EEG aus photovoltaik.js, Strompreis aus
+// Einspeisevergütung nach § 21 Abs. 1 i. V. m. §§ 48, 49, 53 Abs. 1 EEG 2023 (Bundesnetzagentur) aus photovoltaik.js, Strompreis aus
 // strompreis.js. Speicherpreise stehen hier nicht: Sie kommen aus dem Angebot
 // des Nutzers. Statt eines erfundenen Marktpreises zeigt die Seite, bis zu
 // welchem Preis je kWh sich ein Speicher überhaupt tragen kann.
 const STROMPREIS_CENT = STROMPREIS_CENT_PRO_KWH;
 const verguetungCent = verguetungProKwh(10) * 100;
+const spanneCent = spanneJeEntladenerKwh(STROMPREIS_CENT, verguetungCent);
 const dez = (n: number, stellen = 2) => n.toLocaleString('de-DE', { minimumFractionDigits: stellen, maximumFractionDigits: stellen });
 const euro = (n: number) => n.toLocaleString('de-DE', { maximumFractionDigits: 0 }) + ' €';
 
@@ -49,14 +51,14 @@ if (!(breakEven(gross.r.ersparnis, gross.speicher, 15) < breakEven(mittel.r.ersp
 }
 
 const faqs = [
-  { q: 'Wann amortisiert sich ein Stromspeicher?', a: `Das hängt am Preis Ihres Angebots. Jede gespeicherte Kilowattstunde bringt nicht den Strompreis, sondern dessen Abstand zur Einspeisevergütung: ${dez(STROMPREIS_CENT - verguetungCent)} ct. Ein 8-kWh-Speicher an einer 10-kWp-Anlage mit 5.000 kWh Verbrauch verschiebt rund ${mittel.r.speicherKwh.toLocaleString('de-DE')} kWh im Jahr und spart ${euro(mittel.r.ersparnis)}. Soll er sich in 15 Jahren bezahlt machen, darf er höchstens ${euro(breakEven(mittel.r.ersparnis, 8, 15))} je kWh Kapazität kosten – ohne Zinsen und Alterung gerechnet.` },
+  { q: 'Wann amortisiert sich ein Stromspeicher?', a: `Das hängt am Preis Ihres Angebots. Jede gespeicherte Kilowattstunde bringt nicht den Strompreis, sondern dessen Abstand zur Einspeisevergütung – und weil beim Laden ${Math.round((1 - SPEICHER_WIRKUNGSGRAD) * 100)} % verloren gehen, wird die Vergütung für etwas mehr Strom fällig, als der Speicher abgibt: Netto bleiben ${dez(spanneCent)} ct. Ein 8-kWh-Speicher an einer 10-kWp-Anlage mit 5.000 kWh Verbrauch verschiebt rund ${mittel.r.speicherKwh.toLocaleString('de-DE')} kWh im Jahr und spart ${euro(mittel.r.ersparnis)}. Soll er sich in 15 Jahren bezahlt machen, darf er höchstens ${euro(breakEven(mittel.r.ersparnis, 8, 15))} je kWh Kapazität kosten – ohne Zinsen und Alterung gerechnet.` },
   { q: 'Was bringt ein Speicher bei niedrigem Strompreis?', a: 'Weniger. Der Vorteil ist die Differenz aus Netzstrompreis und entgangener Einspeisevergütung – fällt der Strompreis, schrumpft diese Spanne unmittelbar und mit ihr der Preis, den ein Speicher kosten darf.' },
   { q: 'Lohnt sich ein größerer Speicher?', a: `Nur bis zu dem Punkt, an dem er an den meisten Tagen noch geleert wird. Der Rechner begrenzt die tägliche Entladung auf den Verbrauch, der nicht direkt aus der Anlage gedeckt wird. Im Beispiel eines Haushalts mit 2.500 kWh und 10-kWh-Speicher bleibt ein Teil der Kapazität deshalb ungenutzt: Er dürfte für 15 Jahre nur ${euro(breakEven(gross.r.ersparnis, gross.speicher, 15))} je kWh kosten. Welche Größe sich für Ihre Werte trägt, zeigt die Speicher-Dimensionierung.` },
   { q: 'Rentiert sich ein Speicher ohne PV-Anlage?', a: 'Nach dieser Rechnung nicht: Ohne Anlage gibt es keinen Überschuss, den der Speicher verschieben könnte. Ein Nutzen entsteht dann nur aus einem Tarif mit unterschiedlichen Preisen je Tageszeit, den der Rechner nicht abbildet.' },
   { q: 'Was ist der Unterschied zwischen Autarkiegrad und Eigenverbrauchsquote?', a: 'Der Autarkiegrad ist der Anteil Ihres Verbrauchs, den Sie selbst decken. Die Eigenverbrauchsquote ist der Anteil des erzeugten Stroms, den Sie selbst nutzen. Bei großer Anlage und kleinem Verbrauch liegen beide weit auseinander.' },
 ];
 
-const guideHtml = `<p>Ein Stromspeicher verdient nicht am Strom, den die Anlage erzeugt, sondern an der Umwidmung: Statt für ${dez(verguetungCent)} ct/kWh Einspeisevergütung nach § 48 Abs. 2 EEG (Anlagen bis 10 kWp) ins Netz zu gehen, ersetzt die gespeicherte Kilowattstunde am Abend Netzstrom zu ${dez(STROMPREIS_CENT)} ct/kWh (${STROMPREIS_QUELLE}). Die Differenz von ${dez(STROMPREIS_CENT - verguetungCent)} ct/kWh ist der wirtschaftliche Kern eines Speichers.</p>
+const guideHtml = `<p>Ein Stromspeicher verdient nicht am Strom, den die Anlage erzeugt, sondern an der Umwidmung: Statt für ${dez(verguetungCent)} ct/kWh Einspeisevergütung nach § 21 Abs. 1 i. V. m. §§ 48, 49, 53 Abs. 1 EEG 2023 (Bundesnetzagentur, Anlagen bis 10 kWp) ins Netz zu gehen, ersetzt die gespeicherte Kilowattstunde am Abend Netzstrom zu ${dez(STROMPREIS_CENT)} ct/kWh (${STROMPREIS_QUELLE}). Die Differenz von ${dez(STROMPREIS_CENT - verguetungCent)} ct/kWh ist der wirtschaftliche Kern eines Speichers. Weil für jede abgegebene Kilowattstunde ${dez(1 / SPEICHER_WIRKUNGSGRAD, 3)} kWh geladen werden müssen, bleiben davon ${dez(spanneCent)} ct.</p>
 
 <h4>Bis zu welchem Preis sich ein Speicher trägt</h4>
 <p>Speicherpreise unterscheiden sich je Hersteller, Installation und Region stark; der Rechner nennt deshalb keinen Marktpreis, sondern rechnet mit dem Preis Ihres Angebots. Die Tabelle zeigt umgekehrt, wie viel ein Speicher je kWh Kapazität höchstens kosten darf, damit ihn die Ersparnis nach 10 oder 15 Jahren bezahlt hat:</p>
@@ -90,7 +92,7 @@ ${szenarienZeilen}
   <CalculatorShell
     calculator={calc}
     intro="Berechnen Sie, was ein Stromspeicher an Ihrer PV-Anlage im Jahr einspart, wann er sich zum Preis Ihres Angebots bezahlt macht und bis zu welchem Preis er sich überhaupt tragen kann."
-    sourceNote={`Einspeisevergütung nach § 48 Abs. 2 EEG, Strompreis nach ${STROMPREIS_QUELLE}, Jahresertrag ${SPEZIFISCHER_ERTRAG} kWh/kWp. Planungsannahmen: Wirkungsgrad ${Math.round(SPEICHER_WIRKUNGSGRAD * 100)} %, ${SPEICHER_NUTZTAGE} Ladetage, ${Math.round(DIREKTVERBRAUCH_ANTEIL * 100)} % Direktverbrauch. Der Speicherpreis ist Ihre Eingabe. Ohne Zinsen, Strompreisänderung und Alterung.`}
+    sourceNote={`Einspeisevergütung nach § 21 Abs. 1 i. V. m. §§ 48, 49, 53 Abs. 1 EEG 2023 (Bundesnetzagentur), Strompreis nach ${STROMPREIS_QUELLE}, Jahresertrag ${SPEZIFISCHER_ERTRAG} kWh/kWp. Planungsannahmen: Wirkungsgrad ${Math.round(SPEICHER_WIRKUNGSGRAD * 100)} %, ${SPEICHER_NUTZTAGE} Ladetage, ${Math.round(DIREKTVERBRAUCH_ANTEIL * 100)} % Direktverbrauch. Der Speicherpreis ist Ihre Eingabe. Ohne Zinsen, Strompreisänderung und Alterung.`}
     explanation="Ersparnis = zusätzlich selbst genutzte kWh × (Strompreis − Einspeisevergütung). Amortisation = Speicherpreis ÷ Ersparnis. Höchstpreis je kWh = Ersparnis × Jahre ÷ Kapazität."
     faqs={faqs}
   >

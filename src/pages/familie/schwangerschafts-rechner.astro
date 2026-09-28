@@ -1,20 +1,21 @@
 ---
 import Layout from '../../layouts/Layout.astro';
 import CalculatorShell from '../../components/CalculatorShell.astro';
-import CalculatorGuide from '../../components/CalculatorGuide.astro';
+import ArtikelSchwangerschaft from '../../components/artikel/spaete-geburt-verlaengert-den-mutterschutz.astro';
 import { CALCULATORS, CATEGORIES } from '../../data/calculators';
 const calc = CALCULATORS.find(c => c.slug === 'schwangerschafts-rechner')!;
 const cat = CATEGORIES[calc.category];
 const year = new Date().getFullYear();
 
 const faqs = [
-  { q: 'Wann bin ich schwanger?', a: 'Eine Schwangerschaft dauert etwa 40 Wochen (280 Tage) ab dem ersten Tag der letzten Regelblutung.' },
-  { q: 'Wie wird der Geburtstermin berechnet?', a: 'Der Termin wird nach Nägeles Regel berechnet: Erster Tag der letzten Periode + 280 Tage.' },
-  { q: 'Was ist SSW?', a: 'SSW = Schwangerschaftswoche. Sie zählt ab dem ersten Tag der letzten Periode, nicht ab Zeugung.' },
-  { q: 'Wann beginnt die Schutzfrist für Mutterschutz?', a: 'Die Schutzfrist beginnt 6 Wochen vor dem Geburtstermin und endet 8 Wochen danach.' },
-  { q: 'Wann ist der beste Zeitpunkt für Kinderwunsch?', a: 'Die Wahrscheinlichkeit ist höchsten 1-2 Tage vor dem Eisprung (etwa 14 Tage vor der nächsten Periode).' },
-  { q: 'Wie viele Vorsorgeuntersuchungen gibt es?', a: 'Gesetzliche Schwangerschaftsversorgung: mindestens 10 Untersuchungen, ab einem bestimmten Alter mehr.' },
+  { q: 'Wie lange dauert eine Schwangerschaft?', a: 'Gerechnet wird mit 280 Tagen (40 Wochen) ab dem ersten Tag der letzten Regelblutung. Diese Zählweise beginnt also rund zwei Wochen vor der Empfängnis; nach der Zeugung gerechnet sind es etwa 38 Wochen.' },
+  { q: 'Wie wird der Geburtstermin berechnet?', a: 'Nach der Naegele-Regel: erster Tag der letzten Periode plus 280 Tage. Sie unterstellt einen Zyklus von 28 Tagen; bei einem längeren oder kürzeren Zyklus verschiebt sich der Termin um die Differenz. Maßgeblich für den Mutterschutz ist nicht diese Rechnung, sondern das ärztliche Zeugnis oder das einer Hebamme (§ 3 Abs. 1 Satz 3 MuSchG).' },
+  { q: 'Was bedeutet die Angabe „8+3"?', a: 'Die erste Zahl sind die abgeschlossenen Schwangerschaftswochen seit dem ersten Tag der letzten Periode, die zweite die Tage darüber hinaus. „8+3" heißt: 8 volle Wochen und 3 Tage – umgangssprachlich ist das die neunte Schwangerschaftswoche.' },
+  { q: 'Wann beginnt und endet die Mutterschutzfrist?', a: 'Sie beginnt sechs Wochen vor dem voraussichtlichen Entbindungstag (§ 3 Abs. 1 MuSchG) und endet acht Wochen nach der tatsächlichen Entbindung (§ 3 Abs. 2 MuSchG) – bei Früh- und Mehrlingsgeburten sowie bei einer Behinderung des Kindes nach zwölf Wochen. Kommt das Kind später als errechnet, verlängert sich die Frist davor; kommt es früher, wird die verlorene Zeit nach der Geburt angehängt.' },
+  { q: 'Für wie viele Tage wird Mutterschaftsgeld gezahlt?', a: 'Für die Schutzfristen und zusätzlich für den Entbindungstag (§ 24i Abs. 3 Satz 1 SGB V), im Regelfall also für 99 Kalendertage. Die Krankenkasse zahlt höchstens 13 € am Tag (§ 24i Abs. 2 SGB V); die Differenz zum kalendertäglichen Nettoentgelt trägt der Arbeitgeber (§ 20 Abs. 1 MuSchG).' },
+  { q: 'Ersetzt der Rechner die ärztliche Terminbestimmung?', a: 'Nein. Er rechnet nur die Naegele-Regel und die gesetzlichen Fristen. Der Termin, der für Mutterschutz und Mutterschaftsgeld gilt, steht im ärztlichen Zeugnis oder dem einer Hebamme.' },
 ];
+
 ---
 <Layout
   title={`Schwangerschafts-Rechner ${year}`}
@@ -31,8 +32,8 @@ const faqs = [
   <CalculatorShell
     calculator={calc}
     intro="Mit dem Schwangerschafts-Rechner berechnen Sie den voraussichtlichen Geburtstermin und das Mutterschaftsgeld. Erhalten Sie alle wichtigen Termine auf einen Blick, vom Geburtstermin bis zum Mutterschutzbeginn."
-    sourceNote="280 Tage Schwangerschaft."
-    explanation="Die Berechnung erfolgt nach der Naegele-Regel: letzter Periodentag + 280 Tage (40 Wochen). Der Mutterschutz beginnt 6 Wochen vor dem errechneten Termin (§ 3 MuSchG). Das Mutterschaftsgeld richtet sich nach § 19 MuSchG i.V.m. § 24i SGB V."
+    sourceNote="Geburtstermin nach der Naegele-Regel (letzte Periode + 280 Tage). Schutzfristen nach § 3 MuSchG, Mutterschaftsgeld nach § 24i SGB V (höchstens 13 € je Kalendertag), Zuschuss des Arbeitgebers nach § 20 MuSchG – gezahlt für die Schutzfristen und den Entbindungstag, also 99 Kalendertage."
+    explanation="Die Berechnung erfolgt nach der Naegele-Regel: erster Tag der letzten Periode plus 280 Tage (40 Wochen), was einen Zyklus von 28 Tagen unterstellt. Der Mutterschutz beginnt sechs Wochen vor dem voraussichtlichen Entbindungstag (§ 3 Abs. 1 MuSchG) und endet acht Wochen nach der tatsächlichen Entbindung. Das Mutterschaftsgeld der Krankenkasse ist auf 13 € je Kalendertag begrenzt (§ 24i Abs. 2 SGB V) – wer mehr als 390 € netto im Monat verdient, bekommt von der Kasse immer denselben Betrag, und die Differenz zahlt der Arbeitgeber (§ 20 MuSchG)."
     faqs={faqs}
   >
     <div class="calc-form">
@@ -40,6 +41,7 @@ const faqs = [
         <div class="calc-group">
           <label for="letztePeriode">1. Tag der letzten Periode</label>
           <input type="date" id="letztePeriode" />
+          <small style="color:#666;">Voreingestellt ist ein Beispiel acht Wochen in der Vergangenheit.</small>
         </div>
         <div class="calc-group">
           <label for="netto">Monatliches Nettoeinkommen (€)</label>
@@ -60,47 +62,47 @@ const faqs = [
       </div>
       <div id="details" style="margin-top:0.75rem;font-size:0.88rem;color:#666;display:flex;gap:1.5rem;flex-wrap:wrap;"></div>
     </div>
+    <ArtikelSchwangerschaft slot="artikel" />
   </CalculatorShell>
 
-  <CalculatorGuide
-    title="Schwangerschaft – Berechnung und Meilensteine"
-    content="Eine Schwangerschaft dauert etwa 40 Wochen oder 280 Tage ab dem ersten Tag der letzten Regelblutung. Diese Zeitrechnung ist Standard, auch wenn die tatsächliche Zeugung später stattgefunden hat.
-
-Die Berechnung des Geburtstermins erfolgt nach Nägeles Regel: erster Tag der letzten Periode + 280 Tage. Die SSW (Schwangerschaftswoche) zeigt an, wie lange die Schwangerschaft dauert – SSW 1 ist die erste Woche nach letzter Periode.
-
-Meilensteine: Die erste Vorsorgeuntersuchung sollte in den ersten 8-12 Wochen stattfinden. Die Mutterschutzfrist beginnt 6 Wochen vor dem Geburtstermin. Wichtig für Finanzplanung: Elterngeld, Mutterschaftsgeld und Mutterschutzbestimmungen.
-
-Ein häufiges Missverständnis: SSW und Lebenswochen des Babys sind unterschiedlich. Bei Geburt ist das Baby bereits ca. 40 Wochen alt (nach SSW), aber 0 Wochen alt (nach Lebenswochen).
-
-Finanzierungstipp: Machen Sie frühzeitig Anträge für alle Leistungen – Mutterschaftsgeld, Elterngeld, Wohngeld. Rückzahlungen bei verspäteten Anträgen können große Lücken entstehen lassen."
-    relatedSlugs={['mutterschutz-rechner', 'elterngeld-rechner']}
-  />
 </Layout>
 
 <script type="module">
-const { berechneSchwangerschaft } = await import(window.__base + 'scripts/schwangerschaft.js');
-function fmtD(d) { return d.toLocaleDateString('de-DE', {day:'2-digit',month:'2-digit',year:'numeric'}); }
-function fmt(n) { return n.toLocaleString('de-DE', {minimumFractionDigits:2, maximumFractionDigits:2}) + ' €'; }
+const { berechneSchwangerschaft, MUTTERSCHAFTSGELD_HOECHSTBETRAG_TAG, TAGE_JE_MONAT } =
+  await import(window.__base + 'scripts/schwangerschaft.js');
+const fmtD = (d) => d.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' });
+const fmt = (n) => n.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
+const DECKEL_NETTO = MUTTERSCHAFTSGELD_HOECHSTBETRAG_TAG * TAGE_JE_MONAT;
 function berechne() {
   const letztePeriode = document.getElementById('letztePeriode').value;
-  const netto = parseFloat(document.getElementById('netto').value)||2200;
+  const netto = parseFloat(document.getElementById('netto').value) || 0;
   const arbeitgeberZuschuss = document.getElementById('arbeitgeber').value === 'ja';
   if (!letztePeriode) return;
   const r = berechneSchwangerschaft({ letztePeriode, netto, arbeitgeberZuschuss });
   document.getElementById('geburtstermin').textContent = fmtD(r.geburtstermin);
-  document.getElementById('details').innerHTML =
-    `<span>SSW jetzt: <strong>${r.ssw} (${r.sswTage} Tage)</strong></span>` +
-    `<span>Mutterschaftsgeld/Tag: <strong>${fmt(r.mutterschaftsgeldTag)}</strong></span>` +
-    `<span>Mutterschaftsgeld/6 Wochen: <strong>${fmt(r.mutterschaftsgeldVorGeburt)}</strong></span>` +
-    `<span>Mutterschaftsgeld/8 Wochen: <strong>${fmt(r.mutterschaftsgeldNachGeburt)}</strong></span>` +
-    (r.arbeitgeberzuschuss > 0
-      ? `<span>Arbeitgeberzuschuss (§ 20 MuSchG): <strong>${fmt(r.arbeitgeberzuschuss)}</strong></span>`
-      : '') +
-    `<span>Gesamt für die Schutzfrist: <strong>${fmt(r.gesamt)}</strong></span>`;
+  const teile = [
+    `<span>Aktuell: <strong>${r.ssw}+${r.sswTage}</strong> (${r.ssw} volle Wochen und ${r.sswTage} Tage)</span>`,
+    `<span>Mutterschaftsgeld der Kasse: <strong>${fmt(r.mutterschaftsgeldTag)}</strong> am Tag für ${r.zahltage} Tage = <strong>${fmt(r.mutterschaftsgeldGesamt)}</strong></span>`,
+  ];
+  if (r.arbeitgeberzuschuss > 0) {
+    teile.push(`<span>Zuschuss des Arbeitgebers (§ 20 MuSchG): <strong>${fmt(r.arbeitgeberzuschuss)}</strong></span>`);
+  }
+  teile.push(`<span>Zusammen für Schutzfristen und Entbindungstag: <strong>${fmt(r.gesamt)}</strong></span>`);
+  if (netto > DECKEL_NETTO) {
+    teile.push(`<span style="flex-basis:100%;">Der Anteil der Krankenkasse ist auf ${fmt(MUTTERSCHAFTSGELD_HOECHSTBETRAG_TAG)} je Kalendertag begrenzt und ändert sich ab ${fmt(DECKEL_NETTO)} Monatsnetto nicht mehr. Was darüber hinausgeht, zahlt der Arbeitgeber.</span>`);
+  }
+  document.getElementById('details').innerHTML = teile.join('');
 }
-document.getElementById('letztePeriode').valueAsDate = new Date();
-document.getElementById('letztePeriode').addEventListener('change', berechne);
-['netto'].forEach(id => document.getElementById(id).addEventListener('input', berechne));
-document.getElementById('arbeitgeber').addEventListener('change', berechne);
+// Voreinstellung acht Wochen zurück, in Ortszeit gerechnet: valueAsDate würde
+// UTC ansetzen und in den frühen Morgenstunden den Vortag vorbelegen.
+const start = new Date();
+start.setDate(start.getDate() - 56);
+document.getElementById('letztePeriode').value =
+  `${start.getFullYear()}-${String(start.getMonth() + 1).padStart(2, '0')}-${String(start.getDate()).padStart(2, '0')}`;
+['letztePeriode', 'netto', 'arbeitgeber'].forEach((id) => {
+  const el = document.getElementById(id);
+  el.addEventListener('input', berechne);
+  el.addEventListener('change', berechne);
+});
 berechne();
 </script>

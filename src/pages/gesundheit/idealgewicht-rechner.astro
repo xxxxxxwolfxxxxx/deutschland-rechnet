@@ -3,6 +3,7 @@ import Layout from '../../layouts/Layout.astro';
 import CalculatorShell from '../../components/CalculatorShell.astro';
 import CalculatorGuide from '../../components/CalculatorGuide.astro';
 import { CALCULATORS, CATEGORIES } from '../../data/calculators';
+import ArtikelIdealgewicht from '../../components/artikel/broca-ideal-liegt-unter-der-mitte.astro';
 const calc = CALCULATORS.find(c => c.slug === 'idealgewicht-rechner')!;
 const cat = CATEGORIES[calc.category];
 const year = new Date().getFullYear();
@@ -31,7 +32,7 @@ const year = new Date().getFullYear();
       },
       {
         q: "Warum unterscheidet sich Broca von BMI?",
-        a: "Broca ist eine einfache Formel aus der Körpergröße, berücksichtigt aber nicht Geschlecht und Körperkomposition. Der BMI ist präziser, da er Körpergröße und Gewicht ins Verhältnis setzt, ignoriert aber ebenfalls Muskelmasse."
+        a: "Broca rechnet linear aus der Körpergröße und zieht je nach Geschlecht 10 oder 15 Prozent ab – dieser Abschlag ist die einzige Stelle, an der hier überhaupt zwischen den Geschlechtern unterschieden wird. Der BMI-Normalbereich der WHO kennt dagegen keines: Für Männer und Frauen gelten dieselben Grenzen. Er wächst zudem mit dem Quadrat der Größe, Broca linear – deshalb laufen beide Maßstäbe auseinander. Die Körperzusammensetzung erfasst keiner von beiden."
       },
       {
         q: "Ist der Broca-Index noch zeitgemäß?",
@@ -72,6 +73,7 @@ const year = new Date().getFullYear();
       </div>
       <div id="details" style="margin-top:0.75rem;font-size:0.88rem;color:#666;display:flex;gap:1.5rem;flex-wrap:wrap;"></div>
     </div>
+    <ArtikelIdealgewicht slot="artikel" />
   </CalculatorShell>
   <CalculatorGuide
     title="Idealgewicht: Flexibilität statt starrer Zielwert"

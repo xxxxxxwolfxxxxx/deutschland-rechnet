@@ -1,25 +1,28 @@
 // Wirtschaftlichkeit einer Photovoltaik-Anlage auf dem Hausdach
 //
-// Die Einspeisevergütung ist kein fester Satz: Sie ergibt sich aus § 48 Abs. 2
-// EEG 2023 nach Leistungsklassen, sinkt nach § 49 Abs. 1 EEG halbjährlich um
-// 1 % und wird nach § 25 Abs. 1 EEG nur 20 Jahre lang gezahlt. Wer mit einem
+// Die Einspeisevergütung ist kein fester Satz: Der anzulegende Wert steht nach
+// Leistungsklassen in § 48 Abs. 2 EEG 2023, sinkt nach § 49 Abs. 1 EEG
+// halbjährlich um 1 %, § 53 Abs. 1 Nr. 2 zieht 0,4 ct ab, und die Vergütung wird nach § 25 Abs. 1 EEG nur 20 Jahre lang gezahlt. Wer mit einem
 // einzigen Satz über die gesamte Lebensdauer rechnet, überschätzt den Ertrag
 // einer 15-kWp-Anlage doppelt – beim Satz und bei der Dauer.
 //
 // Quelle: Bundesnetzagentur, Fördersätze für Solaranlagen, abgerufen am
 // 12.08.2026; EEG 2023 unter https://www.gesetze-im-internet.de/eeg_2014/
 
-// Anzulegende Werte für Anlagen an oder auf Gebäuden bei Teileinspeisung
-// (Überschusseinspeisung), § 48 Abs. 2 EEG. Beträge in Euro pro kWh.
+// Einspeisevergütung für Anlagen an oder auf Gebäuden bei Teileinspeisung
+// (Überschusseinspeisung), wie die Bundesnetzagentur sie für Inbetriebnahmen
+// vom 1. August bis 31. Dezember 2026 veröffentlicht – NICHT die Werte, die in
+// § 48 Abs. 2 EEG stehen (dort 8,51 ct vor Absenkung und Abzug). Euro pro kWh.
 const VERGUETUNG_STUFEN = [
   { bisKwp: 10, euroProKwh: 0.077 },
   { bisKwp: 40, euroProKwh: 0.0666 },
   { bisKwp: 100, euroProKwh: 0.0544 },
 ];
 
-// Zeitraum, für den die Sätze oben gelten. Zum 1. Februar 2027 sinken sie
-// erneut um 1 % (§ 49 Abs. 1 EEG) – dann ist dieses Modul nachzuziehen.
-export const VERGUETUNG_GUELTIG_BIS = '31. Januar 2027';
+// Ende des Inbetriebnahmezeitraums, für den die Sätze oben gelten. Das EEG 2023
+// ist nur bis 31.12.2026 anwendbar; eine Nachfolgeregelung lag bei Abruf
+// (17.09.2026) noch im Parlament – dann ist dieses Modul nachzuziehen.
+export const VERGUETUNG_GUELTIG_BIS = '31. Dezember 2026';
 
 // § 25 Abs. 1 EEG: Vergütung für 20 Jahre zuzüglich des Inbetriebnahmejahres.
 export const VERGUETUNGSDAUER_JAHRE = 20;

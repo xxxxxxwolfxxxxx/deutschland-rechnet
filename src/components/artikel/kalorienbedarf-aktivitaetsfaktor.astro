@@ -1,0 +1,517 @@
+---
+import RechnerArtikel from '../RechnerArtikel.astro';
+import { berechneKalorienbedarf } from '../../../public/scripts/kalorien.js';
+import { berechneGrundumsatz } from '../../../public/scripts/grundumsatz.js';
+
+// Alle Zahlen zur Buildzeit aus denselben Modulen, die die Rechner laden:
+// kalorien.js (Mifflin-St Jeor, dieser Rechner) und grundumsatz.js
+// (Harris-Benedict, Grundumsatz-Rechner).
+const zahl = (n: number, d = 0) =>
+  n.toLocaleString('de-DE', { minimumFractionDigits: d, maximumFractionDigits: d }).replace('-', '−');
+const kcal = (n: number, d = 0) => zahl(n, d) + ' kcal';
+const vz = (n: number, d = 0) => (n > 0 ? '+' : '') + zahl(n, d);
+const kg = (n: number, d = 1) => zahl(n, d) + ' kg';
+const pal = (n: number) => zahl(n, 2);
+
+// --- Die Beispielperson -----------------------------------------------------
+// Setzung des Artikels: die Vorbelegung des Formulars (Mann, 30 Jahre, 75 kg,
+// 175 cm). Als Aktivitätsfaktor der Beispielwert der FAO/WHO/UNU für einen
+// sitzenden Lebensstil (PAL 1,53, Human energy requirements, Tabelle 5.1).
+const PERSON = { geschlecht: 'm', alter: 30, gewicht: 75, groesse: 175 };
+const PAL_BEISPIEL = 1.53;
+const bedarf = (p: Partial<typeof PERSON> = {}, aktivitaet = PAL_BEISPIEL) =>
+  berechneKalorienbedarf({ ...PERSON, ...p, aktivitaet });
+const basis = bedarf();
+
+// --- 1. Welche Eingabe wie viel bewegt ---------------------------------------
+// Über zehn Einheiten gemessen, damit die Rundung des Moduls auf ganze kcal
+// die Werte je Einheit nicht verzerrt.
+const proKg = (bedarf({ gewicht: PERSON.gewicht + 10 }).tdee - basis.tdee) / 10;
+const proCm = (bedarf({ groesse: PERSON.groesse + 10 }).tdee - basis.tdee) / 10;
+const proJahr = (bedarf({ alter: PERSON.alter + 10 }).tdee - basis.tdee) / 10;
+const alsFrau = bedarf({ geschlecht: 'f' }).tdee - basis.tdee;
+const PAL_SCHRITT = 0.1;
+const proPalSchritt = bedarf({}, PAL_BEISPIEL + PAL_SCHRITT).tdee - basis.tdee;
+// FAO/WHO/UNU, Tabelle 5.3: sitzend oder leicht aktiv 1,40–1,69.
+const SITZEND_VON = 1.4;
+const SITZEND_BIS = 1.69;
+const sitzendVon = bedarf({}, SITZEND_VON).tdee;
+const sitzendBis = bedarf({}, SITZEND_BIS).tdee;
+const sitzendSpanne = sitzendBis - sitzendVon;
+
+const einfluss = [
+  { was: 'Gewicht + 1 kg', delta: proKg },
+  { was: 'Größe + 1 cm', delta: proCm },
+  { was: 'Alter + 1 Jahr', delta: proJahr },
+  { was: 'Frau statt Mann', delta: alsFrau },
+  { was: `Aktivitätsfaktor + ${zahl(PAL_SCHRITT, 1)}`, delta: proPalSchritt },
+  { was: `Aktivitätsfaktor ${pal(SITZEND_VON)} statt ${pal(SITZEND_BIS)}`, delta: -sitzendSpanne },
+].map((z) => ({ ...z, alsKg: z.delta / proKg }));
+
+const palInKg = proPalSchritt / proKg;
+const spanneInKg = sitzendSpanne / proKg;
+const spanneInJahren = sitzendSpanne / -proJahr;
+// Behauptungen des Textes, zur Buildzeit geprüft.
+if (!(palInKg > 10)) {
+  throw new Error(`Kalorien-Artikel: 0,1 PAL entspricht nicht mehr über 10 kg (${palInKg}).`);
+}
+if (!(sitzendSpanne > Math.abs(alsFrau))) {
+  throw new Error('Kalorien-Artikel: Die sitzende PAL-Spanne ist nicht mehr größer als der Geschlechterunterschied.');
+}
+if (!(spanneInJahren > 50)) {
+  throw new Error(`Kalorien-Artikel: Die PAL-Spanne entspricht nicht mehr über 50 Lebensjahren (${spanneInJahren}).`);
+}
+if (Math.abs(proKg - 10 * PAL_BEISPIEL) > 0.2) {
+  throw new Error(`Kalorien-Artikel: Steigung je kg passt nicht mehr zu 10 kcal × PAL (${proKg}).`);
+}
+
+// --- 2. Die PAL-Skala ---------------------------------------------------------
+const skala = [
+  { pal: 1.2, text: 'nach FAO/WHO/UNU: kurzfristiges Überleben völlig inaktiver Menschen' },
+  { pal: SITZEND_VON, text: 'Untergrenze „sitzend oder leicht aktiv“; unterste DGE-Stufe' },
+  { pal: PAL_BEISPIEL, text: 'Rechenbeispiel der FAO/WHO/UNU für sitzende Lebensweise' },
+  { pal: 1.6, text: 'mittlere DGE-Stufe' },
+  { pal: SITZEND_BIS, text: 'Obergrenze „sitzend oder leicht aktiv“' },
+  { pal: 1.8, text: 'oberste DGE-Stufe; „aktiv oder mäßig aktiv“ (1,70–1,99)' },
+  { pal: 2.0, text: 'Untergrenze „kräftig aktiv“' },
+  { pal: 2.4, text: 'Obergrenze „kräftig aktiv“, darüber laut FAO kaum dauerhaft haltbar' },
+].map((z) => ({ ...z, tdee: bedarf({}, z.pal).tdee }));
+const bei12 = skala[0];
+const luecke12 = basis.tdee - bei12.tdee;
+if (!(luecke12 > 500)) {
+  throw new Error(`Kalorien-Artikel: Abstand PAL 1,2 zu 1,53 nicht mehr über 500 kcal (${luecke12}).`);
+}
+
+// --- 3. Mifflin-St Jeor gegen Harris-Benedict ------------------------------
+// Vergleichspersonen 40 Jahre, Männer 180 cm, Frauen 165 cm; nur der
+// Grundumsatz (Faktor 1), weil der Aktivitätsfaktor beide gleich streckt.
+const VGL_ALTER = 40;
+const VGL_GEWICHTE = [55, 75, 90, 105, 120, 140];
+const vergleich = (geschlecht: 'm' | 'f', groesse: number) =>
+  VGL_GEWICHTE.map((gewicht) => {
+    const mifflin = berechneKalorienbedarf({ geschlecht, alter: VGL_ALTER, gewicht, groesse, aktivitaet: 1 }).bmr;
+    const harris = berechneGrundumsatz({
+      geschlecht: geschlecht === 'm' ? 'm' : 'w', alter: VGL_ALTER, gewicht, groesse,
+    }).grundumsatz;
+    return { gewicht, mifflin, harris, diff: harris - mifflin };
+  });
+const GROESSE_M = 180;
+const GROESSE_F = 165;
+const maenner = vergleich('m', GROESSE_M);
+const frauen = vergleich('f', GROESSE_F);
+const mLeicht = maenner[0];
+const mSchwer = maenner[maenner.length - 1];
+const fLeicht = frauen[0];
+const fSchwer = frauen[frauen.length - 1];
+// Text: bei Männern wächst der Abstand mit dem Gewicht (und dreht bei leichten
+// Männern ins Minus), bei Frauen schrumpft er.
+const steigt = (r: typeof maenner) => r.every((z, i) => i === 0 || z.diff > r[i - 1].diff);
+const faellt = (r: typeof frauen) => r.every((z, i) => i === 0 || z.diff < r[i - 1].diff);
+if (!steigt(maenner) || !faellt(frauen) || !(mLeicht.diff < 0) || !(fSchwer.diff > 0)) {
+  throw new Error('Kalorien-Artikel: Verlauf Harris-Benedict gegen Mifflin passt nicht mehr zum Text.');
+}
+if (!(mSchwer.diff > 200 && fSchwer.diff < mSchwer.diff / 10)) {
+  throw new Error('Kalorien-Artikel: Formelabstand bei 140 kg passt nicht mehr zum Text.');
+}
+// Steigungen je kg, aus den Modulen gemessen (nicht aus den Koeffizienten).
+const steigung = (f: (g: number) => number) => (f(110) - f(10)) / 100;
+const hbKgM = steigung((g) => berechneGrundumsatz({ geschlecht: 'm', alter: VGL_ALTER, gewicht: g, groesse: GROESSE_M }).grundumsatz);
+const hbKgF = steigung((g) => berechneGrundumsatz({ geschlecht: 'w', alter: VGL_ALTER, gewicht: g, groesse: GROESSE_F }).grundumsatz);
+const mfKg = steigung((g) => berechneKalorienbedarf({ geschlecht: 'm', alter: VGL_ALTER, gewicht: g, groesse: GROESSE_M, aktivitaet: 1 }).bmr);
+if (!(hbKgM > mfKg && hbKgF < mfKg)) {
+  throw new Error('Kalorien-Artikel: Reihenfolge der Steigungen je kg stimmt nicht mehr.');
+}
+// Geschlechterabstand: bei Mifflin konstant, bei Harris-Benedict nicht.
+const geschlechtMifflin = (g: number) =>
+  berechneKalorienbedarf({ ...PERSON, gewicht: g, aktivitaet: 1 }).bmr -
+  berechneKalorienbedarf({ ...PERSON, geschlecht: 'f', gewicht: g, aktivitaet: 1 }).bmr;
+const geschlechtHarris = (g: number) =>
+  berechneGrundumsatz({ ...PERSON, gewicht: g }).grundumsatz -
+  berechneGrundumsatz({ ...PERSON, geschlecht: 'w', gewicht: g }).grundumsatz;
+const G_LEICHT = 60;
+const G_SCHWER = 120;
+if (geschlechtMifflin(G_LEICHT) !== geschlechtMifflin(G_SCHWER)) {
+  throw new Error('Kalorien-Artikel: Geschlechterabstand bei Mifflin ist nicht mehr konstant.');
+}
+
+// --- 4. Die 7.000-kcal-Regel über die Zeit ----------------------------------
+// Modell: Die Beispielperson isst ab Tag 0 dauerhaft 100 kcal mehr als ihr
+// Bedarf bei 75 kg. Jeden Tag geht der Überschuss gegenüber dem Bedarf beim
+// aktuellen Gewicht mit 7.000 kcal je kg in Körpermasse. Alter und
+// Aktivitätsfaktor bleiben fest. Spiegelbildlich gilt dasselbe für 100 kcal
+// weniger.
+const KCAL_JE_KG = 7000;
+const AENDERUNG = 100;
+const zufuhr = basis.tdee + AENDERUNG;
+const JAHRE = [1, 2, 3, 5, 10];
+const TAGE_JAHR = 365;
+const verlauf = new Map<number, number>();
+let gewicht = PERSON.gewicht;
+let tagHaelfte = 0;
+let tag95 = 0;
+// Endgewicht, bei dem der Bedarf die erhöhte Zufuhr erreicht, fein gesucht.
+let lo = PERSON.gewicht;
+let hi = PERSON.gewicht + 50;
+for (let i = 0; i < 60; i += 1) {
+  const mitte = (lo + hi) / 2;
+  if (bedarf({ gewicht: mitte }).tdee < zufuhr) lo = mitte;
+  else hi = mitte;
+}
+const endZunahme = lo - PERSON.gewicht;
+for (let t = 1; t <= 10 * TAGE_JAHR; t += 1) {
+  gewicht += (zufuhr - bedarf({ gewicht }).tdee) / KCAL_JE_KG;
+  const zunahme = gewicht - PERSON.gewicht;
+  if (!tagHaelfte && zunahme >= endZunahme / 2) tagHaelfte = t;
+  if (!tag95 && zunahme >= endZunahme * 0.95) tag95 = t;
+  if (t % TAGE_JAHR === 0) verlauf.set(t / TAGE_JAHR, zunahme);
+}
+const linearProJahr = (AENDERUNG * TAGE_JAHR) / KCAL_JE_KG;
+const zeitreihe = JAHRE.map((j) => ({
+  jahre: j,
+  linear: linearProJahr * j,
+  modell: verlauf.get(j)!,
+}));
+const nachEinem = zeitreihe[0];
+const nachZehn = zeitreihe[zeitreihe.length - 1];
+// Geschlossene Form zur Kontrolle: Endwert = Änderung / (10 kcal × PAL).
+const endAnalytisch = AENDERUNG / (10 * PAL_BEISPIEL);
+if (Math.abs(endZunahme - endAnalytisch) > 0.1) {
+  throw new Error(`Kalorien-Artikel: Endzunahme weicht von der Formel ab (${endZunahme}).`);
+}
+if (!(tagHaelfte > 250 && tagHaelfte < TAGE_JAHR) || !(tag95 > 3 * TAGE_JAHR && tag95 < 4 * TAGE_JAHR)) {
+  throw new Error(`Kalorien-Artikel: Halbwerts-/95-%-Zeit passt nicht mehr zum Text (${tagHaelfte}, ${tag95}).`);
+}
+if (!(nachEinem.modell < nachEinem.linear && nachZehn.modell < nachZehn.linear / 5)) {
+  throw new Error('Kalorien-Artikel: Das Modell liegt nicht mehr deutlich unter der linearen Regel.');
+}
+const monateHaelfte = Math.round(tagHaelfte / (TAGE_JAHR / 12));
+const jahre95 = tag95 / TAGE_JAHR;
+// Hall et al.: 100 kJ täglich ≈ 1 kg Endgewicht. 1 kcal = 4,184 kJ.
+const KJ_JE_KCAL = 4.184;
+const hallEnd = (AENDERUNG * KJ_JE_KCAL) / 100;
+if (!(hallEnd < endZunahme)) {
+  throw new Error('Kalorien-Artikel: Hall-Faustregel liegt nicht mehr unter dem Modulmodell.');
+}
+
+const quellen = [
+  { titel: 'Mifflin, St Jeor u. a.: A new predictive equation for resting energy expenditure in healthy individuals. Am J Clin Nutr 51 (1990), S. 241–247', url: 'https://doi.org/10.1093/ajcn/51.2.241' },
+  { titel: 'Roza, Shizgal: The Harris Benedict equation reevaluated. Am J Clin Nutr 40 (1984), S. 168–182', url: 'https://doi.org/10.1093/ajcn/40.1.168' },
+  { titel: 'Frankenfield, Roth-Yousey, Compher: Comparison of predictive equations for resting metabolic rate in healthy nonobese and obese adults – a systematic review. J Am Diet Assoc 105 (2005), S. 775–789', url: 'https://doi.org/10.1016/j.jada.2005.02.005' },
+  { titel: 'FAO/WHO/UNU: Human energy requirements, Kapitel 5 – Physical activity level (Tabellen 5.1 und 5.3)', url: 'https://www.fao.org/4/y5686e/y5686e07.htm' },
+  { titel: 'Deutsche Gesellschaft für Ernährung – Referenzwerte Energie (Richtwerte nach PAL 1,4 / 1,6 / 1,8)', url: 'https://www.dge.de/wissenschaft/referenzwerte/energie/' },
+  { titel: 'Hall, Sacks u. a.: Quantification of the effect of energy imbalance on bodyweight. Lancet 378 (2011), S. 826–837', url: 'https://pmc.ncbi.nlm.nih.gov/articles/PMC3880593/' },
+];
+---
+<RechnerArtikel
+  titel="Der Aktivitätsfaktor wiegt schwerer als das Gewicht"
+  datum="2026-09-17"
+  lead={`Der Tagesbedarf entsteht aus vier gemessenen Größen und einer geschätzten. Die geschätzte entscheidet: Bei einem 30-jährigen Mann mit ${kg(PERSON.gewicht, 0)} und ${PERSON.groesse} cm verschiebt ein Zehntel mehr Aktivitätsfaktor das Ergebnis um ${kcal(proPalSchritt)} – so viel wie ${kg(palInKg)} mehr Körpergewicht. Allein die Spanne, die die FAO für „sitzend oder leicht aktiv“ angibt, macht ${kcal(sitzendSpanne)} aus. Und wer dauerhaft ${kcal(AENDERUNG)} mehr isst, nimmt nicht ${kg(linearProJahr)} pro Jahr zu, sondern in zehn Jahren insgesamt ${kg(nachZehn.modell)}.`}
+  quellen={quellen}
+>
+  <h3>Woher die Formel stammt</h3>
+  <p>
+    Der Rechner oben auf dieser Seite schätzt zuerst den Ruheumsatz nach
+    Mifflin und St Jeor. Die Arbeitsgruppe hat 1990 an 498 gesunden
+    Erwachsenen zwischen 19 und 78 Jahren den Energieverbrauch in Ruhe per
+    indirekter Kalorimetrie gemessen, darunter 264 Normalgewichtige und 234
+    Menschen mit Adipositas. Die Regression daraus erklärt 71 Prozent der
+    Streuung. Veröffentlicht haben die Autoren neben der exakten Fassung eine
+    vereinfachte, die ohne Verlust an Vorhersagekraft auskommt: 10 kcal je
+    Kilogramm, 6,25 kcal je Zentimeter, minus 5 kcal je Lebensjahr, dazu plus 5
+    für Männer und minus 161 für Frauen. Diese Fassung rechnet das Modul.
+  </p>
+  <p>
+    Dass sie heute als Standard gilt, geht auf eine systematische Übersicht der
+    American Dietetic Association aus dem Jahr 2005 zurück. Von den vier
+    verbreiteten Gleichungen traf Mifflin-St Jeor den gemessenen Wert bei den
+    meisten Menschen auf zehn Prozent genau, mit der engsten Fehlerspanne.
+    „Am häufigsten innerhalb von zehn Prozent“ heißt aber auch: nicht bei
+    allen. Die Autoren raten ausdrücklich zur Messung, wenn die Schätzung für
+    einen Menschen nicht passt, und weisen darauf hin, dass ältere Menschen und
+    ethnische Minderheiten in den Studien unterrepräsentiert waren.
+  </p>
+  <p>
+    Der Ruheumsatz ist erst der halbe Weg. Den Tagesbedarf erhält man, indem
+    man ihn mit einem Aktivitätsfaktor multipliziert – dem PAL-Wert (Physical
+    Activity Level), definiert als Gesamtverbrauch über 24 Stunden geteilt durch
+    den Grundumsatz. Die Formel misst vier Dinge, die sich mit Waage, Maßband
+    und Ausweis bestimmen lassen. Der Faktor dagegen ist eine Selbstauskunft.
+  </p>
+
+  <h3>Welche Eingabe das Ergebnis bestimmt</h3>
+  <p>
+    Das durchgehende Beispiel dieses Artikels ist ein Mann von
+    {' '}{PERSON.alter} Jahren, {PERSON.groesse} cm und {kg(PERSON.gewicht, 0)}.
+    Sein Ruheumsatz nach dem Modul beträgt {kcal(basis.bmr)}. Als
+    Aktivitätsfaktor dient {pal(PAL_BEISPIEL)} – der Wert, den die
+    Ernährungsexperten von FAO, WHO und UNU als Rechenbeispiel für einen
+    sitzenden Lebensstil herleiten. Damit ergibt sich ein Tagesbedarf von
+    {' '}{kcal(basis.tdee)}. Die Tabelle zeigt, was jede einzelne Eingabe daran
+    ändert, und rechnet die Änderung in das Körpergewicht um, das denselben
+    Effekt hätte.
+  </p>
+
+  <table>
+    <caption class="visually-hidden">
+      Änderung des Tagesbedarfs je Eingabe, umgerechnet in gleichwertiges Körpergewicht
+    </caption>
+    <thead>
+      <tr>
+        <th scope="col">Änderung</th>
+        <th scope="col" class="num">Tagesbedarf</th>
+        <th scope="col" class="num">entspricht Körpergewicht</th>
+      </tr>
+    </thead>
+    <tbody>
+      {einfluss.map((z) => (
+        <tr>
+          <th scope="row">{z.was}</th>
+          <td class="num">{vz(z.delta, 1)} kcal</td>
+          <td class="num">{vz(z.alsKg, 1)} kg</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+
+  <p>
+    Jedes Kilogramm bringt {kcal(proKg, 1)} – die 10 kcal der Formel, gestreckt
+    mit dem Faktor {pal(PAL_BEISPIEL)}. Ein Zentimeter und ein Lebensjahr
+    bewegen noch weniger. Ein Zehntel beim Aktivitätsfaktor dagegen verändert
+    den Bedarf um {kcal(proPalSchritt)}; um dasselbe über das Gewicht zu
+    erreichen, müsste die Waage {kg(palInKg)} mehr anzeigen.
+  </p>
+  <p>
+    Die Größe dieser Stellschraube wird erst sichtbar, wenn man sie neben die
+    Tabelle der FAO legt. Dort umfasst die Kategorie „sitzend oder leicht
+    aktiv“ die Werte von {pal(SITZEND_VON)} bis {pal(SITZEND_BIS)}. Wer sich
+    ehrlich in diese Kategorie einordnet, hat damit noch keine Zahl gewählt:
+    Zwischen dem unteren und dem oberen Rand liegen {kcal(sitzendSpanne)} am
+    Tag. Das ist mehr als der Unterschied zwischen Mann und Frau
+    ({kcal(Math.abs(alsFrau))}), es entspricht {kg(spanneInKg, 0)} Körpergewicht
+    oder – rein rechnerisch – {zahl(spanneInJahren, 0)} Lebensjahren. Die vier
+    gemessenen Eingaben verfeinern also ein Ergebnis, dessen Rahmen die eine
+    geschätzte vorgibt.
+  </p>
+
+  <h3>Was die Stufen der Aktivität bedeuten</h3>
+  <p>
+    Die Skala der FAO/WHO/UNU ist die Bezugsgröße, auf die sich auch die
+    Deutsche Gesellschaft für Ernährung stützt: Ihre Richtwerte für die
+    Energiezufuhr gibt die DGE für drei Stufen an, {pal(1.4)}, {pal(1.6)} und
+    {' '}{pal(1.8)}. Die FAO beschreibt die unterste Kategorie als Leben mit
+    wenig fordernder Arbeit, kaum Wegen zu Fuß, Transport im Auto und einer
+    Freizeit, die überwiegend im Sitzen verbracht wird. Für die Beispielperson
+    ergibt die Skala:
+  </p>
+
+  <table>
+    <caption class="visually-hidden">
+      Tagesbedarf der Beispielperson nach PAL-Wert, mit Einordnung nach FAO/WHO/UNU und DGE
+    </caption>
+    <thead>
+      <tr>
+        <th scope="col" class="num">PAL</th>
+        <th scope="col" class="num">Tagesbedarf</th>
+        <th scope="col">Einordnung</th>
+      </tr>
+    </thead>
+    <tbody>
+      {skala.map((z) => (
+        <tr>
+          <th scope="row" class="num">{pal(z.pal)}</th>
+          <td class="num">{kcal(z.tdee)}</td>
+          <td>{z.text}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+
+  <p>
+    Die erste Zeile verdient einen zweiten Blick. Ein Faktor von
+    {' '}{pal(bei12.pal)} taucht in vielen Aktivitätstabellen als Stufe für
+    „sitzend“ auf. Die FAO-Experten nennen einen Wert in dieser Höhe dagegen
+    als Untergrenze für das kurzfristige Überleben völlig inaktiver,
+    pflegebedürftiger Menschen in Krisenlagen – und empfehlen selbst dafür
+    {' '}{pal(SITZEND_VON)}. Werte darunter seien mit langfristiger Gesundheit
+    nicht vereinbar. Zwischen {pal(bei12.pal)} und dem FAO-Beispiel für
+    sitzende Lebensweise liegen bei der Beispielperson {kcal(luecke12)} am Tag.
+  </p>
+  <p class="ra-hinweis">
+    Mifflin und St Jeor schätzen den Ruheumsatz (resting energy expenditure),
+    die FAO bezieht den PAL-Wert auf den Grundumsatz (basal metabolic rate), der
+    unter strengeren Bedingungen gemessen wird. Die beiden Größen sind nicht
+    deckungsgleich. Dieser Artikel multipliziert sie wie der Rechner
+    trotzdem miteinander; das ist eine Näherung.
+  </p>
+  <p>
+    Sport verschiebt den Faktor, aber anders, als die Wochenzahl der
+    Trainingseinheiten vermuten lässt: Er ist ein Durchschnitt über 24 Stunden
+    und über Wochen. Wie viel eine einzelne Stunde Laufen oder Radfahren
+    tatsächlich verbraucht, rechnet der
+    {' '}<a href={`${import.meta.env.BASE_URL}gesundheit/kalorien-verbrennen/`}>Rechner
+    für den Kalorienverbrauch beim Sport</a> mit MET-Werten aus.
+  </p>
+
+  <h3>Zwei Formeln, zwei Steigungen</h3>
+  <p>
+    Neben Mifflin-St Jeor ist die Harris-Benedict-Gleichung verbreitet, die
+    auf Messungen aus dem Jahr 1919 zurückgeht und 1984 von Roza und Shizgal
+    an erweiterten Daten neu berechnet wurde. Diese revidierte Fassung nutzt der
+    {' '}<a href={`${import.meta.env.BASE_URL}gesundheit/grundumsatz-rechner/`}>Grundumsatz-Rechner</a>.
+    Mifflin und St Jeor berichten, dass die ursprüngliche Fassung von 1919 den
+    gemessenen Ruheumsatz ihrer Probanden im Mittel um fünf Prozent
+    überschätzte. Ein fester Aufschlag ist der Unterschied aber nicht, wie der
+    direkte Vergleich der beiden Module zeigt – hier für {VGL_ALTER}-Jährige,
+    Männer mit {GROESSE_M} cm und Frauen mit {GROESSE_F} cm.
+  </p>
+
+  <table>
+    <caption class="visually-hidden">
+      Ruheumsatz nach Mifflin-St Jeor und nach revidierter Harris-Benedict-Formel, nach Körpergewicht und Geschlecht
+    </caption>
+    <thead>
+      <tr>
+        <th scope="col" class="num">Gewicht</th>
+        <th scope="col" class="num">Mann Mifflin</th>
+        <th scope="col" class="num">Mann Harris-Benedict</th>
+        <th scope="col" class="num">Abstand</th>
+        <th scope="col" class="num">Frau Mifflin</th>
+        <th scope="col" class="num">Frau Harris-Benedict</th>
+        <th scope="col" class="num">Abstand</th>
+      </tr>
+    </thead>
+    <tbody>
+      {maenner.map((m, i) => (
+        <tr>
+          <th scope="row" class="num">{kg(m.gewicht, 0)}</th>
+          <td class="num">{zahl(m.mifflin)}</td>
+          <td class="num">{zahl(m.harris)}</td>
+          <td class="num">{vz(m.diff)}</td>
+          <td class="num">{zahl(frauen[i].mifflin)}</td>
+          <td class="num">{zahl(frauen[i].harris)}</td>
+          <td class="num">{vz(frauen[i].diff)}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+  <p class="ra-hinweis">Alle Werte in kcal am Tag, ohne Aktivitätsfaktor.</p>
+
+  <p>
+    Bei Männern wächst der Abstand mit dem Gewicht: Bei {kg(mLeicht.gewicht, 0)}
+    {' '}liegt Harris-Benedict sogar {kcal(Math.abs(mLeicht.diff))} unter Mifflin,
+    bei {kg(mSchwer.gewicht, 0)} {kcal(mSchwer.diff)} darüber. Bei Frauen läuft
+    es umgekehrt, der Abstand schrumpft von {kcal(fLeicht.diff)} auf
+    {' '}{kcal(fSchwer.diff)}. Der Grund liegt in der Steigung je Kilogramm:
+    Mifflin rechnet für beide Geschlechter mit {kcal(mfKg)}, Harris-Benedict
+    für Männer mit {kcal(hbKgM, 2)}, für Frauen mit {kcal(hbKgF, 2)}.
+  </p>
+  <p>
+    Daraus folgt eine zweite, weniger offensichtliche Eigenschaft. Bei Mifflin
+    ist der Unterschied zwischen Mann und Frau bei gleichen Maßen immer
+    derselbe: {kcal(geschlechtMifflin(G_LEICHT))}, ob bei {kg(G_LEICHT, 0)} oder
+    {' '}{kg(G_SCHWER, 0)}. Bei Harris-Benedict beträgt er für die Maße der
+    Beispielperson ({PERSON.alter} Jahre, {zahl(PERSON.groesse, 0)} cm)
+    {' '}{kcal(geschlechtHarris(G_LEICHT))} bei {kg(G_LEICHT, 0)} und
+    {' '}{kcal(geschlechtHarris(G_SCHWER))} bei {kg(G_SCHWER, 0)}. Welche Formel
+    für einen einzelnen Menschen näher liegt, lässt sich ohne Messung nicht
+    sagen. Für die Größenordnung gilt aber: Selbst der größte Abstand der
+    Tabelle bleibt unter dem, was die Wahl innerhalb einer einzigen
+    FAO-Kategorie ausmacht.
+  </p>
+
+  <h3>Warum 7.000 kcal nicht dauerhaft ein Kilo sind</h3>
+  <p>
+    Eine verbreitete Faustregel setzt ein Kilogramm Körpergewicht mit rund
+    7.000 kcal gleich. Wer täglich {kcal(AENDERUNG)} mehr isst, als er
+    verbraucht, käme damit auf {kcal(AENDERUNG * TAGE_JAHR)} im Jahr, also
+    {' '}{kg(linearProJahr)} – Jahr für Jahr, ohne Ende. Die Regel übersieht,
+    dass der Bedarf mitwächst: Jedes zusätzliche Kilogramm erhöht ihn nach dem
+    Modul um {kcal(proKg, 1)}. Der Überschuss schrumpft also mit jedem Tag.
+  </p>
+  <p>
+    Das lässt sich mit dem Modul Tag für Tag durchrechnen. Modellannahmen: Die
+    Beispielperson isst ab einem Stichtag dauerhaft {kcal(zufuhr)} statt
+    {' '}{kcal(basis.tdee)}; der jeweilige Überschuss gegenüber dem Bedarf beim
+    aktuellen Gewicht geht mit 7.000 kcal je Kilogramm in Körpermasse über;
+    Alter und Aktivitätsfaktor bleiben unverändert. Mit umgekehrtem Vorzeichen
+    gilt dieselbe Rechnung für {kcal(AENDERUNG)} weniger.
+  </p>
+
+  <table>
+    <caption class="visually-hidden">
+      Gewichtszunahme bei dauerhaft 100 kcal Mehrzufuhr: lineare Faustregel gegen Rechnung mit mitwachsendem Bedarf
+    </caption>
+    <thead>
+      <tr>
+        <th scope="col" class="num">nach</th>
+        <th scope="col" class="num">Faustregel (linear)</th>
+        <th scope="col" class="num">mit mitwachsendem Bedarf</th>
+      </tr>
+    </thead>
+    <tbody>
+      {zeitreihe.map((z) => (
+        <tr>
+          <th scope="row" class="num">{z.jahre} {z.jahre === 1 ? 'Jahr' : 'Jahren'}</th>
+          <td class="num">{vz(z.linear, 1)} kg</td>
+          <td class="num">{vz(z.modell, 1)} kg</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+
+  <p>
+    Schon im ersten Jahr bleibt die Rechnung mit {kg(nachEinem.modell)} unter
+    den {kg(nachEinem.linear)} der Faustregel. Nach zehn Jahren liegt die
+    Faustregel bei {kg(nachZehn.linear)}, die Rechnung bei {kg(nachZehn.modell)}.
+    Das Gewicht läuft auf einen Endwert zu, an dem der Bedarf die erhöhte Zufuhr
+    genau deckt: {kg(endZunahme)} über dem Ausgangsgewicht, also
+    {' '}{kcal(AENDERUNG)} geteilt durch die {kcal(proKg, 1)} je Kilogramm. Die
+    Hälfte davon ist nach etwa {monateHaelfte} Monaten erreicht, 95 Prozent
+    nach rund {zahl(jahre95, 1)} Jahren.
+  </p>
+  <p>
+    Kevin Hall und Kollegen vom US-amerikanischen National Institutes of
+    Health haben diese Dynamik 2011 in der Fachzeitschrift Lancet mit einem
+    deutlich genaueren Modell untersucht, das Fett- und Magermasse getrennt
+    abbildet und Anpassungen des Stoffwechsels berücksichtigt. Ihre Faustregel
+    für einen durchschnittlichen übergewichtigen Erwachsenen: Jede dauerhafte
+    Änderung der Zufuhr um 100 kJ am Tag verschiebt das Endgewicht um etwa ein
+    Kilogramm, die Hälfte davon ist nach etwa einem Jahr erreicht, 95 Prozent
+    nach etwa drei Jahren. Umgerechnet ergeben {kcal(AENDERUNG)} dort
+    {' '}{kg(hallEnd)}, also noch weniger als die {kg(endZunahme)} der
+    einfachen Rechnung – der zeitliche Verlauf ist ähnlich. Die lineare
+    7.000-kcal-Regel bezeichnen die Autoren für längere Zeiträume ausdrücklich
+    als ungeeignet.
+  </p>
+  <p>
+    Für die Deutung eines Rechenergebnisses heißt das zweierlei. Ein
+    Tagesbedarf gilt für das Gewicht, mit dem er berechnet wurde, und nicht für
+    ein anderes. Und kleine dauerhafte Abweichungen zwischen Zufuhr und Bedarf
+    führen nicht zu unbegrenzten Veränderungen, sondern zu einem neuen
+    Gleichgewicht – in beide Richtungen.
+  </p>
+
+  <h3>Was diese Rechnung nicht abbildet</h3>
+  <p>
+    Die Formel kennt keine Körperzusammensetzung. Zwei Menschen mit gleichem
+    Gewicht, aber unterschiedlich viel Muskelmasse haben einen verschiedenen
+    Ruheumsatz; Mifflin und St Jeor fanden die fettfreie Masse als besten
+    einzelnen Prädiktor, verwenden sie in der Formel aber nicht, weil sie sich
+    ohne Messgerät nicht bestimmen lässt. Die Gleichung wurde an gesunden
+    Erwachsenen entwickelt. Für Kinder und Jugendliche, in Schwangerschaft und
+    Stillzeit, bei Erkrankungen – etwa der Schilddrüse – und bei
+    Mangelernährung gilt sie nicht ohne Weiteres; wer in einer dieser Lagen
+    seinen Energiebedarf wissen muss, sollte ihn ärztlich oder in einer
+    Ernährungsberatung bestimmen lassen, dort notfalls per Messung.
+  </p>
+  <p>
+    Das Modell der Zeitreihe hält Alter und Aktivität fest, rechnet mit einem
+    festen Energiegehalt je Kilogramm und kennt keine Anpassung des
+    Stoffwechsels über das Gewicht hinaus. Es zeigt die Richtung und die
+    Größenordnung, keine Prognose für einen einzelnen Menschen. Eine
+    Empfehlung, wie viel jemand essen sollte, enthält dieser Artikel nicht.
+    Wer den Tagesbedarf auf Eiweiß, Fett und Kohlenhydrate aufteilen will,
+    findet dafür den
+    {' '}<a href={`${import.meta.env.BASE_URL}gesundheit/makronaehrstoff-rechner/`}>Makronährstoff-Rechner</a>.
+  </p>
+</RechnerArtikel>

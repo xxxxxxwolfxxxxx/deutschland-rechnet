@@ -2,6 +2,7 @@
 import Layout from '../../layouts/Layout.astro';
 import CalculatorShell from '../../components/CalculatorShell.astro';
 import CalculatorGuide from '../../components/CalculatorGuide.astro';
+import ArtikelKfzRueckstufung from '../../components/artikel/kfz-rueckstufung-selbst-zahlen.astro';
 import { CALCULATORS, CATEGORIES } from '../../data/calculators';
 import {
   berechneRueckstufung,
@@ -116,6 +117,8 @@ const faqs = [
             <option value="10" selected>10 Jahre</option>
             <option value="15">15 Jahre</option>
             <option value="20">20 Jahre</option>
+            <option value="25">25 Jahre</option>
+            <option value="35">35 Jahre</option>
           </select>
         </div>
       </div>
@@ -127,13 +130,14 @@ const faqs = [
       <div id="details" style="margin-top:0.75rem;font-size:0.88rem;color:#666;display:flex;gap:1.5rem;flex-wrap:wrap;"></div>
       <div id="verlauf" style="margin-top:1rem;overflow-x:auto;"></div>
     </div>
+    <ArtikelKfzRueckstufung slot="artikel" />
   </CalculatorShell>
-
   <CalculatorGuide
     title="Rückstufung verstehen: was ein Schaden wirklich kostet"
     content={guideHtml}
     relatedSlugs={['kfz-steuer-co2', 'spritkosten-rechner', 'fuehrerschein-kosten']}
   />
+
 </Layout>
 
 <script type="module">
@@ -152,13 +156,20 @@ function berechne() {
     jahre: parseInt(document.getElementById('jahre').value, 10) || 10,
   });
   document.getElementById('mehr').textContent = eur(r.mehrbeitrag);
+  const letzteZeile = r.zeilen[r.zeilen.length - 1];
+  const nochOffen = !r.eingeholtImJahr && letzteZeile.mehr > 0;
   const teile = [
     `<span>Rückstufung: <strong>${sf(document.getElementById('klasse').value)} → ${sf(r.zielKlasse)}</strong></span>`,
     `<span>Beitrag zu 100 %: <strong>${eur(r.beitrag100)}</strong></span>`,
     r.eingeholtImJahr
       ? `<span>Abstand eingeholt im <strong>${r.eingeholtImJahr}. Jahr</strong></span>`
-      : `<span>Im Zeitraum <strong>nicht eingeholt</strong></span>`,
+      : nochOffen
+        ? `<span>Im letzten Jahr noch <strong>${eur(letzteZeile.mehr)} mehr</strong></span>`
+        : `<span>Am Ende des Zeitraums <strong>kein Mehrbeitrag</strong> mehr</span>`,
   ];
+  if (nochOffen) {
+    teile.push(`<span style="flex-basis:100%;">Der Mehrbeitrag läuft über den gewählten Zeitraum hinaus weiter. Für den Vergleich mit der Entschädigung einen längeren Zeitraum wählen.</span>`);
+  }
   if (r.entschaedigung > 0) {
     teile.push(r.selbstZahlenLohnt
       ? `<span style="flex-basis:100%;color:#1e7e34;"><strong>Selbst zahlen lohnt sich:</strong> ${eur(r.entschaedigung)} Entschädigung gegen ${eur(r.mehrbeitrag)} Mehrbeitrag.</span>`

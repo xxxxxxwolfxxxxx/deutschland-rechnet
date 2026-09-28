@@ -3,6 +3,7 @@ import Layout from '../../layouts/Layout.astro';
 import CalculatorShell from '../../components/CalculatorShell.astro';
 import CalculatorGuide from '../../components/CalculatorGuide.astro';
 import { CALCULATORS, CATEGORIES } from '../../data/calculators';
+import ArtikelMpg from '../../components/artikel/mpg-unterschied-liegt-an-der-gallone-nicht-am-auto.astro';
 const calc = CALCULATORS.find(c => c.slug === 'volumen-umrechner')!;
 const cat = CATEGORIES[calc.category];
 const year = new Date().getFullYear();
@@ -22,11 +23,11 @@ const year = new Date().getFullYear();
   <CalculatorShell
     calculator={calc}
     intro="Mit dem Volumen-Umrechner rechnen Sie zwischen metrischen Einheiten (Liter, Milliliter, Kubikmeter, Zentiliter) und anglo-amerikanischen Einheiten (US-Gallone, UK-Gallone, Fluid Ounce, Cup, Esslöffel, Teelöffel) um. Besonders wichtig beim Kochen mit US-Rezepten (1 cup = 237 ml), beim Tanken in den USA (Gallonen statt Liter) oder bei der Mischung von Cocktails (Fluid Ounce statt Milliliter)."
-    sourceNote="Volumenumrechnungen nach Internationalem Einheitensystem (SI). US-Gallone = exakt 3,785411784 Liter (US gallon, liquid). UK-Gallone = 4,54609 Liter (imperial gallon, seit 1985)."
-    explanation="Der Liter ist als 1 Kubikdezimeter (1 dm³) bzw. 0,001 Kubikmeter definiert und seit 1964 die international anerkannte Volumeneinheit. Die US-Gallone (US gal liquid) und die UK-Gallone (imp gal) unterscheiden sich erheblich: 1 US-Gallone = 3,785 Liter, 1 UK-Gallone = 4,546 Liter (ca. 20% größer). 1 Cup (US) entspricht 236,6 ml, 1 Tablespoon (Esslöffel, tbsp) = 14,79 ml, 1 Teaspoon (Teelöffel, tsp) = 4,93 ml. Fluid Ounce: 1 fl oz US = 29,57 ml, 1 fl oz UK = 28,41 ml. Wichtig: Volumen und Gewicht sind verschiedene Größen – 1 Cup Mehl wiegt nicht dasselbe wie 1 Cup Zucker!"
+    sourceNote="Umrechnungsfaktoren nach NIST Special Publication 811 und dem britischen Weights and Measures Act 1985. US-Gallone = exakt 3,785411784 Liter (US gallon, liquid). UK-Gallone = exakt 4,54609 Liter (imperial gallon)."
+    explanation="Der Liter ist seit 1964 exakt als 1 Kubikdezimeter (1 dm³) bzw. 0,001 Kubikmeter definiert; er ist keine SI-Einheit, aber zur Verwendung mit dem SI zugelassen. Die US-Gallone (US gal liquid) und die UK-Gallone (imp gal) unterscheiden sich erheblich: 1 US-Gallone = 3,785 Liter, 1 UK-Gallone = 4,546 Liter (ca. 20% größer). 1 Cup (US) entspricht 236,6 ml, 1 Tablespoon (Esslöffel, tbsp) = 14,79 ml, 1 Teaspoon (Teelöffel, tsp) = 4,93 ml. Fluid Ounce: 1 fl oz US = 29,57 ml, 1 fl oz UK = 28,41 ml. Wichtig: Volumen und Gewicht sind verschiedene Größen – 1 Cup Mehl wiegt nicht dasselbe wie 1 Cup Zucker!"
     faqs={[
       { q: "Wie viele Liter sind eine US-Gallone?", a: "1 US-Gallone (US gal) entspricht exakt 3,785411784 Litern. Beispiel: Eine typische US-Tankfüllung 'fill up 15 gallons' = 56,8 Liter. Wenn ein US-Auto 30 mpg (miles per gallon) hat, sind das 7,84 Liter pro 100 km Verbrauch." },
-      { q: "Was ist der Unterschied zwischen US-Gallone und UK-Gallone?", a: "Die UK-Gallone (imperial gallon) ist deutlich größer: 4,54609 Liter vs. 3,7854 Liter für die US-Gallone (20,1% größer). Wer in Großbritannien tankt, sollte aufpassen: Eine '4 gallon fill' sind 18,2 Liter (UK) oder nur 15,1 Liter (US). Heute zählt in UK aber meist der Liter." },
+      { q: "Was ist der Unterschied zwischen US-Gallone und UK-Gallone?", a: "Die UK-Gallone (imperial gallon) ist deutlich größer: 4,54609 Liter vs. 3,7854 Liter für die US-Gallone (20,1% größer). 4 Gallonen sind 18,2 Liter (UK) oder 15,1 Liter (US). An britischen Zapfsäulen wird seit 1995 in Litern abgerechnet; die UK-Gallone lebt vor allem in Verbrauchsangaben in Meilen je Gallone (mpg) weiter – wer britische und amerikanische mpg-Werte vergleicht, muss umrechnen." },
       { q: "Wie viele Milliliter sind 1 Cup?", a: "1 US-Cup entspricht 236,59 ml (oft als 240 ml gerundet). Wichtige US-Kochmaße: 1/4 Cup = 59 ml, 1/3 Cup = 79 ml, 1/2 Cup = 118 ml, 2/3 Cup = 158 ml, 3/4 Cup = 177 ml. Bei Backrezepten Genauigkeit wichtig: lieber mit Waage arbeiten." },
       { q: "Wie rechne ich Esslöffel und Teelöffel um?", a: "1 US-Tablespoon (tbsp) = 14,79 ml (oft als 15 ml gerundet). 1 US-Teaspoon (tsp) = 4,93 ml (oft als 5 ml gerundet). 1 Tablespoon = 3 Teaspoons. Deutsche Esslöffel-Maße: 1 EL = 15 ml, 1 TL = 5 ml (gleich)." },
       { q: "Wie viele Liter sind 1 Fluid Ounce?", a: "1 US Fluid Ounce (fl oz) = 29,5735 ml. Wichtig: Das ist eine Volumeneinheit, nicht die Gewichtsunze (28,35 g)! Cocktail-Rezepte: 'shot' = 1,5 fl oz = 44 ml. Eine US-Dose Bier hat meist 12 fl oz = 355 ml. UK Fluid Ounce ist kleiner: 28,41 ml." },
@@ -57,6 +58,7 @@ const year = new Date().getFullYear();
       </div>
       <div id="ergebnis-liste" class="ergebnis-liste"></div>
     </div>
+    <ArtikelMpg slot="artikel" />
   </CalculatorShell>
 
   <CalculatorGuide
@@ -74,7 +76,7 @@ const year = new Date().getFullYear();
 <h4>Anglo-amerikanische Volumeneinheiten</h4>
 <ul>
   <li><strong>US-Gallone (gallon, gal)</strong> = 3,785 l – Tanken, Milchpacks, Limonade</li>
-  <li><strong>UK-Gallone (imp gal)</strong> = 4,546 l – größer als US-Gallone! In UK fast nur noch im KFZ-Bereich</li>
+  <li><strong>UK-Gallone (imp gal)</strong> = 4,546 l – größer als US-Gallone! In UK vor allem noch in Verbrauchsangaben (mpg)</li>
   <li><strong>Quart</strong> = 1/4 Gallone = 0,946 l (US) oder 1,136 l (UK)</li>
   <li><strong>Pint</strong> = 1/2 Quart = 0,473 l (US) oder 0,568 l (UK)</li>
   <li><strong>Cup</strong> = 0,237 l = 237 ml (US) – Kochmaß</li>

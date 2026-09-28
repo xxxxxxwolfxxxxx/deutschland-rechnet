@@ -14,10 +14,22 @@ describe('sparplanVerlauf', () => {
     expect(r.gewinn).toBe(0);
   });
 
-  it('das Startkapital wächst mit dem Monatssatz', () => {
+  it('das Startkapital wächst um genau die Jahresrendite', () => {
     const r = sparplanVerlauf({ startkapital: 10000, sparrate: 0, renditeProzent: 6, jahre: 1 });
 
-    expect(r.endkapital).toBeCloseTo(10000 * Math.pow(1.005, 12), 2);
+    // 6 % p. a. heißt 6 % im Jahr, nicht 0,5 % im Monat (das wären 6,17 %)
+    expect(r.endkapital).toBe(10600);
+  });
+
+  it('verteilt die Jahresrendite mit dem passenden Monatsfaktor', () => {
+    const r = sparplanVerlauf({ startkapital: 0, sparrate: 100, renditeProzent: 7, jahre: 1 });
+    const m = Math.pow(1.07, 1 / 12);
+    expect(r.endkapital).toBeCloseTo(100 * (Math.pow(m, 12) - 1) / (m - 1), 2);
+  });
+
+  it('liefert den Stand am Ende jedes Jahres', () => {
+    const r = sparplanVerlauf({ startkapital: 1000, sparrate: 0, renditeProzent: 10, jahre: 2 });
+    expect(r.jahreswerte).toEqual([1000, 1100, 1210]);
   });
 
   it('negative und leere Eingaben werden abgefangen', () => {

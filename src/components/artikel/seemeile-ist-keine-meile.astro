@@ -1,0 +1,132 @@
+---
+import RechnerArtikel from '../RechnerArtikel.astro';
+
+// Der Längen-Umrechner (src/pages/einheiten/laengen-umrechner.astro) hat kein
+// eigenes Modul unter public/scripts/ – die Umrechnung steht inline im
+// <script> der Seite, im Objekt EINHEITEN. Die Faktoren unten sind exakt
+// dieselben Werte, die dort stehen (mi: 1609.344, nm: 1852, yd: 0.9144,
+// ft: 0.3048, in: 0.0254), hier zusätzlich mit ihrer Herkunft belegt:
+//
+// - Zoll/Fuß/Yard/Landmeile: National Bureau of Standards, "Refinement of
+//   Values for the Yard and the Pound", Federal Register Doc. 59-5442
+//   (angekündigt 30. Juni 1959, wirksam 1. Juli 1959): 1 yard = 0,9144 m
+//   exakt, daraus 1 inch = 25,4 mm exakt, 1 foot = 0,3048 m exakt,
+//   1 mile = 1.760 yd = 1.609,344 m exakt.
+// - Seemeile: NIST Guide to the SI, Fußnote 20: 1 nautical mile = 1852 m,
+//   beschlossen auf der First International Extraordinary Hydrographic
+//   Conference, Monaco 1929.
+
+const MI = 1609.344; // internationale (Land-)Meile, exakt: 1.760 yd × 0,9144 m
+const NM = 1852;     // internationale Seemeile, exakt seit Monaco 1929
+const YD = 0.9144;
+const FT = 0.3048;
+const IN = 0.0254;
+
+const zahl = (n: number, d = 1) =>
+  n.toLocaleString('de-DE', { minimumFractionDigits: d, maximumFractionDigits: d }).replace(/^-/, '−');
+const proz = (n: number, d = 1) => zahl(n, d) + ' %';
+
+// --- Selbstprüfung 1: Interne Konsistenz der Landmeile -----------------------
+// 1 Meile muss aus Yard und Fuß exakt denselben Wert ergeben wie im Rechner.
+if (Math.abs(1760 * YD - MI) > 1e-9) {
+  throw new Error('Artikel Seemeile: 1.760 yd ergibt nicht exakt 1 mi laut Rechner-Faktoren.');
+}
+if (Math.abs(5280 * FT - MI) > 1e-9) {
+  throw new Error('Artikel Seemeile: 5.280 ft ergibt nicht exakt 1 mi laut Rechner-Faktoren.');
+}
+if (Math.abs(12 * IN - FT) > 1e-9) {
+  throw new Error('Artikel Seemeile: 12 in ergibt nicht 1 ft laut Rechner-Faktoren.');
+}
+
+// --- Die beiden Fehlerarten im Vergleich -------------------------------------
+// A) Verwechslung: wahrer Wert steht in Seemeilen, wird faelschlich mit dem
+//    Landmeilen-Faktor gerechnet -> Ergebnis zu klein.
+const verwechslungZuWenig = (NM - MI) / NM * 100;   // ≈ 13,1 %
+// Umgekehrt: wahrer Wert in Landmeilen, faelschlich mit Seemeilen-Faktor.
+const verwechslungZuViel = (NM - MI) / MI * 100;    // ≈ 15,1 %
+
+// B) Rundung: die Faustregel aus der FAQ dieser Seite oben (Meilen × 1,6)
+//    gegen den exakten Faktor Meile -> Kilometer.
+const FAUSTREGEL_FAKTOR = 1.6;
+const exakterFaktorKm = MI / 1000;
+const rundungsFehler = (FAUSTREGEL_FAKTOR - exakterFaktorKm) / exakterFaktorKm * 100; // ≈ −0,6 %
+
+const verhaeltnis = Math.abs(verwechslungZuWenig / rundungsFehler);
+
+// --- Selbstprüfung 2: Die Kernaussage muss rechnerisch stimmen ---------------
+if (Math.abs(verwechslungZuWenig - 13.1) > 0.1) {
+  throw new Error(`Artikel Seemeile: Verwechslungsfehler weicht von 13,1 % ab (${verwechslungZuWenig}).`);
+}
+if (verhaeltnis < 20 || verhaeltnis > 25) {
+  throw new Error(`Artikel Seemeile: Verhältnis Verwechslung/Rundung liegt außerhalb 20–25 (${verhaeltnis}).`);
+}
+
+// --- Beispielrechnung: 500 Seemeilen, einmal korrekt, einmal verwechselt ----
+const BEISPIEL_SM = 500;
+const kmKorrekt = (BEISPIEL_SM * NM) / 1000;
+const kmAlsLandmeileGerechnet = (BEISPIEL_SM * MI) / 1000;
+const differenzKm = kmKorrekt - kmAlsLandmeileGerechnet;
+
+// --- Selbstprüfung 3: Beispielrechnung muss zur Prozentangabe passen --------
+const differenzProzentAusBeispiel = (differenzKm / kmKorrekt) * 100;
+if (Math.abs(differenzProzentAusBeispiel - verwechslungZuWenig) > 0.01) {
+  throw new Error('Artikel Seemeile: Beispielrechnung und Prozentangabe widersprechen sich.');
+}
+---
+<RechnerArtikel
+  titel="Die Seemeile ist keine Meile – der Unterschied beträgt 13 Prozent, nicht Nachkommastellen"
+  lead={`Wer beim Umrechnen einer Meile in Kilometer auf ein, zwei Nachkommastellen rundet, verliert deutlich unter ein Prozent. Wer dagegen die Landmeile mit der Seemeile verwechselt, liegt um ${zahl(verwechslungZuWenig)} Prozent daneben – ${zahl(verhaeltnis, 0)}-mal so viel wie jede Rundung, die im Umrechner oben passieren könnte.`}
+  datum="2026-09-24"
+  quellen={[
+    { titel: 'National Bureau of Standards / Coast and Geodetic Survey: „Refinement of Values for the Yard and the Pound“, Federal Register Doc. 59-5442 (30.06.1959)', url: 'https://www.ngs.noaa.gov/PUBS_LIB/FedRegister/FRdoc59-5442.pdf' },
+    { titel: 'NIST: Guide to the SI – Footnotes (Fußnote 20, Internationale Seemeile)', url: 'https://www.nist.gov/pml/special-publication-811/nist-guide-si-footnotes' },
+  ]}
+>
+  <h3>Zwei Meilen, ein Wort</h3>
+  <p>Im Umrechner oben stehen „Meile (mi)“ und „Seemeile (nm)“ nur zwei Zeilen auseinander. Im Deutschen heißen beide schlicht „Meile“ – in Reiseberichten, Wetterdiensten, Segel- und Flugliteratur. Aber es sind zwei verschiedene Einheiten mit zwei verschiedenen Geschichten: Die Landmeile misst {zahl(MI, 3)} Meter, die Seemeile {zahl(NM, 0)} Meter. Der Unterschied zwischen beiden ist größer als jeder Rundungsfehler, der beim Umrechnen realistisch entstehen kann – und trotzdem ist er der unauffälligere der beiden Fehler, weil er nicht wie eine Rundung aussieht, sondern wie eine korrekte Rechnung mit der falschen Zutat.</p>
+
+  <h3>Woher die beiden Werte stammen</h3>
+  <p>Die Landmeile ist keine eigenständig gemessene Größe, sondern leitet sich aus dem Yard ab: 1 Yard = 0,9144 Meter exakt, 1 Meile = 1.760 Yards = {zahl(MI, 3)} Meter exakt, 1 Meile = 5.280 Fuß, ebenfalls exakt. Diese Werte gehen auf die Vereinbarung „Refinement of Values for the Yard and the Pound“ zurück, die das US National Bureau of Standards am 1. Juli 1959 gemeinsam mit den nationalen Normungsinstituten Australiens, Kanadas, Neuseelands, Südafrikas und Großbritanniens in Kraft setzte. Aus derselben Ankündigung stammt auch der Zoll mit exakt 25,4 Millimetern und der Fuß mit exakt 0,3048 Metern – Werte, die der Umrechner oben unverändert übernimmt.</p>
+  <p>Die Seemeile hat einen völlig anderen Ursprung: Sie sollte ursprünglich einer Bogenminute entlang eines Meridians der Erde entsprechen – bei einem nicht perfekt kugelförmigen Planeten ergibt das je nach Breitengrad unterschiedliche Werte zwischen rund 1.843 und 1.862 Metern. Um diesem Streit ein Ende zu setzen, einigte sich die erste außerordentliche internationale Hydrographie-Konferenz 1929 in Monaco auf einen einzigen, festen Wert: {zahl(NM, 0)} Meter, seither „Internationale Seemeile“ genannt. Siebzehn Jahre bevor die Landmeile ihre bis heute gültige Präzisierung erhielt, war die Seemeile also bereits auf den Meter genau festgelegt – nur eben auf einen anderen.</p>
+
+  <h3>Was die Verwechslung tatsächlich kostet</h3>
+  <p>Nehmen wir eine Strecke von {BEISPIEL_SM} Seemeilen an, wie sie auf See oder in der Luftfahrt üblich angegeben wird. Korrekt umgerechnet sind das {zahl(kmKorrekt, 0)} Kilometer. Wer dieselbe Zahl aus Versehen mit dem Landmeilen-Faktor umrechnet – etwa weil im Umrechner die falsche Zeile ausgewählt wurde –, kommt auf {zahl(kmAlsLandmeileGerechnet, 1)} Kilometer. Die Differenz: {zahl(differenzKm, 1)} Kilometer, das sind {proz(verwechslungZuWenig)} des korrekten Werts.</p>
+  <table>
+    <caption class="visually-hidden">Vergleich: Seemeile korrekt umgerechnet gegen fälschlich als Landmeile umgerechnet, bei {BEISPIEL_SM} Meilen</caption>
+    <thead>
+      <tr>
+        <th scope="col">Rechnung</th>
+        <th scope="col" class="num">Faktor je Einheit</th>
+        <th scope="col" class="num">Ergebnis für {BEISPIEL_SM} Meilen</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <th scope="row">Korrekt (Seemeile, nm)</th>
+        <td class="num">{zahl(NM, 0)} m</td>
+        <td class="num strong">{zahl(kmKorrekt, 0)} km</td>
+      </tr>
+      <tr>
+        <th scope="row">Verwechselt (Landmeile, mi)</th>
+        <td class="num">{zahl(MI, 3)} m</td>
+        <td class="num">{zahl(kmAlsLandmeileGerechnet, 1)} km</td>
+      </tr>
+      <tr>
+        <th scope="row">Differenz</th>
+        <td class="num">—</td>
+        <td class="num">{zahl(differenzKm, 1)} km ({proz(verwechslungZuWenig)})</td>
+      </tr>
+    </tbody>
+  </table>
+  <p>Umgekehrt gerechnet – ein Wert steht eigentlich in Landmeilen, wird aber mit dem Seemeilen-Faktor umgerechnet – wird das Ergebnis nicht zu klein, sondern um {proz(verwechslungZuViel)} zu groß. Die beiden Prozentzahlen unterscheiden sich, weil sie sich auf unterschiedliche Ausgangswerte beziehen: einmal auf die Seemeile als Basis, einmal auf die Landmeile. Für die Größenordnung der Verwechslung ist das eine Nebensache, für die Nachrechenbarkeit nicht – Prozentangaben brauchen immer eine benannte Bezugsgröße.</p>
+
+  <h3>Zum Vergleich: die Rundung, die niemandem schadet</h3>
+  <p>Die Faustregel oben auf dieser Seite – „Meilen × 1,6 ergibt Kilometer“ – ist ausdrücklich als Schätzung gekennzeichnet. Sie weicht vom exakten Faktor {zahl(exakterFaktorKm, 6)} nur um {proz(rundungsFehler)} ab. Bei einer echten Umrechnung, wie sie der Rechner oben durchführt, taucht dieser Unterschied gar nicht erst auf: Der Rechner selbst nutzt keine Faustregel, sondern denselben exakten Faktor {zahl(MI, 3)}, der auch in diesem Artikel steht. Die Rundung betrifft ausschließlich die Kopfrechnung als Schätzhilfe, nicht das Ergebnis des Werkzeugs.</p>
+  <p>Damit lassen sich beide Fehlerarten nebeneinanderstellen: Die Rundung der Faustregel kostet {proz(Math.abs(rundungsFehler))}. Die Verwechslung von Landmeile und Seemeile kostet {proz(verwechslungZuWenig)} – das {zahl(verhaeltnis, 0)}-Fache. Eine Rundung auf der zweiten Nachkommastelle fällt im Alltag kaum auf. Eine falsch gewählte Zeile in einer Dropdown-Liste mit neun sehr ähnlich benannten Einheiten schon eher nicht – gerade weil das Ergebnis nach einer plausiblen, sauber gerundeten Zahl aussieht und nicht nach einem Fehler.</p>
+
+  <h3>Wo beide Meilen aufeinandertreffen</h3>
+  <p>Die Trennung ist nicht nur akademisch. Seekarten, Flugsicherung und Wetterdienste geben Windgeschwindigkeiten und Reichweiten fast durchgängig in Knoten beziehungsweise Seemeilen an – ein Knoten ist per Definition eine Seemeile pro Stunde. Straßenschilder, Tacho und Tankstellenpreise in den USA und Großbritannien rechnen dagegen in Landmeilen. Wer eine Distanzangabe aus der Luft- oder Seefahrt übernimmt und sie mit dem Landmeilen-Wert weiterrechnet – etwa weil eine Umrechnungs-App nur eine Zeile „mile“ anbietet und die Seemeile nicht gesondert ausweist –, überträgt den oben berechneten Fehler von {proz(verwechslungZuWenig)} unbemerkt in die eigene Kalkulation. Der Umrechner auf dieser Seite unterscheidet beide Einheiten immerhin sichtbar in zwei getrennten Zeilen; das ist kein Selbstverständnis, wie ein Blick in andere, knapper beschriftete Umrechnungswerkzeuge zeigt.</p>
+
+  <h3>Was der Umrechner oben richtig macht</h3>
+  <p>Alle neun Faktoren im Umrechner sind exakte Werte, keine Näherungen: {zahl(IN, 4)} m für den Zoll, {zahl(FT, 4)} m für den Fuß, {zahl(YD, 4)} m für das Yard, {zahl(MI, 3)} m für die Landmeile – allesamt Konsequenzen der Vereinbarung von 1959 – und {zahl(NM, 0)} m für die Seemeile nach der Konferenz von 1929. Eine Rundungskette, wie sie entstehen könnte, wenn man mehrfach über Näherungswerte umrechnet, gibt es hier nicht: Jede Einheit wird einzeln über den Meter als gemeinsame Basis umgerechnet, mit demselben exakten Faktor in beide Richtungen. Die Fehlerquelle liegt nicht im Rechenweg, sondern ausschließlich in der Wahl der Zeile im Dropdown – und die trifft der Mensch, nicht die Formel.</p>
+</RechnerArtikel>

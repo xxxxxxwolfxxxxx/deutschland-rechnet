@@ -1,0 +1,240 @@
+---
+import RechnerArtikel from '../RechnerArtikel.astro';
+import { KINDERGELD_MONAT, berechneKindergeld } from '../../../public/scripts/kindergeld.js';
+
+// Deutsche Zahlformatierung, Minus als U+2212 statt Bindestrich.
+const MINUS = '−';
+const euro = (n: number) => {
+  const vorzeichen = n < 0 ? MINUS : '';
+  return vorzeichen + Math.abs(Math.round(n)).toLocaleString('de-DE') + ' €';
+};
+const proz = (n: number, d = 1) => {
+  const vorzeichen = n < 0 ? MINUS : '';
+  return vorzeichen + Math.abs(n).toLocaleString('de-DE', { minimumFractionDigits: d, maximumFractionDigits: d }) + ' %';
+};
+
+// --- Heutiger Satz: aus dem Modul, das auch der Rechner oben lädt ---------
+// § 66 Abs. 1 EStG: seit 1.1.2023 derselbe Betrag für jedes Kind, ohne
+// Staffelung nach Geburtsfolge. KINDERGELD_MONAT ist der Stand 2026.
+
+// --- Historische Staffelung 2022 (letztes Jahr vor der Reform) -----------
+// Herkunft: § 66 Abs. 1 EStG a.F. (bis 31.12.2022): 219 € für das erste und
+// zweite Kind, 225 € für das dritte, 250 € ab dem vierten Kind. Belegt u. a.
+// über die Jahresübersicht auf oeffentlichen-dienst.de/familienrecht/kindergeld/2022.html
+// und die Zusammenfassung der Reform bei PwC (Quellen unten).
+const STAFFEL_2022_JE_KIND = (position: number) => {
+  if (position <= 2) return 219;
+  if (position === 3) return 225;
+  return 250;
+};
+const staffelSumme2022 = (anzahlKinder: number) => {
+  let summe = 0;
+  for (let i = 1; i <= anzahlKinder; i += 1) summe += STAFFEL_2022_JE_KIND(i);
+  return summe;
+};
+// Der Einheitsbetrag, den die Reform zum 1.1.2023 einführte (erstes Jahr
+// ohne Staffelung). Das ist ein historischer Fixwert, kein Modulwert –
+// das Modul kennt nur den aktuellen Satz.
+const EINHEITSSATZ_2023 = 250;
+const flatSumme2023 = (anzahlKinder: number) => anzahlKinder * EINHEITSSATZ_2023;
+
+const KINDERZAHLEN = [1, 2, 3, 4, 5];
+const vergleich = KINDERZAHLEN.map((n) => {
+  const alt = staffelSumme2022(n);
+  const neu = flatSumme2023(n);
+  const zuwachs = neu - alt;
+  return {
+    n,
+    alt,
+    neu,
+    zuwachs,
+    zuwachsProzent: (zuwachs / alt) * 100,
+    heute: berechneKindergeld({ anzahlKinder: n }).monat,
+  };
+});
+const familie1 = vergleich[0];
+const familie4 = vergleich[3];
+const familie5 = vergleich[4];
+
+// --- Selbstprüfung 1: Reformzahlen intern konsistent -----------------------
+// 219+219+225+250 = 913, exakt der in Quellen genannte Betrag für vier Kinder.
+if (familie4.alt !== 913) {
+  throw new Error(`Kindergeld-Artikel: Staffelsumme für 4 Kinder 2022 stimmt nicht mehr (${familie4.alt} statt 913).`);
+}
+// Zuwachs 2022→2023 sinkt mit der Kinderzahl, gemessen an der Ausgangssumme
+// (2022), nicht am neuen Wert.
+if (!(familie1.zuwachsProzent > familie5.zuwachsProzent)) {
+  throw new Error('Kindergeld-Artikel: Der relative Zuwachs für kleine Familien ist nicht mehr größer als für große.');
+}
+if (!(familie1.zuwachsProzent > 14 && familie1.zuwachsProzent < 15)) {
+  throw new Error(`Kindergeld-Artikel: Zuwachs für ein Kind liegt nicht mehr bei rund 14 % (${familie1.zuwachsProzent}).`);
+}
+
+// --- Selbstprüfung 2: Der heutige Marginalbetrag ist konstant --------------
+// Wenn das Modul noch eine Staffelung enthielte, wäre der Unterschied
+// zwischen drittem und viertem Kind nicht gleich KINDERGELD_MONAT.
+const marginalHeute3zu4 = berechneKindergeld({ anzahlKinder: 4 }).monat - berechneKindergeld({ anzahlKinder: 3 }).monat;
+const marginalHeute1zu2 = berechneKindergeld({ anzahlKinder: 2 }).monat - berechneKindergeld({ anzahlKinder: 1 }).monat;
+if (marginalHeute3zu4 !== KINDERGELD_MONAT || marginalHeute1zu2 !== KINDERGELD_MONAT) {
+  throw new Error('Kindergeld-Artikel: Modul liefert keinen konstanten Marginalbetrag je Kind mehr – Staffelung wäre zurück.');
+}
+
+// --- Selbstprüfung 3: Differenz erstes vs. viertes Kind, 2022 vs. heute ---
+const differenz2022_1zu4 = STAFFEL_2022_JE_KIND(4) - STAFFEL_2022_JE_KIND(1);
+const differenzHeute_1zu4 = KINDERGELD_MONAT - KINDERGELD_MONAT; // per Definition 0
+if (differenz2022_1zu4 !== 31) {
+  throw new Error(`Kindergeld-Artikel: Differenz 4. vs. 1. Kind 2022 stimmt nicht mehr (${differenz2022_1zu4} statt 31).`);
+}
+if (differenzHeute_1zu4 !== 0) {
+  throw new Error('Kindergeld-Artikel: Heutige Differenz zwischen erstem und viertem Kind ist nicht mehr null.');
+}
+
+const quellen = [
+  { titel: '§ 66 Abs. 1 EStG – Höhe des Kindergeldes (aktuelle Fassung: einheitlicher Betrag je Kind)', url: 'https://www.gesetze-im-internet.de/estg/__66.html' },
+  { titel: 'PwC Deutschland – Bundestag beschließt Inflationsausgleichsgesetz (Abschaffung der Staffelung nach Kinderzahl zum 1.1.2023)', url: 'https://blogs.pwc.de/de/steuern-und-recht/article/234419/update-bundestag-beschliesst-inflationsausgleichsgesetz/' },
+  { titel: 'Kindergeld 2022 – Höhe und Auszahlungstermine (Staffelbeträge 219 €, 225 €, 250 € nach Kinderzahl vor der Reform)', url: 'https://www.oeffentlichen-dienst.de/familienrecht/kindergeld/2022.html' },
+];
+---
+<RechnerArtikel
+  titel="Seit 2023 ist jedes Kind beim Kindergeld gleich viel wert"
+  datum="2026-09-28"
+  lead={`Bis 2022 bekam eine Familie fürs vierte Kind ${euro(STAFFEL_2022_JE_KIND(4) - STAFFEL_2022_JE_KIND(1))} mehr im Monat als fürs erste – nicht weil das Kind mehr kostete, sondern weil es das vierte war. Seit der Reform zum 1. Januar 2023 ist diese Differenz ${euro(0)}: Jedes Kind zählt ${euro(KINDERGELD_MONAT)}, ob erstes oder fünftes. Am stärksten profitierten davon rechnerisch kleine Familien: Beim Übergang von der Staffelung zum Einheitssatz stieg der Anspruch für ein Kind um ${proz(familie1.zuwachsProzent)}, für fünf Kinder nur um ${proz(familie5.zuwachsProzent)}.`}
+  quellen={quellen}
+>
+  <h3>Die Staffelung, die es bis 2022 gab</h3>
+  <p>
+    Der Rechner oben auf dieser Seite multipliziert die Kinderzahl einfach mit
+    {' '}{euro(KINDERGELD_MONAT)} – dem seit Januar 2026 geltenden Satz nach
+    {' '}§ 66 Abs. 1 EStG. Eine Familie mit drei Kindern bekommt danach genau
+    das Dreifache einer Familie mit einem Kind, eine mit fünf Kindern das
+    Fünffache. Diese Multiplikation funktioniert nur, weil der Gesetzgeber
+    seit dem 1. Januar 2023 ausdrücklich keinen Unterschied mehr danach macht,
+    das wievielte Kind einer Familie gerade gezählt wird.
+  </p>
+  <p>
+    Das war nicht immer so einfach. Bis Ende 2022 hing der Betrag pro Kind
+    von seiner Position in der Geschwisterreihe ab:
+    {' '}{euro(STAFFEL_2022_JE_KIND(1))} für das erste und zweite Kind,
+    {' '}{euro(STAFFEL_2022_JE_KIND(3))} für das dritte, {euro(STAFFEL_2022_JE_KIND(4))}
+    {' '}ab dem vierten. Eine Familie mit vier Kindern erhielt also nicht das
+    Vierfache eines Betrags, sondern {euro(STAFFEL_2022_JE_KIND(1))} + {euro(STAFFEL_2022_JE_KIND(1))}
+    {' '}+ {euro(STAFFEL_2022_JE_KIND(3))} + {euro(STAFFEL_2022_JE_KIND(4))} = {euro(familie4.alt)} im Monat –
+    eine Rechnung mit vier verschiedenen Summanden statt einer einzigen
+    Multiplikation.
+  </p>
+  <p>
+    Diese Staffelung ist der Grund, warum ältere Kindergeldtabellen komplizierter
+    aussehen als die heutige: Jede zusätzliche Kinderzahl brauchte eine eigene
+    Zeile mit einer eigenen Rechnung, weil der Betrag für das jeweils letzte
+    Kind von der Position abhing, nicht nur von der Anzahl. Wer damals fünf
+    Kinder hatte, musste fünf unterschiedliche Zahlen addieren; wer heute
+    fünf Kinder hat, muss nur einmal mit {euro(KINDERGELD_MONAT)} multiplizieren.
+  </p>
+
+  <h3>Der Wechsel zum Einheitssatz: eine Erhöhung mit ungleicher Wirkung</h3>
+  <p>
+    Mit dem Inflationsausgleichsgesetz vom Dezember 2022 wurde die Staffelung
+    zum 1. Januar 2023 abgeschafft. Von da an zählte jedes Kind
+    {' '}{euro(EINHEITSSATZ_2023)} – auch das erste. Wer nur ein Kind hatte, bekam
+    dadurch einen deutlichen Sprung: von {euro(STAFFEL_2022_JE_KIND(1))} auf
+    {' '}{euro(EINHEITSSATZ_2023)}, ein Plus von {euro(familie1.zuwachs)} oder
+    {' '}{proz(familie1.zuwachsProzent)}, gemessen am Betrag von 2022. Eine Familie mit
+    vier Kindern profitierte in Euro ähnlich stark ({euro(familie4.zuwachs)}
+    {' '}mehr), aber gemessen an ihrem bisherigen Gesamtanspruch war das nur
+    {' '}{proz(familie4.zuwachsProzent)} – weniger als die Hälfte der relativen
+    Erhöhung der Ein-Kind-Familie.
+  </p>
+
+  <table>
+    <caption class="visually-hidden">
+      Kindergeld nach Staffelung (2022) und Einheitssatz (2023) im Vergleich
+    </caption>
+    <thead>
+      <tr>
+        <th scope="col">Kinder</th>
+        <th scope="col" class="num">2022 (Staffel)</th>
+        <th scope="col" class="num">2023 (Einheitssatz)</th>
+        <th scope="col" class="num">Zuwachs</th>
+        <th scope="col" class="num">Zuwachs in %</th>
+      </tr>
+    </thead>
+    <tbody>
+      {vergleich.map((z) => (
+        <tr>
+          <th scope="row">{z.n} {z.n === 1 ? 'Kind' : 'Kinder'}</th>
+          <td class="num">{euro(z.alt)}</td>
+          <td class="num">{euro(z.neu)}</td>
+          <td class="num">{euro(z.zuwachs)}</td>
+          <td class="num">{proz(z.zuwachsProzent)}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+
+  <p class="ra-hinweis">
+    Die Prozentspalte bezieht sich jeweils auf den Betrag von 2022 (den
+    Ausgangswert), nicht auf den neuen Betrag von 2023. Ab dem dritten Kind
+    ist der Euro-Zuwachs mit {euro(familie4.zuwachs)} konstant, weil ab dort
+    schon 2022 der spätere Einheitssatz von {euro(EINHEITSSATZ_2023)} galt
+    („ab dem vierten Kind"). Nur bei den ersten drei Kindern kam überhaupt ein
+    höherer Betrag hinzu.
+  </p>
+
+  <h3>Warum es heute kein „Viertes-Kind-Kindergeld" mehr gibt</h3>
+  <p>
+    Der eigentliche Bruch liegt nicht in der Höhe, sondern in der Struktur.
+    2022 stieg der Betrag für ein zusätzliches Kind mit der Familiengröße:
+    {' '}{euro(STAFFEL_2022_JE_KIND(1))}, dann wieder {euro(STAFFEL_2022_JE_KIND(2))},
+    dann {euro(STAFFEL_2022_JE_KIND(3))}, dann {euro(STAFFEL_2022_JE_KIND(4))} – der
+    sogenannte Marginalbetrag war keine Konstante. Seit 2023 ist er das genau:
+    Ob eine Familie vom ersten zum zweiten Kind wechselt oder vom dritten zum
+    vierten, der Rechner oben addiert in beiden Fällen exakt
+    {' '}{euro(marginalHeute1zu2)}. Ein zusätzliches Kind ist rechnerisch immer
+    gleich viel wert, unabhängig davon, wie viele Kinder schon da sind.
+  </p>
+  <p>
+    Das lässt sich auch umgekehrt lesen: 2022 lag zwischen dem Betrag für das
+    erste und das vierte Kind eine Lücke von {euro(differenz2022_1zu4)} im
+    Monat – {euro(differenz2022_1zu4 * 12)} im Jahr, nur wegen der
+    Geburtsfolge. Heute ist diese Lücke {euro(differenzHeute_1zu4)}, weil
+    {' '}§ 66 Abs. 1 EStG in der aktuellen Fassung nicht mehr nach Kinderzahl
+    unterscheidet.
+  </p>
+
+  <h3>Wer heute wie viel bekommt</h3>
+  <p>
+    Weil der Satz seit 2023 flach ist, lässt sich der Anspruch jeder Familie
+    ohne Fallunterscheidung ausrechnen: Kinderzahl mal {euro(KINDERGELD_MONAT)}.
+    Für die fünf Kinderzahlen aus der Tabelle oben ergibt das heute
+    {' '}{euro(vergleich[0].heute)}, {euro(vergleich[1].heute)},
+    {' '}{euro(vergleich[2].heute)}, {euro(vergleich[3].heute)} und
+    {' '}{euro(vergleich[4].heute)} im Monat – jeweils {euro(KINDERGELD_MONAT)}
+    mehr als die Stufe darunter, ohne Ausnahme. Das ist der Unterschied zu
+    2022: Damals war der Abstand zwischen den Stufen nicht überall gleich groß
+    ({euro(0)}, dann {euro(STAFFEL_2022_JE_KIND(3) - STAFFEL_2022_JE_KIND(2))},
+    dann {euro(STAFFEL_2022_JE_KIND(4) - STAFFEL_2022_JE_KIND(3))}, dann
+    {' '}{euro(0)}), heute ist er es immer.
+  </p>
+  <p>
+    Für die Einordnung heißt das: Wer eine alte Kindergeldtabelle mit
+    unterschiedlichen Beträgen je Kind findet – etwa in einem älteren
+    Ratgeber oder einer nicht aktualisierten Übersicht –, sieht den Stand vor
+    2023. Seit der Reform gibt es nur noch eine Zahl, die für jedes Kind
+    gleichermaßen gilt, und diese eine Zahl ändert sich seither nur noch von
+    Jahr zu Jahr insgesamt, nicht mehr nach Position innerhalb der Familie.
+  </p>
+
+  <h3>Was diese Rechnung nicht zeigt</h3>
+  <p>
+    Die Vergleiche in diesem Artikel beziehen sich ausschließlich auf das
+    ausgezahlte Kindergeld nach § 66 EStG. Ob für eine Familie stattdessen der
+    Kinderfreibetrag nach § 32 Abs. 6 EStG günstiger ist, prüft das Finanzamt
+    separat im Rahmen der Einkommensteuerveranlagung und hängt vom zu
+    versteuernden Einkommen ab – das ist eine andere Rechnung als die
+    Gegenüberstellung von Staffelung und Einheitssatz hier und wird auf dieser
+    Seite an anderer Stelle behandelt. Ebenfalls nicht Teil dieser Rechnung:
+    der Kinderzuschlag nach § 6a BKGG für Familien mit geringem Einkommen, der
+    unabhängig von der hier verglichenen Grundstruktur des Kindergeldes
+    gezahlt wird.
+  </p>
+</RechnerArtikel>

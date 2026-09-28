@@ -1,6 +1,7 @@
 ---
 import Layout from '../../layouts/Layout.astro';
 import CalculatorShell from '../../components/CalculatorShell.astro';
+import ArtikelKalorien from '../../components/artikel/kalorienbedarf-aktivitaetsfaktor.astro';
 import CalculatorGuide from '../../components/CalculatorGuide.astro';
 import { CALCULATORS, CATEGORIES } from '../../data/calculators';
 const calc = CALCULATORS.find(c => c.slug === 'kalorien-rechner')!;
@@ -89,6 +90,7 @@ const year = new Date().getFullYear();
       </div>
       <p id="bmr" style="margin-top:0.5rem;font-size:0.85rem;color:#666;"></p>
     </div>
+    <ArtikelKalorien slot="artikel" />
   </CalculatorShell>
   <CalculatorGuide
     title="TDEE und Kalorienbedarf richtig verstehen"

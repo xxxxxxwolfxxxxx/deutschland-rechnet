@@ -1,0 +1,365 @@
+---
+import RechnerArtikel from '../RechnerArtikel.astro';
+import { berechneAbfindung, steuerAufAbfindung } from '../../../public/scripts/abfindung.js';
+import {
+  einkommensteuer,
+  GRUNDFREIBETRAG,
+  ZONE_2_OBERGRENZE,
+  ZONE_3_OBERGRENZE,
+  ZONE_4_OBERGRENZE,
+} from '../../../public/scripts/einkommensteuer.js';
+
+// Alle Zahlen kommen aus denselben Modulen, die der Rechner oben laedt:
+// abfindung.js (§ 1a KSchG, § 34 Abs. 1 EStG) und einkommensteuer.js (§ 32a EStG).
+// Keine Zahl im Fliesstext, die nicht aus einer Variablen stammt.
+
+const zahl = (n: number, d = 0) =>
+  n.toLocaleString('de-DE', { minimumFractionDigits: d, maximumFractionDigits: d }).replace(/^-/, '−');
+const eur = (n: number, d = 0) => zahl(n, d) + ' €';
+const proz = (n: number, d = 2) => zahl(n, d) + ' %';
+
+// --- Das Beispiel, das der Rechner oben beim Laden zeigt -------------------
+const BRUTTO = 3500;
+const JAHRE = 7;
+const MONATE = 8;
+const bsp = berechneAbfindung({ bruttoMonat: BRUTTO, jahre: JAHRE, monate: MONATE });
+const ABF = bsp.abfindung;
+if (bsp.jahre !== 8 || ABF !== 14000) throw new Error('Fuenftelregelung: Beispielabfindung weicht ab');
+
+const ersparnisBei = (zvE: number, abfindung = ABF) =>
+  steuerAufAbfindung({ zvEOhne: zvE, abfindung }).ersparnis;
+
+// --- Tabelle: Ersparnis ueber das laufende Einkommen ----------------------
+const STUFEN = [10000, 20000, 30000, 40000, 50000, 60000, 65000, 70000, 80000];
+const reihe = STUFEN.map((zvE) => {
+  const s = steuerAufAbfindung({ zvEOhne: zvE, abfindung: ABF });
+  return { zvE, ...s, anteil: (s.ersparnis / ABF) * 100 };
+});
+const bei40 = reihe.find((r) => r.zvE === 40000)!;
+const bei10 = reihe.find((r) => r.zvE === 10000)!;
+const bei60 = reihe.find((r) => r.zvE === 60000)!;
+const bei65 = reihe.find((r) => r.zvE === 65000)!;
+const bei70 = reihe.find((r) => r.zvE === 70000)!;
+const bei80 = reihe.find((r) => r.zvE === 80000)!;
+
+// Zusicherung 1: Oberhalb der Progressionszonen ist die Ersparnis exakt null.
+// Der Tarif ist dort linear (42 %), und 5 × 0,42 × a/5 = 0,42 × a.
+if (bei70.ersparnis !== 0 || bei80.ersparnis !== 0) {
+  throw new Error('Fuenftelregelung: im Proportionalbereich muesste die Ersparnis exakt 0 sein');
+}
+for (const zvE of [70000, 100000, 150000, 200000]) {
+  if (ersparnisBei(zvE) !== 0) throw new Error(`Fuenftelregelung: Ersparnis bei zvE ${zvE} ist nicht 0`);
+}
+
+// Die Schwelle: erster Euro, ab dem die Ersparnis null bleibt. Rueckwaerts
+// gesucht – der hoechste zvE mit einer Ersparnis ungleich null, plus ein Euro.
+// Vorwaerts mit Stichproben zu suchen waere falsch: einzelne Nullstellen liegen
+// rundungsbedingt schon weiter unten, ohne dass es dort dauerhaft null bleibt.
+let letzterUnterschied = 0;
+for (let zvE = 120000; zvE >= 20000; zvE -= 1) {
+  if (ersparnisBei(zvE) !== 0) { letzterUnterschied = zvE; break; }
+}
+if (letzterUnterschied === 0) throw new Error('Fuenftelregelung: keine Nullschwelle gefunden');
+const schwelle = letzterUnterschied + 1;
+if (ersparnisBei(schwelle) !== 0 || ersparnisBei(letzterUnterschied) === 0) {
+  throw new Error('Fuenftelregelung: Nullschwelle nicht trennscharf');
+}
+if (schwelle > ZONE_3_OBERGRENZE) throw new Error('Fuenftelregelung: Schwelle liegt ueber der Zonengrenze');
+
+// § 32a Abs. 1 Satz 6 EStG rundet die Steuer auf volle Euro ab, und § 34 Abs. 1
+// Satz 2 verfuenffacht einen dieser abgerundeten Unterschiedsbetraege. Auf
+// wenigen Euro-Stellen steigt die rohe Fuenftelrechnung dadurch ueber den
+// regulaeren Betrag – ein Artefakt der Rundung, keine Mehrbelastung aus dem
+// Tarif. Das Modul kappt das inzwischen; der Artikel benennt die Ursache.
+// Gesucht sind die Stellen, an denen die ROHE Fuenftelrechnung ueber den
+// regulaeren Betrag steigt. Das Modul faengt das inzwischen ab (Math.min), der
+// Effekt selbst steckt aber weiter im Tarif und gehoert benannt.
+const negative: number[] = [];
+for (let zvE = 20000; zvE <= 120000; zvE += 1) {
+  if (steuerAufAbfindung({ zvEOhne: zvE, abfindung: ABF }).rundungsartefakt) negative.push(zvE);
+}
+if (negative.length === 0) throw new Error('Fuenftelregelung: Rundungsrand nicht mehr vorhanden – Text pruefen');
+// Gegenprobe: Ausgewiesen wird trotzdem nie ein negativer Betrag.
+for (let zvE = 20000; zvE <= 120000; zvE += 1) {
+  if (ersparnisBei(zvE) < 0) throw new Error('Fuenftelregelung: Der Rechner weist doch eine negative Ersparnis aus.');
+}
+const negVon = Math.min(...negative);
+const negBis = Math.max(...negative);
+const rohDifferenz = (zvE: number) => {
+  const r = steuerAufAbfindung({ zvEOhne: zvE, abfindung: ABF });
+  // Die gekappte Anzeige zurueckgerechnet: 5 × (Tarif(zvE + a/5) − Tarif(zvE)).
+  return r.ohneFuenftelregelung - 5 * (einkommensteuer(zvE + ABF / 5) - einkommensteuer(zvE));
+};
+const negMin = Math.min(...negative.map(rohDifferenz));
+// Der Rundungsrand muss klein bleiben, sonst traegt die Einordnung im Text nicht.
+if (negative.length > 50 || Math.abs(negMin) > 10) {
+  throw new Error('Fuenftelregelung: Rundungsrand groesser als im Text beschrieben');
+}
+const schwelleAbstand = ZONE_3_OBERGRENZE - schwelle;
+
+// --- Der quadratische Kern ------------------------------------------------
+// § 32a Abs. 1 Satz 2 Nr. 3 EStG: in der zweiten Progressionszone ist die Steuer
+// (173,10 · z + 2 397) · z + 1 034,87 mit z = (x − 17 799) / 10 000, also eine
+// Parabel mit dem Koeffizienten 173,10 / 10 000². Fuer eine Parabel gilt
+//   [T(v+a) − T(v)] − 5·[T(v+a/5) − T(v)] = c · a² · (1 − 1/5) = 0,8 · c · a².
+// Der lineare Teil und das laufende Einkommen v kuerzen sich vollstaendig heraus.
+const ZONE3_QUADRAT = 173.10;
+const ZONE3_LINEAR = 2397;
+const ZONE3_SOCKEL = 1034.87;
+const c = ZONE3_QUADRAT / 1e8;
+const theorie = (abfindung: number) => 0.8 * c * abfindung * abfindung;
+
+// Zusicherung 2: Die Konstanten oben sind wirklich die des importierten Tarifs.
+for (const x of [20000, 35000, 50000, 69000]) {
+  const z = (x - ZONE_2_OBERGRENZE) / 10000;
+  const nachgebaut = Math.floor((ZONE3_QUADRAT * z + ZONE3_LINEAR) * z + ZONE3_SOCKEL);
+  if (nachgebaut !== einkommensteuer(x)) {
+    throw new Error(`Fuenftelregelung: Zonenformel weicht bei ${x} vom Modul ab`);
+  }
+}
+
+// Zusicherung 3: Die Formel 0,8 · c · a² trifft die gemessene Ersparnis, solange
+// laufendes Einkommen und Abfindung zusammen in der Progressionszone bleiben.
+const PRUEF_ZVE = [25000, 30000, 35000, 40000, 45000];
+let maxAbweichung = 0;
+for (const abfindung of [5000, 10000, ABF, 20000]) {
+  for (const zvE of PRUEF_ZVE) {
+    if (zvE + abfindung > ZONE_3_OBERGRENZE) continue;
+    const abw = Math.abs(ersparnisBei(zvE, abfindung) - theorie(abfindung));
+    if (abw > maxAbweichung) maxAbweichung = abw;
+    if (abw > 5) throw new Error(`Fuenftelregelung: Formel verfehlt bei zvE ${zvE}, Abfindung ${abfindung}`);
+  }
+}
+
+// Zusicherung 4: quadratisch heisst – doppelte Abfindung, vierfache Ersparnis.
+const halb = ersparnisBei(40000, ABF / 2);
+const ganz = ersparnisBei(40000, ABF);
+const faktor = ganz / halb;
+if (Math.abs(faktor - 4) > 0.15) throw new Error('Fuenftelregelung: Verdopplung vervierfacht die Ersparnis nicht');
+
+// --- Die zweite Kante: der Sprung von 42 auf 45 Prozent -------------------
+const REICH_ZVE = 270000;
+const REICH_ABF = 50000;
+const reich = steuerAufAbfindung({ zvEOhne: REICH_ZVE, abfindung: REICH_ABF });
+if (!(reich.ersparnis > 0)) throw new Error('Fuenftelregelung: an der 45-Prozent-Kante muesste sie wieder wirken');
+if (ersparnisBei(200000, REICH_ABF) !== 0) throw new Error('Fuenftelregelung: mitten in der 42-Prozent-Zone muesste sie 0 sein');
+const reichUeberhang = REICH_ZVE + REICH_ABF - ZONE_4_OBERGRENZE;
+
+// --- Wie gross die Abfindung sein muss, damit ueberhaupt etwas ankommt ----
+const spitzeProzent = (bei40.ersparnis / ABF) * 100;
+
+// Der Rest, der bei 65.000 € von der Wirkung bei 40.000 € uebrig ist. Bezugsgroesse
+// ist ausdruecklich der hoehere Ausgangswert, nicht umgekehrt.
+const restBei65 = (bei65.ersparnis / bei40.ersparnis) * 100;
+if (!(restBei65 > 40 && restBei65 < 55)) {
+  throw new Error('Fuenftelregelung: Restwirkung bei 65.000 € passt nicht zur Beschreibung "knapp die Haelfte"');
+}
+---
+<RechnerArtikel
+  titel="Die Fünftelregelung spart genau dann nichts, wenn der Tarif gerade nicht steigt"
+  lead={`Sie gilt als der große Steuervorteil bei Abfindungen. Tatsächlich ist ihr Wert oberhalb von ${eur(ZONE_3_OBERGRENZE)} zu versteuerndem Einkommen nicht klein, sondern mathematisch exakt null – und in der Mitte hängt er überhaupt nicht davon ab, was man verdient, sondern nur davon, wie hoch die Abfindung ist. Im Beispiel des Rechners sind es ${eur(bei40.ersparnis)} auf ${eur(ABF)}, also ${proz(spitzeProzent)}.`}
+  datum="2026-09-23"
+  quellen={[
+    { titel: '§ 34 EStG – Außerordentliche Einkünfte', url: 'https://www.gesetze-im-internet.de/estg/__34.html' },
+    { titel: '§ 32a EStG – Einkommensteuertarif', url: 'https://www.gesetze-im-internet.de/estg/__32a.html' },
+    { titel: '§ 39b EStG – Einbehaltung der Lohnsteuer', url: 'https://www.gesetze-im-internet.de/estg/__39b.html' },
+    { titel: '§ 1a KSchG – Abfindungsanspruch bei betriebsbedingter Kündigung', url: 'https://www.gesetze-im-internet.de/kschg/__1a.html' },
+    { titel: '§ 24 EStG – Entschädigungen', url: 'https://www.gesetze-im-internet.de/estg/__24.html' },
+  ]}
+>
+  <h3>Was die Regel anordnet – und was sie dabei stillschweigend voraussetzt</h3>
+
+  <p>
+    Eine Abfindung ist eine Entschädigung im Sinne des § 24 Nr. 1 EStG und damit ein
+    außerordentlicher Bezug nach § 34 Abs. 2 Nr. 2 EStG. § 34 Abs. 1 Satz 2 EStG
+    schreibt vor, wie die Steuer darauf zu berechnen ist: Sie beträgt „das Fünffache des
+    Unterschiedsbetrags zwischen der Einkommensteuer für das um diese Einkünfte
+    verminderte zu versteuernde Einkommen und der Einkommensteuer für das verbleibende
+    zu versteuernde Einkommen zuzüglich eines Fünftels dieser Einkünfte“.
+  </p>
+
+  <p>
+    Der Name führt in die Irre. Es wird nicht ein Fünftel der Abfindung besteuert und
+    der Rest bleibt frei. Es wird ein Fünftel <em>auf das laufende Einkommen gelegt</em>,
+    die Mehrsteuer daraus gemessen – und diese Mehrsteuer dann verfünffacht. Rechnerisch
+    ist das die Frage: Wie teuer wäre die Abfindung, wenn sie sich gleichmäßig auf fünf
+    Jahre verteilt hätte? Genau darin liegt der Sinn der Vorschrift. Sie ist keine
+    Vergünstigung für Abfindungen, sondern eine Korrektur der Progression, die sonst
+    allein deshalb zuschlägt, weil ein Betrag in einem einzigen Jahr zufließt.
+  </p>
+
+  <p>
+    Daraus folgt eine Konsequenz, die im Alltag regelmäßig übersehen wird: Wo der Tarif
+    keine Progression hat, kann auch keine korrigiert werden. Die Regel läuft dort nicht
+    schwach, sondern leer.
+  </p>
+
+  <h3>Ab {eur(ZONE_3_OBERGRENZE)} zu versteuerndem Einkommen ist die Ersparnis exakt null</h3>
+
+  <p>
+    Die Tabelle nimmt die Abfindung aus dem Beispiel, das der Rechner beim Öffnen zeigt:
+    {eur(BRUTTO)} Monatsverdienst, {zahl(JAHRE)} Jahre und {zahl(MONATE)} Monate
+    Betriebszugehörigkeit, nach § 1a Abs. 2 KSchG aufgerundet auf {zahl(bsp.jahre)} Jahre
+    – also {zahl(bsp.monatsgehaelter, 1)} Monatsverdienste oder {eur(ABF)}. Variiert wird
+    nur das laufende zu versteuernde Einkommen daneben.
+  </p>
+
+  <table>
+    <caption class="visually-hidden">
+      Einkommensteuer auf eine Abfindung von {eur(ABF)} mit und ohne Fünftelregelung,
+      nach zu versteuerndem Einkommen ohne die Abfindung
+    </caption>
+    <thead>
+      <tr>
+        <th scope="col">zvE ohne Abfindung</th>
+        <th scope="col" class="num">Steuer regulär</th>
+        <th scope="col" class="num">mit Fünftelregelung</th>
+        <th scope="col" class="num">Ersparnis</th>
+        <th scope="col" class="num">in % der Abfindung</th>
+      </tr>
+    </thead>
+    <tbody>
+      {reihe.map((r) => (
+        <tr>
+          <th scope="row">{eur(r.zvE)}</th>
+          <td class="num">{eur(r.ohneFuenftelregelung)}</td>
+          <td class="num">{eur(r.mitFuenftelregelung)}</td>
+          <td class="num">{eur(r.ersparnis)}</td>
+          <td class="num">{proz(r.anteil)}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+
+  <p>
+    Die letzten beiden Zeilen sind keine Rundung auf null, sondern eine Identität.
+    § 32a Abs. 1 Satz 2 Nr. 4 EStG besteuert jeden Euro zwischen
+    {eur(ZONE_3_OBERGRENZE)} und {eur(ZONE_4_OBERGRENZE)} mit demselben Satz von
+    {proz(42, 0)}. In diesem Bereich ist die Steuerfunktion eine Gerade. Die
+    reguläre Mehrsteuer auf eine Abfindung <em>a</em> beträgt dort 0,42 · <em>a</em>;
+    die Fünftelregelung rechnet 5 · 0,42 · <em>a</em>/5 – und das ist derselbe Betrag.
+    Der Test im Kopf dieses Artikels prüft das für vier Einkommen zwischen
+    {eur(70000)} und {eur(200000)} und lässt den Build scheitern, sobald auch nur ein
+    Euro Unterschied herauskommt.
+  </p>
+
+  <p>
+    Ab {eur(schwelle)} zu versteuerndem Einkommen bleibt die Ersparnis durchgehend bei
+    null – {eur(schwelleAbstand)} unterhalb der Zonengrenze von {eur(ZONE_3_OBERGRENZE)},
+    weil der Grenzsteuersatz am oberen Rand der Progressionszone bereits praktisch
+    {proz(42, 0)} erreicht hat. Davor verliert die Regel ihre Wirkung nicht abrupt, aber
+    auf den letzten zehntausend Euro sehr schnell: Bei {eur(bei60.zvE)} sind es noch
+    {eur(bei60.ersparnis)}, bei {eur(bei65.zvE)} nur noch {eur(bei65.ersparnis)} – {proz(restBei65, 0)}
+    dessen, was dieselbe Abfindung bei {eur(bei40.zvE)} bringt.
+  </p>
+
+  <p class="ra-hinweis">
+    Auf {zahl(negative.length)} Euro-Stellen zwischen {eur(negVon)} und {eur(negBis)}
+    ergäbe die Fünftelrechnung sogar mehr Steuer als die reguläre Versteuerung – bis zu
+    {eur(Math.abs(negMin))}. Das ist kein Tarifeffekt, sondern Rundung: § 32a Abs. 1 Satz 6
+    EStG rundet jede Steuer auf volle Euro ab, und § 34 Abs. 1 Satz 2 EStG verfünffacht
+    einen dieser abgerundeten Unterschiedsbeträge. Der Fehler wächst dadurch auf das
+    Fünffache eines Euro. Der Rechner oben weist diesen Rest nicht als negative Ersparnis
+    aus, sondern zeigt null – eine Ermäßigung, die belastet, wäre keine. Dass er das
+    durchgängig tut, prüft der Build dieser Seite für jeden Euro zwischen
+    {eur(20000)} und {eur(120000)}.
+  </p>
+
+  <h3>In der Mitte spielt das Einkommen keine Rolle – die Abfindung dagegen quadratisch</h3>
+
+  <p>
+    Der zweite Befund steht in der Tabelle und fällt trotzdem kaum auf: Zwischen
+    {eur(20000)} und {eur(50000)} zu versteuerndem Einkommen bewegt sich die Ersparnis
+    nicht. Sie liegt bei {eur(bei40.ersparnis)}, unabhängig davon, ob daneben
+    {eur(30000)} oder {eur(50000)} verdient wurden. Das ist kein Zufall der gewählten
+    Stufen, sondern eine Eigenschaft des Tarifs.
+  </p>
+
+  <p>
+    § 32a Abs. 1 Satz 2 Nr. 3 EStG formuliert die zweite Progressionszone als Parabel:
+    ({zahl(ZONE3_QUADRAT, 2)} · z + {zahl(ZONE3_LINEAR)}) · z + {zahl(ZONE3_SOCKEL, 2)},
+    wobei z das um {eur(ZONE_2_OBERGRENZE)} verminderte Einkommen in Zehntausendern ist.
+    Setzt man eine solche Parabel in die Vorschrift des § 34 Abs. 1 Satz 2 ein, kürzt
+    sich der lineare Teil vollständig heraus, und mit ihm das laufende Einkommen. Übrig
+    bleibt ein Ausdruck, der nur noch von der Abfindung abhängt: vier Fünftel des
+    quadratischen Koeffizienten mal dem Quadrat der Abfindung. Für
+    {eur(ABF)} ergibt das {eur(theorie(ABF), 2)}; der Rechner oben zeigt
+    {eur(bei40.ersparnis)}. Die größte Abweichung über alle geprüften Kombinationen
+    beträgt {eur(maxAbweichung, 2)} und stammt aus der Euro-Abrundung des § 32a Abs. 1
+    Satz 6 EStG.
+  </p>
+
+  <p>
+    „Quadratisch“ hat eine handfeste Folge. Eine doppelt so hohe Abfindung bringt nicht
+    die doppelte, sondern die vierfache Ersparnis: {eur(halb)} bei {eur(ABF / 2)} gegen
+    {eur(ganz)} bei {eur(ABF)}, ein Faktor von {zahl(faktor, 2)}. Umgekehrt heißt das,
+    dass bei kleinen Abfindungen fast nichts ankommt. Die {proz(spitzeProzent)} der
+    Abfindung im Beispiel sind der typische Fall, nicht der Ausreißer.
+  </p>
+
+  <p>
+    Wirklich groß wird die Wirkung nur am unteren Rand. Bei {eur(bei10.zvE)} laufendem
+    Einkommen spart die Regel {eur(bei10.ersparnis)}, also {proz(bei10.anteil)} der
+    Abfindung. Dort greift der stärkste Knick des Tarifs: Ein Fünftel von {eur(ABF)}
+    bleibt zusammen mit dem laufenden Einkommen nahe am Grundfreibetrag von
+    {eur(GRUNDFREIBETRAG)}, während die ungeteilte Abfindung durch beide
+    Progressionszonen läuft. Je weniger jemand im Jahr der Kündigung sonst verdient,
+    desto mehr trägt die Vorschrift – genau so, wie sie gedacht ist.
+  </p>
+
+  <h3>Eine zweite Kante: der Sprung auf {proz(45, 0)}</h3>
+
+  <p>
+    Dass die Regel oberhalb von {eur(ZONE_3_OBERGRENZE)} leerläuft, gilt nur, solange
+    auch die Abfindung in der {proz(42, 0)}-Zone bleibt. Bei {eur(ZONE_4_OBERGRENZE)}
+    setzt § 32a Abs. 1 Satz 2 Nr. 5 EStG die nächste Stufe an, und dort entsteht
+    dieselbe Progression noch einmal. Ein zu versteuerndes Einkommen von
+    {eur(REICH_ZVE)} und eine Abfindung von {eur(REICH_ABF)} überschreiten die Grenze
+    um {eur(reichUeberhang)} – die Fünftelregelung hält den Zufluss unterhalb der Kante
+    und spart {eur(reich.ersparnis)}. Bei {eur(200000)} laufendem Einkommen und
+    derselben Abfindung sind es wieder exakt {eur(0)}, weil dann alles in der
+    {proz(42, 0)}-Zone bleibt. Die Regel folgt dem Tarif, nicht dem Einkommen.
+  </p>
+
+  <h3>Seit 2025 steht der Betrag nicht mehr auf der Abrechnung</h3>
+
+  <p>
+    Bis einschließlich 2024 ordneten § 39b Abs. 3 Satz 9 und 10 EStG an, dass der
+    Arbeitgeber die Ermäßigung schon beim Lohnsteuerabzug berücksichtigt. Diese Sätze
+    wurden durch das Wachstumschancengesetz aufgehoben; der geltende § 39b Abs. 3 EStG
+    endet bei Satz 8. Erstmals anzuwenden ist das auf den Lohnsteuerabzug ab 2025. Die
+    Vorschrift des § 34 Abs. 1 EStG selbst ist unverändert – sie wirkt nur nicht mehr im
+    Abzugsverfahren, sondern erst in der Einkommensteuerveranlagung.
+  </p>
+
+  <p>
+    Praktisch heißt das: Auf der Abrechnung, mit der die Abfindung ausgezahlt wird,
+    steht die höhere reguläre Lohnsteuer. Die Differenz – im Beispiel dieser Seite
+    {eur(bei40.ersparnis)} – kommt frühestens mit dem Steuerbescheid für dasselbe Jahr
+    zurück. Der Rechner oben bildet die Veranlagung ab, nicht die Abrechnung des
+    Arbeitgebers.
+  </p>
+
+  <h3>Was der Rechner bewusst nicht enthält</h3>
+
+  <p>
+    Drei Dinge fehlen, und zwei davon würden das Ergebnis in beide Richtungen
+    verschieben. Erstens Solidaritätszuschlag und Kirchensteuer: Beide knüpfen an die
+    festgesetzte Einkommensteuer an und folgen deshalb der Ermäßigung, statt sie zu
+    verändern. Zweitens der Fall, dass das verbleibende zu versteuernde Einkommen
+    negativ ist – dafür hält § 34 Abs. 1 Satz 3 EStG eine eigene Rechnung bereit, die
+    das Modul ausdrücklich nicht abbildet. Drittens prüft der Rechner nicht, ob die
+    Voraussetzungen des § 34 überhaupt vorliegen; er unterstellt, dass eine begünstigte
+    Entschädigung nach § 24 Nr. 1 EStG gegeben ist.
+  </p>
+
+  <p>
+    Und die Abfindungshöhe selbst: Die {eur(ABF)} aus dem Beispiel sind der Wert nach
+    § 1a Abs. 2 KSchG. Ein Anspruch darauf besteht nur unter den engen Voraussetzungen
+    des Absatzes 1. In allen übrigen Fällen – Aufhebungsvertrag, Vergleich, Sozialplan –
+    ist die Höhe Verhandlungssache, und die Formel liefert nur einen Vergleichswert.
+    Für die Steuerrechnung darunter macht das keinen Unterschied: Sie hängt allein
+    davon ab, welcher Betrag in welchem Jahr zufließt und wie steil der Tarif an dieser
+    Stelle steigt.
+  </p>
+</RechnerArtikel>

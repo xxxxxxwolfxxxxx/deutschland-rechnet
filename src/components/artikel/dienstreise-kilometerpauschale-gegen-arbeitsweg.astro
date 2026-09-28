@@ -1,0 +1,399 @@
+---
+import RechnerArtikel from '../RechnerArtikel.astro';
+import { artikelPfadVonSlug } from '../../data/ratgeber';
+import { berechneAnfahrtskosten, PAUSCHALE_PRO_KM } from '../../../public/scripts/anfahrtskosten.js';
+import { berechnefahrtkosten, ENTFERNUNGSPAUSCHALE_JE_KM } from '../../../public/scripts/fahrtkosten.js';
+import { einkommensteuer } from '../../../public/scripts/einkommensteuer.js';
+import { ARBEITNEHMER_PAUSCHBETRAG } from '../../../public/scripts/lohnsteuer.js';
+import {
+  corsaBenzin,
+  BENZINPREIS,
+  ADAC_KM_PRO_JAHR,
+  ADAC_STAND,
+  ADAC_QUELLE_URL,
+  adacVerbrauchJe100km,
+} from '../../../public/scripts/adac-autokosten.js';
+
+const base = import.meta.env.BASE_URL;
+
+// Alle Zahlen zur Buildzeit aus denselben Modulen, die auch die Rechner laden.
+const minus = (s: string) => s.replace('-', '−');
+const eur = (n: number, d = 2) =>
+  minus(n.toLocaleString('de-DE', { minimumFractionDigits: d, maximumFractionDigits: d })) + ' €';
+const eurGlatt = (n: number) => minus(n.toLocaleString('de-DE', { maximumFractionDigits: 0 })) + ' €';
+const proz = (n: number, d = 0) =>
+  n.toLocaleString('de-DE', { minimumFractionDigits: d, maximumFractionDigits: d }) + ' %';
+const zahl = (n: number, d = 1) =>
+  n.toLocaleString('de-DE', { minimumFractionDigits: d, maximumFractionDigits: d });
+const km = (n: number) => n.toLocaleString('de-DE', { maximumFractionDigits: 0 }) + ' km';
+const ct = (n: number) => eur(n);
+
+/** Pauschale für EINE Hin- und Rückfahrt als Reisekosten, aus dem Modul des Rechners. */
+const dienstfahrt = (einfach: number) =>
+  berechneAnfahrtskosten({ km: einfach, verbrauch: 0, spritpreis: 0, fahrten: 1 }).pauschale;
+/** Entfernungspauschale für EINEN Arbeitstag, aus dem Modul des Fahrtkosten-Rechners. */
+const arbeitsweg = (einfach: number) =>
+  berechnefahrtkosten({ entfernungKm: einfach, arbeitstageProJahr: 1 }).jahresabzug;
+
+// --- 1. Zwei Pauschalen, dieselbe Strecke ----------------------------------
+const STRECKEN = [8, 15, 30, 50, 80];
+const vergleich = STRECKEN.map((e) => {
+  const d = dienstfahrt(e);
+  const a = arbeitsweg(e);
+  return { e, d, a, mehr: Math.round((d - a) * 100) / 100 };
+});
+const faktor = (2 * PAUSCHALE_PRO_KM) / ENTFERNUNGSPAUSCHALE_JE_KM;
+const mehrProzent = (faktor - 1) * 100;
+for (const z of vergleich) {
+  if (!(z.d > z.a)) throw new Error(`Dienstreise-Artikel: Bei ${z.e} km ist die Reisekostenpauschale nicht höher.`);
+  if (Math.abs(z.d / z.a - faktor) > 1e-9) throw new Error('Dienstreise-Artikel: Verhältnis der Pauschalen ist nicht konstant.');
+}
+if (!(PAUSCHALE_PRO_KM < ENTFERNUNGSPAUSCHALE_JE_KM)) {
+  throw new Error('Dienstreise-Artikel: Der Kilometersatz ist nicht mehr kleiner als die Entfernungspauschale.');
+}
+if (mehrProzent < 57.5 || mehrProzent >= 58.5) throw new Error('Dienstreise-Artikel: „rund 58 %" stimmt nicht mehr.');
+const pro100 = vergleich.find((z) => z.e === 50)!;
+
+// --- 2. Was der Sprit davon braucht ----------------------------------------
+// Beispielfahrzeug: Opel Corsa 1.2 aus der ADAC-Autokostenübersicht. Der
+// Verbrauch ist aus den ADAC-Betriebskosten zurückgerechnet (adac-autokosten.js).
+const VERBRAUCH = adacVerbrauchJe100km(corsaBenzin, BENZINPREIS);
+const PROBE_EINFACH = 50;
+const probe = berechneAnfahrtskosten({ km: PROBE_EINFACH, verbrauch: VERBRAUCH, spritpreis: BENZINPREIS, fahrten: 1 });
+const spritAnteil = (probe.spritkosten / probe.pauschale) * 100;
+const restFuerAnderes = Math.round((probe.pauschale - probe.spritkosten) * 100) / 100;
+// Ab welchem Verbrauch bzw. Literpreis frisst der Sprit die Pauschale allein auf?
+const kippVerbrauch = (PAUSCHALE_PRO_KM / BENZINPREIS) * 100;
+const kippPreis = PAUSCHALE_PRO_KM / (VERBRAUCH / 100);
+if (!(probe.spritkosten < probe.pauschale)) throw new Error('Dienstreise-Artikel: Sprit liegt über der Pauschale.');
+if (spritAnteil >= 34) throw new Error('Dienstreise-Artikel: „ein Drittel" stimmt nicht mehr.');
+// Vollkosten laut ADAC: Monatsbetrag × 12 ÷ Jahresfahrleistung.
+const vollProKm = (corsaBenzin.gesamt * 12) / ADAC_KM_PRO_JAHR;
+const vollProbe = vollProKm * probe.gesamtKm;
+const deckung = (PAUSCHALE_PRO_KM / vollProKm) * 100;
+if (!(vollProKm > PAUSCHALE_PRO_KM)) throw new Error('Dienstreise-Artikel: ADAC-Vollkosten liegen nicht mehr über der Pauschale.');
+
+// --- 3. Erstattung gegen Abzug ---------------------------------------------
+const FAHRTEN = 40;
+const EINFACH = 60;
+const jahr = berechneAnfahrtskosten({ km: EINFACH, verbrauch: VERBRAUCH, spritpreis: BENZINPREIS, fahrten: FAHRTEN });
+const ersparnis = (zvE: number, abzug: number) => einkommensteuer(zvE) - einkommensteuer(zvE - abzug);
+const wirksamAllein = Math.max(0, jahr.pauschale - ARBEITNEHMER_PAUSCHBETRAG);
+const ZVE = [45_000, 70_000];
+const steuerfaelle = ZVE.map((zvE) => ({
+  zvE,
+  allein: ersparnis(zvE, wirksamAllein),
+  zusaetzlich: ersparnis(zvE, jahr.pauschale),
+}));
+if (!(wirksamAllein > 0 && wirksamAllein < jahr.pauschale)) throw new Error('Dienstreise-Artikel: Pauschbetrag-Beispiel kippt.');
+for (const f of steuerfaelle) {
+  if (!(f.zusaetzlich < jahr.pauschale / 2)) throw new Error('Dienstreise-Artikel: Steuerersparnis nicht mehr unter der Hälfte der Erstattung.');
+  // Soli-Freigrenze: bei diesen Einkommen fällt kein Solidaritätszuschlag an.
+  if (einkommensteuer(f.zvE) > 20350) throw new Error('Dienstreise-Artikel: Soli wäre zu berücksichtigen.');
+}
+const mittel = steuerfaelle[0];
+const hoch = steuerfaelle[1];
+const verhaeltnisAllein = jahr.pauschale / mittel.allein;
+// Ab welcher gefahrenen Strecke wirkt die Pauschale überhaupt, wenn sonst
+// keine Werbungskosten anfallen? Fein gesucht, in ganzen Kilometern.
+let schwelleKm = 0;
+for (let k = 1; k <= 20000; k += 1) {
+  if (berechneAnfahrtskosten({ km: k / 2, verbrauch: 0, spritpreis: 0, fahrten: 1 }).pauschale > ARBEITNEHMER_PAUSCHBETRAG) {
+    schwelleKm = k;
+    break;
+  }
+}
+if (schwelleKm === 0) throw new Error('Dienstreise-Artikel: Schwelle nicht gefunden.');
+// Teilerstattung und Übererstattung, je gefahrenem Kilometer.
+const TEIL_SATZ = 0.2;
+const UEBER_SATZ = 0.35;
+const teilDifferenz = Math.round((PAUSCHALE_PRO_KM - TEIL_SATZ) * jahr.gesamtKm * 100) / 100;
+const ueberSteuerpflichtig = Math.round((UEBER_SATZ - PAUSCHALE_PRO_KM) * jahr.gesamtKm * 100) / 100;
+if (!(teilDifferenz > 0 && ueberSteuerpflichtig > 0)) throw new Error('Dienstreise-Artikel: Erstattungssätze passen nicht zur Pauschale.');
+
+// --- 4. Sammelpunkt und weiträumiges Tätigkeitsgebiet ----------------------
+const SAMMEL = 30;
+const sammelDienst = dienstfahrt(SAMMEL);
+const sammelEntfernung = arbeitsweg(SAMMEL);
+const SAMMEL_TAGE = 220;
+const sammelJahrVerlust = Math.round((sammelDienst - sammelEntfernung) * SAMMEL_TAGE * 100) / 100;
+if (!(sammelDienst > sammelEntfernung)) throw new Error('Dienstreise-Artikel: Sammelpunkt-Beispiel kippt.');
+
+// --- 5. Andere Fahrzeuge ----------------------------------------------------
+// § 5 Abs. 1 Satz 2 BRKG: 20 Cent je km für Kraftfahrzeuge und andere
+// motorbetriebene Fahrzeuge; die 30 Cent aus Abs. 2 gelten nur für Kraftwagen.
+// Keine Größe des Rechnermoduls, deshalb hier mit Fundstelle gesetzt.
+const SATZ_MOTORRAD = 0.2;
+
+const quellen = [
+  { titel: '§ 9 EStG – Werbungskosten (Abs. 1 Satz 3 Nr. 4, 4a und 7, Abs. 2 und 4)', url: 'https://www.gesetze-im-internet.de/estg/__9.html' },
+  { titel: '§ 5 BRKG – Wegstreckenentschädigung', url: 'https://www.gesetze-im-internet.de/brkg_2005/__5.html' },
+  { titel: '§ 3 EStG – Steuerfreie Einnahmen (Nummer 16)', url: 'https://www.gesetze-im-internet.de/estg/__3.html' },
+  { titel: '§ 3c EStG – Anteilige Abzüge', url: 'https://www.gesetze-im-internet.de/estg/__3c.html' },
+  { titel: '§ 9a EStG – Pauschbeträge für Werbungskosten', url: 'https://www.gesetze-im-internet.de/estg/__9a.html' },
+  { titel: '§ 32a EStG – Einkommensteuertarif', url: 'https://www.gesetze-im-internet.de/estg/__32a.html' },
+  { titel: `ADAC Autokostenübersicht ${ADAC_STAND}`, url: ADAC_QUELLE_URL },
+];
+---
+<RechnerArtikel
+  titel="Die kleinere Kilometerpauschale ist die größere"
+  datum="2026-09-17"
+  lead={`Für den Arbeitsweg setzt das Finanzamt ${eur(ENTFERNUNGSPAUSCHALE_JE_KM)} je Kilometer an, für eine Dienstreise nur ${eur(PAUSCHALE_PRO_KM)}. Trotzdem bringt dieselbe Strecke als Dienstreise rund ${proz(mehrProzent)} mehr – bei ${km(PROBE_EINFACH)} Entfernung ${eur(pro100.d)} statt ${eur(pro100.a)}. Und wer die Pauschale vom Arbeitgeber erstattet bekommt, statt sie selbst abzusetzen, hat bei ${FAHRTEN} solchen Fahrten im Jahr ${eurGlatt(jahr.pauschale)} in der Tasche statt ${eurGlatt(mittel.allein)} Steuerersparnis.`}
+  quellen={quellen}
+>
+  <h3>Zwei Pauschalen, zwei verschiedene Kilometer</h3>
+  <p>
+    Das Einkommensteuergesetz kennt für Fahrten mit dem eigenen Auto zwei
+    Pauschalen, und sie stehen direkt untereinander. § 9 Abs. 1 Satz 3 Nr. 4
+    EStG regelt den Weg zwischen Wohnung und erster Tätigkeitsstätte: Für jeden
+    Arbeitstag gibt es {eur(ENTFERNUNGSPAUSCHALE_JE_KM)} „für jeden vollen
+    Kilometer der Entfernung". Die Nummer 4a direkt darunter regelt alle anderen
+    beruflich veranlassten Fahrten – den Kundentermin, die Baustelle, die
+    Schulung in einer anderen Stadt. Dort dürfen statt der tatsächlichen Kosten
+    die Kilometersätze angesetzt werden, die das Bundesreisekostengesetz als
+    höchste Wegstreckenentschädigung festlegt. Für den Kraftwagen sind das nach
+    § 5 Abs. 2 BRKG {eur(PAUSCHALE_PRO_KM)} je Kilometer „zurückgelegter
+    Strecke".
+  </p>
+  <p>
+    Der Unterschied steckt in diesen beiden Wörtern. Die Entfernungspauschale
+    zählt die einfache Entfernung, einmal am Tag – Hin- und Rückweg sind damit
+    zusammen abgegolten. Der Reisekostensatz zählt jeden gefahrenen Kilometer,
+    also Hin- und Rückweg getrennt. Auf die Entfernung umgerechnet ergibt das
+    {' '}{eur(2 * PAUSCHALE_PRO_KM)} gegen {eur(ENTFERNUNGSPAUSCHALE_JE_KM)}. Die
+    niedrigere Zahl ist die ergiebigere.
+  </p>
+
+  <table>
+    <caption class="visually-hidden">
+      Pauschale für eine Hin- und Rückfahrt als Dienstreise und als Arbeitsweg, nach einfacher Entfernung
+    </caption>
+    <thead>
+      <tr>
+        <th scope="col" class="num">Einfache Entfernung</th>
+        <th scope="col" class="num">als Dienstreise</th>
+        <th scope="col" class="num">als Arbeitsweg</th>
+        <th scope="col" class="num">Unterschied</th>
+      </tr>
+    </thead>
+    <tbody>
+      {vergleich.map((z) => (
+        <tr>
+          <th scope="row" class="num">{km(z.e)}</th>
+          <td class="num">{eur(z.d)}</td>
+          <td class="num">{eur(z.a)}</td>
+          <td class="num">+{eur(z.mehr)}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+
+  <p>
+    Das Verhältnis ist in jeder Zeile dasselbe: Die Dienstreise bringt das
+    {' '}{zahl(faktor, 2)}-Fache, also rund {proz(mehrProzent)} mehr. Bei ganzen
+    Kilometern gilt das exakt; bei krummen Entfernungen verschiebt es sich
+    leicht zugunsten der Dienstreise, weil die Entfernungspauschale nur volle
+    Kilometer zählt. Seit dem 1. Januar 2026 gilt der Satz von
+    {' '}{eur(ENTFERNUNGSPAUSCHALE_JE_KM)} ab dem ersten Kilometer; die frühere
+    Staffelung ist entfallen. Wie viel davon am Ende als Steuerersparnis
+    ankommt, rechnet der Artikel
+    {' '}<a href={`${base}${artikelPfadVonSlug('pendlerpauschale-was-sie-bringt')}`}>zur Pendlerpauschale</a>{' '}
+    durch.
+  </p>
+  <p>
+    Praktisch folgt daraus: Ob eine Fahrt als Arbeitsweg oder als Dienstreise
+    gilt, ist die wichtigere Frage als die Höhe des Satzes. Entschieden wird
+    sie nicht über die Fahrt, sondern über die erste Tätigkeitsstätte. Das ist
+    nach § 9 Abs. 4 EStG die ortsfeste betriebliche Einrichtung, der jemand
+    dauerhaft zugeordnet ist – durch Arbeitsvertrag oder Weisung, im Zweifel
+    etwa, weil er dort unbefristet oder länger als 48 Monate tätig werden soll.
+    Wer von zu Hause direkt zum Kunden fährt, fährt nicht zur ersten
+    Tätigkeitsstätte, und die ganze Strecke zählt doppelt.
+  </p>
+
+  <h3>Der Sprit braucht nur ein Drittel davon</h3>
+  <p>
+    Der Rechner oben auf dieser Seite zeigt Spritkosten und Pauschale
+    nebeneinander, und meist liegen sie weit auseinander. Ein Beispiel mit
+    belegten Werten: Die ADAC-Autokostenübersicht {ADAC_STAND} setzt für den
+    {' '}{corsaBenzin.name} Betriebskosten an, aus denen sich bei
+    {' '}{eur(BENZINPREIS)} je Liter ein Verbrauch von
+    {' '}{zahl(VERBRAUCH, 2)} Litern auf 100 Kilometer ergibt. Für eine Fahrt
+    über {km(PROBE_EINFACH)} Entfernung, hin und zurück, heißt das:
+  </p>
+
+  <table>
+    <caption class="visually-hidden">
+      Spritkosten und Kilometerpauschale für eine Hin- und Rückfahrt über 50 km Entfernung
+    </caption>
+    <thead>
+      <tr>
+        <th scope="col">Größe</th>
+        <th scope="col" class="num">Wert</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr><th scope="row">Gefahrene Strecke</th><td class="num">{km(probe.gesamtKm)}</td></tr>
+      <tr><th scope="row">Kraftstoff</th><td class="num">{zahl(probe.liter, 2)} l</td></tr>
+      <tr><th scope="row">Spritkosten</th><td class="num">{eur(probe.spritkosten)}</td></tr>
+      <tr><th scope="row">Kilometerpauschale</th><td class="num">{eur(probe.pauschale)}</td></tr>
+      <tr><th scope="row">Vollkosten laut ADAC</th><td class="num">{eur(vollProbe)}</td></tr>
+    </tbody>
+  </table>
+
+  <p>
+    Der Sprit macht {proz(spritAnteil)} der Pauschale aus. Damit er sie allein
+    aufzehrt, müsste dieses Auto bei unverändertem Verbrauch mit Kraftstoff zu
+    {' '}{eur(kippPreis)} je Liter fahren – oder bei {eur(BENZINPREIS)} je Liter
+    {' '}{zahl(kippVerbrauch, 1)} Liter auf 100 Kilometer verbrauchen. Wer
+    seinem Arbeitgeber also vorrechnet, die Fahrt habe „nur"
+    {' '}{eur(probe.spritkosten)} gekostet, verschenkt
+    {' '}{eur(restFuerAnderes)} – der Rest der Pauschale ist kein Gewinn,
+    sondern der Anteil an Wertverlust, Versicherung, Steuer und Werkstatt, der
+    auf diese {km(probe.gesamtKm)} entfällt.
+  </p>
+  <p>
+    Die letzte Zeile der Tabelle zeigt, dass die Pauschale diesen Anteil nicht
+    einmal vollständig deckt. Der ADAC kommt für denselben Wagen auf
+    {' '}{eurGlatt(corsaBenzin.gesamt)} im Monat bei {km(ADAC_KM_PRO_JAHR)} im
+    Jahr, also {ct(vollProKm)} je Kilometer; die {eur(PAUSCHALE_PRO_KM)}
+    decken davon {proz(deckung)}. Warum der Kraftstoff bei den Autokosten der
+    kleinere Posten ist, zeigt der Artikel
+    {' '}<a href={`${base}${artikelPfadVonSlug('autokosten-wertverlust')}`}>über die Kosten je Kilometer</a>.
+  </p>
+  <p>
+    Das Gesetz lässt diesen Weg offen: Nummer 4a erlaubt die Pauschale
+    ausdrücklich „anstelle der tatsächlichen Aufwendungen". Wer die
+    tatsächlichen Kosten ansetzen will, muss sie aber für das ganze Fahrzeug
+    belegen und auf die beruflichen Kilometer verteilen, und steuerlich zählt
+    dabei die Absetzung für Abnutzung (§ 9 Abs. 1 Satz 3 Nr. 7 EStG), nicht der
+    Marktwertverlust, den der ADAC ansetzt. Die ADAC-Zahl ist deshalb ein
+    Anhaltspunkt, ob sich der Aufwand lohnen könnte, kein Ersatz für die
+    eigene Rechnung.
+  </p>
+
+  <h3>Erstattet ist mehr als abgesetzt</h3>
+  <p>
+    Die Pauschale lässt sich auf zwei Wegen nutzen, und sie sind nicht
+    gleichwertig. Zahlt der Arbeitgeber sie aus, ist das nach § 3 Nr. 16 EStG
+    steuerfrei, soweit es die als Werbungskosten abziehbaren Beträge nicht
+    übersteigt. Zahlt er nichts, bleibt nur der Abzug in der Steuererklärung.
+    Rechenbeispiel: {FAHRTEN} Fahrten im Jahr zu einem Kunden in
+    {' '}{km(EINFACH)} Entfernung, zusammen {km(jahr.gesamtKm)} und
+    {' '}{eur(jahr.pauschale)} Pauschale. Die Steuerersparnis ist mit dem
+    Einkommensteuertarif 2026 gerechnet, ohne Kirchensteuer; ein
+    Solidaritätszuschlag fällt bei diesen Einkommen nicht an.
+  </p>
+
+  <table>
+    <caption class="visually-hidden">
+      Was 4.800 Dienstreise-Kilometer im Jahr bringen: Erstattung durch den Arbeitgeber gegen Werbungskostenabzug
+    </caption>
+    <thead>
+      <tr>
+        <th scope="col">Weg</th>
+        <th scope="col" class="num">zvE {eurGlatt(mittel.zvE)}</th>
+        <th scope="col" class="num">zvE {eurGlatt(hoch.zvE)}</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <th scope="row">Erstattung durch den Arbeitgeber</th>
+        <td class="num">{eur(jahr.pauschale)}</td>
+        <td class="num">{eur(jahr.pauschale)}</td>
+      </tr>
+      <tr>
+        <th scope="row">Abzug, sonst keine Werbungskosten</th>
+        <td class="num">{eur(mittel.allein)}</td>
+        <td class="num">{eur(hoch.allein)}</td>
+      </tr>
+      <tr>
+        <th scope="row">Abzug, Pauschbetrag schon überschritten</th>
+        <td class="num">{eur(mittel.zusaetzlich)}</td>
+        <td class="num">{eur(hoch.zusaetzlich)}</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <p>
+    Die mittlere Zeile ist der Normalfall für jemanden, der wenig andere
+    Werbungskosten hat. Der Arbeitnehmer-Pauschbetrag von
+    {' '}{eurGlatt(ARBEITNEHMER_PAUSCHBETRAG)} (§ 9a Satz 1 Nr. 1 Buchst. a EStG)
+    wird ohnehin abgezogen; von den {eur(jahr.pauschale)} wirken deshalb nur
+    {' '}{eur(wirksamAllein)}. Die Erstattung ist hier gut das
+    {' '}{zahl(Math.floor(verhaeltnisAllein), 0)}-Fache der Steuerersparnis. Ohne andere
+    Werbungskosten bewirkt die Reisekostenpauschale erst ab
+    {' '}{km(schwelleKm)} gefahrener Strecke im Jahr überhaupt etwas.
+  </p>
+  <p>
+    Die untere Zeile gilt für Pendler, deren Entfernungspauschale den
+    Pauschbetrag bereits ausschöpft: Dann zählt jeder Dienstreise-Kilometer
+    voll, und die Ersparnis entspricht dem persönlichen Grenzsteuersatz. Auch
+    dann bleibt sie unter der Hälfte dessen, was eine Erstattung bringt.
+  </p>
+  <p>
+    Zwischenstufen sind häufig. Erstattet der Arbeitgeber etwa
+    {' '}{eur(TEIL_SATZ)} je Kilometer, bleiben im Beispiel
+    {' '}{eur(teilDifferenz)} als Werbungskosten übrig – mehr nicht, denn
+    Ausgaben, die mit steuerfreien Einnahmen zusammenhängen, sind nach § 3c
+    Abs. 1 EStG insoweit nicht abziehbar. Zahlt er dagegen
+    {' '}{eur(UEBER_SATZ)}, ist der Teil über der Pauschale –
+    {' '}{eur(ueberSteuerpflichtig)} im Jahr – steuerpflichtiger Arbeitslohn,
+    solange keine höheren tatsächlichen Kosten nachgewiesen sind.
+  </p>
+
+  <h3>Wann die Dienstreise doch zum Arbeitsweg wird</h3>
+  <p>
+    Nummer 4a enthält in Satz 3 eine Ausnahme, die viele Außendienstler,
+    Monteure und Fahrer betrifft. Wer keine erste Tätigkeitsstätte hat, aber
+    nach den Weisungen des Arbeitgebers dauerhaft denselben Ort oder dasselbe
+    weiträumige Tätigkeitsgebiet typischerweise arbeitstäglich aufsuchen muss –
+    einen Busdepot-Treffpunkt etwa, einen Hafen oder ein Forstrevier –, für den
+    gilt auf der Fahrt dorthin wieder die Entfernungspauschale. Beim
+    weiträumigen Tätigkeitsgebiet zählt die Entfernung bis zum nächstgelegenen
+    Zugang. Erst die Fahrten innerhalb des Gebiets sind nach Satz 4 wieder
+    Reisekosten.
+  </p>
+  <p>
+    Für einen solchen Sammelpunkt in {km(SAMMEL)} Entfernung heißt das
+    {' '}{eur(sammelEntfernung)} am Tag statt {eur(sammelDienst)}. Über
+    {' '}{SAMMEL_TAGE} Arbeitstage fehlen gegenüber einer echten Dienstreise
+    {' '}{eur(sammelJahrVerlust)} an abziehbarem Betrag. Wer vom Arbeitgeber die
+    Anweisung bekommt, sich „jeden Morgen am Lager" einzufinden, sollte also
+    nicht mit dem Reisekostensatz rechnen – auch wenn das Lager nicht seine
+    erste Tätigkeitsstätte ist.
+  </p>
+
+  <h3>Was nicht unter die Pauschale fällt</h3>
+  <p>
+    Die {eur(PAUSCHALE_PRO_KM)} gelten für den Kraftwagen. Für Motorräder,
+    Motorroller und andere motorbetriebene Fahrzeuge sieht § 5 Abs. 1 BRKG
+    {' '}{eur(SATZ_MOTORRAD)} je Kilometer vor, und weil das Einkommensteuergesetz
+    auf den Satz „für das jeweils benutzte Beförderungsmittel" verweist, gilt
+    dieser niedrigere Wert auch steuerlich.
+  </p>
+  <p>
+    Private Fahrten – die Abholung eines gekauften Möbelstücks, der Besuch bei
+    der Familie, ein privat veranlasster Umzug – kosten, was der Rechner als
+    Spritkosten ausgibt, plus Maut, Parken und Verschleiß. Eine Pauschale gibt
+    es dafür nicht. Ob ein Umzug beruflich veranlasst ist und dann als
+    Werbungskosten zählt, richtet sich nach eigenen Regeln, die dieser Artikel
+    nicht behandelt. Auch Familienheimfahrten bei doppelter Haushaltsführung
+    nimmt Nummer 4a ausdrücklich aus.
+  </p>
+
+  <h3>Was diese Rechnung nicht abbildet</h3>
+  <p>
+    Die Steuerersparnis ist mit dem Grundtarif für zwei zu versteuernde
+    Einkommen gerechnet; Kirchensteuer, Splittingtarif und Progressionsvorbehalt
+    fehlen. Der Verbrauch des Beispielwagens ist aus den ADAC-Betriebskosten
+    zurückgerechnet und kein Messwert. Verpflegungsmehraufwand und
+    Übernachtungskosten, die bei einer Auswärtstätigkeit zusätzlich anfallen
+    können, sind nicht Gegenstand dieses Artikels; ihre Dreimonatsfrist in § 9
+    Abs. 4a Satz 6 EStG gilt für die Verpflegung, nicht für die Fahrtkosten.
+    Wer seinen Arbeitsweg selbst rechnen will, nutzt den
+    {' '}<a href={`${base}auto/fahrtkosten-rechner/`}>Fahrtkosten-Rechner</a>; die
+    Vollkosten des eigenen Autos je Kilometer liefert der
+    {' '}<a href={`${base}auto/km-kostenrechner/`}>Kilometerkosten-Rechner</a>.
+  </p>
+</RechnerArtikel>

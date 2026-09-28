@@ -1,0 +1,660 @@
+---
+import RechnerArtikel from '../RechnerArtikel.astro';
+import { artikelPfadVonSlug } from '../../data/ratgeber';
+import { berechneBootReichweite } from '../../../public/scripts/boot-reichweite.js';
+
+// Alle Zahlen zur Buildzeit aus demselben Modul, das auch der Rechner laedt.
+const base = import.meta.env.BASE_URL;
+
+const zahl = (n: number, d = 1) =>
+  n.toLocaleString('de-DE', { minimumFractionDigits: d, maximumFractionDigits: d }).replace('-', '−');
+const sm = (n: number, d = 1) => zahl(n, d) + ' sm';
+const km = (n: number, d = 1) => zahl(n, d) + ' km';
+const liter = (n: number, d = 1) => zahl(n, d) + ' l';
+const eur = (n: number, d = 2) => zahl(n, d) + ' €';
+const proz = (n: number, d = 1) => zahl(n, d) + ' %';
+const kn = (n: number, d = 1) => zahl(n, d) + ' kn';
+const std = (n: number, d = 1) => zahl(n, d) + ' h';
+
+// --- Setzungen dieses Artikels ---------------------------------------------
+// Ein mittleres Motorboot. Die Werte sind gewaehlt, nicht gerechnet; jede Zahl
+// weiter unten entsteht daraus ueber berechneBootReichweite().
+const TANK = 200;        // Liter
+const VERBRAUCH = 20;    // Liter je Stunde bei Marschfahrt
+const MARSCH = 6;        // Knoten durchs Wasser
+const PREIS = 2.10;      // Euro je Liter an der Bootstankstelle
+const VERSATZ = 1.5;     // Knoten Versatz im durchgehenden Beispiel
+const DRITTEL = 100 / 3;
+const ZWEI_DRITTEL = 200 / 3;
+
+const lauf = (speedKn: number, reserveProzent: number) =>
+  berechneBootReichweite({
+    tankLiter: TANK,
+    verbrauchProStunde: VERBRAUCH,
+    geschwindigkeitKn: speedKn,
+    reserveProzent,
+    preisProLiter: PREIS,
+  });
+
+// --- 1. Der Umkehrpunkt ohne Versatz ---------------------------------------
+const basis = lauf(MARSCH, DRITTEL);
+const vollerTank = lauf(MARSCH, 0);
+
+// Rueckgabefelder pruefen, bevor sie im Text stehen: undefined rendert leer.
+const FELDER = ['nutzbarLiter', 'fahrzeitStunden', 'reichweiteSm', 'reichweiteKm',
+  'verbrauchProSm', 'kostenProSm', 'kostenTankfuellung'] as const;
+for (const [name, r] of [['Drittelregel', basis], ['voller Tank', vollerTank]] as const) {
+  for (const f of FELDER) {
+    const wert = (r as Record<string, number>)[f];
+    if (typeof wert !== 'number' || !Number.isFinite(wert)) {
+      throw new Error(`Feld ${f} fehlt im Modulergebnis (${name}).`);
+    }
+  }
+}
+
+const umkehrOhneVersatz = Math.round((basis.reichweiteSm / 2) * 10) / 10;
+const drittelVollreichweite = Math.round((vollerTank.reichweiteSm / 3) * 10) / 10;
+if (Math.abs(umkehrOhneVersatz - drittelVollreichweite) > 0.05) {
+  throw new Error('Der halbe nutzbare Weg muesste ein Drittel der Vollreichweite sein.');
+}
+const umkehrKm = Math.round(umkehrOhneVersatz * 1.852 * 10) / 10;
+
+// --- 2. Versatz gegen die Drittelregel -------------------------------------
+// Hinweg: ein Drittel Tank verfahren, also zwei Drittel als Reserve stehen
+// lassen. Rueckweg: die verbleibenden zwei Drittel, gegen den Versatz.
+const VERSAETZE = [0, 1, 1.5, 2, 2.5];
+const reihe = VERSAETZE.map((c) => {
+  const hin = lauf(MARSCH + c, ZWEI_DRITTEL);
+  const zurueck = lauf(MARSCH - c, DRITTEL);
+  const rueckLiter = Math.round(hin.reichweiteSm * zurueck.verbrauchProSm * 10) / 10;
+  const restLiter = Math.round((zurueck.nutzbarLiter - rueckLiter) * 10) / 10;
+  // Umkehrpunkt, bei dem die Reserve wirklich ein Drittel bleibt.
+  const ehrlich = Math.round((zurueck.nutzbarLiter / (hin.verbrauchProSm + zurueck.verbrauchProSm)) * 10) / 10;
+  return {
+    c,
+    hinSm: hin.reichweiteSm,
+    hinStunden: hin.fahrzeitStunden,
+    rueckReichweite: zurueck.reichweiteSm,
+    rueckLiter,
+    rueckStunden: Math.round((rueckLiter / VERBRAUCH) * 10) / 10,
+    restLiter,
+    restProzent: (restLiter / TANK) * 100,
+    ehrlich,
+    zuWeit: Math.round((hin.reichweiteSm - ehrlich) * 10) / 10,
+  };
+});
+const haupt = reihe.find((z) => z.c === VERSATZ)!;
+const grenzfall = reihe.find((z) => z.c === 2)!;
+const ohneVersatz = reihe.find((z) => z.c === 0)!;
+
+if (Math.abs(haupt.restProzent - 100 / 9) > 0.3) {
+  throw new Error(`Restreserve bei ${VERSATZ} kn Versatz sollte rund ein Neuntel sein, ist ${haupt.restProzent}.`);
+}
+if (haupt.restProzent >= DRITTEL) {
+  throw new Error('Versatz muesste die Reserve verkleinern, nicht vergroessern.');
+}
+if (grenzfall.restLiter > 0) {
+  throw new Error('Beim Grenzversatz duerfte nichts mehr im Tank sein.');
+}
+for (let i = 1; i < reihe.length; i++) {
+  if (reihe[i].restLiter >= reihe[i - 1].restLiter) {
+    throw new Error('Die Restreserve muesste mit steigendem Versatz fallen.');
+  }
+}
+for (const z of reihe) {
+  if (z.c > 0 && z.zuWeit <= 0) throw new Error('Die Drittel-Tank-Umkehr muesste zu weit fuehren.');
+}
+if (Math.abs(ohneVersatz.zuWeit) > 0.1) {
+  throw new Error('Ohne Versatz duerften beide Umkehrpunkte nicht auseinanderliegen.');
+}
+
+// --- 3. Die Grenze fein suchen ---------------------------------------------
+// Nicht aus der Stufentabelle abgelesen, sondern in Schritten von 0,001 kn
+// gesucht: der kleinste Versatz, bei dem die Rueckreichweite unter die
+// Hinstrecke faellt.
+const SUCHSCHRITT = 0.001;
+function grenzversatz(marsch: number, tank = TANK, verbrauch = VERBRAUCH): number {
+  for (let c = 0; c <= marsch; c = Math.round((c + SUCHSCHRITT) / SUCHSCHRITT) * SUCHSCHRITT) {
+    const hin = berechneBootReichweite({
+      tankLiter: tank, verbrauchProStunde: verbrauch,
+      geschwindigkeitKn: marsch + c, reserveProzent: ZWEI_DRITTEL,
+    });
+    const zurueck = berechneBootReichweite({
+      tankLiter: tank, verbrauchProStunde: verbrauch,
+      geschwindigkeitKn: marsch - c, reserveProzent: DRITTEL,
+    });
+    if (zurueck.reichweiteSm < hin.reichweiteSm) return c;
+  }
+  throw new Error(`Kein Grenzversatz fuer ${marsch} kn gefunden.`);
+}
+
+const MARSCHSTUFEN = [4, 5, 6, 8, 10, 12];
+const grenzen = MARSCHSTUFEN.map((v) => ({ v, grenze: grenzversatz(v) }));
+for (const g of grenzen) {
+  if (Math.abs(g.grenze - g.v / 3) > 0.03) {
+    throw new Error(`Grenzversatz bei ${g.v} kn weicht vom Drittel ab: ${g.grenze}.`);
+  }
+}
+const grenzeMarsch = grenzen.find((g) => g.v === MARSCH)!.grenze;
+
+const BOOTE = [
+  { name: 'Angelboot mit Außenborder', tank: 60, verbrauch: 8 },
+  { name: 'Sportboot', tank: 200, verbrauch: 20 },
+  { name: 'Segelyacht unter Maschine', tank: 90, verbrauch: 2.5 },
+  { name: 'Motoryacht', tank: 1200, verbrauch: 95 },
+];
+const bootreihe = BOOTE.map((b) => ({
+  ...b,
+  vollreichweite: berechneBootReichweite({
+    tankLiter: b.tank, verbrauchProStunde: b.verbrauch,
+    geschwindigkeitKn: MARSCH, reserveProzent: 0,
+  }).reichweiteSm,
+  grenze: grenzversatz(MARSCH, b.tank, b.verbrauch),
+}));
+for (const b of bootreihe) {
+  if (Math.abs(b.grenze - MARSCH / 3) > 0.03) {
+    throw new Error(`Der Grenzversatz haengt doch am Boot: ${b.name} -> ${b.grenze}.`);
+  }
+}
+const kleinsteReichweite = Math.min(...bootreihe.map((b) => b.vollreichweite));
+const groessteReichweite = Math.max(...bootreihe.map((b) => b.vollreichweite));
+if (groessteReichweite / kleinsteReichweite < 4) {
+  throw new Error('Die Beispielboote unterscheiden sich zu wenig, um die Unabhaengigkeit zu zeigen.');
+}
+
+// --- 4. Dasselbe Ziel, mit und ohne Versatz --------------------------------
+const ZIEL_SM = umkehrOhneVersatz;
+const vergleich = [0, VERSATZ].map((c) => {
+  const hin = lauf(MARSCH + c, 0);
+  const zurueck = lauf(MARSCH - c, 0);
+  const gesamt = Math.round((ZIEL_SM * hin.verbrauchProSm + ZIEL_SM * zurueck.verbrauchProSm) * 10) / 10;
+  return {
+    c,
+    hinProSm: hin.verbrauchProSm,
+    rueckProSm: zurueck.verbrauchProSm,
+    liter: gesamt,
+    kosten: Math.round(gesamt * PREIS * 100) / 100,
+    restLiter: Math.round((TANK - gesamt) * 10) / 10,
+    restProzent: ((TANK - gesamt) / TANK) * 100,
+  };
+});
+const mehrLiter = Math.round((vergleich[1].liter - vergleich[0].liter) * 10) / 10;
+const mehrKosten = Math.round((vergleich[1].kosten - vergleich[0].kosten) * 100) / 100;
+const mehrProzent = (vergleich[1].liter / vergleich[0].liter - 1) * 100;
+if (mehrProzent >= 10) {
+  throw new Error('Der Mehrverbrauch fuer dasselbe Ziel sollte klein bleiben.');
+}
+if (haupt.restProzent >= vergleich[1].restProzent) {
+  throw new Error('Die Umkehr nach einem Drittel Tank muesste schlechter dastehen als das feste Ziel.');
+}
+if (Math.abs(vergleich[0].liter - basis.nutzbarLiter) > 0.2) {
+  throw new Error('Ohne Versatz muesste die Hin- und Rueckfahrt genau die zwei Drittel treffen.');
+}
+
+// --- 5. Gegen den Versatz losfahren ----------------------------------------
+const gegenHin = lauf(MARSCH - VERSATZ, ZWEI_DRITTEL);
+const gegenZurueck = lauf(MARSCH + VERSATZ, DRITTEL);
+const gegenRueckLiter = Math.round(gegenHin.reichweiteSm * gegenZurueck.verbrauchProSm * 10) / 10;
+const gegenRestLiter = Math.round((gegenZurueck.nutzbarLiter - gegenRueckLiter) * 10) / 10;
+const gegenRestProzent = (gegenRestLiter / TANK) * 100;
+const gegenNaeher = Math.round((haupt.hinSm - gegenHin.reichweiteSm) * 10) / 10;
+if (gegenRestProzent <= DRITTEL) {
+  throw new Error('Wer gegenan losfaehrt, muesste mehr als ein Drittel Reserve behalten.');
+}
+if (gegenHin.reichweiteSm >= haupt.hinSm) {
+  throw new Error('Gegenan losfahren muesste den Umkehrpunkt naeher legen.');
+}
+
+// --- 6. Fahrstufen und der Preis je Seemeile -------------------------------
+const FAHRSTUFEN = [8, 7, 6, 5, 4, 3];
+const stufen = FAHRSTUFEN.map((vg) => {
+  const r = lauf(vg, DRITTEL);
+  return { vg, proSm: r.verbrauchProSm, kostenProSm: r.kostenProSm, reichweite: r.reichweiteSm, stunden: r.fahrzeitStunden };
+});
+for (let i = 1; i < stufen.length; i++) {
+  if (stufen[i].proSm <= stufen[i - 1].proSm) {
+    throw new Error('Weniger Fahrt ueber Grund muesste je Seemeile mehr Sprit kosten.');
+  }
+}
+if (new Set(stufen.map((s) => s.stunden)).size !== 1) {
+  throw new Error('Die Fahrzeit haengt am Tank, nicht an der Geschwindigkeit.');
+}
+const gleicheFahrzeit = stufen[0].stunden;
+
+// Break-even: Um wie viel muss der Stundenverbrauch sinken, damit ein Knoten
+// weniger ueber Grund sich je Seemeile rechnet? Gegenprobe am Modul.
+const BREAK = [6, 5, 4, 3, 2];
+const breakeven = BREAK.map((vg) => {
+  const vorher = lauf(vg, DRITTEL);
+  const noetig = (1 / vg) * 100;
+  const nachher = berechneBootReichweite({
+    tankLiter: TANK,
+    verbrauchProStunde: VERBRAUCH * (1 - noetig / 100),
+    geschwindigkeitKn: vg - 1,
+    reserveProzent: DRITTEL,
+    preisProLiter: PREIS,
+  });
+  if (Math.abs(nachher.verbrauchProSm - vorher.verbrauchProSm) > 0.02) {
+    throw new Error(`Break-even stimmt bei ${vg} kn nicht: ${nachher.verbrauchProSm} statt ${vorher.verbrauchProSm}.`);
+  }
+  return { vg, langsamer: vg - 1, noetig, proSm: vorher.verbrauchProSm };
+});
+
+const quellen = [
+  { titel: '§ 3 SeeSchStrO – Grundregeln für das Verhalten im Verkehr (Seemannsbrauch)', url: 'https://www.gesetze-im-internet.de/seeschstro_1971/__3.html' },
+  { titel: '§ 1.04 BinSchStrO – Allgemeine Sorgfaltspflicht', url: 'https://www.gesetze-im-internet.de/binschstro_2012/__1_04.html' },
+  { titel: '§ 1.08 BinSchStrO – Bau, Ausrüstung und Besatzung der Fahrzeuge', url: 'https://www.gesetze-im-internet.de/binschstro_2012/__1_08.html' },
+  { titel: '§ 11.04 BinSchStrO – Fahrgeschwindigkeit', url: 'https://www.gesetze-im-internet.de/binschstro_2012/__11_04.html' },
+  { titel: 'BIPM, The International System of Units (SI), 9. Auflage 2019 – Tabelle 8 und Fußnote (k): 1 Seemeile = 1852 m, Knoten', url: 'https://www.bipm.org/documents/20126/41483022/SI-Brochure-9-EN.pdf' },
+];
+---
+<RechnerArtikel
+  titel="Die Drittelregel hält nur bis zu einem Drittel Strom"
+  datum="2026-09-18"
+  lead={`Ein Drittel hin, ein Drittel zurück, ein Drittel Reserve – die bekannteste Faustformel der Törnplanung. Dieser Text rechnet sie gegen Versatz durch: Bei ${kn(VERSATZ)} Strom oder Wind bleiben von ${liter(TANK, 0)} Tank am Steg nicht die geplanten ${liter(ohneVersatz.restLiter)} übrig, sondern ${liter(haupt.restLiter)} – gut ein Neuntel statt ein Drittel. Ab ${kn(grenzeMarsch)} Versatz reicht der volle Tank nicht einmal mehr zurück. Die Grenze liegt bei genau einem Drittel der Marschfahrt, unabhängig von Tankgröße und Verbrauch.`}
+  quellen={quellen}
+>
+  <p>
+    Das Beispielboot dieses Artikels ist eine Setzung: {liter(TANK, 0)} Tank,
+    {' '}{liter(VERBRAUCH, 0)} je Stunde bei {kn(MARSCH, 0)} Marschfahrt durchs Wasser,
+    {' '}{eur(PREIS)} je Liter an der Bootstankstelle. Alles andere unten ist daraus
+    gerechnet. „Versatz" heißt in diesem Text alles, was die Fahrt über Grund
+    gegenüber der Fahrt durchs Wasser verschiebt: Strom, Wind, Welle. Für die
+    Spritrechnung ist es gleichgültig, woher er kommt – entscheidend ist, dass
+    der Motor weiterläuft, während das Boot langsamer vorankommt.
+  </p>
+
+  <h3>Der Umkehrpunkt liegt bei der halben Reichweite</h3>
+  <p>
+    Der erste Fallstrick steckt schon im Wort. Eine Reichweite ist eine Strecke,
+    die man fahren kann – nicht eine Entfernung, in die man fahren darf. Mit zwei
+    Dritteln des Tanks fährt das Beispielboot {sm(basis.reichweiteSm)}
+    {' '}({km(basis.reichweiteKm)}) weit, und zwar {std(basis.fahrzeitStunden)} lang.
+    Wer hinaus und wieder zurück will, darf sich davon nur die Hälfte nehmen:
+    {' '}{sm(umkehrOhneVersatz)}, also {km(umkehrKm)}.
+  </p>
+  <p>
+    Diese Hälfte ist genau das erste Drittel des vollen Tanks. Voll getankt
+    reicht das Boot {sm(vollerTank.reichweiteSm)} weit; ein Drittel davon sind
+    {' '}{sm(drittelVollreichweite)}. Die Drittelregel und die halbierte
+    Zwei-Drittel-Reichweite sind dieselbe Zahl, von zwei Seiten aufgeschrieben.
+    Ein Ziel {sm(basis.reichweiteSm)} entfernt anzusteuern, weil „die Reichweite
+    reicht", ist der teuerste Denkfehler der ganzen Rechnung – man käme mit einem
+    trockenen Tank an und hätte den Rückweg noch vor sich.
+  </p>
+
+  <h3>Ein Drittel verfahren heißt nicht: die halbe Strecke</h3>
+  <p>
+    Die Drittelregel ist in der Praxis eine Umkehrregel: Man fährt los, behält den
+    Füllstand im Auge und dreht bei, wenn ein Drittel weg ist. Ohne Versatz geht
+    das auf. Mit Versatz nicht, und zwar aus einem Grund, der sich leicht übersehen
+    lässt: Das Drittel ist eine Spritmenge, keine Strecke. Der Hinweg dauert immer
+    dieselben {std(ohneVersatz.hinStunden)} – nur trägt der Strom das Boot in
+    dieser Zeit weiter hinaus, als es sich aus eigener Kraft zurückholen kann.
+  </p>
+  <p>
+    Bei {kn(VERSATZ)} Versatz macht das Boot auf dem Hinweg
+    {' '}{kn(MARSCH + VERSATZ)} über Grund und kommt in denselben
+    {' '}{std(haupt.hinStunden)} auf {sm(haupt.hinSm)} statt auf
+    {' '}{sm(ohneVersatz.hinSm)}. Das fühlt sich nach einem guten Tag an. Der Rückweg
+    läuft dann mit {kn(MARSCH - VERSATZ)} über Grund und dauert
+    {' '}{std(haupt.rueckStunden)} statt {std(ohneVersatz.rueckStunden)}. Er kostet
+    {' '}{liter(haupt.rueckLiter)} – von den {liter(basis.nutzbarLiter)}, die nach dem
+    Wenden noch im Tank sind.
+  </p>
+
+  <table>
+    <caption class="visually-hidden">
+      Umkehr nach einem Drittel Tankinhalt: Hinstrecke, Rückwegbedarf und
+      verbleibende Reserve je Versatz
+    </caption>
+    <thead>
+      <tr>
+        <th scope="col">Versatz</th>
+        <th scope="col" class="num">Umkehr bei</th>
+        <th scope="col" class="num">Rückweg braucht</th>
+        <th scope="col" class="num">Rest im Tank</th>
+        <th scope="col" class="num">Anteil am Tank</th>
+      </tr>
+    </thead>
+    <tbody>
+      {reihe.map((z) => (
+        <tr>
+          <th scope="row">{kn(z.c)}</th>
+          <td class="num">{sm(z.hinSm)}</td>
+          <td class="num">{liter(z.rueckLiter)}</td>
+          <td class="num">{liter(z.restLiter)}</td>
+          <td class="num">{proz(z.restProzent)}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+
+  <p>
+    Die vierte Spalte ist der Befund. Aus dem geplanten Drittel Reserve wird bei
+    {' '}{kn(VERSATZ)} Versatz gut ein Neuntel: {liter(haupt.restLiter)} oder
+    {' '}{proz(haupt.restProzent)} des Tanks. Bei {kn(grenzfall.c)} Versatz steht dort
+    eine Null – das Boot erreicht den Ausgangshafen mit leerem Tank. Und darüber
+    steht dort ein Minus, das bedeutet: Es erreicht ihn nicht.
+  </p>
+  <p class="ra-hinweis">
+    Die Tabelle rechnet mit den Werten, die das Modul ausgibt – dem Verbrauch je
+    Seemeile auf zwei Stellen und der Reichweite auf eine. Deshalb steht in der
+    obersten Zeile {proz(ohneVersatz.restProzent)} und nicht exakt ein Drittel,
+    und in der Grenzzeile {liter(grenzfall.restLiter)} statt glatt null. Die
+    Größenordnung ändert das nicht.
+  </p>
+
+  <h3>Die Grenze liegt bei einem Drittel der Marschfahrt</h3>
+  <p>
+    Der Punkt, an dem der Tank gerade noch für die Rückkehr reicht, lässt sich
+    nicht nur aus der Tabelle ablesen, sondern exakt bestimmen. Gesucht in
+    Schritten von {zahl(SUCHSCHRITT, 3)} Knoten liegt er für dieses Boot bei
+    {' '}{kn(grenzeMarsch)} – genau einem Drittel der {kn(MARSCH, 0)} Marschfahrt.
+  </p>
+  <p>
+    Dahinter steckt eine Rechnung von zwei Zeilen. Der Rückweg braucht so viel
+    Sprit wie der Hinweg, mal dem Verhältnis der beiden Geschwindigkeiten über
+    Grund. Bei einem Drittel Hinweg-Verbrauch darf dieser Faktor höchstens zwei
+    sein, sonst reicht der Tank nicht. Und „(Marsch + Versatz) ist doppelt so groß
+    wie (Marsch − Versatz)" ist genau dann erfüllt, wenn der Versatz ein Drittel
+    der Marschfahrt beträgt. Tankgröße und Stundenverbrauch kürzen sich heraus –
+    sie stehen auf beiden Seiten.
+  </p>
+
+  <table>
+    <caption class="visually-hidden">
+      Größter Versatz, bei dem die Drittelregel den Rückweg noch deckt, je
+      Marschfahrt
+    </caption>
+    <thead>
+      <tr>
+        <th scope="col">Marschfahrt durchs Wasser</th>
+        <th scope="col" class="num">Versatz, bis zu dem es reicht</th>
+      </tr>
+    </thead>
+    <tbody>
+      {grenzen.map((g) => (
+        <tr>
+          <th scope="row">{kn(g.v, 0)}</th>
+          <td class="num">{kn(g.grenze)}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+
+  <p>
+    Dass die Größe des Bootes keine Rolle spielt, ist der unangenehme Teil. Ein
+    großer Tank verschiebt die Grenze nicht, er verlängert nur den Weg bis dorthin.
+    Vier sehr verschiedene Boote, dieselbe Marschfahrt, dieselbe Grenze:
+  </p>
+
+  <table>
+    <caption class="visually-hidden">
+      Grenzversatz bei {MARSCH} Knoten Marschfahrt für vier unterschiedliche Boote
+    </caption>
+    <thead>
+      <tr>
+        <th scope="col">Boot</th>
+        <th scope="col" class="num">Tank</th>
+        <th scope="col" class="num">Verbrauch</th>
+        <th scope="col" class="num">Reichweite voll</th>
+        <th scope="col" class="num">Grenzversatz</th>
+      </tr>
+    </thead>
+    <tbody>
+      {bootreihe.map((b) => (
+        <tr>
+          <th scope="row">{b.name}</th>
+          <td class="num">{liter(b.tank, 0)}</td>
+          <td class="num">{zahl(b.verbrauch, 1)} l/h</td>
+          <td class="num">{sm(b.vollreichweite)}</td>
+          <td class="num">{kn(b.grenze)}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+
+  <p>
+    Zwischen der kürzesten und der längsten Reichweite dieser Tabelle liegt der
+    Faktor {zahl(groessteReichweite / kleinsteReichweite, 1)}. Am Grenzversatz
+    ändert das nichts. Wer seine Planung damit beruhigt, dass er „einen großen
+    Tank" hat, beruhigt sich mit der falschen Zahl: Der große Tank hilft gegen
+    Entfernung, nicht gegen Strom.
+  </p>
+
+  <h3>Der Versatz kostet wenig Sprit und viel Reserve</h3>
+  <p>
+    Jetzt der kontraintuitive Teil. Man könnte vermuten, der Strom fresse den Tank.
+    Das tut er kaum. Fährt das Boot ein festes Ziel in {sm(ZIEL_SM)} Entfernung
+    an und wieder zurück, kostet das ohne Versatz {liter(vergleich[0].liter)} – was
+    ziemlich genau die zwei Drittel des Tanks sind, wie die Drittelregel es
+    verspricht. Mit {kn(VERSATZ)} Versatz kostet dieselbe Fahrt
+    {' '}{liter(vergleich[1].liter)}, also {liter(mehrLiter)} oder
+    {' '}{proz(mehrProzent)} mehr; in Geld {eur(mehrKosten)} bei {eur(PREIS)} je Liter.
+  </p>
+
+  <table>
+    <caption class="visually-hidden">
+      Dieselbe Hin- und Rückfahrt über {ZIEL_SM} Seemeilen, ohne und mit Versatz
+    </caption>
+    <thead>
+      <tr>
+        <th scope="col">Versatz</th>
+        <th scope="col" class="num">Hinweg je sm</th>
+        <th scope="col" class="num">Rückweg je sm</th>
+        <th scope="col" class="num">Gesamt</th>
+        <th scope="col" class="num">Kosten</th>
+        <th scope="col" class="num">Rest im Tank</th>
+      </tr>
+    </thead>
+    <tbody>
+      {vergleich.map((v) => (
+        <tr>
+          <th scope="row">{kn(v.c)}</th>
+          <td class="num">{liter(v.hinProSm, 2)}</td>
+          <td class="num">{liter(v.rueckProSm, 2)}</td>
+          <td class="num">{liter(v.liter)}</td>
+          <td class="num">{eur(v.kosten)}</td>
+          <td class="num">{liter(v.restLiter)} ({proz(v.restProzent)})</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+
+  <p>
+    {proz(mehrProzent)} Mehrverbrauch für dieselbe Strecke – das ist ärgerlich,
+    aber kein Sicherheitsproblem. Die Reserve sinkt dabei von
+    {' '}{proz(vergleich[0].restProzent)} auf {proz(vergleich[1].restProzent)} des Tanks.
+    Das Sicherheitsproblem entsteht erst, wenn man das Ziel nicht vorher festlegt,
+    sondern die Umkehr dem Füllstand überlässt. Dann trägt der Strom das Boot
+    {' '}{sm(haupt.hinSm)} hinaus statt {sm(ZIEL_SM)}, und aus
+    {' '}{proz(vergleich[1].restProzent)} Reserve werden {proz(haupt.restProzent)}.
+    Nicht der Strom hat die Reserve aufgebraucht, sondern die Regel, mit der man
+    umgekehrt ist.
+  </p>
+
+  <h3>Der ehrliche Umkehrpunkt</h3>
+  <p>
+    Die Reparatur ist einfach, sobald man weiß, wonach man sucht. Man dreht nicht
+    bei einem Drittel Tankinhalt bei, sondern bei der Entfernung, für die Hin- und
+    Rückweg zusammen zwei Drittel kosten. Beide Verbrauchswerte je Seemeile sind
+    bekannt, sobald man den Versatz abschätzt – der eine für die Fahrt über Grund
+    mit dem Strom, der andere für die dagegen.
+  </p>
+
+  <table>
+    <caption class="visually-hidden">
+      Umkehr nach einem Drittel Tankinhalt gegen den Umkehrpunkt, der ein Drittel
+      Reserve übrig lässt
+    </caption>
+    <thead>
+      <tr>
+        <th scope="col">Versatz</th>
+        <th scope="col" class="num">Umkehr nach einem Drittel Tank</th>
+        <th scope="col" class="num">Umkehr mit echtem Drittel Reserve</th>
+        <th scope="col" class="num">zu weit</th>
+      </tr>
+    </thead>
+    <tbody>
+      {reihe.map((z) => (
+        <tr>
+          <th scope="row">{kn(z.c)}</th>
+          <td class="num">{sm(z.hinSm)}</td>
+          <td class="num">{sm(z.ehrlich)}</td>
+          <td class="num">{sm(z.zuWeit)}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+
+  <p>
+    Bei {kn(VERSATZ)} Versatz liegt der ehrliche Umkehrpunkt bei
+    {' '}{sm(haupt.ehrlich)} – {sm(haupt.zuWeit)} näher, als die Faustformel
+    vorgibt, und sogar näher als die {sm(umkehrOhneVersatz)} ohne jeden Versatz.
+    Das ist die zweite Überraschung: Strom verkürzt den Aktionsradius, obwohl er
+    einen auf dem Hinweg schneller macht. Beim Grenzversatz von
+    {' '}{kn(grenzfall.c)} fährt man nach der Faustformel {sm(grenzfall.hinSm)}
+    hinaus, während {sm(grenzfall.ehrlich)} richtig wären – die Hälfte zu weit.
+  </p>
+
+  <h3>Wer gegenan losfährt, fährt kürzer und kommt sicherer zurück</h3>
+  <p>
+    Dieselbe Rechnung spiegelverkehrt: Das Boot fährt zuerst gegen den Versatz
+    hinaus und mit ihm zurück. Nach einem Drittel Tank steht es dann bei
+    {' '}{sm(gegenHin.reichweiteSm)} – {sm(gegenNaeher)} näher am Hafen als in der
+    anderen Richtung. Der Rückweg mit {kn(MARSCH + VERSATZ)} über Grund kostet
+    nur {liter(gegenRueckLiter)}, es bleiben {liter(gegenRestLiter)} im Tank, also
+    {' '}{proz(gegenRestProzent)} statt der geplanten {proz(DRITTEL)}.
+  </p>
+  <p>
+    Die alte Regel, den schweren Teil an den Anfang zu legen, ist damit keine
+    Charakterfrage, sondern Arithmetik: In dieser Richtung ist die Drittelregel
+    konservativ, in der anderen zu großzügig. Der Preis dafür steht in derselben
+    Zeile – {sm(gegenHin.reichweiteSm)} statt {sm(haupt.hinSm)} Aktionsradius. Man
+    kauft Reserve mit Entfernung.
+  </p>
+
+  <h3>Warum langsamer nicht automatisch sparsamer ist</h3>
+  <p>
+    Bleibt die verbreitetste Spar-Faustformel: einfach Gas wegnehmen. Sie stimmt,
+    solange der Stundenverbrauch schneller fällt als die Geschwindigkeit über
+    Grund. Weil auf dem Wasser nach Stunden verbraucht wird und nicht nach
+    Strecke, ist der Verbrauch je Seemeile schlicht der Stundenverbrauch geteilt
+    durch die Fahrt über Grund:
+  </p>
+
+  <table>
+    <caption class="visually-hidden">
+      Verbrauch und Kosten je Seemeile über Grund bei gleichem Stundenverbrauch
+    </caption>
+    <thead>
+      <tr>
+        <th scope="col">Fahrt über Grund</th>
+        <th scope="col" class="num">Verbrauch je sm</th>
+        <th scope="col" class="num">Kosten je sm</th>
+        <th scope="col" class="num">Weg mit zwei Dritteln Tank</th>
+      </tr>
+    </thead>
+    <tbody>
+      {stufen.map((s) => (
+        <tr>
+          <th scope="row">{kn(s.vg, 0)}</th>
+          <td class="num">{liter(s.proSm, 2)}</td>
+          <td class="num">{eur(s.kostenProSm)}</td>
+          <td class="num">{sm(s.reichweite)}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+
+  <p>
+    Die Fahrzeit steht in dieser Tabelle nicht, weil sie überall gleich wäre:
+    {' '}{std(gleicheFahrzeit)}. Sie hängt am Tank, nicht am Gashebel. Was sich
+    ändert, ist, wie weit man in dieser Zeit kommt – und damit der Preis je
+    Seemeile, der von {eur(stufen[0].kostenProSm)} bei {kn(stufen[0].vg, 0)} auf
+    {' '}{eur(stufen[stufen.length - 1].kostenProSm)} bei
+    {' '}{kn(stufen[stufen.length - 1].vg, 0)} steigt.
+  </p>
+  <p>
+    Daraus folgt eine Bedingung, die man beim Drosseln im Kopf haben sollte. Ein
+    Knoten weniger über Grund rechnet sich nur, wenn der Stundenverbrauch um mehr
+    als den Kehrwert der Fahrt über Grund sinkt:
+  </p>
+
+  <table>
+    <caption class="visually-hidden">
+      Nötige Senkung des Stundenverbrauchs, damit ein Knoten weniger über Grund
+      sich je Seemeile rechnet
+    </caption>
+    <thead>
+      <tr>
+        <th scope="col">Fahrt über Grund</th>
+        <th scope="col" class="num">gedrosselt auf</th>
+        <th scope="col" class="num">nötige Ersparnis je Stunde</th>
+      </tr>
+    </thead>
+    <tbody>
+      {breakeven.map((b) => (
+        <tr>
+          <th scope="row">{kn(b.vg, 0)}</th>
+          <td class="num">{kn(b.langsamer, 0)}</td>
+          <td class="num">mehr als {proz(b.noetig)}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+
+  <p>
+    Bei {kn(breakeven[0].vg, 0)} über Grund reicht eine Ersparnis von etwas mehr
+    als {proz(breakeven[0].noetig)} – das schafft ein Verdränger mühelos, dort
+    lohnt sich Drosseln fast immer. Bei {kn(breakeven[breakeven.length - 1].vg, 0)}
+    {' '}über Grund müsste der Stundenverbrauch um mehr als
+    {' '}{proz(breakeven[breakeven.length - 1].noetig)} fallen, nur um denselben
+    Verbrauch je Seemeile zu halten. Genau das ist der Grund, warum die sparsamste
+    Fahrstufe nicht die langsamste ist: Je näher die Fahrt über Grund an null
+    kommt, desto steiler steigt die Ersparnis, die das Drosseln erst
+    rechtfertigen würde – und gegen Strom ist man dieser Null immer näher, als das
+    Log anzeigt. Wo die Grenze im Verdrängerbereich liegt, hängt an der
+    Wasserlinienlänge; dafür gibt es die
+    {' '}<a href={`${base}boot/rumpfgeschwindigkeit/`}>Rumpfgeschwindigkeit</a>.
+  </p>
+
+  <h3>Wo dieses Modell endet</h3>
+  <p>
+    Drei Annahmen tragen alles oben, und alle drei sind angreifbar. Erstens: Der
+    Stundenverbrauch bleibt konstant, egal ob das Boot gegen Strom oder mit ihm
+    fährt. Das ist bei gleicher Drehzahl in ruhigem Wasser vertretbar; in Welle
+    und Wind steigt der Widerstand zusätzlich, der Motor braucht dann bei
+    gleicher Drehzahl mehr. Die Rechnung ist in diesem Punkt also eher zu
+    freundlich als zu streng.
+  </p>
+  <p>
+    Zweitens: Der Versatz wirkt auf Hin- und Rückweg gleich stark und dreht nicht.
+    In der Tide stimmt das über einen halben Tag nicht mehr, auf dem Fluss eher
+    schon. Drittens: Ein Gleiter hat innerhalb einer Fahrstufe einen halbwegs
+    konstanten Stundenverbrauch, beim Abgleiten in Verdrängerfahrt ändert er sich
+    sprunghaft; die Tabellen oben gelten dann nur stückweise. Und der Literpreis
+    von {eur(PREIS)} ist eine Setzung – alle Eurobeträge skalieren linear mit ihm,
+    alle Liter- und Seemeilenangaben sind von ihm unabhängig.
+  </p>
+  <p>
+    Vorgeschrieben ist die Drittelregel übrigens nirgends. § 3 Abs. 1 SeeSchStrO
+    verlangt die Vorsichtsmaßnahmen, „die der Seemannsbrauch erfordert",
+    § 1.04 BinSchStrO die, „welche die allgemeine Sorgfaltspflicht und die Übung
+    der Schifffahrt gebieten" – eine Zahl für den Tank nennt keine der beiden
+    Vorschriften. Die Drittelregel ist genau so ein Brauch: eine gute Näherung,
+    die eine stillschweigende Voraussetzung hat. Sie lautet, dass der Rückweg
+    ungefähr so viel kostet wie der Hinweg. Sobald Strom oder Wind diese
+    Voraussetzung kippen, kippt die Regel mit, und zwar bei einem Drittel der
+    Marschfahrt.
+  </p>
+  <p>
+    Weiterführend: die
+    {' '}<a href={`${base}boot/ankerkette-rechner/`}>Ankerkettenlänge</a> für den Fall,
+    dass man den geplanten Liegeplatz doch nicht erreicht, der
+    {' '}<a href={`${base}auto/spritkosten-rechner/`}>Spritkostenrechner</a> für die
+    Anreise mit dem Auto und, wenn das Boot dabei mitfährt, die Rechnung zum
+    {' '}<a href={`${base}${artikelPfadVonSlug('bootstrailer-fuehrerschein-tempo-100')}`}>Bootstrailer und Tempo 100</a>.
+  </p>
+</RechnerArtikel>

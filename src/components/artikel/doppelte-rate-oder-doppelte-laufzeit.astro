@@ -1,0 +1,197 @@
+---
+import RechnerArtikel from '../RechnerArtikel.astro';
+import { artikelPfadVonSlug } from '../../data/ratgeber';
+import { sparplanVerlauf } from '../../../public/scripts/etf-sparplan.js';
+
+// Alle Zahlen dieser Seite kommen aus sparplanVerlauf() in
+// public/scripts/etf-sparplan.js – demselben Modul, das der ETF-Sparplan-
+// Rechner oben lädt. Kernidee: In der Rekursion des Rechners
+//   kapital_neu = kapital_alt * monatsfaktor + sparrate
+// taucht die Sparrate nur additiv auf. Bei Startkapital 0 ist das Ergebnis
+// deshalb eine exakt lineare Funktion der Sparrate – doppelte Rate heißt
+// doppeltes Ergebnis, ohne Näherung. Die Laufzeit steht dagegen im Exponenten
+// von monatsfaktor: Sie wirkt auf jeden bereits eingezahlten Euro erneut, und
+// das Ergebnis wächst überproportional.
+
+const zahl = (n: number, d = 0) =>
+  n.toLocaleString('de-DE', { minimumFractionDigits: d, maximumFractionDigits: d }).replace(/^-/, '−');
+const eur = (n: number) => zahl(n, 0) + ' €';
+const faktor = (n: number) => zahl(n, 2) + '-fache';
+
+const SPARRATE = 200;
+const JAHRE = 20;
+
+// --- Fall A: Rate verdoppeln, Laufzeit gleich lassen ----------------------
+const RENDITEN = [0, 3, 5, 7, 9];
+const rateVergleich = RENDITEN.map((r) => {
+  const basis = sparplanVerlauf({ startkapital: 0, sparrate: SPARRATE, renditeProzent: r, jahre: JAHRE });
+  const doppelteRate = sparplanVerlauf({ startkapital: 0, sparrate: SPARRATE * 2, renditeProzent: r, jahre: JAHRE });
+  return { r, basis, doppelteRate, faktorKapital: doppelteRate.endkapital / basis.endkapital };
+});
+
+// Selbstprüfung 1: Die Rate ist exakt linear – bei jeder Rendite muss die
+// verdoppelte Rate genau das Doppelte an Endkapital ergeben (Rundung im
+// Modul erlaubt minimale Abweichung).
+for (const z of rateVergleich) {
+  if (Math.abs(z.faktorKapital - 2) > 0.001) {
+    throw new Error(`ETF-Sparplan-Artikel: Verdoppelte Rate ergibt bei ${z.r}% nicht das Doppelte (Faktor ${z.faktorKapital}).`);
+  }
+}
+
+// --- Fall B: Laufzeit verdoppeln, Rate gleich lassen -----------------------
+const zeitVergleich = RENDITEN.map((r) => {
+  const basis = sparplanVerlauf({ startkapital: 0, sparrate: SPARRATE, renditeProzent: r, jahre: JAHRE });
+  const doppelteZeit = sparplanVerlauf({ startkapital: 0, sparrate: SPARRATE, renditeProzent: r, jahre: JAHRE * 2 });
+  return {
+    r,
+    basis,
+    doppelteZeit,
+    faktorKapital: doppelteZeit.endkapital / basis.endkapital,
+    faktorGewinn: basis.gewinn > 0 ? doppelteZeit.gewinn / basis.gewinn : null,
+  };
+});
+
+// Selbstprüfung 2: Ohne Rendite gibt es keinen Zeit-Bonus (reines Aufaddieren,
+// Faktor exakt 2), und mit steigender Rendite wächst der Bonus streng monoton.
+const z0 = zeitVergleich.find((z) => z.r === 0)!;
+if (Math.abs(z0.faktorKapital - 2) > 0.001) {
+  throw new Error('ETF-Sparplan-Artikel: Ohne Rendite müsste die verdoppelte Laufzeit genau verdoppeln.');
+}
+for (let i = 1; i < zeitVergleich.length; i += 1) {
+  if (zeitVergleich[i].faktorKapital <= zeitVergleich[i - 1].faktorKapital) {
+    throw new Error('ETF-Sparplan-Artikel: Der Zeit-Bonus wächst nicht monoton mit der Rendite.');
+  }
+}
+// Selbstprüfung 3: Der Gewinn wächst bei doppelter Laufzeit noch stärker als
+// das Endkapital, weil die Einzahlungen exakt verdoppeln, aber der Gewinnanteil
+// überproportional zulegt.
+for (const z of zeitVergleich) {
+  if (z.faktorGewinn !== null && z.faktorGewinn <= z.faktorKapital) {
+    throw new Error(`ETF-Sparplan-Artikel: Gewinn wächst bei ${z.r}% nicht stärker als das Kapital.`);
+  }
+}
+
+const basis5 = rateVergleich.find((z) => z.r === 5)!;
+const zeit5 = zeitVergleich.find((z) => z.r === 5)!;
+const zeit9 = zeitVergleich.find((z) => z.r === 9)!;
+const zeit3 = zeitVergleich.find((z) => z.r === 3)!;
+---
+<RechnerArtikel
+  titel="Doppelte Rate verdoppelt das Ergebnis – doppelte Laufzeit versechsfacht den Gewinn"
+  lead={`Wer die monatliche Sparrate verdoppelt, verdoppelt Endkapital und Gewinn – exakt, nicht ungefähr. Wer stattdessen doppelt so lange spart, bekommt bei ${zahl(5)} % Rendite nicht das Doppelte, sondern das ${faktor(zeit5.faktorKapital)} Kapital und das ${faktor(zeit5.faktorGewinn!)} Gewinn. Der Unterschied liegt daran, wie Zinseszins in der Rechnung des Sparplan-Rechners auf Rate und Zeit jeweils wirkt.`}
+  datum="2026-09-23"
+>
+  <h3>Die Rate steckt nur additiv in der Rechnung</h3>
+  <p>
+    Der Rechner oben führt monatlich dieselbe Rechnung aus: Das Kapital des
+    Vormonats wächst um den Monatsfaktor, danach kommt die Sparrate dazu.
+    Startet man ohne Startkapital bei null, ist jeder Euro Endkapital am Ende
+    eine Summe aus Vielfachen genau dieser einen Sparrate – die Rate ist ein
+    gemeinsamer Faktor vor der ganzen Rechnung. Verdoppelt man sie, verdoppelt
+    sich automatisch jeder Summand und damit das Ergebnis. Bei {eur(SPARRATE)}{' '}
+    im Monat über {JAHRE} Jahre und {zahl(5)} % Rendite im Jahr ergibt das{' '}
+    {eur(basis5.basis.endkapital)}; bei {eur(SPARRATE * 2)} im Monat exakt{' '}
+    {eur(basis5.doppelteRate.endkapital)} – das {faktor(basis5.faktorKapital)}.
+    Das gilt unabhängig von der Rendite, wie die Tabelle zeigt:
+  </p>
+  <table>
+    <caption class="visually-hidden">Verdoppelte Sparrate bei verschiedenen Renditen, {JAHRE} Jahre Laufzeit</caption>
+    <thead>
+      <tr>
+        <th scope="col">Rendite p. a.</th>
+        <th scope="col" class="num">Endkapital bei {eur(SPARRATE)}</th>
+        <th scope="col" class="num">Endkapital bei {eur(SPARRATE * 2)}</th>
+        <th scope="col" class="num">Faktor</th>
+      </tr>
+    </thead>
+    <tbody>
+      {rateVergleich.map((z) => (
+        <tr>
+          <th scope="row">{zahl(z.r)} %</th>
+          <td class="num">{eur(z.basis.endkapital)}</td>
+          <td class="num">{eur(z.doppelteRate.endkapital)}</td>
+          <td class="num">{faktor(z.faktorKapital)}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+
+  <h3>Die Laufzeit steckt im Exponenten</h3>
+  <p>
+    Die Laufzeit wirkt anders: Sie bestimmt, wie oft der Monatsfaktor
+    angewendet wird – und das betrifft nicht nur die zusätzlichen Monate,
+    sondern auch das Kapital, das schon vorher da war. Jeder in den ersten
+    {' '}{JAHRE} Jahren eingezahlte Euro bekommt in den zweiten {JAHRE} Jahren
+    noch einmal {JAHRE} Jahre Zinseszins obendrauf. Bei {zahl(5)} % Rendite
+    wächst {eur(SPARRATE)} im Monat über {JAHRE * 2} Jahre nicht auf{' '}
+    {eur(basis5.doppelteRate.endkapital)} (das Doppelte), sondern auf{' '}
+    {eur(zeit5.doppelteZeit.endkapital)} – das {faktor(zeit5.faktorKapital)}.
+    Noch deutlicher zeigt es der Gewinn, also das Endkapital abzüglich der
+    Einzahlungen: Die Einzahlungen verdoppeln sich exakt auf{' '}
+    {eur(zeit5.doppelteZeit.eingezahlt)}, der Gewinn dagegen wächst von{' '}
+    {eur(zeit5.basis.gewinn)} auf {eur(zeit5.doppelteZeit.gewinn)} – das{' '}
+    {faktor(zeit5.faktorGewinn!)}.
+  </p>
+
+  <h3>Der Bonus wächst mit der Rendite</h3>
+  <p>
+    Ohne jede Rendite gibt es diesen Effekt nicht: Wer ohne Wertzuwachs
+    doppelt so lange einzahlt, hat schlicht doppelt so viel eingezahlt, also
+    auch nur das Doppelte im Depot – Faktor exakt {faktor(z0.faktorKapital)}.
+    Der Zeit-Bonus entsteht ausschließlich durch den Zinseszins, und er fällt
+    umso größer aus, je höher die angenommene Rendite ist:
+  </p>
+  <table>
+    <caption class="visually-hidden">Faktor bei doppelter Laufzeit ({JAHRE * 2} statt {JAHRE} Jahre), nach Rendite</caption>
+    <thead>
+      <tr>
+        <th scope="col">Rendite p. a.</th>
+        <th scope="col" class="num">Faktor Endkapital</th>
+        <th scope="col" class="num">Faktor Gewinn</th>
+      </tr>
+    </thead>
+    <tbody>
+      {zeitVergleich.map((z) => (
+        <tr>
+          <th scope="row">{zahl(z.r)} %</th>
+          <td class="num">{faktor(z.faktorKapital)}</td>
+          <td class="num">{z.faktorGewinn !== null ? faktor(z.faktorGewinn) : '–'}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+  <p>
+    Bei {zahl(3)} % Rendite bringt die doppelte Laufzeit das {faktor(zeit3.faktorKapital)}{' '}
+    Kapital, bei {zahl(9)} % bereits das {faktor(zeit9.faktorKapital)}. Der
+    Grund ist derselbe wie oben: Höhere Rendite bedeutet einen größeren
+    Monatsfaktor, und ein größerer Faktor potenziert sich über zusätzliche
+    Jahre stärker als ein kleiner.
+  </p>
+
+  <h3>Was das für die Rechnung oben bedeutet</h3>
+  <p>
+    Tragen Sie zwei Rechnungen mit demselben Endkapital-Ziel ein: einmal mit
+    verdoppelter Rate bei gleicher Laufzeit, einmal mit gleicher Rate bei
+    verdoppelter Laufzeit. Bei positiver Rendite liefert die verlängerte
+    Laufzeit im Rechner oben immer das höhere Endkapital – weil sie zusätzlich
+    zur reinen Verdopplung noch den Zinseszins auf die frühen Einzahlungen
+    mitnimmt. Das ist keine Empfehlung, wann jemand mit Sparen anfangen soll,
+    sondern eine Eigenschaft der Rechnung selbst: Der Rechner multipliziert
+    den Monatsfaktor mit sich selbst so oft, wie Monate eingegeben sind – und
+    das ist eine Exponentialfunktion der Zeit, aber nur eine
+    Multiplikation bei der Rate.
+  </p>
+  <p class="ra-hinweis">
+    Alle Werte hier unterstellen wie der Rechner oben eine über die gesamte
+    Laufzeit gleichbleibende Rendite – reale Renditen schwanken von Jahr zu
+    Jahr, und bei schwankender Rendite entscheidet zusätzlich die Reihenfolge
+    der guten und schlechten Jahre über das Ergebnis. Dazu passt die separate
+    Rechnung in{' '}
+    <a href={`${import.meta.env.BASE_URL}${artikelPfadVonSlug('durchschnittsrendite-und-reihenfolge')}`}>
+      „Sieben Prozent im Schnitt sind keine sieben Prozent“
+    </a>. Dieser Artikel hier vergleicht ausschließlich zwei gleichbleibende
+    Renditeannahmen miteinander, keine schwankenden Verläufe. Nicht enthalten
+    sind außerdem Fondskosten, Ordergebühren und die Steuer beim Verkauf, die
+    der Rechner oben separat ausweist.
+  </p>
+</RechnerArtikel>

@@ -1,0 +1,243 @@
+---
+import RechnerArtikel from '../RechnerArtikel.astro';
+import { berechneProzesskosten, vergleicheMitBeitrag } from '../../../public/scripts/prozesskosten.js';
+
+// Alle Zahlen dieser Seite kommen aus demselben Modul, das auch der
+// Rechtsschutz-Rechner lädt (public/scripts/prozesskosten.js).
+
+const eur = (n: number, d = 2) => {
+  const s = Math.abs(n).toLocaleString('de-DE', { minimumFractionDigits: d, maximumFractionDigits: d });
+  return (n < 0 ? '−' : '') + s + ' €';
+};
+const eurGlatt = (n: number) => eur(n, 0);
+
+/** Kosten eines verlorenen Prozesses in erster Instanz (Gericht + beide Anwälte). */
+function kosten(streitwert: number): number {
+  return berechneProzesskosten(streitwert).verloren.gesamt;
+}
+
+const SB = 150; // Selbstbeteiligung je Fall – Default-Wert des Eingabefelds "sb" auf der Rechnerseite
+const BEITRAG = 300; // Jahresbeitrag – Default-Wert des Eingabefelds "beitrag"
+
+// --- Zwei Fälle statt einem: was Gericht und Anwalt zusammen kosten -------
+const PAARE = [
+  { a: 1000, b: 1000 },
+  { a: 1500, b: 1500 },
+  { a: 5000, b: 5000 },
+  { a: 25000, b: 25000 },
+];
+const paare = PAARE.map(({ a, b }) => {
+  const getrennt = kosten(a) + kosten(b);
+  const kombiniert = kosten(a + b);
+  return { a, b, getrennt, kombiniert, diff: getrennt - kombiniert };
+});
+
+// --- Der Eigenanteil bei Versicherung: was bleibt, wenn die Erstattung greift ---
+const v1000 = vergleicheMitBeitrag({ kosten: kosten(1000), beitragJahr: BEITRAG, selbstbeteiligung: SB, jahre: 1 });
+const v2000 = vergleicheMitBeitrag({ kosten: kosten(2000), beitragJahr: BEITRAG, selbstbeteiligung: SB, jahre: 1 });
+const eigenanteil1000 = kosten(1000) - v1000.erstattung;
+const eigenanteil2000 = kosten(2000) - v2000.erstattung;
+
+// --- Was der Rechner selbst anzeigt: "Entspricht X Jahresbeiträgen" --------
+// Dieser Wert wird auf 1 Nachkommastelle gerundet angezeigt (siehe Skript im
+// <script>-Block der Rechnerseite: v.jahresbeitraegeJeFall.toLocaleString(...)).
+// Bei den beiden Beispielwerten fällt die Rundung zufällig gleich aus, obwohl
+// die zugrunde liegende Erstattung unterschiedlich ist.
+const jbjf1000 = v1000.jahresbeitraegeJeFall!;
+const jbjf2000 = v2000.jahresbeitraegeJeFall!;
+const erstattungDiffVerdoppelt = v1000.erstattung * 2 - v2000.erstattung;
+
+// --- Selbstprüfung 1: Der Beispielwert der Rechnerseite selbst -------------
+const bsp5000 = kosten(5000);
+if (Math.abs(bsp5000 - 2668.38) > 0.01) {
+  throw new Error('Rechtsschutz-Artikel: Beispielwert bei 5.000 € Streitwert weicht vom Modul ab.');
+}
+
+// --- Selbstprüfung 2: die zentrale Zahl des Artikels (2× 1.000 € vs. 1× 2.000 €) ---
+const zentral = paare[0];
+if (Math.abs(zentral.getrennt - 1567.92) > 0.01 || Math.abs(zentral.kombiniert - 1403.8) > 0.01) {
+  throw new Error('Rechtsschutz-Artikel: Vergleich 2×1.000 € gegen 1×2.000 € weicht vom Modul ab.');
+}
+
+// --- Selbstprüfung 3: Eigenanteil = Selbstbeteiligung, solange Kosten > SB ---
+// Das folgt aus der Definition von vergleicheMitBeitrag (erstattung = kosten − SB),
+// wird hier aber gegen die echte Funktion geprüft statt nur behauptet.
+for (const w of [800, 1000, 2000, 5000, 25000]) {
+  const k = kosten(w);
+  const v = vergleicheMitBeitrag({ kosten: k, beitragJahr: BEITRAG, selbstbeteiligung: SB, jahre: 1 });
+  const eigenanteil = k - v.erstattung;
+  if (k > SB && Math.abs(eigenanteil - SB) > 0.01) {
+    throw new Error(`Rechtsschutz-Artikel: Eigenanteil bei ${w} € Streitwert ist nicht die Selbstbeteiligung.`);
+  }
+}
+
+// --- Selbstprüfung 4: die Rundungs-Beobachtung -----------------------------
+// Angezeigt (1 Nachkommastelle) müssen beide Werte gleich sein, real (2 Nach-
+// kommastellen) muss ein Unterschied bestehen – sonst stimmt die Pointe nicht.
+if (jbjf1000 * 2 !== jbjf2000) {
+  throw new Error('Rechtsschutz-Artikel: Gerundete Jahresbeiträge stimmen entgegen der Textaussage nicht überein.');
+}
+if (Math.abs(erstattungDiffVerdoppelt) < 1) {
+  throw new Error('Rechtsschutz-Artikel: Reale Differenz der Erstattung ist zu klein für die Rundungs-Pointe.');
+}
+
+const quellen = [
+  { titel: '§ 34 GKG – Gebühr nach dem Streitwert', url: 'https://www.gesetze-im-internet.de/gkg_2004/__34.html' },
+  { titel: '§ 13 RVG – Wertgebühren des Rechtsanwalts', url: 'https://www.gesetze-im-internet.de/rvg/__13.html' },
+  { titel: '§ 91 Abs. 1 Satz 1 ZPO – Kostenpflicht der unterliegenden Partei', url: 'https://www.gesetze-im-internet.de/zpo/__91.html' },
+  { titel: '§ 98 ZPO – Kosten eines Vergleichs', url: 'https://www.gesetze-im-internet.de/zpo/__98.html' },
+];
+---
+<RechnerArtikel
+  titel="Wer zweimal klagt, zahlt die Selbstbeteiligung zweimal"
+  lead={`Der Rechner oben bildet einen einzelnen Rechtsstreit ab. Wer stattdessen zwei kleinere Streitigkeiten hat, zahlt nicht nur an Gericht und Anwalt in Summe mehr – bei ${eurGlatt(1000)} und ${eurGlatt(1000)} Streitwert statt einmal ${eurGlatt(2000)} sind es ${eur(zentral.diff)} zusätzlich. Auch die Selbstbeteiligung der Rechtsschutzversicherung wird ein zweites Mal fällig: ${eurGlatt(eigenanteil1000 * 2)} Eigenanteil statt ${eurGlatt(eigenanteil2000)}.`}
+  datum="2026-09-23"
+  quellen={quellen}
+>
+  <h3>Ein Rechner, ein Streit</h3>
+  <p>
+    Der Rechner oben rechnet genau einen Rechtsstreit durch: einen Streitwert, einen
+    Ausgang, und – bei Versicherung – eine Selbstbeteiligung, die von den Kosten
+    abgezogen wird. Das Feld „Vertragsjahre bis zum Streit" multipliziert dabei nur
+    den Jahresbeitrag, um zu zeigen, wie viele Beiträge bis zu diesem einen Ereignis
+    bereits gezahlt wurden. Es addiert keine weiteren Streitfälle. Wer wissen will,
+    wie sich zwei getrennte Auseinandersetzungen zusammen verhalten, muss den
+    Rechner zweimal aufrufen und die Ergebnisse selbst zusammenzählen. Genau das
+    macht dieser Artikel – und zwei Effekte fallen dabei auf, die man beim einmaligen
+    Blick auf den Rechner nicht sieht.
+  </p>
+  <p>
+    Beide Effekte betreffen den Ausgang „Verloren" und, mit denselben Zahlen für den
+    eigenen Anwalt, auch „Vergleich". Beim Ausgang „Gewonnen" verschwinden sie: Dort
+    setzt der Rechner die Kosten auf null, weil die Gegenseite nach § 91 ZPO zahlt –
+    ohne Kosten gibt es weder eine Gebührenstaffel noch eine Selbstbeteiligung, die
+    greifen könnte. Die folgenden Rechnungen gelten also für den Fall, dass man einen
+    Rechtsstreit verliert oder sich vergleicht, nicht für den Gewinn.
+  </p>
+
+  <h3>Die Selbstbeteiligung ist ein Fixbetrag – pro Fall</h3>
+  <p>
+    Das Eingabefeld heißt „Selbstbeteiligung je Fall", und das ist wörtlich zu
+    nehmen: Die Erstattung ergibt sich als Kosten minus Selbstbeteiligung, für jeden
+    Fall einzeln. Bei {eurGlatt(1000)} Streitwert und verlorenem Prozess kostet der
+    Rechtsstreit {eur(kosten(1000))}; abzüglich {eurGlatt(SB)} Selbstbeteiligung
+    bleibt ein Eigenanteil von {eurGlatt(eigenanteil1000)}. Bei {eurGlatt(2000)}
+    Streitwert kostet der Prozess {eur(kosten(2000))}, der Eigenanteil bleibt trotz
+    des höheren Streitwerts bei {eurGlatt(eigenanteil2000)} – solange die Kosten über
+    der Selbstbeteiligung liegen, ist der Eigenanteil immer genau die
+    Selbstbeteiligung, unabhängig von der Höhe des Streits.
+  </p>
+  <p>
+    Daraus folgt unmittelbar: Wer im selben Vertragsjahr zwei Streitigkeiten über
+    je {eurGlatt(1000)} führt statt einer über {eurGlatt(2000)}, zahlt zweimal
+    {eurGlatt(SB)} Eigenanteil, also {eurGlatt(eigenanteil1000 * 2)} statt
+    {eurGlatt(eigenanteil2000)}. Die Versicherung deckt in beiden Fällen „alles über
+    der Selbstbeteiligung" – aber je mehr Fälle, desto öfter wird dieser Sockelbetrag
+    fällig. Der Rechner zeigt diesen Effekt nicht direkt, weil er nur einen Fall auf
+    einmal rechnet; er folgt aber zwingend aus der Formel, die er verwendet.
+  </p>
+
+  <h3>Auch Gericht und Anwalt werden bei Teilung teurer</h3>
+  <p>
+    Ein zweiter Effekt kommt hinzu, der nichts mit der Versicherung zu tun hat: Die
+    Gebührentabellen nach § 34 GKG und § 13 RVG wachsen degressiv – mit steigendem
+    Streitwert steigt die Gebühr unterproportional. Das klingt zunächst günstig für
+    hohe Streitwerte, hat aber eine Kehrseite: Wird derselbe Gesamtstreitwert auf
+    zwei Verfahren verteilt, fallen Grundgebühren und Auslagenpauschalen zweimal an.
+    In der Summe kostet die Aufteilung deshalb mehr als ein einziges Verfahren über
+    den vollen Betrag – für die hier geprüften Streitwerte ausnahmslos:
+  </p>
+
+  <table>
+    <thead>
+      <tr>
+        <th scope="col">Aufteilung</th>
+        <th scope="col" class="num">Getrennt, gesamt</th>
+        <th scope="col" class="num">Ein Verfahren</th>
+        <th scope="col" class="num">Differenz</th>
+      </tr>
+    </thead>
+    <tbody>
+      {paare.map((p) => (
+        <tr>
+          <th scope="row">2× {eurGlatt(p.a)} statt 1× {eurGlatt(p.a + p.b)}</th>
+          <td class="num">{eur(p.getrennt)}</td>
+          <td class="num">{eur(p.kombiniert)}</td>
+          <td class="num">{eur(p.diff)}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+
+  <p>
+    Die Differenz wächst mit dem Streitwert: Bei zwei Fällen über je
+    {eurGlatt(1000)} sind es {eur(zentral.diff)} mehr als bei einem Fall über
+    {eurGlatt(2000)}; bei zwei Fällen über je {eurGlatt(25000)} bereits
+    {eur(paare[3].diff)} mehr. Das liegt daran, dass die Gebühr für den vollen
+    gemeinsamen Streitwert relativ günstiger ausfällt als zweimal die Gebühr für den
+    jeweils halben Wert – ein direkter Ausdruck der degressiven Staffel in § 34 GKG
+    und § 13 RVG.
+  </p>
+
+  <h3>Wenn die Rundung den Unterschied verschluckt</h3>
+  <p>
+    Der Rechner zeigt bei laufender Versicherung zusätzlich an, wie vielen
+    Jahresbeiträgen die Erstattung entspricht – gerundet auf eine Nachkommastelle.
+    Bei {eurGlatt(1000)} Streitwert sind das {jbjf1000.toLocaleString('de-DE')}
+    Jahresbeiträge, bei {eurGlatt(2000)} Streitwert {jbjf2000.toLocaleString('de-DE')}.
+    Wer daraus schließt, zwei Fälle über je {eurGlatt(1000)} entsprächen zusammen
+    genau {(jbjf1000 * 2).toLocaleString('de-DE')} Jahresbeiträgen wie der eine Fall
+    über {eurGlatt(2000)}, folgt einem Zufall der Rundung: Die tatsächliche
+    Erstattung liegt bei zwei getrennten Fällen bei {eur(v1000.erstattung * 2)},
+    bei einem gemeinsamen Fall nur bei {eur(v2000.erstattung)} – eine reale
+    Differenz von {eur(erstattungDiffVerdoppelt)}, die auf der ersten
+    Nachkommastelle verschwindet. Wer aus angezeigten, gerundeten Werten weiterrechnet
+    statt aus den zugrunde liegenden Beträgen, überträgt genau diesen Rundungsfehler.
+  </p>
+
+  <h3>Zwei getrennte Rechnungen, ein gemeinsamer Befund</h3>
+  <p>
+    Beide Effekte wirken in dieselbe Richtung, sind aber unterschiedlicher Natur:
+    Die höheren Gerichts- und Anwaltskosten bei Teilung sind eine Eigenschaft des
+    gesetzlichen Gebührensystems und treffen jeden, ob versichert oder nicht. Die
+    doppelte Selbstbeteiligung ist dagegen eine Eigenschaft der Versicherung und
+    hängt von der vereinbarten Selbstbeteiligung ab, nicht von Gericht oder Gesetz.
+    Wer den Rechner nutzt, um „wie viele Jahresbeiträge deckt ein Streit" für einen
+    typischen, einzelnen Fall auszurechnen, sollte deshalb im Kopf behalten: Dieselbe
+    Rechnung für mehrere kleinere Fälle über die Vertragslaufzeit ergibt kein
+    Vielfaches des einen Ergebnisses, sondern einen ungünstigeren Wert – wegen der
+    Gebührenstaffel etwas höhere Gesamtkosten, und wegen der Selbstbeteiligung einen
+    höheren Eigenanteil pro erreichtem Euro Streitwert. Wie wahrscheinlich mehrere
+    kleinere Streitigkeiten sind statt eines großen, weiß der Rechner naturgemäß
+    nicht – das hängt von der individuellen Lebenslage ab, nicht von einer Formel.
+  </p>
+  <p>
+    Für den Vergleich mehrerer eigener Fälle bleibt deshalb nur der Weg, den auch
+    dieser Artikel gegangen ist: den Rechner je Streitwert einzeln aufrufen, die
+    angezeigten Beträge notieren und erst danach addieren – nicht die gerundeten
+    Kennzahlen wie die Jahresbeiträge, sondern die Eurobeträge für Kosten und
+    Erstattung. Nur so bleibt sichtbar, ob eine Selbstbeteiligung einmal oder
+    mehrfach abgezogen wird und ob die Gebührenstaffel den geteilten Streit
+    gegenüber dem ungeteilten verteuert.
+  </p>
+</RechnerArtikel>
+
+<style>
+  .rechner-artikel table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 1.25rem 0;
+    font-size: 0.94rem;
+  }
+  .rechner-artikel th,
+  .rechner-artikel td {
+    padding: 0.5rem 0.75rem;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+    text-align: left;
+  }
+  .rechner-artikel td.num,
+  .rechner-artikel th.num {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+  }
+</style>

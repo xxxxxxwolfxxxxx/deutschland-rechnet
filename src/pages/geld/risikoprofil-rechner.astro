@@ -3,6 +3,7 @@ import Layout from '../../layouts/Layout.astro';
 import CalculatorShell from '../../components/CalculatorShell.astro';
 import CalculatorGuide from '../../components/CalculatorGuide.astro';
 import { CALCULATORS, CATEGORIES } from '../../data/calculators';
+import ArtikelRisikoprofil from '../../components/artikel/risikoprofil-geburtstag-kippt-kategorie.astro';
 const calc = CALCULATORS.find(c => c.slug === 'risikoprofil-rechner')!;
 const cat = CATEGORIES[calc.category];
 const year = new Date().getFullYear();
@@ -25,11 +26,11 @@ const year = new Date().getFullYear();
     sourceNote="Konservativ bis aggressiv."
     explanation="Das Profil wird aus Anlagehorizont, Risikobereitschaft und finanzieller Situation berechnet. Banken sind nach dem Wertpapierhandelsgesetz (WpHG) verpflichtet, vor der Anlageberatung ein solches Profil zu erstellen. Die Ergebnisse reichen von konservativ bis aggressiv." faqs={[
       { q: "Was ist ein Risikoprofil und warum brauche ich eines?", a: "Ein Risikoprofil beschreibt Ihre persönliche Bereitschaft und Fähigkeit, finanzielle Verluste zu tragen. Es hilft Ihnen, eine Anlagestrategie zu wählen, die zu Ihrer Lebenssituation passt. Banken und Finanzberater sind nach dem Wertpapierhandelsgesetz (WpHG) sogar verpflichtet, vor der Anlageberatung Ihr Risikoprofil zu ermitteln." },
-      { q: "Welche Risikoprofile gibt es?", a: "Typisch sind vier Stufen: Konservativ (Fokus auf Kapitalerhalt, hauptsächlich Anleihen und Festgeld), Ausgewogen (Mischung aus Aktien und Anleihen), Wachstumsorientiert (hoher Aktienanteil für langfristigen Vermögensaufbau) und Aggressiv (fast äußchließlich Aktien und risikoreiche Anlagen für maximale Rendite bei hohem Verlustrisiko)." },
+      { q: "Welche Risikoprofile gibt es?", a: "Typisch sind vier Stufen: Konservativ (Fokus auf Kapitalerhalt, hauptsächlich Anleihen und Festgeld), Ausgewogen (Mischung aus Aktien und Anleihen), Wachstumsorientiert (hoher Aktienanteil für langfristigen Vermögensaufbau) und Aggressiv (fast ausschließlich Aktien und risikoreiche Anlagen für maximale Rendite bei hohem Verlustrisiko)." },
       { q: "Kann sich mein Risikoprofil im Laufe der Zeit ändern?", a: "Ja, und das ist sogar normal. Mit zunehmendem Alter, Veränderungen in der Einkommenssituation oder wenn größere Ausgaben wie ein Immobilienkauf anstehen, sollten Sie Ihr Risikoprofil neu bewerten. Faustregel: Je näher der Zeitpunkt rückt, an dem Sie das Geld benötigen, desto konservativer sollte die Anlage sein." },
       { q: "Wie viel Aktienanteil ist für mein Alter sinnvoll?", a: "Eine verbreitete Faustformel lautet: 100 minus Alter = Aktienanteil in Prozent. Ein 30-Jähriger könnte demnach 70 % in Aktien investieren. Diese Regel ist jedoch nur ein grober Anhaltspunkt. Entscheidend sind auch Ihre finanzielle Situation, Ihr Anlagehorizont und Ihre persönliche Verlusttoleranz." },
       { q: "Ist dieses Ergebnis eine Anlageberatung?", a: "Nein. Der Rechner gibt eine erste Orientierung auf Basis Ihrer Angaben. Er ersetzt keine professionelle Anlageberatung. Für eine individuelle Empfehlung sollten Sie einen unabhängigen Finanzberater oder Ihre Bank konsultieren, die Ihre gesamte finanzielle Situation berücksichtigen." },
-      { q: "Wie viel Rendite kann ich je nach Risikoprofil erwarten?", a: "Historische Durchschnittsrenditen (nach Inflation): Konservativ (Festgeld/Anleihen) ca. 0-2 % p.a., Ausgewogen (Mischfonds) ca. 3-5 % p.a., Wachstumsorientiert (80 % Aktien-ETF) ca. 5-7 % p.a., Aggressiv (100 % Aktien) ca. 7-9 % p.a. Vergangene Renditen garantieren keine zukünftigen Ergebnisse." },
+      { q: "Wie viel Rendite kann ich je nach Risikoprofil erwarten?", a: "Historische Durchschnittsrenditen (nach Inflation): Konservativ (Festgeld/Anleihen) ca. 1-3 % p.a., Ausgewogen (Mischfonds) ca. 4-6 % p.a., Wachstumsorientiert (80 % Aktien-ETF) ca. 6-8 % p.a., Aggressiv (100 % Aktien) ca. 7-9 % p.a. Vergangene Renditen garantieren keine zukünftigen Ergebnisse." },
       { q: "Welche ETFs passen zu meinem Risikoprofil?", a: "Konservativ: Geldmarkt-ETFs oder kurzlaufende Anleihen-ETFs. Ausgewogen: Ein MSCI World ETF kombiniert mit einem Anleihen-ETF (z.B. 50/50). Wachstumsorientiert: MSCI World oder MSCI ACWI ETF als Basis (70-80 %) plus Anleihen. Aggressiv: 100 % breit gestreuter Aktien-ETF wie MSCI World oder FTSE All-World." }
     ]}
   >
@@ -51,7 +52,7 @@ const year = new Date().getFullYear();
         <div class="calc-group">
           <label for="verlust">Verlusttoleranz</label>
           <select id="verlust">
-            <option value="1" selected>Kein Verlust tolerate (Konservativ)</option>
+            <option value="1" selected>Kein Verlust tolerieren (Konservativ)</option>
             <option value="2">Kleiner Verlust (bis 10%)</option>
             <option value="3">Moderater Verlust (10-20%)</option>
             <option value="4">Hoher Verlust (20-30%)</option>
@@ -73,6 +74,7 @@ const year = new Date().getFullYear();
       </div>
       <div id="details" style="margin-top:0.75rem;font-size:0.88rem;color:#666;display:flex;gap:1.5rem;flex-wrap:wrap;"></div>
     </div>
+    <ArtikelRisikoprofil slot="artikel" />
   </CalculatorShell>
 
   <CalculatorGuide

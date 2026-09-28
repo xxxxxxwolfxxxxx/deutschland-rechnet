@@ -1,0 +1,221 @@
+---
+import RechnerArtikel from '../RechnerArtikel.astro';
+import { berechneRentenluecke } from '../../../public/scripts/rentenluecke.js';
+
+// Alle Zahlen dieser Seite kommen aus derselben Funktion, die auch der
+// Rechner oben aufruft (berechneRentenluecke aus public/scripts/rentenluecke.js).
+// Nichts ist von Hand eingetippt.
+
+const zahl = (n: number, d = 1) =>
+  n.toLocaleString('de-DE', { minimumFractionDigits: d, maximumFractionDigits: d }).replace(/^-/, '−');
+const eur = (n: number) => zahl(n, 0) + ' €';
+const proz = (n: number, d = 1) => zahl(n, d) + ' %';
+
+// Dieselbe Beispielrechnung wie oben auf der Rechnerseite: Rente 1.500 €,
+// Rentenbeginn 2055, Wunsch-Netto 2.000 €, 30 Jahre bis zur Rente, Lücke über
+// 20 Jahre gedeckt, 3 % Rendite.
+const BASIS = {
+  bruttoMonat: 1500,
+  jahrRentenbeginn: 2055,
+  wunschNetto: 2000,
+  jahreBisRente: 30,
+  bezugsjahre: 20,
+  renditeProzent: 3,
+};
+const bsp = berechneRentenluecke(BASIS);
+if (!(bsp.lueckeMonat > 0 && bsp.kapitalbedarf > 0 && bsp.sparrate !== null)) {
+  throw new Error('Rentenluecke-Artikel: Basisbeispiel liefert keine Lücke.');
+}
+
+// --- Erste Stellschraube: Bezugsjahre (die Dauer, über die die Lücke gedeckt wird) ---
+const BEZUGSJAHRE_REIHE = [10, 20, 30, 40, 60, 100];
+const perpetuitaet = (bsp.lueckeMonat * 12) / (BASIS.renditeProzent / 100);
+
+const kapitalReihe = BEZUGSJAHRE_REIHE.map((bezugsjahre) => {
+  const r = berechneRentenluecke({ ...BASIS, bezugsjahre });
+  return { jahre: bezugsjahre, kapital: r.kapitalbedarf, anteilPerpetuitaet: (r.kapitalbedarf / perpetuitaet) * 100 };
+});
+const kapitalNullRenditeReihe = BEZUGSJAHRE_REIHE.map((bezugsjahre) => {
+  const r = berechneRentenluecke({ ...BASIS, bezugsjahre, renditeProzent: 0 });
+  return { jahre: bezugsjahre, kapital: r.kapitalbedarf };
+});
+
+const k20 = kapitalReihe.find((x) => x.jahre === 20)!.kapital;
+const k40 = kapitalReihe.find((x) => x.jahre === 40)!.kapital;
+const steigerung40 = (k40 / k20 - 1) * 100; // Steigerung bei 3 % Rendite, Basis: 20 Jahre
+
+const kn20 = kapitalNullRenditeReihe.find((x) => x.jahre === 20)!.kapital;
+const kn40 = kapitalNullRenditeReihe.find((x) => x.jahre === 40)!.kapital;
+const steigerungOhneRendite40 = (kn40 / kn20 - 1) * 100;
+
+// Selbstprüfung: Mit Rendite wächst das Kapital unterproportional (unter
+// 100 % Steigerung bei doppelter Dauer), ohne Rendite exakt proportional
+// (100 % Steigerung bei doppelter Dauer).
+if (!(steigerung40 < 100)) {
+  throw new Error('Rentenluecke-Artikel: Kapitalbedarf wächst bei Rendite nicht mehr unterproportional.');
+}
+if (Math.abs(steigerungOhneRendite40 - 100) > 0.5) {
+  throw new Error('Rentenluecke-Artikel: Ohne Rendite müsste die Verdopplung der Bezugsjahre das Kapital exakt verdoppeln.');
+}
+
+// --- Zweite Stellschraube: Jahre bis zum Rentenbeginn (Ansparzeit) ---
+const JAHRE_BIS_RENTE_REIHE = [30, 25, 20, 15, 10, 5];
+const sparrateReihe = JAHRE_BIS_RENTE_REIHE.map((jahreBisRente) => {
+  const r = berechneRentenluecke({ ...BASIS, bezugsjahre: 20, jahreBisRente });
+  return { jahre: jahreBisRente, sparrate: r.sparrate as number, kapital: r.kapitalbedarf };
+});
+const s5 = sparrateReihe.find((x) => x.jahre === 5)!.sparrate;
+const s10 = sparrateReihe.find((x) => x.jahre === 10)!.sparrate;
+const s15 = sparrateReihe.find((x) => x.jahre === 15)!.sparrate;
+const s30 = sparrateReihe.find((x) => x.jahre === 30)!.sparrate;
+const verhaeltnisKurz = s5 / s10; // halbe Zeit von 10 auf 5 Jahre
+const verhaeltnisLang = s15 / s30; // halbe Zeit von 30 auf 15 Jahre
+
+// Selbstprüfung: Weniger Vorlaufzeit erhöht die Sparrate überproportional
+// (mehr als das Doppelte bei halbierter Zeit), weil ein Teil des fehlenden
+// Kapitals sonst durch Zinseszins entstanden wäre.
+if (!(verhaeltnisKurz > 2 && verhaeltnisLang > 2)) {
+  throw new Error('Rentenluecke-Artikel: Halbierte Ansparzeit müsste die Sparrate mehr als verdoppeln.');
+}
+// Und: Der Überschuss über den Faktor 2 ist bei langer Ansparzeit größer als
+// bei kurzer – der Zinseszinseffekt trägt bei langen Zeiträumen mehr.
+if (!(verhaeltnisLang > verhaeltnisKurz)) {
+  throw new Error('Rentenluecke-Artikel: Der Zinseszinseffekt müsste bei langer Ansparzeit stärker wirken als bei kurzer.');
+}
+
+---
+<RechnerArtikel
+  titel="Doppelte Bezugsdauer, nicht doppeltes Kapital"
+  lead={`Der Rechner oben fragt, über wie viele Jahre die Rentenlücke gedeckt werden soll. Wer hier von 20 auf 40 Jahre geht, verdoppelt die Dauer – aber das nötige Kapital steigt im Beispiel nur um ${proz(steigerung40, 0)}, nicht um 100 %. Der Grund ist derselbe, der auch die zweite Stellschraube des Rechners – die Jahre bis zur Rente – gegenteilig wirken lässt: Zins und Zinseszins.`}
+  datum="2026-09-23"
+  quellen={[
+    { titel: '§ 109 Abs. 1 SGB VI – Renteninformation und Rentenauskunft', url: 'https://www.gesetze-im-internet.de/sgb_6/__109.html' },
+  ]}
+>
+  <h3>Die Lücke aus dem Beispiel oben</h3>
+  <p>
+    Beim voreingestellten Beispiel des Rechners – {eur(BASIS.bruttoMonat)} Rente laut
+    Renteninformation, Rentenbeginn {BASIS.jahrRentenbeginn}, Wunsch-Netto {eur(BASIS.wunschNetto)} –
+    bleiben nach Kranken- und Pflegeversicherung und Einkommensteuer {eur(bsp.rente.netto)}
+    Nettorente. Die Lücke zum Wunsch-Netto beträgt {eur(bsp.lueckeMonat)} im Monat. Soll sie
+    {' '}{BASIS.bezugsjahre} Jahre lang gedeckt werden, nennt der Rechner bei {proz(BASIS.renditeProzent, 0)}
+    {' '}angenommener Rendite ein Kapital von {eur(bsp.kapitalbedarf)} bei Rentenbeginn und eine
+    Sparrate von {eur(bsp.sparrate ?? 0)} im Monat über die {BASIS.jahreBisRente} Jahre bis dahin.
+    Zwei Annahmen bestimmen dieses Ergebnis mit, ohne dass ihr Gewicht auf den ersten Blick
+    erkennbar wäre: wie lange die Lücke gedeckt werden soll, und wie viel Zeit zum Ansparen
+    bleibt. Beide lassen sich im Formular oben verändern – und beide reagieren anders, als eine
+    einfache Dreisatzrechnung vermuten lässt.
+  </p>
+
+  <h3>Was 20 zusätzliche Jahre wirklich kosten</h3>
+  <p>
+    Naheliegend wäre: doppelte Bezugsdauer, doppeltes Kapital. Rechnet man das Beispiel für
+    verschiedene Bezugsjahre durch, zeigt sich ein anderes Bild:
+  </p>
+  <table>
+    <caption class="visually-hidden">Kapitalbedarf nach Bezugsjahren bei 3 % Rendite</caption>
+    <thead><tr><th scope="col">Bezugsjahre</th><th scope="col" class="num">Kapitalbedarf</th><th scope="col" class="num">Anteil an der ewigen Rente</th></tr></thead>
+    <tbody>
+      {kapitalReihe.map((row) => (
+        <tr>
+          <th scope="row" class="num">{row.jahre}</th>
+          <td class="num">{eur(row.kapital)}</td>
+          <td class="num">{proz(row.anteilPerpetuitaet, 0)}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+  <p>
+    Von 10 auf 20 Jahre steigt das nötige Kapital noch kräftig. Von 20 auf 40 Jahre – eine
+    Verdopplung der Dauer – legt es nur um {proz(steigerung40, 0)} zu. Von 60 auf 100 Jahre
+    ändert sich fast nichts mehr. Jede zusätzliche Dekade Bezugsdauer bringt weniger zusätzliches
+    Kapital als die vorherige.
+  </p>
+
+  <h3>Die Grenze: eine Rente ohne Enddatum</h3>
+  <p>
+    Der Grund liegt in der Formel, mit der der Rechner den Kapitalbedarf ermittelt: dem Barwert
+    einer monatlichen Zahlung über die gewählte Dauer, verzinst mit der angenommenen Rendite.
+    Bei einer positiven Rendite zählt ein Euro, der erst in 30 Jahren gebraucht wird, heute
+    weniger als ein Euro, der nächstes Jahr gebraucht wird – und je weiter eine Zahlung in der
+    Zukunft liegt, desto kleiner ihr heutiger Gegenwert. Lässt man die Bezugsdauer gegen
+    unendlich laufen, nähert sich der Barwert einer festen Grenze: der einer <em>ewigen Rente</em>,
+    die jeden Monat dieselbe Lücke deckt, für immer. Im Beispiel liegt diese Grenze bei
+    {' '}{eur(perpetuitaet)} – dem Kapital, das bei {proz(BASIS.renditeProzent, 0)} Rendite ausreicht,
+    um {eur(bsp.lueckeMonat)} im Monat auf unbegrenzte Zeit auszuzahlen, weil dann nur noch die
+    Zinsen entnommen werden. Bei 100 Jahren Bezugsdauer ist der Rechner schon bei
+    {' '}{proz(kapitalReihe.find((x) => x.jahre === 100)!.anteilPerpetuitaet, 0)} dieser Grenze
+    angekommen – kaum noch zu unterscheiden von einer Rente ohne Enddatum.
+  </p>
+
+  <h3>Ohne Rendite gilt die einfache Rechnung</h3>
+  <p>
+    Damit ist auch klar, woher der Effekt kommt: allein aus der Rendite-Annahme. Setzt man sie
+    auf 0 %, verschwindet die Abflachung vollständig – dann ist Kapitalbedarf schlicht
+    Monatslücke mal Anzahl Monate, und doppelte Bezugsdauer bedeutet exakt doppeltes Kapital:
+  </p>
+  <table>
+    <caption class="visually-hidden">Kapitalbedarf nach Bezugsjahren ohne Rendite</caption>
+    <thead><tr><th scope="col">Bezugsjahre</th><th scope="col" class="num">Kapitalbedarf bei 0 % Rendite</th></tr></thead>
+    <tbody>
+      {kapitalNullRenditeReihe.map((row) => (
+        <tr>
+          <th scope="row" class="num">{row.jahre}</th>
+          <td class="num">{eur(row.kapital)}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+  <p>
+    Von 20 auf 40 Jahre steigt das Kapital hier um {proz(steigerungOhneRendite40, 0)} – exakt
+    die Verdopplung, die man intuitiv erwartet. Die Alltagsrechnung ist also nicht falsch,
+    sondern nur ein Sonderfall: Sie gilt exakt dann, wenn man unterstellt, dass das angesparte
+    Geld während der Auszahlungsphase nichts mehr erwirtschaftet. Sobald eine Rendite angenommen
+    wird – wie in der Grundeinstellung des Rechners –, wird aus der linearen eine abflachende
+    Kurve.
+  </p>
+
+  <h3>Die zweite Stellschraube: Jahre bis zur Rente</h3>
+  <p>
+    Bei der Ansparzeit dreht sich der Effekt um. Hält man den Kapitalbedarf konstant bei
+    {' '}{eur(bsp.kapitalbedarf)} (Bezugsdauer weiterhin {BASIS.bezugsjahre} Jahre) und verändert nur die
+    Jahre bis zum Rentenbeginn, steigt die nötige Sparrate nicht proportional, sondern schneller
+    als proportional, je knapper die Zeit wird:
+  </p>
+  <table>
+    <caption class="visually-hidden">Sparrate nach Jahren bis zum Rentenbeginn</caption>
+    <thead><tr><th scope="col">Jahre bis zur Rente</th><th scope="col" class="num">Sparrate im Monat</th></tr></thead>
+    <tbody>
+      {sparrateReihe.map((row) => (
+        <tr>
+          <th scope="row" class="num">{row.jahre}</th>
+          <td class="num">{eur(row.sparrate)}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+  <p>
+    Halbiert sich die Zeit von 10 auf 5 Jahre, steigt die Sparrate auf das {zahl(verhaeltnisKurz, 2)}-Fache
+    – mehr als das Doppelte, aber noch nahe daran. Halbiert sich die Zeit von 30 auf 15 Jahre,
+    steigt sie auf das {zahl(verhaeltnisLang, 2)}-Fache: deutlich mehr als das Doppelte. Je länger
+    der ursprüngliche Anlagehorizont war, desto teurer wird es, ihn zu verkürzen, weil ein
+    größerer Teil des Zielkapitals ursprünglich aus Zinseszins statt aus eigenen Einzahlungen
+    stammen sollte. Bei kurzen Horizonten trägt der Zinseszins ohnehin wenig bei, deshalb nähert
+    sich die Sparrate hier eher der einfachen Verdopplung an.
+  </p>
+
+  <h3>Was das für die eigene Eingabe heißt</h3>
+  <p>
+    Beide Stellschrauben stehen im Rechner oben als eigene Felder – „Lücke decken über (Jahre)“
+    und „Jahre bis zum Rentenbeginn“ – und beide sind reine Annahmen des Nutzers, keine
+    Prognosen. Die Rechnung zeigt aber, in welche Richtung die Intuition typischerweise
+    danebenliegt: Bei der Bezugsdauer überschätzt man leicht, wie teuer ein langes
+    Ruhestandsleben zusätzlich wird, wenn ohnehin eine Rendite angesetzt wird. Bei der
+    Ansparzeit unterschätzt man leicht, wie teuer ein knapperer Vorlauf wird – gerade dann, wenn
+    ursprünglich viel Zeit für Zinseszins eingeplant war. Wer beide Werte im Rechner einmal
+    durchprobiert, sieht die tatsächliche Spannbreite statt der linear geschätzten. Unverändert
+    bleibt dabei die Einschränkung aus dem Rechner selbst: Rendite ist eine Annahme, keine
+    Zusage, und Steuern auf die Kapitalerträge während der Anspar- und Auszahlungsphase sind in
+    keiner der beiden Rechnungen enthalten.
+  </p>
+</RechnerArtikel>

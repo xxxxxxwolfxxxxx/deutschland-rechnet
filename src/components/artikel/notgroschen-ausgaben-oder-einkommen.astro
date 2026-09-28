@@ -1,0 +1,557 @@
+---
+import RechnerArtikel from '../RechnerArtikel.astro';
+import { berechneInflation } from '../../../public/scripts/inflation.js';
+import { SPARERPAUSCHBETRAG_EINZEL } from '../../../public/scripts/abgeltungsteuer.js';
+
+// Der Notgroschen-Rechner hat kein eigenes Modul: Seine Logik steht inline im
+// <script> von src/pages/geld/notgroschen-rechner.astro (Zeilen 95–121). Die
+// Monatsfaktoren unten sind daraus 1:1 uebernommen und werden per throw gegen
+// bekannte Ausgaben der Seite geprueft.
+//
+// Die Kaufkraftrechnung nutzt berechneInflation() aus public/scripts/inflation.js
+// – dasselbe Modul, das der Inflationsrechner laedt. Der Sparerpauschbetrag
+// kommt aus public/scripts/abgeltungsteuer.js.
+
+const zahl = (n: number, d = 1) =>
+  n.toLocaleString('de-DE', { minimumFractionDigits: d, maximumFractionDigits: d }).replace(/^-/, '−');
+const eur = (n: number) => zahl(n, 0) + ' €';
+const eurGenau = (n: number) => zahl(n, 2) + ' €';
+const proz = (n: number, d = 1) => zahl(n, d) + ' %';
+const mon = (n: number, d = 1) => zahl(n, d) + ' Monate';
+
+// --- 1. Der Rechner, nachgebaut ------------------------------------------
+// Uebernommen aus notgroschen-rechner.astro (Stand 23.09.2026, nach der
+// Korrektur der Kinder-Rundung).
+const BASIS_MONATE: Record<string, number> = {
+  selbst: 9,
+  befristet: 6,
+  arbeiter: 5,
+  angestellt: 4, // default-Zweig des switch
+};
+const STATUS_LABEL: Record<string, string> = {
+  angestellt: 'Angestellt (unbefristet)',
+  befristet: 'Angestellt (befristet)',
+  arbeiter: 'Arbeiter',
+  selbst: 'Selbstständig/Freiberufler',
+};
+
+const MONATE_MIN = 3;
+const MONATE_MAX = 12;
+const ZUSCHLAG_JE_KIND = 0.5;
+const ABZUG_ZWEITES_EINKOMMEN = 1;
+
+function monateNachRechner(status: string, kinder = 0, zweitesEinkommen = false): number {
+  let m = BASIS_MONATE[status];
+  m += kinder * ZUSCHLAG_JE_KIND;
+  if (zweitesEinkommen) m -= ABZUG_ZWEITES_EINKOMMEN;
+  // Ohne Rundung auf ganze Monate: Der Rechner rundete hier frueher, wodurch
+  // je Kind ein halber Monat nur bei jedem zweiten Kind ankam. Seit der
+  // Korrektur laesst er halbe Monate stehen – diese Nachbildung ebenso.
+  return Math.max(MONATE_MIN, Math.min(MONATE_MAX, m));
+}
+
+// Startwerte des Formulars: 2.000 € Ausgaben, angestellt, 0 Kinder, kein zweites Einkommen.
+const START_AUSGABEN = 2000;
+const START_STATUS = 'angestellt';
+const START_MONATE = monateNachRechner(START_STATUS);
+const START_RUECKLAGE = START_AUSGABEN * START_MONATE;
+
+if (START_MONATE !== 4 || START_RUECKLAGE !== 8000) {
+  throw new Error('Notgroschen-Artikel: Der Nachbau trifft den Startwert der Seite nicht mehr.');
+}
+if (monateNachRechner('selbst') !== 9 || monateNachRechner('selbst', 0, true) !== 8) {
+  throw new Error('Notgroschen-Artikel: Selbstständigen-Zweig weicht vom Skript ab.');
+}
+
+const STATUS_ZEILEN = (['angestellt', 'arbeiter', 'befristet', 'selbst'] as const).map((s) => ({
+  label: STATUS_LABEL[s],
+  allein: monateNachRechner(s),
+  mitZweitem: monateNachRechner(s, 0, true),
+  betragAllein: START_AUSGABEN * monateNachRechner(s),
+}));
+
+// Jedes Kind traegt einen halben Monat bei. Frueher rundete der Rechner
+// anschliessend auf volle Monate, wodurch jedes zweite Kind wirkungslos blieb –
+// ein Kind und zwei Kinder ergaben denselben Betrag. Das ist korrigiert; die
+// Zusicherungen unten halten fest, dass nun jedes Kind zaehlt.
+const KINDER_ZEILEN = [0, 1, 2, 3, 4, 5].map((k) => ({
+  kinder: k,
+  monate: monateNachRechner(START_STATUS, k),
+  betrag: START_AUSGABEN * monateNachRechner(START_STATUS, k),
+}));
+if (monateNachRechner(START_STATUS, 1) === monateNachRechner(START_STATUS, 2)) {
+  throw new Error('Notgroschen-Artikel: Ein Kind und zwei Kinder ergeben wieder dasselbe Ergebnis.');
+}
+const KIND_SCHRITT = START_AUSGABEN * ZUSCHLAG_JE_KIND;
+for (let i = 1; i < KINDER_ZEILEN.length; i++) {
+  const schritt = KINDER_ZEILEN[i].betrag - KINDER_ZEILEN[i - 1].betrag;
+  if (Math.abs(schritt - KIND_SCHRITT) > 1e-9) {
+    throw new Error(`Notgroschen-Artikel: Das ${i}. Kind hebt den Betrag nicht um den halben Monat.`);
+  }
+}
+
+// --- 2. Ausgaben oder Einkommen ------------------------------------------
+// Ausgaben A = Netto N mal (1 − Sparquote s). Wer das Nettoeinkommen in das
+// Ausgabenfeld eintraegt, erhaelt das 1/(1−s)-fache der Ruecklage.
+const NETTO = 2000;
+const SPARQUOTEN = [0.1, 0.2, 0.3, 0.4];
+
+const SPARQUOTEN_ZEILEN = SPARQUOTEN.map((s) => {
+  const ausgaben = NETTO * (1 - s);
+  const ausEinkommen = START_MONATE * NETTO;
+  const ausAusgaben = START_MONATE * ausgaben;
+  return {
+    s,
+    ausgaben,
+    sparrate: NETTO * s,
+    ausAusgaben,
+    ausEinkommen,
+    faktor: ausEinkommen / ausAusgaben,
+    inMonatsausgaben: ausEinkommen / ausgaben,
+    aufschlag: ausEinkommen - ausAusgaben,
+    // Aufbauzeit ohne Verzinsung, gespart wird die Differenz aus Netto und Ausgaben.
+    monateKorrekt: ausAusgaben / (NETTO * s),
+    monateFalsch: ausEinkommen / (NETTO * s),
+  };
+});
+
+for (const z of SPARQUOTEN_ZEILEN) {
+  if (Math.abs(z.faktor - 1 / (1 - z.s)) > 1e-9) {
+    throw new Error('Notgroschen-Artikel: Der Aufschlagsfaktor ist nicht 1/(1−s).');
+  }
+  // Der Kern der These: Die Differenz kostet genau START_MONATE Monate Aufbauzeit,
+  // unabhaengig von Sparquote und Einkommenshoehe.
+  if (Math.abs(z.monateFalsch - z.monateKorrekt - START_MONATE) > 1e-9) {
+    throw new Error('Notgroschen-Artikel: Die Mehrdauer ist nicht der Monatsfaktor.');
+  }
+}
+
+// Gegenprobe mit anderen Einkommen und anderen Statuszweigen: Die Mehrdauer
+// haengt weder am Einkommen noch an der Sparquote, nur am Monatsfaktor.
+for (const netto of [1200, 2000, 3500, 9000]) {
+  for (const s of [0.05, 0.17, 0.4, 0.55]) {
+    for (const status of ['angestellt', 'arbeiter', 'befristet', 'selbst']) {
+      const m = monateNachRechner(status);
+      const mehr = (m * netto - m * netto * (1 - s)) / (netto * s);
+      if (Math.abs(mehr - m) > 1e-9) {
+        throw new Error(`Notgroschen-Artikel: Mehrdauer haengt doch an ${netto}/${s}/${status}.`);
+      }
+    }
+  }
+}
+
+// --- 3. Was die Ruecklage im Jahr kostet ---------------------------------
+// ANNAHMEN, keine gemessenen Werte. Die Inflationsannahme ist das
+// mittelfristige 2-%-Ziel der EZB, nicht die aktuelle Rate; Tagesgeld- und
+// Dispozins sind frei gesetzt. Aktuelle Werte: Destatis (VPI) und Bundesbank
+// (Zinsstatistik), beide unten verlinkt.
+const INFLATION_ANNAHME = 2.0;
+const TAGESGELD_ANNAHME = 1.5;
+const DISPO_ANNAHME = 10.0;
+const TAGE_JE_MONAT = 365 / 12;
+
+/** Realer Verlust eines Jahres auf einer nominal mit z verzinsten Ruecklage. */
+function realVerlustProJahr(betrag: number, zinsProzent: number, inflProzent = INFLATION_ANNAHME): number {
+  const nominal = betrag * (1 + zinsProzent / 100);
+  const real = berechneInflation({ betrag: nominal, inflationsrateProzent: inflProzent, jahre: 1 }).kaufkraftHeute;
+  return betrag - real;
+}
+
+const VERLUST_START = realVerlustProJahr(START_RUECKLAGE, TAGESGELD_ANNAHME);
+// Gegenprobe gegen die geschlossene Form (i − z)/(1 + i).
+const VERLUST_FORMEL =
+  (START_RUECKLAGE * (INFLATION_ANNAHME - TAGESGELD_ANNAHME)) / 100 / (1 + INFLATION_ANNAHME / 100);
+if (Math.abs(VERLUST_START - VERLUST_FORMEL) > 0.01) {
+  throw new Error('Notgroschen-Artikel: Modulrechnung und Formel weichen beim Kaufkraftverlust ab.');
+}
+
+// Der Zinsertrag bleibt in dieser Groessenordnung unter dem Sparerpauschbetrag,
+// die Steuer aendert das Ergebnis also nicht.
+const ZINSERTRAG_START = (START_RUECKLAGE * TAGESGELD_ANNAHME) / 100;
+if (ZINSERTRAG_START >= SPARERPAUSCHBETRAG_EINZEL) {
+  throw new Error('Notgroschen-Artikel: Der Zinsertrag liegt nicht mehr unter dem Sparerpauschbetrag.');
+}
+
+// --- 4. Derselbe Betrag als vermiedener Dispokredit ----------------------
+// Dispokosten je Euro und Monat = d/12. Gesucht: wie viele Euro-Monate Dispo
+// dem Jahresverlust entsprechen.
+function euroMonate(verlust: number, dispoProzent: number): number {
+  return verlust / (dispoProzent / 100 / 12);
+}
+const DISPO_ZEILEN = [8, 10, 12].map((d) => {
+  const em = euroMonate(VERLUST_START, d);
+  return {
+    d,
+    euroMonate: em,
+    monateVoll: em / START_RUECKLAGE,
+    tageVoll: (em / START_RUECKLAGE) * TAGE_JE_MONAT,
+  };
+});
+for (const z of DISPO_ZEILEN) {
+  const gegenprobe = (z.euroMonate * z.d) / 100 / 12;
+  if (Math.abs(gegenprobe - VERLUST_START) > 0.01) {
+    throw new Error('Notgroschen-Artikel: Die Euro-Monate spielen den Verlust nicht ein.');
+  }
+}
+const DISPO_BASIS = DISPO_ZEILEN.find((z) => z.d === DISPO_ANNAHME)!;
+
+// Break-even-Dispozins: bei welchem Satz entspricht ein Monat Volleinsatz dem
+// Jahresverlust? d* = 12 · (i − z)/(1 + i).
+function breakEvenDispo(zinsProzent: number): number {
+  return (12 * (INFLATION_ANNAHME - zinsProzent)) / (1 + INFLATION_ANNAHME / 100);
+}
+const ZINS_ZEILEN = [0, 1.0, TAGESGELD_ANNAHME, 2.0, 3.0].map((z) => ({
+  z,
+  verlust: realVerlustProJahr(START_RUECKLAGE, z),
+  dStern: breakEvenDispo(z),
+}));
+for (const zeile of ZINS_ZEILEN) {
+  const kostenEinMonat = (START_RUECKLAGE * zeile.dStern) / 100 / 12;
+  if (Math.abs(kostenEinMonat - zeile.verlust) > 0.01) {
+    throw new Error(`Notgroschen-Artikel: Break-even-Dispozins stimmt bei z=${zeile.z} nicht.`);
+  }
+}
+const ZINS_NULL = ZINS_ZEILEN.find((z) => z.z === 0)!;
+const ZINS_BASIS = ZINS_ZEILEN.find((z) => z.z === TAGESGELD_ANNAHME)!;
+
+// Fuer den Text: die 40-%-Zeile als Beispiel der Denkrichtung.
+const BSP = SPARQUOTEN_ZEILEN.find((z) => Math.abs(z.s - 0.4) < 1e-9)!;
+const BSP_VERLUST_AUFSCHLAG = realVerlustProJahr(BSP.aufschlag, TAGESGELD_ANNAHME);
+
+// Frei gewaehlter Teilbetrag, um die Euro-Monate anschaulich zu machen.
+const TEILBETRAG = 3000;
+const TEILBETRAG_MONATE = DISPO_BASIS.euroMonate / TEILBETRAG;
+// Wie viele Monate Volleinsatz es bei Nullzins braeuchte, gemessen am Dispo-Annahmesatz.
+const MONATE_BEI_NULLZINS = ZINS_NULL.dStern / DISPO_ANNAHME;
+// Laengste Aufbaudauer in der Tabelle unten – Bezug fuer den Hinweis zur Verzinsung.
+const MAX_AUFBAU_JAHRE = Math.max(...SPARQUOTEN_ZEILEN.map((z) => z.monateFalsch)) / 12;
+if (TEILBETRAG_MONATE <= 1 || MONATE_BEI_NULLZINS <= 1) {
+  throw new Error('Notgroschen-Artikel: Die Formulierungen im Text unterstellen Werte über einem Monat.');
+}
+// Der Text behauptet, der Einkommensmaßstab übersteige im Beispiel den
+// Monatsfaktor befristet Beschäftigter. Das muss gelten.
+if (BSP.inMonatsausgaben <= monateNachRechner('befristet')) {
+  throw new Error('Notgroschen-Artikel: Der Einkommensmaßstab liegt nicht mehr über dem Befristeten-Faktor.');
+}
+// Der Break-even bei angenommenem Tagesgeldzins muss einstellig bleiben,
+// der bei Nullzins darüber liegen – beides steht so im Text.
+if (ZINS_BASIS.dStern >= 10 || ZINS_NULL.dStern <= ZINS_BASIS.dStern) {
+  throw new Error('Notgroschen-Artikel: Die Aussagen zum Break-even-Dispozins stimmen nicht mehr.');
+}
+---
+
+<RechnerArtikel
+  titel={`Wer Einkommen statt Ausgaben einträgt, spart genau ${mon(START_MONATE, 0)} länger – unabhängig von Einkommen und Sparquote`}
+  lead={`Der Rechner oben fragt nach monatlichen Ausgaben und gibt bei seinen Startwerten ${eur(START_RUECKLAGE)} aus. Die Faustregel dahinter nennt Monate, aber nicht, wovon: Ausgaben und Nettoeinkommen sind zwei verschiedene Größen, und der Unterschied wächst mit der Sparquote. Der Aufschlag hat eine Eigenschaft, die man nicht erwartet – er kostet immer exakt so viele Monate Aufbauzeit, wie die Faustregel Monate verlangt. Der zweite Teil rechnet nach, was die fertige Rücklage jährlich an Kaufkraft kostet und wie wenig Dispo das aufwiegt.`}
+  datum="2026-09-23"
+  quellen={[
+    { titel: 'EZB: Preisstabilität und das 2-%-Inflationsziel', url: 'https://www.ecb.europa.eu/mopo/strategy/pricestab/html/index.de.html' },
+    { titel: 'Statistisches Bundesamt: Verbraucherpreisindex', url: 'https://www.destatis.de/DE/Themen/Wirtschaft/Preise/Verbraucherpreisindex/_inhalt.html' },
+    { titel: 'Deutsche Bundesbank: Zinssätze und Renditen (Einlagen und Kredite)', url: 'https://www.bundesbank.de/de/statistiken/geld-und-kapitalmaerkte/zinssaetze-und-renditen' },
+    { titel: '§ 20 Abs. 9 EStG – Sparer-Pauschbetrag', url: 'https://www.gesetze-im-internet.de/estg/__20.html' },
+    { titel: '§ 504 BGB – Eingeräumte Überziehungsmöglichkeit', url: 'https://www.gesetze-im-internet.de/bgb/__504.html' },
+    { titel: '§ 8 EinSiG – Deckungssumme der Einlagensicherung', url: 'https://www.gesetze-im-internet.de/einsig/__8.html' },
+  ]}
+>
+  <h3>Was der Rechner oben tatsächlich rechnet</h3>
+
+  <p>
+    Der Rechner multipliziert die eingetragenen Monatsausgaben mit einer Monatszahl, die
+    er aus dem Beschäftigungsstatus ableitet. Ein zweites Einkommen im Haushalt zieht
+    einen Monat ab, jedes Kind addiert einen halben. Das Ergebnis wird auf die Spanne von
+    {' '}{zahl(MONATE_MIN, 0)} bis {mon(MONATE_MAX, 0)} begrenzt, aber nicht auf volle Monate
+    gerundet – halbe Monate bleiben stehen.
+  </p>
+
+  <table>
+    <caption class="visually-hidden">Monatsfaktoren des Rechners nach Beschäftigungsstatus</caption>
+    <thead>
+      <tr>
+        <th scope="col">Status</th>
+        <th scope="col" class="num">Monate</th>
+        <th scope="col" class="num">mit zweitem Einkommen</th>
+        <th scope="col" class="num">bei {eur(START_AUSGABEN)} Ausgaben</th>
+      </tr>
+    </thead>
+    <tbody>
+      {STATUS_ZEILEN.map((z) => (
+        <tr>
+          <th scope="row">{z.label}</th>
+          <td class="num">{zahl(z.allein, 0)}</td>
+          <td class="num">{zahl(z.mitZweitem, 0)}</td>
+          <td class="num">{eur(z.betragAllein)}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+
+  <p>
+    Dass hier nicht gerundet wird, ist der Grund, warum jedes Kind gleich viel zählt: Es
+    hebt die Rücklage um einen halben Monat, bei {eur(START_AUSGABEN)} Ausgaben also um
+    {' '}{eur(KIND_SCHRITT)}. Von {eur(KINDER_ZEILEN[0].betrag)} ohne Kind geht es in
+    gleichen Schritten auf {eur(KINDER_ZEILEN[1].betrag)} und
+    {' '}{eur(KINDER_ZEILEN[2].betrag)}. Bis vor Kurzem rundete der Rechner an dieser Stelle
+    auf volle Monate – dadurch war jedes zweite Kind wirkungslos, ein und zwei Kinder
+    führten zum selben Betrag. Der Build dieser Seite prüft jetzt jeden Schritt einzeln.
+  </p>
+
+  <table>
+    <caption class="visually-hidden">Wirkung der Kinderzahl auf das Ergebnis</caption>
+    <thead>
+      <tr>
+        <th scope="col" class="num">Kinder</th>
+        <th scope="col" class="num">Monate</th>
+        <th scope="col" class="num">Rücklage</th>
+      </tr>
+    </thead>
+    <tbody>
+      {KINDER_ZEILEN.map((z) => (
+        <tr>
+          <td class="num">{zahl(z.kinder, 0)}</td>
+          <td class="num">{zahl(z.monate, 0)}</td>
+          <td class="num">{eur(z.betrag)}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+
+  <p class="ra-hinweis">
+    Die Monatszahlen sind eine Konvention, keine Rechtsgröße. Sie stehen so im Skript der
+    Seite; eine Quelle, die genau diese Staffel belegt, gibt es nicht. Alles Weitere in
+    diesem Text rechnet mit diesen Zahlen, ohne sie zu begründen.
+  </p>
+
+  <h3>Die Faustregel nennt Monate, aber nicht wovon</h3>
+
+  <p>
+    „Drei bis sechs Monatsausgaben“ und „drei bis sechs Monatsgehälter“ klingen wie
+    derselbe Satz. Sie sind es nicht. Wer spart, gibt weniger aus, als er verdient – und
+    genau diese Lücke ist der Unterschied zwischen beiden Bezugsgrößen. Bei einer
+    Sparquote von <em>s</em> sind die Ausgaben das (1 − <em>s</em>)-fache des
+    Nettoeinkommens, und die aus dem Einkommen abgeleitete Rücklage ist das
+    1/(1 − <em>s</em>)-fache der aus den Ausgaben abgeleiteten.
+  </p>
+
+  <table>
+    <caption class="visually-hidden">Rücklage aus Ausgaben und aus Einkommen bei verschiedenen Sparquoten</caption>
+    <thead>
+      <tr>
+        <th scope="col" class="num">Sparquote</th>
+        <th scope="col" class="num">Ausgaben</th>
+        <th scope="col" class="num">{zahl(START_MONATE, 0)} Monatsausgaben</th>
+        <th scope="col" class="num">{zahl(START_MONATE, 0)} Monatseinkommen</th>
+        <th scope="col" class="num">Aufschlag</th>
+        <th scope="col" class="num">in Monatsausgaben</th>
+      </tr>
+    </thead>
+    <tbody>
+      {SPARQUOTEN_ZEILEN.map((z) => (
+        <tr>
+          <th scope="row" class="num">{proz(z.s * 100, 0)}</th>
+          <td class="num">{eur(z.ausgaben)}</td>
+          <td class="num">{eur(z.ausAusgaben)}</td>
+          <td class="num">{eur(z.ausEinkommen)}</td>
+          <td class="num">+{proz((z.faktor - 1) * 100)}</td>
+          <td class="num">{mon(z.inMonatsausgaben, 2)}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+
+  <p>
+    Bei einem Nettoeinkommen von {eur(NETTO)} und einer Sparquote von {proz(BSP.s * 100, 0)}
+    {' '}– es werden also {proz((1 - BSP.s) * 100, 0)} des Einkommens ausgegeben – stehen
+    {' '}{eur(BSP.ausAusgaben)} gegen {eur(BSP.ausEinkommen)}. Das ist ein Aufschlag von
+    {' '}{proz((BSP.faktor - 1) * 100)}. Anders gemessen: {zahl(START_MONATE, 0)} Monatseinkommen
+    entsprechen hier {mon(BSP.inMonatsausgaben, 2)} an tatsächlichen Ausgaben – mehr, als der
+    Rechner oben einem befristet Beschäftigten zuweist ({mon(monateNachRechner('befristet'), 0)}),
+    und das bei unbefristeter Stelle.
+  </p>
+
+  <h3>Der Aufschlag kostet genau so viele Monate, wie die Faustregel Monate nennt</h3>
+
+  <p>
+    Jetzt wird es interessant. Die Differenz zwischen beiden Rücklagen beträgt
+    {' '}<em>m</em> · <em>N</em> · <em>s</em>, wenn <em>m</em> der Monatsfaktor, <em>N</em> das
+    Nettoeinkommen und <em>s</em> die Sparquote ist. Gespart wird pro Monat genau
+    {' '}<em>N</em> · <em>s</em> – die Differenz aus Einkommen und Ausgaben. Teilt man die
+    Differenz durch die Sparrate, kürzen sich Einkommen und Sparquote vollständig heraus.
+    Übrig bleibt <em>m</em>. Der Umweg über das Einkommen verlängert den Aufbau also um
+    exakt {mon(START_MONATE, 0)} bei unbefristeter Anstellung, unabhängig davon, ob jemand
+    {' '}{eur(1200)} oder {eur(9000)} netto hat und ob er {proz(5, 0)} oder {proz(55, 0)}
+    davon spart.
+  </p>
+
+  <table>
+    <caption class="visually-hidden">Aufbaudauer ohne Verzinsung nach Bezugsgröße</caption>
+    <thead>
+      <tr>
+        <th scope="col" class="num">Sparquote</th>
+        <th scope="col" class="num">Sparrate</th>
+        <th scope="col" class="num">Aufbau aus Ausgaben</th>
+        <th scope="col" class="num">Aufbau aus Einkommen</th>
+        <th scope="col" class="num">Differenz</th>
+      </tr>
+    </thead>
+    <tbody>
+      {SPARQUOTEN_ZEILEN.map((z) => (
+        <tr>
+          <th scope="row" class="num">{proz(z.s * 100, 0)}</th>
+          <td class="num">{eur(z.sparrate)}</td>
+          <td class="num">{mon(z.monateKorrekt, 1)}</td>
+          <td class="num">{mon(z.monateFalsch, 1)}</td>
+          <td class="num">{mon(z.monateFalsch - z.monateKorrekt, 1)}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+
+  <p class="ra-hinweis">
+    Die Aufbaudauer ist ohne Verzinsung gerechnet: Sparrate mal Monate. Bei den Laufzeiten
+    dieser Tabelle – höchstens {zahl(MAX_AUFBAU_JAHRE, 1)} Jahre – und Tagesgeldzinsen in der hier angenommenen Größenordnung
+    verschiebt die Verzinsung das Ergebnis um deutlich weniger als einen Monat. Wer den
+    Zinseszins mitnehmen will, findet ihn im Sparrechner.
+  </p>
+
+  <p>
+    Die Spalte „Differenz“ ist in jeder Zeile dieselbe Zahl. Das ist kein Zufall der
+    gewählten Werte, sondern die Kürzung oben. Der Befund lässt die Frage offen, welche
+    Bezugsgröße die richtige ist – er sagt nur, was der Wechsel kostet: keinen Prozentsatz,
+    sondern eine feste Zahl an Monaten.
+  </p>
+
+  <h3>Was die fertige Rücklage im Jahr kostet</h3>
+
+  <p>
+    Die zweite Größe, die in der Faustregel nicht vorkommt, ist der Preis des Haltens. Liegt
+    die Rücklage auf einem Tagesgeldkonto und ist der Zinssatz niedriger als die Inflation,
+    verliert sie jedes Jahr real an Wert. Die Rechnung dafür lautet: nominal wächst der
+    Betrag um den Zins, real wird er durch die Preissteigerung geteilt.
+  </p>
+
+  <p class="ra-hinweis">
+    <strong>Annahmen, keine Messwerte.</strong> Die folgenden Zahlen rechnen mit
+    {' '}{proz(INFLATION_ANNAHME)} Inflation – das ist das mittelfristige Ziel der EZB, nicht
+    die aktuell gemessene Rate – sowie mit {proz(TAGESGELD_ANNAHME)} Tagesgeldzins und
+    {' '}{proz(DISPO_ANNAHME)} Dispozins als frei gesetzten Annahmen. Die tatsächlichen Werte
+    stehen beim Statistischen Bundesamt (Verbraucherpreisindex) und in der Zinsstatistik der
+    Bundesbank; beide sind unten verlinkt. Wer andere Werte einsetzt, verschiebt die
+    Beträge, nicht die Struktur der Rechnung.
+  </p>
+
+  <p>
+    Auf die {eur(START_RUECKLAGE)} der Startwerte angewandt: Nominal werden daraus
+    {' '}{eurGenau(START_RUECKLAGE * (1 + TAGESGELD_ANNAHME / 100))} nach einem Jahr, in
+    Kaufkraft von heute sind das {eurGenau(START_RUECKLAGE - VERLUST_START)}. Der reale
+    Verlust beträgt {eurGenau(VERLUST_START)} im Jahr. Die Steuer spielt in dieser
+    Größenordnung keine Rolle: Der Zinsertrag von {eur(ZINSERTRAG_START)} liegt unter dem
+    Sparer-Pauschbetrag von {eur(SPARERPAUSCHBETRAG_EINZEL)} nach § 20 Abs. 9 EStG.
+  </p>
+
+  <h3>Derselbe Betrag als vermiedener Dispokredit</h3>
+
+  <p>
+    Diesem Verlust steht kein Ertrag gegenüber, sondern ein vermiedener Aufwand: Wer die
+    Rücklage hat, muss das Konto nicht überziehen. Um beide Seiten vergleichbar zu machen,
+    hilft eine Maßeinheit, die es sonst selten gibt – der <strong>Euro-Monat</strong>: ein
+    Euro, der einen Monat lang im Dispo steht. Bei einem Dispozins von <em>d</em> kostet ein
+    Euro-Monat <em>d</em>/12.
+  </p>
+
+  <table>
+    <caption class="visually-hidden">Wie viel Dispo dem Jahresverlust entspricht</caption>
+    <thead>
+      <tr>
+        <th scope="col" class="num">Dispozins</th>
+        <th scope="col" class="num">entspricht Euro-Monaten</th>
+        <th scope="col" class="num">volle Rücklage für</th>
+      </tr>
+    </thead>
+    <tbody>
+      {DISPO_ZEILEN.map((z) => (
+        <tr>
+          <th scope="row" class="num">{proz(z.d)}</th>
+          <td class="num">{eur(z.euroMonate)} · Monate</td>
+          <td class="num">{zahl(z.tageVoll, 1)} Tage</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+
+  <p>
+    Bei {proz(DISPO_ANNAHME)} Dispozins entspricht der Kaufkraftverlust eines <em>ganzen
+    Jahres</em> auf {eur(START_RUECKLAGE)} gerade einmal {zahl(DISPO_BASIS.tageVoll, 1)} Tagen,
+    in denen dieselbe Summe im Dispo gestanden hätte – oder {eur(TEILBETRAG)} für
+    {' '}{mon(TEILBETRAG_MONATE, 2)}. Das ist die Größenordnung, um die es geht: Als Anlage betrachtet ist die Rücklage
+    ein Verlustgeschäft, als Kreditvermeidung wiegt sie ein Vielfaches davon auf.
+  </p>
+
+  <h3>Ab welchem Dispozins es kippt – und wann nicht</h3>
+
+  <p>
+    Man kann die Frage auch umdrehen: Angenommen, die Rücklage verhindert einmal im Jahr,
+    dass der volle Betrag einen Monat lang im Dispo steht. Ab welchem Dispozins spielt sie
+    damit ihren Jahresverlust ein? Die Antwort hängt nicht an der Inflation allein, sondern
+    am Abstand zwischen Inflation und Tagesgeldzins: Der Break-even liegt bei
+    {' '}12 · (<em>i</em> − <em>z</em>)/(1 + <em>i</em>).
+  </p>
+
+  <table>
+    <caption class="visually-hidden">Break-even-Dispozins nach Tagesgeldzins bei angenommener Inflation</caption>
+    <thead>
+      <tr>
+        <th scope="col" class="num">Tagesgeldzins</th>
+        <th scope="col" class="num">realer Verlust im Jahr</th>
+        <th scope="col" class="num">Break-even-Dispozins</th>
+      </tr>
+    </thead>
+    <tbody>
+      {ZINS_ZEILEN.map((z) => (
+        <tr>
+          <th scope="row" class="num">{proz(z.z)}</th>
+          <td class="num">{eurGenau(z.verlust)}</td>
+          <td class="num">{z.dStern > 0 ? proz(z.dStern, 2) : 'entfällt'}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+
+  <p>
+    Bei {proz(TAGESGELD_ANNAHME)} Tagesgeldzins liegt der Break-even bei
+    {' '}{proz(ZINS_BASIS.dStern, 2)} – deutlich unter jedem zweistelligen Dispozins. Bei
+    {' '}{proz(0, 0)} Zins dagegen bei {proz(ZINS_NULL.dStern, 2)}: Dann genügt ein Monat
+    Volleinsatz nicht mehr, es bräuchte bei {proz(DISPO_ANNAHME)} Dispozins
+    {' '}{mon(MONATE_BEI_NULLZINS, 2)}. Und sobald der Tagesgeldzins die Inflation
+    erreicht, entfällt die Frage, weil kein realer Verlust mehr entsteht. Entscheidend ist
+    also nicht, ob die Inflation hoch ist, sondern wie weit der Zins hinter ihr zurückbleibt.
+  </p>
+
+  <p>
+    Auf den Aufschlag aus dem ersten Teil angewandt: Die {eur(BSP.aufschlag)}, die bei
+    {' '}{proz(BSP.s * 100, 0)} Sparquote zwischen Ausgaben- und Einkommensmaßstab liegen,
+    kosten unter diesen Annahmen {eurGenau(BSP_VERLUST_AUFSCHLAG)} Kaufkraft im Jahr. In Euro
+    ist der Bezugsgrößenfehler damit billig. Sein Preis steht, wie oben gezeigt, in einer
+    anderen Währung: in {mon(START_MONATE, 0)}n, in denen die Rücklage noch nicht fertig ist.
+  </p>
+
+  <h3>Warum der Kreditrahmen in dieser Rechnung nicht auf beiden Seiten stehen kann</h3>
+
+  <p>
+    Die Gegenrechnung oben setzt voraus, dass der Dispo im Notfall überhaupt zur Verfügung
+    steht. Rechtlich ist die eingeräumte Überziehungsmöglichkeit ein Verbraucherdarlehen in
+    einem laufenden Konto (§ 504 Abs. 1 Satz 1 BGB). § 504 Abs. 2 BGB behandelt ausdrücklich
+    den Fall, dass vereinbart ist, der Darlehensgeber könne ohne Einhaltung einer Frist
+    kündigen – eine Konstellation, die das Gesetz also kennt und für die es einzelne
+    Schutzvorschriften ausnimmt. Ein Kreditrahmen ist damit eine Zusage unter Vorbehalt,
+    kein Bestand. Das Guthaben auf dem Konto ist es: Es fällt bis {eur(100000)} je Institut
+    unter die Deckungssumme der Einlagensicherung nach § 8 Abs. 1 EinSiG.
+  </p>
+
+  <p>
+    Dieser Text rechnet Größenordnungen nach und gibt keine Empfehlung – weder zur Höhe einer
+    Rücklage noch zu ihrer Verwahrung. Was er zeigt, ist enger: dass die Faustregel eine
+    Bezugsgröße offenlässt, dass diese Lücke den Aufbau um eine feste Zahl von Monaten
+    verlängert, und dass der laufende Kaufkraftverlust einer fertigen Rücklage in der
+    Größenordnung weniger Dispo-Tage liegt.
+  </p>
+</RechnerArtikel>

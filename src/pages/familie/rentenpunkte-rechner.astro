@@ -3,6 +3,7 @@ import Layout from '../../layouts/Layout.astro';
 import CalculatorShell from '../../components/CalculatorShell.astro';
 import CalculatorGuide from '../../components/CalculatorGuide.astro';
 import { CALCULATORS, CATEGORIES } from '../../data/calculators';
+import ArtikelRentenpunkte from '../../components/artikel/zweiter-rentenpunkt-unerreichbar.astro';
 import {
   AKTUELLER_RENTENWERT,
   BBG_RENTE_JAHR,
@@ -67,6 +68,7 @@ const faqs = [
       <div id="details" style="margin-top:0.75rem;font-size:0.88rem;color:#666;display:flex;gap:1.5rem;flex-wrap:wrap;"></div>
       <div id="bbg-hinweis" style="display:none;margin-top:0.75rem;padding:0.75rem 1rem;border-radius:8px;background:#fff3cd;font-size:0.88rem;"></div>
     </div>
+    <ArtikelRentenpunkte slot="artikel" />
   </CalculatorShell>
 
   <CalculatorGuide

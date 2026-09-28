@@ -1,0 +1,188 @@
+---
+import RechnerArtikel from '../RechnerArtikel.astro';
+
+// Der Flächen-Umrechner (src/pages/einheiten/flaechen-umrechner.astro) hat
+// kein eigenes Modul unter public/scripts/ – die Umrechnungstabelle steht
+// inline im <script> der Seite. Deshalb liegt sie hier offen im Frontmatter,
+// mit denselben Werten wie dort (Zeilen 120–131 der Seite):
+//
+//   m2: 1, km2: 1_000_000, ha: 10_000, ar: 100, cm2: 0.0001, mm2: 0.000001,
+//   acre: 4046.8564224, ft2: 0.09290304, in2: 0.00064516,
+//   mi2: 2589988.110336
+//
+// Die für diesen Artikel relevanten Faktoren sind ft2, acre und mi2 – sie
+// stammen aus imperialen LÄNGEN, die quadriert wurden. m2/km2/ha/ar/cm2/mm2
+// sind reine Zehnerpotenzen und daher exakt, unabhängig von Längeneinheiten.
+
+const zahl = (n: number, d = 4) =>
+  n.toLocaleString('de-DE', { minimumFractionDigits: d, maximumFractionDigits: d }).replace(/^-/, '−');
+const proz = (n: number, d = 4) => zahl(n * 100, d) + ' %';
+const ganz = (n: number) =>
+  Math.round(n).toLocaleString('de-DE').replace(/^-/, '−');
+
+// --- Die exakten Längen, aus denen die Flächenfaktoren der Seite folgen ---
+// International Yard and Pound Agreement (1959): 1 Fuß = 0,3048 m exakt,
+// 1 Yard = 0,9144 m exakt. Das sind Definitionen, keine Messwerte – daher
+// ohne Fehlerbalken. Die Seite selbst nennt im sourceNote "gerundete
+// Definition seit 1959" für den Acre; die zugrunde liegende Zahl ist jedoch
+// exakt, nicht gerundet (siehe Selbstprüfung unten).
+const FUSS_EXAKT = 0.3048;
+const YARD_EXAKT = 0.9144;
+
+// Flächenfaktor, den die Rechnerseite tatsächlich verwendet (ft2: 0.09290304)
+const FT2_SEITE = 0.09290304;
+// Selbstprüfung 1: Der Flächenfaktor der Seite muss exakt das Quadrat des
+// exakten Längenfaktors sein – sonst wäre die Seite selbst inkonsistent.
+if (Math.abs(FT2_SEITE - FUSS_EXAKT ** 2) > 1e-12) {
+  throw new Error('Artikel Flächenfehler: ft2-Faktor der Seite passt nicht zu 0,3048² m².');
+}
+
+// Acre-Faktor, den die Rechnerseite verwendet (acre: 4046.8564224)
+const ACRE_SEITE = 4046.8564224;
+// 1 Acre = 4840 Quadrat-Yards (historische Definition, seit 1959 exakt
+// verankert über den Yard).
+const ACRE_AUS_YARD = 4840 * YARD_EXAKT ** 2;
+// Selbstprüfung 2: exakte Übereinstimmung, keine Rundung – im Unterschied
+// zur Faustregel weiter unten.
+if (Math.abs(ACRE_AUS_YARD - ACRE_SEITE) > 1e-9) {
+  throw new Error('Artikel Flächenfehler: Acre-Faktor der Seite passt nicht zu 4840 × Yard².');
+}
+
+// --- Die Faustregel aus der FAQ dieser Seite: "ft² × 0,093 = m²" ---
+const FAUSTREGEL_FAQ = 0.093;
+const fehlerFlaecheFaq = (FAUSTREGEL_FAQ - FT2_SEITE) / FT2_SEITE;
+const laengeAusFaustregel = Math.sqrt(FAUSTREGEL_FAQ);
+const fehlerLaengeFaq = (laengeAusFaustregel - FUSS_EXAKT) / FUSS_EXAKT;
+const verhaeltnisFaq = fehlerFlaecheFaq / fehlerLaengeFaq;
+
+// Selbstprüfung 3: Die zentrale These – der Flächenfehler ist rund doppelt
+// so groß wie der Längenfehler, der ihn verursacht (erste Näherung
+// (1+ε)² ≈ 1+2ε für kleine ε). Toleranz für den Term zweiter Ordnung.
+if (Math.abs(verhaeltnisFaq - 2) > 0.05) {
+  throw new Error(`Artikel Flächenfehler: Verhältnis ${verhaeltnisFaq} liegt nicht nahe 2.`);
+}
+
+// --- Eine gröbere Rundung zur Veranschaulichung (eigenes Beispiel, nicht
+// von der Seite übernommen): "1 ft² ≈ 0,09 m²" ---
+const FAUSTREGEL_GROB = 0.09;
+const fehlerFlaecheGrob = (FAUSTREGEL_GROB - FT2_SEITE) / FT2_SEITE;
+const laengeAusGrob = Math.sqrt(FAUSTREGEL_GROB);
+const fehlerLaengeGrob = (laengeAusGrob - FUSS_EXAKT) / FUSS_EXAKT;
+const verhaeltnisGrob = fehlerFlaecheGrob / fehlerLaengeGrob;
+
+// --- Die Acre-Faustregel aus dem Guide dieser Seite: "1 Acre ≈ 4.000 m²" ---
+const FAUSTREGEL_ACRE = 4000;
+const fehlerAcre = (FAUSTREGEL_ACRE - ACRE_SEITE) / ACRE_SEITE;
+const FLAECHE_BEISPIEL_ACRES = 50;
+const diffAcreBeispielM2 = FLAECHE_BEISPIEL_ACRES * ACRE_SEITE - FLAECHE_BEISPIEL_ACRES * FAUSTREGEL_ACRE;
+const diffAcreBeispielHa = diffAcreBeispielM2 / 10000;
+
+// --- Gegenprobe zu drei Zahlen aus Guide/FAQ der Rechnerseite ---
+const MI2_SEITE = 2589988.110336;
+const mi2InKm2 = MI2_SEITE / 1_000_000; // 2,589988... → korrekt gerundet 2,5900, FAQ nennt 2,5899
+const fussballfeldM2 = 7140; // aus dem Guide der Seite übernommen
+const fussballfeldAcres = fussballfeldM2 / ACRE_SEITE; // Guide nennt "1,77 Acres"
+const tennisplatzM2 = 261; // aus dem Guide der Seite übernommen
+const tennisplatzFt2 = tennisplatzM2 / FT2_SEITE; // Guide nennt "2.812 sq ft"
+---
+
+<RechnerArtikel
+  titel="Ein Rundungsfehler bei der Länge verdoppelt sich in der Fläche"
+  lead={`Jeder Flächenfaktor in diesem Rechner ist ein quadrierter Längenfaktor. Das hat eine Konsequenz, die man bei Faustregeln leicht übersieht: Rundet man die zugrunde liegende Länge nur geringfügig, schlägt der Fehler in der daraus berechneten Fläche mit etwa dem doppelten relativen Wert durch – nicht mit dem gleichen.`}
+  datum="2026-09-28"
+  quellen={[]}
+>
+  <h3>Warum m² kein eigenständiges Maß ist</h3>
+  <p>
+    Der Rechner oben tut mehr, als eine Zahl mit einem Faktor zu multiplizieren. Bis auf die
+    dezimalen Vielfachen (km², ha, ar, cm², mm² – reine Zehnerpotenzen von m², ohne jeden
+    Rundungsspielraum) sind alle Flächenfaktoren dieser Seite quadrierte Längenfaktoren. Das
+    Quadratfuß-Feld etwa rechnet mit {zahl(FT2_SEITE, 8)} m² pro ft² – und das ist exakt das
+    Quadrat von {zahl(FUSS_EXAKT, 4)} m, dem international seit 1959 exakt definierten Fuß
+    (International Yard and Pound Agreement). {zahl(FUSS_EXAKT, 4)}² ergibt {zahl(FT2_SEITE, 8)} –
+    keine Rundung, sondern eine exakte Ableitung. Wer eine Fläche umrechnet, rechnet also
+    zwangsläufig mit einer quadrierten Länge, ob das im Formular sichtbar ist oder nicht.
+  </p>
+
+  <h3>0,093 klingt harmlos – ist aber ein doppelt so großer Fehler wie die Länge dahinter</h3>
+  <p>
+    Die FAQ dieser Seite nennt für die Umrechnung von Quadratfuß eine „schnelle Formel“:
+    ft² × 0,093 = m². Das ist auf drei Nachkommastellen gerundet und wirkt harmlos gegenüber dem
+    exakten Faktor {zahl(FT2_SEITE, 8)}. Der relative Fehler dieser Rundung bei der Fläche beträgt
+    {proz(fehlerFlaecheFaq)}. Rechnet man zurück, welche Längen-Rundung einen Flächenfaktor von
+    0,093 ergeben würde – die Wurzel aus 0,093 ist {zahl(laengeAusFaustregel, 8)} m statt der
+    exakten {zahl(FUSS_EXAKT, 4)} m –, liegt der Längenfehler bei nur {proz(fehlerLaengeFaq)}. Das
+    Verhältnis der beiden Fehler: {zahl(verhaeltnisFaq, 2)}. Der Fehler in der Fläche ist also
+    rund doppelt so groß wie der Fehler in der Länge, die ihm zugrunde liegt – nicht gleich groß.
+  </p>
+  <p>
+    Der Grund ist reine Algebra: Steckt in einer Länge ein kleiner relativer Fehler ε, dann steckt
+    im Quadrat dieser Länge der Fehler (1+ε)² − 1 = 2ε + ε². Für kleine ε (hier unter einem Promille)
+    ist der quadratische Term ε² vernachlässigbar klein, und es bleibt näherungsweise 2ε übrig –
+    der doppelte Fehler. Das ist kein Zufall dieses einen Beispiels, sondern folgt aus der
+    Quadratur selbst: Jede Flächeneinheit, die aus einer Länge abgeleitet ist, vererbt einen
+    Rundungsfehler der Länge verdoppelt an die Fläche.
+  </p>
+
+  <h3>Mit einer gröberen Rundung wird der Effekt noch deutlicher</h3>
+  <p>
+    Rundet man den Flächenfaktor noch weiter, auf {zahl(FAUSTREGEL_GROB, 2)} m² pro ft² (eine in
+    Alltagsrechnungen gelegentlich benutzte grobe Faustregel, hier nur zur Veranschaulichung, nicht
+    von dieser Seite übernommen), wächst der Flächenfehler auf {proz(fehlerFlaecheGrob)}. Die
+    dahinterliegende Längen-Rundung wäre {zahl(laengeAusGrob, 4)} m statt {zahl(FUSS_EXAKT, 4)} m –
+    ein Fehler von {proz(fehlerLaengeGrob)}. Das Verhältnis bleibt bei {zahl(verhaeltnisGrob, 2)},
+    also weiterhin nahe am Faktor zwei. Ob die Rundung fein oder grob ausfällt, ändert am
+    Verdopplungs-Muster nichts – nur an der absoluten Größe des Fehlers.
+  </p>
+
+  <h3>Der Acre zeigt das Gegenstück: exakt, weil die Länge exakt ist</h3>
+  <p>
+    Der Acre-Faktor dieser Seite, {zahl(ACRE_SEITE, 7)} m², ist die Fläche von 4.840 Quadrat-Yards.
+    Mit dem exakten Yard von {zahl(YARD_EXAKT, 4)} m ergibt 4.840 × {zahl(YARD_EXAKT, 4)}² genau
+    {zahl(ACRE_AUS_YARD, 7)} m² – identisch mit dem Faktor der Seite, ohne jede Abweichung. Das
+    zeigt die Kehrseite der These: Wird die Länge nicht gerundet, sondern exakt quadriert, entsteht
+    auch kein Fehler in der Fläche. Der Acre ist also keine „krumme, historisch gewachsene Zahl“,
+    sondern das exakte Quadrat einer exakt definierten Länge – nur eben mit einem Umrechnungsfaktor
+    (4.840 Quadrat-Yards je Acre), der selbst historisch und nicht rund ist.
+  </p>
+  <p>
+    Anders sieht es bei der Acre-Faustregel im Guide dieser Seite aus: „1 Acre ≈ 4.000 m²“. Das ist
+    ausdrücklich als grobe Schätzung gekennzeichnet, aber der relative Fehler lässt sich genauso
+    einordnen wie oben: {proz(fehlerAcre)} gegenüber dem exakten Wert. Bei {FLAECHE_BEISPIEL_ACRES}
+    Acres – einer für landwirtschaftliche Flächen nicht ungewöhnlichen Größenordnung – macht das
+    einen absoluten Unterschied von rund {ganz(diffAcreBeispielM2)} m², also {zahl(diffAcreBeispielHa, 2)} ha.
+    Für eine grobe mentale Umrechnung ist das unerheblich; für eine Flächenplanung, bei der es auf
+    einzelne Ar ankommt, wäre die Faustregel die falsche Grundlage.
+  </p>
+
+  <h3>Wo drei Zahlen auf dieser Seite selbst dieselbe Falle zeigen</h3>
+  <p>
+    Rechnet man die Beispielwerte im Guide und in der FAQ dieser Seite mit den exakten Faktoren
+    nach, tauchen drei kleine Abweichungen auf – nicht als Kritik, sondern als anschauliches
+    Beispiel für den beschriebenen Mechanismus. Die FAQ nennt für eine Quadratmeile
+    „{zahl(mi2InKm2, 4)}“ km² in der Rechnung, zeigt im Text aber „2,5899 km²“ – der exakte Wert
+    {zahl(MI2_SEITE, 6)} m² ergibt geteilt durch eine Million korrekt gerundet {zahl(mi2InKm2, 4)},
+    also 2,5900 statt 2,5899 km² (die vierte Nachkommastelle wurde offenbar abgeschnitten statt
+    gerundet). Der Guide beziffert ein FIFA-Fußballfeld von {ganz(fussballfeldM2)} m² mit „1,77
+    Acres“; die exakte Rechnung {ganz(fussballfeldM2)} ÷ {zahl(ACRE_SEITE, 4)} ergibt
+    {zahl(fussballfeldAcres, 4)}, gerundet also 1,76 statt 1,77 Acres. Und ein Tennisplatz mit
+    {ganz(tennisplatzM2)} m² wird dort mit „2.812 sq ft“ angegeben, während
+    {ganz(tennisplatzM2)} ÷ {zahl(FT2_SEITE, 8)} auf {zahl(tennisplatzFt2, 2)} sq ft führt, gerundet
+    2.809 statt 2.812. In allen drei Fällen ist die Abweichung klein – aber sie entsteht an genau
+    der Stelle, an der ein Redaktionstext eine bereits gerundete Zahl weiterverarbeitet, statt vom
+    exakten Faktor auszugehen. Das ist derselbe Effekt wie bei der 0,093-Faustregel oben, nur ohne
+    Absicht.
+  </p>
+
+  <h3>Was das für den Umgang mit Flächen-Faustregeln bedeutet</h3>
+  <p>
+    Für den Alltag – eine Wohnungsgröße überschlagen, ein Grundstück grob vergleichen – ist der
+    Unterschied zwischen 0,0929 und 0,093 belanglos. Er wird erst dann relevant, wenn Flächenwerte
+    weiterverarbeitet werden: bei der Umrechnung großer Grundstücke, beim Vergleich vieler
+    Immobilienangebote in unterschiedlichen Einheiten oder wenn eine grob gerundete Kennzahl in
+    eine weitere Rechnung einfließt, die sich wiederum multipliziert oder addiert. Die
+    Faustregel selbst bleibt für ihren Zweck – schnelles Kopfrechnen – geeignet. Nur die Annahme,
+    ein auf drei Stellen gerundeter Flächenfaktor sei „fast genau richtig“, unterschätzt den
+    Fehler um etwa die Hälfte, weil sie den Effekt der Quadrierung übergeht.
+  </p>
+</RechnerArtikel>

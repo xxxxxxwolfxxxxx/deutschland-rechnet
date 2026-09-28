@@ -3,6 +3,7 @@ import Layout from '../../layouts/Layout.astro';
 import CalculatorShell from '../../components/CalculatorShell.astro';
 import CalculatorGuide from '../../components/CalculatorGuide.astro';
 import { CALCULATORS, CATEGORIES } from '../../data/calculators';
+import ArtikelSeemeile from '../../components/artikel/seemeile-ist-keine-meile.astro';
 const calc = CALCULATORS.find(c => c.slug === 'laengen-umrechner')!;
 const cat = CATEGORIES[calc.category];
 const year = new Date().getFullYear();
@@ -56,6 +57,7 @@ const year = new Date().getFullYear();
       </div>
       <div id="ergebnis-liste" class="ergebnis-liste"></div>
     </div>
+    <ArtikelSeemeile slot="artikel" />
   </CalculatorShell>
 
   <CalculatorGuide
@@ -77,7 +79,7 @@ const year = new Date().getFullYear();
   <li><strong>Zoll (inch, in oder ″)</strong> = 2,54 cm – Bildschirmdiagonalen, Schrauben, Rohre</li>
   <li><strong>Fuß (foot, ft oder ′)</strong> = 12 Zoll = 30,48 cm – Körpergröße, Höhen, Raumgrößen</li>
   <li><strong>Yard (yd)</strong> = 3 Fuß = 91,44 cm – American Football, Stoff, Garten</li>
-  <li><strong>Meile (mile, mi)</strong> = 1.760 Yards = 1,609 km – Straßenentfernungen in USA, UK</li>
+  <li><strong>Meile (mile, mi)</strong> = 1.760 Yards = 1.609,344 m – Straßenentfernungen in USA, UK</li>
 </ul>
 
 <h4>Spezialeinheiten</h4>
@@ -99,7 +101,7 @@ const year = new Date().getFullYear();
 <h4>Typische Anwendungssituationen</h4>
 <p><strong>Reisen in die USA:</strong> Speed Limit 65 mph = 105 km/h. Tankfüllung 50 Gallonen klingt viel, sind aber nur 189 Liter. Ein Hotelzimmer mit 12 ft Decke ist 3,66 m hoch.</p>
 <p><strong>Heimwerker mit US-Bauteilen:</strong> Eine 1/2"-Schraube ist 1,27 cm dick. Ein 2x4-Brett (Standard-Bauholz USA) hat 5,08 × 10,16 cm Querschnitt (nominal, real meist kleiner).</p>
-<p><strong>Sport:</strong> Im American Football sind die Spielfelder 100 Yards (91,44 m) lang. Marathon: 26,2 Meilen = 42,195 km. Eine Bowlingbahn ist 60 Fuß = 18,29 m lang.</p>
+<p><strong>Sport:</strong> Im American Football sind die Spielfelder 100 Yards (91,44 m) lang. Marathon: 42,195 km entsprechen gerundet 26,2 Meilen (exakt 26,2188 mi). Eine Bowlingbahn ist 60 Fuß = 18,29 m lang.</p>
 <p><strong>Mode und Größen:</strong> US-Hosen werden in Zoll angegeben (Bundweite/Beinlänge), z.B. 32/34 = 81 cm Bund, 86 cm Bein.</p>`}
     relatedSlugs={['gewicht-umrechner', 'temperatur-umrechner', 'volumen-umrechner', 'flaechen-umrechner']}
   />

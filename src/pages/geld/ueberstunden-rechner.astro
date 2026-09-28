@@ -3,6 +3,7 @@ import Layout from '../../layouts/Layout.astro';
 import CalculatorShell from '../../components/CalculatorShell.astro';
 import CalculatorGuide from '../../components/CalculatorGuide.astro';
 import { CALCULATORS, CATEGORIES } from '../../data/calculators';
+import ArtikelLohnsteuerVorschuss from '../../components/artikel/ueberstunden-lohnsteuer-vorschuss-an-den-fiskus.astro';
 const calc = CALCULATORS.find(c => c.slug === 'ueberstunden-rechner')!;
 const cat = CATEGORIES[calc.category];
 const year = new Date().getFullYear();
@@ -27,7 +28,7 @@ const year = new Date().getFullYear();
       { q: "Muss mein Arbeitgeber Überstunden bezahlen?", a: "Grundsätzlich ja, es sei denn, der Arbeits- oder Tarifvertrag regelt etwas anderes. In vielen Arbeitsverträgen sind pauschale Abgeltungsklauseln wie 'mit dem Gehalt abgegolten' üblich. Solche Klauseln sind nur wirksam, wenn sie eine klare Obergrenze enthalten (z. B. 'bis zu 10 Überstunden monatlich'). Pauschale Formulierungen ohne Limit sind laut Rechtsprechung des BAG unwirksam. Alternativ kann der Arbeitgeber Freizeitausgleich gewähren." },
       { q: "Gibt es einen gesetzlichen Anspruch auf Überstundenzuschläge?", a: "Nein, es gibt in Deutschland keinen allgemeinen gesetzlichen Anspruch auf Überstundenzuschläge. Zuschläge können sich aus Tarifvertrag, Betriebsvereinbarung oder individuellem Arbeitsvertrag ergeben. Nur für Nachtarbeit schreibt das Arbeitszeitgesetz (§ 6 Abs. 5 ArbZG) einen angemessenen Zuschlag oder bezahlte freie Tage vor. Üblich sind 25 % für Nachtarbeit, 50 % für Sonntagsarbeit und 100 % für Feiertagsarbeit." },
       { q: "Wie viele Überstunden darf ich maximal leisten?", a: "Das Arbeitszeitgesetz erlaubt maximal 8 Stunden tägliche Arbeitszeit, die auf bis zu 10 Stunden verlängert werden kann, wenn innerhalb von 6 Monaten (oder 24 Wochen) ein Durchschnitt von 8 Stunden eingehalten wird. Bei einer 5-Tage-Woche mit 40 Stunden sind also maximal 10 Überstunden pro Woche möglich, müssen aber innerhalb von 6 Monaten ausgeglichen werden. Zwischen zwei Arbeitstagen müssen mindestens 11 Stunden Ruhezeit liegen." },
-      { q: "Wie berechne ich meinen Stundenlohn aus dem Monatsgehalt?", a: "Die Formel lautet: Monatsgehalt geteilt durch die durchschnittliche Monatsstundenzahl. Bei einer 40-Stunden-Woche ergibt sich die Monatsstundenzahl aus: 40 Stunden x 4,348 Wochen = 173,9 Stunden pro Monat (der Faktor 4,348 berücksichtigt, dass ein Monat durchschnittlich mehr als 4 Wochen hat: 52 Wochen / 12 Monate). Bei 3.000 Euro brutto ergibt das einen Stundenlohn von etwa 17,25 Euro." },
+      { q: "Wie berechne ich meinen Stundenlohn aus dem Monatsgehalt?", a: "Die Formel lautet: Monatsgehalt geteilt durch die durchschnittliche Monatsstundenzahl. Bei einer 40-Stunden-Woche ergibt sich die Monatsstundenzahl aus: 40 Stunden × 52 Wochen ÷ 12 Monate = 173,33 Stunden pro Monat (52 Wochen / 12 Monate berücksichtigt, dass ein Monat durchschnittlich mehr als 4 Wochen hat). Bei 3.000 Euro brutto ergibt das einen Stundenlohn von etwa 17,31 Euro." },
       { q: "Muss ich Überstunden leisten, wenn der Chef es verlangt?", a: "Nur wenn dies im Arbeitsvertrag, Tarifvertrag oder einer Betriebsvereinbarung geregelt ist. Ohne vertragliche Grundlage können Überstunden nur in Notfällen angeordnet werden (z. B. Naturkatastrophen, plötzlicher Personalausfall). Der Betriebsrat hat bei der Anordnung von Überstunden ein Mitbestimmungsrecht (§ 87 Abs. 1 Nr. 3 BetrVG). Schwangere und stillende Mütter dürfen laut Mutterschutzgesetz keine Überstunden leisten." },
       { q: "Auszahlung oder Freizeitausgleich – was ist besser?", a: "Das hängt von Ihrer Situation ab. Freizeitausgleich (auch Abbummeln genannt) ist bei einer Stunde-für-Stunde-Regelung meist günstiger, weil die Auszahlung voll versteuert wird und Sozialabgaben anfallen. Wird ein Zuschlag ausgezahlt, kann die finanzielle Abgeltung attraktiver sein. Ob Sie wählen dürfen, regelt der Arbeits- oder Tarifvertrag – oft entscheidet der Arbeitgeber." },
       { q: "Sind Überstundenzuschläge steuerfrei?", a: "Der Überstundenzuschlag an sich ist nicht steuerfrei – er wird wie normaler Lohn behandelt. Steuerfrei sind nach § 3b EStG nur Zuschläge für tatsächlich geleistete Sonntags-, Feiertags- und Nachtarbeit, und zwar bis zu bestimmten Prozentgrenzen des Grundlohns (z. B. 25 % für Nachtarbeit, 50 % für Sonntag, 125 % für gesetzliche Feiertage). Der Grundlohn selbst bleibt immer steuerpflichtig." },
@@ -65,6 +66,7 @@ const year = new Date().getFullYear();
       </div>
       <p id="info" style="margin-top:0.5rem;font-size:0.85rem;color:#666;"></p>
     </div>
+    <ArtikelLohnsteuerVorschuss slot="artikel" />
   </CalculatorShell>
 
   <CalculatorGuide

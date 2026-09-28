@@ -1,6 +1,7 @@
 ---
 import Layout from '../../layouts/Layout.astro';
 import CalculatorShell from '../../components/CalculatorShell.astro';
+import ArtikelDrittelregel from '../../components/artikel/drittelregel-gegenstrom-grenze.astro';
 import CalculatorGuide from '../../components/CalculatorGuide.astro';
 import { CALCULATORS, CATEGORIES } from '../../data/calculators';
 const calc = CALCULATORS.find(c => c.slug === 'spritverbrauch-boot')!;
@@ -87,6 +88,7 @@ const cat = CATEGORIES[calc.category];
       <p id="details" style="margin-top:0.5rem;font-size:0.9rem;font-weight:600;"></p>
       <p id="kosten" style="margin-top:0.35rem;font-size:0.85rem;color:#666;line-height:1.5;"></p>
     </div>
+    <ArtikelDrittelregel slot="artikel" />
   </CalculatorShell>
 
   <CalculatorGuide

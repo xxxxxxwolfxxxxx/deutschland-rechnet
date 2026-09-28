@@ -16,3 +16,16 @@ describe('berechneBMI', () => {
     expect(r.kategorie).toContain('Adipositas');
   });
 });
+
+describe('berechneBMI an den Klassengrenzen', () => {
+  it('ordnet den auf zwei Stellen gerundeten Wert ein', () => {
+    // 76,5 kg bei 1,75 m = 24,9796 → 24,98, also noch Normalgewicht
+    expect(berechneBMI({ gewichtKg: 76.5, groesseCm: 175 })).toEqual({ bmi: 24.98, kategorie: 'Normalgewicht' });
+  });
+  it('genau 25 zählt als Übergewicht', () => {
+    expect(berechneBMI({ gewichtKg: 25 * 1.6 * 1.6, groesseCm: 160 }).kategorie).toBe('Übergewicht');
+  });
+  it('genau 18,5 zählt als Normalgewicht', () => {
+    expect(berechneBMI({ gewichtKg: 18.5 * 2 * 2, groesseCm: 200 }).kategorie).toBe('Normalgewicht');
+  });
+});

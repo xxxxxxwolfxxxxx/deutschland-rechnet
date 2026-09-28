@@ -3,6 +3,7 @@ import Layout from '../../layouts/Layout.astro';
 import CalculatorShell from '../../components/CalculatorShell.astro';
 import CalculatorGuide from '../../components/CalculatorGuide.astro';
 import { CALCULATORS, CATEGORIES } from '../../data/calculators';
+import ArtikelGrenzsteuersatz from '../../components/artikel/grenzsteuersatz-schlaegt-durchschnittssatz.astro';
 import {
   BBG_KV_PV_MONAT,
   BBG_RV_AV_MONAT,
@@ -56,7 +57,7 @@ const abgabenGesamt = krankenkasseArbeitnehmerSatz()
     faqs={[
       { q: "Warum ist die Netto-Erhöhung viel kleiner als die Brutto-Erhöhung?", a: "Das ist der Grenzsteuersatz! Auf Ihre Gehaltserhöhung zahlen Sie die höchsten Steuern und Sozialabgaben, die Sie insgesamt zahlen – nicht den Durchschnitt. Mit Einkommen über 60.000€ sind das leicht 40-50% Abgaben. Bei 500€ Brutto-Plus bleiben also nur 250-300€ netto übrig." },
       { q: "Was ist der Grenzsteuersatz?", a: "Der Grenzsteuersatz ist die Steuer auf den letzten verdientem Euro. Nicht auf das ganze Gehalt. Beispiel: Mit 50.000€ Einkommen (Steuerklasse IV) zahlen Sie ca. 42% Grenzsteuersatz. Das bedeutet: Jeder zusätzlich verdiente Euro kostet Sie 42 Cent Steuern." },
-      { q: "Wie viel Netto ist realistisch?", a: "Faustregel: Bei moderaten Einkommen (30-60k€) sind ca. 60-70% Netto üblich. Bei höheren Einkommen (60-100k€) sinkt das auf 50-60% Netto. Über 100k€ können es nur noch 40-50% sein. Die Sozialabgaben sinken ab einem bestimmten Einkommen (Beitragssatz-Grenze bei ca. 90k€)." },
+      { q: "Wie viel Netto ist realistisch?", a: "Faustregel: Bei moderaten Einkommen (30-60k€) sind ca. 60-70% Netto üblich. Bei höheren Einkommen (60-100k€) sinkt das auf 50-60% Netto. Über 100k€ können es nur noch 40-50% sein. Oberhalb der Beitragsbemessungsgrenze der Renten- und Arbeitslosenversicherung (2026: 101.400€ im Jahr) entfallen diese beiden Sozialabgaben auf die Erhöhung vollständig, was den Nettoeffekt dort wieder verbessert." },
       { q: "Kann ich mit Werbungskosten die Netto-Erhöhung erhöhen?", a: "Indirekt ja. Höhere Werbungskosten (Homeoffice, Fahrtkosten) senken das zu versteuernde Einkommen. Aber das beeinflusst weniger die aktuelle Gehaltserhöhung, sondern eher Ihre gesamte Steuerlast." },
       { q: "Macht eine Steuerklassenwahl einen Unterschied?", a: "Ja! Steuerklasse III hat niedrigere Steuersätze als Klasse V. Alleinerziehende sollten Klasse II wählen (Entlastungsbetrag). Verheiratete können mit III/V mehr Netto aus einer Gehaltserhöhung herausholen, wenn einer deutlich mehr verdient." },
       { q: "Kann ich mit einer Gehaltserhöhung in eine höhere Steuerklasse rutschen?", a: "Nein. Die Steuerklasse richtet sich nach Familienstand und Kinderfreibeträgen, nicht nach Einkommen. Aber: Das zu versteuernde Einkommen steigt, und damit der Grenzsteuersatz." },
@@ -99,6 +100,7 @@ const abgabenGesamt = krankenkasseArbeitnehmerSatz()
       </div>
       <div id="details" style="margin-top:0.75rem;font-size:0.88rem;color:#666;display:flex;gap:1.5rem;flex-wrap:wrap;"></div>
     </div>
+    <ArtikelGrenzsteuersatz slot="artikel" />
   </CalculatorShell>
 
   <CalculatorGuide

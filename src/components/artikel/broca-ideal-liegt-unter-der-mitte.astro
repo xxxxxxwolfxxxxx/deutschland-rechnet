@@ -1,0 +1,351 @@
+---
+import RechnerArtikel from '../RechnerArtikel.astro';
+
+// Die Rechnerseite hat kein eigenes Modul – die Logik steht inline im
+// <script> von src/pages/gesundheit/idealgewicht-rechner.astro:
+//
+//   const broca      = groesse - 100;
+//   const brocaIdeal = broca * (geschlecht === 'w' ? 0.85 : 0.9);
+//   const bmiIdealMin = 18.5 * groesseM * groesseM;
+//   const bmiIdealMax = 24.9 * groesseM * groesseM;
+//
+// Dieser Artikel bildet genau diese vier Zeilen nach. Die Konstanten stehen
+// unten offen; eine Zusicherung prüft, dass die abgeleiteten Faktoren noch
+// 0,9 und 0,85 ergeben. Alle Zahlen im Fließtext kommen aus diesen Funktionen,
+// keine ist getippt.
+
+const zahl = (n: number, d = 0) =>
+  n.toLocaleString('de-DE', { minimumFractionDigits: d, maximumFractionDigits: d }).replace('-', '−');
+const kg = (n: number, d = 0) => `${zahl(n, d)} kg`;
+const cm = (n: number, d = 1) => `${zahl(n, d)} cm`;
+const proz = (n: number, d = 0) => `${zahl(n, d)} %`;
+// Lage als ganze Prozent – der Text bildet Differenzen aus diesen angezeigten
+// Werten, nicht aus den ungerundeten.
+const lageProz = (x: number) => Math.round(x * 100);
+
+// --- Die Konstanten der Rechnerseite ----------------------------------------
+// Broca: Normalgewicht = Größe in cm minus 100, davon 10 % (Männer) bzw.
+// 15 % (Frauen) Abschlag zum "Idealgewicht" – so die Methodenangabe der Seite.
+const BROCA_SOCKEL = 100;
+const ABSCHLAG = { m: 0.10, w: 0.15 } as const;
+type G = keyof typeof ABSCHLAG;
+
+// WHO-Klassifikation für Erwachsene: Normalgewicht ab 18,5 bis unter 25,
+// im Rechner als Spanne 18,5 bis 24,9 umgesetzt.
+const BMI_VON = 18.5;
+const BMI_BIS = 24.9;
+const BMI_MITTE = (BMI_VON + BMI_BIS) / 2;
+
+// Eingabebereich des Formulars: <input min="100" max="220">
+const H_MIN = 100;
+const H_MAX = 220;
+
+const faktor = (g: G) => 1 - ABSCHLAG[g];
+if (Math.abs(faktor('m') - 0.9) > 1e-12 || Math.abs(faktor('w') - 0.85) > 1e-12) {
+  throw new Error('Idealgewicht-Artikel: Abschläge passen nicht mehr zu den Faktoren 0,9 / 0,85 im Seitenskript.');
+}
+
+const brocaNormal = (h: number) => h - BROCA_SOCKEL;
+const brocaIdeal = (h: number, g: G) => brocaNormal(h) * faktor(g);
+const bmiVon = (gewicht: number, h: number) => gewicht / (h / 100) ** 2;
+const unten = (h: number) => BMI_VON * (h / 100) ** 2;
+const oben = (h: number) => BMI_BIS * (h / 100) ** 2;
+// Lage des Broca-Idealgewichts im Normalbereich: 0 = untere Grenze, 1 = obere.
+const lage = (h: number, g: G) => (brocaIdeal(h, g) - unten(h)) / (oben(h) - unten(h));
+// So zeigt der Rechner: Math.round auf ganze Kilogramm.
+const angezeigt = (x: number) => Math.round(x);
+
+// --- Tabelle ----------------------------------------------------------------
+const GROESSEN = [150, 160, 170, 180, 190, 200];
+const zeilen = GROESSEN.map((h) => ({
+  h,
+  idealM: brocaIdeal(h, 'm'),
+  idealW: brocaIdeal(h, 'w'),
+  bmiM: bmiVon(brocaIdeal(h, 'm'), h),
+  bmiW: bmiVon(brocaIdeal(h, 'w'), h),
+  lageM: lage(h, 'm'),
+  lageW: lage(h, 'w'),
+  von: angezeigt(unten(h)),
+  bis: angezeigt(oben(h)),
+}));
+// Die Lage steigt über diesen Abschnitt monoton – darauf beruht die Aussage
+// "je kleiner, desto tiefer".
+for (let i = 1; i < zeilen.length; i++) {
+  if (!(zeilen[i].lageM > zeilen[i - 1].lageM) || !(zeilen[i].lageW > zeilen[i - 1].lageW)) {
+    throw new Error('Idealgewicht-Artikel: Die Lage im Normalbereich steigt zwischen 150 und 200 cm nicht mehr durchgehend.');
+  }
+}
+
+// --- Das Maximum über den gesamten Eingabebereich ---------------------------
+// (h − 100) / h² wird bei h = 200 cm maximal; hier per Feinsuche bestätigt.
+let maxLageW = -1, maxLageWH = 0, maxBmiW = -1, maxLageM = -1;
+let mannAbMitte = 0;
+for (let h = H_MIN; h <= H_MAX + 1e-9; h += 0.01) {
+  const lw = lage(h, 'w');
+  if (lw > maxLageW) { maxLageW = lw; maxLageWH = h; }
+  const bw = bmiVon(brocaIdeal(h, 'w'), h);
+  if (bw > maxBmiW) maxBmiW = bw;
+  const lm = lage(h, 'm');
+  if (lm > maxLageM) maxLageM = lm;
+  if (mannAbMitte === 0 && lm >= 0.5) mannAbMitte = h;
+}
+if (!(maxLageW < 0.5)) {
+  throw new Error('Idealgewicht-Artikel: Das Broca-Idealgewicht der Frau erreicht die Mitte des Normalbereichs doch.');
+}
+if (!(maxBmiW < BMI_MITTE)) {
+  throw new Error('Idealgewicht-Artikel: Der BMI des Broca-Idealgewichts der Frau erreicht die Bereichsmitte doch.');
+}
+if (Math.abs(maxLageWH - 200) > 0.02) {
+  throw new Error('Idealgewicht-Artikel: Das Maximum liegt nicht bei 200 cm.');
+}
+if (!(maxLageM > 0.5) || !(mannAbMitte > 168 && mannAbMitte < 168.5)) {
+  throw new Error('Idealgewicht-Artikel: Die Schwelle, ab der Männer die Bereichsmitte überschreiten, stimmt nicht mehr.');
+}
+
+// --- Der Abschlag als Anteil des Normalbereichs -----------------------------
+// Abstand Mann/Frau = 5 % von (h − 100); Breite des Bereichs = 6,4 · (h/100)².
+const abstand = (h: number) => brocaIdeal(h, 'm') - brocaIdeal(h, 'w');
+const breite = (h: number) => oben(h) - unten(h);
+const anteil = (h: number) => abstand(h) / breite(h);
+let anteilMin = 1, anteilMax = 0;
+for (let h = 150; h <= 200 + 1e-9; h += 0.01) {
+  const a = anteil(h);
+  if (a < anteilMin) anteilMin = a;
+  if (a > anteilMax) anteilMax = a;
+}
+if (!(anteilMin > 0.17 && anteilMax < 0.20)) {
+  throw new Error('Idealgewicht-Artikel: Der Geschlechterabstand liegt nicht mehr bei rund einem Fünftel des Normalbereichs.');
+}
+
+// --- Beispiele --------------------------------------------------------------
+const mache = (h: number, g: G) => ({
+  h, g,
+  ideal: brocaIdeal(h, g),
+  gezeigt: angezeigt(brocaIdeal(h, g)),
+  bmi: bmiVon(brocaIdeal(h, g), h),
+  von: angezeigt(unten(h)),
+  bis: angezeigt(oben(h)),
+  lage: lage(h, g),
+});
+const frau160 = mache(160, 'w');
+const mann190 = mache(190, 'm');
+// Beide Beispiele müssen ohne Rundungsdrift auskommen: Was der Rechner zeigt,
+// ist hier auch der exakte Wert.
+for (const b of [frau160, mann190]) {
+  if (Math.abs(b.ideal - b.gezeigt) > 1e-9) {
+    throw new Error('Idealgewicht-Artikel: Beispielwert weicht gerundet vom exakten Wert ab.');
+  }
+}
+// Differenzen zur oberen Grenze aus den ANGEZEIGTEN Werten, weil der Text sich
+// auf das bezieht, was oben im Rechner steht.
+const luftFrau160 = frau160.bis - frau160.gezeigt;
+const luftMann190 = mann190.bis - mann190.gezeigt;
+
+// Voreinstellung des Formulars: 175 cm, männlich.
+const VOREINSTELLUNG_H = 175;
+const vorein = brocaIdeal(VOREINSTELLUNG_H, 'm');
+const voreinGezeigt = angezeigt(vorein);
+
+// Untere Kante des Eingabebereichs.
+const klein = mache(120, 'w');
+
+const quellen = [
+  { titel: 'WHO – Obesity and overweight, Fact Sheet (BMI-Definition und Grenzen für Erwachsene)', url: 'https://www.who.int/news-room/fact-sheets/detail/obesity-and-overweight' },
+  { titel: 'Deutsche Adipositas-Gesellschaft – Definition von Übergewicht und Adipositas (Klassifikation nach WHO)', url: 'https://adipositas-gesellschaft.de/ueber-adipositas/definition-von-adipositas/' },
+  { titel: 'WHO – Growth reference data for 5–19 years (Perzentile statt fester Grenzen für Kinder und Jugendliche)', url: 'https://www.who.int/tools/growth-reference-data-for-5to19-years' },
+];
+---
+<RechnerArtikel
+  titel="Das Broca-Idealgewicht einer Frau bleibt bei jeder Größe unter der Mitte des Normalbereichs"
+  lead={`Der Rechner zeigt oben zwei Dinge nebeneinander, die beide „normal“ heißen: das Broca-Idealgewicht und den BMI-Bereich von ${zahl(BMI_VON, 1)} bis ${zahl(BMI_BIS, 1)}. Sie decken sich nicht. Bei ${cm(frau160.h, 0)} und weiblich nennt der Rechner ${kg(frau160.gezeigt)} – das liegt ${proz(lageProz(frau160.lage))} tief im Normalbereich von ${kg(frau160.von)} bis ${kg(frau160.bis)}. Bei ${cm(mann190.h, 0)} und männlich sind es ${kg(mann190.gezeigt)}, also ${proz(lageProz(mann190.lage))}. Dasselbe Wort, zwei sehr verschiedene Positionen im selben Band.`}
+  datum="2026-09-23"
+  quellen={quellen}
+>
+  <h3>Woher die beiden Zahlen kommen</h3>
+  <p>
+    Die große Zahl im Ergebnisfeld ist das Broca-Idealgewicht. Es entsteht in
+    zwei Schritten: Zuerst das Broca-Normalgewicht, also Körpergröße in
+    Zentimetern minus {zahl(BROCA_SOCKEL)}. Bei {cm(frau160.h, 0)} sind das
+    {' '}{kg(brocaNormal(frau160.h))}. Davon zieht der Rechner einen Abschlag
+    ab: {proz(ABSCHLAG.m * 100)} bei Männern, {proz(ABSCHLAG.w * 100)} bei
+    Frauen. Übrig bleiben {kg(frau160.ideal)}.
+  </p>
+  <p>
+    Die kleine graue Zeile darunter rechnet nach einer ganz anderen Logik. Sie
+    stellt den Bereich dar, in dem der Body-Mass-Index zwischen
+    {' '}{zahl(BMI_VON, 1)} und {zahl(BMI_BIS, 1)} liegt – die WHO-Einteilung
+    für Erwachsene, umgerechnet in Kilogramm. Der BMI ist Gewicht geteilt durch
+    das Quadrat der Körpergröße in Metern, und diese Einteilung kennt kein
+    Geschlecht: Für Männer und Frauen gelten dieselben Grenzen. Bei
+    {' '}{cm(frau160.h, 0)} ergibt das {kg(frau160.von)} bis {kg(frau160.bis)}.
+  </p>
+  <p>
+    Der Abschlag ist damit die einzige Stelle, an der auf dieser Seite überhaupt
+    zwischen den Geschlechtern unterschieden wird. Wo er herkommt, lässt sich
+    nicht sauber belegen: Die Faustformel wird seit dem 19. Jahrhundert
+    weitergereicht, eine aktuelle Leitlinie steht nicht dahinter. Sie steht hier
+    als das, was sie ist – eine Rechenvorschrift, deren Folgen sich beziffern
+    lassen.
+  </p>
+
+  <h3>Derselbe Bereich, andere Position</h3>
+  <p>
+    Interessant ist nicht, ob das Broca-Ideal im Normalbereich liegt – das tut
+    es fast immer. Interessant ist, <strong>wo</strong> darin. Die folgende
+    Spalte „Lage“ misst das: {proz(0)} ist die untere Grenze des Normalbereichs,
+    {' '}{proz(100)} die obere.
+  </p>
+
+  <table>
+    <caption class="visually-hidden">
+      Broca-Idealgewicht und seine Lage im BMI-Normalbereich nach Körpergröße
+    </caption>
+    <thead>
+      <tr>
+        <th scope="col" class="num">Größe</th>
+        <th scope="col" class="num">Normalbereich</th>
+        <th scope="col" class="num">Ideal Mann</th>
+        <th scope="col" class="num">Lage</th>
+        <th scope="col" class="num">Ideal Frau</th>
+        <th scope="col" class="num">Lage</th>
+      </tr>
+    </thead>
+    <tbody>
+      {zeilen.map((z) => (
+        <tr>
+          <th scope="row" class="num">{cm(z.h, 0)}</th>
+          <td class="num">{zahl(z.von)}–{kg(z.bis)}</td>
+          <td class="num">{kg(z.idealM, 1)}</td>
+          <td class="num">{proz(lageProz(z.lageM))}</td>
+          <td class="num">{kg(z.idealW, 1)}</td>
+          <td class="num">{proz(lageProz(z.lageW))}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+
+  <p>
+    Die Spanne ist beträchtlich. Bei {cm(zeilen[0].h, 0)} landet das
+    Frauen-Ideal auf {proz(lageProz(zeilen[0].lageW))} – praktisch auf der
+    Untergrenze, ab der Untergewicht beginnt. Bei {cm(zeilen[5].h, 0)} liegt das
+    Männer-Ideal bei {proz(lageProz(zeilen[5].lageM))}, also oberhalb der Mitte.
+    Zwischen diesen beiden Fällen liegen {proz(lageProz(zeilen[5].lageM) - lageProz(zeilen[0].lageW))}
+    {' '}der Bandbreite – bei derselben Formel und demselben Etikett.
+  </p>
+  <p>
+    Der Grund ist die Bauart der Formel. Broca addiert Kilogramm linear zur
+    Größe: Jeder Zentimeter bringt ein Kilogramm, abzüglich Abschlag also
+    {' '}{kg(faktor('m'), 2)} bei Männern und {kg(faktor('w'), 2)} bei Frauen.
+    Der BMI-Bereich wächst dagegen mit dem Quadrat der Größe. Eine Gerade gegen
+    eine Parabel – die beiden können sich nur in wenigen Punkten treffen, und
+    überall sonst laufen sie auseinander.
+  </p>
+
+  <h3>Warum die Mitte für Frauen unerreichbar bleibt</h3>
+  <p>
+    Rechnet man den BMI des Broca-Idealgewichts aus, wird das Muster deutlich.
+    Bei {cm(frau160.h, 0)} und weiblich entspricht das Ideal einem BMI von
+    {' '}{zahl(frau160.bmi, 2)}, bei {cm(mann190.h, 0)} und männlich einem von
+    {' '}{zahl(mann190.bmi, 2)}. Die Mitte des Normalbereichs liegt bei
+    {' '}{zahl(BMI_MITTE, 2)}.
+  </p>
+  <p>
+    Über den gesamten Eingabebereich des Rechners – {cm(H_MIN, 0)} bis
+    {' '}{cm(H_MAX, 0)} – erreicht der BMI des Frauen-Ideals höchstens
+    {' '}{zahl(maxBmiW, 2)}. Das ist weniger als {zahl(BMI_MITTE, 2)}. Es gibt
+    also keine Körpergröße, bei der dieser Rechner einer Frau ein Idealgewicht
+    nennt, das in der oberen Hälfte des Normalbereichs liegt. Das Maximum wird
+    bei genau {cm(maxLageWH, 0)} erreicht, mit {proz(lageProz(maxLageW))} der
+    Bandbreite, und fällt danach wieder ab.
+  </p>
+  <p>
+    Dass das Maximum bei zwei Metern liegt, ist keine Eigenheit der Tabelle,
+    sondern Algebra: Der Ausdruck (Größe − {zahl(BROCA_SOCKEL)}) geteilt durch
+    Größe zum Quadrat hat bei {cm(200, 0)} seinen größten Wert. Links davon
+    zieht der feste Sockel von {zahl(BROCA_SOCKEL)} das Ergebnis nach unten,
+    rechts davon das Quadrat im Nenner.
+  </p>
+  <p>
+    Bei Männern geht die Rechnung anders aus. Deren Ideal überschreitet die
+    Bereichsmitte ab {cm(mannAbMitte)} und erreicht in der Spitze
+    {' '}{proz(lageProz(maxLageM))}. Die Schwelle liegt damit mitten im
+    Größenbereich, für den die Formel gedacht war – während sie für Frauen bei
+    keiner Größe überschritten wird.
+  </p>
+
+  <h3>Der Abschlag wiegt ein Fünftel des Normalbereichs</h3>
+  <p>
+    Der Unterschied zwischen den beiden Geschlechtern beträgt genau
+    {' '}{proz((ABSCHLAG.w - ABSCHLAG.m) * 100)} des Broca-Normalgewichts. In
+    Kilogramm ist das wenig und wächst langsam: {kg(abstand(zeilen[0].h), 2)}
+    {' '}bei {cm(zeilen[0].h, 0)}, {kg(abstand(zeilen[4].h), 2)} bei
+    {' '}{cm(zeilen[4].h, 0)}.
+  </p>
+  <p>
+    Gemessen am Normalbereich, der sich derselben Größe verdankt, ist es
+    erheblich mehr: zwischen {proz(anteilMin * 100, 1)} und
+    {' '}{proz(anteilMax * 100, 1)} der gesamten Bandbreite, über den ganzen
+    Abschnitt von {cm(150, 0)} bis {cm(200, 0)} hinweg. Anders gesagt: Broca
+    verschiebt Frauen um etwa ein Fünftel des Normalbereichs nach unten,
+    gegenüber einem Mann gleicher Größe. Die WHO-Klassifikation, die auf
+    derselben Seite direkt daneben steht, macht diesen Unterschied nicht.
+  </p>
+  <p class="ra-hinweis">
+    Zur Basis: Die Prozentangaben in diesem Abschnitt beziehen sich auf die
+    Breite des Normalbereichs bei der jeweiligen Größe, nicht auf das Gewicht.
+    Der Abstand von {kg(abstand(zeilen[2].h), 2)} bei {cm(zeilen[2].h, 0)} sind
+    gemessen am Männer-Ideal von {kg(zeilen[2].idealM, 1)} nur
+    {' '}{proz((abstand(zeilen[2].h) / zeilen[2].idealM) * 100, 1)} – zwei
+    verschiedene Bezugsgrößen für dieselbe Differenz.
+  </p>
+
+  <h3>Was groß angezeigt wird und was klein</h3>
+  <p>
+    Der Rechner stellt das Broca-Idealgewicht ins große Ergebnisfeld; der
+    BMI-Bereich steht in der grauen Zeile darunter. Wer nur auf die große Zahl
+    sieht, bekommt bei {cm(frau160.h, 0)} und weiblich {kg(frau160.gezeigt)}
+    {' '}zu lesen – während nach der WHO-Einteilung noch {kg(luftFrau160)} mehr
+    im Normalbereich liegen, bis {kg(frau160.bis)}. Bei {cm(mann190.h, 0)} und
+    männlich sind es {kg(mann190.gezeigt)} und {kg(luftMann190)} Luft nach oben.
+    Beide Abstände stammen aus den angezeigten, auf ganze Kilogramm gerundeten
+    Werten, damit sie zu dem passen, was oben auf dem Bildschirm steht.
+  </p>
+  <p>
+    Diese Rundung ist übrigens selbst eine Fehlerquelle beim Nachrechnen. In der
+    Voreinstellung – {cm(VOREINSTELLUNG_H, 0)}, männlich – beträgt das
+    Broca-Ideal exakt {kg(vorein, 1)}, angezeigt wird {kg(voreinGezeigt)}. Wer
+    die angezeigte Zahl zurück in die Formel steckt, kommt nicht wieder bei
+    {' '}{cm(VOREINSTELLUNG_H, 0)} heraus.
+  </p>
+
+  <h3>Wo beide Formeln aufhören zu tragen</h3>
+  <p>
+    Das Eingabefeld lässt Größen von {cm(H_MIN, 0)} bis {cm(H_MAX, 0)} zu. Am
+    unteren Ende wird die Broca-Formel sinnlos, weil der feste Sockel von
+    {' '}{zahl(BROCA_SOCKEL)} alles auffrisst: Bei {cm(klein.h, 0)} und weiblich
+    nennt der Rechner ein Idealgewicht von {kg(klein.gezeigt)}, was einem BMI von
+    {' '}{zahl(klein.bmi, 2)} entspricht – weit unterhalb dessen, was die
+    WHO-Einteilung überhaupt noch abdeckt, und weit unter dem Normalbereich von
+    {' '}{kg(klein.von)} bis {kg(klein.bis)}, den die Seite daneben anzeigt. Bei
+    genau {cm(H_MIN, 0)} kommt {kg(0)} heraus. Beide Formeln gelten für
+    Erwachsene; für Kinder und Jugendliche arbeitet die WHO mit
+    alters- und geschlechtsabhängigen Perzentilen statt mit festen Grenzen.
+  </p>
+  <p>
+    Der gemeinsame blinde Fleck bleibt bei beiden derselbe: Weder Broca noch der
+    BMI wissen, woraus das Gewicht besteht. Muskelmasse, Knochenbau und die
+    Verteilung des Fetts kommen in keiner der beiden Formeln vor. Der
+    Unterschied ist nur, dass der BMI ein Band angibt und offen ein
+    Bevölkerungsmaß ist, während Broca einen einzelnen Punkt nennt und ihn
+    „Ideal“ tauft. Wie dieser Punkt zum Band steht, hängt, wie die Tabelle
+    oben zeigt, vor allem von zwei Dingen ab, die mit Gesundheit nichts zu tun
+    haben: Körpergröße und Geschlechtseintrag.
+  </p>
+  <p>
+    Wer die Grenzen des Bands selbst nachrechnen möchte, findet die Umrechnung
+    von BMI-Punkten in Kilogramm im
+    {' '}<a href={`${import.meta.env.BASE_URL}gesundheit/bmi-rechner/`}>BMI-Rechner</a>.
+    Dieser Text ist eine Einordnung der beiden Rechenwege, keine Aussage über
+    ein für einzelne Personen angemessenes Gewicht.
+  </p>
+</RechnerArtikel>

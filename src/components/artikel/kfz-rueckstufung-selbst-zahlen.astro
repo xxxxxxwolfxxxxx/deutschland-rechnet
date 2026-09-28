@@ -1,0 +1,589 @@
+---
+import RechnerArtikel from '../RechnerArtikel.astro';
+import {
+  berechneRueckstufung,
+  beitragssatz,
+  rueckstufung,
+  naechstbesser,
+  KLASSEN,
+  QUELLE,
+  RUECKKAUF_GRENZE_HAFTPFLICHT,
+  RUECKKAUF_FRIST_MONATE,
+} from '../../../public/scripts/kfz-versicherung.js';
+
+// Alle Zahlen zur Buildzeit aus demselben Modul, das auch der Rechner laedt.
+// Die Tabellen darin sind die der GHV Versicherung (AKB 2025, Anhang 1.1/1.2);
+// der Artikel sagt das an jeder Stelle, an der es darauf ankommt.
+type Sparte = 'haftpflicht' | 'vollkasko';
+const eur = (n: number, d = 2) =>
+  n.toLocaleString('de-DE', { minimumFractionDigits: d, maximumFractionDigits: d }) + ' €';
+const eurGlatt = (n: number) => n.toLocaleString('de-DE', { maximumFractionDigits: 0 }) + ' €';
+const zahl = (n: number, d = 2) =>
+  n.toLocaleString('de-DE', { minimumFractionDigits: d, maximumFractionDigits: d });
+const proz = (n: number, d = 0) =>
+  n.toLocaleString('de-DE', { minimumFractionDigits: d, maximumFractionDigits: d }) + ' %';
+/** Vielfaches des heutigen Jahresbeitrags, z. B. „2,46-fach". */
+const fach = (n: number) => `${zahl(n)}-fach`;
+const sf = (k: string) => (k === 'S' || k === 'M' ? `Klasse ${k}` : `SF ${k.replace('1/2', '½')}`);
+
+const LANG = 35; // laengster Zeitraum, den das Modul rechnet
+const KURZ = 10; // Voreinstellung des Rechners
+const MITTEL = 20; // Zwischenstufe fuer die Tabellen
+
+// --- 1. Das durchgehende Beispiel ------------------------------------------
+// Setzung dieses Artikels (dieselbe wie in der FAQ der Seite), kein Marktwert.
+const BSP_KLASSE = '10';
+const BSP_BEITRAG = 500;
+const bsp = (jahre: number, extra = {}) =>
+  berechneRueckstufung({ sparte: 'haftpflicht', klasse: BSP_KLASSE, jahresbeitrag: BSP_BEITRAG, jahre, ...extra });
+const bspKurz = bsp(KURZ);
+const bspMittel = bsp(MITTEL);
+const bspLang = bsp(LANG);
+const bspZiel = bspLang.zielKlasse;
+const anteilKurz = (bspKurz.mehrbeitrag / bspLang.mehrbeitrag) * 100;
+const letzterMehrJahr = Math.max(...bspLang.zeilen.filter((z) => z.mehr > 0).map((z) => z.jahr));
+const ohneAufSf35 = bspLang.zeilen.find((z) => z.klasseOhne === '35')!.jahr;
+// Durchschnittlicher Mehrbeitrag der Jahre nach dem Voreinstellungszeitraum.
+const spaeteJahre = bspLang.zeilen.filter((z) => z.jahr > KURZ && z.mehr > 0);
+const spaeterSchnitt = spaeteJahre.reduce((s, z) => s + z.mehr, 0) / spaeteJahre.length;
+if (spaeteJahre.length !== letzterMehrJahr - KURZ) throw new Error('Kfz-Artikel: Lücke im späten Mehrbeitrag.');
+const klassenAbstand = Number(BSP_KLASSE) + 1 - Number(bspZiel);
+
+if (bspLang.eingeholtImJahr !== LANG - Number(bspZiel) + 1) {
+  throw new Error('Kfz-Artikel: Gleichstand liegt nicht dort, wo der Rückstufungspfad SF 35 erreicht.');
+}
+if (!(letzterMehrJahr < bspLang.eingeholtImJahr! && letzterMehrJahr > KURZ + 10)) {
+  throw new Error('Kfz-Artikel: Der letzte Mehrbeitrag liegt nicht mehr zwischen Jahr 21 und dem Gleichstand.');
+}
+// Der Klassenabstand bleibt konstant, bis der Pfad ohne Schaden in SF 35 ankommt.
+for (const z of bspLang.zeilen) {
+  if (z.jahr < ohneAufSf35 && Number(z.klasseOhne) - Number(z.klasseMit) !== klassenAbstand) {
+    throw new Error(`Kfz-Artikel: Klassenabstand im Jahr ${z.jahr} nicht konstant.`);
+  }
+}
+let kumuliert = 0;
+const verlauf = bspLang.zeilen.map((z) => ({ ...z, summe: (kumuliert += z.mehr) }));
+const VERLAUF_JAHRE = [1, 2, 3, 5, KURZ, 15, MITTEL, 25, letzterMehrJahr, bspLang.eingeholtImJahr!];
+const verlaufAuszug = verlauf.filter((z) => VERLAUF_JAHRE.includes(z.jahr));
+
+// --- 2. Die Schwelle als Vielfaches des Jahresbeitrags -----------------------
+// Der Mehrbeitrag ist linear im Beitrag: Das Modul rechnet ueber den Beitrag zu
+// 100 Prozent. Geprueft, nicht nur behauptet.
+const vielfach = (sparte: Sparte, klasse: string, jahre: number) =>
+  berechneRueckstufung({ sparte, klasse, jahresbeitrag: 1000, jahre }).mehrbeitrag / 1000;
+for (const sparte of ['haftpflicht', 'vollkasko'] as Sparte[]) {
+  for (const k of KLASSEN) {
+    const a = berechneRueckstufung({ sparte, klasse: k, jahresbeitrag: 300, jahre: LANG }).mehrbeitrag;
+    const b = berechneRueckstufung({ sparte, klasse: k, jahresbeitrag: 900, jahre: LANG }).mehrbeitrag;
+    if (Math.abs(b - 3 * a) > 0.5) throw new Error(`Kfz-Artikel: Mehrbeitrag nicht linear (${sparte}, ${k}).`);
+  }
+}
+// Rueckkauf nach I.5: Ab welchem Haftpflichtbeitrag kostet die Rueckstufung
+// in zehn Jahren mehr als eine Entschaedigung an der Grenze? Fein gesucht mit
+// dem Urteil des Moduls selbst, nicht aus dem Vielfachen abgeleitet.
+function rueckkaufAbBeitrag(klasse: string): number {
+  let lo = 1;
+  let hi = 10000;
+  for (let i = 0; i < 60; i += 1) {
+    const m = (lo + hi) / 2;
+    const r = berechneRueckstufung({
+      sparte: 'haftpflicht', klasse, jahresbeitrag: m, jahre: KURZ, entschaedigung: RUECKKAUF_GRENZE_HAFTPFLICHT,
+    });
+    if (r.selbstZahlenLohnt) hi = m;
+    else lo = m;
+  }
+  return hi;
+}
+const PROBE = ['35', '34', '30', '25', '20', '15', '10', '5', '3', '1', '1/2', '0'];
+const schwellen = (sparte: Sparte) => PROBE.map((k) => ({
+  k,
+  satz: beitragssatz(sparte, k),
+  ziel: rueckstufung(sparte, k, 1),
+  kurz: vielfach(sparte, k, KURZ),
+  mittel: vielfach(sparte, k, MITTEL),
+  lang: vielfach(sparte, k, LANG),
+  rueckkaufAb: sparte === 'haftpflicht' ? rueckkaufAbBeitrag(k) : 0,
+}));
+const khTabelle = schwellen('haftpflicht');
+const vkTabelle = schwellen('vollkasko');
+
+// Extremwerte ueber ALLE 39 Klassen, nicht nur ueber die Tabellenzeilen.
+const extrem = (sparte: Sparte, jahre: number) => {
+  const alle = KLASSEN.map((k) => ({ k, v: vielfach(sparte, k, jahre) }));
+  return {
+    max: alle.reduce((a, b) => (b.v > a.v ? b : a)),
+    min: alle.reduce((a, b) => (b.v < a.v ? b : a)),
+  };
+};
+const khKurzEx = extrem('haftpflicht', KURZ);
+const khLangEx = extrem('haftpflicht', LANG);
+// Behauptung: Das hoechste Vielfache liegt in beiden Zeitraeumen in einer
+// Klasse ab SF 20, das niedrigste in Klasse M und unter einem Jahresbeitrag.
+const UNTEN = ['1/2', '0', 'S', 'M'];
+const UNTERSTE = 'M';
+for (const ex of [khKurzEx, khLangEx]) {
+  if (UNTEN.includes(ex.max.k) || Number(ex.max.k) < 20) throw new Error('Kfz-Artikel: Maximum nicht mehr in hoher Klasse.');
+  if (ex.min.k !== UNTERSTE || !(ex.min.v < 1)) throw new Error('Kfz-Artikel: Minimum nicht mehr in Klasse M unter einem Jahresbeitrag.');
+}
+if (rueckstufung('haftpflicht', UNTERSTE, 1) !== UNTERSTE) throw new Error('Kfz-Artikel: Klasse M stuft nicht mehr in sich selbst.');
+// SF 34 gegen SF 35 in Euro bei gleichem Beitrag zu 100 Prozent.
+const GRUND = 1000;
+const inEuro = (sparte: Sparte, k: string, jahre: number) =>
+  berechneRueckstufung({ sparte, klasse: k, jahresbeitrag: (GRUND * beitragssatz(sparte, k)) / 100, jahre }).mehrbeitrag;
+const aus34 = inEuro('haftpflicht', '34', KURZ);
+const aus35 = inEuro('haftpflicht', '35', KURZ);
+const vorteil35 = (1 - aus35 / aus34) * 100;
+if (!(aus35 < aus34)) throw new Error('Kfz-Artikel: SF 35 ist nicht mehr günstiger zurückzustufen als SF 34.');
+// In Euro (gleicher Beitrag zu 100 %) ist die teuerste Klasse eine andere als im Vielfachen.
+const euroMaxLang = KLASSEN.map((k) => ({ k, v: inEuro('haftpflicht', k, LANG) })).reduce((a, b) => (b.v > a.v ? b : a));
+if (euroMaxLang.k === khLangEx.max.k) throw new Error('Kfz-Artikel: Euro- und Vielfachen-Maximum fallen zusammen.');
+if (Number(euroMaxLang.k) >= 20) throw new Error('Kfz-Artikel: Euro-Maximum liegt nicht mehr in niedriger Klasse.');
+
+// Rueckkauf: Hoechster noetiger Beitrag unter den Zahlenklassen SF 1 bis SF 35.
+const rkZahlen = khTabelle.filter((z) => !UNTEN.includes(z.k));
+const rkMaxZahl = rkZahlen.reduce((a, b) => (b.rueckkaufAb > a.rueckkaufAb ? b : a));
+const rkBsp = khTabelle.find((z) => z.k === BSP_KLASSE)!;
+if (!(BSP_BEITRAG > rkBsp.rueckkaufAb)) throw new Error('Kfz-Artikel: Rückkauf im Beispiel lohnt nicht mehr.');
+
+// Rest nach 35 Jahren: Mit einem eigenen Pfad aus denselben Modulfunktionen
+// ueber 45 Jahre gerechnet; fuer den 35-Jahre-Wert muss er mit dem Modul
+// uebereinstimmen.
+function pfadKosten(sparte: Sparte, k: string, schaeden: number[], jahre: number, b100 = GRUND): number {
+  let ohne = k;
+  let mit = k;
+  let s = 0;
+  for (let j = 0; j < jahre; j += 1) {
+    ohne = naechstbesser(ohne);
+    const n = schaeden[j] ?? 0;
+    mit = n > 0 ? rueckstufung(sparte, mit, n) : naechstbesser(mit);
+    s += (b100 * (beitragssatz(sparte, mit) - beitragssatz(sparte, ohne))) / 100;
+  }
+  return s;
+}
+let restMax = 0;
+for (const sparte of ['haftpflicht', 'vollkasko'] as Sparte[]) {
+  for (const k of KLASSEN) {
+    const modul = berechneRueckstufung({ sparte, klasse: k, jahresbeitrag: beitragssatz(sparte, k) * 10, jahre: LANG }).mehrbeitrag;
+    const eigen = pfadKosten(sparte, k, [1], LANG);
+    if (Math.abs(modul - eigen) > 0.1) throw new Error(`Kfz-Artikel: eigener Pfad weicht vom Modul ab (${sparte}, ${k}).`);
+    restMax = Math.max(restMax, pfadKosten(sparte, k, [1], 45) - eigen);
+  }
+}
+// Behauptung im Text: Nach 35 Jahren kommt nichts mehr hinzu.
+if (restMax > 0.005) throw new Error('Kfz-Artikel: Nach 35 Jahren fällt noch Mehrbeitrag an.');
+
+// --- 3. Zinsen und steigende Beitraege -----------------------------------
+// Hypothetische Saetze, keine Prognose.
+const SATZ = 3;
+const abgezinst = bspLang.zeilen.reduce((s, z) => s + z.mehr / Math.pow(1 + SATZ / 100, z.jahr), 0);
+const gesteigert = bspLang.zeilen.reduce((s, z) => s + z.mehr * Math.pow(1 + SATZ / 100, z.jahr), 0);
+const abgezinstKurz = bspKurz.zeilen.reduce((s, z) => s + z.mehr / Math.pow(1 + SATZ / 100, z.jahr), 0);
+if (!(abgezinst > bspKurz.mehrbeitrag)) {
+  throw new Error('Kfz-Artikel: Abgezinster Langfristwert liegt nicht mehr über dem Zehnjahreswert.');
+}
+
+// --- 4. Vollkasko mit Selbstbeteiligung -------------------------------------
+// Setzungen des Artikels.
+const VK_BEITRAG = 400;
+const VK_SB = 300;
+const vkKurz = berechneRueckstufung({ sparte: 'vollkasko', klasse: BSP_KLASSE, jahresbeitrag: VK_BEITRAG, jahre: KURZ });
+const vkLang = berechneRueckstufung({ sparte: 'vollkasko', klasse: BSP_KLASSE, jahresbeitrag: VK_BEITRAG, jahre: LANG });
+const vkSchadenKurz = VK_SB + vkKurz.mehrbeitrag;
+const vkSchadenLang = VK_SB + vkLang.mehrbeitrag;
+const khZielBsp = rueckstufung('haftpflicht', BSP_KLASSE, 1);
+const vkZielBsp = rueckstufung('vollkasko', BSP_KLASSE, 1);
+if (!(Number(vkZielBsp) > Number(khZielBsp))) throw new Error('Kfz-Artikel: VK stuft im Beispiel nicht mehr milder zurück.');
+
+// --- 5. Mehrere Schaeden ---------------------------------------------------
+const MEHRFACH_KLASSEN = ['30', '20', '15', '10', '5', '2'];
+const mehrfach = MEHRFACH_KLASSEN.map((k) => {
+  const einer = pfadKosten('haftpflicht', k, [1], LANG);
+  const zweiGleich = berechneRueckstufung({ sparte: 'haftpflicht', klasse: k, jahresbeitrag: (GRUND * beitragssatz('haftpflicht', k)) / 100, jahre: LANG, schaeden: 2 }).mehrbeitrag;
+  const zweiFolge = pfadKosten('haftpflicht', k, [1, 1], LANG);
+  return { k, einer, gleich: zweiGleich - einer, folge: zweiFolge - einer };
+});
+const m10 = mehrfach.find((z) => z.k === BSP_KLASSE)!;
+const m2 = mehrfach.find((z) => z.k === '2')!;
+if (!(m10.gleich > m10.einer)) throw new Error('Kfz-Artikel: Zweiter Schaden aus SF 10 nicht mehr teurer als der erste.');
+if (!(m2.gleich < m2.einer / 2)) throw new Error('Kfz-Artikel: Zweiter Schaden aus SF 2 nicht mehr billig.');
+// Die Aussage „mal im selben Jahr, mal im Folgejahr teurer" muss beide Faelle enthalten.
+const gleichTeurer = mehrfach.filter((z) => z.gleich > z.folge).length;
+if (gleichTeurer === 0 || gleichTeurer === mehrfach.length) {
+  throw new Error('Kfz-Artikel: Reihenfolge der Mehrfachschäden ist nicht mehr gemischt.');
+}
+// Der dritte Schaden im selben Jahr aendert nichts – Spalte „2 und mehr".
+for (const sparte of ['haftpflicht', 'vollkasko'] as Sparte[]) {
+  for (const k of KLASSEN) {
+    if (rueckstufung(sparte, k, 3) !== rueckstufung(sparte, k, 2)) throw new Error('Kfz-Artikel: dritter Schaden stuft weiter zurück.');
+  }
+}
+
+const quellen = [
+  { titel: QUELLE.titel, url: QUELLE.url },
+  {
+    titel: 'GDV: Allgemeine Bedingungen für die Kfz-Versicherung (AKB 2015, Stand 30.04.2025) – unverbindliche Musterbedingungen',
+    url: 'https://www.gdv.de/resource/blob/6178/ec39e06d2f552aca5f35f19277c94603/01-allgemeine-bedingungen-fuer-die-kfz-versicherung-akb-2015--data.pdf',
+  },
+];
+---
+<RechnerArtikel
+  titel="Eine Rückstufung wird erst in SF 35 eingeholt"
+  datum="2026-09-17"
+  lead={`Wer aus ${sf(BSP_KLASSE)} bei ${eurGlatt(BSP_BEITRAG)} Jahresbeitrag einen Haftpflichtschaden meldet, zahlt nach den Tabellen der GHV in zehn Jahren ${eur(bspKurz.mehrbeitrag)} mehr. Damit ist die Rechnung aber nicht zu Ende: Der Abstand schließt sich erst im ${bspLang.eingeholtImJahr}. Jahr, zusammen sind es ${eur(bspLang.mehrbeitrag)}. Ob sich Selbstzahlen lohnt, hängt deshalb stark am Zeitraum – und die Schwelle ist ein Vielfaches des eigenen Beitrags, das allein von der Klasse abhängt.`}
+  quellen={quellen}
+>
+  <h3>Woher die Tabellen stammen – und warum es keine allgemeingültigen gibt</h3>
+  <p>
+    Welche Schadenfreiheitsklasse nach einem Schaden gilt und welcher
+    Beitragssatz zu ihr gehört, regelt kein Gesetz, sondern der Vertrag. Der
+    Gesamtverband der Versicherungswirtschaft (GDV) gibt zwar
+    Musterbedingungen heraus, die AKB 2015. Sie sind aber ausdrücklich eine
+    unverbindliche Bekanntgabe, und ausgerechnet im Anhang mit den Tabellen
+    zum Schadenfreiheitsrabatt stehen dort nur Platzhalter. Jeder Versicherer
+    füllt sie selbst.
+  </p>
+  <p>
+    Der Rechner oben und alle Zahlen hier verwenden deshalb ein belegtes
+    Beispiel: die veröffentlichten AKB 2025 der GHV Versicherung, Anhang 1.1
+    (Beitragssätze für Pkw) und Anhang 1.2 (Rückstufung für Pkw). Die
+    Regeln dazu stehen in Abschnitt I: Zum 1. Januar wird nach dem
+    Schadenverlauf des vergangenen Kalenderjahres neu eingestuft, und
+    welchem Jahr ein Schaden zugeordnet wird, entscheidet der Tag der
+    Schadenmeldung (I.3). Nach einem schadenfreien Jahr geht es eine Klasse
+    hinauf (I.3.2), aus {sf('1/2')}, {sf('0')}, Klasse S oder Klasse M direkt in {sf('1')}
+    (I.3.4.1). Nach einem Schaden wird nach der Tabelle zurückgestuft
+    (I.3.5). Wer bei einem anderen Versicherer ist, findet die eigenen Werte
+    im Anhang seiner Bedingungen; die Rechenweise unten lässt sich mit ihnen
+    wiederholen, die Beträge weichen ab.
+  </p>
+  <p>
+    Eine Setzung trägt jede Zahl dieses Artikels: Der Beitrag zu 100 Prozent
+    bleibt gleich. Typklasse, Regionalklasse und Tarif ändern sich also
+    nicht, und es geht nur um den Teil des Beitrags, der an der
+    Schadenfreiheitsklasse hängt.
+  </p>
+
+  <h3>Der Abstand in Klassen schrumpft nicht</h3>
+  <p>
+    Die übliche Vorstellung von einer Rückstufung ist die einer Strafe, die
+    nach ein paar Jahren abgesessen ist. Die Tabellen geben das nicht her.
+    Nach dem Schaden steigen beide Verläufe – mit und ohne Meldung – jedes Jahr
+    um genau eine Klasse. Der Abstand von {klassenAbstand} Klassen, den die
+    Rückstufung von {sf(BSP_KLASSE)} auf {sf(bspZiel)} im ersten Jahr
+    aufreißt, bleibt deshalb Jahr für Jahr gleich groß. Er beginnt erst zu
+    schrumpfen, wenn der Verlauf ohne Schaden in {sf('35')} ankommt und dort
+    stehen bleibt, im {ohneAufSf35}. Jahr. Verschwunden ist er, wenn auch der
+    andere Verlauf dort ankommt, im {bspLang.eingeholtImJahr}. Jahr.
+  </p>
+
+  <table>
+    <caption class="visually-hidden">
+      Beitragsverlauf nach einem Haftpflichtschaden aus SF 10 bei 500 Euro Jahresbeitrag, mit und ohne Meldung
+    </caption>
+    <thead>
+      <tr>
+        <th scope="col" class="num">Jahr</th>
+        <th scope="col">ohne Meldung</th>
+        <th scope="col">mit Meldung</th>
+        <th scope="col" class="num">Mehrbeitrag</th>
+        <th scope="col" class="num">bis dahin zusammen</th>
+      </tr>
+    </thead>
+    <tbody>
+      {verlaufAuszug.map((z) => (
+        <tr>
+          <th scope="row" class="num">{z.jahr}</th>
+          <td>{sf(z.klasseOhne)} ({proz(z.satzOhne)})</td>
+          <td>{sf(z.klasseMit)} ({proz(z.satzMit)})</td>
+          <td class="num">{eur(z.mehr)}</td>
+          <td class="num">{eur(z.summe)}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+
+  <p>
+    In Euro wird der Abstand trotzdem kleiner, weil die Beitragssätze in den
+    oberen Klassen flacher verlaufen: Im ersten Jahr kostet die Meldung
+    {' '}{eur(verlauf[0].mehr)}, zwischen dem {KURZ + 1}. und dem
+    {' '}{letzterMehrJahr}. Jahr im Schnitt noch {eur(spaeterSchnitt)} im Jahr.
+    Der letzte Mehrbeitrag fällt im {letzterMehrJahr}. Jahr an; danach
+    stehen beide Verläufe auf demselben Beitragssatz.
+  </p>
+  <p>
+    Der Rechner oben ist auf zehn Jahre voreingestellt. Diese zehn Jahre
+    erfassen im Beispiel {proz(anteilKurz)} dessen, was die Meldung
+    insgesamt kostet, über {MITTEL} Jahre sind es {eur(bspMittel.mehrbeitrag)}.
+    Die {eur(bspLang.mehrbeitrag)} bis zum Gleichstand zeigt der Rechner mit
+    der Auswahl „{LANG} Jahre“ – sie fallen aber nur an, wenn man so lange Auto
+    fährt. Ein neues
+    Fahrzeug oder ein neuer Versicherer beenden die Rechnung nicht: Die GHV
+    übernimmt den Schadenverlauf beim Fahrzeugwechsel und beim Wechsel von
+    einem anderen Versicherer (I.6.1.1 und I.6.1.4, mit den Voraussetzungen
+    aus I.6.2 und I.6.3). Welcher Zeitraum der richtige
+    ist, ist deshalb keine Rechenfrage, sondern die Frage, wie lange man noch
+    fährt.
+  </p>
+
+  <h3>Die Schwelle ist ein Vielfaches des Beitrags</h3>
+  <p>
+    Weil der Rechner über den Beitrag zu 100 Prozent geht, wächst der
+    Mehrbeitrag exakt proportional zum eigenen Beitrag. Das erlaubt eine
+    Tabelle, die für jeden Beitrag gilt: Selbst zahlen lohnt sich, solange
+    die Entschädigung, die der Versicherer leisten müsste, unter dem
+    angegebenen Vielfachen des heutigen Jahresbeitrags liegt. Ein Vielfaches
+    von {fach(2.5)} heißt bei {eurGlatt(BSP_BEITRAG)} Beitrag: bis
+    {' '}{eurGlatt(2.5 * BSP_BEITRAG)} selbst zahlen.
+  </p>
+
+  <h4>Kfz-Haftpflicht</h4>
+  <table>
+    <caption class="visually-hidden">
+      Kfz-Haftpflicht: Mehrbeitrag nach einem Schaden als Vielfaches des heutigen Jahresbeitrags, nach Klasse und Zeitraum
+    </caption>
+    <thead>
+      <tr>
+        <th scope="col">Klasse heute</th>
+        <th scope="col" class="num">Satz</th>
+        <th scope="col">zurück auf</th>
+        <th scope="col" class="num">{KURZ} Jahre</th>
+        <th scope="col" class="num">{MITTEL} Jahre</th>
+        <th scope="col" class="num">{LANG} Jahre</th>
+        <th scope="col" class="num">Rückkauf bis {eurGlatt(RUECKKAUF_GRENZE_HAFTPFLICHT)} lohnt ab Beitrag</th>
+      </tr>
+    </thead>
+    <tbody>
+      {khTabelle.map((z) => (
+        <tr>
+          <th scope="row">{sf(z.k)}</th>
+          <td class="num">{proz(z.satz)}</td>
+          <td>{sf(z.ziel)}</td>
+          <td class="num">{zahl(z.kurz)}</td>
+          <td class="num">{zahl(z.mittel)}</td>
+          <td class="num">{zahl(z.lang)}</td>
+          <td class="num">{eurGlatt(Math.ceil(z.rueckkaufAb))}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+
+  <h4>Vollkasko</h4>
+  <table>
+    <caption class="visually-hidden">
+      Vollkasko: Mehrbeitrag nach einem Schaden als Vielfaches des heutigen Jahresbeitrags, nach Klasse und Zeitraum
+    </caption>
+    <thead>
+      <tr>
+        <th scope="col">Klasse heute</th>
+        <th scope="col" class="num">Satz</th>
+        <th scope="col">zurück auf</th>
+        <th scope="col" class="num">{KURZ} Jahre</th>
+        <th scope="col" class="num">{MITTEL} Jahre</th>
+        <th scope="col" class="num">{LANG} Jahre</th>
+      </tr>
+    </thead>
+    <tbody>
+      {vkTabelle.map((z) => (
+        <tr>
+          <th scope="row">{sf(z.k)}</th>
+          <td class="num">{proz(z.satz)}</td>
+          <td>{sf(z.ziel)}</td>
+          <td class="num">{zahl(z.kurz)}</td>
+          <td class="num">{zahl(z.mittel)}</td>
+          <td class="num">{zahl(z.lang)}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+
+  <p>
+    Das Ergebnis läuft der Intuition entgegen. Wer lange schadenfrei gefahren
+    ist, zahlt den niedrigsten Beitrag – und muss, gemessen an genau diesem
+    Beitrag, die höchsten Schäden selbst tragen, bevor sich die Meldung
+    lohnt. Über alle {KLASSEN.length} Klassen der Haftpflicht liegt das
+    höchste Vielfache über zehn Jahre in {sf(khKurzEx.max.k)} mit
+    {' '}{fach(khKurzEx.max.v)}, über {LANG} Jahre in {sf(khLangEx.max.k)} mit
+    {' '}{fach(khLangEx.max.v)}. Am unteren Ende, in {sf(UNTERSTE)}, ist es
+    weniger als ein Jahresbeitrag: {fach(khKurzEx.min.v)} über zehn und
+    {' '}{fach(khLangEx.min.v)} über {LANG} Jahre. Dort gilt schon der höchste
+    Beitragssatz, ein Schaden lässt den Vertrag in {sf(UNTERSTE)} stehen, und
+    nach einem schadenfreien Jahr geht es ohnehin nach {sf('1')}.
+  </p>
+  <p>
+    Rechnet man für jede Klasse mit demselben Beitrag zu 100 Prozent, wie es
+    die Tabelle zu zwei Schäden weiter unten tut, verschiebt sich das Bild:
+    In Euro ist über {LANG} Jahre ein Schaden aus {sf(euroMaxLang.k)} am
+    teuersten. Beides stimmt. Wer in einer niedrigen Klasse steht, verliert
+    mehr Geld; wer in einer hohen steht, verliert mehr im Verhältnis zu dem,
+    was er zahlt.
+  </p>
+  <p>
+    Eine Unregelmäßigkeit der GHV-Tabelle fällt dabei auf: {sf('35')} fällt
+    in der Haftpflicht nur auf {sf(rueckstufung('haftpflicht', '35', 1))},
+    {' '}{sf('34')} dagegen auf {sf(rueckstufung('haftpflicht', '34', 1))}.
+    Bei gleichem Beitrag zu 100 Prozent kostet ein Schaden aus {sf('35')} in
+    zehn Jahren deshalb {proz(vorteil35)} weniger als einer aus {sf('34')}.
+    Ob eine solche Stufe im eigenen Vertrag existiert, zeigt nur dessen
+    Anhang.
+  </p>
+  <p class="ra-hinweis">
+    Die Spalte „{LANG} Jahre" ist der Gesamtwert: Spätestens nach
+    {' '}{LANG} Jahren stehen beide Verläufe auf demselben Beitragssatz, danach
+    kommt in keiner Klasse und keiner Sparte etwas hinzu. Im Rechner oben
+    entspricht sie der Auswahl „{LANG} Jahre“.
+  </p>
+
+  <h3>Was Zinsen und steigende Beiträge daraus machen</h3>
+  <p>
+    Selbst zahlen heißt: Das Geld geht heute weg, der Mehrbeitrag verteilt
+    sich über Jahrzehnte. Wer den Betrag sonst angelegt hätte, müsste die
+    künftigen Mehrbeiträge abzinsen. Mit einem angenommenen Satz von
+    {' '}{proz(SATZ)} im Jahr – eine Rechengröße, keine Prognose – schrumpfen
+    die {eur(bspLang.mehrbeitrag)} des Beispiels auf {eur(abgezinst)}, die
+    zehn Jahre auf {eur(abgezinstKurz)}. Selbst abgezinst liegt der
+    Langfristwert damit noch über dem unverzinsten Zehnjahreswert von
+    {' '}{eur(bspKurz.mehrbeitrag)}.
+  </p>
+  <p>
+    In die andere Richtung wirkt ein steigender Beitrag zu 100 Prozent, den
+    der Rechner ausdrücklich ausschließt. Steigt er um {proz(SATZ)} im Jahr,
+    wachsen die {eur(bspLang.mehrbeitrag)} auf {eur(gesteigert)}. Wachsen
+    Beitrag und angelegtes Geld im selben Tempo, heben sich beide Effekte
+    auf. Die Tabelle oben ist daher keine Obergrenze und keine
+    Untergrenze, sondern der Wert ohne diese beiden Annahmen.
+  </p>
+
+  <h3>Vollkasko: Die Selbstbeteiligung zählt obendrauf</h3>
+  <p>
+    In der Vollkasko ist die Entschädigung nicht der Schaden, sondern der
+    Schaden abzüglich der Selbstbeteiligung (A.2.5.8.1). Die Schwelle in
+    Schadenhöhe liegt deshalb um die Selbstbeteiligung höher als der
+    Mehrbeitrag. Ein Beispiel mit gesetzten Werten: {sf(BSP_KLASSE)},
+    {' '}{eurGlatt(VK_BEITRAG)} Vollkaskobeitrag, {eurGlatt(VK_SB)}
+    Selbstbeteiligung. Ein Schaden stuft auf {sf(vkZielBsp)} zurück – milder
+    als in der Haftpflicht, wo es aus derselben Klasse auf {sf(khZielBsp)}
+    geht – und kostet in zehn Jahren {eur(vkKurz.mehrbeitrag)} mehr, in
+    {' '}{LANG} Jahren {eur(vkLang.mehrbeitrag)}. Selbst zahlen lohnt sich
+    damit bis zu einem Schaden von {eur(vkSchadenKurz)} beziehungsweise
+    {' '}{eur(vkSchadenLang)}.
+  </p>
+  <p>
+    Zwei Regeln der GHV-Bedingungen verschieben diese Rechnung. Einen
+    Rückkauf wie in der Haftpflicht gibt es für die Vollkasko nicht; I.5 gilt
+    ausdrücklich nur für die Kfz-Haftpflicht, im GDV-Muster ebenso. Und ein
+    Schaden, der eigentlich unter die Teilkasko fällt, belastet den Verlauf
+    nicht, auch wenn die Vollkasko ihn bezahlt (I.4.1.2 d). Brand,
+    Diebstahl, Glasbruch oder ein Zusammenstoß mit Tieren (A.2.2.1) sind damit
+    keine Frage für diese Rechnung.
+  </p>
+
+  <h3>Der Rückkauf in der Haftpflicht</h3>
+  <p>
+    In der Kfz-Haftpflicht lässt sich die Entscheidung nach hinten
+    verschieben. Nach I.5 teilt die GHV nach Abschluss der Regulierung die
+    Höhe der Entschädigung mit, sofern sie nicht mehr als
+    {' '}{eurGlatt(RUECKKAUF_GRENZE_HAFTPFLICHT)} beträgt. Wer sie innerhalb von
+    {' '}{RUECKKAUF_FRIST_MONATE} Monaten erstattet, gilt als schadenfrei. Das
+    GDV-Muster nennt dieselbe Grenze; maßgeblich sind die Bedingungen des
+    eigenen Vertrags.
+  </p>
+  <p>
+    Die letzte Spalte der Haftpflichttabelle zeigt, ab welchem heutigen
+    Haftpflichtbeitrag sich der Rückkauf einer Entschädigung von genau
+    {' '}{eurGlatt(RUECKKAUF_GRENZE_HAFTPFLICHT)} schon über zehn Jahre rechnet;
+    kleinere Beträge lohnen sich dann erst recht. Im Beispiel mit
+    {' '}{eurGlatt(BSP_BEITRAG)} Beitrag in {sf(BSP_KLASSE)} liegt die Grenze bei
+    {' '}{eurGlatt(Math.ceil(rkBsp.rueckkaufAb))} – der Rückkauf lohnt sich also
+    für jeden Betrag, den die Regel überhaupt zulässt. In den Klassen von
+    {' '}{sf('1')} bis {sf('35')} der Tabelle braucht es dafür höchstens
+    {' '}{eurGlatt(Math.ceil(rkMaxZahl.rueckkaufAb))} Beitrag ({sf(rkMaxZahl.k)}).
+    Die Werte sind auf ganze Euro aufgerundet und mit der Rechenfunktion des
+    Rechners gesucht, nicht aus dem Vielfachen abgelesen.
+  </p>
+  <p>
+    Für Sachschäden, die voraussichtlich nicht über
+    {' '}{eurGlatt(RUECKKAUF_GRENZE_HAFTPFLICHT)} liegen, erlaubt die GHV
+    außerdem, sie selbst zu regulieren und erst zu melden, wenn das nicht
+    gelingt (E.1.2.2). Sonst ist jedes Schadenereignis, das zu einer
+    Leistung führen kann, innerhalb einer Woche anzuzeigen (E.1.1.1); Ansprüche, die gegen den
+    Versicherungsnehmer erhoben werden, sind ebenfalls binnen einer Woche
+    mitzuteilen (E.1.2.1).
+  </p>
+
+  <h3>Zwei Schäden in einem Jahr</h3>
+  <p>
+    Die GHV-Tabelle kennt zwei Spalten: nach einem Schaden und nach zwei oder
+    mehr Schäden im Kalenderjahr. Ein dritter Schaden im selben Jahr ändert
+    an der Einstufung also nichts mehr. Was der zweite zusätzlich kostet,
+    hängt stark von der Klasse ab – und davon, ob er ins selbe oder ins
+    nächste Kalenderjahr fällt. Die Tabelle rechnet in der Haftpflicht mit
+    einem Beitrag zu 100 Prozent von {eurGlatt(GRUND)} über {LANG} Jahre.
+  </p>
+
+  <table>
+    <caption class="visually-hidden">
+      Kfz-Haftpflicht: Mehrbeitrag eines Schadens und zusätzlicher Mehrbeitrag eines zweiten Schadens, im selben oder im folgenden Kalenderjahr
+    </caption>
+    <thead>
+      <tr>
+        <th scope="col">Klasse heute</th>
+        <th scope="col" class="num">ein Schaden</th>
+        <th scope="col" class="num">zweiter im selben Jahr: zusätzlich</th>
+        <th scope="col" class="num">zweiter im Folgejahr: zusätzlich</th>
+      </tr>
+    </thead>
+    <tbody>
+      {mehrfach.map((z) => (
+        <tr>
+          <th scope="row">{sf(z.k)}</th>
+          <td class="num">{eurGlatt(z.einer)}</td>
+          <td class="num">{eurGlatt(z.gleich)}</td>
+          <td class="num">{eurGlatt(z.folge)}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+
+  <p>
+    Aus {sf(BSP_KLASSE)} kostet der zweite Schaden im selben Jahr zusätzlich
+    {' '}{eurGlatt(m10.gleich)} und damit mehr als der erste mit
+    {' '}{eurGlatt(m10.einer)}. Aus {sf('2')} ist er mit {eurGlatt(m2.gleich)}
+    fast umsonst, weil der Vertrag nach dem ersten Schaden ohnehin in
+    {' '}{sf(rueckstufung('haftpflicht', '2', 1))} steht und die Klassen darunter
+    nach einem schadenfreien Jahr alle wieder in {sf('1')} münden. Ob der
+    zweite Schaden im selben Jahr oder im Folgejahr teurer ist, wechselt
+    von Zeile zu Zeile. Eine allgemeine Regel lässt sich daraus nicht
+    ableiten – und dem Verschieben einer Meldung setzt die Wochenfrist
+    ohnehin enge Grenzen.
+  </p>
+  <p>
+    Praktisch heißt das: Wer in einem Jahr bereits einen Schaden gemeldet hat,
+    sollte einen zweiten nicht reflexhaft selbst zahlen, weil „die Klasse eh
+    schon weg ist". In den mittleren und oberen Klassen ist sie das nicht –
+    die Spalte für zwei und mehr Schäden stuft dort deutlich tiefer.
+  </p>
+
+  <h3>Was diese Rechnung nicht abbildet</h3>
+  <p>
+    Alle Beträge gelten für Pkw und die Tabellen der GHV. Andere Versicherer
+    können anders zurückstufen und den Rückkauf anders regeln; das steht
+    jeweils im Anhang und in Abschnitt I der eigenen Bedingungen. Nicht enthalten sind Änderungen
+    der Typ- oder Regionalklasse, Tarifwechsel und Kündigungen nach einem
+    Schaden. Die Entschädigung, die in der Haftpflicht gegen den Mehrbeitrag
+    steht, ist alles, was der Versicherer an Dritte zahlt; Kosten für
+    Gutachter, Rechtsberatung und Prozesse machen den Verlauf nach I.4.1.1
+    nicht schadenbelastet. Wird die Entschädigung vom Schädiger oder dessen
+    Versicherer voll erstattet, gilt der Vertrag ebenfalls als schadenfrei
+    (I.4.1.2 c).
+  </p>
+  <p>
+    Schließlich zählt die Rückstellung: Ein Schaden belastet den Verlauf
+    schon, wenn der Versicherer dafür Rückstellungen bilden muss (I.4.2.1).
+    Löst er sie in den drei auf die Meldung folgenden Kalenderjahren auf,
+    ohne gezahlt zu haben, gilt der Vertrag trotz der Meldung als schadenfrei
+    (I.4.1.2 b). Wer die Versicherung als Ganzes
+    im Blick behalten will, findet sie im
+    {' '}<a href={`${import.meta.env.BASE_URL}auto/unterhaltskosten-auto/`}>Rechner für die Unterhaltskosten</a>
+    {' '}zusammen mit Steuer, Wartung und Wertverlust.
+  </p>
+</RechnerArtikel>

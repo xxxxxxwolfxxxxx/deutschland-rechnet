@@ -3,6 +3,7 @@ import Layout from '../../layouts/Layout.astro';
 import CalculatorShell from '../../components/CalculatorShell.astro';
 import CalculatorGuide from '../../components/CalculatorGuide.astro';
 import { CALCULATORS, CATEGORIES } from '../../data/calculators';
+import ArtikelMutterschutz from '../../components/artikel/mutterschutz-verspaetung-vorsprung.astro';
 import { berechneMutterschutz, SCHUTZFRIST_VOR_TAGE, SCHUTZFRIST_NACH_TAGE, SCHUTZFRIST_NACH_VERLAENGERT_TAGE } from '../../../public/scripts/mutterschutz.js';
 const calc = CALCULATORS.find(c => c.slug === 'mutterschutz-rechner')!;
 const cat = CATEGORIES[calc.category];
@@ -90,6 +91,7 @@ const guideHtml = `
       </div>
       <div id="details" style="margin-top:0.75rem;font-size:0.9rem;color:#555;display:flex;flex-direction:column;gap:0.35rem;"></div>
     </div>
+    <ArtikelMutterschutz slot="artikel" />
   </CalculatorShell>
 
   <CalculatorGuide

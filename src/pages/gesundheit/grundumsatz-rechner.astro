@@ -3,6 +3,7 @@ import Layout from '../../layouts/Layout.astro';
 import CalculatorShell from '../../components/CalculatorShell.astro';
 import CalculatorGuide from '../../components/CalculatorGuide.astro';
 import { CALCULATORS, CATEGORIES } from '../../data/calculators';
+import ArtikelGrundumsatz from '../../components/artikel/grundumsatz-groesse-schlaegt-gewicht.astro';
 const calc = CALCULATORS.find(c => c.slug === 'grundumsatz-rechner')!;
 const cat = CATEGORIES[calc.category];
 const year = new Date().getFullYear();
@@ -35,7 +36,7 @@ const year = new Date().getFullYear();
       },
       {
         q: "Warum unterscheidet sich der Grundumsatz nach Geschlecht?",
-        a: "Frauen haben typischerweise mehr Körperfett und weniger Muskelmasse, daher liegt ihr Grundumsatz etwa 5-10% unter dem von Männern mit gleichen Parametern."
+        a: "Frauen haben typischerweise mehr Körperfett und weniger Muskelmasse. Nach dieser Formel liegt ihr Grundumsatz bei gleichem Gewicht, gleicher Größe und gleichem Alter je nach Körpermaßen zwischen etwa 5 und 16% unter dem von Männern – bei den Vorgabewerten dieser Seite (75 kg, 175 cm, 30 Jahre) sind es 11,9%."
       },
       {
         q: "Wie kann ich meinen Grundumsatz erhöhen?",
@@ -43,7 +44,7 @@ const year = new Date().getFullYear();
       },
       {
         q: "Warum sinkt der Grundumsatz mit dem Alter?",
-        a: "Im Alter verliert man natürlicherweise Muskelmasse (Sarkopenie) und der Metabolismus verlangsamt sich. Pro Jahrzehnt sinkt der Grundumsatz etwa um 2-8% bei inaktiven Personen."
+        a: "Im Alter verliert man natürlicherweise Muskelmasse (Sarkopenie) und der Metabolismus verlangsamt sich. Pro Jahrzehnt sinkt der Grundumsatz dadurch etwa um 2-3%."
       },
       {
         q: "Ist die Harris-Benedict-Formel noch aktuell?",
@@ -80,6 +81,7 @@ const year = new Date().getFullYear();
       </div>
       <div id="details" style="margin-top:0.75rem;font-size:0.88rem;color:#666;display:flex;gap:1.5rem;flex-wrap:wrap;"></div>
     </div>
+    <ArtikelGrundumsatz slot="artikel" />
   </CalculatorShell>
   <CalculatorGuide
     title="Grundumsatz verstehen und nutzen"

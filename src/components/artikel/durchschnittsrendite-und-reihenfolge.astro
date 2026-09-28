@@ -1,0 +1,491 @@
+---
+import RechnerArtikel from '../RechnerArtikel.astro';
+import { artikelPfadVonSlug } from '../../data/ratgeber';
+import { TEILFREISTELLUNG_AKTIENFONDS, sparplanVerlauf } from '../../../public/scripts/etf-sparplan.js';
+import { ABGELTUNGSTEUERSATZ } from '../../../public/scripts/abgeltungsteuer.js';
+
+// Der glatte Verlauf kommt aus sparplanVerlauf() – demselben Modul, das der
+// Rechner auf der Seite laedt. Die schwankenden Verlaeufe rechnet der Artikel
+// selbst; jahr() nutzt dieselbe Konvention (Monatsfaktor (1 + R)^(1/12),
+// Einzahlung am Monatsende), und der Build prueft, dass beide uebereinstimmen.
+
+const eur = (n: number) => n.toLocaleString('de-DE', { maximumFractionDigits: 0 }) + ' €';
+const proz = (n: number, d = 1) =>
+  n.toLocaleString('de-DE', { minimumFractionDigits: d, maximumFractionDigits: d }).replace(/^-/, '−') + ' %';
+// Differenzen aus den angezeigten (auf Euro gerundeten) Werten bilden, damit
+// der Leser beim Nachrechnen auf dieselbe Zahl kommt.
+const diff = (a: number, b: number) => Math.round(a) - Math.round(b);
+const zahl = (n: number, d = 2) =>
+  n.toLocaleString('de-DE', { minimumFractionDigits: d, maximumFractionDigits: d });
+
+// --- Das durchgehende Beispiel: die Voreinstellung des Rechners -------------
+// Setzung, keine Marktannahme. Die 7 Prozent sind der Vorgabewert im Eingabefeld.
+const START = 5000;
+const RATE = 500;
+const JAHRE = 20;
+const A = 0.07;
+if (A !== 0.07) throw new Error('ETF-Artikel: Der Titel nennt sieben Prozent.');
+const EINGEZAHLT = START + RATE * 12 * JAHRE;
+
+/**
+ * Ein Jahr mit der Jahresrendite R: Der Wert wächst um R, jede Monatsrate
+ * am Monatsende mit dem passenden Monatsfaktor (1 + R)^(1/12).
+ */
+function jahr(v: number, R: number): number {
+  const m = Math.pow(1 + R, 1 / 12);
+  const f = Math.abs(m - 1) < 1e-12 ? 12 : (Math.pow(m, 12) - 1) / (m - 1);
+  return v * (1 + R) + RATE * f;
+}
+const sparplan = (renditen: number[]): number => renditen.reduce((v, R) => jahr(v, R), START);
+const einmal = (renditen: number[]): number => renditen.reduce((v, R) => v * (1 + R), 1);
+const konstant = (R: number) => Array(JAHRE).fill(R) as number[];
+
+// --- 1. Der Rechner und die sieben Prozent -----------------------------------
+const rechnerWert = sparplanVerlauf({ startkapital: START, sparrate: RATE, renditeProzent: A * 100, jahre: JAHRE }).endkapital;
+const sparplanSieben = sparplan(konstant(A));
+if (Math.abs(rechnerWert - sparplanSieben) > 0.01) {
+  throw new Error('ETF-Artikel: jahr() rechnet anders als das Modul des Rechners.');
+}
+// Die naheliegende Abkuerzung: Jahressatz durch zwoelf je Monat.
+let zwoelftel = START;
+for (let m = 1; m <= JAHRE * 12; m += 1) zwoelftel = zwoelftel * (1 + A / 12) + RATE;
+const effektivZwoelftel = (Math.pow(1 + A / 12, 12) - 1) * 100;
+const zwoelftelMehr = diff(zwoelftel, sparplanSieben);
+if (!(zwoelftelMehr > 0)) throw new Error('ETF-Artikel: Zwoelftel-Rechnung liegt nicht ueber der Jahresrendite.');
+
+// --- 2. Plus 50, minus 50 ----------------------------------------------------
+const PLUS_MINUS = 0.5;
+const zweiJahre = (1 + PLUS_MINUS) * (1 - PLUS_MINUS);
+const zweiJahreVerlust = (1 - zweiJahre) * 100;
+
+// --- 3. Schwankung um sieben Prozent -----------------------------------------
+// Modell: Jedes Jahr bringt entweder A + s oder A − s. Das arithmetische Mittel
+// ist damit immer A. Die jährliche Rendite, die am Ende wirklich herauskommt
+// (geometrisches Mittel), ist bei gleich vielen guten und schlechten Jahren
+// exakt sqrt((1 + A)² − s²) − 1.
+const geo = (s: number) => (Math.sqrt((1 + A) ** 2 - s * s) - 1) * 100;
+const SCHWANKUNGEN = [0, 0.05, 0.1, 0.15, 0.2, 0.25, 0.3];
+const halbHalb = (s: number) =>
+  Array.from({ length: JAHRE }, (_, i) => (i % 2 === 0 ? A + s : A - s));
+const schwankungsreihe = SCHWANKUNGEN.map((s) => ({
+  s: s * 100,
+  geo: geo(s),
+  faktor: einmal(halbHalb(s)),
+}));
+for (const z of schwankungsreihe) {
+  if (Math.abs(Math.pow(1 + z.geo / 100, JAHRE) - z.faktor) > 1e-9) {
+    throw new Error('ETF-Artikel: geometrisches Mittel passt nicht zum Endfaktor.');
+  }
+}
+const S = 0.15;
+const geoS = geo(S);
+const faktorGlatt = einmal(konstant(A));
+const faktorS = einmal(halbHalb(S));
+const einmalVerlustS = (1 - faktorS / faktorGlatt) * 100;
+// Faustformel a − s²/2 gegen den exakten Wert
+const faustS = (A - (S * S) / 2) * 100;
+
+// --- 4. Reihenfolge -----------------------------------------------------------
+const gutZuerst = Array.from({ length: JAHRE }, (_, i) => (i < JAHRE / 2 ? A + S : A - S));
+const schlechtZuerst = [...gutZuerst].reverse();
+const abwechselnd = halbHalb(S);
+const reihen = [
+  { name: 'erst zehn gute, dann zehn schlechte Jahre', r: gutZuerst },
+  { name: 'abwechselnd gut und schlecht', r: abwechselnd },
+  { name: 'erst zehn schlechte, dann zehn gute Jahre', r: schlechtZuerst },
+].map((x) => ({ ...x, einmal: START * einmal(x.r), sparplan: sparplan(x.r) }));
+const einmalWerte = reihen.map((x) => x.einmal);
+if (Math.max(...einmalWerte) - Math.min(...einmalWerte) > 0.01) {
+  throw new Error('ETF-Artikel: Einmalanlage hängt doch von der Reihenfolge ab.');
+}
+const spGut = reihen[0].sparplan;
+const spSchlecht = reihen[2].sparplan;
+if (!(spSchlecht > sparplanSieben && sparplanSieben > spGut)) {
+  throw new Error('ETF-Artikel: Reihenfolge wirkt nicht wie beschrieben.');
+}
+const verhaeltnisReihenfolge = spSchlecht / spGut;
+const gutGewinn = spGut - EINGEZAHLT;
+if (!(gutGewinn > 0)) throw new Error('ETF-Artikel: Gute-zuerst-Pfad liegt unter den Einzahlungen.');
+
+// --- 5. Alle Pfade ------------------------------------------------------------
+// Jedes der 20 Jahre ist mit gleicher Wahrscheinlichkeit gut oder schlecht,
+// unabhängig voneinander: 2^20 gleich wahrscheinliche Verläufe. Sie werden
+// vollständig durchgezählt, nicht simuliert.
+function allePfade(s: number) {
+  let werte = new Float64Array([START]);
+  for (let j = 0; j < JAHRE; j += 1) {
+    const neu = new Float64Array(werte.length * 2);
+    for (let i = 0; i < werte.length; i += 1) {
+      neu[2 * i] = jahr(werte[i], A + s);
+      neu[2 * i + 1] = jahr(werte[i], A - s);
+    }
+    werte = neu;
+  }
+  let summe = 0;
+  let unter = 0;
+  let unterEinzahlung = 0;
+  for (const v of werte) {
+    summe += v;
+    if (v < sparplanSieben) unter += 1;
+    if (v < EINGEZAHLT) unterEinzahlung += 1;
+  }
+  werte.sort();
+  const n = werte.length;
+  return {
+    s: s * 100,
+    mittel: summe / n,
+    median: (werte[n / 2 - 1] + werte[n / 2]) / 2,
+    unterAnteil: (unter / n) * 100,
+    unterEinzahlungAnteil: (unterEinzahlung / n) * 100,
+    pfade: n,
+  };
+}
+const PFAD_SCHWANKUNGEN = [0.1, 0.15, 0.2, 0.25];
+const pfadreihe = PFAD_SCHWANKUNGEN.map(allePfade);
+const pfadS = pfadreihe.find((p) => Math.abs(p.s - S * 100) < 1e-9)!;
+for (const p of pfadreihe) {
+  // Erwartungswert bleibt nahe am glatten Verlauf, der Median fällt darunter,
+  // und mehr als die Hälfte der Verläufe endet unter der Sieben-Prozent-Linie.
+  if (Math.abs(p.mittel / sparplanSieben - 1) > 0.01) throw new Error('ETF-Artikel: Mittelwert weicht mehr als 1 % ab.');
+  if (!(p.median < sparplanSieben)) throw new Error('ETF-Artikel: Median liegt nicht unter dem glatten Verlauf.');
+  if (!(p.unterAnteil > 50)) throw new Error('ETF-Artikel: Weniger als die Hälfte unter der Linie.');
+}
+for (let i = 1; i < pfadreihe.length; i += 1) {
+  if (!(pfadreihe[i].median < pfadreihe[i - 1].median && pfadreihe[i].unterAnteil > pfadreihe[i - 1].unterAnteil)) {
+    throw new Error('ETF-Artikel: Median/Anteil nicht monoton in der Schwankung.');
+  }
+}
+const medianLueckeS = diff(sparplanSieben, pfadS.median);
+const medianGeoGlatt = sparplan(konstant(geoS / 100));
+// "brauchbare Näherung": höchstens fünf Prozent vom Median entfernt, und darunter
+if (!(medianGeoGlatt < pfadS.median && pfadS.median / medianGeoGlatt - 1 < 0.05)) {
+  throw new Error('ETF-Artikel: Glatter Verlauf mit geometrischem Mittel ist keine Näherung des Medians.');
+}
+const mittelLueckeS = diff(sparplanSieben, pfadS.mittel);
+if (!(mittelLueckeS > 0 && mittelLueckeS / sparplanSieben < 0.005)) {
+  throw new Error('ETF-Artikel: Mittelwert liegt nicht knapp unter dem glatten Verlauf.');
+}
+
+// --- 6. Laufende Kosten --------------------------------------------------------
+// Modell: Kosten c mindern jedes Jahr den Wert multiplikativ, (1 + R)(1 − c).
+const KOSTEN = [0.1, 0.2, 0.5, 1, 1.5, 2];
+const kostenreihe = KOSTEN.map((c) => {
+  const R = (1 + A) * (1 - c / 100) - 1;
+  const wert = sparplan(konstant(R));
+  return {
+    c,
+    wert,
+    weniger: diff(sparplanSieben, wert),
+    anteilWert: (1 - wert / sparplanSieben) * 100,
+    anteilGewinn: ((sparplanSieben - wert) / (sparplanSieben - EINGEZAHLT)) * 100,
+  };
+});
+const kostenEins = kostenreihe.find((k) => k.c === 1)!;
+if (!(kostenEins.anteilGewinn > kostenEins.anteilWert)) throw new Error('ETF-Artikel: Kostenanteile vertauscht.');
+// Kostenwirkung gegen Schwankungswirkung: Welche laufenden Kosten kosten so viel
+// wie die Schwankung von ±15 % im glatten Verlauf? Fein gesucht.
+let kostenGleichSchwankung = 0;
+{
+  let lo = 0;
+  let hi = 10;
+  for (let i = 0; i < 80; i += 1) {
+    const mid = (lo + hi) / 2;
+    const R = (1 + A) * (1 - mid / 100) - 1;
+    if (R * 100 > geoS) lo = mid;
+    else hi = mid;
+  }
+  kostenGleichSchwankung = (lo + hi) / 2;
+}
+
+const quellen = [
+  { titel: '§ 18 InvStG – Vorabpauschale', url: 'https://www.gesetze-im-internet.de/invstg_2018/__18.html' },
+  { titel: '§ 19 InvStG – Gewinne aus der Veräußerung von Investmentanteilen', url: 'https://www.gesetze-im-internet.de/invstg_2018/__19.html' },
+  { titel: '§ 20 InvStG – Teilfreistellung', url: 'https://www.gesetze-im-internet.de/invstg_2018/__20.html' },
+];
+---
+<RechnerArtikel
+  titel="Sieben Prozent im Schnitt sind keine sieben Prozent"
+  datum="2026-09-17"
+  lead={`Zwei Jahre mit plus ${proz(PLUS_MINUS * 100, 0)} und minus ${proz(PLUS_MINUS * 100, 0)} ergeben im Durchschnitt null – und ein Viertel weniger Geld. Wer im Rechner „${proz(A * 100, 0)}" einträgt, sollte deshalb wissen, welcher Durchschnitt gemeint ist. Schwankt ein Anlagejahr um ${proz(S * 100, 0)} nach oben und unten, bleiben von ${proz(A * 100, 0)} im Schnitt ${proz(geoS, 2)} übrig. Und beim Sparplan entscheidet die Reihenfolge derselben Jahre darüber, ob am Ende ${eur(spGut)} oder ${eur(spSchlecht)} im Depot liegen.`}
+  quellen={quellen}
+>
+  <h3>Was der Rechner oben unterstellt</h3>
+  <p>
+    Der Rechner oben kennt genau eine Rendite, und die gilt in jedem Jahr gleich.
+    Voreingestellt sind {eur(START)} Anfangskapital, {eur(RATE)} Sparrate im Monat,
+    {' '}{proz(A * 100, 0)} Rendite und {JAHRE} Jahre. Eingezahlt werden damit
+    {' '}{eur(EINGEZAHLT)}. Diese Voreinstellung ist das durchgehende Beispiel dieses
+    Artikels. Sie ist keine Prognose, und keine der folgenden Zahlen beschreibt einen
+    bestimmten Index oder Fonds.
+  </p>
+  <p>
+    Schon die glatte Rechnung hat eine Stelle, an der zwei Leser Verschiedenes
+    verstehen. Naheliegend ist, die Jahresrendite durch zwölf zu teilen und jeden
+    Monat mit diesem Zwölftel zu verzinsen. Über ein Jahr wachsen {proz(A * 100, 0)}
+    so aber auf {proz(effektivZwoelftel, 3)}, weil auch die Monatserträge
+    mitverzinst werden – im Beispiel stünden am Ende {eur(zwoelftel)}. Der Rechner
+    oben nimmt deshalb den Monatsfaktor, der über zwölf Monate genau
+    {' '}{proz(A * 100, 0)} ergibt, und kommt auf {eur(sparplanSieben)}, also
+    {' '}{eur(zwoelftelMehr)} weniger. Wer Ergebnisse verschiedener Rechner
+    vergleicht, sollte zuerst prüfen, welche der beiden Konventionen sie verwenden.
+    Alle weiteren Rechnungen hier gehen von der jährlichen Rendite aus, also von
+    {' '}{eur(sparplanSieben)} als glattem Verlauf.
+  </p>
+
+  <h3>Plus {proz(PLUS_MINUS * 100, 0)}, minus {proz(PLUS_MINUS * 100, 0)}</h3>
+  <p>
+    Die Rechnung, die man kennen sollte, bevor man eine Durchschnittsrendite
+    einträgt, passt in eine Zeile. Ein Depot steigt im ersten Jahr um
+    {' '}{proz(PLUS_MINUS * 100, 0)} und fällt im zweiten um {proz(PLUS_MINUS * 100, 0)}.
+    Der Durchschnitt der beiden Jahresrenditen ist null. Aus {eur(100)} sind aber erst
+    {' '}{eur(100 * (1 + PLUS_MINUS))} und dann {eur(100 * zweiJahre)} geworden – ein Verlust von {proz(zweiJahreVerlust, 0)}.
+  </p>
+  <p>
+    Der Durchschnitt, der hier null ergibt, ist das arithmetische Mittel: die Renditen
+    addiert und durch die Zahl der Jahre geteilt. Was das Depot tatsächlich im Jahr
+    gebracht hat, beschreibt das geometrische Mittel: die Wachstumsfaktoren
+    multipliziert und daraus die entsprechende Wurzel gezogen. Beide heißen
+    „durchschnittliche Rendite". Das geometrische Mittel ist nie größer als das
+    arithmetische und nur dann gleich, wenn jedes Jahr gleich verläuft – also nur in
+    dem Fall, den der Rechner rechnet.
+  </p>
+
+  <h3>Wie viel die Schwankung von {proz(A * 100, 0)} übrig lässt</h3>
+  <p>
+    Ein einfaches Modell macht den Effekt messbar, ohne eine Marktstatistik zu
+    bemühen. Jedes Jahr bringt entweder {proz(A * 100, 0)} plus einen Ausschlag
+    <em>s</em> oder {proz(A * 100, 0)} minus denselben Ausschlag, und von beiden gibt es
+    gleich viele. Das arithmetische Mittel liegt damit immer bei
+    {' '}{proz(A * 100, 0)}. Das geometrische Mittel lässt sich exakt angeben: Die
+    Wurzel aus (1 + a)² − s², minus eins. Je größer der Ausschlag, desto mehr zieht
+    er ab.
+  </p>
+
+  <table>
+    <caption class="visually-hidden">
+      Tatsächliche jährliche Rendite bei {proz(A * 100, 0)} arithmetischem Mittel und
+      symmetrischem Ausschlag, Einmalanlage über {JAHRE} Jahre
+    </caption>
+    <thead>
+      <tr>
+        <th scope="col" class="num">Ausschlag ±</th>
+        <th scope="col" class="num">arithmetisches Mittel</th>
+        <th scope="col" class="num">tatsächlich pro Jahr</th>
+        <th scope="col" class="num">aus 1 € werden in {JAHRE} Jahren</th>
+      </tr>
+    </thead>
+    <tbody>
+      {schwankungsreihe.map((z) => (
+        <tr>
+          <th scope="row" class="num">{proz(z.s, 0)}</th>
+          <td class="num">{proz(A * 100, 2)}</td>
+          <td class="num">{proz(z.geo, 2)}</td>
+          <td class="num">{zahl(z.faktor, 2)} €</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+
+  <p>
+    Bei einem Ausschlag von ±{proz(S * 100, 0)} – ein Jahr mit
+    {' '}{proz((A + S) * 100, 0)}, eines mit {proz((A - S) * 100, 0)} – wächst eine
+    Einmalanlage in {JAHRE} Jahren auf das {zahl(faktorS, 2)}-Fache statt auf das
+    {' '}{zahl(faktorGlatt, 2)}-Fache. Das sind {proz(einmalVerlustS, 0)} weniger
+    Endvermögen, obwohl der Durchschnitt beider Rechnungen derselbe ist. Die
+    verbreitete Faustformel „arithmetisches Mittel minus halbes Quadrat der
+    Schwankung" liefert hier {proz(faustS, 2)} und liegt damit nahe am exakten Wert
+    von {proz(geoS, 2)}.
+  </p>
+  <p>
+    Für das Eingabefeld heißt das: Stammt eine genannte Durchschnittsrendite aus
+    einem arithmetischen Mittel von Jahresrenditen, rechnet der Rechner mit ihr zu
+    optimistisch. Passend ist die annualisierte Rendite, manchmal auch
+    durchschnittliche jährliche Wachstumsrate genannt – sie ist ein geometrisches
+    Mittel. Welcher der beiden Werte in einer Quelle steht, sagt die Quelle nicht
+    immer dazu.
+  </p>
+
+  <h3>Beim Sparplan zählt die Reihenfolge</h3>
+  <p>
+    Bei einer Einmalanlage ist die Reihenfolge der Jahre gleichgültig, denn
+    Multiplikation ist vertauschbar. Beim Sparplan gilt das nicht: Die Raten der
+    ersten Jahre erleben alle Renditen, die Raten der letzten Jahre nur noch wenige.
+    Dieselben zwanzig Jahresrenditen – zehnmal {proz((A + S) * 100, 0)}, zehnmal
+    {' '}{proz((A - S) * 100, 0)} – ergeben deshalb, je nach Anordnung, völlig
+    verschiedene Endwerte.
+  </p>
+
+  <table>
+    <caption class="visually-hidden">
+      Endwert derselben Jahresrenditen in verschiedener Reihenfolge, Einmalanlage
+      gegen Sparplan
+    </caption>
+    <thead>
+      <tr>
+        <th scope="col">Reihenfolge</th>
+        <th scope="col" class="num">nur {eur(START)} einmal angelegt</th>
+        <th scope="col" class="num">Beispiel mit Sparrate</th>
+      </tr>
+    </thead>
+    <tbody>
+      {reihen.map((x) => (
+        <tr>
+          <th scope="row">{x.name}</th>
+          <td class="num">{eur(x.einmal)}</td>
+          <td class="num">{eur(x.sparplan)}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+
+  <p>
+    Die mittlere Spalte ist in allen drei Zeilen gleich. Die rechte Spalte liegt
+    zwischen {eur(spGut)} und {eur(spSchlecht)} – die untere Zeile bringt das
+    {' '}{zahl(verhaeltnisReihenfolge, 1)}-Fache der oberen. Und der ungünstige Verlauf
+    ist ausgerechnet der, der sich am besten anfühlt: zehn starke Jahre zu Beginn,
+    in denen allerdings erst wenig Geld im Depot liegt, dann zehn schwache Jahre auf
+    das inzwischen große Vermögen. Von {eur(EINGEZAHLT)} Einzahlungen bleiben dort
+    nur {eur(gutGewinn)} Gewinn übrig.
+  </p>
+  <p>
+    Umgekehrt profitiert der Sparplan von schwachen Anfangsjahren, weil die Raten
+    dann zu niedrigen Kursen kaufen und das große Vermögen erst in den starken
+    Jahren entsteht. Für die Planung ist das unbequem: Das Risiko eines Sparplans
+    sitzt nicht gleichmäßig über die Laufzeit verteilt, sondern am Ende, wenn am
+    meisten Geld angelegt ist.
+  </p>
+
+  <h3>Der Erwartungswert und der typische Verlauf</h3>
+  <p>
+    Welche Reihenfolge kommt, weiß niemand. Man kann aber alle durchzählen. Im
+    Modell ist jedes der {JAHRE} Jahre mit gleicher Wahrscheinlichkeit gut oder
+    schlecht, unabhängig vom Vorjahr. Das ergibt
+    {' '}{pfadS.pfade.toLocaleString('de-DE')} gleich wahrscheinliche Verläufe; für
+    die folgende Tabelle wurden sie alle gerechnet, nicht zufällig gezogen.
+  </p>
+
+  <table>
+    <caption class="visually-hidden">
+      Beispiel mit Sparrate über alle gleich wahrscheinlichen Verläufe, nach
+      Ausschlag
+    </caption>
+    <thead>
+      <tr>
+        <th scope="col" class="num">Ausschlag ±</th>
+        <th scope="col" class="num">Mittelwert aller Verläufe</th>
+        <th scope="col" class="num">Median</th>
+        <th scope="col" class="num">Anteil unter {eur(sparplanSieben)}</th>
+        <th scope="col" class="num">Anteil unter den Einzahlungen</th>
+      </tr>
+    </thead>
+    <tbody>
+      {pfadreihe.map((p) => (
+        <tr>
+          <th scope="row" class="num">{proz(p.s, 0)}</th>
+          <td class="num">{eur(p.mittel)}</td>
+          <td class="num">{eur(p.median)}</td>
+          <td class="num">{proz(p.unterAnteil, 1)}</td>
+          <td class="num">{proz(p.unterEinzahlungAnteil, 1)}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+
+  <p>
+    Die zweite Spalte bleibt fast unverändert bei den {eur(sparplanSieben)} des
+    glatten Verlaufs. Das ist kein Zufall: Weil die Jahre unabhängig sind, ist der
+    Erwartungswert des Endvermögens das Produkt der erwarteten Jahresfaktoren – und
+    die liegen alle bei {proz(A * 100, 0)}. Dass der Mittelwert bei ±{proz(S * 100, 0)}
+    trotzdem {eur(mittelLueckeS)} darunter bleibt, liegt an den Raten innerhalb eines
+    Jahres, die nur einen Bruchteil der Jahresrendite erleben; für sie gilt diese
+    Überlegung nicht ganz exakt. Insofern rechnet der Rechner mit dem
+    arithmetischen Mittel durchaus richtig, nur beantwortet er dann eine bestimmte
+    Frage: die nach dem Mittelwert über alle denkbaren Verläufe.
+  </p>
+  <p>
+    Den Mittelwert heben einige wenige sehr gute Verläufe an. Der Median, also der
+    Verlauf in der Mitte, liegt bei ±{proz(S * 100, 0)} bei {eur(pfadS.median)},
+    {' '}{eur(medianLueckeS)} unter der glatten Rechnung. In
+    {' '}{proz(pfadS.unterAnteil, 1)} der Verläufe endet das Depot unter dem Betrag,
+    den der Rechner mit {proz(A * 100, 0)} anzeigt. Wer den Mittelwert als „das, was
+    wahrscheinlich herauskommt" liest, liest ihn falsch – und je stärker die
+    Schwankung, desto größer der Anteil der Verläufe darunter.
+  </p>
+  <p>
+    Eine brauchbare Näherung für den Median ist der glatte Verlauf mit dem
+    geometrischen Mittel: Wächst das Beispiel jedes Jahr um {proz(geoS, 2)}, stehen am
+    Ende {eur(medianGeoGlatt)}, etwas weniger als der Median von
+    {' '}{eur(pfadS.median)}. Wer im Rechner oben eine Rendite einträgt, bekommt also
+    eher den typischen Verlauf, wenn er ein geometrisches Mittel verwendet.
+  </p>
+
+  <h3>Laufende Kosten wirken wie Schwankung, nur sicher</h3>
+  <p>
+    Die laufenden Kosten eines Fonds, oft als TER angegeben, werden aus dem
+    Fondsvermögen entnommen und mindern die Rendite jedes Jahr. Im Modell hier
+    schrumpft das Jahresergebnis um den Kostensatz, (1 + Rendite) × (1 − Kosten).
+    Welche Kosten ein bestimmter Fonds hat, steht in seinem Basisinformationsblatt;
+    die Stufen unten sind keine Marktdaten, sondern eine Spanne zum Vergleichen.
+  </p>
+
+  <table>
+    <caption class="visually-hidden">
+      Beispiel mit Sparrate bei {proz(A * 100, 0)} Rendite und verschiedenen laufenden
+      Kosten
+    </caption>
+    <thead>
+      <tr>
+        <th scope="col" class="num">Kosten pro Jahr</th>
+        <th scope="col" class="num">Endwert</th>
+        <th scope="col" class="num">weniger als ohne Kosten</th>
+        <th scope="col" class="num">Anteil am Endwert</th>
+        <th scope="col" class="num">Anteil am Gewinn</th>
+      </tr>
+    </thead>
+    <tbody>
+      {kostenreihe.map((k) => (
+        <tr>
+          <th scope="row" class="num">{proz(k.c, 1)}</th>
+          <td class="num">{eur(k.wert)}</td>
+          <td class="num">{eur(k.weniger)}</td>
+          <td class="num">{proz(k.anteilWert, 1)}</td>
+          <td class="num">{proz(k.anteilGewinn, 1)}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+
+  <p>
+    Ein Prozent Kosten klingt nach wenig und kostet im Beispiel
+    {' '}{eur(kostenEins.weniger)} – {proz(kostenEins.anteilWert, 1)} des Endwerts,
+    aber {proz(kostenEins.anteilGewinn, 1)} des Gewinns, denn die Einzahlungen selbst
+    sind ja nicht weg. Aufschlussreich ist der Vergleich mit dem Abschnitt davor: Der
+    Ausschlag von ±{proz(S * 100, 0)} drückt die typische Rendite so stark wie
+    laufende Kosten von {proz(kostenGleichSchwankung, 2)} im Jahr. Der Unterschied:
+    Die Schwankung kann in einem konkreten Verlauf auch günstig ausfallen, die Kosten
+    fallen in jedem Verlauf an.
+  </p>
+
+  <h3>Was diese Rechnung nicht abbildet</h3>
+  <p>
+    Das Modell mit zwei gleich wahrscheinlichen Jahresrenditen ist bewusst einfach.
+    Reale Kurse schwanken nicht in zwei Stufen, sie schwanken innerhalb eines Jahres,
+    und gute und schlechte Jahre folgen nicht unabhängig aufeinander. Die Richtung
+    der Befunde – geometrisches Mittel unter dem arithmetischen, Reihenfolgerisiko
+    beim Sparplan, Median unter dem Mittelwert – hängt daran nicht; ihre Größe schon.
+    Wie stark ein bestimmter Index tatsächlich schwankt und welche Rendite er künftig
+    bringt, beantwortet dieser Artikel nicht, und er empfiehlt keine Anlage.
+  </p>
+  <p>
+    Nicht enthalten sind außerdem Ordergebühren, Inflation und Steuern. Bei
+    Aktienfonds sind nach § 20 Abs. 1 Satz 1 InvStG {proz(TEILFREISTELLUNG_AKTIENFONDS * 100, 0)} der Erträge steuerfrei; bei
+    thesaurierenden Fonds wird jährlich eine Vorabpauschale nach § 18 InvStG
+    angesetzt, die beim Verkauf nach § 19 Abs. 1 InvStG wieder vom Gewinn abgezogen
+    wird. Die Steuer beim Verkauf rechnet der
+    {' '}<a href={`${import.meta.env.BASE_URL}geld/etf-sparplan-rechner/`}>ETF-Sparplan-Rechner</a>,
+    und warum auf Kapitalerträgen fast nie genau {proz(ABGELTUNGSTEUERSATZ * 100, 0)} Steuer liegen, steht in
+    {' '}<a href={`${import.meta.env.BASE_URL}${artikelPfadVonSlug('abgeltungsteuer-nie-25-prozent')}`}>Warum niemand 25 Prozent zahlt</a>.
+    Warum eine einzelne Inflationsrate für die Kaufkraft des Endwerts wenig aussagt, zeigt
+    {' '}<a href={`${import.meta.env.BASE_URL}${artikelPfadVonSlug('inflation-was-die-rate-verschweigt')}`}>Die Inflationsrate erlebt niemand</a>.
+  </p>
+</RechnerArtikel>

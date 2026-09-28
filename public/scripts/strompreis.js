@@ -189,11 +189,17 @@ export const LADESTROM_DC_EURO_PRO_KWH = LADESTROM_DC_CENT_PRO_KWH / 100;
 /**
  * Laden ohne Vertrag an einem Autobahn-Schnelllader, in Cent je kWh.
  *
- * Der teuerste regelmäßig vorkommende Fall und deshalb die sinnvolle Obergrenze
- * für Eingabefelder. Quelle: ADAC, Ladetarife für Elektroautos (Stand 2026) –
- * dort dem vertragsgebundenen Preis von 52 ct gegenübergestellt.
+ * Ein typischer Ad-hoc-Preis, KEIN Höchstwert: Der ADAC nennt ihn als Beispiel
+ * (EWE Go) und stellt ihn dem vertragsgebundenen Preis von 52 ct gegenüber.
+ * Einzelne Anbieter verlangen mehr (EnBW 87 ct, ADAC-Erhebung vom Juli 2025).
+ * Nicht aus dem LichtBlick-Ladesäulencheck – die Quelle steht deshalb separat.
  */
 export const LADESTROM_ADHOC_AUTOBAHN_CENT_PRO_KWH = 84;
+
+export const LADESTROM_ADHOC_QUELLE = 'ADAC, Ladetarife für Elektroautos (Stand 2026)';
+
+export const LADESTROM_ADHOC_QUELLE_URL =
+  'https://www.adac.de/rund-ums-fahrzeug/elektromobilitaet/laden/elektroauto-ladesaeulen-strompreise/';
 
 export const LADESTROM_ADHOC_AUTOBAHN_EURO_PRO_KWH =
   LADESTROM_ADHOC_AUTOBAHN_CENT_PRO_KWH / 100;

@@ -1,0 +1,675 @@
+---
+import RechnerArtikel from '../RechnerArtikel.astro';
+import { artikelPfadVonSlug } from '../../data/ratgeber';
+import { berechneRumpfgeschwindigkeit } from '../../../public/scripts/rumpfgeschwindigkeit.js';
+
+const base = import.meta.env.BASE_URL;
+
+// --- Formatierer -----------------------------------------------------------
+// toLocaleString liefert bei negativen Werten einen ASCII-Bindestrich; im
+// Fliesstext gehoert dort ein echtes Minuszeichen hin.
+const zahl = (n: number, d = 2) =>
+  n
+    .toLocaleString('de-DE', { minimumFractionDigits: d, maximumFractionDigits: d })
+    .replace('-', '−');
+const kn = (n: number, d = 2) => zahl(n, d) + ' kn';
+const meter = (n: number, d = 2) => zahl(n, d) + ' m';
+const proz = (n: number, d = 1) => zahl(n, d) + ' %';
+const kg = (n: number) => n.toLocaleString('de-DE', { maximumFractionDigits: 0 }) + ' kg';
+/** Stunden als Stunden-und-Minuten-Angabe, wie ein Logbuch sie schreibt. */
+const dauer = (h: number) => {
+  const min = Math.round(h * 60);
+  return `${Math.floor(min / 60)} h ${String(min % 60).padStart(2, '0')} min`;
+};
+
+/**
+ * Differenz zweier bereits gerundeter Knotenwerte, in Hundertsteln gerechnet.
+ * In Gleitkomma ergibt 8,29 − 7,29 den Wert 0,999999999999999 – ein Vergleich
+ * mit 1 wuerde die Schwelle um einen Zentimeter verfehlen, waehrend der Leser
+ * die beiden angezeigten Zahlen im Kopf korrekt subtrahiert.
+ */
+const differenzKn = (a: number, b: number) =>
+  (Math.round(a * 100) - Math.round(b * 100)) / 100;
+
+const pruefe = (bedingung: boolean, meldung: string) => {
+  if (!bedingung) throw new Error(`rumpfgeschwindigkeit-was-der-faktor-verschweigt: ${meldung}`);
+};
+
+// --- Offengelegte Modellkonstanten -----------------------------------------
+// Einheitendefinitionen und Naturkonstanten, keine Kennzahlen des Rechners.
+// Die einzige Kennzahl des Rechners – der Faktor 2,43 – wird unten aus dem
+// Modul gelesen (Rueckgabefeld "verhaeltnis"), nicht hier gesetzt.
+const G = 9.80665;            // Normfallbeschleunigung, 3. CGPM (1901)
+const KN_IN_MS = 1852 / 3600; // 1 Knoten = 1 Seemeile je Stunde
+const FUSS_IN_M = 0.3048;     // internationaler Fuss
+const KG_JE_LONGTON = 1016.0469088; // 1 long ton = 2240 lb
+
+// --- 1. Der Faktor aus dem Modul und seine Herleitung ----------------------
+const LWL = 9; // Wasserlinienlaenge des durchgehenden Beispiels, in Metern
+const ref = berechneRumpfgeschwindigkeit({ wasserlinieM: LWL });
+pruefe(
+  typeof ref.rumpfgeschwindigkeitKn === 'number' &&
+    typeof ref.rumpfgeschwindigkeitKmh === 'number' &&
+    typeof ref.gemuetlichKn === 'number' &&
+    typeof ref.verhaeltnis === 'number',
+  'Das Modul liefert nicht alle erwarteten Felder.',
+);
+const faktor = ref.verhaeltnis; // 2,43 kn je Wurzel Meter
+
+// Tiefwasserwelle: c = Wurzel(g * Wellenlaenge / 2 Pi). Wellenlaenge = LWL.
+const cJeWurzelMeter = Math.sqrt(G / (2 * Math.PI)); // m/s je Wurzel Meter
+const faktorExaktMetrisch = cJeWurzelMeter / KN_IN_MS;
+const gInFuss = G / FUSS_IN_M;
+const cJeWurzelFuss = Math.sqrt(gInFuss / (2 * Math.PI)); // ft/s je Wurzel Fuss
+const knInFussProSekunde = KN_IN_MS / FUSS_IN_M;
+const faktorExaktImperial = cJeWurzelFuss / knInFussProSekunde;
+const FAKTOR_KLASSISCH_FUSS = 1.34; // die gerundete Lehrbuchzahl
+
+pruefe(
+  Math.abs(faktor / faktorExaktMetrisch - 1) < 0.001,
+  'Die Modulkonstante weicht um mehr als ein Promille von der Wellenformel ab.',
+);
+
+const abweichungRundung = (faktor / faktorExaktMetrisch - 1) * 100;
+const refExaktKn = faktorExaktMetrisch * Math.sqrt(LWL);
+const klassischImperialKn = FAKTOR_KLASSISCH_FUSS * Math.sqrt(LWL / FUSS_IN_M);
+const spannweiteKonstanten =
+  ref.rumpfgeschwindigkeitKn - Math.round(klassischImperialKn * 1000) / 1000;
+
+// --- 2. Froude-Zahl --------------------------------------------------------
+const froude = (knoten: number, lwl: number) => (knoten * KN_IN_MS) / Math.sqrt(G * lwl);
+const froudeExakt = 1 / Math.sqrt(2 * Math.PI);
+const FROUDE_STUFEN = [4, 9, 16, 30];
+const froudeReihe = FROUDE_STUFEN.map((lwl) => {
+  const r = berechneRumpfgeschwindigkeit({ wasserlinieM: lwl });
+  return {
+    lwl,
+    knoten: r.rumpfgeschwindigkeitKn,
+    kmh: r.rumpfgeschwindigkeitKmh,
+    fr: froude(r.rumpfgeschwindigkeitKn, lwl),
+  };
+});
+const froudeSpanne =
+  Math.max(...froudeReihe.map((z) => z.fr)) - Math.min(...froudeReihe.map((z) => z.fr));
+pruefe(froudeSpanne < 0.002, 'Die Froude-Zahl ist ueber die Laengen hinweg nicht konstant.');
+const froudeTypisch = froudeReihe[1].fr;
+
+// Vierfache Laenge, doppelte Geschwindigkeit – am Modul geprueft.
+const vier = berechneRumpfgeschwindigkeit({ wasserlinieM: 4 }).rumpfgeschwindigkeitKn;
+const sechzehn = berechneRumpfgeschwindigkeit({ wasserlinieM: 16 }).rumpfgeschwindigkeitKn;
+pruefe(
+  Math.abs(sechzehn - 2 * vier) < 0.005,
+  'Vierfache Wasserlinie ergibt nicht die doppelte Rumpfgeschwindigkeit.',
+);
+
+// --- 3. Einheitenfallen ----------------------------------------------------
+const lwlInFuss = LWL / FUSS_IN_M;
+const falschZuHoch = faktor * Math.sqrt(lwlInFuss);          // metrischer Faktor, Fuss eingesetzt
+const falschZuNiedrig = FAKTOR_KLASSISCH_FUSS * Math.sqrt(LWL); // imperialer Faktor, Meter eingesetzt
+const ueberschaetzung = (falschZuHoch / ref.rumpfgeschwindigkeitKn - 1) * 100;
+const unterschaetzung = (1 - falschZuNiedrig / ref.rumpfgeschwindigkeitKn) * 100;
+const wurzelUmrechnung = Math.sqrt(1 / FUSS_IN_M);
+pruefe(
+  falschZuHoch > ref.rumpfgeschwindigkeitKn && falschZuNiedrig < ref.rumpfgeschwindigkeitKn,
+  'Die Einheitenfallen liegen nicht auf den erwarteten Seiten.',
+);
+
+// --- 4. Was ein Meter Wasserlinie bringt -----------------------------------
+const LAENGEN = [5, 6, 7, 8, 9, 10, 12, 15, 20];
+const laengenReihe = LAENGEN.map((lwl) => {
+  const hier = berechneRumpfgeschwindigkeit({ wasserlinieM: lwl }).rumpfgeschwindigkeitKn;
+  const einenMeterLaenger = berechneRumpfgeschwindigkeit({
+    wasserlinieM: lwl + 1,
+  }).rumpfgeschwindigkeitKn;
+  // Feine Suche in ganzen Zentimetern statt Ablesen aus der Tabelle. Die
+  // Schleife zaehlt Zentimeter als ganze Zahlen, damit sich kein Gleitkomma-
+  // Fehler aufsummiert und die Schwelle um einen Zentimeter verrutscht.
+  let fuerEinenKnoten = 0;
+  for (let cm = Math.round(lwl * 100); cm <= Math.round(lwl * 400) + 1000; cm += 1) {
+    const probe = cm / 100;
+    const dort = berechneRumpfgeschwindigkeit({ wasserlinieM: probe }).rumpfgeschwindigkeitKn;
+    if (differenzKn(dort, hier) >= 1) {
+      fuerEinenKnoten = probe;
+      break;
+    }
+  }
+  pruefe(fuerEinenKnoten > lwl, `Kein Laengenzuwachs fuer einen Knoten bei ${lwl} m gefunden.`);
+  return {
+    lwl,
+    knoten: hier,
+    gewinn: differenzKn(einenMeterLaenger, hier),
+    mehrlaenge: fuerEinenKnoten - lwl,
+  };
+});
+const kurz = laengenReihe[0];
+const lang = laengenReihe[laengenReihe.length - 1];
+pruefe(
+  kurz.gewinn > lang.gewinn && kurz.mehrlaenge < lang.mehrlaenge,
+  'Der Grenzertrag eines zusaetzlichen Meters faellt nicht wie erwartet.',
+);
+const neunMeter = laengenReihe.find((z) => z.lwl === LWL)!;
+
+// --- 5. Gerrs Verdraengungs-Laengen-Verhaeltnis ----------------------------
+// Dave Gerr, The Propeller Handbook (1989): hoechstes Verhaeltnis von
+// Geschwindigkeit zu Wurzel Wasserlinienlaenge = 8,26 geteilt durch das
+// Verdraengungs-Laengen-Verhaeltnis hoch 0,311. Das Verhaeltnis rechnet in
+// long tons und Fuss – ein reines Zahlenverhaeltnis ohne physikalische Einheit.
+const GERR_ZAEHLER = 8.26;
+const GERR_EXPONENT = 0.311;
+const gerrSL = (dlr: number) => GERR_ZAEHLER / Math.pow(dlr, GERR_EXPONENT);
+const dlrVon = (masseKg: number, lwlM: number) =>
+  masseKg / KG_JE_LONGTON / Math.pow(0.01 * (lwlM / FUSS_IN_M), 3);
+/** Gerrs imperiales Verhaeltnis in denselben metrischen Faktor wie 2,43 umgerechnet. */
+const gerrFaktorMetrisch = (masseKg: number, lwlM: number) =>
+  gerrSL(dlrVon(masseKg, lwlM)) * wurzelUmrechnung;
+const gerrKnoten = (masseKg: number, lwlM: number) =>
+  Math.round(gerrFaktorMetrisch(masseKg, lwlM) * Math.sqrt(lwlM) * 100) / 100;
+
+// Kontrollrechnung am veroeffentlichten Beispiel: 12.000 lb auf 28 Fuss.
+const kontrolleMasseKg = (12000 / 2240) * KG_JE_LONGTON;
+const kontrolleLwlM = 28 * FUSS_IN_M;
+const kontrolleDlr = dlrVon(kontrolleMasseKg, kontrolleLwlM);
+const kontrolleSL = gerrSL(kontrolleDlr);
+const kontrolleKn = kontrolleSL * Math.sqrt(28);
+pruefe(
+  Math.abs(kontrolleDlr - 244) < 1 && Math.abs(kontrolleSL - 1.49) < 0.01,
+  'Die Kontrollrechnung trifft das veroeffentlichte Beispiel nicht.',
+);
+
+// Welches Verdraengungs-Laengen-Verhaeltnis reproduziert die klassische Zahl?
+const dlrDesLehrbuchs = Math.pow(GERR_ZAEHLER / FAKTOR_KLASSISCH_FUSS, 1 / GERR_EXPONENT);
+pruefe(
+  dlrDesLehrbuchs > 300 && dlrDesLehrbuchs < 400,
+  'Das zurueckgerechnete Verdraengungs-Laengen-Verhaeltnis liegt ausserhalb des erwarteten Bereichs.',
+);
+// Welche Masse gehoert bei 9 m Wasserlinie dazu? Fein in Kilogrammschritten.
+let masseDesLehrbuchs = 0;
+for (let m = 2000; m <= 30000; m += 1) {
+  if (gerrFaktorMetrisch(m, LWL) <= faktor) {
+    masseDesLehrbuchs = m;
+    break;
+  }
+}
+pruefe(masseDesLehrbuchs > 0, 'Keine Masse gefunden, die den Faktor des Rechners reproduziert.');
+
+const MASSEN = [3000, 4000, 5000, 5500, 6000, 7000, 8000, 9000, 10000];
+const masseReihe = MASSEN.map((masseKg) => {
+  const knoten = gerrKnoten(masseKg, LWL);
+  return {
+    masseKg,
+    dlr: dlrVon(masseKg, LWL),
+    faktorMetrisch: gerrFaktorMetrisch(masseKg, LWL),
+    knoten,
+    differenz: differenzKn(knoten, ref.rumpfgeschwindigkeitKn), // Differenz der gerundeten Werte
+  };
+});
+const MASSE_BEISPIEL = 5500;
+const beispiel = masseReihe.find((z) => z.masseKg === MASSE_BEISPIEL)!;
+pruefe(
+  beispiel.knoten > ref.rumpfgeschwindigkeitKn,
+  'Das leichtere Boot kommt im Modell nicht ueber die klassische Rumpfgeschwindigkeit.',
+);
+const beispielVorsprungProzent =
+  (beispiel.knoten / ref.rumpfgeschwindigkeitKn - 1) * 100;
+// Wo kippt das Vorzeichen der letzten Spalte? Nicht abgelesen, sondern gesucht.
+const letzteUeber = [...masseReihe].reverse().find((z) => z.differenz >= 0)!;
+const ersteUnter = masseReihe.find((z) => z.differenz < 0)!;
+pruefe(
+  masseReihe.indexOf(ersteUnter) === masseReihe.indexOf(letzteUeber) + 1,
+  'Die letzte Spalte wechselt das Vorzeichen nicht an genau einer Stelle.',
+);
+pruefe(
+  masseDesLehrbuchs > letzteUeber.masseKg && masseDesLehrbuchs <= ersteUnter.masseKg,
+  'Die zurueckgerechnete Masse liegt nicht zwischen den beiden Tabellenzeilen.',
+);
+
+// --- 6. Derselbe Meter, zweimal gerechnet ----------------------------------
+const LWL_LANG = 10;
+const klassischLaenger = berechneRumpfgeschwindigkeit({
+  wasserlinieM: LWL_LANG,
+}).rumpfgeschwindigkeitKn;
+const klassischGewinn = differenzKn(klassischLaenger, ref.rumpfgeschwindigkeitKn);
+const gerrLaenger = gerrKnoten(MASSE_BEISPIEL, LWL_LANG);
+const gerrGewinn = differenzKn(gerrLaenger, beispiel.knoten);
+const gewinnVerhaeltnis = gerrGewinn / klassischGewinn;
+pruefe(
+  gewinnVerhaeltnis > 3,
+  'Der Laengengewinn bei konstanter Masse ist nicht deutlich groesser als der klassische.',
+);
+// v ist proportional zu Wurzel(L) mal L hoch (3 x 0,311): Verdraengungs-Laengen-
+// Verhaeltnis faellt mit der dritten Potenz der Laenge.
+const exponentKonstanteMasse = 0.5 + 3 * GERR_EXPONENT;
+const exponentKlassisch = 0.5;
+pruefe(
+  Math.abs(
+    beispiel.knoten * Math.pow(LWL_LANG / LWL, exponentKonstanteMasse) - gerrLaenger,
+  ) < 0.02,
+  'Der hergeleitete Exponent gibt den gerechneten Wert nicht wieder.',
+);
+
+// --- 7. Was die letzten 20 Prozent kosten ----------------------------------
+const marsch = ref.gemuetlichKn;
+const tempoVerhaeltnis = ref.rumpfgeschwindigkeitKn / marsch; // aus den gerundeten Anzeigewerten
+const zeitaufschlag = (tempoVerhaeltnis - 1) * 100;
+const ETAPPEN = [10, 20, 30, 50];
+const etappen = ETAPPEN.map((seemeilen) => {
+  const voll = seemeilen / ref.rumpfgeschwindigkeitKn;
+  const gemuetlich = seemeilen / marsch;
+  return { seemeilen, voll, gemuetlich, gewinnMin: (gemuetlich - voll) * 60 };
+});
+const etappeDreissig = etappen.find((e) => e.seemeilen === 30)!;
+pruefe(etappeDreissig.gewinnMin > 60, 'Der Zeitgewinn auf 30 Seemeilen liegt unter einer Stunde.');
+// Offengelegtes Modell: Leistung waechst mit der dritten Potenz der Fahrt,
+// der Verbrauch je Seemeile also mit der zweiten. Unterhalb der Rumpf-
+// geschwindigkeit ist das die GUENSTIGE Annahme – nahe der Grenze steigt die
+// Kurve steiler. Die Werte sind damit Untergrenzen.
+const mehrLeistung = (Math.pow(tempoVerhaeltnis, 3) - 1) * 100;
+const mehrVerbrauchJeMeile = (Math.pow(tempoVerhaeltnis, 2) - 1) * 100;
+pruefe(
+  mehrVerbrauchJeMeile > zeitaufschlag,
+  'Der Mehrverbrauch je Seemeile liegt nicht ueber dem Zeitaufschlag.',
+);
+
+// Ab welcher Fahrt steigt der Wellenwiderstand stark? Faustwert Froude 0,35.
+const FROUDE_ANSTIEG = 0.35;
+const anstiegKn = (FROUDE_ANSTIEG * Math.sqrt(G * LWL)) / KN_IN_MS;
+const anstiegAnteil = (FROUDE_ANSTIEG / froudeTypisch) * 100;
+pruefe(
+  anstiegKn > marsch && anstiegKn < ref.rumpfgeschwindigkeitKn,
+  'Der Froude-Schwellwert liegt nicht zwischen Marschfahrt und Rumpfgeschwindigkeit.',
+);
+const marschAnteil = (marsch / ref.rumpfgeschwindigkeitKn) * 100;
+const abstandPunkte = anstiegAnteil - marschAnteil;
+
+const quellen = [
+  {
+    titel: 'Rumpfgeschwindigkeit – Formel, metrische Konstante und Faustregeln (Wikipedia)',
+    url: 'https://de.wikipedia.org/wiki/Rumpfgeschwindigkeit',
+  },
+  {
+    titel: 'Hull speed – Herleitung aus der Dispersionsrelation der Tiefwasserwelle (Wikipedia)',
+    url: 'https://en.wikipedia.org/wiki/Hull_speed',
+  },
+  {
+    titel: 'Froude-Zahl – dimensionslose Kennzahl für Schwerewellen (Wikipedia)',
+    url: 'https://de.wikipedia.org/wiki/Froude-Zahl',
+  },
+  {
+    titel: 'Dave Gerr, The Propeller Handbook (1989) – Buchnachweis bei Open Library',
+    url: 'https://openlibrary.org/works/OL4283280W',
+  },
+  {
+    titel:
+      'Charles J. Doane, Crunching Numbers: A Better Way to Estimate Hull Speed (2010) – Gerrs Formel mit Rechenbeispiel',
+    url: 'https://wavetrain.net/2010/10/26/crunching-numbers-a-better-way-to-estimate-hull-speed/',
+  },
+  {
+    titel: '3. Generalkonferenz für Maß und Gewicht (1901) – Normfallbeschleunigung 9,80665 m/s²',
+    url: 'https://www.bipm.org/en/committees/cg/cgpm/3-1901/resolution-2',
+  },
+];
+---
+<RechnerArtikel
+  titel="Die Formel kennt das Gewicht des Bootes nicht"
+  datum="2026-09-18"
+  lead={`Die Rumpfgeschwindigkeit hat genau eine Eingabe: die Wasserlinienlänge. Wie schwer das Boot ist, kommt in der Formel nicht vor – das ist keine Vereinfachung, sondern eine versteckte Annahme. Rechnet man den Faktor ${zahl(faktor)} gegen ein gängiges Konstrukteursmodell zurück, beschreibt er ein Boot, das bei ${meter(LWL, 0)} Wasserlinie rund ${kg(masseDesLehrbuchs)} wiegt. Eine ${zahl(MASSE_BEISPIEL / 1000, 1)}-Tonnen-Yacht derselben Länge kommt nach demselben Modell auf ${kn(beispiel.knoten)} statt ${kn(ref.rumpfgeschwindigkeitKn)} – ohne zu gleiten.`}
+  quellen={quellen}
+>
+  <h3>Woher die {zahl(faktor)} kommen</h3>
+  <p>
+    Der Faktor ist keine Erfahrungszahl aus dem Bootsbau, sondern fällt aus der
+    Wellenphysik heraus. Eine Schwerewelle in tiefem Wasser läuft umso schneller,
+    je länger sie ist: Ihre Ausbreitungsgeschwindigkeit ist die Wurzel aus
+    Wellenlänge mal Erdbeschleunigung, geteilt durch zwei Pi. Setzt man die
+    Wellenlänge gleich der Wasserlinienlänge – genau das ist die Annahme hinter
+    der Rumpfgeschwindigkeit –, bleibt eine einzige Zahl übrig: {zahl(cJeWurzelMeter)} Meter
+    je Sekunde für jede Wurzel Meter Wasserlinie. In Knoten sind das
+    {' '}{zahl(faktorExaktMetrisch, 4)}.
+  </p>
+  <p>
+    Dieselbe Rechnung in Fuß sieht anders aus, weil die Erdbeschleunigung dort
+    {' '}{zahl(gInFuss, 3)} Fuß je Sekundenquadrat beträgt: Es kommen
+    {' '}{zahl(faktorExaktImperial, 4)} Knoten je Wurzel Fuß heraus. Das ist die
+    Zahl, die in der englischsprachigen Literatur als {zahl(FAKTOR_KLASSISCH_FUSS)} steht.
+  </p>
+
+  <table>
+    <caption class="visually-hidden">
+      Herleitung des Faktors aus der Wellenformel in beiden Einheitensystemen
+    </caption>
+    <thead>
+      <tr>
+        <th scope="col">Einheitensystem</th>
+        <th scope="col" class="num">Erdbeschleunigung</th>
+        <th scope="col" class="num">Faktor exakt</th>
+        <th scope="col" class="num">Faktor klassisch</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <th scope="row">Knoten je Wurzel Meter</th>
+        <td class="num">{zahl(G, 5)} m/s²</td>
+        <td class="num">{zahl(faktorExaktMetrisch, 4)}</td>
+        <td class="num">{zahl(faktor)}</td>
+      </tr>
+      <tr>
+        <th scope="row">Knoten je Wurzel Fuß</th>
+        <td class="num">{zahl(gInFuss, 3)} ft/s²</td>
+        <td class="num">{zahl(faktorExaktImperial, 4)}</td>
+        <td class="num">{zahl(FAKTOR_KLASSISCH_FUSS)}</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <p class="ra-hinweis">
+    Beide Lehrbuchzahlen sind gerundet, und zwar in entgegengesetzte Richtungen:
+    {' '}{zahl(faktor)} liegt {proz(Math.abs(abweichungRundung), 3)} über dem exakten Wert,
+    {' '}{zahl(FAKTOR_KLASSISCH_FUSS)} liegt darunter. Bei {meter(LWL, 0)} Wasserlinie trennt die
+    beiden Rechenwege deshalb ein Unterschied von {kn(Math.abs(spannweiteKonstanten), 3)} –
+    {' '}{kn(ref.rumpfgeschwindigkeitKn)} gegen {kn(klassischImperialKn, 3)}, exakt wären es
+    {' '}{kn(refExaktKn, 3)}. Für die Praxis ist das irrelevant; für das Verständnis
+    ist es der Beleg, dass hier zwei Näherungen desselben Sachverhalts nebeneinander stehen.
+  </p>
+
+  <h3>Die eigentliche Zahl heißt {zahl(froudeExakt, 4)} und hat keine Einheit</h3>
+  <p>
+    Weder {zahl(faktor)} noch {zahl(FAKTOR_KLASSISCH_FUSS)} sind die physikalische
+    Aussage. Die Aussage steckt in der Froude-Zahl: Geschwindigkeit geteilt durch
+    die Wurzel aus Erdbeschleunigung mal Länge. Sie ist dimensionslos, hängt also
+    an keinem Einheitensystem. Setzt man die Rumpfgeschwindigkeit ein, kürzen sich
+    Länge und Erdbeschleunigung vollständig heraus, und es bleibt eins geteilt durch
+    die Wurzel aus zwei Pi: {zahl(froudeExakt, 4)}.
+  </p>
+
+  <table>
+    <caption class="visually-hidden">
+      Rumpfgeschwindigkeit und zugehörige Froude-Zahl über die Wasserlinienlänge
+    </caption>
+    <thead>
+      <tr>
+        <th scope="col">Wasserlinie</th>
+        <th scope="col" class="num">Rumpfgeschwindigkeit</th>
+        <th scope="col" class="num">in km/h</th>
+        <th scope="col" class="num">Froude-Zahl</th>
+      </tr>
+    </thead>
+    <tbody>
+      {froudeReihe.map((z) => (
+        <tr>
+          <th scope="row">{meter(z.lwl, 0)}</th>
+          <td class="num">{kn(z.knoten)}</td>
+          <td class="num">{zahl(z.kmh)}</td>
+          <td class="num">{zahl(z.fr, 4)}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+
+  <p>
+    Die letzte Spalte rührt sich nicht – sie steht bei
+    {' '}{zahl(froudeTypisch, 4)} statt bei {zahl(froudeExakt, 4)}, weil die Tabelle mit
+    dem gerundeten Faktor {zahl(faktor)} gerechnet ist und nicht mit der Wellenformel selbst. Ein Vier-Meter-Dingi und ein
+    Dreißig-Meter-Verdränger liegen an ihrer Rumpfgeschwindigkeit bei derselben
+    Froude-Zahl – deshalb kann man die Grenze überhaupt mit einer einzigen Zahl
+    beschreiben. Umgekehrt heißt das: {zahl(faktor)} und {zahl(FAKTOR_KLASSISCH_FUSS)} sind
+    nicht zwei Regeln, sondern eine Regel in zwei Sprachen. Und weil die Länge
+    unter einer Wurzel steht, gilt auch der Klassiker: Die vierfache Wasserlinie
+    verdoppelt die Rumpfgeschwindigkeit – {kn(vier)} bei {meter(4, 0)}, {kn(sechzehn)}
+    {' '}bei {meter(16, 0)}.
+  </p>
+
+  <h3>Zwei Einheitenfallen, die sich nicht von selbst verraten</h3>
+  <p>
+    Weil beide Faktoren mit derselben Einheit „Knoten" enden, sehen beide falschen
+    Ergebnisse aus wie Bootsgeschwindigkeiten. {meter(LWL, 0)} Wasserlinie sind
+    {' '}{zahl(lwlInFuss)} Fuß. Wer die Fußlänge in die metrische Formel einsetzt,
+    erhält {kn(falschZuHoch)} – {proz(ueberschaetzung, 0)} zu viel, und für ein
+    Boot dieser Größe immer noch eine Zahl, die man sich einreden kann. Wer
+    umgekehrt Meter in die klassische Formel einsetzt, landet bei {kn(falschZuNiedrig)},
+    also {proz(unterschaetzung, 0)} zu wenig – unauffällig langsam statt offensichtlich falsch.
+  </p>
+  <p>
+    Zwischen den beiden Faktoren steht nicht der Umrechnungsfaktor
+    {' '}{zahl(1 / FUSS_IN_M, 4)} von Fuß auf Meter, sondern dessen Wurzel:
+    {' '}{zahl(wurzelUmrechnung, 4)}. Die Länge sitzt unter dem Wurzelzeichen, also
+    wandert auch nur die Wurzel der Umrechnung in die Konstante. Das ist der Grund,
+    warum {zahl(faktor)} geteilt durch {zahl(FAKTOR_KLASSISCH_FUSS)} keine runde Zahl ergibt.
+  </p>
+
+  <h3>Was ein Meter Wasserlinie wirklich bringt</h3>
+  <p>
+    Die Wurzel arbeitet gegen große Boote. Jeder zusätzliche Meter bringt weniger
+    als der vorhergehende, und zwar spürbar:
+  </p>
+
+  <table>
+    <caption class="visually-hidden">
+      Ertrag eines zusätzlichen Meters Wasserlinie über die Bootsgröße
+    </caption>
+    <thead>
+      <tr>
+        <th scope="col">Wasserlinie</th>
+        <th scope="col" class="num">Rumpfgeschwindigkeit</th>
+        <th scope="col" class="num">ein Meter mehr bringt</th>
+        <th scope="col" class="num">ein Knoten mehr kostet</th>
+      </tr>
+    </thead>
+    <tbody>
+      {laengenReihe.map((z) => (
+        <tr>
+          <th scope="row">{meter(z.lwl, 0)}</th>
+          <td class="num">{kn(z.knoten)}</td>
+          <td class="num">{kn(z.gewinn, 2)}</td>
+          <td class="num">{meter(z.mehrlaenge)}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+
+  <p>
+    Bei {meter(kurz.lwl, 0)} Wasserlinie bringt ein zusätzlicher Meter
+    {' '}{kn(kurz.gewinn)}, bei {meter(lang.lwl, 0)} nur noch {kn(lang.gewinn)}. Und
+    andersherum: Um bei {meter(LWL, 0)} einen ganzen Knoten zuzulegen, bräuchte der
+    Rumpf {meter(neunMeter.mehrlaenge)} mehr Wasserlinie – aus einem
+    {' '}{meter(LWL, 0)}-Boot müsste ein {meter(LWL + neunMeter.mehrlaenge, 2)}-Boot
+    werden. Wer beim Bootskauf einen Knoten Reisegeschwindigkeit über die Länge
+    kaufen will, kauft in Wirklichkeit eine Klasse größer.
+  </p>
+
+  <h3>In der Formel fehlt das Gewicht</h3>
+  <p>
+    Hier wird es interessant. Die Wellenformel sagt, wie schnell die Welle läuft.
+    Sie sagt nicht, ob das Boot von dieser Welle überhaupt aufgehalten wird. Ein
+    schwerer, völliger Rumpf verdrängt viel Wasser und baut ein kräftiges
+    Wellensystem auf – der bleibt an der Grenze hängen. Ein schlanker, leichter
+    Rumpf erzeugt ein schwächeres System und fährt darüber hinweg, ohne zu gleiten.
+  </p>
+  <p>
+    Konstrukteure fassen diese Schlankheit im Verdrängungs-Längen-Verhältnis
+    zusammen: Verdrängung in long tons, geteilt durch die dritte Potenz von einem
+    Hundertstel der Wasserlinienlänge in Fuß. Es ist eine reine Verhältniszahl.
+    Dave Gerr hat im <em>Propeller Handbook</em> eine Näherung veröffentlicht, die
+    daraus das höchstmögliche Verhältnis von Fahrt zu Wurzel Wasserlinie schätzt:
+    {' '}{zahl(GERR_ZAEHLER)} geteilt durch dieses Verhältnis hoch {zahl(GERR_EXPONENT, 3)}.
+    Am veröffentlichten Beispiel nachgerechnet – {kg(kontrolleMasseKg)} auf
+    {' '}{meter(kontrolleLwlM)} Wasserlinie – ergibt das ein Verhältnis von
+    {' '}{zahl(kontrolleDlr, 0)}, einen Faktor von {zahl(kontrolleSL)} und damit
+    {' '}{kn(kontrolleKn)} statt der klassischen {kn(FAKTOR_KLASSISCH_FUSS * Math.sqrt(28))}.
+  </p>
+  <p>
+    Dreht man die Formel um und fragt, welches Verdrängungs-Längen-Verhältnis
+    genau die Lehrbuchzahl {zahl(FAKTOR_KLASSISCH_FUSS)} zurückgibt, kommt
+    {' '}{zahl(dlrDesLehrbuchs, 0)} heraus. Das ist kein neutraler Wert, sondern ein
+    ausgesprochen schwerer Rumpf. Bei {meter(LWL, 0)} Wasserlinie entspricht er
+    einer Verdrängung von {kg(masseDesLehrbuchs)}:
+  </p>
+
+  <table>
+    <caption class="visually-hidden">
+      Erreichbare Fahrt nach Gerr bei {meter(LWL, 0)} Wasserlinie und verschiedener Verdrängung
+    </caption>
+    <thead>
+      <tr>
+        <th scope="col">Verdrängung</th>
+        <th scope="col" class="num">Verdrängungs-Längen-Verhältnis</th>
+        <th scope="col" class="num">Faktor je Wurzel Meter</th>
+        <th scope="col" class="num">erreichbare Fahrt</th>
+        <th scope="col" class="num">gegenüber {kn(ref.rumpfgeschwindigkeitKn)}</th>
+      </tr>
+    </thead>
+    <tbody>
+      {masseReihe.map((z) => (
+        <tr>
+          <th scope="row">{kg(z.masseKg)}</th>
+          <td class="num">{zahl(z.dlr, 0)}</td>
+          <td class="num">{zahl(z.faktorMetrisch)}</td>
+          <td class="num">{kn(z.knoten)}</td>
+          <td class="num">{z.differenz >= 0 ? '+' : ''}{kn(z.differenz)}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+
+  <p>
+    Das Vorzeichen der letzten Spalte kippt zwischen {kg(letzteUeber.masseKg)} und
+    {' '}{kg(ersteUnter.masseKg)}; der genaue Übergang liegt bei
+    {' '}{kg(masseDesLehrbuchs)}. Alles Schwerere ist langsamer, als die
+    Lehrbuchformel verspricht, alles Leichtere schneller. Eine {zahl(MASSE_BEISPIEL / 1000, 1)}-Tonnen-Yacht mit derselben
+    Wasserlinie – für einen Rumpf dieser Länge keine Rennmaschine, sondern ein
+    gewöhnlicher Fahrtenriss – landet bei {kn(beispiel.knoten)}. Das sind
+    {' '}{kn(beispiel.differenz)} oder {proz(beispielVorsprungProzent)} über einer
+    Grenze, die als physikalisch beschrieben wird.
+  </p>
+  <p class="ra-hinweis">
+    Gerrs Formel ist eine empirische Konstrukteursnäherung, keine Herleitung. Sie
+    kennt nur Masse und Länge, nicht die Rumpfform, und sie sagt nichts darüber,
+    wie viel Leistung nötig ist, um die Zahl zu erreichen – ein Segler braucht dafür
+    Wind, ein Motorboot Diesel. Die Werte in der Tabelle sind Obergrenzen eines
+    Modells, keine Prüfstandswerte.
+  </p>
+
+  <h3>Derselbe Meter, zweimal gerechnet</h3>
+  <p>
+    Der Unterschied zwischen beiden Modellen wird da greifbar, wo es ums Geld geht:
+    beim Verlängern der Wasserlinie. Nach der klassischen Formel bringt der Schritt
+    von {meter(LWL, 0)} auf {meter(LWL_LANG, 0)} genau {kn(klassischGewinn)} –
+    von {kn(ref.rumpfgeschwindigkeitKn)} auf {kn(klassischLaenger)}. Nach Gerr,
+    bei unveränderter Verdrängung von {kg(MASSE_BEISPIEL)}, bringt derselbe Meter
+    {' '}{kn(gerrGewinn)}: von {kn(beispiel.knoten)} auf {kn(gerrLaenger)}. Das ist
+    das {zahl(gewinnVerhaeltnis, 1)}-Fache.
+  </p>
+  <p>
+    Der Grund steckt im Exponenten und lässt sich ohne Tabelle nachrechnen. Das
+    Verdrängungs-Längen-Verhältnis enthält die Länge in der dritten Potenz im
+    Nenner: Wird der Rumpf länger, ohne schwerer zu werden, fällt es mit der
+    dritten Potenz. Gerrs Faktor steigt deshalb mit der Länge hoch
+    {' '}{zahl(3 * GERR_EXPONENT, 3)}, und zusammen mit der Wurzel aus der Länge
+    wächst die erreichbare Fahrt mit der Länge hoch {zahl(exponentKonstanteMasse, 3)}
+    {' '}statt hoch {zahl(exponentKlassisch, 1)}.
+  </p>
+  <p>
+    Damit lässt sich die klassische Formel als Sonderfall lesen: Sie beschreibt ein
+    Boot, das beim Wachsen seine Form behält – doppelte Länge, achtfache Verdrängung.
+    Dann bleibt das Verdrängungs-Längen-Verhältnis konstant, Gerrs Faktor rührt sich
+    nicht, und übrig bleibt die reine Wurzel. Die Wurzel ist also nicht das Gesetz,
+    sondern der ungünstigste Fall: was herauskommt, wenn man einen Rumpf maßstäblich
+    vergrößert. Wer stattdessen streckt, ohne zuzuladen, bewegt sich auf einer viel
+    steileren Kurve. Genau das haben Konstrukteure in den letzten Jahrzehnten getan –
+    senkrechter Steven, breites Heck, leichter Bau.
+  </p>
+
+  <h3>Wo genau es teuer wird</h3>
+  <p>
+    Die Grenze ist keine Wand, sondern ein Anstieg – und der beginnt vor der
+    Rumpfgeschwindigkeit, nicht an ihr. Als Faustwert gilt, dass der Wellenwiderstand
+    ab einer Froude-Zahl von etwa {zahl(FROUDE_ANSTIEG)} stark zunimmt. Das sind
+    {' '}{proz(anstiegAnteil, 0)} der Rumpfgeschwindigkeit, bei {meter(LWL, 0)} Wasserlinie
+    also {kn(anstiegKn)}. Die verbreitete Marschfahrt-Faustregel von
+    {' '}{proz(marschAnteil, 0)} – hier {kn(marsch)} – hält davon
+    {' '}{zahl(abstandPunkte, 0)} Prozentpunkte Abstand. Die Faustregel ist damit
+    keine willkürliche Rundzahl, sondern liegt gerade noch im flachen Teil der Kurve.
+  </p>
+  <p>
+    Was der Verzicht kostet, lässt sich exakt ausrechnen, solange man nur nach der
+    Zeit fragt. {kn(ref.rumpfgeschwindigkeitKn)} gegen {kn(marsch)} ist ein
+    Verhältnis von {zahl(tempoVerhaeltnis, 3)}, die gemütliche Fahrt braucht also
+    {' '}{proz(zeitaufschlag)} länger:
+  </p>
+
+  <table>
+    <caption class="visually-hidden">
+      Fahrzeit bei voller Rumpfgeschwindigkeit und bei Marschfahrt
+    </caption>
+    <thead>
+      <tr>
+        <th scope="col">Etappe</th>
+        <th scope="col" class="num">mit {kn(ref.rumpfgeschwindigkeitKn)}</th>
+        <th scope="col" class="num">mit {kn(marsch)}</th>
+        <th scope="col" class="num">Unterschied</th>
+      </tr>
+    </thead>
+    <tbody>
+      {etappen.map((e) => (
+        <tr>
+          <th scope="row">{zahl(e.seemeilen, 0)} sm</th>
+          <td class="num">{dauer(e.voll)}</td>
+          <td class="num">{dauer(e.gemuetlich)}</td>
+          <td class="num">{zahl(Math.round(e.gewinnMin), 0)} min</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+
+  <p>
+    Auf einem Tagesschlag von {zahl(etappeDreissig.seemeilen, 0)} Seemeilen kosten die
+    letzten {proz(100 - marschAnteil, 0)} Fahrt
+    {' '}{dauer(etappeDreissig.gewinnMin / 60)}. Das ist keine Nebensächlichkeit,
+    sondern der Unterschied zwischen Ankommen vor und nach Sonnenuntergang.
+  </p>
+  <p>
+    Die Gegenrechnung braucht ein offengelegtes Modell, weil der Verbrauch von
+    Propeller, Motor und Bewuchs abhängt. Nimmt man die übliche Näherung, dass die
+    nötige Leistung mit der dritten Potenz der Fahrt wächst, dann kostet die volle
+    Rumpfgeschwindigkeit {proz(mehrLeistung, 0)} mehr Leistung je Stunde. Weil in
+    dieser Stunde aber auch mehr Strecke zurückgelegt wird, bleibt je Seemeile ein
+    Aufschlag von {proz(mehrVerbrauchJeMeile, 0)}. Und das ist die freundliche
+    Rechnung: Direkt unterhalb der Rumpfgeschwindigkeit steigt die
+    Widerstandskurve steiler als mit der dritten Potenz, der reale Aufschlag liegt
+    darüber. Wie stark, hängt am konkreten Antrieb – dafür gibt es den
+    {' '}<a href={`${base}boot/spritverbrauch-boot/`}>Spritverbrauchsrechner fürs Boot</a>.
+  </p>
+  <p>
+    Der Handel lautet also: mindestens {proz(mehrVerbrauchJeMeile, 0)} mehr Sprit je
+    Seemeile gegen {proz(zeitaufschlag, 0)} Zeit. Das ist eine echte Abwägung und keine
+    Selbstverständlichkeit – wer bei auffrischendem Wind einen Hafen erreichen will,
+    entscheidet sich zu Recht anders als auf einem ruhigen Nachmittagsschlag.
+  </p>
+
+  <h3>Was die Zahl leistet und was nicht</h3>
+  <p>
+    Die Rumpfgeschwindigkeit beantwortet eine Frage über Wellen, nicht über Boote:
+    Wie schnell läuft eine Welle, die so lang ist wie dieser Rumpf? Die Antwort ist
+    exakt und hängt nur an der Erdbeschleunigung. Alles Weitere – ob das Boot von
+    dieser Welle wirklich gebremst wird, ab wann es unwirtschaftlich wird, wie viel
+    Leistung der nächste Zehntelknoten kostet – steht nicht in der Formel. Dafür
+    braucht es die Verdrängung, die Rumpfform und den Antrieb.
+  </p>
+  <p>
+    Praktisch heißt das dreierlei. Erstens: Für einen schweren, völligen
+    Verdrängerrumpf ist die berechnete Zahl eine gute Obergrenze – dafür wurde sie
+    kalibriert. Zweitens: Für einen modernen, leichten Rumpf ist sie eine
+    Untergrenze, und der Abstand ist mit über einem Knoten größer, als das Wort
+    „Grenze" vermuten lässt. Drittens: Als Vergleichsmaßstab zwischen zwei Booten
+    taugt sie nur, wenn beide ähnlich schwer für ihre Länge sind. Sonst vergleicht
+    man zwei Wellenlängen und hält das Ergebnis für einen Geschwindigkeitsvergleich.
+  </p>
+  <p>
+    Wer die Zahl für die Törnplanung braucht, rechnet ohnehin nicht mit dem Maximum,
+    sondern mit der Marschfahrt – und danach mit Ankergrund und Kettenlänge, wofür
+    es den <a href={`${base}boot/ankerkette-rechner/`}>Ankerkettenrechner</a> gibt.
+    Und wer den Rumpf gar nicht erst ins Wasser lässt, sondern zum nächsten Revier
+    zieht, stößt auf eine ganz andere Grenze: die des
+    {' '}<a href={`${base}${artikelPfadVonSlug('bootstrailer-fuehrerschein-tempo-100')}`}>Führerscheins
+    und der Tempo-100-Zulassung</a>.
+  </p>
+</RechnerArtikel>

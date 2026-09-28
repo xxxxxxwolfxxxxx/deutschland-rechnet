@@ -1,0 +1,375 @@
+---
+import RechnerArtikel from '../RechnerArtikel.astro';
+import { berechneKurzarbeitergeld, LEISTUNGSSATZ, LEISTUNGSSATZ_ERHOEHT, pauschaliertesNettoentgelt } from '../../../public/scripts/kurzarbeitergeld.js';
+
+// Alle Zahlen dieses Artikels laufen durch dasselbe Modul, das auch der
+// Kurzarbeitergeld-Rechner auf dieser Seite lädt. Nichts ist hier frei
+// erfunden oder aus einer separaten Tabelle abgeschrieben.
+//
+// These des Artikels: Der Leistungssatz von 60 bzw. 67 Prozent (§ 105 SGB III)
+// gilt exakt für die pauschalierte NETTOENTGELTDIFFERENZ (§ 106 SGB III) –
+// nicht für den Bruttolohnausfall. Weil die Lohnsteuer progressiv ist, ist
+// diese Nettoentgeltdifferenz bei einem hälftigen Arbeitsausfall NICHT gleich
+// der Hälfte des Soll-Nettoentgelts, sondern kleiner. Wer die Hälfte seines
+// Bruttos behält, behält überproportional mehr als die Hälfte seines Nettos –
+// eben weil die behaltene (untere) Hälfte des Einkommens niedriger besteuert
+// ist als die wegfallende (obere) Hälfte. Ergebnis: Bei hälftigem Ausfall ist
+// der tatsächliche Nettoverlust kleiner als die naive Rechnung "50 % Ausfall
+// mal 40 % Minderung" erwartet.
+const STEUERKLASSE = 1;
+const AUSFALL_BEISPIEL = 50;
+const BRUTTO_A = 3500;
+const BRUTTO_B = 6000;
+
+const minus = (s: string) => s.replace(/^-/, '−');
+const eur = (n: number, d = 2) =>
+  minus(n.toLocaleString('de-DE', { minimumFractionDigits: d, maximumFractionDigits: d })) + ' €';
+const proz = (n: number, d = 2) =>
+  minus(n.toLocaleString('de-DE', { minimumFractionDigits: d, maximumFractionDigits: d })) + ' %';
+const pp = (n: number, d = 2) =>
+  minus(n.toLocaleString('de-DE', { minimumFractionDigits: d, maximumFractionDigits: d })) + ' Prozentpunkte';
+
+function kug(sollEntgelt: number, ausfallProzent: number, hatKind = false) {
+  return berechneKurzarbeitergeld({ sollEntgelt, ausfallProzent, steuerklasse: STEUERKLASSE, hatKind });
+}
+
+// Naive Erwartung: Nettoentgelt skaliert linear mit dem Brutto, die
+// Nettoentgeltdifferenz ist also exakt der Ausfallanteil des Soll-Nettos.
+function naiveVerlustProzent(ausfallProzent: number): number {
+  return (ausfallProzent / 100) * (1 - LEISTUNGSSATZ) * 100;
+}
+function tatsaechlicherVerlustProzent(r: ReturnType<typeof berechneKurzarbeitergeld>): number {
+  return ((r.sollNetto - r.gesamtNetto) / r.sollNetto) * 100;
+}
+
+// --- Hauptbeispiele: 3.500 € und 6.000 € Soll-Entgelt, je 50 % Ausfall ---
+const rA = kug(BRUTTO_A, AUSFALL_BEISPIEL);
+const rB = kug(BRUTTO_B, AUSFALL_BEISPIEL);
+
+const naiveIstNettoA = rA.sollNetto * (1 - AUSFALL_BEISPIEL / 100);
+const naiveDifferenzA = rA.sollNetto - naiveIstNettoA;
+const naiveGesamtA = naiveIstNettoA + naiveDifferenzA * LEISTUNGSSATZ;
+const naiveIstNettoB = rB.sollNetto * (1 - AUSFALL_BEISPIEL / 100);
+const naiveDifferenzB = rB.sollNetto - naiveIstNettoB;
+const naiveGesamtB = naiveIstNettoB + naiveDifferenzB * LEISTUNGSSATZ;
+
+const verlustProzentA = tatsaechlicherVerlustProzent(rA);
+const verlustProzentB = tatsaechlicherVerlustProzent(rB);
+const naiveVerlust50 = naiveVerlustProzent(AUSFALL_BEISPIEL);
+const kissenA = naiveGesamtA === 0 ? 0 : rA.gesamtNetto - naiveGesamtA;
+const kissenB = naiveGesamtB === 0 ? 0 : rB.gesamtNetto - naiveGesamtB;
+
+// --- Einkommensreihe bei festem Ausfall von 50 %: Wie verändert sich die
+// Abweichung von der naiven Erwartung mit der Gehaltshöhe? ---
+const EINKOMMEN_REIHE = [1600, 2500, 3500, 6000, 9000, 12000, 20000, 30000];
+const einkommensReihe = EINKOMMEN_REIHE.map((brutto) => {
+  const r = kug(brutto, AUSFALL_BEISPIEL);
+  const verlust = tatsaechlicherVerlustProzent(r);
+  return { brutto, verlust, abweichung: naiveVerlust50 - verlust };
+});
+const maxAbweichung = Math.max(...einkommensReihe.map((z) => z.abweichung));
+const zeileMitMaxAbweichung = einkommensReihe.find((z) => z.abweichung === maxAbweichung)!;
+
+// --- Ausfallreihe bei festem Brutto von 3.500 €: Wie verändert sich die
+// Abweichung mit dem Ausfallgrad selbst? ---
+const AUSFALL_REIHE = [10, 25, 50, 75, 90, 100];
+const ausfallReihe = AUSFALL_REIHE.map((ausfall) => {
+  const r = kug(BRUTTO_A, ausfall);
+  const verlust = tatsaechlicherVerlustProzent(r);
+  return { ausfall, verlust, naiv: naiveVerlustProzent(ausfall), abweichung: naiveVerlustProzent(ausfall) - verlust };
+});
+
+// --- Historisches Beispiel aus dem Modulkommentar (public/scripts/kurzarbeitergeld.js):
+// Bis zum 11.08.2026 stand dort eine feste Tabelle Nettoanteile je Steuerklasse
+// statt einer echten Pauschalierung. Bei 3.500 € Brutto, Steuerklasse I und
+// hälftigem Ausfall ergab das fälschlich 732,90 € statt 620,90 €. Die alte
+// Rechenweise lässt sich nicht mehr aufrufen (das Modul wurde korrigiert), der
+// Fehlwert ist deshalb hier als dokumentierte historische Zahl übernommen,
+// nicht neu berechnet.
+const HISTORISCH_FEHLERHAFT = 732.9;
+// "620,90 €" aus dem Modulkommentar ist der reine Progressionseffekt: Soll- und
+// Ist-Netto ohne die zusätzliche Rundung von Soll- und Ist-Entgelt auf durch 20
+// teilbare Beträge (§ 106 Abs. 1 Satz 5 SGB III).
+const sollNettoRein = pauschaliertesNettoentgelt({ entgeltMonat: BRUTTO_A, steuerklasse: STEUERKLASSE });
+const istNettoReinUngerundet = pauschaliertesNettoentgelt({ entgeltMonat: BRUTTO_A / 2, steuerklasse: STEUERKLASSE });
+const kugReinUngerundet = (sollNettoRein - istNettoReinUngerundet) * LEISTUNGSSATZ;
+// Der tatsächliche Rechner oben wendet zusätzlich die gesetzliche Rundung an
+// und kommt deshalb auf einen dritten, wiederum leicht abweichenden Wert.
+const kugMitRundung = rA.kurzarbeitergeld;
+
+// --- Selbstprüfung 1: Bei vollständigem Arbeitsausfall ist das Ist-Entgelt in
+// jedem Modell null. Dann fällt der Unterschied zwischen "naiver" und
+// "echter" Rechnung weg, und der Verlust muss exakt (1 − Leistungssatz)
+// betragen – sonst wäre die zentrale These falsch, dass die Abweichung
+// gerade am Progressionseffekt bei TEILWEISEM Ausfall hängt.
+const rVollA = kug(BRUTTO_A, 100);
+const verlustVoll = tatsaechlicherVerlustProzent(rVollA);
+const naivVoll = naiveVerlustProzent(100);
+if (Math.abs(verlustVoll - naivVoll) > 0.01) {
+  throw new Error(
+    `Kurzarbeitergeld-Artikel: Bei 100 % Ausfall müsste der Verlust exakt ` +
+    `${naivVoll.toFixed(2)} % betragen, tatsächlich sind es ${verlustVoll.toFixed(2)} %.`
+  );
+}
+
+// --- Selbstprüfung 2: Bei hälftigem Ausfall muss der tatsächliche Nettoverlust
+// für beide Hauptbeispiele spürbar UNTER der naiven Erwartung von 20 % liegen
+// – das ist die Kernaussage dieses Artikels.
+if (verlustProzentA >= naiveVerlust50 - 1 || verlustProzentB >= naiveVerlust50 - 1) {
+  throw new Error(
+    `Kurzarbeitergeld-Artikel: Bei hälftigem Ausfall sollten ${BRUTTO_A} € und ` +
+    `${BRUTTO_B} € Soll-Entgelt spürbar unter ${naiveVerlust50.toFixed(2)} % Verlust ` +
+    `liegen, gemessen wurden ${verlustProzentA.toFixed(2)} % und ${verlustProzentB.toFixed(2)} %.`
+  );
+}
+
+// --- Selbstprüfung 3: Die historischen Zahlen aus dem Modulkommentar müssen
+// noch zusammenpassen: Der ungerundete Progressionswert liegt nahe 620,90 €,
+// die tatsächliche Rechner-Ausgabe (mit gesetzlicher Rundung) liegt spürbar
+// darunter, und beide liegen weit unter dem fehlerhaften alten Wert.
+if (Math.abs(kugReinUngerundet - 620.9) > 0.5) {
+  throw new Error(
+    `Kurzarbeitergeld-Artikel: Der ungerundete Progressionswert für das ` +
+    `historische Beispiel weicht von 620,90 € ab: ${kugReinUngerundet.toFixed(2)} €. ` +
+    `Der Modulkommentar in public/scripts/kurzarbeitergeld.js oder dieser Artikel ` +
+    `müssen abgeglichen werden.`
+  );
+}
+if (HISTORISCH_FEHLERHAFT - kugMitRundung < 100) {
+  throw new Error(
+    `Kurzarbeitergeld-Artikel: Der Abstand zwischen dem fehlerhaften alten Wert ` +
+    `(${HISTORISCH_FEHLERHAFT} €) und der aktuellen Rechner-Ausgabe ` +
+    `(${kugMitRundung.toFixed(2)} €) ist kleiner als erwartet – die historische ` +
+    `Größenordnung des Fehlers stimmt so nicht mehr.`
+  );
+}
+
+// --- Selbstprüfung 4: Die Abweichung von der naiven Erwartung soll im oberen
+// Mittelstand am größten sein, nicht am Rand der Einkommensreihe – sonst wäre
+// die Aussage "der Effekt ist in der Mitte am stärksten" falsch.
+if (zeileMitMaxAbweichung.brutto === EINKOMMEN_REIHE[0] || zeileMitMaxAbweichung.brutto === EINKOMMEN_REIHE[EINKOMMEN_REIHE.length - 1]) {
+  throw new Error(
+    `Kurzarbeitergeld-Artikel: Die größte Abweichung von der naiven Erwartung ` +
+    `liegt bei ${zeileMitMaxAbweichung.brutto} € – am Rand der Einkommensreihe, ` +
+    `nicht in der Mitte. Die These zum Verlauf des Effekts muss überarbeitet werden.`
+  );
+}
+
+const quellen = [
+  { titel: '§ 105 SGB III – Höhe des Kurzarbeitergelds', url: 'https://www.gesetze-im-internet.de/sgb_3/__105.html' },
+  { titel: '§ 106 SGB III – Nettoentgeltdifferenz', url: 'https://www.gesetze-im-internet.de/sgb_3/__106.html' },
+  { titel: '§ 153 SGB III – Leistungsentgelt', url: 'https://www.gesetze-im-internet.de/sgb_3/__153.html' },
+];
+---
+<RechnerArtikel
+  titel="Halber Arbeitsausfall bedeutet nicht halben Nettoverlust"
+  lead={`Bei 3.500 Euro Soll-Entgelt und 50 Prozent Arbeitsausfall verliert ein Beschäftigter in Steuerklasse I ${proz(verlustProzentA)} seines Nettos – nicht die naiv erwarteten ${proz(naiveVerlust50)}. Bei 6.000 Euro sind es sogar nur ${proz(verlustProzentB)}. Der Grund liegt nicht im Kurzarbeitergeld selbst, sondern in der Nettoentgeltdifferenz, auf die es angewendet wird.`}
+  datum="2026-09-28"
+  quellen={quellen}
+>
+  <h3>60 oder 67 Prozent wovon – das ist der entscheidende Unterschied</h3>
+  <p>
+    § 105 SGB III legt den Leistungssatz mit {proz(LEISTUNGSSATZ * 100, 0)} (mit
+    Kind {proz(LEISTUNGSSATZ_ERHOEHT * 100, 0)}) fest – aber nicht als Anteil
+    des ausgefallenen Bruttolohns, sondern als Anteil der{' '}
+    <strong>Nettoentgeltdifferenz</strong> nach § 106 SGB III. Diese
+    Nettoentgeltdifferenz ist selbst schon das Ergebnis einer Rechnung: Aus
+    dem Soll-Entgelt (Brutto ohne Ausfall) und dem Ist-Entgelt (tatsächliches
+    Brutto) wird je ein pauschaliertes Nettoentgelt gebildet – abzüglich einer
+    Sozialversicherungspauschale von 20 Prozent, der tabellarischen Lohnsteuer
+    und des Solidaritätszuschlags (§ 153 SGB III, über § 106 Abs. 1 Satz 6
+    SGB III entsprechend anwendbar). Erst die Differenz dieser beiden
+    pauschalierten Nettobeträge wird mit {proz(LEISTUNGSSATZ * 100, 0)}
+    multipliziert.
+  </p>
+  <p>
+    Der Unterschied ist mehr als juristische Feinheit: Weil die Lohnsteuer
+    progressiv ist, ist diese Nettoentgeltdifferenz bei einem hälftigen
+    Arbeitsausfall <strong>nicht</strong> gleich der Hälfte des
+    Soll-Nettoentgelts. Sie ist kleiner. Und das verändert am Ende, wie viel
+    Netto Sie bei Teil-Kurzarbeit tatsächlich behalten.
+  </p>
+
+  <h3>Warum die Differenz kleiner ist als die halbierte Nettosumme</h3>
+  <p>
+    Wer bei 50 Prozent Ausfall die Hälfte seines Bruttos behält, behält davon
+    überproportional mehr als die Hälfte seines Nettos. Der Grund: Die
+    behaltene Bruttohälfte ist die <em>untere</em> Hälfte des Einkommens –
+    die Hälfte, die zuerst durch Grundfreibetrag und niedrige Steuersätze
+    läuft. Die wegfallende Hälfte ist die <em>obere</em>, stärker besteuerte
+    Hälfte. Das pauschalierte Ist-Netto fällt deshalb nicht auf die Hälfte des
+    Soll-Nettos, sondern bleibt darüber.
+  </p>
+  <table>
+    <caption class="visually-hidden">Pauschaliertes Netto und Nettoentgeltdifferenz bei 50 Prozent Arbeitsausfall, Steuerklasse I</caption>
+    <thead>
+      <tr><th scope="col">Soll-Entgelt</th><th scope="col" class="num">Soll-Netto</th><th scope="col" class="num">Ist-Netto (50 % Ausfall)</th><th scope="col" class="num">Nettoentgeltdifferenz</th><th scope="col" class="num">Differenz als Anteil vom Soll-Netto</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <th scope="row">{eur(rA.sollEntgelt, 0)}</th>
+        <td class="num">{eur(rA.sollNetto)}</td>
+        <td class="num">{eur(rA.istNetto)}</td>
+        <td class="num">{eur(rA.nettoentgeltdifferenz)}</td>
+        <td class="num">{proz((rA.nettoentgeltdifferenz / rA.sollNetto) * 100)} <span class="ra-hinweis">(naiv erwartet: 50 %)</span></td>
+      </tr>
+      <tr>
+        <th scope="row">{eur(rB.sollEntgelt, 0)}</th>
+        <td class="num">{eur(rB.sollNetto)}</td>
+        <td class="num">{eur(rB.istNetto)}</td>
+        <td class="num">{eur(rB.nettoentgeltdifferenz)}</td>
+        <td class="num">{proz((rB.nettoentgeltdifferenz / rB.sollNetto) * 100)} <span class="ra-hinweis">(naiv erwartet: 50 %)</span></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h3>Die Folge: weniger Nettoverlust als die Milchmädchenrechnung erwartet</h3>
+  <p>
+    Weil die Nettoentgeltdifferenz kleiner ist als die halbierte Nettosumme,
+    fällt auch das Kurzarbeitergeld absolut kleiner aus als die naive
+    Rechnung "50 Prozent Ausfall mal {proz((1 - LEISTUNGSSATZ) * 100, 0)}
+    Minderung" nahelegt – aber das schlägt auf der Gesamtrechnung ins
+    Gegenteil um: Weil das <em>behaltene</em> Ist-Netto überproportional
+    hoch ist, ist der <strong>Gesamtverlust</strong> am Ende trotzdem kleiner
+    als naiv erwartet.
+  </p>
+  <table>
+    <caption class="visually-hidden">Kurzarbeitergeld, Gesamtnetto und tatsächlicher Verlust gegenüber der naiven Erwartung, 50 Prozent Arbeitsausfall</caption>
+    <thead>
+      <tr><th scope="col">Soll-Entgelt</th><th scope="col" class="num">Kurzarbeitergeld</th><th scope="col" class="num">Gesamtnetto</th><th scope="col" class="num">Verlust ggü. Soll-Netto</th><th scope="col" class="num">Naive Erwartung</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <th scope="row">{eur(rA.sollEntgelt, 0)}</th>
+        <td class="num">{eur(rA.kurzarbeitergeld)}</td>
+        <td class="num">{eur(rA.gesamtNetto)}</td>
+        <td class="num">{eur(rA.verlust)} ({proz(verlustProzentA)})</td>
+        <td class="num">{proz(naiveVerlust50)}</td>
+      </tr>
+      <tr>
+        <th scope="row">{eur(rB.sollEntgelt, 0)}</th>
+        <td class="num">{eur(rB.kurzarbeitergeld)}</td>
+        <td class="num">{eur(rB.gesamtNetto)}</td>
+        <td class="num">{eur(rB.verlust)} ({proz(verlustProzentB)})</td>
+        <td class="num">{proz(naiveVerlust50)}</td>
+      </tr>
+    </tbody>
+  </table>
+  <p class="ra-hinweis">
+    Bei {eur(BRUTTO_A, 0)} Soll-Entgelt bleiben so {eur(kissenA)} mehr im
+    Monat übrig als die naive Erwartung vorhersagt, bei{' '}
+    {eur(BRUTTO_B, 0)} sind es {eur(kissenB)} mehr. Das ist kein Bonus der
+    Agentur für Arbeit, sondern schlicht die Kehrseite der progressiven
+    Lohnsteuer, die schon vor der Kurzarbeit galt.
+  </p>
+
+  <h3>Der Effekt hängt vom Einkommen ab – und ist im oberen Mittelstand am größten</h3>
+  <p>
+    Der Abstand zur naiven Erwartung ist nicht bei jedem Einkommen gleich
+    groß. Er ist bei niedrigem Einkommen klein (der Grundfreibetrag lässt
+    wenig Progression zum Ausnutzen), wächst zur Mitte hin und schrumpft bei
+    sehr hohen Einkommen wieder, weil der Einkommensteuertarif ab dem
+    Spitzensteuersatz kaum noch progressiv verläuft.
+  </p>
+  <table>
+    <caption class="visually-hidden">Abweichung des tatsächlichen Nettoverlusts von der naiven 20-Prozent-Erwartung, nach Einkommenshöhe, 50 Prozent Arbeitsausfall, Steuerklasse I</caption>
+    <thead>
+      <tr><th scope="col">Soll-Entgelt</th><th scope="col" class="num">Tatsächlicher Verlust</th><th scope="col" class="num">Abweichung von {proz(naiveVerlust50)}</th></tr>
+    </thead>
+    <tbody>
+      {einkommensReihe.map((z) => (
+        <tr>
+          <th scope="row">{eur(z.brutto, 0)}</th>
+          <td class="num">{proz(z.verlust)}</td>
+          <td class="num">{pp(z.abweichung)}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+  <p class="ra-hinweis">
+    Die größte gemessene Abweichung liegt bei {eur(zeileMitMaxAbweichung.brutto, 0)}{' '}
+    Soll-Entgelt ({pp(zeileMitMaxAbweichung.abweichung)}) – weder am unteren
+    noch am oberen Rand dieser Reihe.
+  </p>
+
+  <h3>Nur bei vollständigem Ausfall stimmt die naive Rechnung exakt</h3>
+  <p>
+    Der Progressionseffekt entsteht ausschließlich, weil bei Teil-Kurzarbeit
+    ein Ist-Entgelt übrig bleibt, das ungleich zum Soll-Entgelt besteuert
+    wird. Fällt die Arbeit vollständig aus, ist das Ist-Entgelt in jeder
+    Rechnung null – dann verschwindet der Unterschied, und der Verlust
+    entspricht wieder exakt {proz((1 - LEISTUNGSSATZ) * 100, 0)} des
+    Soll-Nettos.
+  </p>
+  <table>
+    <caption class="visually-hidden">Abweichung des tatsächlichen Nettoverlusts von der naiven Erwartung, nach Ausfallgrad, 3.500 Euro Soll-Entgelt, Steuerklasse I</caption>
+    <thead>
+      <tr><th scope="col">Arbeitsausfall</th><th scope="col" class="num">Tatsächlicher Verlust</th><th scope="col" class="num">Naive Erwartung</th><th scope="col" class="num">Abweichung</th></tr>
+    </thead>
+    <tbody>
+      {ausfallReihe.map((z) => (
+        <tr>
+          <th scope="row">{proz(z.ausfall, 0)}</th>
+          <td class="num">{proz(z.verlust)}</td>
+          <td class="num">{proz(z.naiv)}</td>
+          <td class="num">{pp(z.abweichung)}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+
+  <h3>Wie empfindlich das ist: das historische Beispiel aus dem Rechenmodul</h3>
+  <p>
+    Wie sensibel diese Rechnung auf eine korrekte, nicht-lineare
+    Nettopauschalierung reagiert, zeigt die eigene Versionsgeschichte des
+    Rechenmoduls hinter diesem Rechner. Bis zum 11. August 2026 stand darin
+    eine feste Tabelle von Nettoanteilen je Steuerklasse – eine
+    Vereinfachung, die das pauschalierte Netto zu einem festen Prozentsatz
+    des Bruttos machte und die Nettoentgeltdifferenz damit fälschlich linear
+    zum Arbeitsausfall werden ließ. Für {eur(BRUTTO_A, 0)} Soll-Entgelt,
+    Steuerklasse I und hälftigen Ausfall ergab das ein Kurzarbeitergeld von
+    {' '}{eur(HISTORISCH_FEHLERHAFT)} – deutlich zu viel.
+  </p>
+  <table>
+    <caption class="visually-hidden">Drei Rechenwege für dasselbe Beispiel: 3.500 Euro Soll-Entgelt, Steuerklasse I, 50 Prozent Arbeitsausfall</caption>
+    <thead>
+      <tr><th scope="col">Rechenweg</th><th scope="col" class="num">Kurzarbeitergeld</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <th scope="row">Alte, lineare Tabelle (bis 11.08.2026, fehlerhaft)</th>
+        <td class="num">{eur(HISTORISCH_FEHLERHAFT)}</td>
+      </tr>
+      <tr>
+        <th scope="row">Korrekte Pauschalierung, ohne die Rundung von Soll- und Ist-Entgelt</th>
+        <td class="num">{eur(kugReinUngerundet)}</td>
+      </tr>
+      <tr>
+        <th scope="row">Tatsächliche Ausgabe des Rechners oben (mit gesetzlicher Rundung nach § 106 Abs. 1 Satz 5 SGB III)</th>
+        <td class="num">{eur(kugMitRundung)}</td>
+      </tr>
+    </tbody>
+  </table>
+  <p class="ra-hinweis">
+    Die zweite Zeile zeigt den reinen Effekt der progressiven
+    Nettopauschalierung, ohne die zusätzliche gesetzliche Rundung von
+    Soll- und Ist-Entgelt auf durch 20 teilbare Euro-Beträge. Die dritte
+    Zeile ist die Zahl, die der Rechner oben tatsächlich ausgibt – sie
+    berücksichtigt zusätzlich diese Rundung und weicht deshalb noch einmal
+    um wenige Euro ab. Beide liegen weit unter dem fehlerhaften alten Wert,
+    aber sie sind nicht identisch, und keine der beiden lässt sich aus der
+    anderen durch einfaches Runden herleiten.
+  </p>
+
+  <h3>Was diese Rechnung nicht zeigt</h3>
+  <p>
+    Alle Beispiele dieses Artikels gehen von Steuerklasse I ohne Kind aus.
+    Andere Steuerklassen verschieben die genauen Prozentwerte, ändern aber
+    nichts am Mechanismus: Er entsteht aus der Progression der Lohnsteuer,
+    nicht aus der Steuerklasse selbst. Nicht abgebildet sind außerdem Entgelt
+    für Mehrarbeit und Einmalzahlungen (§ 106 Abs. 1 Sätze 2 und 4 SGB III)
+    sowie Nebeneinkommen (§ 106 Abs. 3 SGB III) – wer solche Bestandteile hat,
+    muss sie vorab selbst herausrechnen. Verbindlich ist in jedem Fall der
+    Bescheid der Agentur für Arbeit.
+  </p>
+</RechnerArtikel>
