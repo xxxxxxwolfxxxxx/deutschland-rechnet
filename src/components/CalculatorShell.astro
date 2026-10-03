@@ -3,6 +3,7 @@ import CategoryHero from './CategoryHero.astro';
 import RelatedLinks from './RelatedLinks.astro';
 import { CATEGORIES, type Calculator } from '../data/calculators';
 import PageByline from './PageByline.astro';
+import AffiliateBox from './AffiliateBox.astro';
 import { getLastModifiedMap } from '../utils/lastModified.mjs';
 import { artikelZuRechner, artikelPfad } from '../data/ratgeber';
 
@@ -112,6 +113,8 @@ const faqSchema = faqs && faqs.length > 0 ? {
     <p class="source-note">{sourceNote}</p>
     <PageByline path={pagePath} />
   </div>
+
+  <AffiliateBox slug={calculator.slug} color={cat.color} />
 
   <!-- Der redaktionelle Teil dieser Seite, sofern sie einen hat. Steht bewusst
        direkt unter dem Rechner und vor den FAQ: Wer gerechnet hat, liest hier

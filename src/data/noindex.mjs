@@ -16,6 +16,8 @@ export const NOINDEX_PFADE = [
   // Text (14.09.2026): Die Unterseiten bleiben indexierbar.
   '/vorlagen/',
   '/einheiten/',
+  // Bestätigungsseite nach dem Kontaktformular.
+  '/kontakt/danke/',
 ];
 
 export function istNoindex(pfad) {

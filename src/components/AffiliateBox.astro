@@ -1,0 +1,68 @@
+---
+import { angebotFuerRechner } from '../data/affiliate.mjs';
+
+interface Props {
+  slug: string;
+  color: string;
+}
+const { slug, color } = Astro.props;
+const angebot = angebotFuerRechner(slug);
+---
+
+{angebot && (
+  <aside class="affiliate-box" style={`--accent: ${color};`} aria-label="Anzeige">
+    <p class="affiliate-label">Anzeige</p>
+    <p class="affiliate-text">{angebot.text}</p>
+    <a class="affiliate-btn" href={angebot.url} rel="sponsored nofollow noopener" target="_blank">
+      {angebot.button}
+    </a>
+    <p class="affiliate-hint">
+      Für Vermittlungen über diesen Link erhalten wir ggf. eine Provision. Für dich entstehen keine Mehrkosten.
+    </p>
+  </aside>
+)}
+
+<style>
+.affiliate-box {
+  margin: 0 0 1.5rem;
+  padding: 1.1rem 1.25rem;
+  background: var(--surface);
+  border: 1.5px solid var(--border);
+  border-left: 4px solid var(--accent);
+  border-radius: var(--radius);
+}
+.affiliate-label {
+  margin: 0 0 0.35rem;
+  font-size: 0.7rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.affiliate-text {
+  margin: 0 0 0.85rem;
+  font-size: 0.95rem;
+  line-height: 1.55;
+  color: var(--text);
+}
+.affiliate-btn {
+  display: inline-block;
+  padding: 0.6rem 1.1rem;
+  background: var(--accent);
+  color: #fff;
+  font-weight: 600;
+  font-size: 0.9rem;
+  border-radius: var(--radius-sm);
+  transition: transform 150ms, box-shadow 150ms;
+}
+.affiliate-btn:hover, .affiliate-btn:focus-visible {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow);
+  color: #fff;
+}
+.affiliate-hint {
+  margin: 0.75rem 0 0;
+  font-size: 0.75rem;
+  color: var(--muted);
+  line-height: 1.5;
+}
+</style>

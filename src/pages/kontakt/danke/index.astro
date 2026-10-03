@@ -1,0 +1,13 @@
+---
+import Layout from '../../../layouts/Layout.astro';
+const base = import.meta.env.BASE_URL;
+---
+<Layout
+  title="Nachricht gesendet"
+  description="Ihre Nachricht an Deutschland rechnet wurde gesendet."
+  canonicalPath="/kontakt/danke/"
+>
+  <h1>Danke für Ihre Nachricht</h1>
+  <p>Wir melden uns, sobald wir Ihre Anfrage gelesen haben.</p>
+  <p><a href={`${base}`}>← Zur Startseite</a></p>
+</Layout>
