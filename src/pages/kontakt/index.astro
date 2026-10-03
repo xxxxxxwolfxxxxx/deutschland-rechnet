@@ -1,0 +1,94 @@
+---
+import Layout from '../../layouts/Layout.astro';
+const base = import.meta.env.BASE_URL;
+---
+<Layout
+  title="Kontakt"
+  description="Kontakt zu Deutschland rechnet: Fragen, Hinweise auf Fehler in Rechnern oder Anregungen per Kontaktformular."
+  canonicalPath="/kontakt/"
+>
+  <a href={`${base}`}>← Startseite</a>
+  <h1>Kontakt</h1>
+
+  <div class="contact-box">
+    <p>
+      Fehler in einem Rechner gefunden oder eine Frage? Schreiben Sie uns. Anfragen zu persönlichen Steuer-, Rechts- oder Finanzentscheidungen können wir nicht beantworten, dafür wenden Sie sich bitte an eine Fachberatung.
+    </p>
+
+    <form
+      name="kontakt"
+      method="POST"
+      action={`${base}kontakt/danke/`}
+      data-netlify="true"
+      netlify-honeypot="bot-field"
+    >
+      <input type="hidden" name="form-name" value="kontakt" />
+      <p class="hp" aria-hidden="true">
+        <label>Nicht ausfüllen: <input name="bot-field" tabindex="-1" autocomplete="off" /></label>
+      </p>
+
+      <div class="field">
+        <label for="kontakt-name">Name (optional)</label>
+        <input id="kontakt-name" name="name" type="text" autocomplete="name" maxlength="120" />
+      </div>
+      <div class="field">
+        <label for="kontakt-email">E-Mail-Adresse</label>
+        <input id="kontakt-email" name="email" type="email" autocomplete="email" required maxlength="200" />
+      </div>
+      <div class="field">
+        <label for="kontakt-nachricht">Nachricht</label>
+        <textarea id="kontakt-nachricht" name="nachricht" rows="7" required maxlength="4000"></textarea>
+      </div>
+      <div class="field consent">
+        <input id="kontakt-datenschutz" name="datenschutz" type="checkbox" required />
+        <label for="kontakt-datenschutz">
+          Ich habe die <a href={`${base}datenschutz/`}>Datenschutzerklärung</a> gelesen und bin damit einverstanden, dass meine Angaben zur Bearbeitung meiner Anfrage verarbeitet werden.
+        </label>
+      </div>
+
+      <button type="submit">Nachricht senden</button>
+    </form>
+  </div>
+</Layout>
+
+<style>
+.contact-box {
+  background: white;
+  border: 1.5px solid var(--color-border);
+  border-radius: var(--radius);
+  padding: 2rem;
+  margin-top: 1.5rem;
+  max-width: 700px;
+}
+.contact-box > p { margin-bottom: 1.25rem; line-height: 1.7; }
+.hp { position: absolute; left: -9999px; height: 0; overflow: hidden; }
+.field { display: grid; gap: 0.35rem; margin-bottom: 1.1rem; }
+.field label { font-weight: 600; font-size: 0.9rem; }
+.field input[type="text"],
+.field input[type="email"],
+.field textarea {
+  width: 100%;
+  padding: 0.65rem 0.8rem;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm);
+  font: inherit;
+  background: var(--bg);
+}
+.field input:focus-visible,
+.field textarea:focus-visible { outline: 2px solid var(--red); outline-offset: 1px; }
+.consent { grid-template-columns: auto 1fr; align-items: start; gap: 0.6rem; }
+.consent label { font-weight: 400; line-height: 1.5; }
+button[type="submit"] {
+  padding: 0.7rem 1.4rem;
+  background: var(--red);
+  color: #fff;
+  font: inherit;
+  font-weight: 600;
+  border: 0;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: transform 150ms, box-shadow 150ms;
+}
+button[type="submit"]:hover,
+button[type="submit"]:focus-visible { transform: translateY(-1px); box-shadow: var(--shadow); }
+</style>
