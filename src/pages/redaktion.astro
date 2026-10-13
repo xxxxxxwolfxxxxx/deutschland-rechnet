@@ -1,0 +1,87 @@
+---
+import Layout from '../layouts/Layout.astro';
+const base = import.meta.env.BASE_URL;
+---
+<Layout
+  title="Redaktion und Methodik"
+  description="Wie die Rechner und Artikel von Deutschland rechnet entstehen: Quellen, Tests der Rechenlogik, Aktualisierung, Fehlerkorrektur und Umgang mit Werbung."
+  canonicalPath="/redaktion/"
+>
+  <a href={`${base}`}>← Startseite</a>
+  <h1>Redaktion und Methodik</h1>
+
+  <div class="about-content">
+    <section class="about-section">
+      <h2>Woher die Zahlen kommen</h2>
+      <p>
+        Steuersätze, Beitragsbemessungsgrenzen, Freibeträge und Fristen stammen aus Gesetzen, Verordnungen und amtlichen Veröffentlichungen, etwa von Gesetze im Internet, dem Bundesfinanzministerium, der Deutschen Rentenversicherung oder dem Statistischen Bundesamt. Wo ein Wert auf einer Annahme beruht (zum Beispiel eine durchschnittliche Rendite), steht das im Text dabei und der Wert lässt sich im Rechner ändern.
+      </p>
+      <p>
+        Die Quellen stehen unter dem jeweiligen Artikel im Abschnitt „Quellen". Bei Steuer- und Sozialversicherungsthemen sind sie Pflicht.
+      </p>
+    </section>
+
+    <section class="about-section">
+      <h2>Wie die Rechenlogik geprüft wird</h2>
+      <p>
+        Die Berechnungen liegen als eigener Programmcode vor, getrennt von der Darstellung. Für die Rechenmodule gibt es über neunzig automatisierte Testdateien, die Beispiele mit bekanntem Ergebnis und die Grenzfälle prüfen, etwa Beträge genau auf einer Tarifgrenze. Zahlen in den Artikeln werden beim Erstellen der Seite aus denselben Rechenmodulen berechnet, nicht von Hand eingetippt. So kann ein Artikel keinen anderen Wert nennen als der Rechner darüber.
+      </p>
+      <p>
+        Das ersetzt keine Prüfung durch einen Fachberater. Es verhindert aber Rechenfehler, die beim Ändern des Codes entstehen würden.
+      </p>
+    </section>
+
+    <section class="about-section">
+      <h2>Aktualisierung</h2>
+      <p>
+        Jede Seite nennt oben ihr „Stand"-Datum. Es ist das Datum der letzten tatsächlichen Änderung der Seite und wird aus der Versionsverwaltung übernommen, nicht von Hand gesetzt. Zum Jahreswechsel und bei Gesetzesänderungen werden die betroffenen Rechner angepasst.
+      </p>
+    </section>
+
+    <section class="about-section">
+      <h2>Fehler melden und Korrekturen</h2>
+      <p>
+        Wenn dir ein falscher Wert oder ein veralteter Satz auffällt, schreib über die <a href={`${base}kontakt/`}>Kontaktseite</a>. Fehler werden geprüft und, wenn sie sich bestätigen, zeitnah korrigiert. Das Stand-Datum der Seite ändert sich dann entsprechend.
+      </p>
+    </section>
+
+    <section class="about-section">
+      <h2>Werbung und Partnerlinks</h2>
+      <p>
+        Die Seite finanziert sich über Werbung und gekennzeichnete Partnerlinks. Wenn über einen Partnerlink ein Vertrag zustande kommt, kann eine Provision an den Betreiber gehen, für dich entstehen keine Mehrkosten. Die Berechnungen werden davon nicht beeinflusst: Ein Rechner rechnet für alle Anbieter gleich, und Partnerboxen stehen unter dem Rechner, nicht im Ergebnis.
+      </p>
+    </section>
+
+    <section class="about-section">
+      <h2>Grenzen</h2>
+      <p>
+        Die Rechner liefern Orientierungswerte. Steuerliche, rechtliche, medizinische und finanzielle Entscheidungen sollten mit Steuerberater, Rechtsanwalt, Arzt oder unabhängiger Finanzberatung abgestimmt werden. Wer die Seite betreibt, steht auf der Seite <a href={`${base}ueber-uns/`}>Über uns</a>.
+      </p>
+    </section>
+  </div>
+</Layout>
+
+<style>
+.about-content {
+  max-width: 750px;
+  margin-top: 1.5rem;
+}
+.about-section {
+  margin-bottom: 2rem;
+}
+.about-section h2 {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 0.75rem;
+}
+.about-section p {
+  font-size: 0.95rem;
+  line-height: 1.75;
+  color: var(--text);
+  margin-bottom: 0.75rem;
+}
+.about-section a {
+  color: var(--red);
+}
+</style>
