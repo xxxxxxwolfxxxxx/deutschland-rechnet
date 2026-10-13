@@ -25,10 +25,34 @@ interface Props {
 
 const { titel, lead, datum, quellen = [] } = Astro.props;
 
+const siteUrl = 'https://deutschland-rechnet.de';
+const base = import.meta.env.BASE_URL;
+const artikelSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'Article',
+  headline: titel,
+  description: lead,
+  datePublished: datum,
+  dateModified: datum,
+  inLanguage: 'de-DE',
+  author: { '@type': 'Person', name: 'Matthias Dührkop', url: `${siteUrl}${base}ueber-uns/` },
+  publisher: { '@type': 'Organization', name: 'Deutschland rechnet', url: siteUrl },
+  ...(quellen.length > 0 && {
+    citation: quellen.map((q) => ({ '@type': 'CreativeWork', name: q.titel, url: q.url })),
+  }),
+};
+
+const kurzTitel = (t: string) => {
+  const k = t.split(/ \(|: |, abgerufen/)[0];
+  return k.length > 80 ? `${k.slice(0, 77).trimEnd()}…` : k;
+};
+
 const datumLesbar = new Date(datum).toLocaleDateString('de-DE', {
   day: '2-digit', month: 'long', year: 'numeric',
 });
 ---
+
+<script type="application/ld+json" set:html={JSON.stringify(artikelSchema)} />
 
 <section class="rechner-artikel" aria-labelledby="artikel-titel">
   <header class="ra-header">
@@ -38,6 +62,16 @@ const datumLesbar = new Date(datum).toLocaleDateString('de-DE', {
     <p class="ra-meta">
       Von Matthias Dührkop · Stand <time datetime={datum}>{datumLesbar}</time>
     </p>
+    {quellen.length > 0 && (
+      <p class="ra-basis">
+        Grundlage:
+        {quellen.slice(0, 2).map((q, i) => (
+          <>{i > 0 ? ' · ' : ' '}<a href={q.url} rel="noopener" target="_blank">{kurzTitel(q.titel)}</a></>
+        ))}
+        {quellen.length > 2 && <> und {quellen.length - 2} weitere</>}
+        · <a href="#artikel-quellen">alle Quellen</a>
+      </p>
+    )}
   </header>
 
   <div class="ra-body">
@@ -45,11 +79,11 @@ const datumLesbar = new Date(datum).toLocaleDateString('de-DE', {
   </div>
 
   {quellen.length > 0 && (
-    <footer class="ra-sources">
+    <footer class="ra-sources" id="artikel-quellen">
       <h3>Quellen</h3>
       <ul>
         {quellen.map((q) => (
-          <li><a href={q.url} rel="noopener nofollow" target="_blank">{q.titel}</a></li>
+          <li><a href={q.url} rel="noopener" target="_blank">{q.titel}</a></li>
         ))}
       </ul>
     </footer>
@@ -202,6 +236,14 @@ const datumLesbar = new Date(datum).toLocaleDateString('de-DE', {
   white-space: nowrap;
 }
 
+.ra-basis {
+  font-size: 0.82rem;
+  line-height: 1.55;
+  color: var(--text-light);
+  margin: 0.5rem 0 0;
+}
+.ra-basis a { color: var(--text-light); text-underline-offset: 2px; }
+.ra-basis a:hover { color: var(--red); }
 .ra-sources {
   max-width: 68ch;
   margin-top: 3rem;

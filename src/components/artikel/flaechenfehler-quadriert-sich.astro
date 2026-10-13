@@ -90,7 +90,9 @@ const tennisplatzFt2 = tennisplatzM2 / FT2_SEITE; // Guide nennt "2.812 sq ft"
   titel="Ein Rundungsfehler bei der Länge verdoppelt sich in der Fläche"
   lead={`Jeder Flächenfaktor in diesem Rechner ist ein quadrierter Längenfaktor. Das hat eine Konsequenz, die man bei Faustregeln leicht übersieht: Rundet man die zugrunde liegende Länge nur geringfügig, schlägt der Fehler in der daraus berechneten Fläche mit etwa dem doppelten relativen Wert durch – nicht mit dem gleichen.`}
   datum="2026-09-28"
-  quellen={[]}
+  quellen={[
+    { titel: 'NIST Special Publication 811, Anhang B: Seit 1959 gilt 1 Yard = 0,9144 m und 1 Fuß = 0,3048 m exakt', url: 'https://www.nist.gov/pml/special-publication-811/nist-guide-si-appendix-b-conversion-factors' },
+  ]}
 >
   <h3>Warum m² kein eigenständiges Maß ist</h3>
   <p>
