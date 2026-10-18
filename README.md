@@ -1,43 +1,39 @@
-# Astro Starter Kit: Minimal
+# Deutschland rechnet
 
-```sh
-npm create astro@latest -- --template minimal
+Rechnerportal mit 146 Seiten in 15 Themenbereichen: Geld und Steuern, Auto, Wohnen, Familie, Energie, Gesundheit, Versicherungen u. a.
+
+**Live:** <https://deutschland-rechnet.de>
+
+## Was drin ist
+
+- Rechner als Astro-Seiten unter `src/pages/<Themenbereich>/`, zum Beispiel Brutto-Netto, Einkommensteuer, Elterngeld, Grunderwerbsteuer, Kfz-Steuer, ETF-Sparplan, BMI
+- Die Rechenlogik der Rechner wird mit Vitest getestet (rund 90 Testdateien unter `tests/`)
+- Ratgeber-Artikel und Kategorien in `src/content/` und `src/data/`
+- Sitemap mit dem echten Commit-Datum je Seite als `lastmod`; Seiten mit `noindex` bleiben draußen (`src/data/noindex.mjs`)
+
+## Tech-Stack
+
+Astro 6 (statische Ausgabe) · JavaScript/TypeScript · Vitest · GitHub Actions (Build + Test) · Netlify
+
+## Lokal starten
+
+```bash
+npm install
+npm run dev        # Entwicklungsserver
+npm test           # Vitest
+npm run build      # statischer Build nach dist/
+npm run preview
 ```
 
-> 🧑‍🚀 **Seasoned astronaut?** Delete this file. Have fun!
+Die CI (`.github/workflows/deploy.yml`) führt bei jedem Push auf `main` `npm ci`, `npm test` und `npm run build` mit Node 22 aus.
 
-## 🚀 Project Structure
+## Fachdaten und Quellen
 
-Inside of your Astro project, you'll see the following folders and files:
+Steuer- und Sozialrechner stützen sich auf die jeweiligen Gesetzestexte (zum Beispiel EStG, etwa § 32a). Die Paragrafen stehen bei den einzelnen Rechnern im Code und auf der Seite.
+Kostenwerte aus Drittquellen sind mit Quelle und Stand angegeben, etwa die ADAC Autokostenübersicht bei den Autorechnern.
 
-```text
-/
-├── public/
-├── src/
-│   └── pages/
-│       └── index.astro
-└── package.json
-```
+Die Ergebnisse sind Orientierungswerte und keine Steuer-, Rechts- oder Anlageberatung. Zahlen ändern sich mit der Gesetzeslage; maßgeblich sind die Angaben der Behörden.
 
-Astro looks for `.astro` or `.md` files in the `src/pages/` directory. Each page is exposed as a route based on its file name.
+## Lizenz
 
-There's nothing special about `src/components/`, but that's where we like to put any Astro/React/Vue/Svelte/Preact components.
-
-Any static assets, like images, can be placed in the `public/` directory.
-
-## 🧞 Commands
-
-All commands are run from the root of the project, from a terminal:
-
-| Command                   | Action                                           |
-| :------------------------ | :----------------------------------------------- |
-| `npm install`             | Installs dependencies                            |
-| `npm run dev`             | Starts local dev server at `localhost:4321`      |
-| `npm run build`           | Build your production site to `./dist/`          |
-| `npm run preview`         | Preview your build locally, before deploying     |
-| `npm run astro ...`       | Run CLI commands like `astro add`, `astro check` |
-| `npm run astro -- --help` | Get help using the Astro CLI                     |
-
-## 👀 Want to learn more?
-
-Feel free to check [our documentation](https://docs.astro.build) or jump into our [Discord server](https://astro.build/chat).
+Es ist keine Lizenz hinterlegt. Der Quellcode steht zur Ansicht; ohne ausdrückliche Lizenz sind Nutzung und Weitergabe nicht erlaubt.
