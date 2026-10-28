@@ -9,13 +9,6 @@
 // eigene Substanz hat, um in der Suche zu stehen.
 
 export const NOINDEX_PFADE = [
-  // Städtetabelle mit erfundenen Preisen entfernt (14.09.2026); was bleibt,
-  // ist eine Division mit WoFlV-Flächenrechnung.
-  '/wohnen/quadratmeterpreis-vergleich/',
-  // Kategorieseiten mit zwei Werkzeugen bzw. reinen Umrechnern ohne eigenen
-  // Text (14.09.2026): Die Unterseiten bleiben indexierbar.
-  '/vorlagen/',
-  '/einheiten/',
   // Bestätigungsseite nach dem Kontaktformular.
   '/kontakt/danke/',
 ];

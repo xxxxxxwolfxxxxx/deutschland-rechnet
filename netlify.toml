@@ -7,7 +7,7 @@
 
 [[redirects]]
   from = "/geld/kreditrechner/*"
-  to = "/geld/ratenkredit-detailrechner/"
+  to = "/geld/kreditvergleich/"
   status = 301
 
 # Die Startseite verlinkte lange auf /geld/rentenrechner/ und
@@ -31,7 +31,7 @@
 
 [[redirects]]
   from = "/auto/treibstoffkosten-reise/*"
-  to = "/auto/spritkosten-rechner/"
+  to = "/auto/spritkosten-vergleich/"
   status = 301
 
 [[redirects]]
@@ -99,7 +99,7 @@
 
 [[redirects]]
   from = "/ratgeber/inflation-was-die-rate-verschweigt/*"
-  to = "/einheiten/inflationsrechner/"
+  to = "/geld/sparen-rechner/"
   status = 301
 
 [[redirects]]
@@ -119,12 +119,12 @@
 
 [[redirects]]
   from = "/ratgeber/nebenkosten-was-umlagefaehig-ist/*"
-  to = "/wohnen/nebenkosten-rechner/"
+  to = "/wohnen/mietrechner/"
   status = 301
 
 [[redirects]]
   from = "/ratgeber/pendlerpauschale-was-sie-bringt/*"
-  to = "/auto/fahrtkosten-rechner/"
+  to = "/auto/km-kostenrechner/"
   status = 301
 
 [[redirects]]
@@ -156,6 +156,216 @@
   from = "/ratgeber/wohngeld-mietenstufe-gegen-einkommen/*"
   to = "/familie/wohngeld-rechner/"
   status = 301
+
+# Seitenbereinigung 28.10.2026: 37 Rechner entfernt, die Google nicht indexiert hat
+# und die kaum Klicks brachten (docs/adsense-streichliste.md). Wo es einen
+# thematisch nahen Rechner gibt, geht ein 301 dorthin; reine Umrechner und
+# Vorlagen ohne Ersatz liefern 410 Gone.
+
+[[redirects]]
+  from = "/geld/mindestlohn-rechner/*"
+  to = "/geld/brutto-netto-rechner/"
+  status = 301
+
+[[redirects]]
+  from = "/geld/ueberstunden-rechner/*"
+  to = "/geld/brutto-netto-rechner/"
+  status = 301
+
+[[redirects]]
+  from = "/geld/pfaendungsfreigrenze-rechner/*"
+  to = "/geld/schuldentilgungs-rechner/"
+  status = 301
+
+[[redirects]]
+  from = "/geld/kirchensteuer-rechner/*"
+  to = "/geld/einkommensteuer-rechner/"
+  status = 301
+
+[[redirects]]
+  from = "/geld/ratenkredit-detailrechner/*"
+  to = "/geld/kreditvergleich/"
+  status = 301
+
+[[redirects]]
+  from = "/geld/steuerklassen-vergleich/*"
+  to = "/geld/steuerklasse-optimieren/"
+  status = 301
+
+[[redirects]]
+  from = "/gesundheit/kalorien-verbrennen/*"
+  to = "/gesundheit/kalorien-rechner/"
+  status = 301
+
+[[redirects]]
+  from = "/gesundheit/makronaehrstoff-rechner/*"
+  to = "/gesundheit/kalorien-rechner/"
+  status = 301
+
+[[redirects]]
+  from = "/gesundheit/grundumsatz-rechner/*"
+  to = "/gesundheit/kalorien-rechner/"
+  status = 301
+
+[[redirects]]
+  from = "/gesundheit/idealgewicht-rechner/*"
+  to = "/gesundheit/bmi-rechner/"
+  status = 301
+
+[[redirects]]
+  from = "/gesundheit/optimalerpuls-rechner/*"
+  to = "/gesundheit/"
+  status = 301
+
+[[redirects]]
+  from = "/gesundheit/blutdruck-bewerter/*"
+  to = "/gesundheit/"
+  status = 301
+
+[[redirects]]
+  from = "/gesundheit/schlaf-rechner/*"
+  to = "/gesundheit/"
+  status = 301
+
+[[redirects]]
+  from = "/wohnen/grundbuch-eintragung/*"
+  to = "/wohnen/immobilienkauf-nebenkosten/"
+  status = 301
+
+[[redirects]]
+  from = "/wohnen/hauskauf-rechner/*"
+  to = "/wohnen/immobilienkauf-nebenkosten/"
+  status = 301
+
+[[redirects]]
+  from = "/wohnen/nebenkosten-rechner/*"
+  to = "/wohnen/mietrechner/"
+  status = 301
+
+[[redirects]]
+  from = "/wohnen/quadratmeterpreis-vergleich/*"
+  to = "/wohnen/mietrechner/"
+  status = 301
+
+[[redirects]]
+  from = "/auto/fahrtkosten-rechner/*"
+  to = "/auto/km-kostenrechner/"
+  status = 301
+
+[[redirects]]
+  from = "/auto/spritkosten-rechner/*"
+  to = "/auto/spritkosten-vergleich/"
+  status = 301
+
+[[redirects]]
+  from = "/auto/kfz-steuer-co2/*"
+  to = "/auto/kfz-steuer-rechner/"
+  status = 301
+
+[[redirects]]
+  from = "/auto/fuehrerschein-kosten/*"
+  to = "/auto/"
+  status = 301
+
+[[redirects]]
+  from = "/energie/jahresenergieverbrauch/*"
+  to = "/energie/stromkosten-rechner/"
+  status = 301
+
+[[redirects]]
+  from = "/energie/heizkosten-vergleich/*"
+  to = "/energie/heizkosten-rechner/"
+  status = 301
+
+[[redirects]]
+  from = "/einheiten/inflationsrechner/*"
+  to = "/geld/sparen-rechner/"
+  status = 301
+
+[[redirects]]
+  from = "/auto/km-km-kostenrechner/*"
+  to = "/auto/km-kostenrechner/"
+  status = 301
+
+[[redirects]]
+  from = "/auto/km-kundenrechner/*"
+  to = "/auto/km-kostenrechner/"
+  status = 301
+
+[[redirects]]
+  from = "/einheiten/einheitenrechner/*"
+  to = "/404.html"
+  status = 410
+
+[[redirects]]
+  from = "/einheiten/gewicht-umrechner/*"
+  to = "/404.html"
+  status = 410
+
+[[redirects]]
+  from = "/einheiten/temperatur-umrechner/*"
+  to = "/404.html"
+  status = 410
+
+[[redirects]]
+  from = "/einheiten/flaechen-umrechner/*"
+  to = "/404.html"
+  status = 410
+
+[[redirects]]
+  from = "/einheiten/laengen-umrechner/*"
+  to = "/404.html"
+  status = 410
+
+[[redirects]]
+  from = "/einheiten/volumen-umrechner/*"
+  to = "/404.html"
+  status = 410
+
+[[redirects]]
+  from = "/einheiten/prozent-rechner/*"
+  to = "/404.html"
+  status = 410
+
+[[redirects]]
+  from = "/einheiten/rabatt-rechner/*"
+  to = "/404.html"
+  status = 410
+
+[[redirects]]
+  from = "/einheiten/mwst-rechner/*"
+  to = "/404.html"
+  status = 410
+
+[[redirects]]
+  from = "/vorlagen/protokoll-generator/*"
+  to = "/404.html"
+  status = 410
+
+[[redirects]]
+  from = "/vorlagen/qr-code-generator/*"
+  to = "/404.html"
+  status = 410
+
+[[redirects]]
+  from = "/geld/trinkgeld-rechner/*"
+  to = "/404.html"
+  status = 410
+
+[[redirects]]
+  from = "/geld/risikoprofil-rechner/*"
+  to = "/404.html"
+  status = 410
+
+[[redirects]]
+  from = "/einheiten/*"
+  to = "/404.html"
+  status = 410
+
+[[redirects]]
+  from = "/vorlagen/*"
+  to = "/404.html"
+  status = 410
 
 # Catch-all: muss die letzte Regel bleiben. Zeigt auf die echte 404-Seite, die
 # Astro nach dist/404.html baut – vorher lieferte diese Regel den kompletten

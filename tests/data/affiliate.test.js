@@ -3,19 +3,19 @@ import { angebotFuerRechner, PARTNER, ANGEBOTE } from '../../src/data/affiliate.
 
 describe('angebotFuerRechner', () => {
   it('liefert null für Rechner ohne Angebot', () => {
-    expect(angebotFuerRechner('trinkgeld-rechner', PARTNER)).toBeNull();
+    expect(angebotFuerRechner('bmi-rechner', PARTNER)).toBeNull();
   });
 
   it('liefert null, solange der Partner keinen Link hat', () => {
     const partner = { x: { name: 'X', url: '' } };
-    const angebote = { 'ratenkredit-detailrechner': { partner: 'x', text: 't', button: 'b' } };
-    expect(angebotFuerRechner('ratenkredit-detailrechner', partner, angebote)).toBeNull();
+    const angebote = { 'kreditvergleich': { partner: 'x', text: 't', button: 'b' } };
+    expect(angebotFuerRechner('kreditvergleich', partner, angebote)).toBeNull();
   });
 
   it('liefert Angebot samt Link, wenn der Partner eine https-URL hat', () => {
     const partner = { x: { name: 'X', url: 'https://example.com/a' } };
-    const angebote = { 'ratenkredit-detailrechner': { partner: 'x', text: 't', button: 'b' } };
-    expect(angebotFuerRechner('ratenkredit-detailrechner', partner, angebote)).toEqual({
+    const angebote = { 'kreditvergleich': { partner: 'x', text: 't', button: 'b' } };
+    expect(angebotFuerRechner('kreditvergleich', partner, angebote)).toEqual({
       name: 'X', url: 'https://example.com/a', text: 't', button: 'b',
     });
   });

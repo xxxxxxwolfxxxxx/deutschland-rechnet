@@ -14,11 +14,6 @@ export const PARTNER = {
 };
 
 export const ANGEBOTE = {
-  'ratenkredit-detailrechner': {
-    partner: 'kredit',
-    text: 'Zinsen unterscheiden sich je nach Anbieter deutlich. Vergleiche aktuelle Angebote für deinen Kreditbetrag.',
-    button: 'Kredite vergleichen',
-  },
   'kreditvergleich': {
     partner: 'kredit',
     text: 'Passende Angebote für deine Laufzeit und Summe findest du im unabhängigen Vergleich.',
@@ -39,7 +34,7 @@ export const ANGEBOTE = {
     text: 'Schon 0,5 Prozentpunkte beim Zins machen über die Laufzeit mehrere Tausend Euro aus.',
     button: 'Baufinanzierung vergleichen',
   },
-  'hauskauf-rechner': {
+  'immobilienkauf-nebenkosten': {
     partner: 'baufi',
     text: 'Bevor du dich festlegst: Hol dir Zinsangebote für deine Finanzierungssumme.',
     button: 'Baufinanzierung vergleichen',
