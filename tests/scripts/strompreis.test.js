@@ -189,7 +189,6 @@ describe('Seiten mit Strompreis-Annahme', () => {
     'src/pages/energie/waermepumpe-rechner.astro',
     'src/pages/energie/stromspeicher-rechner.astro',
     'src/pages/energie/solarspeicher-dimensionierung.astro',
-    'src/pages/energie/jahresenergieverbrauch.astro',
   ];
 
   it.each(SEITEN)('%s bezieht den Strompreis aus dem gemeinsamen Modul', (pfad) => {

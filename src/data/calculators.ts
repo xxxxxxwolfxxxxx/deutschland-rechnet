@@ -7,9 +7,7 @@ export type Category =
   | 'familie'
   | 'gesundheit'
   | 'versicherungen'
-  | 'einheiten'
-  | 'boot'
-  | 'vorlagen';
+  | 'boot';
 
 export interface Calculator {
   slug: string;         // URL-Segment: 'brutto-netto-rechner'
@@ -28,23 +26,15 @@ export const CATEGORIES: Record<Category, { label: string; emoji: string; descri
   familie:   { label: 'Familie & Soziales',   emoji: '👨‍👩‍👧', description: 'Elterngeld, Kindergeld, Rente',      color: '#e65100', colorLight: '#ffccbc', image: 'images/categories/familie.png' },
   gesundheit:{ label: 'Gesundheit & Fitness', emoji: '🏃', description: 'BMI, Kalorien, Promille',                color: '#00796b', colorLight: '#b2dfdb', image: 'images/categories/gesundheit.png' },
   versicherungen: { label: 'Versicherungen', emoji: '🛡️', description: 'Rechtsschutz, Zahnzusatz, Pflege, Elementarschutz', color: '#e65100', colorLight: '#fff3e0', image: 'images/categories/versicherungen.png' },
-  einheiten: { label: 'Einheiten & Mathe',    emoji: '📐', description: 'Länge, Gewicht, Temperatur, Inflation',  color: '#6a1b9a', colorLight: '#e1bee7', image: 'images/categories/einheiten.png' },
   boot:      { label: 'Boot & Wasser',        emoji: '⚓', description: 'Trailer, Sprit, Ankern, Rumpfgeschwindigkeit', color: '#01579b', colorLight: '#b3e5fc', image: 'images/categories/boot.png' },
-  vorlagen:  { label: 'Vorlagen & Tools',     emoji: '📋', description: 'QR-Codes, Protokolle, Formulare als PDF',  color: '#37474f', colorLight: '#cfd8dc', image: 'images/categories/vorlagen.png' },
 };
 
 export const CALCULATORS: Calculator[] = [
   // GELD
   { slug: 'brutto-netto-rechner',        title: 'Brutto-Netto-Rechner',        description: 'Nettolohn aus Bruttogehalt berechnen.',                                            category: 'geld',      featured: true,  live: true },
-  { slug: 'trinkgeld-rechner',           title: 'Trinkgeld-Rechner',           description: 'Trinkgeld für Restaurant berechnen.',                                            category: 'geld',      featured: false, live: true },
   { slug: 'kurzarbeitergeld-rechner',    title: 'Kurzarbeitergeld-Rechner',    description: 'Kurzarbeitergeld Höhe berechnen.',                                              category: 'geld',      featured: false, live: true },
   { slug: 'abfindungsrechner',           title: 'Abfindungsrechner',           description: 'Abfindung bei Kündigung berechnen.',                                            category: 'geld',      featured: false, live: true },
-  { slug: 'mindestlohn-rechner',         title: 'Mindestlohn-Rechner',         description: 'Stunden in Mindestlohn-Gehalt umrechnen.',                                      category: 'geld',      featured: false, live: true },
   { slug: 'kuendigungsfrist-rechner',    title: 'Kündigungsfrist-Rechner',     description: 'Gesetzliche Kündigungsfrist nach Betriebszugehörigkeit.',                      category: 'geld',      featured: false, live: true },
-  { slug: 'ueberstunden-rechner',        title: 'Überstunden-Rechner',         description: 'Überstundenvergütung berechnen.',                                              category: 'geld',      featured: false, live: true },
-  { slug: 'steuerklassen-vergleich',     title: 'Steuerklassen-Vergleich',     description: 'Steuerklassen I–VI vergleichen.',                                              category: 'geld',      featured: false, live: true },
-  { slug: 'pfaendungsfreigrenze-rechner', title: 'Pfändungsfreigrenze',         description: 'Pfändbares Einkommen berechnen.',                                              category: 'geld',      featured: false, live: true },
-  { slug: 'kirchensteuer-rechner',       title: 'Kirchensteuer-Rechner',       description: 'Kirchensteuer nach Bundesland berechnen.',                                      category: 'geld',      featured: false, live: true },
   { slug: 'arbeitslosengeld-rechner',    title: 'Arbeitslosengeld-Rechner',    description: 'Arbeitslosengeld (ALG 1) nach SGB III berechnen.',                             category: 'geld',      featured: true,  live: true },
   { slug: 'einkommensteuer-rechner',     title: 'Einkommensteuer-Rechner',     description: 'Einkommensteuer, Soli und Kirchensteuer aus dem zu versteuernden Einkommen berechnen.', category: 'geld', featured: false, live: true },
   { slug: 'steuernachzahlung-rechner',   title: 'Steuernachzahlung-Rechner',   description: 'Steuernachzahlung oder Erstattung schätzen.',                                   category: 'geld',      featured: false, live: true },
@@ -61,8 +51,6 @@ export const CALCULATORS: Calculator[] = [
   { slug: 'notgroschen-rechner',       title: 'Notgroschen-Rechner',     description: 'Empfohlene Höhe des Notgroschens berechnen.',                                     category: 'geld',      featured: false, live: true },
   { slug: 'krypto-steuern-rechner',    title: 'Krypto-Steuern-Rechner',  description: 'Krypto-Gewinne: Freigrenze und Einkommensteuer berechnen.',                   category: 'geld',      featured: false, live: true },
   { slug: 'homeoffice-pauschale',      title: 'Homeoffice-Pauschale',    description: 'Steuervorteil der Homeoffice-Pauschale berechnen.',                                category: 'geld',      featured: false, live: true },
-  { slug: 'risikoprofil-rechner',      title: 'Risikoprofil-Rechner',    description: 'Persönliches Anlegerprofil ermitteln und passende Strategie finden.',             category: 'geld',      featured: false, live: true },
-  { slug: 'ratenkredit-detailrechner', title: 'Ratenkredit-Detailrechner', description: 'Kreditsumme, Laufzeit und Zinsen mit Tilgungsplan berechnen.',                    category: 'geld',      featured: false, live: true },
   { slug: 'autofinanzierung-rechner',  title: 'Autofinanzierung-Rechner',  description: 'Monatliche Rate und Gesamtkosten der Autofinanzierung berechnen.',              category: 'geld',      featured: false, live: true },
   { slug: 'rentenlucken-rechner',      title: 'Rentenlücken-Rechner',      description: 'Rentenlücke aus der Renteninformation berechnen.',                               category: 'geld',      featured: false, live: true },
   { slug: 'etf-renditerechner',        title: 'ETF-Renditerechner',        description: 'Vermögensaufbau und Renditeentwicklung von ETF-Sparplan berechnen.',           category: 'geld',      featured: false, live: true },
@@ -70,12 +58,8 @@ export const CALCULATORS: Calculator[] = [
   { slug: 'tilgungs-kreditrechner',      title: 'Kreditrechner',               description: 'Monatliche Rate, Zinsen und Tilgung berechnen.',                               category: 'wohnen',    featured: true,  live: true },
   { slug: 'grunderwerbsteuer-rechner',   title: 'Grunderwerbsteuer-Rechner',   description: 'Grunderwerbsteuer nach Bundesland berechnen.',                                  category: 'wohnen',    featured: true,  live: true },
   { slug: 'mietpreisbremse-rechner',     title: 'Mietpreisbremse-Rechner',     description: 'Zulässige Miethöhe prüfen.',                                                   category: 'wohnen',    featured: false, live: true },
-  { slug: 'nebenkosten-rechner',          title: 'Nebenkosten-Rechner',          description: 'Monatliche Nebenkosten für Wohnungen berechnen.',                              category: 'wohnen',    featured: false, live: true },
   { slug: 'immobilienkauf-nebenkosten', title: 'Immobilienkauf-Nebenkosten',  description: 'Notar, Makler und Grunderwerbsteuer berechnen.',                               category: 'wohnen',    featured: false, live: true },
-  { slug: 'hauskauf-rechner',            title: 'Hauskauf-Rechner',             description: 'Gesamtkosten beim Hauskauf berechnen.',                                        category: 'wohnen',    featured: false, live: true },
   { slug: 'mietrechner',                 title: 'Mietrechner',                 description: 'Warmmiete aus dem Vertrag, Vorauszahlung gegen Betriebskostenspiegel.',category: 'wohnen',    featured: false, live: true },
-  { slug: 'quadratmeterpreis-vergleich', title: 'Quadratmeterpreis',            description: 'Preis je m² Wohnfläche nach WoFlV berechnen.',                                   category: 'wohnen',    featured: false, live: true },
-  { slug: 'grundbuch-eintragung',      title: 'Grundbuch-Eintragung',      description: 'Kosten für Grundbucheintragung berechnen.',                                category: 'wohnen',    featured: false, live: true },
   { slug: 'kaufen-vs-mieten',          title: 'Kaufen vs. Mieten',         description: 'Vergleich: Immobilienkauf oder Mieten – was ist günstiger?',                category: 'wohnen',    featured: false, live: true },
   { slug: 'mietrendite-rechner',          title: 'Mietrendite-Rechner',            description: 'Brutto- und Nettorendite von Mietimmobilien berechnen.',                 category: 'wohnen',    featured: false, live: true },
   { slug: 'wie-viel-haus',                title: 'Wie viel Haus kann ich mir leisten?', description: 'Maximalen Kaufpreis basierend auf Einkommen berechnen.',              category: 'wohnen',    featured: false, live: true },
@@ -88,14 +72,10 @@ export const CALCULATORS: Calculator[] = [
   { slug: 'stromspeicher-rechner',        title: 'Stromspeicher-Rechner',        description: 'Amortisation eines Stromspeichers berechnen.',                                category: 'energie',   featured: false, live: true },
   // AUTO
   { slug: 'kfz-steuer-rechner',          title: 'Kfz-Steuer-Rechner',           description: 'Kfz-Steuer für Benziner, Diesel und Elektro berechnen.',                        category: 'auto',      featured: true,  live: true },
-  { slug: 'spritkosten-rechner',         title: 'Spritkosten-Rechner',          description: 'Kraftstoffkosten für eine Fahrt berechnen.',                                 category: 'auto',      featured: false, live: true },
-  { slug: 'fahrtkosten-rechner',         title: 'Fahrtkosten-Rechner',          description: 'Steuerliche Kilometerpauschale berechnen.',                                  category: 'auto',      featured: false, live: true },
   { slug: 'busgeldrechner',              title: 'Bußgeldrechner',               description: 'Bußgeld, Punkte und Fahrverbot berechnen.',                                  category: 'auto',      featured: true,  live: true },
   { slug: 'leasing-rechner',             title: 'Leasing-Rechner',              description: 'Monatliche Leasingrate berechnen.',                                        category: 'auto',      featured: false, live: true },
   { slug: 'kfz-versicherung-rechner',    title: 'Kfz-Versicherung',             description: 'Schaden melden oder selbst zahlen? Was die Rückstufung kostet.',                                       category: 'auto',      featured: false, live: true },
   { slug: 'anfahrtskosten-rechner',      title: 'Anfahrtskosten-Rechner',       description: 'Anfahrtskosten für Umzug berechnen.',                                      category: 'auto',      featured: false, live: true },
-  { slug: 'kfz-steuer-co2',           title: 'Kfz-Steuer nach CO²',       description: 'Kfz-Steuer für Benziner und Diesel nach CO²-Ausstoß berechnen.',            category: 'auto',      featured: false, live: true },
-  { slug: 'fuehrerschein-kosten',     title: 'Führerschein-Kosten',       description: 'Führerschein Klasse B: Preisliste plus Pflichtfahrten und Gebühren.',                  category: 'auto',      featured: false, live: true },
   { slug: 'elektroauto-tco-rechner',   title: 'Elektroauto TCO-Rechner',   description: 'Gesamtkosten E-Auto vs. Benziner über 5-10 Jahre berechnen.',                 category: 'auto',      featured: false, live: true },
   { slug: 'spritkosten-vergleich',     title: 'Spritkosten-Vergleich',     description: 'Kosten für Benzin vs. Strom vergleichen.',                                   category: 'auto',      featured: false, live: true },
   // VERSICHERUNGEN
@@ -121,27 +101,8 @@ export const CALCULATORS: Calculator[] = [
   { slug: 'bmi-rechner',                 title: 'BMI-Rechner',                   description: 'Body-Mass-Index nach WHO-Formel berechnen.',                               category: 'gesundheit',featured: true,  live: true },
   { slug: 'kalorien-rechner',             title: 'Kalorien-Rechner',              description: 'Täglichen Kalorienbedarf nach Mifflin-St-Jeor berechnen.',                category: 'gesundheit',featured: false, live: true },
   { slug: 'promille-rechner',             title: 'Promille-Rechner',              description: 'Blutalkohol nach Widmark-Formel berechnen.',                              category: 'gesundheit',featured: false, live: true },
-  { slug: 'grundumsatz-rechner',         title: 'Grundumsatz-Rechner',           description: 'Grundumsatz (BMR) nach Harris-Benedict berechnen.',                      category: 'gesundheit',featured: false, live: true },
-  { slug: 'optimalerpuls-rechner',        title: 'Optimaler Puls-Rechner',        description: 'Optimalen Trainingspuls nach Alter berechnen.',                          category: 'gesundheit',featured: false, live: true },
-  { slug: 'kalorien-verbrennen',      title: 'Kalorien verbrennen',       description: 'Kalorienverbrauch beim Sport berechnen.',                                 category: 'gesundheit',featured: false, live: true },
-  { slug: 'idealgewicht-rechner',      title: 'Idealgewicht-Rechner',        description: 'Idealgewicht nach Broca und BMI berechnen.',                               category: 'gesundheit',featured: false, live: true },
-  { slug: 'makronaehrstoff-rechner',   title: 'Makronährstoff-Rechner',      description: 'Täglichen Protein-, Fett- und Kohlenhydratbedarf berechnen.',                  category: 'gesundheit',featured: false, live: true },
-  { slug: 'schlaf-rechner',            title: 'Schlaf-Rechner',              description: 'Optimale Schlafens- und Aufwachzeiten nach Schlafzyklen berechnen.',           category: 'gesundheit',featured: false, live: true },
-  { slug: 'blutdruck-bewerter',        title: 'Blutdruck-Bewerter',          description: 'Blutdruckwerte nach WHO-Klassifikation einordnen.',                            category: 'gesundheit',featured: false, live: true },
   // EINHEITEN
-  { slug: 'einheitenrechner',             title: 'Einheitenrechner',               description: 'Länge, Gewicht, Temperatur umrechnen.',                                  category: 'einheiten', featured: true,  live: true },
-  { slug: 'laengen-umrechner',            title: 'Längen-Umrechner',               description: 'Meter, Kilometer, Meilen, Yards, Fuß und Zoll umrechnen.',                category: 'einheiten', featured: false, live: true },
-  { slug: 'gewicht-umrechner',            title: 'Gewicht-Umrechner',              description: 'Kilogramm, Pfund, Unzen, Tonnen, Stone und Karat umrechnen.',             category: 'einheiten', featured: false, live: true },
-  { slug: 'temperatur-umrechner',         title: 'Temperatur-Umrechner',           description: 'Celsius, Fahrenheit, Kelvin und Réaumur umrechnen.',                      category: 'einheiten', featured: false, live: true },
-  { slug: 'volumen-umrechner',            title: 'Volumen-Umrechner',              description: 'Liter, Gallonen, Cups, Fluid Ounces und Esslöffel umrechnen.',            category: 'einheiten', featured: false, live: true },
-  { slug: 'flaechen-umrechner',           title: 'Flächen-Umrechner',              description: 'm², Hektar, Ar, Acre, Quadratfuß und Quadratmeile umrechnen.',            category: 'einheiten', featured: false, live: true },
-  { slug: 'inflationsrechner',            title: 'Inflationsrechner',              description: 'Kaufkraftverlust durch Inflation berechnen.',                             category: 'einheiten', featured: false, live: true },
-  { slug: 'prozent-rechner',              title: 'Prozent-Rechner',                description: 'Prozentwerte, Grundwerte und prozentuale Veränderungen berechnen.',       category: 'einheiten', featured: false, live: true },
-  { slug: 'mwst-rechner',                 title: 'MwSt-Rechner',                   description: 'Netto und Brutto mit 19% oder 7% MwSt umrechnen.',                      category: 'einheiten', featured: false, live: true },
-  { slug: 'rabatt-rechner',               title: 'Rabatt-Rechner',                 description: 'Rabatte und Endpreise bei Einzel- und Mehrfachrabatten berechnen.',      category: 'einheiten', featured: false, live: true },
-  { slug: 'heizkosten-vergleich',         title: 'Heizkosten-Vergleich',           description: 'Heizkosten verschiedener Energieträger vergleichen.',                category: 'energie',   featured: false, live: true },
   { slug: 'solarspeicher-dimensionierung',title: 'Solarspeicher-Dimensionierung',  description: 'Optimale Batteriegröße für deine PV-Anlage berechnen.',              category: 'energie',   featured: false, live: true },
-  { slug: 'jahresenergieverbrauch',       title: 'Jahresenergieverbrauch',         description: 'Energiekosten aus den Abrechnungen, Heizkennwert und Effizienzklasse.',category: 'energie',   featured: false, live: true },
   { slug: 'co2-einsparung-renovierung',   title: 'CO₂-Einsparung durch Renovierung',description: 'Energie- und CO₂-Einsparung durch Sanierungsmaßnahmen berechnen.',category: 'energie',   featured: false, live: true },
   { slug: 'energieausweis-vorberechnung', title: 'Energieausweis-Vorberechnung',   description: 'Verbrauchskennwert und Effizienzklasse aus drei Heizabrechnungen vorab berechnen.',category: 'energie',   featured: false, live: true },
   { slug: 'km-kostenrechner',             title: 'KM-Kostenrechner',               description: 'Fahrtkosten pro gefahrenem Kilometer berechnen.',                       category: 'auto',      featured: true,  live: true },
@@ -163,8 +124,6 @@ export const CALCULATORS: Calculator[] = [
   { slug: 'ankerkette-rechner',           title: 'Ankerkettenlänge',               description: 'Nötigen Kettenvorlauf nach Tiefe, Tidenhub und Wetterlage berechnen.',   category: 'boot',      featured: false, live: true },
   { slug: 'rumpfgeschwindigkeit',         title: 'Rumpfgeschwindigkeit',           description: 'Maximale Verdrängerfahrt aus der Wasserlinienlänge berechnen.',          category: 'boot',      featured: false, live: true },
   // VORLAGEN & TOOLS
-  { slug: 'qr-code-generator',           title: 'QR-Code Generator',              description: 'QR-Codes erstellen – mit eigenem Logo in der Mitte. Kostenlos als PNG.',     category: 'vorlagen',  featured: true,  live: true },
-  { slug: 'protokoll-generator',          title: 'Protokoll-Generator',            description: 'Übergabe-, Abnahme-, Besprechungsprotokolle als PDF – kostenlos und vollständig.',  category: 'vorlagen',  featured: true,  live: true },
 ];
 export function getByCategory(category: Category): Calculator[] {
   return CALCULATORS.filter(c => c.category === category && c.live);
