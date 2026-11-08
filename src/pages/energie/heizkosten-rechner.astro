@@ -126,6 +126,11 @@ const faqs = [
       </div>
       <div id="details" style="margin-top:0.75rem;font-size:0.88rem;color:#666;display:flex;gap:1.5rem;flex-wrap:wrap;"></div>
       <div id="co2-hinweis" style="display:none;margin-top:0.75rem;padding:0.75rem 1rem;border-radius:8px;background:#eef4ff;font-size:0.88rem;"></div>
+      <section id="hz-block" aria-labelledby="hz-titel" style="margin-top:1.5rem;">
+        <h2 id="hz-titel" style="font-size:1.15rem;margin:0 0 0.5rem;">Was die Wärme wirklich kostet</h2>
+        <p id="hz-text" style="font-size:0.9rem;margin:0 0 0.5rem;"></p>
+        <div id="hz-liste" role="list" aria-labelledby="hz-titel"></div>
+      </section>
     </div>
   </CalculatorShell>
 
@@ -218,7 +223,7 @@ ${vergleich.map(v => `<tr><td>${v.label}</td><td>${ct(v.arbeitspreisCent)} ct/kW
 </style>
 
 <script type="module">
-const { BRENNSTOFFE, berechneHeizkosten, abgerechneteKwh, CO2_PREIS_AKTUELL } = await import(window.__base + 'scripts/heizkosten.js');
+const { BRENNSTOFFE, berechneHeizkosten, abgerechneteKwh, CO2_PREIS_AKTUELL, waermepreisCent } = await import(window.__base + 'scripts/heizkosten.js');
 function fmt(n) { return n.toLocaleString('de-DE', {minimumFractionDigits:2, maximumFractionDigits:2}) + ' €'; }
 function ct(n) { return n.toLocaleString('de-DE', {minimumFractionDigits:1, maximumFractionDigits:2}); }
 
@@ -287,5 +292,48 @@ document.getElementById('traeger').addEventListener('change', e => {
   if (id === 'verbrauch') document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
   berechne();
 }));
+function zeigeWaermepreise() {
+  const gewaehlt = document.getElementById('traeger').value;
+  const eingabePreis = parseFloat(document.getElementById('preis').value) || 0;
+  const zeilen = Object.entries(BRENNSTOFFE).map(([key, b]) => {
+    const preis = key === gewaehlt ? eingabePreis : b.arbeitspreisCent;
+    return { key, label: b.label, preis, grad: b.nutzungsgrad, waerme: waermepreisCent({ arbeitspreisCent: preis, nutzungsgrad: b.nutzungsgrad }) };
+  }).sort((a, b) => a.waerme - b.waerme);
+  const max = Math.max(0.01, ...zeilen.map((z) => z.waerme));
+  const hier = zeilen.find((z) => z.key === gewaehlt);
+  const guenstig = zeilen[0];
+  document.getElementById('hz-text').textContent =
+    `Maßgeblich ist der Preis je Kilowattstunde nutzbarer Wärme, nicht der Arbeitspreis. Ihre Heizungsart kommt auf ${ct(hier.waerme)} ct/kWh Wärme` +
+    (hier.key === guenstig.key ? ' und ist damit hier die günstigste.' : `; am günstigsten ist hier ${guenstig.label} mit ${ct(guenstig.waerme)} ct/kWh.`) +
+    ' Für die übrigen Heizungsarten gelten die Richtpreise der Seite; Ihre Heizungsart rechnet mit Ihrem Preis.';
+  const liste = document.getElementById('hz-liste');
+  liste.replaceChildren();
+  zeilen.forEach((z) => {
+    const aktiv = z.key === gewaehlt;
+    const zeile = document.createElement('div');
+    zeile.setAttribute('role', 'listitem');
+    Object.assign(zeile.style, { display: 'flex', alignItems: 'center', gap: '0.6rem', padding: '0.25rem 0.3rem', fontSize: '0.85rem', borderRadius: '4px', background: aktiv ? '#fff3cd' : 'transparent', fontWeight: aktiv ? '600' : '400' });
+    const name = document.createElement('span');
+    name.textContent = z.label;
+    Object.assign(name.style, { flex: '0 0 7rem' });
+    const spur = document.createElement('div');
+    Object.assign(spur.style, { flex: '1', background: '#f1f1f1', borderRadius: '3px', height: '0.9rem', minWidth: '0' });
+    const balken = document.createElement('div');
+    Object.assign(balken.style, { width: `${(z.waerme / max) * 100}%`, height: '100%', borderRadius: '3px', background: aktiv ? '#c8102e' : '#6b7a8f' });
+    spur.appendChild(balken);
+    const wert = document.createElement('span');
+    wert.textContent = ct(z.waerme) + ' ct/kWh';
+    Object.assign(wert.style, { flex: '0 0 6rem', textAlign: 'right', whiteSpace: 'nowrap' });
+    zeile.append(name, spur, wert);
+    liste.appendChild(zeile);
+  });
+}
+['traeger', 'preis', 'verbrauch', 'grundpreis'].forEach((id) => {
+  document.getElementById(id).addEventListener('input', zeigeWaermepreise);
+  document.getElementById(id).addEventListener('change', zeigeWaermepreise);
+});
+document.querySelectorAll('.preset-btn').forEach((b) => b.addEventListener('click', zeigeWaermepreise));
+zeigeWaermepreise();
+
 berechne();
 </script>
