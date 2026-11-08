@@ -153,6 +153,12 @@ const fruehgeburtZeilen = BASISMONATE_FRUEHGEBURT.map(s =>
       <p id="plus" style="margin-top:0.75rem;font-size:0.95rem;"></p>
       <p id="details" style="margin-top:0.5rem;font-size:0.85rem;color:#666;"></p>
       <p id="hinweis" style="margin-top:0.5rem;font-size:0.85rem;color:#666;"></p>
+      <section id="eg-block" aria-labelledby="eg-titel" style="margin-top:1.5rem;">
+        <h2 id="eg-titel" style="font-size:1.15rem;margin:0 0 0.5rem;">Elterngeld in Abhängigkeit vom Bruttoeinkommen</h2>
+        <p id="eg-text" style="font-size:0.9rem;margin:0 0 0.75rem;"></p>
+        <div><svg id="eg-svg" role="img" aria-labelledby="eg-titel eg-text" style="display:block;width:100%;height:auto;"></svg></div>
+        <ul id="eg-legende"></ul>
+      </section>
     </div>
 
     <ArtikelElterngeld slot="artikel" />
@@ -160,7 +166,7 @@ const fruehgeburtZeilen = BASISMONATE_FRUEHGEBURT.map(s =>
 </Layout>
 
 <script type="module">
-const { berechneElterngeld } = await import(window.__base + 'scripts/elterngeld.js');
+const { berechneElterngeld, HOECHSTBETRAG } = await import(window.__base + 'scripts/elterngeld.js');
 
 function euro(n) {
   return n.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
@@ -219,5 +225,50 @@ function berechne() {
   el.addEventListener('input', berechne);
   el.addEventListener('change', berechne);
 });
+const D = await import(window.__base + 'scripts/diagramm.js');
+const EG_MAX = 8000;
+let egLetzte = false;
+function zeigeElterngeldKurve() {
+  egLetzte = true;
+  const teilzeitRoh = parseFloat(document.getElementById('teilzeit').value) || 0;
+  const basis = {
+    steuerklasse: parseInt(document.getElementById('steuerklasse').value, 10),
+    kirchensteuer: document.getElementById('kirche').checked,
+    kinderfreibetraege: parseFloat(document.getElementById('kfb').value) || 0,
+    einnahmenBezugMonat: teilzeitRoh > 0 ? teilzeitRoh : undefined,
+    geschwisterbonus: document.getElementById('geschwister').checked,
+    kinderZahl: parseInt(document.getElementById('kinderzahl').value, 10),
+  };
+  const brutto = parseFloat(document.getElementById('brutto').value) || 0;
+  const reihe = D.reihe(0, EG_MAX, 100, (b) => {
+    const r = berechneElterngeld({ ...basis, einnahmenMonat: b });
+    return { y: r.basiselterngeld, plus: r.elterngeldPlus };
+  });
+  const jetzt = berechneElterngeld({ ...basis, einnahmenMonat: brutto });
+  const deckel = reihe.find((p) => p.y >= HOECHSTBETRAG);
+  const eur0 = (n) => n.toLocaleString('de-DE', { maximumFractionDigits: 0 }) + ' \u20ac';
+  document.getElementById('eg-text').textContent =
+    `Bei ${eur0(brutto)} brutto im Monat erhalten Sie ${eur0(jetzt.basiselterngeld)} Basiselterngeld oder ${eur0(jetzt.elterngeldPlus)} Elterngeld Plus. ` +
+    (deckel ? `Der Höchstbetrag von ${eur0(HOECHSTBETRAG)} ist ab rund ${eur0(deckel.x)} brutto erreicht.` : `Der Höchstbetrag von ${eur0(HOECHSTBETRAG)} wird im gezeigten Bereich nicht erreicht.`);
+  D.zeichneKurve(document.getElementById('eg-svg'), {
+    serien: [
+      { punkte: reihe.map((p) => ({ x: p.x, y: p.plus })), farbe: '#2f8f83', gestrichelt: true },
+      { punkte: reihe.map((p) => ({ x: p.x, y: p.y })), farbe: '#c8102e' },
+    ],
+    marker: { x: brutto, y: jetzt.basiselterngeld },
+    xFormat: (n) => (n / 1000).toLocaleString('de-DE') + ' Tsd. \u20ac', yFormat: eur0,
+  });
+  D.zeichneLegende(document.getElementById('eg-legende'), [
+    { farbe: '#c8102e', name: 'Basiselterngeld' },
+    { farbe: '#2f8f83', name: 'Elterngeld Plus' },
+  ]);
+}
+['brutto', 'teilzeit', 'steuerklasse', 'kinderzahl', 'geschwister', 'kirche', 'kfb'].forEach((id) => {
+  document.getElementById(id).addEventListener('input', zeigeElterngeldKurve);
+  document.getElementById(id).addEventListener('change', zeigeElterngeldKurve);
+});
+D.beiGroessenaenderung(() => egLetzte && zeigeElterngeldKurve());
+zeigeElterngeldKurve();
+
 berechne();
 </script>
