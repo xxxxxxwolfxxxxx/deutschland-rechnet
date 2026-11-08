@@ -111,6 +111,11 @@ const faqs = [
         <div id="wohngeld">— €/Monat</div>
       </div>
       <div id="details" style="margin-top:0.75rem;font-size:0.88rem;color:#666;display:flex;gap:1.5rem;flex-wrap:wrap;"></div>
+      <section class="kurve-block" id="wg-block" aria-labelledby="wg-titel">
+        <h2 id="wg-titel" style="font-size:1.15rem;margin:1.5rem 0 0.5rem;">Wie das Wohngeld mit dem Einkommen schwindet</h2>
+        <p id="wg-text" style="font-size:0.9rem;margin:0 0 0.75rem;"></p>
+        <div><svg id="wg-svg" role="img" aria-labelledby="wg-titel wg-text" style="display:block;width:100%;height:auto;"></svg></div>
+      </section>
     </div>
 
     <ArtikelWohngeld slot="artikel" />
@@ -150,5 +155,36 @@ function berechne() {
   document.getElementById(id).addEventListener('input', berechne);
   document.getElementById(id).addEventListener('change', berechne);
 });
+const D = await import(window.__base + 'scripts/diagramm.js');
+const WG_MAX = 6000;
+let wgLetzte = null;
+function zeigeWohngeldKurve() {
+  const basis = {
+    haushaltsgroesse: parseInt(document.getElementById('haushalt').value) || 3,
+    kaltmiete: parseFloat(document.getElementById('miete').value) || 0,
+    mietenstufe: parseInt(document.getElementById('mietstufe').value) || 3,
+    alleinerziehendMitKind: document.getElementById('alleinerziehend').checked,
+  };
+  const brutto = parseFloat(document.getElementById('brutto').value) || 0;
+  const punkte = D.reihe(0, WG_MAX, 100, (b) => ({ y: berechneWohngeld({ ...basis, bruttoMonat: b }).wohngeld || 0 }));
+  const ende = punkte.find((p) => p.x > 0 && p.y === 0);
+  const hier = berechneWohngeld({ ...basis, bruttoMonat: brutto }).wohngeld || 0;
+  const eur0 = (n) => n.toLocaleString('de-DE', { maximumFractionDigits: 0 }) + ' \u20ac';
+  document.getElementById('wg-text').textContent = ende
+    ? `Bei diesem Haushalt, dieser Miete und dieser Mietenstufe läuft das Wohngeld bei einem Einkommen von rund ${eur0(ende.x)} im Monat aus. Mit ${eur0(brutto)} erhalten Sie ${eur0(hier)}.`
+    : `Bis ${eur0(WG_MAX)} Einkommen bleibt bei diesen Angaben ein Wohngeldanspruch bestehen. Mit ${eur0(brutto)} erhalten Sie ${eur0(hier)}.`;
+  wgLetzte = { punkte, brutto, hier };
+  D.zeichneKurve(document.getElementById('wg-svg'), {
+    serien: [{ punkte }], marker: { x: brutto, y: hier },
+    xFormat: (n) => (n / 1000).toLocaleString('de-DE') + ' Tsd. \u20ac', yFormat: eur0,
+  });
+}
+['haushalt','brutto','miete','mietstufe','alleinerziehend'].forEach((id) => {
+  document.getElementById(id).addEventListener('input', zeigeWohngeldKurve);
+  document.getElementById(id).addEventListener('change', zeigeWohngeldKurve);
+});
+D.beiGroessenaenderung(() => wgLetzte && zeigeWohngeldKurve());
+zeigeWohngeldKurve();
+
 berechne();
 </script>
