@@ -164,6 +164,13 @@ const faqs = [
         <div id="ergebnis">— €</div>
       </div>
       <div id="details" style="margin-top:0.75rem;font-size:0.88rem;color:#666;display:flex;gap:1.5rem;flex-wrap:wrap;"></div>
+      <section id="bf-block" aria-labelledby="bf-titel">
+        <h2 id="bf-titel" style="font-size:1.15rem;margin:1.5rem 0 0.5rem;">So viel BAföG bleibt bei steigendem Elterneinkommen</h2>
+        <p id="bf-text" style="font-size:0.9rem;margin:0 0 0.75rem;"></p>
+        <div><svg id="bf-svg" role="img" aria-labelledby="bf-titel bf-text" style="display:block;width:100%;height:auto;"></svg></div>
+        <div id="bf-balken" role="img" aria-label="Aufteilung in Zuschuss und Darlehen" style="margin-top:0.75rem;"></div>
+        <ul id="bf-legende"></ul>
+      </section>
     </div>
     <ArtikelBafoeg slot="artikel" />
   </CalculatorShell>
@@ -211,5 +218,52 @@ document.querySelectorAll('.calc-form input, .calc-form select').forEach((el) =>
   el.addEventListener('input', berechne);
   el.addEventListener('change', berechne);
 });
+const D = await import(window.__base + 'scripts/diagramm.js');
+const BF_MAX = 120000;
+let bfLetzte = false;
+function bafoegEingabe(einkuenfteEltern1) {
+  return {
+    auswaerts: auswahl('wohnen') === 'auswaerts',
+    eigeneVersicherung: auswahl('versicherung') === 'eigen',
+    verheiratet: auswahl('eltern') === 'verheiratet',
+    elternteile: [
+      { einkuenfte: einkuenfteEltern1, status: auswahl('s1'), steuern: wert('st1') },
+      { einkuenfte: wert('e2'), status: auswahl('s2'), steuern: wert('st2') },
+    ],
+    kinderMitFreibetrag: wert('kinder'),
+    gefoerderteKinder: wert('gefoerdert') || 1,
+    vermoegen: wert('vermoegen'),
+    ab30: auswahl('alter') === 'ab30',
+  };
+}
+function zeigeBafoegKurve() {
+  bfLetzte = true;
+  const jetzt = wert('e1');
+  const punkte = D.reihe(0, BF_MAX, 2000, (e) => ({ y: berechneBafoeg(bafoegEingabe(e)).foerderung }));
+  const aus = punkte.find((p) => p.y === 0);
+  const r = berechneBafoeg(bafoegEingabe(jetzt));
+  document.getElementById('bf-text').textContent = aus
+    ? `Mit den übrigen Angaben endet die Förderung bei Einkünften von Elternteil 1 ab rund ${eur(aus.x)} im Jahr. Bei ${eur(jetzt)} sind es ${eur(r.foerderung)} im Monat.`
+    : `Bis ${eur(BF_MAX)} Einkünften von Elternteil 1 bleibt ein Förderanspruch bestehen. Bei ${eur(jetzt)} sind es ${eur(r.foerderung)} im Monat.`;
+  D.zeichneKurve(document.getElementById('bf-svg'), {
+    serien: [{ punkte }], marker: { x: jetzt, y: r.foerderung },
+    xFormat: (n) => (n / 1000).toLocaleString('de-DE') + ' Tsd. €', yFormat: eur,
+  });
+  D.zeichneBalken(document.getElementById('bf-balken'), [
+    { wert: r.zuschuss, farbe: '#2f8f83', titel: 'Zuschuss ' + eur(r.zuschuss) },
+    { wert: r.darlehen, farbe: '#e8a33d', titel: 'Darlehen ' + eur(r.darlehen) },
+  ], r.foerderung);
+  D.zeichneLegende(document.getElementById('bf-legende'), [
+    { farbe: '#2f8f83', name: 'Zuschuss ' + eur(r.zuschuss) },
+    { farbe: '#e8a33d', name: 'Darlehen (zurückzuzahlen) ' + eur(r.darlehen) },
+  ]);
+}
+document.querySelectorAll('.calc-form input, .calc-form select').forEach((el) => {
+  el.addEventListener('input', zeigeBafoegKurve);
+  el.addEventListener('change', zeigeBafoegKurve);
+});
+D.beiGroessenaenderung(() => bfLetzte && zeigeBafoegKurve());
+zeigeBafoegKurve();
+
 berechne();
 </script>
