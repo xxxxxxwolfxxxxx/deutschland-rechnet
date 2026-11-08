@@ -143,6 +143,37 @@ const KFB_OPTIONEN = [0, 0.5, 1, 1.5, 2, 2.5, 3, 4, 5];
           <tr class="total"><td><strong>Nettolohn</strong></td><td id="r-netto"><strong>—</strong></td></tr>
         </table>
       </details>
+
+      <section class="anteile" aria-labelledby="anteile-titel">
+        <h3 id="anteile-titel">Wohin ein Euro Brutto fließt</h3>
+        <div class="anteil-bar" id="anteil-bar" role="img" aria-label=""></div>
+        <ul class="anteil-legende" id="anteil-legende"></ul>
+      </section>
+
+      <section class="vergleich" aria-labelledby="vergleich-titel">
+        <h3 id="vergleich-titel">Dein Netto in allen sechs Steuerklassen</h3>
+        <p class="vergleich-hinweis">
+          Gleiche Eingaben, nur die Steuerklasse wechselt. Deine Klasse ist hervorgehoben.
+          „Steuern" sind Lohnsteuer, Solidaritätszuschlag und Kirchensteuer.
+        </p>
+        <table id="vergleich" class="vergleich-tabelle">
+          <thead>
+            <tr>
+              <th scope="col">Klasse</th>
+              <th scope="col">Steuern</th>
+              <th scope="col">Netto</th>
+              <th scope="col">Unterschied zu I</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+        <p class="vergleich-hinweis">
+          Der Lohnsteuerabzug ist nur eine Vorauszahlung. Die Steuererklärung gleicht
+          Unterschiede zwischen den Klassen teilweise wieder aus, vor allem bei der
+          Kombination III und V. Welche Kombination für ein Paar günstiger ist, hängt
+          vom Einkommen beider Partner ab.
+        </p>
+      </section>
     </div>
     <ArtikelZweiBeitragsgrenzen slot="artikel" />
   </CalculatorShell>
@@ -194,6 +225,74 @@ function berechne() {
   document.getElementById('r-av').textContent = '− ' + fmt(r.arbeitslosenversicherung);
   document.getElementById('r-pv').textContent = '− ' + fmt(r.pflegeversicherung);
   document.getElementById('r-netto').innerHTML = '<strong>' + fmt(r.netto) + '</strong>';
+  zeigeAnteile(brutto, r);
+  zeigeVergleich({ brutto, sk, bl, ki, kinder, kinderfreibetraege });
+}
+
+const KLASSEN = ['I', 'II', 'III', 'IV', 'V', 'VI'];
+const prozent = (n) => n.toLocaleString('de-DE', { maximumFractionDigits: 0 }) + ' %';
+const vorzeichen = (n) => (n > 0 ? '+ ' : n < 0 ? '− ' : '') + fmt(Math.abs(n));
+
+function zeigeAnteile(brutto, r) {
+  const bar = document.getElementById('anteil-bar');
+  const legende = document.getElementById('anteil-legende');
+  bar.replaceChildren();
+  legende.replaceChildren();
+  if (brutto <= 0) return;
+
+  const teile = [
+    { label: 'Netto', betrag: r.netto, farbe: '#2e7d32' },
+    { label: 'Steuern', betrag: r.lohnsteuer + r.soli + r.kirchensteuer, farbe: '#ef6c00' },
+    { label: 'Sozialabgaben', betrag: r.sozialversicherung, farbe: '#1565c0' },
+  ].filter((t) => t.betrag > 0);
+
+  teile.forEach((t) => {
+    const segment = document.createElement('div');
+    segment.className = 'anteil-segment';
+    segment.style.flex = `${t.betrag} 0 0`;
+    segment.style.background = t.farbe;
+    bar.appendChild(segment);
+
+    const li = document.createElement('li');
+    const swatch = document.createElement('span');
+    swatch.className = 'anteil-swatch';
+    swatch.style.background = t.farbe;
+    const text = document.createElement('span');
+    text.textContent = `${t.label}: ${prozent((t.betrag / brutto) * 100)}`;
+    const betrag = document.createElement('span');
+    betrag.className = 'anteil-betrag';
+    betrag.textContent = fmt(t.betrag);
+    li.append(swatch, text, betrag);
+    legende.appendChild(li);
+  });
+
+  bar.setAttribute('aria-label', 'Anteile am Brutto: ' + teile
+    .map((t) => `${t.label} ${prozent((t.betrag / brutto) * 100)}`).join(', '));
+}
+
+function zeigeVergleich({ brutto, sk, bl, ki, kinder, kinderfreibetraege }) {
+  const body = document.querySelector('#vergleich tbody');
+  body.replaceChildren();
+  const ergebnisse = KLASSEN.map((_, i) => berechneNettoGehalt({
+    bruttoMonat: brutto, steuerklasse: i + 1, bundesland: bl, kirchensteuer: ki, kinder, kinderfreibetraege,
+  }));
+  const nettoI = ergebnisse[0].netto;
+
+  ergebnisse.forEach((r, i) => {
+    const tr = document.createElement('tr');
+    if (i + 1 === sk) tr.className = 'ist-klasse';
+    [
+      `Klasse ${KLASSEN[i]}`,
+      fmt(r.lohnsteuer + r.soli + r.kirchensteuer),
+      fmt(r.netto),
+      i === 0 ? '–' : vorzeichen(r.netto - nettoI),
+    ].forEach((text) => {
+      const td = document.createElement('td');
+      td.textContent = text;
+      tr.appendChild(td);
+    });
+    body.appendChild(tr);
+  });
 }
 document.querySelectorAll('#brutto, #steuerklasse, #bundesland, #kirche, #kinder, #kfb').forEach(el => {
   el.addEventListener('input', berechne);
@@ -209,4 +308,38 @@ table { width: 100%; border-collapse: collapse; margin-top: 0.75rem; font-size: 
 td { padding: 0.3rem 0.5rem; border-bottom: 1px solid var(--color-border); }
 td:last-child { text-align: right; }
 tr.total td { border-top: 2px solid var(--color-black); border-bottom: none; }
+
+.anteile, .vergleich { margin-top: 1.75rem; }
+.anteile h3, .vergleich h3 { font-size: 1.05rem; margin: 0 0 0.75rem; }
+.anteil-bar {
+  display: flex;
+  height: 2.25rem;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  border: 1px solid var(--border);
+}
+.anteil-bar :global(.anteil-segment) { min-width: 2px; }
+.anteil-legende {
+  list-style: none;
+  margin: 0.9rem 0 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 0.5rem 1.5rem;
+}
+.anteil-legende :global(li) {
+  display: grid;
+  grid-template-columns: 0.9rem 1fr auto;
+  align-items: center;
+  gap: 0.6rem;
+  font-size: 0.88rem;
+}
+.anteil-legende :global(.anteil-swatch) { width: 0.9rem; height: 0.9rem; border-radius: 2px; }
+.anteil-legende :global(.anteil-betrag) { font-variant-numeric: tabular-nums; color: var(--text-light); }
+.vergleich-hinweis { font-size: 0.82rem; color: var(--muted); line-height: 1.5; margin: 0.25rem 0 0.75rem; }
+.vergleich-tabelle { font-variant-numeric: tabular-nums; }
+.vergleich-tabelle th { font-size: 0.8rem; font-weight: 600; color: var(--muted); text-align: right; padding: 0.4rem 0.5rem; border-bottom: 1px solid var(--color-border); }
+.vergleich-tabelle th:first-child, .vergleich-tabelle :global(td:first-child) { text-align: left; }
+.vergleich-tabelle :global(td) { text-align: right; padding: 0.3rem 0.5rem; border-bottom: 1px solid var(--color-border); }
+.vergleich-tabelle :global(tr.ist-klasse td) { background: color-mix(in srgb, var(--accent, #2e7d32) 14%, white); font-weight: 700; }
 </style>
