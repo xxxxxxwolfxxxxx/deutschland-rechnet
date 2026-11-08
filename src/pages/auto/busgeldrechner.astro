@@ -75,6 +75,27 @@ description="Bußgeld, Punkte und Fahrverbot berechnen – Geschwindigkeit, Rotl
           </label>
         </div>
         <p class="hint-text">Einzutragen ist die Überschreitung <strong>nach Abzug der Messtoleranz</strong> – in der Regel 3 km/h bis Tempo 100, darüber 3 % des Messwerts. Die Sätze gelten für Pkw und Motorrad; für Lkw und Busse liegen sie deutlich höher.</p>
+
+        <section class="staffel" aria-labelledby="staffel-titel">
+          <h3 id="staffel-titel">Die ganze Staffel auf einen Blick</h3>
+          <p class="hint-text">Deine Stufe ist hervorgehoben. Das Fahrverbot gilt als Regelfall ohne Voreintragung; wer binnen eines Jahres zum zweiten Mal mindestens 26 km/h zu schnell ist, bekommt es auch darunter.</p>
+          <div class="staffel-paar">
+            <div>
+              <h4>Innerorts</h4>
+              <table id="staffel-innerorts">
+                <thead><tr><th scope="col">Überschreitung</th><th scope="col">Bußgeld</th><th scope="col">Punkte</th><th scope="col">Fahrverbot</th></tr></thead>
+                <tbody></tbody>
+              </table>
+            </div>
+            <div>
+              <h4>Außerorts</h4>
+              <table id="staffel-ausserorts">
+                <thead><tr><th scope="col">Überschreitung</th><th scope="col">Bußgeld</th><th scope="col">Punkte</th><th scope="col">Fahrverbot</th></tr></thead>
+                <tbody></tbody>
+              </table>
+            </div>
+          </div>
+        </section>
       </div>
 
       <!-- ROTLICHT -->
@@ -242,6 +263,37 @@ description="Bußgeld, Punkte und Fahrverbot berechnen – Geschwindigkeit, Rotl
   padding: 0.15rem 0.55rem;
   border-radius: 12px;
 }
+.staffel { margin-top: 1.25rem; }
+.staffel h3 { font-size: 1.02rem; margin: 0 0 0.4rem; color: var(--text); }
+.staffel h4 { font-size: 0.88rem; margin: 0 0 0.4rem; color: var(--text); }
+.staffel-paar {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.25rem;
+}
+.staffel table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.84rem;
+  font-variant-numeric: tabular-nums;
+}
+.staffel th,
+.staffel td {
+  padding: 0.45rem 0.5rem;
+  text-align: right;
+  border-bottom: 1px solid var(--border);
+}
+.staffel th:first-child,
+.staffel td:first-child { text-align: left; }
+.staffel th { font-size: 0.74rem; font-weight: 600; color: var(--muted); }
+.staffel tr.ist-stufe td {
+  background: color-mix(in srgb, var(--accent, #c8102e) 12%, white);
+  font-weight: 700;
+  color: var(--text);
+}
+@media (max-width: 760px) {
+  .staffel-paar { grid-template-columns: 1fr; }
+}
 .hint-text {
   font-size: 0.82rem;
   color: var(--muted);
@@ -264,6 +316,59 @@ const { berechneGeschwindigkeit, berechneRotlicht, berechneHandy, berechneAbstan
   = await import(window.__base + 'scripts/busgeld.js');
 
 let aktivTab = 'geschwindigkeit';
+
+// Staffel-Tabellen. Die Stufen werden aus dem Rechenmodul abgeleitet, indem
+// Überschreitungen von 1 bis 150 km/h durchlaufen und gleiche Ergebnisse
+// zusammengefasst werden – so weichen Tabelle und Rechner nie voneinander ab.
+const STAFFEL_MAX_KMH = 150;
+const staffelZeilen = {};
+
+function staffelStufen(ort) {
+  const stufen = [];
+  for (let kmh = 1; kmh <= STAFFEL_MAX_KMH; kmh++) {
+    const r = berechneGeschwindigkeit({ ort, ueberschreitung: kmh });
+    const letzte = stufen[stufen.length - 1];
+    if (letzte && letzte.nummer === r.nummer && letzte.bussgeld === r.bussgeld
+        && letzte.punkte === r.punkte && letzte.fahrverbot === r.fahrverbot) {
+      letzte.bis = kmh;
+    } else {
+      stufen.push({ von: kmh, bis: kmh, nummer: r.nummer, bussgeld: r.bussgeld, punkte: r.punkte, fahrverbot: r.fahrverbot });
+    }
+  }
+  return stufen;
+}
+
+function baueStaffel(ort) {
+  const body = document.querySelector(`#staffel-${ort} tbody`);
+  body.replaceChildren();
+  staffelZeilen[ort] = staffelStufen(ort).map((s) => {
+    const tr = document.createElement('tr');
+    const bereich = s.bis === STAFFEL_MAX_KMH ? `ab ${s.von} km/h` : `${s.von} bis ${s.bis} km/h`;
+    [
+      bereich,
+      `${s.bussgeld.toLocaleString('de-DE')} €`,
+      String(s.punkte),
+      s.fahrverbot > 0 ? `${s.fahrverbot} Monat${s.fahrverbot > 1 ? 'e' : ''}` : '–',
+    ].forEach((text) => {
+      const td = document.createElement('td');
+      td.textContent = text;
+      tr.appendChild(td);
+    });
+    body.appendChild(tr);
+    return { tr, von: s.von, bis: s.bis };
+  });
+}
+
+function markiereStaffel(ort, ueberschreitung) {
+  Object.entries(staffelZeilen).forEach(([key, zeilen]) => {
+    zeilen.forEach(({ tr, von, bis }) => {
+      tr.classList.toggle('ist-stufe', key === ort && ueberschreitung >= von && ueberschreitung <= bis);
+    });
+  });
+}
+
+baueStaffel('innerorts');
+baueStaffel('ausserorts');
 
 // Tab-Navigation
 document.querySelectorAll('.tab-btn').forEach(btn => {
@@ -329,6 +434,7 @@ function berechne() {
     } else if (ueberschreitung >= 26 && !voreintragung) {
       hw = `Ab 26 km/h wird es beim zweiten Mal teuer: Folgt binnen eines Jahres nach Rechtskraft eine weitere Überschreitung von mindestens 26 km/h, kommt nach § 4 Abs. 2 BKatV ein Fahrverbot hinzu.`;
     }
+    markiereStaffel(ort, ueberschreitung);
     zeige({ ...r, hinweisText: hw });
 
   } else if (aktivTab === 'rotlicht') {
