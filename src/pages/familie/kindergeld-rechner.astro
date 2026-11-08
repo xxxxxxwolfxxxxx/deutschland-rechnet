@@ -69,6 +69,17 @@ const faqs = [
       </div>
       <p id="jahr" style="margin-top:0.5rem;font-size:0.95rem;color:#666;"></p>
       <p id="proKind" style="margin-top:0.25rem;font-size:0.82rem;color:#999;"></p>
+      <section id="kg-block" aria-labelledby="kg-titel" style="margin-top:1.5rem;">
+        <h2 id="kg-titel" style="font-size:1.15rem;margin:0 0 0.5rem;">Kindergeld oder Kinderfreibetrag – was ist für Sie günstiger?</h2>
+        <div class="calc-group" style="max-width:18rem;">
+          <label for="kg-zve">Gemeinsames zu versteuerndes Einkommen (€/Jahr)</label>
+          <input type="number" id="kg-zve" min="0" max="500000" value="70000" step="1000" />
+        </div>
+        <p id="kg-text" style="font-size:0.9rem;margin:0.5rem 0 0.75rem;"></p>
+        <div><svg id="kg-svg" role="img" aria-labelledby="kg-titel kg-text" style="display:block;width:100%;height:auto;"></svg></div>
+        <ul id="kg-legende"></ul>
+        <p style="font-size:0.8rem;color:#666;">Verheiratetes Paar mit Zusammenveranlagung (Splittingtarif), Steuerersparnis ohne Solidaritätszuschlag und Kirchensteuer. Das Finanzamt führt die Günstigerprüfung nach § 31 EStG von Amts wegen durch.</p>
+      </section>
     </div>
     <ArtikelEinheitlichesKindergeld slot="artikel" />
   </CalculatorShell>
@@ -114,5 +125,43 @@ function berechne() {
   document.getElementById('proKind').textContent = `${fmt(r.betragProKind)} je Kind × ${kinder} = ${fmt(r.monat)} / Monat`;
 }
 document.getElementById('kinder').addEventListener('change', berechne);
+const D = await import(window.__base + 'scripts/diagramm.js');
+const { tariflicheEinkommensteuer } = await import(window.__base + 'scripts/einkommensteuer.js');
+const KG_MAX = 200000;
+let kgLetzte = false;
+function zeigeKindergeldVergleich() {
+  kgLetzte = true;
+  const kinder = parseInt(document.getElementById('kinder').value) || 1;
+  const { jahr, freibetragGesamt } = berechneKindergeld({ anzahlKinder: kinder });
+  const ersparnis = (zve) => Math.max(0, tariflicheEinkommensteuer(zve, true) - tariflicheEinkommensteuer(Math.max(0, zve - freibetragGesamt), true));
+  const zve = parseFloat(document.getElementById('kg-zve').value) || 0;
+  const eur0 = (n) => n.toLocaleString('de-DE', { maximumFractionDigits: 0 }) + ' \u20ac';
+  const stufen = D.reihe(0, KG_MAX, 2000, (x) => ({ y: ersparnis(x) }));
+  const wechsel = stufen.find((p) => p.y > jahr);
+  const hier = ersparnis(zve);
+  document.getElementById('kg-text').textContent =
+    (wechsel ? `Der Kinderfreibetrag bringt mehr als das Kindergeld ab einem gemeinsamen zu versteuernden Einkommen von rund ${eur0(wechsel.x)}. ` : 'Im gezeigten Bereich bleibt das Kindergeld die bessere Wahl. ') +
+    `Bei ${eur0(zve)} beträgt die Steuerersparnis ${eur0(hier)} gegenüber ${eur0(jahr)} Kindergeld im Jahr (${kinder} ${kinder === 1 ? 'Kind' : 'Kinder'}). ` +
+    (hier > jahr ? `Das Finanzamt zieht dann den Freibetrag ab und rechnet das Kindergeld an.` : `Dann bleibt es beim Kindergeld.`);
+  D.zeichneKurve(document.getElementById('kg-svg'), {
+    serien: [
+      { punkte: stufen.map((p) => ({ x: p.x, y: jahr })), farbe: '#999', gestrichelt: true },
+      { punkte: stufen, farbe: '#c8102e' },
+    ],
+    marker: { x: zve, y: hier },
+    xFormat: (n) => (n / 1000).toLocaleString('de-DE') + ' Tsd. \u20ac', yFormat: eur0,
+  });
+  D.zeichneLegende(document.getElementById('kg-legende'), [
+    { farbe: '#999', name: 'Kindergeld pro Jahr' },
+    { farbe: '#c8102e', name: 'Steuerersparnis durch den Kinderfreibetrag' },
+  ]);
+}
+['kinder', 'kg-zve'].forEach((id) => {
+  document.getElementById(id).addEventListener('input', zeigeKindergeldVergleich);
+  document.getElementById(id).addEventListener('change', zeigeKindergeldVergleich);
+});
+D.beiGroessenaenderung(() => kgLetzte && zeigeKindergeldVergleich());
+zeigeKindergeldVergleich();
+
 berechne();
 </script>

@@ -107,6 +107,11 @@ const staffelZeilen = CO2_STAFFEL_AB_2021.map((stufe: { bis: number; satz: numbe
       </div>
 
       <div id="rechenweg" style="margin-top:1.25rem;"></div>
+      <section id="kf-block" aria-labelledby="kf-titel" style="margin-top:1.5rem;" hidden>
+        <h2 id="kf-titel" style="font-size:1.15rem;margin:0 0 0.5rem;">Was jedes Gramm CO₂ an Steuer kostet</h2>
+        <p id="kf-text" style="font-size:0.9rem;margin:0 0 0.75rem;"></p>
+        <div><svg id="kf-svg" role="img" aria-labelledby="kf-titel kf-text" style="display:block;width:100%;height:auto;"></svg></div>
+      </section>
     </div>
 
     <ArtikelKfzSteuer slot="artikel" />
@@ -183,6 +188,44 @@ function berechne() {
 
 ['fahrzeugart', 'antrieb', 'erstzulassung', 'hubraum', 'co2', 'schadstoffklasse', 'gesamtgewicht', 'ermaessigung']
   .forEach(id => EL(id).addEventListener('input', berechne));
+const D = await import(window.__base + 'scripts/diagramm.js');
+let kfLetzte = false;
+function zeigeCo2Kurve() {
+  kfLetzte = true;
+  const block = EL('kf-block');
+  const fahrzeugart = EL('fahrzeugart').value;
+  const antrieb = fahrzeugart === 'kraftrad' ? 'benzin' : EL('antrieb').value;
+  const erstzulassung = EL('erstzulassung').value;
+  const relevant = erstzulassung !== '' && EL('co2-group').style.display !== 'none';
+  block.hidden = !relevant;
+  if (!relevant) return;
+  const basis = {
+    fahrzeugart, antrieb, erstzulassung,
+    hubraum: parseInt(EL('hubraum').value) || 0,
+    gesamtgewicht: parseInt(EL('gesamtgewicht').value) || 0,
+    schadstoffklasse: EL('schadstoffklasse').value,
+    ermaessigung: EL('ermaessigung').value,
+  };
+  const co2 = parseInt(EL('co2').value) || 0;
+  const steuerBei = (g) => berechneKfzSteuer({ ...basis, co2: g }).jahressteuerAbgerundet;
+  const punkte = D.reihe(0, 250, 5, (g) => ({ y: steuerBei(g) }));
+  if (punkte.some((p) => p.y === null || p.y === undefined)) { block.hidden = true; return; }
+  const hier = steuerBei(co2);
+  const eur0 = (n) => Math.round(n).toLocaleString('de-DE') + ' \u20ac';
+  const bei100 = punkte.find((p) => p.x === 100), bei200 = punkte.find((p) => p.x === 200);
+  EL('kf-text').textContent =
+    `Mit ${co2} g CO\u2082 je Kilometer zahlen Sie ${eur0(hier)} im Jahr.` +
+    (bei100 && bei200 ? ` Bei 100 g/km wären es ${eur0(bei100.y)}, bei 200 g/km ${eur0(bei200.y)} – gleiches Hubraumvolumen vorausgesetzt.` : '');
+  D.zeichneKurve(EL('kf-svg'), {
+    serien: [{ punkte, stufe: true }], marker: { x: Math.min(250, Math.max(0, co2)), y: hier },
+    xFormat: (n) => Math.round(n) + ' g/km', yFormat: eur0,
+  });
+}
+document.addEventListener('input', zeigeCo2Kurve);
+document.addEventListener('change', zeigeCo2Kurve);
+D.beiGroessenaenderung(() => kfLetzte && zeigeCo2Kurve());
+zeigeCo2Kurve();
+
 berechne();
 </script>
 

@@ -116,6 +116,11 @@ const grade = [2, 3, 4, 5] as const;
         <div id="gesamt">— €</div>
       </div>
       <div id="details" style="margin-top:0.75rem;font-size:0.88rem;color:#666;"></div>
+      <section id="pf-block" aria-labelledby="pf-titel" style="margin-top:1.5rem;">
+        <h2 id="pf-titel" style="font-size:1.15rem;margin:0 0 0.5rem;">Was Kinder an Ihrem Beitrag ändern</h2>
+        <p id="pf-text" style="font-size:0.9rem;margin:0 0 0.5rem;"></p>
+        <div style="overflow-x:auto;"><table id="pf-tabelle"></table></div>
+      </section>
     </div>
 
     <ArtikelPflege slot="artikel" />
@@ -170,6 +175,34 @@ function berechne() {
   const ereignis = el.tagName === 'SELECT' || el.type === 'checkbox' ? 'change' : 'input';
   el.addEventListener(ereignis, berechne);
 });
+const D = await import(window.__base + 'scripts/diagramm.js');
+function zeigeKinderStaffel() {
+  const brutto = parseFloat(document.getElementById('brutto').value) || 0;
+  const kinder = parseInt(document.getElementById('kinder').value, 10) || 0;
+  const bundesland = document.getElementById('bundesland').value;
+  const basis = Math.min(brutto, BBG_KV_PV_MONAT);
+  const jeKinderzahl = [0, 1, 2, 3, 4, 5].map((k) => {
+    const satz = pflegeArbeitnehmerSatz({ kinder: k, bundesland });
+    return { k, satz, beitrag: basis * satz };
+  });
+  const kinderlos = jeKinderzahl[0].beitrag;
+  const aktuell = jeKinderzahl[Math.min(5, kinder)];
+  document.getElementById('pf-text').textContent =
+    `Mit ${kinder} ${kinder === 1 ? 'Kind' : 'Kindern'} zahlen Sie ${euro(aktuell.beitrag)} im Monat` +
+    (kinder > 0 ? `, ${euro((kinderlos - aktuell.beitrag) * 12)} im Jahr weniger als ein kinderloser Beschäftigter.` : ', das ist der Satz für Beschäftigte ohne Kind ab 23 Jahren.') +
+    ' Die Abschläge gelten für Kinder unter 25 Jahren.';
+  D.fuelleTabelle(document.getElementById('pf-tabelle'), ['Kinder', 'Ihr Beitragssatz', 'Beitrag im Monat', 'Ersparnis im Jahr'],
+    jeKinderzahl.map((z) => ({
+      zellen: [z.k === 5 ? '5 und mehr' : String(z.k), prozent(z.satz), euro(z.beitrag), euro((kinderlos - z.beitrag) * 12)],
+      markiert: z.k === Math.min(5, kinder),
+    })));
+}
+['brutto', 'kinder', 'bundesland', 'unter23'].forEach((id) => {
+  document.getElementById(id).addEventListener('input', zeigeKinderStaffel);
+  document.getElementById(id).addEventListener('change', zeigeKinderStaffel);
+});
+zeigeKinderStaffel();
+
 berechne();
 </script>
 

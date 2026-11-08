@@ -108,6 +108,12 @@ const beispielZeilen = beispiel.kombinationen.filter(k => k.anwendbar).map(k => 
       </div>
       <p class="hinweis">Dieser Betrag ändert sich durch die Steuerklassenwahl <strong>nicht</strong>. Die Steuerklasse bestimmt nur, wie viel davon monatlich einbehalten wird – der Rest kommt als Nachzahlung oder Erstattung zurück.</p>
       <div id="tabelle"></div>
+      <section id="sk2-block" aria-labelledby="sk2-titel" style="margin-top:1.5rem;">
+        <h2 id="sk2-titel" style="font-size:1.15rem;margin:0 0 0.5rem;">Wie weit die Lohnsteuer von der echten Steuer abweicht</h2>
+        <p id="sk2-text" style="font-size:0.9rem;margin:0 0 0.75rem;"></p>
+        <div><svg id="sk2-svg" role="img" aria-labelledby="sk2-titel sk2-text" style="display:block;width:100%;height:auto;"></svg></div>
+        <ul id="sk2-legende"></ul>
+      </section>
     </div>
 
     <ArtikelSteuerklasse slot="artikel" />
@@ -178,5 +184,50 @@ function berechne() {
   el.addEventListener('input', berechne);
   el.addEventListener('change', berechne);
 });
+const D = await import(window.__base + 'scripts/diagramm.js');
+let sk2Letzte = false;
+function zeigeAbweichung() {
+  sk2Letzte = true;
+  const a = parseFloat(document.getElementById('einkommen1').value) || 0;
+  const b = parseFloat(document.getElementById('einkommen2').value) || 0;
+  const kinder = parseInt(document.getElementById('kinder').value) || 0;
+  const kinderfreibetraege = Math.max(0, Math.floor(Number(document.getElementById('kfb').value) || 0));
+  const gesamt = a + b;
+  const eur0 = (n) => Math.round(n).toLocaleString('de-DE') + ' \u20ac';
+  const abweichung = (anteilGering, id) => {
+    const gering = gesamt * anteilGering;
+    const k = vergleicheKombinationen({ bruttoJahrA: gesamt - gering, bruttoJahrB: gering, kinder, kinderfreibetraege }).kombinationen.find((x) => x.id === id);
+    return k && k.anwendbar ? Math.abs(k.differenz) : null;
+  };
+  const anteile = D.reihe(0.05, 0.5, 0.025, (t) => ({ iv: abweichung(t, 'IV/IV'), iii: abweichung(t, 'III/V') }));
+  const linie = (feld) => anteile.filter((p) => p[feld] !== null).map((p) => ({ x: p.x * 100, y: p[feld] }));
+  const hierAnteil = gesamt > 0 ? Math.min(a, b) / gesamt : 0;
+  const hierIii = abweichung(Math.min(0.5, Math.max(0.05, hierAnteil)), 'III/V');
+  const hierIv = abweichung(Math.min(0.5, Math.max(0.05, hierAnteil)), 'IV/IV');
+  document.getElementById('sk2-text').textContent =
+    `Der geringer verdienende Partner trägt ${Math.round(hierAnteil * 100)} % zum gemeinsamen Einkommen bei. ` +
+    (hierIii !== null && hierIv !== null ? `Mit III/V weicht der Lohnsteuerabzug um ${eur0(hierIii)} von der echten Jahressteuer ab, mit IV/IV um ${eur0(hierIv)}.` : 'Für diese Einkommen sind nicht alle Kombinationen möglich.');
+  const serien = [
+    { punkte: linie('iv'), farbe: '#999', gestrichelt: true },
+    { punkte: linie('iii'), farbe: '#c8102e' },
+  ].filter((s) => s.punkte.length > 1);
+  if (serien.length) {
+    D.zeichneKurve(document.getElementById('sk2-svg'), {
+      serien, marker: hierIii !== null ? { x: Math.min(50, Math.max(5, hierAnteil * 100)), y: hierIii } : undefined,
+      xFormat: (n) => Math.round(n) + ' %', yFormat: eur0,
+    });
+  }
+  D.zeichneLegende(document.getElementById('sk2-legende'), [
+    { farbe: '#999', name: 'IV / IV' },
+    { farbe: '#c8102e', name: 'III / V (Besserverdienende in III)' },
+  ]);
+}
+['einkommen1', 'einkommen2', 'kinder', 'kfb'].forEach((id) => {
+  document.getElementById(id).addEventListener('input', zeigeAbweichung);
+  document.getElementById(id).addEventListener('change', zeigeAbweichung);
+});
+D.beiGroessenaenderung(() => sk2Letzte && zeigeAbweichung());
+zeigeAbweichung();
+
 berechne();
 </script>

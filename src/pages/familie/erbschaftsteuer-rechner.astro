@@ -86,6 +86,11 @@ const faqs = [
         <div id="steuer">— €</div>
       </div>
       <div id="details" style="margin-top:0.75rem;font-size:0.88rem;color:#666;display:flex;gap:1.5rem;flex-wrap:wrap;"></div>
+      <section id="eb-block" aria-labelledby="eb-titel" style="margin-top:1.5rem;">
+        <h2 id="eb-titel" style="font-size:1.15rem;margin:0 0 0.5rem;">Derselbe Nachlass, je nach Verwandtschaft</h2>
+        <p id="eb-text" style="font-size:0.9rem;margin:0 0 0.5rem;"></p>
+        <div style="overflow-x:auto;"><table id="eb-tabelle"></table></div>
+      </section>
     </div>
     <ArtikelHaerteausgleich slot="artikel" />
   </CalculatorShell>
@@ -142,5 +147,30 @@ function berechne() {
 ['nachlass'].forEach(id =>
   document.getElementById(id).addEventListener('input', berechne));
 document.getElementById('klasse').addEventListener('change', berechne);
+const D = await import(window.__base + 'scripts/diagramm.js');
+const { PERSONENGRUPPEN } = await import(window.__base + 'scripts/erbschaftsteuer.js');
+function zeigeGruppenVergleich() {
+  const nachlass = parseFloat(document.getElementById('nachlass').value) || 500000;
+  const gewaehlt = document.getElementById('klasse').value;
+  const eur0 = (n) => n.toLocaleString('de-DE', { maximumFractionDigits: 0 }) + ' \u20ac';
+  const zeilen = Object.entries(PERSONENGRUPPEN).map(([schluessel, g]) => {
+    const r = berechneErbschaftsteuer({ nachlass, klasse: schluessel });
+    return { schluessel, label: g.label, klasse: g.klasse, r };
+  });
+  const guenstigste = zeilen.reduce((a, b) => (b.r.steuer < a.r.steuer ? b : a));
+  const teuerste = zeilen.reduce((a, b) => (b.r.steuer > a.r.steuer ? b : a));
+  document.getElementById('eb-text').textContent =
+    `Bei ${eur0(nachlass)} reicht die Steuer je nach Verwandtschaft von ${eur0(guenstigste.r.steuer)} bis ${eur0(teuerste.r.steuer)}. Der persönliche Freibetrag entscheidet, wie viel überhaupt versteuert wird.`;
+  D.fuelleTabelle(document.getElementById('eb-tabelle'),
+    ['Erwerber', 'Klasse', 'Freibetrag', 'Steuer', 'Effektiv'],
+    zeilen.map((z) => ({
+      zellen: [z.label, z.klasse, eur0(z.r.freibetrag), eur0(z.r.steuer), Number(z.r.effektiv).toLocaleString('de-DE', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + ' %'],
+      markiert: z.schluessel === gewaehlt,
+    })));
+}
+document.getElementById('nachlass').addEventListener('input', zeigeGruppenVergleich);
+document.getElementById('klasse').addEventListener('change', zeigeGruppenVergleich);
+zeigeGruppenVergleich();
+
 berechne();
 </script>

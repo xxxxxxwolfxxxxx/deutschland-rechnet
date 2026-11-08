@@ -112,6 +112,12 @@ const beispielZeilen = beispiele.map(({ ohneKind, mitKind }) => `
         <div id="kug">— €</div>
       </div>
       <div id="details" style="margin-top:0.75rem;font-size:0.88rem;color:#666;display:flex;gap:1.5rem;flex-wrap:wrap;"></div>
+      <section id="kz-block" aria-labelledby="kz-titel" style="margin-top:1.5rem;">
+        <h2 id="kz-titel" style="font-size:1.15rem;margin:0 0 0.5rem;">Was Ihnen bei jedem Arbeitsausfall netto bleibt</h2>
+        <p id="kz-text" style="font-size:0.9rem;margin:0 0 0.75rem;"></p>
+        <div><svg id="kz-svg" role="img" aria-labelledby="kz-titel kz-text" style="display:block;width:100%;height:auto;"></svg></div>
+        <ul id="kz-legende"></ul>
+      </section>
     </div>
     <ArtikelHalberArbeitsausfall slot="artikel" />
   </CalculatorShell>
@@ -168,6 +174,41 @@ document.querySelectorAll('.preset-btn').forEach(b => {
     berechne();
   });
 });
+const D = await import(window.__base + 'scripts/diagramm.js');
+let kzLetzte = false;
+function zeigeAusfallVerlauf() {
+  kzLetzte = true;
+  const sollEntgelt = parseFloat(document.getElementById('brutto').value) || 3500;
+  const steuerklasse = parseInt(document.getElementById('stklasse').value, 10);
+  const hatKind = document.getElementById('kind').checked;
+  const ausfall = parseFloat(document.getElementById('ausfall').value) || 100;
+  const eur0 = (n) => n.toLocaleString('de-DE', { maximumFractionDigits: 0 }) + ' \u20ac';
+  const reihe = D.reihe(10, 100, 5, (a) => {
+    const r = berechneKurzarbeitergeld({ sollEntgelt, steuerklasse, hatKind, ausfallProzent: a });
+    return { y: r.gesamtNetto, soll: r.sollNetto };
+  });
+  const hier = berechneKurzarbeitergeld({ sollEntgelt, steuerklasse, hatKind, ausfallProzent: ausfall });
+  document.getElementById('kz-text').textContent =
+    `Ohne Kurzarbeit blieben Ihnen ${eur0(hier.sollNetto)} netto. Bei ${ausfall.toLocaleString('de-DE')} % Arbeitsausfall sind es zusammen mit dem Kurzarbeitergeld ${eur0(hier.gesamtNetto)} – ein Verlust von ${eur0(hier.verlust)} im Monat.`;
+  D.zeichneKurve(document.getElementById('kz-svg'), {
+    serien: [
+      { punkte: reihe.map((p) => ({ x: p.x, y: p.soll })), farbe: '#999', gestrichelt: true },
+      { punkte: reihe.map((p) => ({ x: p.x, y: p.y })), farbe: '#c8102e' },
+    ],
+    marker: { x: Math.min(100, Math.max(10, ausfall)), y: hier.gesamtNetto },
+    xFormat: (n) => Math.round(n) + ' %', yFormat: eur0,
+  });
+  D.zeichneLegende(document.getElementById('kz-legende'), [
+    { farbe: '#999', name: 'Netto ohne Kurzarbeit' },
+    { farbe: '#c8102e', name: 'Netto aus Arbeit plus Kurzarbeitergeld' },
+  ]);
+}
+['brutto', 'ausfall'].forEach((id) => document.getElementById(id).addEventListener('input', zeigeAusfallVerlauf));
+['brutto', 'ausfall', 'stklasse', 'kind'].forEach((id) => document.getElementById(id).addEventListener('change', zeigeAusfallVerlauf));
+document.querySelectorAll('.preset-btn').forEach((b) => b.addEventListener('click', zeigeAusfallVerlauf));
+D.beiGroessenaenderung(() => kzLetzte && zeigeAusfallVerlauf());
+zeigeAusfallVerlauf();
+
 berechne();
 </script>
 

@@ -60,6 +60,13 @@ const year = new Date().getFullYear();
         <div id="rate">— €</div>
       </div>
       <div id="details" style="margin-top:0.75rem;font-size:0.88rem;color:#666;display:flex;gap:1.5rem;flex-wrap:wrap;"></div>
+      <section id="tp-block" aria-labelledby="tp-titel" style="margin-top:1.5rem;">
+        <h2 id="tp-titel" style="font-size:1.15rem;margin:0 0 0.5rem;">So schmilzt die Restschuld</h2>
+        <p id="tp-text" style="font-size:0.9rem;margin:0 0 0.75rem;"></p>
+        <div><svg id="tp-svg" role="img" aria-labelledby="tp-titel tp-text" style="display:block;width:100%;height:auto;"></svg></div>
+        <div id="tp-balken" role="img" aria-label="Verhältnis von Zinsen und Tilgung" style="margin-top:0.75rem;"></div>
+        <ul id="tp-legende"></ul>
+      </section>
       <div id="tilgungsplan" style="margin-top:1rem;overflow-x:auto;font-size:0.85rem;"></div>
     </div>
   </CalculatorShell>
@@ -155,5 +162,52 @@ function berechne() {
 }
 ['darlehen','zins','tilgung','sonder'].forEach(id =>
   document.getElementById(id).addEventListener('input', berechne));
+const D = await import(window.__base + 'scripts/diagramm.js');
+let tpLetzte = false;
+// Dieselbe Rechnung wie in berechne() oben (Monatsraten, Sondertilgung gleichmäßig auf 12 Monate verteilt),
+// hier nur mit Jahreswerten der Restschuld für das Diagramm.
+function restschuldVerlauf(darlehen, zins, tilgung, sonder) {
+  const mZins = zins / 100 / 12;
+  const rate = darlehen * (mZins + tilgung / 100 / 12);
+  let rest = darlehen, zinsen = 0, monate = 0;
+  const jahreswerte = [{ x: 0, y: darlehen }];
+  while (rest > 0 && monate < 1200) {
+    const z = rest * mZins;
+    rest = Math.max(0, rest - (rate - z + sonder / 12));
+    zinsen += z;
+    monate++;
+    if (monate % 12 === 0 || rest <= 0) jahreswerte.push({ x: Math.ceil(monate / 12), y: rest });
+  }
+  return { jahreswerte, zinsen, jahre: Math.ceil(monate / 12) };
+}
+function zeigeRestschuldKurve() {
+  tpLetzte = true;
+  const darlehen = parseFloat(document.getElementById('darlehen').value) || 300000;
+  const zins = parseFloat(document.getElementById('zins').value) || 3.5;
+  const tilgung = parseFloat(document.getElementById('tilgung').value) || 2;
+  const sonder = parseFloat(document.getElementById('sonder').value) || 0;
+  const v = restschuldVerlauf(darlehen, zins, tilgung, sonder);
+  const eur0 = (n) => Math.round(n).toLocaleString('de-DE') + ' \u20ac';
+  const nach10 = v.jahreswerte.find((p) => p.x === 10);
+  document.getElementById('tp-text').textContent =
+    `Das Darlehen von ${eur0(darlehen)} ist nach rund ${v.jahre} Jahren getilgt, Sie zahlen dafür ${eur0(v.zinsen)} Zinsen.` +
+    (nach10 ? ` Nach 10 Jahren sind noch ${eur0(nach10.y)} offen.` : '');
+  D.zeichneKurve(document.getElementById('tp-svg'), {
+    serien: [{ punkte: v.jahreswerte }],
+    xFormat: (n) => Math.round(n) + ' J.', yFormat: eur0,
+  });
+  D.zeichneBalken(document.getElementById('tp-balken'), [
+    { wert: darlehen, farbe: '#2f8f83', titel: 'Tilgung ' + eur0(darlehen) },
+    { wert: v.zinsen, farbe: '#c8102e', titel: 'Zinsen ' + eur0(v.zinsen) },
+  ], darlehen + v.zinsen);
+  D.zeichneLegende(document.getElementById('tp-legende'), [
+    { farbe: '#2f8f83', name: 'Darlehen (Tilgung) ' + eur0(darlehen) },
+    { farbe: '#c8102e', name: 'Zinsen ' + eur0(v.zinsen) },
+  ]);
+}
+['darlehen', 'zins', 'tilgung', 'sonder'].forEach((id) => document.getElementById(id).addEventListener('input', zeigeRestschuldKurve));
+D.beiGroessenaenderung(() => tpLetzte && zeigeRestschuldKurve());
+zeigeRestschuldKurve();
+
 berechne();
 </script>

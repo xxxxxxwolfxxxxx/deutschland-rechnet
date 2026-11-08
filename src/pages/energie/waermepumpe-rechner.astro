@@ -84,6 +84,13 @@ const waermepreisWp = STROMPREIS_CENT_PRO_KWH / BEISPIEL.wpJahrescope;
         <div id="ersparnis">— €</div>
       </div>
       <div id="details" style="margin-top:0.75rem;font-size:0.88rem;color:#666;display:flex;gap:1.5rem;flex-wrap:wrap;"></div>
+      <section id="wp-block" aria-labelledby="wp-titel" style="margin-top:1.5rem;">
+        <h2 id="wp-titel" style="font-size:1.15rem;margin:0 0 0.5rem;">Wann sich die Wärmepumpe rechnet</h2>
+        <p id="wp-text" style="font-size:0.9rem;margin:0 0 0.75rem;"></p>
+        <div><svg id="wp-svg" role="img" aria-labelledby="wp-titel wp-text" style="display:block;width:100%;height:auto;"></svg></div>
+        <ul id="wp-legende"></ul>
+        <p style="font-size:0.8rem;color:#666;">Aufsummierte Kosten bei gleichbleibenden Preisen, ohne Wartung und ohne Zinsen auf die Investition.</p>
+      </section>
     </div>
   </CalculatorShell>
 
@@ -110,6 +117,39 @@ function berechne() {
 }
 ['flaeche','verbrauch','gaskosten','stromkosten','wp_jahrescope','investition','förderung'].forEach(id =>
   document.getElementById(id).addEventListener('input', berechne));
+const D = await import(window.__base + 'scripts/diagramm.js');
+let wpLetzte = false;
+function zeigeKumuliert() {
+  wpLetzte = true;
+  const num = (id, fallback) => parseFloat(document.getElementById(id).value) || fallback;
+  const r = berechneWärmepumpe({
+    flaeche: num('flaeche', 120), verbrauch: num('verbrauch', 15000), gaskosten: num('gaskosten', 10),
+    stromkosten: num('stromkosten', STROMPREIS_CENT_PRO_KWH), wpJahrescope: num('wp_jahrescope', 3.5),
+    investition: num('investition', 15000), förderung: num('förderung', 30),
+  });
+  const eur0 = (n) => Math.round(n).toLocaleString('de-DE') + ' \u20ac';
+  const gas = D.reihe(0, 20, 1, (j) => ({ y: r.gasKosten * j }));
+  const wp = D.reihe(0, 20, 1, (j) => ({ y: r.investitionNetto + r.wpKosten * j }));
+  const wechsel = wp.find((p, i) => p.y <= gas[i].y);
+  document.getElementById('wp-text').textContent = wechsel
+    ? `Die Wärmepumpe kostet zunächst ${eur0(r.investitionNetto)} mehr, spart aber ${eur0(r.ersparnis)} im Jahr. Ab dem ${wechsel.x}. Jahr liegt sie insgesamt vorn; nach 20 Jahren sind es ${eur0(gas[20].y - wp[20].y)} weniger als mit Gas.`
+    : `Bei diesen Angaben holt die Wärmepumpe die Investition von ${eur0(r.investitionNetto)} innerhalb von 20 Jahren nicht wieder herein.`;
+  D.zeichneKurve(document.getElementById('wp-svg'), {
+    serien: [
+      { punkte: gas, farbe: '#999', gestrichelt: true },
+      { punkte: wp, farbe: '#c8102e' },
+    ],
+    xFormat: (n) => Math.round(n) + ' J.', yFormat: eur0,
+  });
+  D.zeichneLegende(document.getElementById('wp-legende'), [
+    { farbe: '#999', name: 'Gasheizung (laufende Kosten)' },
+    { farbe: '#c8102e', name: 'Wärmepumpe (Investition nach Förderung plus Strom)' },
+  ]);
+}
+['flaeche', 'verbrauch', 'gaskosten', 'stromkosten', 'wp_jahrescope', 'investition', 'förderung'].forEach((id) => document.getElementById(id).addEventListener('input', zeigeKumuliert));
+D.beiGroessenaenderung(() => wpLetzte && zeigeKumuliert());
+zeigeKumuliert();
+
 berechne();
 </script>
 

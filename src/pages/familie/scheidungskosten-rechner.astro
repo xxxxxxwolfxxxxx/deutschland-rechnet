@@ -124,6 +124,13 @@ const faqs = [
         <div id="kosten">— €</div>
       </div>
       <div id="details" style="margin-top:0.75rem;font-size:0.88rem;color:#666;display:flex;gap:1.5rem;flex-wrap:wrap;"></div>
+      <section id="sk-block" aria-labelledby="sk-titel" style="margin-top:1.5rem;">
+        <h2 id="sk-titel" style="font-size:1.15rem;margin:0 0 0.5rem;">Wohin das Geld fließt – und wie es mit dem Einkommen wächst</h2>
+        <div id="sk-balken" role="img" aria-label="Aufteilung der Scheidungskosten in Gericht und Anwalt"></div>
+        <ul id="sk-legende"></ul>
+        <p id="sk-text" style="font-size:0.9rem;margin:0.5rem 0 0.75rem;"></p>
+        <div><svg id="sk-svg" role="img" aria-labelledby="sk-titel sk-text" style="display:block;width:100%;height:auto;"></svg></div>
+      </section>
     </div>
     <ArtikelScheidungskosten slot="artikel" />
   </CalculatorShell>
@@ -159,5 +166,37 @@ function berechne() {
 }
 ['netto', 'anrechte', 'kindschaft'].forEach((id) => document.getElementById(id).addEventListener('input', berechne));
 document.getElementById('anwalt').addEventListener('change', berechne);
+const D = await import(window.__base + 'scripts/diagramm.js');
+const SK_MAX = 12000;
+let skLetzte = false;
+function zeigeScheidungsVerlauf() {
+  skLetzte = true;
+  const basis = { anrechte: wert('anrechte'), kindschaftssachen: wert('kindschaft'), anwaelte: parseInt(document.getElementById('anwalt').value, 10) };
+  const netto = wert('netto');
+  const r = berechneScheidungskosten({ ...basis, nettoMonat: netto });
+  const anwaltSumme = r.anwaltGesamt;
+  D.zeichneBalken(document.getElementById('sk-balken'), [
+    { wert: r.gericht, farbe: '#6b7a8f', titel: 'Gericht ' + eur(r.gericht) },
+    { wert: anwaltSumme, farbe: '#e8a33d', titel: 'Anwalt ' + eur(anwaltSumme) },
+  ], r.gesamt);
+  D.zeichneLegende(document.getElementById('sk-legende'), [
+    { farbe: '#6b7a8f', name: 'Gericht ' + eur(r.gericht) },
+    { farbe: '#e8a33d', name: (r.anwaelte === 2 ? 'Zwei Anwälte ' : 'Ein Anwalt ') + eur(anwaltSumme) },
+  ]);
+  const punkte = D.reihe(0, SK_MAX, 250, (n) => ({ y: berechneScheidungskosten({ ...basis, nettoMonat: n }).gesamt }));
+  document.getElementById('sk-text').textContent =
+    `Mit ${eur(netto)} Nettoeinkommen im Monat kostet die Scheidung ${eur(r.gesamt)}. Bei ${eur(SK_MAX)} wären es ${eur(punkte[punkte.length - 1].y)}: Das Einkommen bestimmt den Verfahrenswert und damit Gericht und Anwalt gleichermaßen.`;
+  D.zeichneKurve(document.getElementById('sk-svg'), {
+    serien: [{ punkte, stufe: false }], marker: { x: netto, y: r.gesamt },
+    xFormat: (n) => (n / 1000).toLocaleString('de-DE') + ' Tsd. €', yFormat: eur,
+  });
+}
+['netto', 'anrechte', 'kindschaft', 'anwalt'].forEach((id) => {
+  document.getElementById(id).addEventListener('input', zeigeScheidungsVerlauf);
+  document.getElementById(id).addEventListener('change', zeigeScheidungsVerlauf);
+});
+D.beiGroessenaenderung(() => skLetzte && zeigeScheidungsVerlauf());
+zeigeScheidungsVerlauf();
+
 berechne();
 </script>

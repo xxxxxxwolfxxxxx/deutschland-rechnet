@@ -123,6 +123,12 @@ const faqs = [
         <div id="endkapital">— €</div>
       </div>
       <div id="details" style="margin-top:0.75rem;font-size:0.88rem;color:#666;display:flex;gap:1.5rem;flex-wrap:wrap;"></div>
+      <section id="et-block" aria-labelledby="et-titel" style="margin-top:1.5rem;">
+        <h2 id="et-titel" style="font-size:1.15rem;margin:0 0 0.5rem;">Eingezahlt und erwirtschaftet im Zeitverlauf</h2>
+        <p id="et-text" style="font-size:0.9rem;margin:0 0 0.75rem;"></p>
+        <div><svg id="et-svg" role="img" aria-labelledby="et-titel et-text" style="display:block;width:100%;height:auto;"></svg></div>
+        <ul id="et-legende"></ul>
+      </section>
     </div>
     <ArtikelRateOderLaufzeit slot="artikel" />
   </CalculatorShell>
@@ -166,5 +172,35 @@ function berechne() {
 ['startkapital', 'sparrate', 'rendite', 'laufzeit', 'inflation'].forEach((id) =>
   document.getElementById(id).addEventListener('input', berechne));
 ['fondsart', 'pauschbetrag'].forEach((id) => document.getElementById(id).addEventListener('change', berechne));
+const D = await import(window.__base + 'scripts/diagramm.js');
+let etLetzte = false;
+function zeigeSparplanVerlauf() {
+  etLetzte = true;
+  const jahre = Math.max(1, Math.round(wert('laufzeit')));
+  const start = wert('startkapital');
+  const rate = wert('sparrate');
+  const v = sparplanVerlauf({ startkapital: start, sparrate: rate, renditeProzent: wert('rendite'), jahre });
+  const kapital = v.jahreswerte.map((y, i) => ({ x: i, y }));
+  const eingezahlt = kapital.map((p) => ({ x: p.x, y: start + rate * 12 * p.x }));
+  document.getElementById('et-text').textContent =
+    `Nach ${jahre} Jahren haben Sie ${eur(v.eingezahlt)} eingezahlt, der Depotwert vor Steuern liegt bei ${eur(v.endkapital)}. ` +
+    `${eur(v.gewinn)} stammen aus Rendite – das sind ${v.endkapital > 0 ? Math.round((v.gewinn / v.endkapital) * 100) : 0} % des Endwerts.`;
+  D.zeichneKurve(document.getElementById('et-svg'), {
+    serien: [
+      { punkte: eingezahlt, farbe: '#999', gestrichelt: true },
+      { punkte: kapital, farbe: '#c8102e' },
+    ],
+    marker: { x: kapital[kapital.length - 1].x, y: v.endkapital },
+    xFormat: (n) => Math.round(n) + ' J.', yFormat: eur,
+  });
+  D.zeichneLegende(document.getElementById('et-legende'), [
+    { farbe: '#999', name: 'Eingezahlt' },
+    { farbe: '#c8102e', name: 'Depotwert vor Steuern' },
+  ]);
+}
+['startkapital', 'sparrate', 'rendite', 'laufzeit'].forEach((id) => document.getElementById(id).addEventListener('input', zeigeSparplanVerlauf));
+D.beiGroessenaenderung(() => etLetzte && zeigeSparplanVerlauf());
+zeigeSparplanVerlauf();
+
 berechne();
 </script>

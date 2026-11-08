@@ -136,6 +136,10 @@ const zuletztGeaendert = [...laender]
           <strong id="v-teuer">—</strong>
         </div>
         <p id="v-fazit" class="vergleich-fazit"></p>
+      <section id="gr-block" aria-labelledby="gr-titel" style="margin-top:1.5rem;">
+        <h2 id="gr-titel" style="font-size:1.15rem;margin:0 0 0.5rem;">Alle 16 Bundesländer im Vergleich</h2>
+        <div id="gr-liste" role="list" aria-labelledby="gr-titel"></div>
+      </section>
       </div>
     </div>
 
@@ -191,6 +195,37 @@ function berechne() {
 ['kaufpreis', 'bundesland'].forEach(id =>
   document.getElementById(id).addEventListener('input', berechne)
 );
+function zeigeLaenderRanking() {
+  const kp = parseFloat(document.getElementById('kaufpreis').value) || 0;
+  const gewaehlt = document.getElementById('bundesland').value;
+  const zeilen = LAENDER.map((l) => ({ l, steuer: berechneGrunderwerbsteuer({ kaufpreis: kp, bundesland: l.kuerzel }).steuer }))
+    .sort((a, b) => a.steuer - b.steuer || a.l.name.localeCompare(b.l.name, 'de'));
+  const max = Math.max(1, ...zeilen.map((z) => z.steuer));
+  const liste = document.getElementById('gr-liste');
+  liste.replaceChildren();
+  zeilen.forEach((z) => {
+    const aktiv = z.l.kuerzel === gewaehlt;
+    const zeile = document.createElement('div');
+    zeile.setAttribute('role', 'listitem');
+    Object.assign(zeile.style, { display: 'flex', alignItems: 'center', gap: '0.6rem', padding: '0.2rem 0.3rem', fontSize: '0.85rem', borderRadius: '4px', background: aktiv ? '#fff3cd' : 'transparent', fontWeight: aktiv ? '600' : '400' });
+    const name = document.createElement('span');
+    name.textContent = z.l.name;
+    Object.assign(name.style, { flex: '0 1 9.5rem', minWidth: '0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' });
+    const spur = document.createElement('div');
+    Object.assign(spur.style, { flex: '1', background: '#f1f1f1', borderRadius: '3px', height: '0.9rem', minWidth: '2rem' });
+    const balken = document.createElement('div');
+    Object.assign(balken.style, { width: `${(z.steuer / max) * 100}%`, height: '100%', borderRadius: '3px', background: aktiv ? '#c8102e' : '#6b7a8f' });
+    spur.appendChild(balken);
+    const wert = document.createElement('span');
+    wert.textContent = `${z.l.satz.toLocaleString('de-DE', { minimumFractionDigits: 1 })} % \u00b7 ${eur0(z.steuer)}`;
+    Object.assign(wert.style, { flex: '0 0 auto', textAlign: 'right', whiteSpace: 'nowrap' });
+    zeile.append(name, spur, wert);
+    liste.appendChild(zeile);
+  });
+}
+['kaufpreis', 'bundesland'].forEach((id) => document.getElementById(id).addEventListener('input', zeigeLaenderRanking));
+zeigeLaenderRanking();
+
 berechne();
 </script>
 

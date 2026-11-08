@@ -67,6 +67,12 @@ const faqs = [
       </div>
       <div id="details" style="margin-top:0.75rem;font-size:0.88rem;color:#666;display:flex;gap:1.5rem;flex-wrap:wrap;"></div>
       <div id="bbg-hinweis" style="display:none;margin-top:0.75rem;padding:0.75rem 1rem;border-radius:8px;background:#fff3cd;font-size:0.88rem;"></div>
+      <section id="rp-block" aria-labelledby="rp-titel" style="margin-top:1.5rem;">
+        <h2 id="rp-titel" style="font-size:1.15rem;margin:0 0 0.5rem;">Was Ihr Verdienst und Ihre Beitragsjahre an Rente bringen</h2>
+        <p id="rp-text" style="font-size:0.9rem;margin:0 0 0.75rem;"></p>
+        <div><svg id="rp-svg" role="img" aria-labelledby="rp-titel rp-text" style="display:block;width:100%;height:auto;"></svg></div>
+        <div style="overflow-x:auto;"><table id="rp-tabelle"></table></div>
+      </section>
     </div>
     <ArtikelRentenpunkte slot="artikel" />
   </CalculatorShell>
@@ -111,5 +117,34 @@ function berechne() {
   }
 }
 ['brutto','jahre'].forEach(id => document.getElementById(id).addEventListener('input', berechne));
+const D = await import(window.__base + 'scripts/diagramm.js');
+let rpLetzte = false;
+function zeigeRentenVerlauf() {
+  rpLetzte = true;
+  const brutto = parseFloat(document.getElementById('brutto').value) || 0;
+  const jahre = parseInt(document.getElementById('jahre').value) || 1;
+  const eur0 = (n) => n.toLocaleString('de-DE', { maximumFractionDigits: 0 }) + ' \u20ac';
+  const grenze = berechneRentenpunkte({ bruttoJahr: 1, jahre }).beitragsbemessungsgrenze;
+  const max = Math.round(grenze * 1.3 / 5000) * 5000;
+  const punkte = D.reihe(0, max, 2500, (b) => ({ y: berechneRentenpunkte({ bruttoJahr: b, jahre }).monatsrente }));
+  const hier = berechneRentenpunkte({ bruttoJahr: brutto, jahre });
+  document.getElementById('rp-text').textContent =
+    `Aus ${eur0(brutto)} brutto im Jahr und ${jahre} ${jahre === 1 ? 'Jahr' : 'Jahren'} ergibt sich eine Monatsrente von ${eur0(hier.monatsrente)}. ` +
+    `Über der Beitragsbemessungsgrenze von ${eur0(grenze)} wächst die Rente nicht mehr.`;
+  D.zeichneKurve(document.getElementById('rp-svg'), {
+    serien: [{ punkte }], marker: { x: Math.min(brutto, max), y: hier.monatsrente },
+    xFormat: (n) => (n / 1000).toLocaleString('de-DE') + ' Tsd. \u20ac', yFormat: eur0,
+  });
+  const stufen = [...new Set([10, 20, 30, 40, 45, jahre])].sort((a, b) => a - b);
+  D.fuelleTabelle(document.getElementById('rp-tabelle'), ['Beitragsjahre', 'Entgeltpunkte', 'Monatsrente'],
+    stufen.map((j) => {
+      const r = berechneRentenpunkte({ bruttoJahr: brutto, jahre: j });
+      return { zellen: [j === 1 ? '1 Jahr' : j + ' Jahre', pkt(r.entgeltpunkteGesamt), fmt(r.monatsrente)], markiert: j === jahre };
+    }));
+}
+['brutto', 'jahre'].forEach((id) => document.getElementById(id).addEventListener('input', zeigeRentenVerlauf));
+D.beiGroessenaenderung(() => rpLetzte && zeigeRentenVerlauf());
+zeigeRentenVerlauf();
+
 berechne();
 </script>
