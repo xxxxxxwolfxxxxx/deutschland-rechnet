@@ -61,6 +61,10 @@ const faqs = [
         <div id="geburtstermin">—</div>
       </div>
       <div id="details" style="margin-top:0.75rem;font-size:0.88rem;color:#666;display:flex;gap:1.5rem;flex-wrap:wrap;"></div>
+      <section id="sw-block" aria-labelledby="sw-titel" style="margin-top:1.5rem;">
+        <h2 id="sw-titel" style="font-size:1.15rem;margin:0 0 0.75rem;">Ihr Zeitplan rund um die Geburt</h2>
+        <ol id="sw-zeitleiste" style="list-style:none;margin:0;padding:0 0 0 1.1rem;border-left:2px solid #d5d5d5;"></ol>
+      </section>
     </div>
     <ArtikelSchwangerschaft slot="artikel" />
   </CalculatorShell>
@@ -104,5 +108,49 @@ document.getElementById('letztePeriode').value =
   el.addEventListener('input', berechne);
   el.addEventListener('change', berechne);
 });
+const { TRAGZEIT_TAGE, SCHUTZFRIST_VOR_GEBURT_TAGE, SCHUTZFRIST_NACH_GEBURT_TAGE } =
+  await import(window.__base + 'scripts/schwangerschaft.js');
+function zeigeZeitplan() {
+  const lp = document.getElementById('letztePeriode').value;
+  if (!lp) return;
+  const netto = parseFloat(document.getElementById('netto').value) || 0;
+  const arbeitgeberZuschuss = document.getElementById('arbeitgeber').value === 'ja';
+  const r = berechneSchwangerschaft({ letztePeriode: lp, netto, arbeitgeberZuschuss });
+  const TAG = 86400000;
+  const gt = r.geburtstermin.getTime();
+  const ereignisse = [
+    { t: gt - SCHUTZFRIST_VOR_GEBURT_TAGE * TAG, titel: `Mutterschutz beginnt (${SCHUTZFRIST_VOR_GEBURT_TAGE} Tage vor dem Termin)`, farbe: '#e8a33d', zusatz: `Mutterschaftsgeld vor der Geburt: ${fmt(r.mutterschaftsgeldVorGeburt)}` },
+    { t: gt, titel: 'Errechneter Geburtstermin', farbe: '#c8102e', zusatz: `${TRAGZEIT_TAGE} Tage nach dem ersten Tag der letzten Periode` },
+    { t: gt + SCHUTZFRIST_NACH_GEBURT_TAGE * TAG, titel: `Mutterschutz endet (${SCHUTZFRIST_NACH_GEBURT_TAGE} Tage nach der Geburt)`, farbe: '#2f8f83', zusatz: `Mutterschaftsgeld nach der Geburt: ${fmt(r.mutterschaftsgeldNachGeburt)}` },
+  ];
+  const heute = new Date();
+  const heuteUTC = Date.UTC(heute.getFullYear(), heute.getMonth(), heute.getDate());
+  ereignisse.push({ t: heuteUTC, titel: `Heute: ${r.ssw}+${r.sswTage}. Schwangerschaftswoche`, farbe: '#1b1b1b', zusatz: '' });
+  ereignisse.sort((a, b) => a.t - b.t);
+  const liste = document.getElementById('sw-zeitleiste');
+  liste.replaceChildren();
+  ereignisse.forEach((e) => {
+    const li = document.createElement('li');
+    Object.assign(li.style, { position: 'relative', padding: '0 0 0.9rem 0.9rem', fontSize: '0.9rem', lineHeight: '1.45' });
+    const punkt = document.createElement('span');
+    Object.assign(punkt.style, { position: 'absolute', left: '-1.6rem', top: '0.3rem', width: '0.7rem', height: '0.7rem', borderRadius: '50%', background: e.farbe, border: '2px solid ' + e.farbe });
+    const titel = document.createElement('strong');
+    titel.textContent = `${fmtD(new Date(e.t))} \u00b7 ${e.titel}`;
+    li.append(punkt, titel);
+    if (e.zusatz) {
+      const z = document.createElement('span');
+      z.textContent = e.zusatz;
+      Object.assign(z.style, { display: 'block', fontSize: '0.8rem', color: '#666' });
+      li.appendChild(z);
+    }
+    liste.appendChild(li);
+  });
+}
+['letztePeriode', 'netto', 'arbeitgeber'].forEach((id) => {
+  document.getElementById(id).addEventListener('input', zeigeZeitplan);
+  document.getElementById(id).addEventListener('change', zeigeZeitplan);
+});
+zeigeZeitplan();
+
 berechne();
 </script>
