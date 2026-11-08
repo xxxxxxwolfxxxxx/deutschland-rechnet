@@ -79,6 +79,16 @@ const faqs = [
         <div id="unterhalt">— €</div>
       </div>
 
+      <section class="verlauf" aria-labelledby="verlauf-titel">
+        <h2 id="verlauf-titel">So ändert sich der Unterhalt mit dem Einkommen</h2>
+        <p class="verlauf-text" id="verlauf-text"></p>
+        <div class="verlauf-flaeche"><svg id="verlauf-svg" role="img" aria-labelledby="verlauf-titel verlauf-text"></svg></div>
+        <ul class="verlauf-legende">
+          <li><span style="border-color:#c8102e"></span>Gezahlter Unterhalt</li>
+          <li><span style="border-color:#999;border-top-style:dashed"></span>Anspruch ohne Selbstbehalt-Grenze</li>
+        </ul>
+      </section>
+
       <div id="rechenweg" style="margin-top:1.25rem;"></div>
       <div id="art-hinweis" class="bl-hinweis"></div>
     </div>
@@ -124,24 +134,24 @@ const faqs = [
 </Layout>
 
 <style>
-.rechenweg-table {
+#rechenweg :global(.rechenweg-table) {
   width: 100%;
   border-collapse: collapse;
   font-size: 0.87rem;
   margin-top: 0.5rem;
 }
-.rechenweg-table tr td {
+#rechenweg :global(.rechenweg-table) :global(tr td) {
   padding: 0.45rem 0.5rem;
   border-bottom: 1px solid var(--border, #e5e5e5);
   vertical-align: top;
 }
-.rechenweg-table tr:last-child td { border-bottom: none; }
-.rechenweg-table td:first-child { color: var(--muted, #888); width: 55%; }
-.rechenweg-table td:last-child { font-weight: 600; text-align: right; }
-.rechenweg-table tr.sum-row td { font-weight: 700; border-top: 2px solid var(--border, #e5e5e5); background: var(--surface, #f9f9f9); }
-.rechenweg-table tr.warn-row td { color: #c8102e; }
-.rechenweg-table tr.note-row td { font-weight: 400; text-align: left; color: var(--muted, #888); font-size: 0.82rem; }
-.rw-heading {
+#rechenweg :global(.rechenweg-table) :global(tr:last-child td) { border-bottom: none; }
+#rechenweg :global(.rechenweg-table) :global(td:first-child) { color: var(--muted, #888); width: 55%; }
+#rechenweg :global(.rechenweg-table) :global(td:last-child) { font-weight: 600; text-align: right; }
+#rechenweg :global(.rechenweg-table) :global(tr.sum-row td) { font-weight: 700; border-top: 2px solid var(--border, #e5e5e5); background: var(--surface, #f9f9f9); }
+#rechenweg :global(.rechenweg-table) :global(tr.warn-row td) { color: #c8102e; }
+#rechenweg :global(.rechenweg-table) :global(tr.note-row td) { font-weight: 400; text-align: left; color: var(--muted, #888); font-size: 0.82rem; }
+#rechenweg :global(.rw-heading) {
   font-size: 0.75rem;
   font-weight: 700;
   letter-spacing: 0.06em;
@@ -159,6 +169,13 @@ const faqs = [
   color: var(--text, #333);
   line-height: 1.55;
 }
+
+.verlauf { margin-top: 1.5rem; }
+.verlauf h2 { font-size: 1.15rem; margin: 0 0 0.5rem; }
+.verlauf-text { font-size: 0.9rem; margin: 0 0 0.75rem; }
+.verlauf-flaeche svg { display: block; width: 100%; height: auto; }
+.verlauf-legende { list-style: none; padding: 0; margin: 0.4rem 0 0; display: flex; flex-wrap: wrap; gap: 0.3rem 1rem; font-size: 0.82rem; }
+.verlauf-legende span { display: inline-block; width: 1.2rem; height: 0; border-top: 3px solid; margin-right: 0.35rem; vertical-align: middle; }
 </style>
 
 <script type="module">
@@ -176,6 +193,74 @@ const ART_HINWEIS = {
   nachehel: '<strong>Nachehelicher Unterhalt (§§ 1569 ff. BGB)</strong><br>Er setzt einen eigenen Unterhaltstatbestand voraus – Betreuung eines Kindes, Alter, Krankheit oder Erwerbslosigkeit. Grundsätzlich gilt Eigenverantwortung und damit volle Erwerbsobliegenheit. Der Anspruch wird nach § 1578b BGB häufig der Höhe nach begrenzt oder befristet. Die Berechnung der Höhe entspricht der des Trennungsunterhalts.',
 };
 
+
+const SVG_NS = 'http://www.w3.org/2000/svg';
+const VERLAUF = { maxEinkommen: 10000, schritt: 100, links: 52, rechts: 14, oben: 14, unten: 32 };
+let letzterVerlauf = null;
+function svgEl(name, attrs) {
+  const n = document.createElementNS(SVG_NS, name);
+  Object.entries(attrs).forEach(([k, v]) => n.setAttribute(k, v));
+  return n;
+}
+function zeichneVerlauf(eingabe, aktuell) {
+  letzterVerlauf = { eingabe, aktuell };
+  const svg = $('verlauf-svg');
+  const breite = Math.max(280, Math.min(640, svg.parentElement.clientWidth || 640));
+  const hoehe = breite < 480 ? 220 : 260;
+  const reihe = [];
+  for (let e = 0; e <= VERLAUF.maxEinkommen; e += VERLAUF.schritt) {
+    reihe.push({ e, ...berechneEhegattenunterhalt({ ...eingabe, einkommenPflichtig: e }) });
+  }
+  const yMax = Math.max(1, ...reihe.map(p => p.anspruchVorLeistungsfaehigkeit));
+  const x = e => VERLAUF.links + (e / VERLAUF.maxEinkommen) * (breite - VERLAUF.links - VERLAUF.rechts);
+  const y = v => hoehe - VERLAUF.unten - (v / yMax) * (hoehe - VERLAUF.unten - VERLAUF.oben);
+  svg.setAttribute('viewBox', `0 0 ${breite} ${hoehe}`);
+  svg.replaceChildren();
+  [0, 0.5, 1].forEach(f => {
+    svg.appendChild(svgEl('line', { x1: VERLAUF.links, y1: y(yMax * f), x2: breite - VERLAUF.rechts, y2: y(yMax * f), stroke: '#e3e3e3', 'stroke-width': 1 }));
+    const t = svgEl('text', { x: VERLAUF.links - 6, y: y(yMax * f) + 4, 'text-anchor': 'end', 'font-size': 11, fill: '#666' });
+    t.textContent = Math.round(yMax * f).toLocaleString('de-DE') + ' €';
+    svg.appendChild(t);
+  });
+  [0, 2500, 5000, 7500, 10000].forEach(e => {
+    const t = svgEl('text', { x: x(e), y: hoehe - 12, 'text-anchor': 'middle', 'font-size': 11, fill: '#666' });
+    t.textContent = (e / 1000).toLocaleString('de-DE') + ' Tsd. €';
+    svg.appendChild(t);
+  });
+  const linie = (feld, attrs) => svg.appendChild(svgEl('polyline', {
+    points: reihe.map(p => `${x(p.e).toFixed(1)},${y(p[feld]).toFixed(1)}`).join(' '),
+    fill: 'none', 'stroke-width': 2.5, ...attrs,
+  }));
+  linie('anspruchVorLeistungsfaehigkeit', { stroke: '#999', 'stroke-dasharray': '5 4', 'stroke-width': 2 });
+  linie('unterhalt', { stroke: '#c8102e' });
+  if (aktuell.einkommen <= VERLAUF.maxEinkommen) {
+    svg.appendChild(svgEl('circle', { cx: x(aktuell.einkommen), cy: y(aktuell.unterhalt), r: 5, fill: '#fff', stroke: '#1b1b1b', 'stroke-width': 2 }));
+  }
+  const euro0 = n => n.toLocaleString('de-DE', { maximumFractionDigits: 0 }) + ' €';
+  const erster = reihe.findIndex(p => p.unterhalt > 0);
+  const saetze = [];
+  if (erster < 0) {
+    saetze.push('In diesem Einkommensbereich bleibt dem Pflichtigen nach dem Selbstbehalt nichts übrig, es entsteht kein Unterhalt.');
+  } else {
+    saetze.push(`Unterhalt entsteht erst ab einem bereinigten Netto von rund ${euro0(reihe[erster].e)}.`);
+    const begrenzt = reihe.filter(p => p.mangelfall && p.unterhalt > 0);
+    if (begrenzt.length) {
+      saetze.push(`Bis rund ${euro0(begrenzt[begrenzt.length - 1].e)} begrenzt der Selbstbehalt den Anspruch (Mangelfall).`);
+    }
+    const frei = reihe.findIndex((p, i) => i >= erster && !p.mangelfall && p.unterhalt > 0 && i + 1 < reihe.length);
+    if (frei >= 0) {
+      const steigung = Math.round((reihe[frei + 1].unterhalt - reihe[frei].unterhalt) / VERLAUF.schritt * 100);
+      if (steigung > 0) saetze.push(`Danach wächst der Unterhalt um ${steigung} % jedes weiteren Euros.`);
+    }
+    const deckel = reihe.find(p => p.konkreteBedarfsberechnung);
+    if (deckel) saetze.push(`Ab rund ${euro0(deckel.e)} endet die Quotenmethode, der Unterhalt steigt nicht weiter.`);
+  }
+  $('verlauf-text').textContent = saetze.join(' ');
+}
+window.addEventListener('resize', () => {
+  if (letzterVerlauf) zeichneVerlauf(letzterVerlauf.eingabe, letzterVerlauf.aktuell);
+});
+
 function berechne() {
   const einkommenPflichtig = parseFloat($('einkommen1').value) || 0;
   const einkommenBerechtigt = parseFloat($('einkommen2').value) || 0;
@@ -190,6 +275,10 @@ function berechne() {
   });
 
   $('unterhalt').textContent = fmt(r.unterhalt);
+  zeichneVerlauf(
+    { einkommenBerechtigt, erwerbseinkommenPflichtig, erwerbseinkommenBerechtigt, kindesunterhalt },
+    { einkommen: einkommenPflichtig, unterhalt: r.unterhalt },
+  );
   $('result-box').style.background = r.mangelfall ? '#c8102e' : '';
 
   const bonusProzent = ERWERBSTAETIGENBONUS * 100;
