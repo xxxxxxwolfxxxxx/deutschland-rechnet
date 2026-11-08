@@ -162,6 +162,11 @@ const jahrFelder = Array.from({ length: ABRECHNUNGSJAHRE }, (_, i) => ({ id: 'ja
         </div>
       </div>
       <div id="details" style="margin-top:0.75rem;font-size:0.9rem;color:#555;display:flex;flex-direction:column;gap:0.3rem;"></div>
+      <section id="ea-block" aria-labelledby="ea-titel" style="margin-top:1.5rem;">
+        <h2 id="ea-titel" style="font-size:1.15rem;margin:0 0 0.5rem;">Wo Ihr Gebäude auf der Effizienzskala steht</h2>
+        <div id="ea-skala" role="img" aria-labelledby="ea-titel"></div>
+        <p id="ea-text" style="font-size:0.9rem;margin:0.5rem 0 0;"></p>
+      </section>
 
       <h2 style="margin-top:1.75rem;font-size:1.1rem;">Welcher Ausweis ist vorgeschrieben?</h2>
       <div class="calc-grid">
@@ -272,4 +277,41 @@ document.querySelectorAll('.calc-form input, .calc-form select').forEach((el) =>
 });
 berechneKennwert();
 pruefePflicht();
+const { EFFIZIENZKLASSEN } = await import(window.__base + 'scripts/jahresenergie.js');
+const KLASSEN_FARBEN = ['#1a9850', '#66bd63', '#a6d96a', '#d9ef8b', '#fee08b', '#fdae61', '#f46d43', '#d73027', '#a50026'];
+function zeigeKlassenSkala() {
+  const r = verbrauchskennwert({
+    traeger: feld('traeger').value,
+    jahresmengen: ['jahr1', 'jahr2', 'jahr3'].map(zahl),
+    wohnflaeche: zahl('wohnflaeche'),
+    gebaeudenutzflaeche: zahl('gnf'),
+    mitBeheiztemKeller: feld('keller').checked,
+    dezentralesWarmwasser: feld('dezentral').checked,
+  });
+  const skala = feld('ea-skala');
+  skala.replaceChildren();
+  Object.assign(skala.style, { display: 'flex', gap: '2px' });
+  EFFIZIENZKLASSEN.forEach((k, i) => {
+    const feldK = document.createElement('div');
+    const aktiv = r && r.klasse === k.klasse;
+    Object.assign(feldK.style, { flex: '1', textAlign: 'center', padding: aktiv ? '0.9rem 0' : '0.5rem 0', background: KLASSEN_FARBEN[i], color: i > 5 ? '#fff' : '#222', fontWeight: aktiv ? '700' : '500', fontSize: aktiv ? '1.05rem' : '0.8rem', borderRadius: '3px', outline: aktiv ? '3px solid #1b1b1b' : 'none', alignSelf: 'center', minWidth: '0' });
+    feldK.textContent = k.klasse;
+    skala.appendChild(feldK);
+  });
+  if (!r) {
+    feld('ea-text').textContent = 'Tragen Sie mindestens einen Jahresverbrauch und eine Fläche ein, dann erscheint Ihre Klasse auf der Skala.';
+    return;
+  }
+  const idx = EFFIZIENZKLASSEN.findIndex((k) => k.klasse === r.klasse);
+  const unter = idx > 0 ? EFFIZIENZKLASSEN[idx - 1] : null;
+  const obergrenze = EFFIZIENZKLASSEN[idx].bis;
+  feld('ea-text').textContent =
+    `${r.kwhJeQm} kWh/(m\u00b2\u00b7a) ergeben Klasse ${r.klasse}` +
+    (Number.isFinite(obergrenze) ? ` (Obergrenze ${obergrenze} kWh/(m\u00b2\u00b7a)).` : ' (über 250 kWh/(m\u00b2\u00b7a)).') +
+    (unter ? ` Für Klasse ${unter.klasse} müsste der Verbrauch auf höchstens ${unter.bis} kWh/(m\u00b2\u00b7a) sinken.` : ' Das ist die beste Klasse.');
+}
+document.addEventListener('input', zeigeKlassenSkala);
+document.addEventListener('change', zeigeKlassenSkala);
+zeigeKlassenSkala();
+
 </script>
