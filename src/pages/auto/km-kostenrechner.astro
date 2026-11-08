@@ -153,6 +153,31 @@ const base = import.meta.env.BASE_URL;
 
       <p class="hint" id="fixedShareHint"></p>
 
+      <section class="breakdown" aria-labelledby="breakdownTitle">
+        <h3 id="breakdownTitle">Wohin dein Geld geht</h3>
+        <div class="bar" id="costBar" role="img" aria-label=""></div>
+        <ul class="bar-legend" id="costLegend"></ul>
+      </section>
+
+      <section class="degression" aria-labelledby="degressionTitle">
+        <h3 id="degressionTitle">Was eine andere Fahrleistung ändern würde</h3>
+        <p class="hint">
+          Die Fixkosten bleiben gleich. Sprit, Wartung und Verschleiß wachsen
+          im gleichen Verhältnis mit den Kilometern. Deine Zeile ist hervorgehoben.
+        </p>
+        <table id="degressionTable">
+          <thead>
+            <tr>
+              <th scope="col">Kilometer pro Jahr</th>
+              <th scope="col">Kosten pro km</th>
+              <th scope="col">Pro Monat</th>
+              <th scope="col">Pro Jahr</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </section>
+
       <div class="info-box">
         <h3>Was gehört zu den Fahrtkosten?</h3>
         <ul>
@@ -355,6 +380,90 @@ const base = import.meta.env.BASE_URL;
   margin: 0 0 1.5rem 0;
 }
 
+.breakdown,
+.degression {
+  margin-bottom: 2rem;
+}
+
+.breakdown h3,
+.degression h3 {
+  font-size: 1.05rem;
+  margin: 0 0 0.9rem 0;
+  color: var(--text);
+}
+
+.bar {
+  display: flex;
+  height: 2.25rem;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  border: 1px solid var(--border);
+}
+
+.bar-segment {
+  min-width: 2px;
+}
+
+.bar-legend {
+  list-style: none;
+  margin: 1rem 0 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 0.5rem 1.5rem;
+}
+
+.bar-legend li {
+  display: grid;
+  grid-template-columns: 0.9rem 1fr auto;
+  align-items: center;
+  gap: 0.6rem;
+  font-size: 0.88rem;
+  color: var(--text);
+}
+
+.bar-swatch {
+  width: 0.9rem;
+  height: 0.9rem;
+  border-radius: 2px;
+}
+
+.bar-amount {
+  font-variant-numeric: tabular-nums;
+  color: var(--text-light);
+}
+
+.degression table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.92rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.degression th,
+.degression td {
+  padding: 0.6rem 0.75rem;
+  text-align: right;
+  border-bottom: 1px solid var(--border);
+}
+
+.degression th:first-child,
+.degression td:first-child {
+  text-align: left;
+}
+
+.degression th {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-light);
+}
+
+.degression tr.is-current td {
+  background: #e3f2fd;
+  font-weight: 700;
+  color: #0d47a1;
+}
+
 .info-box {
   background: var(--bg);
   padding: 1.5rem;
@@ -407,6 +516,76 @@ const num = (id) => {
   return Number.isFinite(value) && value >= 0 ? value : 0;
 };
 
+const percent = new Intl.NumberFormat('de-DE', { maximumFractionDigits: 0 });
+const kmFormat = new Intl.NumberFormat('de-DE');
+
+// Balken und Legende aus den sieben Kostenposten; Posten mit 0 € entfallen.
+function renderBreakdown(items, total) {
+  const bar = document.getElementById('costBar');
+  const legend = document.getElementById('costLegend');
+  bar.replaceChildren();
+  legend.replaceChildren();
+  if (total <= 0) return;
+
+  const parts = items.filter((item) => item.amount > 0);
+  parts.forEach((item) => {
+    const share = (item.amount / total) * 100;
+
+    const segment = document.createElement('div');
+    segment.className = 'bar-segment';
+    segment.style.flex = `${item.amount} 0 0`;
+    segment.style.background = item.color;
+    bar.appendChild(segment);
+
+    const li = document.createElement('li');
+    const swatch = document.createElement('span');
+    swatch.className = 'bar-swatch';
+    swatch.style.background = item.color;
+    const label = document.createElement('span');
+    label.textContent = `${item.label} (${percent.format(share)} %)`;
+    const amount = document.createElement('span');
+    amount.className = 'bar-amount';
+    amount.textContent = euro.format(item.amount);
+    li.append(swatch, label, amount);
+    legend.appendChild(li);
+  });
+
+  bar.setAttribute(
+    'aria-label',
+    'Kostenanteile pro Jahr: ' + parts
+      .map((item) => `${item.label} ${percent.format((item.amount / total) * 100)} Prozent`)
+      .join(', '),
+  );
+}
+
+// Fixkosten bleiben, variable Kosten wachsen proportional. Bei der eigenen
+// Fahrleistung ergibt das exakt den Satz aus dem Hauptergebnis.
+function renderDegression(annualKm, variablePerYear, fixedPerYear) {
+  const body = document.querySelector('#degressionTable tbody');
+  body.replaceChildren();
+
+  const steps = [5000, 10000, 15000, 20000, 30000];
+  const rows = (steps.includes(annualKm) ? steps : [...steps, annualKm])
+    .sort((a, b) => a - b);
+
+  rows.forEach((km) => {
+    const total = fixedPerYear + variablePerYear * (km / annualKm);
+    const tr = document.createElement('tr');
+    if (km === annualKm) tr.className = 'is-current';
+    [
+      `${kmFormat.format(km)} km`,
+      euroPerKm.format(total / km),
+      euroExact.format(total / 12),
+      euro.format(total),
+    ].forEach((text) => {
+      const td = document.createElement('td');
+      td.textContent = text;
+      tr.appendChild(td);
+    });
+    body.appendChild(tr);
+  });
+}
+
 document.getElementById('kmKostenForm').addEventListener('submit', function (e) {
   e.preventDefault();
 
@@ -436,6 +615,20 @@ document.getElementById('kmKostenForm').addEventListener('submit', function (e) 
     + `Würdest du nur die Hälfte fahren, läge dein Kilometersatz bei `
     + `${euroPerKm.format((totalPerYear - variablePerYear / 2) / (annualKm / 2))} statt `
     + `${euroPerKm.format(costPerKm)}.`;
+
+  renderBreakdown(
+    [
+      { label: 'Sprit bzw. Strom', amount: fuelPerYear, color: '#0d47a1' },
+      { label: 'Wartung & Reparatur', amount: num('maintenance'), color: '#1976d2' },
+      { label: 'Verschleiß', amount: wearPerYear, color: '#64b5f6' },
+      { label: 'Wertverlust', amount: num('depreciation'), color: '#e65100' },
+      { label: 'Versicherung', amount: num('insurance'), color: '#fb8c00' },
+      { label: 'Kfz-Steuer', amount: num('tax'), color: '#ffb74d' },
+      { label: 'Sonstiges', amount: num('other'), color: '#8d6e63' },
+    ],
+    totalPerYear,
+  );
+  renderDegression(annualKm, variablePerYear, fixedPerYear);
 
   document.getElementById('result').style.display = 'block';
   document.getElementById('result').scrollIntoView({ behavior: 'smooth' });
