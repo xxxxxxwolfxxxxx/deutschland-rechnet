@@ -116,6 +116,11 @@ const faqs = [
         <div id="ergebnis">— €</div>
       </div>
       <div id="details" style="margin-top:0.75rem;font-size:0.9rem;color:#555;display:flex;flex-direction:column;gap:0.3rem;"></div>
+      <section id="wh-block" aria-labelledby="wh-titel" style="margin-top:1.5rem;">
+        <h2 id="wh-titel" style="font-size:1.15rem;margin:0 0 0.5rem;">Was der Zins an Ihrem Budget ändert</h2>
+        <p id="wh-text" style="font-size:0.9rem;margin:0 0 0.75rem;"></p>
+        <div><svg id="wh-svg" role="img" aria-labelledby="wh-titel wh-text" style="display:block;width:100%;height:auto;"></svg></div>
+      </section>
     </div>
     <ArtikelRatenquote slot="artikel" />
   </CalculatorShell>
@@ -161,5 +166,35 @@ document.querySelectorAll('.calc-form input, .calc-form select').forEach((el) =>
   el.addEventListener('input', berechne);
   el.addEventListener('change', berechne);
 });
+const D = await import(window.__base + 'scripts/diagramm.js');
+let whLetzte = false;
+function zeigeZinsEinfluss() {
+  whLetzte = true;
+  const basis = {
+    rate: wert('rate'), eigenkapital: wert('eigenkapital'), tilgung: wert('tilgung'),
+    zinsbindung: wert('zinsbindung'), anschlusszins: document.getElementById('anschlusszins').value,
+    bundesland: document.getElementById('bundesland').value, mitMakler: document.getElementById('makler').checked,
+    einkommen: wert('einkommen'), ausgaben: wert('ausgaben'),
+  };
+  const zins = wert('zins');
+  const punkte = D.reihe(1, 8, 0.25, (z) => ({ y: berechneWieVielHaus({ ...basis, sollzins: z }).kaufpreis }));
+  const hier = berechneWieVielHaus({ ...basis, sollzins: zins });
+  const bei = (z) => punkte.find((p) => Math.abs(p.x - z) < 1e-6);
+  const p3 = bei(3), p5 = bei(5);
+  document.getElementById('wh-text').textContent =
+    `Bei ${zins.toLocaleString('de-DE')} % Sollzins können Sie sich ${eur(hier.kaufpreis)} leisten.` +
+    (p3 && p5 ? ` Mit 3 % wären es ${eur(p3.y)}, mit 5 % nur ${eur(p5.y)} – bei gleicher Monatsrate.` : '');
+  D.zeichneKurve(document.getElementById('wh-svg'), {
+    serien: [{ punkte }], marker: { x: Math.min(8, Math.max(1, zins)), y: hier.kaufpreis },
+    xFormat: (n) => n.toLocaleString('de-DE', { maximumFractionDigits: 1 }) + ' %', yFormat: eur,
+  });
+}
+document.querySelectorAll('.calc-form input, .calc-form select').forEach((el) => {
+  el.addEventListener('input', zeigeZinsEinfluss);
+  el.addEventListener('change', zeigeZinsEinfluss);
+});
+D.beiGroessenaenderung(() => whLetzte && zeigeZinsEinfluss());
+zeigeZinsEinfluss();
+
 berechne();
 </script>
