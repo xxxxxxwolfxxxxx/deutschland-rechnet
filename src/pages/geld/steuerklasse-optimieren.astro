@@ -116,12 +116,12 @@ const beispielZeilen = beispiel.kombinationen.filter(k => k.anwendbar).map(k => 
 
 <style>
 .hinweis { font-size: 0.85rem; color: var(--muted); margin: 0.5rem 0 1rem; }
-.kombi-table { width:100%; border-collapse:collapse; font-size:0.88rem; margin-top:0.5rem; }
-.kombi-table th { text-align:left; font-weight:600; font-size:0.78rem; color:var(--muted); padding:0.4rem 0.6rem; border-bottom:2px solid var(--border); text-transform:uppercase; letter-spacing:0.04em; }
-.kombi-table td { padding:0.55rem 0.6rem; border-bottom:1px solid var(--border); }
-.kombi-table td:not(:first-child) { text-align:right; }
-.kombi-table tr.empfohlen td { background:color-mix(in srgb, var(--accent) 6%, white); font-weight:600; }
-.kombi-table tr:last-child td { border-bottom:none; }
+:global(.kombi-table) { width:100%; border-collapse:collapse; font-size:0.88rem; margin-top:0.5rem; }
+:global(.kombi-table th) { text-align:left; font-weight:600; font-size:0.78rem; color:var(--muted); padding:0.4rem 0.6rem; border-bottom:2px solid var(--border); text-transform:uppercase; letter-spacing:0.04em; }
+:global(.kombi-table td) { padding:0.55rem 0.6rem; border-bottom:1px solid var(--border); }
+:global(.kombi-table td:not(:first-child)) { text-align:right; }
+:global(.kombi-table tr.empfohlen td) { background:color-mix(in srgb, var(--accent) 6%, white); font-weight:600; }
+:global(.kombi-table tr:last-child td) { border-bottom:none; }
 .nachzahlung { color:#c8102e; }
 .erstattung { color:#1e7e34; }
 </style>

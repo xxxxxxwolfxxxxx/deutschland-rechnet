@@ -141,7 +141,7 @@ const year = new Date().getFullYear();
   display: grid;
   gap: 0.4rem;
 }
-.breakdown-row {
+:global(.breakdown-row) {
   display: flex;
   justify-content: space-between;
   gap: 1rem;
@@ -149,7 +149,7 @@ const year = new Date().getFullYear();
   padding: 0.35rem 0;
   border-bottom: 1px solid var(--border);
 }
-.breakdown-row.total {
+:global(.breakdown-row.total) {
   border-bottom: 2px solid var(--cat-color, var(--red));
   font-size: 1rem;
 }
