@@ -84,6 +84,11 @@ const amortSpanne = `${Math.min(...amortJahre)} bis ${Math.max(...amortJahre)}`;
         <div id="amort">— Jahre</div>
       </div>
       <div id="details" style="margin-top:0.75rem;font-size:0.88rem;color:#666;display:flex;gap:1.5rem;flex-wrap:wrap;"></div>
+      <section id="pv-block" aria-labelledby="pv-titel" style="margin-top:1.5rem;">
+        <h2 id="pv-titel" style="font-size:1.15rem;margin:0 0 0.5rem;">Wie viel der Eigenverbrauch bringt</h2>
+        <p id="pv-text" style="font-size:0.9rem;margin:0 0 0.75rem;"></p>
+        <div><svg id="pv-svg" role="img" aria-labelledby="pv-titel pv-text" style="display:block;width:100%;height:auto;"></svg></div>
+      </section>
     </div>
 
     <ArtikelPhotovoltaik slot="artikel" />
@@ -143,5 +148,31 @@ document.querySelectorAll('.preset-btn').forEach(b => {
     berechne();
   });
 });
+const D = await import(window.__base + 'scripts/diagramm.js');
+let pvLetzte = false;
+function zeigeEigenverbrauchKurve() {
+  pvLetzte = true;
+  const leistungKwp = parseFloat(document.getElementById('leistung').value) || 8;
+  const investition = parseFloat(document.getElementById('investition').value) || 14000;
+  const strompreis = parseFloat(document.getElementById('strompreis').value) || STROMPREIS_EURO_PRO_KWH;
+  const anteil = (parseFloat(document.getElementById('eigenverbrauch').value) || 30) / 100;
+  const eur0 = (n) => Math.round(n).toLocaleString('de-DE') + ' \u20ac';
+  const bei = (a) => berechnePhotovoltaik({ leistungKwp, investition, strompreis, eigenverbrauchAnteil: a });
+  const punkte = D.reihe(0, 100, 5, (p) => ({ y: bei(p / 100).jahresueberschuss }));
+  const hier = bei(anteil);
+  const kein = bei(0), voll = bei(1);
+  document.getElementById('pv-text').textContent =
+    `Je mehr Strom Sie selbst verbrauchen, desto mehr bleibt übrig: Ohne Eigenverbrauch ${eur0(kein.jahresueberschuss)} im Jahr, bei vollem Eigenverbrauch ${eur0(voll.jahresueberschuss)}. ` +
+    `Mit ${Math.round(anteil * 100)} % sind es ${eur0(hier.jahresueberschuss)}${hier.amortJahre ? `, die Anlage hat sich nach ${hier.amortJahre} Jahren bezahlt gemacht` : ''}.`;
+  D.zeichneKurve(document.getElementById('pv-svg'), {
+    serien: [{ punkte }], marker: { x: Math.min(100, Math.max(0, anteil * 100)), y: hier.jahresueberschuss },
+    xFormat: (n) => Math.round(n) + ' %', yFormat: eur0,
+  });
+}
+['leistung', 'investition', 'strompreis', 'eigenverbrauch'].forEach((id) => document.getElementById(id).addEventListener('input', zeigeEigenverbrauchKurve));
+document.querySelectorAll('.preset-btn').forEach((b) => b.addEventListener('click', zeigeEigenverbrauchKurve));
+D.beiGroessenaenderung(() => pvLetzte && zeigeEigenverbrauchKurve());
+zeigeEigenverbrauchKurve();
+
 berechne();
 </script>
