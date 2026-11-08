@@ -98,6 +98,11 @@ const kurzeAnwartschaftText = ANSPRUCHSDAUER_KURZE_ANWARTSCHAFT
         <div id="alg">— €</div>
       </div>
       <div id="details" style="margin-top:0.75rem;font-size:0.88rem;color:#666;display:flex;gap:1.5rem;flex-wrap:wrap;"></div>
+      <section id="al-block" aria-labelledby="al-titel" style="margin-top:1.5rem;">
+        <h2 id="al-titel" style="font-size:1.15rem;margin:0 0 0.5rem;">Wie lange das Arbeitslosengeld läuft</h2>
+        <p id="al-text" style="font-size:0.9rem;margin:0 0 0.75rem;"></p>
+        <div><svg id="al-svg" role="img" aria-labelledby="al-titel al-text" style="display:block;width:100%;height:auto;"></svg></div>
+      </section>
     </div>
     <ArtikelAlg60Prozent slot="artikel" />
   </CalculatorShell>
@@ -169,5 +174,35 @@ function berechne() {
   el.addEventListener('input', berechne);
   el.addEventListener('change', berechne);
 });
+const D = await import(window.__base + 'scripts/diagramm.js');
+let alLetzte = false;
+function zeigeBezugsdauer() {
+  alLetzte = true;
+  const bruttoMonat = parseFloat(document.getElementById('brutto').value) || 0;
+  const steuerklasse = parseInt(document.getElementById('stklasse').value, 10);
+  const hatKind = document.getElementById('kind').checked;
+  const alter = parseInt(document.getElementById('alter').value, 10) || 0;
+  const monate = parseInt(document.getElementById('versicherungsmonate').value, 10) || 0;
+  const eur0 = (n) => n.toLocaleString('de-DE', { maximumFractionDigits: 0 }) + ' \u20ac';
+  const dauerBei = (vm) => berechneArbeitslosengeld({ bruttoMonat, steuerklasse, hatKind, versicherungsmonate: vm, alter }).anspruchsdauerMonate;
+  const punkte = D.reihe(0, 72, 1, (vm) => ({ y: dauerBei(vm) }));
+  const hier = berechneArbeitslosengeld({ bruttoMonat, steuerklasse, hatKind, versicherungsmonate: monate, alter });
+  const naechste = punkte.find((p) => p.x > monate && p.y > hier.anspruchsdauerMonate);
+  document.getElementById('al-text').textContent = hier.anspruchsdauerMonate > 0
+    ? `Mit ${monate} Monaten Versicherungszeit im Alter von ${alter} Jahren zahlt die Agentur ${hier.anspruchsdauerMonate} Monate lang ${eur0(hier.arbeitslosengeldMonat)} – zusammen ${eur0(hier.gesamtanspruch)}. ` +
+      (naechste ? `Die nächste Stufe (${naechste.y} Monate) erreichen Sie nach ${naechste.x} Monaten Versicherungszeit.` : 'Mehr Bezugsdauer gibt es bei diesem Alter nicht.')
+    : `Mit ${monate} Monaten Versicherungszeit besteht noch kein Anspruch. Die Anwartschaft ist erst später erfüllt.`;
+  D.zeichneKurve(document.getElementById('al-svg'), {
+    serien: [{ punkte, stufe: true }], marker: { x: Math.min(72, monate), y: hier.anspruchsdauerMonate },
+    xFormat: (n) => Math.round(n) + ' Mon.', yFormat: (n) => Math.round(n) + ' Mon.',
+  });
+}
+['brutto', 'versicherungsmonate', 'alter', 'stklasse', 'kind'].forEach((id) => {
+  document.getElementById(id).addEventListener('input', zeigeBezugsdauer);
+  document.getElementById(id).addEventListener('change', zeigeBezugsdauer);
+});
+D.beiGroessenaenderung(() => alLetzte && zeigeBezugsdauer());
+zeigeBezugsdauer();
+
 berechne();
 </script>
