@@ -188,6 +188,16 @@ const laenderOptionen = Object.entries(KIRCHENSTEUER_LAENDER)
         </div>
       </div>
       <div id="details" style="margin-top:0.75rem;font-size:0.9rem;color:#555;display:flex;flex-direction:column;gap:0.3rem;"></div>
+
+      <section class="kurve" aria-labelledby="kurve-titel">
+        <h3 id="kurve-titel">So steigt der Steuersatz mit dem Einkommen</h3>
+        <p class="kurve-text" id="kurve-text"></p>
+        <svg id="kurve" class="kurve-svg" viewBox="0 0 640 300" role="img" aria-label=""></svg>
+        <ul class="kurve-legende">
+          <li><span class="kurve-linie kurve-linie-grenz"></span>Grenzsteuersatz: Steuer auf den nächsten Euro</li>
+          <li><span class="kurve-linie kurve-linie-schnitt"></span>Durchschnittssteuersatz: Steuer geteilt durch das Einkommen</li>
+        </ul>
+      </section>
     </div>
   </CalculatorShell>
 
@@ -200,6 +210,9 @@ const laenderOptionen = Object.entries(KIRCHENSTEUER_LAENDER)
 
 <script type="module">
 const { berechneEinkommensteuer } = await import(window.__base + 'scripts/einkommensteuer-rechner.js');
+
+const { TARIFE } = await import(window.__base + 'scripts/einkommensteuer-rechner.js');
+const { tariflicheEinkommensteuer } = await import(window.__base + 'scripts/einkommensteuer.js');
 
 const feld = (id) => document.getElementById(id);
 const eur = (n) => n.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
@@ -214,6 +227,81 @@ function zeile(text, fett) {
     span.append(strong);
   }
   return span;
+}
+
+// Steuerkurve als SVG. Alle Elemente tragen ihre Darstellung als Attribute,
+// weil Astro-Stile nicht auf per Skript erzeugte Elemente wirken.
+const SVG_NS = 'http://www.w3.org/2000/svg';
+const KURVE = { maxBreite: 640, minBreite: 280, links: 44, rechts: 14, oben: 14, unten: 34, yMax: 0.5, schritt: 1000 };
+let letzteKurve = null;
+const FARBE_GRENZ = '#c62828';
+const FARBE_SCHNITT = '#1565c0';
+
+function svg(name, attribute = {}, text) {
+  const knoten = document.createElementNS(SVG_NS, name);
+  Object.entries(attribute).forEach(([k, v]) => knoten.setAttribute(k, String(v)));
+  if (text !== undefined) knoten.textContent = text;
+  return knoten;
+}
+
+function zeichneKurve(r, splitting) {
+  const flaeche = feld('kurve');
+  flaeche.replaceChildren();
+  const { links, rechts, oben, unten, yMax, schritt } = KURVE;
+  // Die Zeichenfläche folgt der Containerbreite, damit die Schrift lesbar bleibt.
+  const breite = Math.max(KURVE.minBreite, Math.min(KURVE.maxBreite, Math.round(flaeche.parentElement.clientWidth)));
+  const hoehe = breite < 480 ? 260 : 300;
+  flaeche.setAttribute('viewBox', `0 0 ${breite} ${hoehe}`);
+  letzteKurve = { r, splitting };
+  const xMax = splitting ? 600000 : 300000;
+  const x = (wert) => links + (Math.min(wert, xMax) / xMax) * (breite - links - rechts);
+  const y = (satz) => oben + (1 - Math.min(satz, yMax) / yMax) * (hoehe - oben - unten);
+
+  // Raster und Achsenbeschriftung
+  for (let p = 0; p <= 50; p += 10) {
+    flaeche.append(
+      svg('line', { x1: links, x2: breite - rechts, y1: y(p / 100), y2: y(p / 100), stroke: '#d9d9d9', 'stroke-width': 1 }),
+      svg('text', { x: links - 6, y: y(p / 100) + 4, 'text-anchor': 'end', 'font-size': 11, fill: '#555' }, p + ' %'),
+    );
+  }
+  const intervalle = breite < 480 ? 3 : 6;
+  const xSchritt = xMax / intervalle;
+  for (let i = 0; i <= intervalle; i++) {
+    const wert = i * xSchritt;
+    flaeche.append(svg('text', {
+      x: x(wert), y: hoehe - 12, 'text-anchor': i === 0 ? 'start' : i === intervalle ? 'end' : 'middle', 'font-size': 11, fill: '#555',
+    }, (wert / 1000).toLocaleString('de-DE') + ' Tsd. €'));
+  }
+
+  // Kurven: Durchschnitts- und Grenzsteuersatz
+  const punkteSchnitt = [];
+  const punkteGrenz = [];
+  for (let wert = schritt; wert <= xMax; wert += schritt) {
+    const steuer = tariflicheEinkommensteuer(wert, splitting);
+    const mehr = tariflicheEinkommensteuer(wert + 100, splitting) - steuer;
+    punkteSchnitt.push(`${x(wert).toFixed(1)},${y(steuer / wert).toFixed(1)}`);
+    punkteGrenz.push(`${x(wert).toFixed(1)},${y(mehr / 100).toFixed(1)}`);
+  }
+  flaeche.append(
+    svg('polyline', { points: punkteGrenz.join(' '), fill: 'none', stroke: FARBE_GRENZ, 'stroke-width': 2.5 }),
+    svg('polyline', { points: punkteSchnitt.join(' '), fill: 'none', stroke: FARBE_SCHNITT, 'stroke-width': 2.5 }),
+  );
+
+  // Markierung des eigenen Einkommens
+  if (r.zvE > 0) {
+    const mx = x(r.zvE);
+    flaeche.append(
+      svg('line', { x1: mx, x2: mx, y1: oben, y2: hoehe - unten, stroke: '#333', 'stroke-width': 1.5, 'stroke-dasharray': '4 3' }),
+      svg('circle', { cx: mx, cy: y(r.grenzsteuersatz), r: 5, fill: FARBE_GRENZ, stroke: '#fff', 'stroke-width': 1.5 }),
+      svg('circle', { cx: mx, cy: y(r.durchschnittssatz), r: 5, fill: FARBE_SCHNITT, stroke: '#fff', 'stroke-width': 1.5 }),
+    );
+  }
+
+  const beschreibung = r.zvE > 0
+    ? `Bei ${eur(r.zvE)} zu versteuerndem Einkommen liegt der Grenzsteuersatz bei ${pct(r.grenzsteuersatz, 0)} und der Durchschnittssteuersatz bei ${pct(r.durchschnittssatz, 1)}.`
+    : 'Ohne zu versteuerndes Einkommen fällt keine Steuer an.';
+  feld('kurve-text').textContent = beschreibung;
+  flaeche.setAttribute('aria-label', 'Verlauf von Grenz- und Durchschnittssteuersatz über das Einkommen. ' + beschreibung);
 }
 
 function berechne() {
@@ -248,7 +336,12 @@ function berechne() {
     details.append(zeile('Bemessungsgrundlage für Soli und Kirchensteuer (mit Kinderfreibeträgen): ' + eur(r.bemessungZuschlag)));
   }
   details.append(zeile('Steuer insgesamt: ', eur(r.gesamt)));
+  zeichneKurve(r, TARIFE[feld('tarif').value].splitting);
 }
+
+window.addEventListener('resize', () => {
+  if (letzteKurve) zeichneKurve(letzteKurve.r, letzteKurve.splitting);
+});
 
 document.querySelectorAll('.calc-form input, .calc-form select').forEach((el) => {
   el.addEventListener('input', berechne);
@@ -256,3 +349,15 @@ document.querySelectorAll('.calc-form input, .calc-form select').forEach((el) =>
 });
 berechne();
 </script>
+
+<style>
+.kurve { margin-top: 1.75rem; }
+.kurve h3 { font-size: 1.05rem; margin: 0 0 0.5rem; }
+.kurve-text { font-size: 0.9rem; line-height: 1.55; margin: 0 0 0.75rem; }
+.kurve-svg { width: 100%; height: auto; display: block; background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius-sm); }
+.kurve-legende { list-style: none; margin: 0.75rem 0 0; padding: 0; display: flex; flex-direction: column; gap: 0.35rem; font-size: 0.85rem; }
+.kurve-legende li { display: flex; align-items: center; gap: 0.6rem; }
+.kurve-linie { display: inline-block; width: 1.6rem; height: 0; border-top: 3px solid; flex: none; }
+.kurve-linie-grenz { border-color: #c62828; }
+.kurve-linie-schnitt { border-color: #1565c0; }
+</style>
