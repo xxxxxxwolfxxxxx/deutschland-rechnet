@@ -81,14 +81,111 @@ const year = new Date().getFullYear();
          </div>
        </div>
       <div id="details" style="margin-top:0.75rem;font-size:0.88rem;color:#666;display:flex;gap:1.5rem;flex-wrap:wrap;"></div>
+
+      <section class="frist" id="frist" aria-labelledby="frist-titel">
+        <h2 id="frist-titel">Wann Sie rügen, entscheidet über Ihr Geld</h2>
+        <div class="calc-group frist-eingabe">
+          <label for="monate">Mietbeginn liegt zurück (Monate)</label>
+          <input type="number" id="monate" min="0" max="120" value="6" step="1" />
+        </div>
+        <p id="frist-text" class="frist-text"></p>
+        <div class="frist-flaeche"><svg id="frist-svg" role="img" aria-labelledby="frist-titel frist-text"></svg></div>
+        <table class="frist-tabelle" id="frist-tabelle">
+          <thead><tr><th>Rüge im Monat</th><th>Rückforderung rückwirkend</th><th>Ersparnis ab dann pro Monat</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </section>
     </div>
     <ArtikelMietpreisbremse slot="artikel" />
   </CalculatorShell>
 
 </Layout>
 
+<style>
+  .frist { margin-top: 1.5rem; }
+  .frist h2 { font-size: 1.15rem; margin: 0 0 0.75rem; }
+  .frist-eingabe { max-width: 14rem; }
+  .frist-text { font-size: 0.92rem; margin: 0.5rem 0 0.75rem; }
+  .frist-flaeche { width: 100%; }
+  .frist-flaeche svg { display: block; width: 100%; height: auto; }
+  .frist-tabelle { width: 100%; border-collapse: collapse; font-size: 0.88rem; margin-top: 0.75rem; }
+  .frist-tabelle th, .frist-tabelle :global(td) { padding: 0.35rem 0.5rem; text-align: right; border-bottom: 1px solid #e3e3e3; }
+  .frist-tabelle th:first-child, .frist-tabelle :global(td:first-child) { text-align: left; }
+  .frist-tabelle :global(tr.ist-monat td) { background: #fff3cd; font-weight: 600; }
+  .frist-tabelle :global(tr.verfallen td) { color: #8a8a8a; }
+</style>
+
 <script type="module">
-const { berechneMietpreisbremse } = await import(window.__base + 'scripts/mietpreisbremse.js');
+const { berechneMietpreisbremse, RUECKFORDERUNG_MONATE } = await import(window.__base + 'scripts/mietpreisbremse.js');
+const SVG_NS = 'http://www.w3.org/2000/svg';
+const MONATE_MAX = 48;
+const TABELLEN_MONATE = [3, 6, 12, 24, RUECKFORDERUNG_MONATE, RUECKFORDERUNG_MONATE + 1];
+// Rückforderung rückwirkend: nur bei Rüge binnen 30 Monaten (§ 556g Abs. 2 Satz 3 BGB).
+function rueckforderung(zuvielGesamt, monat) {
+  return monat <= RUECKFORDERUNG_MONATE ? zuvielGesamt * monat : 0;
+}
+let letzteFrist = null;
+function el(name, attrs) {
+  const n = document.createElementNS(SVG_NS, name);
+  Object.entries(attrs).forEach(([k, v]) => n.setAttribute(k, v));
+  return n;
+}
+function zeichneFrist(zuvielGesamt, monat) {
+  letzteFrist = { zuvielGesamt, monat };
+  const svg = document.getElementById('frist-svg');
+  const breite = Math.max(280, Math.min(640, svg.parentElement.clientWidth || 640));
+  const hoehe = breite < 480 ? 220 : 260;
+  const r = { l: 52, r: 14, o: 14, u: 32 };
+  const max = zuvielGesamt * RUECKFORDERUNG_MONATE;
+  const x = (m) => r.l + (m / MONATE_MAX) * (breite - r.l - r.r);
+  const y = (v) => hoehe - r.u - (v / max) * (hoehe - r.u - r.o);
+  svg.setAttribute('viewBox', `0 0 ${breite} ${hoehe}`);
+  svg.replaceChildren();
+  svg.appendChild(el('line', { x1: r.l, y1: y(0), x2: breite - r.r, y2: y(0), stroke: '#999', 'stroke-width': 1 }));
+  [0, 12, 24, 36, 48].forEach((m) => {
+    const t = el('text', { x: x(m), y: hoehe - 12, 'text-anchor': 'middle', 'font-size': 11, fill: '#666' });
+    t.textContent = m + ' Mon.';
+    svg.appendChild(t);
+  });
+  [0, 0.5, 1].forEach((f) => {
+    svg.appendChild(el('line', { x1: r.l, y1: y(max * f), x2: breite - r.r, y2: y(max * f), stroke: '#e3e3e3', 'stroke-width': 1 }));
+    const t = el('text', { x: r.l - 6, y: y(max * f) + 4, 'text-anchor': 'end', 'font-size': 11, fill: '#666' });
+    t.textContent = Math.round(max * f).toLocaleString('de-DE') + ' €';
+    svg.appendChild(t);
+  });
+  svg.appendChild(el('polyline', { points: `${x(0)},${y(0)} ${x(RUECKFORDERUNG_MONATE)},${y(max)}`, fill: 'none', stroke: '#c8102e', 'stroke-width': 2.5 }));
+  svg.appendChild(el('line', { x1: x(RUECKFORDERUNG_MONATE), y1: y(max), x2: x(RUECKFORDERUNG_MONATE), y2: y(0), stroke: '#c8102e', 'stroke-width': 2, 'stroke-dasharray': '4 4' }));
+  svg.appendChild(el('line', { x1: x(RUECKFORDERUNG_MONATE), y1: y(0), x2: x(MONATE_MAX), y2: y(0), stroke: '#c8102e', 'stroke-width': 2.5 }));
+  const aktuell = rueckforderung(zuvielGesamt, Math.min(monat, MONATE_MAX));
+  if (monat <= MONATE_MAX) {
+    svg.appendChild(el('circle', { cx: x(monat), cy: y(aktuell), r: 5, fill: '#fff', stroke: '#1b1b1b', 'stroke-width': 2 }));
+  }
+}
+function zeigeFrist(r, flaeche, monat) {
+  const box = document.getElementById('frist');
+  box.hidden = !r.istZuHoch;
+  if (!r.istZuHoch) return;
+  const jetzt = rueckforderung(r.zuvielGesamt, monat);
+  const text = document.getElementById('frist-text');
+  text.textContent = monat <= RUECKFORDERUNG_MONATE
+    ? `Rügen Sie jetzt (Monat ${monat}), bekommen Sie rückwirkend ${fmt(jetzt)} zurück – und sparen danach ${fmt(r.zuvielGesamt)} im Monat. Jeder weitere Monat Warten kostet ${fmt(r.zuvielGesamt)}, im Monat ${RUECKFORDERUNG_MONATE + 1} verfällt der gesamte Rückforderungsanspruch.`
+    : `Der Mietbeginn liegt mehr als ${RUECKFORDERUNG_MONATE} Monate zurück: Eine Rüge wirkt nur noch für die Zukunft (${fmt(r.zuvielGesamt)} weniger pro Monat), die bisher gezahlte Differenz ist verloren.`;
+  const tbody = document.querySelector('#frist-tabelle tbody');
+  tbody.replaceChildren();
+  const zeilen = [...new Set([...TABELLEN_MONATE, monat])].sort((a, b) => a - b);
+  zeilen.forEach((m) => {
+    const tr = document.createElement('tr');
+    if (m === monat) tr.classList.add('ist-monat');
+    if (m > RUECKFORDERUNG_MONATE) tr.classList.add('verfallen');
+    [`Monat ${m}`, fmt(rueckforderung(r.zuvielGesamt, m)), fmt(r.zuvielGesamt)].forEach((t) => {
+      const td = document.createElement('td');
+      td.textContent = t;
+      tr.appendChild(td);
+    });
+    tbody.appendChild(tr);
+  });
+  zeichneFrist(r.zuvielGesamt, monat);
+}
 function fmt(n) { return n.toLocaleString('de-DE', {minimumFractionDigits:2, maximumFractionDigits:2}) + ' \u20ac'; }
 function fmtQm(n) { return n.toLocaleString('de-DE', {minimumFractionDigits:2, maximumFractionDigits:2}) + ' \u20ac/m\u00b2'; }
 function berechne() {
@@ -122,7 +219,12 @@ function berechne() {
     teile.push(`<span style="color:#1e7e34"><strong>Miete ist zul\u00e4ssig</strong></span>`);
   }
   document.getElementById('details').innerHTML = teile.join('');
+  const monat = Math.max(0, Math.round(parseFloat(document.getElementById('monate').value) || 0));
+  zeigeFrist(r, flaeche, monat);
 }
-['vergleich','aktmiete','flaeche','modernisierung','vormiete'].forEach(id => document.getElementById(id).addEventListener('input', berechne));
+window.addEventListener('resize', () => {
+  if (letzteFrist && !document.getElementById('frist').hidden) zeichneFrist(letzteFrist.zuvielGesamt, letzteFrist.monat);
+});
+['vergleich','aktmiete','flaeche','modernisierung','vormiete','monate'].forEach(id => document.getElementById(id).addEventListener('input', berechne));
 berechne();
 </script>
