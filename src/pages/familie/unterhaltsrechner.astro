@@ -117,24 +117,24 @@ const year = new Date().getFullYear();
 </Layout>
 
 <style>
-.rechenweg-table {
+:global(.rechenweg-table) {
   width: 100%;
   border-collapse: collapse;
   font-size: 0.87rem;
   margin-top: 0.5rem;
 }
-.rechenweg-table tr td {
+:global(.rechenweg-table tr td) {
   padding: 0.45rem 0.5rem;
   border-bottom: 1px solid var(--border, #e5e5e5);
   vertical-align: top;
 }
-.rechenweg-table tr:last-child td { border-bottom: none; }
-.rechenweg-table td:first-child { color: var(--muted, #888); width: 55%; }
-.rechenweg-table td:last-child { font-weight: 600; text-align: right; }
-.rechenweg-table tr.sum-row td { font-weight: 700; border-top: 2px solid var(--border, #e5e5e5); background: var(--surface, #f9f9f9); }
-.rechenweg-table tr.warn-row td { color: #c8102e; }
-.rechenweg-table tr.note-row td { font-weight: 400; text-align: left; color: var(--muted, #888); font-size: 0.82rem; }
-.rw-heading {
+:global(.rechenweg-table tr:last-child td) { border-bottom: none; }
+:global(.rechenweg-table td:first-child) { color: var(--muted, #888); width: 55%; }
+:global(.rechenweg-table td:last-child) { font-weight: 600; text-align: right; }
+:global(.rechenweg-table tr.sum-row td) { font-weight: 700; border-top: 2px solid var(--border, #e5e5e5); background: var(--surface, #f9f9f9); }
+:global(.rechenweg-table tr.warn-row td) { color: #c8102e; }
+:global(.rechenweg-table tr.note-row td) { font-weight: 400; text-align: left; color: var(--muted, #888); font-size: 0.82rem; }
+:global(.rw-heading) {
   font-size: 0.75rem;
   font-weight: 700;
   letter-spacing: 0.06em;

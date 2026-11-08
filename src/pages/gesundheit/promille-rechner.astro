@@ -111,7 +111,7 @@ const year = new Date().getFullYear();
 }
 .vorlage-btn:hover { border-color: var(--cat-color, var(--red)); }
 .getraenke-liste { display: flex; flex-direction: column; gap: 0.4rem; margin-bottom: 0.75rem; }
-.getraenk-row {
+:global(.getraenk-row) {
   display: flex;
   align-items: center;
   gap: 0.5rem;
@@ -121,7 +121,7 @@ const year = new Date().getFullYear();
   border-radius: var(--radius-sm);
   font-size: 0.85rem;
 }
-.getraenk-row button {
+:global(.getraenk-row button) {
   margin-left: auto;
   background: none;
   border: none;
@@ -131,7 +131,7 @@ const year = new Date().getFullYear();
   line-height: 1;
   padding: 0 0.25rem;
 }
-.getraenk-row button:hover { color: var(--red); }
+:global(.getraenk-row button:hover) { color: var(--red); }
 .bak-warn {
   margin-top: 0.5rem;
   padding: 0.5rem 0.75rem;
