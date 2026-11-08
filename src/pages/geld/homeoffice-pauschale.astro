@@ -120,6 +120,11 @@ const faqs = [
         <div id="ergebnis">— €</div>
       </div>
       <div id="details" style="margin-top:0.75rem;font-size:0.9rem;color:#555;display:flex;flex-direction:column;gap:0.3rem;"></div>
+      <section id="ho-block" aria-labelledby="ho-titel" style="margin-top:1.5rem;">
+        <h2 id="ho-titel" style="font-size:1.15rem;margin:0 0 0.5rem;">Ab wie vielen Tagen lohnt sich die Pauschale?</h2>
+        <p id="ho-text" style="font-size:0.9rem;margin:0 0 0.75rem;"></p>
+        <div><svg id="ho-svg" role="img" aria-labelledby="ho-titel ho-text" style="display:block;width:100%;height:auto;"></svg></div>
+      </section>
     </div>
     <ArtikelHomeofficeDeckel slot="artikel" />
   </CalculatorShell>
@@ -132,7 +137,7 @@ const faqs = [
 </Layout>
 
 <script type="module">
-const { steuervorteil } = await import(window.__base + 'scripts/homeoffice.js');
+const { steuervorteil, TAGESPAUSCHALE, TAGESPAUSCHALE_HOECHSTBETRAG } = await import(window.__base + 'scripts/homeoffice.js');
 const feld = (id) => document.getElementById(id);
 const fmt = (n) => n.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
 
@@ -173,5 +178,37 @@ document.querySelectorAll('.calc-form input').forEach((el) => {
   el.addEventListener('input', berechne);
   el.addEventListener('change', berechne);
 });
+const D = await import(window.__base + 'scripts/diagramm.js');
+let hoLetzte = false;
+function zeigeTageVerlauf() {
+  hoLetzte = true;
+  const basis = {
+    zvE: Number(feld('einkommen').value) || 0,
+    sonstigeWerbungskosten: Number(feld('sonstige').value) || 0,
+    arbeitnehmer: feld('arbeitnehmer').checked,
+    splitting: feld('splitting').checked,
+  };
+  const tage = Number(feld('tage').value) || 0;
+  const eur0 = (n) => n.toLocaleString('de-DE', { maximumFractionDigits: 0 }) + ' \u20ac';
+  const maxTage = Math.ceil(TAGESPAUSCHALE_HOECHSTBETRAG / TAGESPAUSCHALE / 10) * 10 + 30;
+  const punkte = D.reihe(0, maxTage, 5, (t) => ({ y: steuervorteil({ ...basis, tage: t }).ersparnis }));
+  const hier = steuervorteil({ ...basis, tage });
+  const erster = punkte.find((p) => p.y > 0);
+  const deckelTage = TAGESPAUSCHALE_HOECHSTBETRAG / TAGESPAUSCHALE;
+  document.getElementById('ho-text').textContent =
+    (erster ? `Steuer spart die Pauschale bei Ihren Angaben ab etwa ${erster.x} Tagen im Jahr. ` : 'Bei diesen Angaben spart die Pauschale im gezeigten Bereich keine Steuer. ') +
+    `Der Höchstbetrag von ${eur0(TAGESPAUSCHALE_HOECHSTBETRAG)} ist nach ${deckelTage} Tagen erreicht. Mit ${tage} Tagen sparen Sie ${eur0(hier.ersparnis)}.`;
+  D.zeichneKurve(document.getElementById('ho-svg'), {
+    serien: [{ punkte }], marker: { x: Math.min(maxTage, tage), y: hier.ersparnis },
+    xFormat: (n) => Math.round(n) + ' Tage', yFormat: eur0,
+  });
+}
+document.querySelectorAll('.calc-form input').forEach((el) => {
+  el.addEventListener('input', zeigeTageVerlauf);
+  el.addEventListener('change', zeigeTageVerlauf);
+});
+D.beiGroessenaenderung(() => hoLetzte && zeigeTageVerlauf());
+zeigeTageVerlauf();
+
 berechne();
 </script>
