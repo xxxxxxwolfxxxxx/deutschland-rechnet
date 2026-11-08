@@ -103,6 +103,11 @@ const grundfrist = AG_FRISTEN[0];
       </div>
       <div id="details" class="details"></div>
 
+      <section class="zeit" aria-labelledby="zeit-titel">
+        <h3 id="zeit-titel">Ihr Zeitstrahl ab Zugang</h3>
+        <ol id="zeitleiste" class="zeitleiste"></ol>
+      </section>
+
       <div class="fristen">
         <h3>Was jetzt noch läuft</h3>
         <div id="schutz" class="hinweis"></div>
@@ -120,14 +125,14 @@ const grundfrist = AG_FRISTEN[0];
         <tr><th>Betriebszugehörigkeit</th><th>Frist</th><th>Termin</th><th>Fundstelle</th></tr>
       </thead>
       <tbody>
-        <tr>
+        <tr data-ab="0">
           <td>unter 2 Jahren</td>
           <td>4 Wochen</td>
           <td>zum 15. oder Monatsende</td>
           <td>{grundfrist.grundlage}</td>
         </tr>
         {stufen.map(f => (
-          <tr>
+          <tr data-ab={f.abJahre}>
             <td>ab {f.abJahre} Jahren</td>
             <td>{f.monate} Monat{f.monate === 1 ? '' : 'e'}</td>
             <td>zum Monatsende</td>
@@ -172,6 +177,15 @@ const grundfrist = AG_FRISTEN[0];
 .kf-table { width:100%; border-collapse:collapse; font-size:0.85rem; }
 .kf-table th { text-align:left; padding:0.3rem 0.5rem; border-bottom:1.5px solid var(--border); font-size:0.8rem; color:var(--muted); font-weight:600; }
 .kf-table td { padding:0.3rem 0.5rem; border-bottom:1px solid var(--border); }
+.kf-table tr.ist-stufe td { background:#fff3cd; font-weight:600; }
+.zeit { margin-top:1.5rem; }
+.zeit h3 { font-size:1rem; margin:0 0 0.75rem; }
+.zeitleiste { list-style:none; margin:0; padding:0 0 0 1.1rem; border-left:2px solid var(--border); }
+.zeitleiste :global(li) { position:relative; padding:0 0 0.9rem 0.9rem; font-size:0.9rem; line-height:1.45; }
+.zeitleiste :global(li::before) { content:''; position:absolute; left:-1.6rem; top:0.3rem; width:0.7rem; height:0.7rem; border-radius:50%; background:#fff; border:2px solid #888; }
+.zeitleiste :global(li.ende::before) { background:#c8102e; border-color:#c8102e; }
+.zeitleiste :global(li.start::before) { background:#1b1b1b; border-color:#1b1b1b; }
+.zeitleiste :global(.tage) { display:block; font-size:0.8rem; color:var(--muted); }
 .kf-table tr:last-child td { border-bottom:none; }
 .kf-table td:last-child, .kf-table th:last-child { color:var(--muted); font-size:0.8rem; white-space:nowrap; }
 .info-block { margin:2rem 0; }
@@ -187,6 +201,45 @@ const { berechneKuendigungsfrist } = await import(window.__base + 'scripts/kuend
 
 const el = id => document.getElementById(id);
 const datum = iso => iso.split('-').reverse().join('.');
+
+const tageZwischen = (von, bis) => {
+  const t = iso => Date.UTC(...iso.split('-').map((n, i) => (i === 1 ? Number(n) - 1 : Number(n))));
+  return Math.round((t(bis) - t(von)) / 86400000);
+};
+
+function zeigeZeitleiste(r, zugang) {
+  const ereignisse = [
+    { datum: zugang, titel: 'Kündigung geht zu', klasse: 'start' },
+    { datum: r.klagefristEnde, titel: 'Letzter Tag für die Kündigungsschutzklage', klasse: '' },
+  ];
+  if (r.fristablauf === r.endDatum) {
+    ereignisse.push({ datum: r.endDatum, titel: 'Frist läuft ab – letzter Tag des Arbeitsverhältnisses', klasse: 'ende' });
+  } else {
+    ereignisse.push({ datum: r.fristablauf, titel: 'Frist läuft ab', klasse: '' });
+    ereignisse.push({ datum: r.endDatum, titel: 'Nächster Termin – letzter Tag des Arbeitsverhältnisses', klasse: 'ende' });
+  }
+  if (r.probezeitEnde && r.probezeitEnde > zugang) {
+    ereignisse.push({ datum: r.probezeitEnde, titel: 'Probezeit endet', klasse: '' });
+  }
+  if (!r.kuendigungsschutz.greift) {
+    ereignisse.push({ datum: r.kuendigungsschutz.ab, titel: 'Allgemeiner Kündigungsschutz beginnt', klasse: '' });
+  }
+  ereignisse.sort((a, b) => a.datum.localeCompare(b.datum));
+  const liste = el('zeitleiste');
+  liste.replaceChildren();
+  ereignisse.forEach(e => {
+    const li = document.createElement('li');
+    if (e.klasse) li.className = e.klasse;
+    const titel = document.createElement('strong');
+    titel.textContent = `${datum(e.datum)} · ${e.titel}`;
+    const tage = document.createElement('span');
+    tage.className = 'tage';
+    const n = tageZwischen(zugang, e.datum);
+    tage.textContent = n === 0 ? 'Tag 0' : `${n} Tage nach Zugang`;
+    li.append(titel, tage);
+    liste.appendChild(li);
+  });
+}
 
 function berechne() {
   const eintrittsdatum = el('eintrittsdatum').value;
@@ -210,6 +263,7 @@ function berechne() {
     el('details').innerHTML = `<span>${fehler.message}</span>`;
     el('schutz').innerHTML = '';
     el('klage').innerHTML = '';
+    el('zeitleiste').replaceChildren();
     return;
   }
 
@@ -229,6 +283,14 @@ function berechne() {
   el('schutz').innerHTML = r.kuendigungsschutz.greift
     ? `<strong>Kündigungsschutz:</strong> Das Arbeitsverhältnis bestand bei Zugang länger als sechs Monate. Die Kündigung muss sozial gerechtfertigt sein (§ 1 Abs. 1 KSchG) – vorausgesetzt, der Betrieb hat mehr als zehn Arbeitnehmer (§ 23 Abs. 1 KSchG).`
     : `<strong>Kündigungsschutz:</strong> Die Wartezeit von sechs Monaten war bei Zugang noch nicht erfüllt; sie endet am ${datum(r.kuendigungsschutz.ab)}. Bis dahin braucht der Arbeitgeber keinen Kündigungsgrund nach dem KSchG.`;
+
+  zeigeZeitleiste(r, kuendigungsdatum);
+  document.querySelectorAll('.kf-table tbody tr').forEach(tr => tr.classList.remove('ist-stufe'));
+  if (!r.inProbezeit && el('seite').value === 'arbeitgeber') {
+    const zeilen = [...document.querySelectorAll('.kf-table tbody tr')];
+    const treffer = zeilen.filter(tr => Number(tr.dataset.ab) <= r.betriebsjahre).pop();
+    if (treffer) treffer.classList.add('ist-stufe');
+  }
 
   el('klage').innerHTML =
     `<strong>Klagefrist:</strong> Eine Kündigungsschutzklage muss bis zum <strong>${datum(r.klagefristEnde)}</strong> beim Arbeitsgericht eingehen (§ 4 Satz 1 KSchG). Danach gilt die Kündigung als wirksam, auch wenn sie fehlerhaft war (§ 7 KSchG).`;
