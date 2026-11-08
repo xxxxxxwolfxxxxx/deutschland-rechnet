@@ -59,6 +59,12 @@ const year = new Date().getFullYear();
       </div>
       <p id="hinweis" style="margin-top:0.75rem;font-size:0.85rem;color:var(--muted);"></p>
       <div id="details" style="margin-top:0.75rem;font-size:0.88rem;color:#666;display:flex;gap:1.5rem;flex-wrap:wrap;"></div>
+      <section id="gw-block" aria-labelledby="gw-titel" style="margin-top:1.5rem;">
+        <h2 id="gw-titel" style="font-size:1.15rem;margin:0 0 0.5rem;">Wie der Hebesatz Ihre Belastung bestimmt</h2>
+        <p id="gw-text" style="font-size:0.9rem;margin:0 0 0.75rem;"></p>
+        <div><svg id="gw-svg" role="img" aria-labelledby="gw-titel gw-text" style="display:block;width:100%;height:auto;"></svg></div>
+        <ul id="gw-legende"></ul>
+      </section>
     </div>
     <ArtikelGewerbesteuer slot="artikel" />
   </CalculatorShell>
@@ -147,5 +153,43 @@ function berechne() {
 ['gewerbeertrag', 'hebesatz'].forEach((id) =>
   document.getElementById(id).addEventListener('input', berechne));
 document.getElementById('rechtsform').addEventListener('change', berechne);
+const D = await import(window.__base + 'scripts/diagramm.js');
+let gwLetzte = false;
+function zeigeHebesatzVerlauf() {
+  gwLetzte = true;
+  const gewerbeertrag = parseFloat(document.getElementById('gewerbeertrag').value);
+  const hebesatz = parseFloat(document.getElementById('hebesatz').value);
+  const rechtsform = document.getElementById('rechtsform').value;
+  const eur0 = (n) => n.toLocaleString('de-DE', { maximumFractionDigits: 0 }) + ' \u20ac';
+  let hier;
+  try { hier = berechneGewerbesteuer({ gewerbeertrag, hebesatz, rechtsform }); }
+  catch (e) { return; }
+  const reihe = D.reihe(200, 600, 10, (h) => {
+    const r = berechneGewerbesteuer({ gewerbeertrag, hebesatz: h, rechtsform });
+    return { y: r.gewerbesteuer, rest: r.restbelastung };
+  });
+  document.getElementById('gw-text').textContent = hier.anrechenbar
+    ? `Bis zum Hebesatz ${NEUTRALER_HEBESATZ} % gleicht die Anrechnung nach § 35 EStG die Gewerbesteuer aus. Bei ${hebesatz.toLocaleString('de-DE')} % bleiben ${eur0(hier.restbelastung)} von ${eur0(hier.gewerbesteuer)} tatsächlich als Belastung.`
+    : `Für diese Rechtsform gibt es keine Anrechnung: Bei ${hebesatz.toLocaleString('de-DE')} % tragen Sie die volle Gewerbesteuer von ${eur0(hier.gewerbesteuer)}.`;
+  D.zeichneKurve(document.getElementById('gw-svg'), {
+    serien: [
+      { punkte: reihe.map((p) => ({ x: p.x, y: p.y })), farbe: '#999', gestrichelt: true },
+      { punkte: reihe.map((p) => ({ x: p.x, y: p.rest })), farbe: '#c8102e' },
+    ],
+    marker: { x: Math.min(600, Math.max(200, hebesatz)), y: hier.restbelastung },
+    xFormat: (n) => n.toLocaleString('de-DE') + ' %', yFormat: eur0,
+  });
+  D.zeichneLegende(document.getElementById('gw-legende'), [
+    { farbe: '#999', name: 'Gewerbesteuer' },
+    { farbe: '#c8102e', name: 'Belastung nach Anrechnung auf die Einkommensteuer' },
+  ]);
+}
+['gewerbeertrag', 'hebesatz', 'rechtsform'].forEach((id) => {
+  document.getElementById(id).addEventListener('input', zeigeHebesatzVerlauf);
+  document.getElementById(id).addEventListener('change', zeigeHebesatzVerlauf);
+});
+D.beiGroessenaenderung(() => gwLetzte && zeigeHebesatzVerlauf());
+zeigeHebesatzVerlauf();
+
 berechne();
 </script>
