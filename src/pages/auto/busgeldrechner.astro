@@ -278,15 +278,15 @@ description="Bußgeld, Punkte und Fahrverbot berechnen – Geschwindigkeit, Rotl
   font-variant-numeric: tabular-nums;
 }
 .staffel th,
-.staffel td {
+.staffel :global(td) {
   padding: 0.45rem 0.5rem;
   text-align: right;
   border-bottom: 1px solid var(--border);
 }
 .staffel th:first-child,
-.staffel td:first-child { text-align: left; }
+.staffel :global(td:first-child) { text-align: left; }
 .staffel th { font-size: 0.74rem; font-weight: 600; color: var(--muted); }
-.staffel tr.ist-stufe td {
+.staffel :global(tr.ist-stufe td) {
   background: color-mix(in srgb, var(--accent, #c8102e) 12%, white);
   font-weight: 700;
   color: var(--text);
