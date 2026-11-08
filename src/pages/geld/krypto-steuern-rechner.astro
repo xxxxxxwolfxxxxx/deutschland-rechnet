@@ -113,6 +113,11 @@ const faqs = [
         <div id="ergebnis">— €</div>
       </div>
       <div id="details" style="margin-top:0.75rem;font-size:0.88rem;color:#666;display:flex;gap:1.5rem;flex-wrap:wrap;"></div>
+      <section id="kr-block" aria-labelledby="kr-titel" style="margin-top:1.5rem;">
+        <h2 id="kr-titel" style="font-size:1.15rem;margin:0 0 0.5rem;">Die Freigrenze: Ein Euro macht den Unterschied</h2>
+        <p id="kr-text" style="font-size:0.9rem;margin:0 0 0.75rem;"></p>
+        <div><svg id="kr-svg" role="img" aria-labelledby="kr-titel kr-text" style="display:block;width:100%;height:auto;"></svg></div>
+      </section>
     </div>
     <ArtikelKryptoFrist slot="artikel" />
   </CalculatorShell>
@@ -153,5 +158,31 @@ function berechne() {
 }
 ['gewinn', 'gewinnPartner', 'zve'].forEach((id) => document.getElementById(id).addEventListener('input', berechne));
 document.getElementById('veranlagung').addEventListener('change', berechne);
+const D = await import(window.__base + 'scripts/diagramm.js');
+let krLetzte = false;
+function zeigeFreigrenzeKlippe() {
+  krLetzte = true;
+  const zusammen = document.getElementById('veranlagung').value === 'zusammen';
+  const basis = { zvEOhne: wert('zve'), gewinnPartner: wert('gewinnPartner'), zusammen };
+  const gewinn = wert('gewinn');
+  const steuerBei = (g) => berechneKryptoSteuer({ ...basis, gewinn: g }).mehrsteuer;
+  const gitter = D.reihe(0, 5000, 100, (g) => ({ y: steuerBei(g) }));
+  const klippe = [{ x: FREIGRENZE - 0.01, y: steuerBei(FREIGRENZE - 0.01) }, { x: FREIGRENZE, y: steuerBei(FREIGRENZE) }];
+  const punkte = [...gitter.filter((p) => p.x !== FREIGRENZE), ...klippe].sort((a, b) => a.x - b.x);
+  const hier = steuerBei(gewinn);
+  const davor = steuerBei(FREIGRENZE - 0.01);
+  const danach = steuerBei(FREIGRENZE);
+  document.getElementById('kr-text').textContent =
+    `Mit einem Cent unter ${eur(FREIGRENZE)} Gewinn zahlen Sie ${eur(davor)}, bei genau ${eur(FREIGRENZE)} sofort ${eur(danach)}. Bei Ihren ${eur(gewinn)} sind es ${eur(hier)}.`;
+  D.zeichneKurve(document.getElementById('kr-svg'), {
+    serien: [{ punkte }], marker: { x: Math.min(5000, gewinn), y: hier },
+    xFormat: (n) => eur(n), yFormat: eur,
+  });
+}
+['gewinn', 'gewinnPartner', 'zve'].forEach((id) => document.getElementById(id).addEventListener('input', zeigeFreigrenzeKlippe));
+document.getElementById('veranlagung').addEventListener('change', zeigeFreigrenzeKlippe);
+D.beiGroessenaenderung(() => krLetzte && zeigeFreigrenzeKlippe());
+zeigeFreigrenzeKlippe();
+
 berechne();
 </script>
