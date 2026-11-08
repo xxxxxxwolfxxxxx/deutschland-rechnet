@@ -79,6 +79,13 @@ const maklerSatz = proz(MAKLER_PROVISION_PROZENT_JE_SEITE);
         <div id="gesamt">— €</div>
       </div>
       <table class="result-table" id="aufstellung" style="margin-top:1rem;width:100%;border-collapse:collapse;font-size:0.88rem;"></table>
+      <section id="ik-block" aria-labelledby="ik-titel" style="margin-top:1.5rem;">
+        <h2 id="ik-titel" style="font-size:1.15rem;margin:0 0 0.5rem;">Was zum Kaufpreis dazukommt</h2>
+        <p id="ik-text" style="font-size:0.9rem;margin:0 0 0.5rem;"></p>
+        <div id="ik-balken-1" role="img" aria-label="Kaufpreis und Nebenkosten"></div>
+        <div id="ik-balken-2" role="img" aria-label="Aufteilung der Nebenkosten" style="margin-top:0.5rem;"></div>
+        <ul id="ik-legende"></ul>
+      </section>
     </div>
     <ArtikelMakler slot="artikel" />
   </CalculatorShell>
@@ -119,5 +126,30 @@ function berechne() {
   ).join('');
 }
 ['kaufpreis','bundesland','makler'].forEach(id => document.getElementById(id).addEventListener('input', berechne));
+const D = await import(window.__base + 'scripts/diagramm.js');
+function zeigeNebenkostenBalken() {
+  const kaufpreis = parseFloat(document.getElementById('kaufpreis').value) || 0;
+  const bundesland = document.getElementById('bundesland').value;
+  const mitMakler = document.getElementById('makler').value === '1';
+  const r = berechneImmokaufNebenkosten({ kaufpreis, bundesland, mitMakler });
+  const eur0 = (n) => n.toLocaleString('de-DE', { maximumFractionDigits: 0 }) + ' \u20ac';
+  document.getElementById('ik-text').textContent =
+    `Zu ${eur0(kaufpreis)} Kaufpreis kommen ${eur0(r.gesamt)} Nebenkosten (${r.gesamtProzent.toLocaleString('de-DE')} %).`;
+  D.zeichneBalken(document.getElementById('ik-balken-1'), [
+    { wert: kaufpreis, farbe: '#6b7a8f', titel: 'Kaufpreis ' + eur0(kaufpreis) },
+    { wert: r.gesamt, farbe: '#c8102e', titel: 'Nebenkosten ' + eur0(r.gesamt) },
+  ], kaufpreis + r.gesamt);
+  const teile = [
+    { wert: r.grunderwerbsteuer, farbe: '#c8102e', name: 'Grunderwerbsteuer ' + eur0(r.grunderwerbsteuer) },
+    { wert: r.notar, farbe: '#e8a33d', name: 'Notar ' + eur0(r.notar) },
+    { wert: r.grundbuch, farbe: '#2f8f83', name: 'Grundbuch ' + eur0(r.grundbuch) },
+  ];
+  if (mitMakler) teile.push({ wert: r.maklerKaeufer, farbe: '#6b7a8f', name: 'Makler ' + eur0(r.maklerKaeufer) });
+  D.zeichneBalken(document.getElementById('ik-balken-2'), teile.map((t) => ({ wert: t.wert, farbe: t.farbe, titel: t.name })), r.gesamt);
+  D.zeichneLegende(document.getElementById('ik-legende'), [{ farbe: '#6b7a8f', name: 'Kaufpreis (oberer Balken)' }, ...teile.map((t) => ({ farbe: t.farbe, name: t.name }))]);
+}
+['kaufpreis', 'bundesland', 'makler'].forEach((id) => document.getElementById(id).addEventListener('input', zeigeNebenkostenBalken));
+zeigeNebenkostenBalken();
+
 berechne();
 </script>
