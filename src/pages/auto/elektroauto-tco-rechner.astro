@@ -132,6 +132,23 @@ const faqs = [
         <div id="differenz">— €</div>
       </div>
       <div id="details" style="margin-top:0.75rem;font-size:0.88rem;color:#555;display:flex;flex-direction:column;gap:0.3rem;"></div>
+
+      <section class="aufteilung" aria-labelledby="aufteilung-titel">
+        <h2 id="aufteilung-titel">Wo der Unterschied entsteht</h2>
+        <div class="auf-balken">
+          <div class="auf-zeile"><span class="auf-name">Benziner</span><div class="auf-bar" id="bar-b" role="img" aria-label="Kostenaufteilung Benziner"></div></div>
+          <div class="auf-zeile"><span class="auf-name">Elektroauto</span><div class="auf-bar" id="bar-e" role="img" aria-label="Kostenaufteilung Elektroauto"></div></div>
+        </div>
+        <ul class="auf-legende">
+          <li><span class="auf-farbe farbe-wert"></span>Wertverlust</li>
+          <li><span class="auf-farbe farbe-energie"></span>Energie</li>
+          <li><span class="auf-farbe farbe-fix"></span>Fixkosten und Werkstatt</li>
+        </ul>
+        <table class="auf-tabelle" id="auf-tabelle">
+          <thead><tr><th>Posten über die Haltedauer</th><th>Benziner</th><th>Elektroauto</th><th>Vorteil E-Auto</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </section>
     </div>
 
     <ArtikelElektroauto slot="artikel" />
@@ -147,6 +164,45 @@ const fahrzeug = (p) => ({
   verbrauchJe100km: wert(p + '_verbrauch'), energiepreis: wert(p + '_preis'),
   fixkostenJahr: wert(p + '_fix'), werkstattJahr: wert(p + '_werkstatt'),
 });
+function posten(r, jahre) {
+  return {
+    wert: r.wertverlust,
+    energie: r.energieJahr * jahre,
+    fix: (r.laufendJahr - r.energieJahr) * jahre,
+    gesamt: r.gesamt,
+  };
+}
+const FARBEN = [['wert', 'farbe-wert'], ['energie', 'farbe-energie'], ['fix', 'farbe-fix']];
+function zeigeAufteilung(v, jahre) {
+  const pb = posten(v.a, jahre);
+  const pe = posten(v.b, jahre);
+  const skala = Math.max(pb.gesamt, pe.gesamt, 1);
+  [['bar-b', pb], ['bar-e', pe]].forEach(([id, p]) => {
+    const bar = document.getElementById(id);
+    bar.replaceChildren();
+    FARBEN.forEach(([schluessel, klasse]) => {
+      const teil = document.createElement('span');
+      teil.className = 'auf-teil ' + klasse;
+      teil.style.width = (Math.max(0, p[schluessel]) / skala * 100) + '%';
+      teil.title = eur(p[schluessel]);
+      bar.appendChild(teil);
+    });
+  });
+  const tbody = document.querySelector('#auf-tabelle tbody');
+  tbody.replaceChildren();
+  [['Wertverlust', 'wert'], ['Energie', 'energie'], ['Fixkosten und Werkstatt', 'fix'], ['Gesamt', 'gesamt']].forEach(([name, k]) => {
+    const tr = document.createElement('tr');
+    if (k === 'gesamt') tr.className = 'summe';
+    const diff = pb[k] - pe[k];
+    [name, eur(pb[k]), eur(pe[k]), (diff > 0 ? '+' : '') + eur(diff)].forEach((t, i) => {
+      const td = document.createElement('td');
+      td.textContent = t;
+      if (i === 3) td.className = diff >= 0 ? 'plus' : 'minus';
+      tr.appendChild(td);
+    });
+    tbody.appendChild(tr);
+  });
+}
 function berechne() {
   const v = vergleicheTco({ jahre: wert('jahre'), kmProJahr: wert('km'), a: fahrzeug('b'), b: fahrzeug('e') });
   const ziel = document.getElementById('differenz');
@@ -156,6 +212,7 @@ function berechne() {
   const teile = [zeile('Benziner', v.a), zeile('Elektroauto', v.b)];
   if (v.ausgleichNachJahren !== null) teile.push(`<span>Der höhere Wertverlust wäre bei gleichbleibenden laufenden Kosten nach rund <strong>${v.ausgleichNachJahren.toLocaleString('de-DE')} Jahren</strong> ausgeglichen – der Restwert sinkt dann aber weiter.</span>`);
   document.getElementById('details').innerHTML = teile.join('');
+  zeigeAufteilung(v, wert('jahre'));
 }
 document.querySelectorAll('.calc-form input').forEach((el) => el.addEventListener('input', berechne));
 berechne();
@@ -167,5 +224,22 @@ berechne();
 .tco-spalte { border: 1px solid #ddd; border-radius: 8px; padding: 0.75rem 1rem 1rem; display: flex; flex-direction: column; gap: 0.3rem; min-width: 0; }
 .tco-spalte legend { font-weight: 600; padding: 0 0.3rem; }
 .tco-spalte label { font-size: 0.85rem; margin-top: 0.35rem; }
+.aufteilung { margin-top: 1.5rem; }
+.aufteilung h2 { font-size: 1.15rem; margin: 0 0 0.75rem; }
+.auf-zeile { display: flex; align-items: center; gap: 0.6rem; margin-bottom: 0.5rem; }
+.auf-name { flex: 0 0 6.5rem; font-size: 0.85rem; }
+.auf-bar { flex: 1; display: flex; height: 1.6rem; background: #f1f1f1; border-radius: 4px; overflow: hidden; min-width: 0; }
+.auf-bar :global(.auf-teil) { display: block; height: 100%; }
+:global(.farbe-wert) { background: #6b7a8f; }
+:global(.farbe-energie) { background: #e8a33d; }
+:global(.farbe-fix) { background: #2f8f83; }
+.auf-legende { list-style: none; padding: 0; margin: 0.5rem 0 0.75rem; display: flex; flex-wrap: wrap; gap: 0.4rem 1rem; font-size: 0.82rem; }
+.auf-farbe { display: inline-block; width: 0.8rem; height: 0.8rem; border-radius: 2px; margin-right: 0.35rem; vertical-align: -1px; }
+.auf-tabelle { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+.auf-tabelle th, .auf-tabelle :global(td) { padding: 0.35rem 0.4rem; text-align: right; border-bottom: 1px solid #e3e3e3; }
+.auf-tabelle th:first-child, .auf-tabelle :global(td:first-child) { text-align: left; }
+.auf-tabelle :global(tr.summe td) { font-weight: 600; border-top: 1.5px solid #999; }
+.auf-tabelle :global(td.plus) { color: #1e7e34; }
+.auf-tabelle :global(td.minus) { color: #b71c1c; }
 .tco-spalte input { width: 100%; box-sizing: border-box; }
 </style>
