@@ -101,6 +101,12 @@ const year = new Date().getFullYear();
         <div id="ergebnis">— €</div>
       </div>
       <div id="details" style="margin-top:0.75rem;font-size:0.88rem;color:#666;display:flex;gap:1.5rem;flex-wrap:wrap;"></div>
+      <section id="km-block" aria-labelledby="km-titel" style="margin-top:1.5rem;">
+        <h2 id="km-titel" style="font-size:1.15rem;margin:0 0 0.5rem;">Ab wann kaufen günstiger wird</h2>
+        <p id="km-text" style="font-size:0.9rem;margin:0 0 0.75rem;"></p>
+        <div><svg id="km-svg" role="img" aria-labelledby="km-titel km-text" style="display:block;width:100%;height:auto;"></svg></div>
+        <ul id="km-legende"></ul>
+      </section>
     </div>
     <ArtikelKapitalrendite slot="artikel" />
   </CalculatorShell>
@@ -191,5 +197,48 @@ function berechne() {
   document.getElementById(id).addEventListener('input', berechne));
 ['bundesland','makler'].forEach(id =>
   document.getElementById(id).addEventListener('change', berechne));
+const D = await import(window.__base + 'scripts/diagramm.js');
+let kmLetzte = false;
+function zeigeBreakEven() {
+  kmLetzte = true;
+  const eingabe = {
+    kaufpreis: parseFloat(document.getElementById('kaufpreis').value) || 350000,
+    miete: parseFloat(document.getElementById('miete').value) || 1200,
+    eigenkapital: parseFloat(document.getElementById('eigenkapital').value) || 70000,
+    zins: parseFloat(document.getElementById('zins').value) || 3.5,
+    mietsteigerung: parseFloat(document.getElementById('mietsteigerung').value) || 2,
+    wertsteigerung: parseFloat(document.getElementById('wertsteigerung').value) || 2,
+    bundesland: document.getElementById('bundesland').value,
+    mitMakler: document.getElementById('makler').value === 'ja',
+  };
+  const laufzeit = parseInt(document.getElementById('laufzeit').value) || 20;
+  const eur0 = (n) => Math.round(n).toLocaleString('de-DE') + ' \u20ac';
+  const reihe = D.reihe(2, 40, 1, (j) => {
+    const r = vergleicheKaufenMieten({ ...eingabe, laufzeit: j });
+    return { kaufen: r.kostenKaufen, mieten: r.kostenMieten, vorteil: r.differenz };
+  });
+  const wechsel = reihe.find((p) => p.vorteil > 0);
+  const hier = reihe.find((p) => p.x === Math.min(40, Math.max(2, laufzeit)));
+  document.getElementById('km-text').textContent = wechsel
+    ? `Bei diesen Annahmen wird Kaufen ab einer Haltedauer von etwa ${wechsel.x} Jahren günstiger als Mieten. Nach ${laufzeit} Jahren liegt der Unterschied bei ${eur0(Math.abs(hier.vorteil))} zugunsten von ${hier.vorteil > 0 ? 'Kaufen' : 'Mieten'}.`
+    : `Bei diesen Annahmen bleibt Mieten im gezeigten Bereich bis 40 Jahre günstiger.`;
+  D.zeichneKurve(document.getElementById('km-svg'), {
+    serien: [
+      { punkte: reihe.map((p) => ({ x: p.x, y: p.mieten })), farbe: '#999', gestrichelt: true },
+      { punkte: reihe.map((p) => ({ x: p.x, y: p.kaufen })), farbe: '#c8102e' },
+    ],
+    marker: hier ? { x: hier.x, y: hier.kaufen } : undefined,
+    xFormat: (n) => Math.round(n) + ' J.', yFormat: eur0,
+  });
+  D.zeichneLegende(document.getElementById('km-legende'), [
+    { farbe: '#c8102e', name: 'Kosten Kaufen (nach Abzug des Immobilienwerts)' },
+    { farbe: '#999', name: 'Kosten Mieten (nach Abzug der Kapitalerträge)' },
+  ]);
+}
+['kaufpreis', 'miete', 'eigenkapital', 'zins', 'laufzeit', 'mietsteigerung', 'wertsteigerung'].forEach((id) => document.getElementById(id).addEventListener('input', zeigeBreakEven));
+['bundesland', 'makler'].forEach((id) => document.getElementById(id).addEventListener('change', zeigeBreakEven));
+D.beiGroessenaenderung(() => kmLetzte && zeigeBreakEven());
+zeigeBreakEven();
+
 berechne();
 </script>

@@ -47,6 +47,7 @@ function text(x, y, anker, inhalt) {
  * @param {(n:number)=>string} o.yFormat
  * @param {number} [o.xMarken=5]
  * @param {number} [o.yMax]  sonst höchster y-Wert
+ * @param {number} [o.yMin]  sonst der kleinere von 0 und dem niedrigsten y-Wert
  */
 export function zeichneKurve(svg, o) {
   const breite = Math.max(280, Math.min(640, svg.parentElement.clientWidth || 640));
@@ -56,15 +57,17 @@ export function zeichneKurve(svg, o) {
   const xMin = Math.min(...alle.map((p) => p.x));
   const xMax = Math.max(...alle.map((p) => p.x));
   const yMax = o.yMax ?? Math.max(1, ...alle.map((p) => p.y));
+  const yMin = o.yMin ?? Math.min(0, ...alle.map((p) => p.y));
   const x = (v) => r.l + ((v - xMin) / ((xMax - xMin) || 1)) * (breite - r.l - r.r);
-  const y = (v) => hoehe - r.u - (Math.max(0, v) / yMax) * (hoehe - r.u - r.o);
+  const y = (v) => hoehe - r.u - ((v - yMin) / ((yMax - yMin) || 1)) * (hoehe - r.u - r.o);
 
   svg.setAttribute('viewBox', `0 0 ${breite} ${hoehe}`);
   svg.replaceChildren();
-  achsenMarken(0, yMax, 3).forEach((v) => {
+  achsenMarken(yMin, yMax, 3).forEach((v) => {
     svg.appendChild(el('line', { x1: r.l, y1: y(v), x2: breite - r.r, y2: y(v), stroke: FARBE_GITTER, 'stroke-width': 1 }));
     svg.appendChild(text(r.l - 6, y(v) + 4, 'end', o.yFormat(v)));
   });
+  if (yMin < 0) svg.appendChild(el('line', { x1: r.l, y1: y(0), x2: breite - r.r, y2: y(0), stroke: '#999', 'stroke-width': 1.5 }));
   achsenMarken(xMin, xMax, breite < 480 ? 3 : (o.xMarken ?? 5)).forEach((v) => {
     svg.appendChild(text(x(v), hoehe - 12, 'middle', o.xFormat(v)));
   });
