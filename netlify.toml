@@ -157,6 +157,13 @@
   to = "/familie/wohngeld-rechner/"
   status = 301
 
+# Search Console (08.11.2026): /familie/familienzuschuss-rechner/ lieferte 404 und
+# nahm Crawl-Budget; thematisch am nächsten liegt der Kindergeld-Rechner.
+[[redirects]]
+  from = "/familie/familienzuschuss-rechner/*"
+  to = "/familie/kindergeld-rechner/"
+  status = 301
+
 # Seitenbereinigung 28.10.2026: 37 Rechner entfernt, die Google nicht indexiert hat
 # und die kaum Klicks brachten (docs/adsense-streichliste.md). Wo es einen
 # thematisch nahen Rechner gibt, geht ein 301 dorthin; reine Umrechner und
